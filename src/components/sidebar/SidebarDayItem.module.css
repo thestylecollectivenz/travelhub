@@ -1,0 +1,89 @@
+.listItemWrap {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.button {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  box-sizing: border-box;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-family: var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.button:hover:not(.selected) {
+  background: var(--color-sand-100);
+}
+
+.selected {
+  background: var(--color-blue-50);
+  border-left: 3px solid var(--color-primary);
+  padding-left: calc(var(--space-4) - 3px);
+}
+
+.row1 {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.dayNumberLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-sand-400);
+}
+
+.badge {
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  padding: 2px var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.badgeSea {
+  background: var(--color-teal-50);
+  color: var(--color-teal-600);
+}
+
+.badgeTransit {
+  background: var(--color-sand-100);
+  color: var(--color-sand-600);
+}
+
+.row2 {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-blue-800);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dayTotal {
+  flex-shrink: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-600);
+}

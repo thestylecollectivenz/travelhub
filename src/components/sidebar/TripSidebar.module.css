@@ -1,0 +1,35 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+.divider {
+  flex-shrink: 0;
+  border-top: var(--border-default);
+  margin: 0;
+}
+
+.dayListSection {
+  flex-shrink: 0;
+}
+
+.dayListHeading {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-sand-600);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: none;
+}
+
+.dayList {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 var(--space-3) 0;
+}
+
