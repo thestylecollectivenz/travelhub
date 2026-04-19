@@ -24,7 +24,7 @@ export function useLicence(licenceKey: string): UseLicenceResult {
 
   useEffect(() => {
     if (licenceKey) {
-      check(licenceKey);
+      void check(licenceKey);
     }
   }, [licenceKey]);
 
