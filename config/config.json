@@ -1,0 +1,18 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
+  "version": "2.0",
+  "bundles": {
+    "travel-hub-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/travelHub/TravelHubWebPart.js",
+          "manifest": "./src/webparts/travelHub/TravelHubWebPart.manifest.json"
+        }
+      ]
+    }
+  },
+  "externals": {},
+  "localizedResources": {
+    "TravelHubWebPartStrings": "lib/webparts/travelHub/loc/{locale}.js"
+  }
+}
