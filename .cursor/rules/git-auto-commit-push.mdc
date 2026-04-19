@@ -1,0 +1,27 @@
+---
+description: After tasks, auto stage, commit, and push; no commit prompts; fixed origin URL
+alwaysApply: true
+---
+
+# Git: commit and push after work
+
+When you finish a task that touched the repo (code, config, or docs the user asked to change):
+
+1. Run `git add .`
+2. Run `git commit -m "<short imperative description of what changed>"` — do **not** ask whether to commit; use a clear message derived from the task.
+3. Run `git push` to `origin` (current branch).
+
+If `git status` shows nothing to commit, skip commit and push; otherwise always run the three steps.
+
+## Remote
+
+`origin` must be:
+
+`https://thestylecollectivenz@github.com/thestylecollectivenz/travelhub.git`
+
+If `origin` is missing or points elsewhere, set it:
+
+`git remote remove origin` (only if replacing), then  
+`git remote add origin https://thestylecollectivenz@github.com/thestylecollectivenz/travelhub.git`
+
+Do not wait for the user to approve commits or pushes for routine task completion.
