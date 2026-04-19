@@ -1,0 +1,301 @@
+---
+description: Rules for the SharePoint Travel Planner & Journal project
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Project Identity
+
+This repository is for the **SharePoint Travel Planner & Journal** project only.
+
+Do not mix in assumptions, naming, architecture, workflows, components, styles, or 
+business rules from:
+- LIME
+- Coastal Style
+- any other repo or project
+
+If something is unclear, prefer the local functional spec and local repository context.
+
+# Primary Objective
+
+Build a SharePoint-hosted travel planning and travel journal application with:
+- a private trip workspace
+- a restricted shared trip view
+- a modern app-like single-page UX inside SharePoint
+
+This project must feel like a real application inside SharePoint, not like classic 
+SharePoint list forms.
+
+# Source of Truth
+
+Treat the local functional specification document in this repo as the source of truth.
+
+Before suggesting architecture changes or implementing major features:
+1. read the functional spec
+2. follow it closely
+3. do not silently simplify required behaviour
+
+If a requirement seems expensive or technically awkward, do not remove it silently.
+Instead:
+- implement the best-fit approach that preserves the requirement, or
+- explicitly flag the tradeoff
+
+# Technical Stack Direction
+
+Prefer:
+- SPFx
+- React
+- TypeScript
+- SharePoint-backed storage
+- SharePoint document libraries for files/photos where appropriate
+- modern component-based UI
+- inline editing patterns
+
+Avoid:
+- classic SharePoint form UX as the default experience
+- scattered admin pages for normal editing
+- over-reliance on out-of-the-box list pages for core user workflows
+
+# UX Rules
+
+The app must be:
+- single-page in feel
+- inline editable
+- desktop full experience
+- tablet full experience
+- mobile reduced but still useful
+
+Key UX requirements:
+- day selection in left sidebar controls day content in main panel
+- itinerary cards expand/edit inline
+- selected day shows:
+  - day header
+  - detailed budget breakdown tile
+  - itinerary cards
+  - journal content
+- timeline treatment beside itinerary cards
+- shared view must be clearly distinct from private view
+
+# Private vs Shared View Rules
+
+Private view includes:
+- finances
+- booking/payment/admin detail
+- documents/links management
+- reminders/tasks
+- full itinerary editing
+
+Shared view includes only:
+- simplified itinerary
+- journal entries
+- journal photos
+- likes/comments/share-link
+
+Shared view must exclude:
+- financial values
+- budgeting detail
+- payment detail
+- private planning/admin detail
+- detailed operational attachment/admin metadata
+
+Do not leak private-only fields into shared rendering.
+
+# Financial Rules
+
+Financial logic is critical.
+
+Follow these rules exactly:
+- summary currency display is NZD
+- underlying itinerary items may use multiple currencies
+- FX conversion uses live daily rates
+- use a working amount model, not strict budget-vs-actual variance tracking
+- paid items contribute to "Spent So Far"
+- unpaid items contribute to "Remaining"
+- trip summary cards are:
+  - Total Budget
+  - Spent So Far
+  - Remaining
+  - Average Per Day
+
+Do not add a top-level Per Person summary card.
+
+Item-level support is required for:
+- primary total amount
+- currency
+- optional secondary unit type + unit amount
+  - per person
+  - per night
+  - per day
+
+# Multi-Day Cost Allocation Rules
+
+For multi-day items:
+- allocate evenly across covered days/nights for day-level rollups
+- trip-level totals still count the full value once
+
+Examples:
+- hotel -> split across nights
+- cruise -> split across cruise days/nights
+- multi-day transport -> split across covered days
+
+# Day and Place Rules
+
+Each day must support:
+- fixed system day/date identity
+- editable display title
+- day type
+- itinerary entries
+- journal entries
+
+Place logic:
+- primary overnight place is derived from where the traveller spends that night
+- additional visited places may exist for the same day
+- editable day title remains independent
+
+Do not create a heavy standalone Places management workflow unless explicitly 
+requested later.
+
+# Itinerary Entry Rules
+
+Each itinerary entry must support:
+- category
+- decision status
+- booking requirement
+- booking status
+- payment status
+- notes
+- timing/duration
+- location detail
+- linked docs/links
+- related sub-items
+- inline editing
+- duplicate/delete actions
+
+Required status dimensions:
+- decision: Idea / Planned / Confirmed
+- booking required: yes/no
+- booking status: Not booked / Booked
+- payment: Not paid / Part paid / Fully paid
+
+Items requiring booking but not yet booked must be highlightable.
+
+# Journal and Photo Rules
+
+Journal entries:
+- belong to one day only
+- multiple journal entries per day
+- support likes
+- support simple comments
+- support copy-shareable-link
+
+Photos:
+- can be uploaded via journal entries
+- can be uploaded directly to trip album
+- multiple photos per journal entry
+- optional caption per photo
+- trip album must support day and location filtering
+
+# Document and Link Rules
+
+Support:
+- item-linked documents
+- item-linked links
+- trip-level Documents view
+- trip-level Links view
+- search/filter across documents and links
+
+Keep documents/links SharePoint-native where possible.
+
+# Search Rules
+
+Trip-level search must support mixed results across:
+- itinerary items
+- journal entries
+- documents
+- links
+
+Filtering by content type must be possible.
+
+# Export Rules
+
+Support:
+- Excel export for selected day, line by line
+- PDF journal book export
+
+PDF book must support:
+- full trip / single day / date range
+- cover on/off
+- trip summary on/off
+- comments include/exclude
+- likes include/exclude
+- journal include/exclude globally
+- individual journal entry include/exclude
+
+# Implementation Rules
+
+When implementing:
+- prefer incremental phases
+- keep commits/scopes small and reviewable
+- do not refactor unrelated areas
+- do not invent extra features unless they clearly support the approved spec
+- preserve naming consistency
+- keep components modular
+- separate business logic from UI rendering
+- isolate financial calculations into dedicated utility/service logic
+- isolate data access into clear service layers
+
+# Code Quality Rules
+
+Use:
+- TypeScript types/interfaces for all main entities
+- reusable components
+- clear service abstractions for SharePoint data access
+- predictable state management
+- careful handling of derived/calculated values
+- explicit handling of private/shared rendering differences
+
+Avoid:
+- giant monolithic components
+- duplicated business logic
+- hardcoded mock values left behind in production paths
+- coupling UI components directly to raw SharePoint calls everywhere
+
+# SharePoint-Specific Guidance
+
+Prefer a practical SharePoint-native architecture that preserves the app UX.
+
+Likely direction:
+- SPFx React app
+- structured SharePoint-backed entities
+- document libraries for files/photos where appropriate
+- controlled permissions for private vs shared view
+
+But do not lock into a weak list-form UX just because SharePoint offers it.
+
+# Working Style
+
+Before major implementation steps:
+- summarise the planned change
+- state affected files/components/services
+- identify risks or assumptions
+- then implement
+
+After implementation:
+- summarise what changed
+- call out any incomplete areas
+- list any follow-up needed
+
+# If There Is a Conflict
+
+If you detect a conflict between:
+- ease of implementation
+- SharePoint limitations
+- required UX
+- required business rules
+
+then prefer:
+1. preserving the product requirement
+2. proposing the best workaround
+3. explicitly flagging tradeoffs
+
+Do not silently downgrade the experience.
