@@ -26,7 +26,10 @@
 #>
 
 [CmdletBinding()]
-param()
+param(
+    [Parameter(Mandatory = $true)]
+    [string]$ClientId
+)
 
 $ErrorActionPreference = 'Stop'
 $SiteUrl = 'https://thestylecollectiveconz.sharepoint.com/sites/travelhub'
@@ -97,7 +100,7 @@ function Add-ListFieldIfMissing {
 }
 
 Write-Host "Connecting to $SiteUrl (interactive sign-in)..."
-Connect-PnPOnline -Url $SiteUrl -Interactive
+Connect-PnPOnline -Url $SiteUrl -Interactive -ClientId $ClientId
 
 # --- Trips (Title built-in) ---
 Ensure-CustomList -Title 'Trips'
