@@ -2,37 +2,15 @@
   "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
   "solution": {
     "name": "travel-hub-client-side-solution",
-    "id": "eed62ec5-5973-4226-bfc2-b44552a53856",
+    "id": "travel-hub-solution",
     "version": "1.0.0.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "isDomainIsolated": false,
     "developer": {
-      "name": "",
-      "websiteUrl": "",
-      "privacyUrl": "",
-      "termsOfUseUrl": "",
-      "mpnId": "Undefined-1.22.2"
-    },
-    "metadata": {
-      "shortDescription": {
-        "default": "travel-hub description"
-      },
-      "longDescription": {
-        "default": "travel-hub description"
-      },
-      "screenshotPaths": [],
-      "videoUrl": "",
-      "categories": []
-    },
-    "features": [
-      {
-        "title": "travel-hub Feature",
-        "description": "The feature that activates elements of the travel-hub solution.",
-        "id": "2598e2db-be58-457e-aced-0a5522b58f2e",
-        "version": "1.0.0.0"
-      }
-    ]
+      "name": "The Style Collective",
+      "websiteUrl": "https://thestylecollectiveconz.sharepoint.com/sites/travelhub"
+    }
   },
   "paths": {
     "zippedPackage": "solution/travel-hub.sppkg"
