@@ -36,16 +36,6 @@
   border-color: var(--color-sand-400);
 }
 
-.statsSlot {
-  flex-shrink: 0;
-  padding: var(--space-3) var(--space-4);
-  font-size: var(--font-size-sm);
-  color: var(--color-sand-600);
-  border-bottom: var(--border-default);
-  background: var(--color-surface-card);
-  min-height: var(--space-8);
-}
-
 .tripContent {
   display: flex;
   flex-direction: row;

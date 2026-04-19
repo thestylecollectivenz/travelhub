@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { TripWorkspaceProvider, useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { TripHero } from './TripHero';
+import { TripStatsStrip } from './TripStatsStrip';
 import { TripContent } from './TripContent';
 import styles from './TripWorkspace.module.css';
 
@@ -20,9 +21,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
         </button>
       </div>
       <TripHero trip={trip} />
-      <div className={styles.statsSlot} role="note">
-        Stats strip (task 2.3)
-      </div>
+      <TripStatsStrip />
       <TripContent />
     </div>
   );
