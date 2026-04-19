@@ -69,9 +69,3 @@
   padding: 0;
   box-sizing: border-box;
 }
-
-.dayPanelSlot {
-  padding: var(--space-4);
-  font-size: var(--font-size-sm);
-  color: var(--color-sand-600);
-}

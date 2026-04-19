@@ -34,13 +34,6 @@
   min-width: 0;
 }
 
-.icon {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  color: var(--color-sand-400);
-}
-
 .label {
   font-size: var(--font-size-sm);
   color: var(--color-blue-800);

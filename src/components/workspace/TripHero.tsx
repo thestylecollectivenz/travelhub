@@ -1,14 +1,10 @@
 import * as React from 'react';
 import type { Trip, TripLifecycleStatus } from '../../models/Trip';
+import { formatDateRange } from '../../utils/dateUtils';
 import styles from './TripHero.module.css';
 
 export interface TripHeroProps {
   trip: Trip;
-}
-
-function formatHeroDate(isoDate: string): string {
-  const d = new Date(`${isoDate}T12:00:00`);
-  return d.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function inclusiveTripDayCount(dateStart: string, dateEnd: string): number {
@@ -37,7 +33,7 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip }) => {
   const hasHeroImage = Boolean(trip.heroImageUrl && trip.heroImageUrl.trim() !== '');
   const dayCount = inclusiveTripDayCount(trip.dateStart, trip.dateEnd);
   const dayLabel = dayCount === 1 ? '1 day' : `${dayCount} days`;
-  const metaLine = `${trip.destination} · ${formatHeroDate(trip.dateStart)} – ${formatHeroDate(trip.dateEnd)} · ${dayLabel}`;
+  const metaLine = `${trip.destination} · ${formatDateRange(trip.dateStart, trip.dateEnd)} · ${dayLabel}`;
   const showDescription = Boolean(trip.description && trip.description.trim() !== '');
 
   return (

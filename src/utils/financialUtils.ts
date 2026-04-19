@@ -83,3 +83,65 @@ export function sumForDay(entries: ItineraryEntry[], dayId: string): number {
     return sum + entryAmount(entry);
   }, 0);
 }
+
+function bucketCategory(category: string): BudgetCategoryKey {
+  return isBudgetCategoryKey(category) ? category : 'Other';
+}
+
+/** Category totals for one day only (all six keys; unused stay 0). */
+export function sumForDayByCategory(entries: ItineraryEntry[], dayId: string): Record<string, number> {
+  const result: Record<string, number> = {};
+  for (const key of BUDGET_CATEGORY_ORDER) {
+    result[key] = 0;
+  }
+  for (const entry of entries) {
+    if (entry.dayId !== dayId) {
+      continue;
+    }
+    const bucket = bucketCategory(entry.category);
+    result[bucket] = (result[bucket] ?? 0) + entryAmount(entry);
+  }
+  return result;
+}
+
+export interface DayCategoryPaymentSummary {
+  paid: number;
+  unpaid: number;
+  total: number;
+  itemCount: number;
+}
+
+/**
+ * Paid / unpaid / total / count for one day and one budget category (`category` is normalized like `sumByCategory`).
+ */
+export function getPaymentSummaryForDayCategory(
+  entries: ItineraryEntry[],
+  dayId: string,
+  category: string
+): DayCategoryPaymentSummary {
+  const bucket = bucketCategory(category);
+  let paid = 0;
+  let unpaid = 0;
+  let itemCount = 0;
+  for (const entry of entries) {
+    if (entry.dayId !== dayId) {
+      continue;
+    }
+    if (bucketCategory(entry.category) !== bucket) {
+      continue;
+    }
+    itemCount++;
+    const amt = entryAmount(entry);
+    if (entry.paymentStatus === 'Fully paid') {
+      paid += amt;
+    } else {
+      unpaid += amt;
+    }
+  }
+  return {
+    paid,
+    unpaid,
+    total: paid + unpaid,
+    itemCount
+  };
+}
