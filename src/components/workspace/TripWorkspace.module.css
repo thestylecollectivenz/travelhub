@@ -1,0 +1,137 @@
+.workspace {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  background: var(--color-surface);
+  color: var(--color-blue-900);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+.toolbar {
+  flex-shrink: 0;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--border-default);
+  background: var(--color-surface-raised);
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.backButton:hover {
+  color: var(--color-primary-hover);
+  border-color: var(--color-sand-400);
+}
+
+.heroSlot,
+.statsSlot {
+  flex-shrink: 0;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-sand-600);
+  border-bottom: var(--border-default);
+  background: var(--color-surface-card);
+}
+
+.heroSlot {
+  min-height: var(--space-10);
+}
+
+.statsSlot {
+  min-height: var(--space-8);
+}
+
+.tripContent {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: var(--sidebar-width);
+  flex-shrink: 0;
+  box-sizing: border-box;
+  align-self: stretch;
+  position: sticky;
+  top: 0;
+  max-height: calc(100vh - var(--header-height));
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-right: var(--border-default);
+  background: var(--color-surface-raised);
+  padding: var(--space-3);
+}
+
+.sidebarTitle {
+  margin: 0 0 var(--space-3) 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-sand-600);
+}
+
+.dayList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dayButton {
+  display: block;
+  width: 100%;
+  margin: 0 0 var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-sans);
+  color: var(--color-blue-900);
+  background: transparent;
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.dayButton:hover {
+  background: var(--color-sand-100);
+}
+
+.dayButtonSelected {
+  background: var(--color-blue-50);
+  border-color: var(--color-primary);
+  border-left-width: 3px;
+  padding-left: calc(var(--space-3) - 2px);
+}
+
+.mainPanel {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-4);
+  box-sizing: border-box;
+}
+
+.mainPlaceholder {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-sand-600);
+}

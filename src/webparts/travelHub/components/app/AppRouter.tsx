@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { TripBrowser } from '../multiTrip/TripBrowser';
-import { TripWorkspace } from '../trip/TripWorkspace';
+import { TripWorkspace } from '../../../../components/workspace/TripWorkspace';
 
 type AppView = 'multiTrip' | 'singleTrip';
 
