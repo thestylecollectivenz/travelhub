@@ -184,7 +184,7 @@ Add-ListFieldIfMissing -ListTitle 'EntryLinks' -InternalName 'Category' -FieldTy
 Ensure-CustomList -Title 'JournalEntries'
 Add-ListFieldIfMissing -ListTitle 'JournalEntries' -InternalName 'TripId' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'JournalEntries' -InternalName 'DayId' -FieldType 'Text'
-Add-ListFieldIfMissing -ListTitle 'JournalEntries' -InternalName 'Author' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'JournalEntries' -InternalName 'AuthorName' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'JournalEntries' -InternalName 'EntryText' -FieldType 'Note'
 Add-ListFieldIfMissing -ListTitle 'JournalEntries' -InternalName 'Location' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'JournalEntries' -InternalName 'EntryTimestamp' -FieldType 'DateTime'
@@ -205,7 +205,7 @@ Add-ListFieldIfMissing -ListTitle 'JournalLikes' -InternalName 'UserId' -FieldTy
 # --- JournalComments ---
 Ensure-CustomList -Title 'JournalComments'
 Add-ListFieldIfMissing -ListTitle 'JournalComments' -InternalName 'JournalEntryId' -FieldType 'Text'
-Add-ListFieldIfMissing -ListTitle 'JournalComments' -InternalName 'Author' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'JournalComments' -InternalName 'AuthorName' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'JournalComments' -InternalName 'CommentText' -FieldType 'Note'
 Add-ListFieldIfMissing -ListTitle 'JournalComments' -InternalName 'CommentTimestamp' -FieldType 'DateTime'
 
