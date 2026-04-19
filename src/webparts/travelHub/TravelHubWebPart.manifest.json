@@ -22,7 +22,8 @@
     "description": { "default": "TravelHub description" },
     "officeFabricIconFontName": "Page",
     "properties": {
-      "description": "TravelHub"
+      "description": "TravelHub",
+      "licenceKey": ""
     }
   }]
 }

@@ -14,6 +14,7 @@ import { ITravelHubProps } from './components/ITravelHubProps';
 
 export interface ITravelHubWebPartProps {
   description: string;
+  licenceKey: string;
 }
 
 export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWebPartProps> {
@@ -26,6 +27,7 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
       TravelHub,
       {
         description: this.properties.description,
+        licenceKey: this.properties.licenceKey ?? '',
         isDarkTheme: this._isDarkTheme,
         environmentMessage: this._environmentMessage,
         hasTeamsContext: !!this.context.sdks.microsoftTeams,
@@ -110,6 +112,9 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
               groupFields: [
                 PropertyPaneTextField('description', {
                   label: strings.DescriptionFieldLabel
+                }),
+                PropertyPaneTextField('licenceKey', {
+                  label: strings.LicenceKeyFieldLabel
                 })
               ]
             }
