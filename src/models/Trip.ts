@@ -8,9 +8,13 @@ export type TripLifecycleStatus =
 export interface Trip {
   id: string;
   title: string;
+  /** Primary destination label for display (e.g. hero metadata). */
+  destination: string;
   dateStart: string;
   dateEnd: string;
   heroImageUrl: string;
   status: TripLifecycleStatus;
   sharedViewEnabled: boolean;
+  /** Optional short trip blurb; omit or leave empty to hide on hero. */
+  description?: string;
 }

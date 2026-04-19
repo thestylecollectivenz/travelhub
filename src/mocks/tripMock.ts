@@ -6,11 +6,14 @@ import type { TripDay } from '../models/TripDay';
 export const MOCK_TRIP: Trip = {
   id: 'mock-trip-1',
   title: 'Japan Spring Adventure',
+  destination: 'Japan',
   dateStart: '2026-04-05',
   dateEnd: '2026-04-09',
   heroImageUrl: '',
-  status: 'Upcoming',
-  sharedViewEnabled: false
+  status: 'In Progress',
+  sharedViewEnabled: false,
+  description:
+    'A 10-day journey through Japan by rail and sea, exploring Tokyo, Kyoto, Osaka and beyond.'
 };
 
 export const MOCK_TRIP_DAYS: TripDay[] = [

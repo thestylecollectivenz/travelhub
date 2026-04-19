@@ -36,7 +36,6 @@
   border-color: var(--color-sand-400);
 }
 
-.heroSlot,
 .statsSlot {
   flex-shrink: 0;
   padding: var(--space-3) var(--space-4);
@@ -44,13 +43,6 @@
   color: var(--color-sand-600);
   border-bottom: var(--border-default);
   background: var(--color-surface-card);
-}
-
-.heroSlot {
-  min-height: var(--space-10);
-}
-
-.statsSlot {
   min-height: var(--space-8);
 }
 
