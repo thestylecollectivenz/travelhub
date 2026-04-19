@@ -9,7 +9,10 @@
     "isDomainIsolated": false,
     "developer": {
       "name": "The Style Collective",
-      "websiteUrl": "https://thestylecollectiveconz.sharepoint.com/sites/travelhub"
+      "websiteUrl": "https://thestylecollectiveconz.sharepoint.com/sites/travelhub",
+      "privacyUrl": "https://travelhub.app/privacy",
+      "termsOfUseUrl": "https://travelhub.app/terms",
+      "mpnId": ""
     }
   },
   "paths": {
