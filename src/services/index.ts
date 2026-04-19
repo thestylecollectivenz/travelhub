@@ -1,3 +1,4 @@
+export * from './LicenceService';
 export * from './TripService';
 export * from './DayService';
 export * from './ItineraryService';
