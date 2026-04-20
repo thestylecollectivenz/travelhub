@@ -1,4 +1,6 @@
 import * as React from 'react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { ItineraryCardEdit } from './ItineraryCardEdit';
@@ -9,10 +11,28 @@ export interface ItineraryCardProps {
   entry: ItineraryEntry;
   categoryColor: string;
   calendarDate: string;
+  draggable?: boolean;
 }
 
-export const ItineraryCard: React.FC<ItineraryCardProps> = ({ entry, categoryColor, calendarDate }) => {
+function GripIcon(): React.ReactElement {
+  return (
+    <svg width={16} height={16} viewBox="0 0 16 16" aria-hidden>
+      <circle cx="5" cy="3" r="1" />
+      <circle cx="11" cy="3" r="1" />
+      <circle cx="5" cy="8" r="1" />
+      <circle cx="11" cy="8" r="1" />
+      <circle cx="5" cy="13" r="1" />
+      <circle cx="11" cy="13" r="1" />
+    </svg>
+  );
+}
+
+export const ItineraryCard: React.FC<ItineraryCardProps> = ({ entry, categoryColor, calendarDate, draggable = true }) => {
   const { editingCardId, setEditingCardId, updateEntry, deleteEntry, duplicateEntry } = useTripWorkspace();
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: entry.id,
+    disabled: !draggable
+  });
 
   const isEditing = editingCardId === entry.id;
   const isDraftNew = entry.id.startsWith('new-') && editingCardId === 'new';
@@ -36,11 +56,31 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({ entry, categoryCol
     setEditingCardId(null);
   }, [deleteEntry, entry.id, setEditingCardId]);
 
+  const dragStyle: React.CSSProperties = {
+    ['--card-node-category' as string]: categoryColor,
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 999 : undefined
+  };
+
   return (
     <div
+      ref={setNodeRef}
       className={`${styles.card} ${showEdit ? styles.cardEditing : ''}`}
-      style={{ ['--card-node-category' as string]: categoryColor } as React.CSSProperties}
+      style={dragStyle}
     >
+      {draggable ? (
+        <button
+          type="button"
+          className={`${styles.dragHandle} ${isDragging ? styles.dragging : ''}`}
+          aria-label="Drag itinerary item"
+          {...attributes}
+          {...listeners}
+        >
+          <GripIcon />
+        </button>
+      ) : null}
       {showEdit ? (
         <ItineraryCardEdit
           key={entry.id}

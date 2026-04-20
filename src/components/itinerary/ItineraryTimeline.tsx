@@ -1,8 +1,9 @@
 import * as React from 'react';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { MOCK_TRIP_DAYS } from '../../mocks/tripMock';
-import { formatTimeHHMM, minutesFromTimeStart } from '../../utils/itineraryTimeUtils';
+import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { categoryNodeColor } from '../../utils/itineraryCategoryColors';
 import { ItineraryCard } from './ItineraryCard';
 import styles from './ItineraryTimeline.module.css';
@@ -13,20 +14,7 @@ export interface ItineraryTimelineProps {
 
 function sortEntriesForDay(entries: ItineraryEntry[], dayId: string): ItineraryEntry[] {
   const forDay = entries.filter((e) => e.dayId === dayId);
-  return [...forDay].sort((a, b) => {
-    const ma = minutesFromTimeStart(a.timeStart);
-    const mb = minutesFromTimeStart(b.timeStart);
-    if (ma !== undefined && mb !== undefined && ma !== mb) {
-      return ma - mb;
-    }
-    if (ma !== undefined && mb === undefined) {
-      return -1;
-    }
-    if (ma === undefined && mb !== undefined) {
-      return 1;
-    }
-    return a.sortOrder - b.sortOrder;
-  });
+  return [...forDay].sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
 function createBlankEntry(tripId: string, dayId: string, sortOrder: number, id: string): ItineraryEntry {
@@ -72,6 +60,7 @@ const NewComposer: React.FC<NewComposerProps> = ({ tripId, dayId, calendarDate, 
       entry={draftEntry}
       categoryColor={categoryNodeColor(draftEntry.category)}
       calendarDate={calendarDate}
+      draggable={false}
     />
   );
 };
@@ -108,29 +97,31 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
   return (
     <div className={styles.timeline}>
       <div className={styles.rail} aria-hidden />
-      {sorted.map((entry) => {
-        const color = categoryNodeColor(entry.category);
-        const editing = editingCardId === entry.id;
-        const timeLabel = formatTimeHHMM(entry.timeStart);
-        return (
-          <div key={entry.id} className={styles.row}>
-            <div className={styles.timeCell}>{timeLabel}</div>
-            <div className={styles.nodeWrap}>
-              <div
-                className={`${styles.node} ${editing ? styles.nodeEditing : ''}`}
-                style={
-                  (editing
-                    ? { ['--node-category' as string]: color }
-                    : { borderColor: color }) as React.CSSProperties
-                }
-              />
+      <SortableContext items={sorted.map((entry) => entry.id)} strategy={verticalListSortingStrategy}>
+        {sorted.map((entry) => {
+          const color = categoryNodeColor(entry.category);
+          const editing = editingCardId === entry.id;
+          const timeLabel = formatTimeHHMM(entry.timeStart);
+          return (
+            <div key={entry.id} className={styles.row}>
+              <div className={styles.timeCell}>{timeLabel}</div>
+              <div className={styles.nodeWrap}>
+                <div
+                  className={`${styles.node} ${editing ? styles.nodeEditing : ''}`}
+                  style={
+                    (editing
+                      ? { ['--node-category' as string]: color }
+                      : { borderColor: color }) as React.CSSProperties
+                  }
+                />
+              </div>
+              <div className={styles.cardCell}>
+                <ItineraryCard entry={entry} categoryColor={color} calendarDate={calendarDate} />
+              </div>
             </div>
-            <div className={styles.cardCell}>
-              <ItineraryCard entry={entry} categoryColor={color} calendarDate={calendarDate} />
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </SortableContext>
       {showComposer ? (
         <div className={styles.row}>
           <div className={styles.timeCell} />

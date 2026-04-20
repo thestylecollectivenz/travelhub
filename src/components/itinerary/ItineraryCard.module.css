@@ -1,4 +1,5 @@
 .card {
+  position: relative;
   box-sizing: border-box;
   background: var(--color-surface-raised);
   border: var(--border-default);
@@ -11,4 +12,32 @@
 .cardEditing {
   box-shadow: var(--shadow-elevated);
   border: 1px solid var(--color-blue-200);
+}
+
+.dragHandle {
+  position: absolute;
+  left: calc(var(--space-4) * -1);
+  top: var(--space-4);
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: none;
+  color: var(--color-sand-400);
+  cursor: grab;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+
+.dragHandle:active,
+.dragging {
+  cursor: grabbing;
+}
+
+.dragHandle:hover {
+  color: var(--color-sand-600);
+}
+
+.card:hover .dragHandle {
+  opacity: 1;
 }

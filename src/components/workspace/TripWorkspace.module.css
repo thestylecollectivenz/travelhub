@@ -69,3 +69,20 @@
   padding: 0;
   box-sizing: border-box;
 }
+
+.dragOverlayCard {
+  min-width: 280px;
+  max-width: 420px;
+  border: var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-elevated);
+  opacity: 0.9;
+  padding: var(--space-3) var(--space-4);
+}
+
+.dragOverlayTitle {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-blue-800);
+}

@@ -20,6 +20,8 @@ export interface TripWorkspaceContextValue {
   updateEntry: (updated: ItineraryEntry) => void;
   deleteEntry: (entryId: string) => void;
   duplicateEntry: (entryId: string) => void;
+  reorderEntries: (dayId: string, orderedIds: string[]) => void;
+  moveEntryToDay: (entryId: string, targetDayId: string) => void;
 }
 
 const TripWorkspaceContext = React.createContext<TripWorkspaceContextValue | undefined>(undefined);
@@ -66,6 +68,50 @@ export function TripWorkspaceProvider({ children }: { children: React.ReactNode 
     });
   }, []);
 
+  const reorderEntries = React.useCallback((dayId: string, orderedIds: string[]) => {
+    setLocalEntries((prev) => {
+      const orderIndex = new Map<string, number>();
+      orderedIds.forEach((id, index) => {
+        orderIndex.set(id, index);
+      });
+      return prev.map((entry) => {
+        if (entry.dayId !== dayId) {
+          return entry;
+        }
+        const nextOrder = orderIndex.get(entry.id);
+        if (nextOrder === undefined) {
+          return entry;
+        }
+        return {
+          ...entry,
+          sortOrder: nextOrder
+        };
+      });
+    });
+  }, []);
+
+  const moveEntryToDay = React.useCallback((entryId: string, targetDayId: string) => {
+    setLocalEntries((prev) => {
+      const moving = prev.find((e) => e.id === entryId);
+      if (!moving || moving.dayId === targetDayId) {
+        return prev;
+      }
+      const targetMaxSort = prev
+        .filter((e) => e.dayId === targetDayId)
+        .reduce((max, entry) => Math.max(max, entry.sortOrder), -1);
+      return prev.map((entry) => {
+        if (entry.id !== entryId) {
+          return entry;
+        }
+        return {
+          ...entry,
+          dayId: targetDayId,
+          sortOrder: targetMaxSort + 1
+        };
+      });
+    });
+  }, []);
+
   const value = React.useMemo(
     (): TripWorkspaceContextValue => ({
       trip: MOCK_TRIP,
@@ -76,9 +122,11 @@ export function TripWorkspaceProvider({ children }: { children: React.ReactNode 
       localEntries,
       updateEntry,
       deleteEntry,
-      duplicateEntry
+      duplicateEntry,
+      reorderEntries,
+      moveEntryToDay
     }),
-    [selectedDayId, editingCardId, localEntries, updateEntry, deleteEntry, duplicateEntry]
+    [selectedDayId, editingCardId, localEntries, updateEntry, deleteEntry, duplicateEntry, reorderEntries, moveEntryToDay]
   );
 
   return <TripWorkspaceContext.Provider value={value}>{children}</TripWorkspaceContext.Provider>;

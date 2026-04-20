@@ -23,6 +23,10 @@
   background: var(--color-sand-100);
 }
 
+.dropOver {
+  background: var(--color-blue-100);
+}
+
 .selected {
   background: var(--color-blue-50);
   border-left: 3px solid var(--color-primary);
