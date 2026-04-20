@@ -44,6 +44,11 @@
   --color-amber-800: #6E4208;
   --color-amber-900: #432804;
 
+  /* Accent Purple — booking states */
+  --color-purple-50: #F3EEFF;
+  --color-purple-200: #C9A8F5;
+  --color-purple-600: #7C3AED;
+
   /* Semantic aliases */
   --color-hero-bg: var(--color-blue-800);
   --color-primary: var(--color-blue-600);
@@ -66,8 +71,8 @@
   --color-status-paid-bg: var(--color-green-50);
   --color-status-unpaid: var(--color-amber-600);
   --color-status-unpaid-bg: var(--color-amber-50);
-  --color-status-booked: var(--color-blue-600);
-  --color-status-booked-bg: var(--color-blue-50);
+  --color-status-booked: var(--color-purple-600);
+  --color-status-booked-bg: var(--color-purple-50);
 
   /* Typography */
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

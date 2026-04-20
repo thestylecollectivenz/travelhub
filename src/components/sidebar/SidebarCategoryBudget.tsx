@@ -21,7 +21,11 @@ export const SidebarCategoryBudget: React.FC = () => {
           return (
             <div key={key} className={styles.row}>
               <div className={styles.rowLeft}>
-                <CategoryIcon category={key} size={14} />
+                <CategoryIcon
+                  category={key}
+                  size={14}
+                  color={isZero ? 'var(--color-sand-400)' : 'var(--color-primary)'}
+                />
                 <span className={styles.label}>{key}</span>
               </div>
               <span className={`${styles.total} ${isZero ? styles.totalZero : ''}`}>

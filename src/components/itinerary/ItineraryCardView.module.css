@@ -16,50 +16,29 @@
 }
 
 .timeChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   font-size: var(--font-size-xs);
   color: var(--color-sand-600);
   background: var(--color-sand-100);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   padding: 2px var(--space-2);
   white-space: nowrap;
 }
 
 .categoryBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
   border-radius: var(--radius-full);
-  padding: 2px var(--space-2);
-  white-space: nowrap;
-}
-
-.badgeFlights {
-  background: var(--color-blue-50);
-  color: var(--color-blue-600);
-}
-
-.badgeAccommodation {
+  border: 1px solid var(--color-teal-200);
   background: var(--color-teal-50);
   color: var(--color-teal-600);
-}
-
-.badgeFood {
-  background: var(--color-amber-50);
-  color: var(--color-amber-600);
-}
-
-.badgeActivities {
-  background: var(--color-green-50);
-  color: var(--color-green-600);
-}
-
-.badgeTransport {
-  background: var(--color-teal-100);
-  color: var(--color-teal-800);
-}
-
-.badgeOther {
-  background: var(--color-sand-100);
-  color: var(--color-sand-600);
+  padding: 2px var(--space-2);
+  white-space: nowrap;
 }
 
 .menuWrap {
@@ -155,8 +134,16 @@
 .statusPill {
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
-  border-radius: var(--radius-full);
   padding: 2px var(--space-2);
+}
+
+.decisionPill {
+  border-radius: var(--radius-full);
+}
+
+.paymentPill,
+.bookingPill {
+  border-radius: var(--radius-sm);
 }
 
 .decisionIdea {
@@ -192,11 +179,6 @@
 .booking {
   background: var(--color-status-booked-bg);
   color: var(--color-status-booked);
-}
-
-.bookingPending {
-  background: var(--color-status-idea-bg);
-  color: var(--color-status-idea);
 }
 
 .amountRow {

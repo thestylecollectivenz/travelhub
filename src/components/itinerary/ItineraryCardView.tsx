@@ -1,5 +1,6 @@
 import * as React from 'react';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
+import { CategoryIcon } from '../shared/CategoryIcon';
 import { formatNZD } from '../../utils/financialUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { SubItemList } from './SubItemList';
@@ -12,21 +13,13 @@ export interface ItineraryCardViewProps {
   onDelete: () => void;
 }
 
-function categoryBadgeClass(category: string): string {
-  switch (category) {
-    case 'Flights':
-      return styles.badgeFlights;
-    case 'Accommodation':
-      return styles.badgeAccommodation;
-    case 'Food & Dining':
-      return styles.badgeFood;
-    case 'Activities':
-      return styles.badgeActivities;
-    case 'Transport':
-      return styles.badgeTransport;
-    default:
-      return styles.badgeOther;
-  }
+function ClockIcon(): React.ReactElement {
+  return (
+    <svg width={12} height={12} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M8 5v3l2 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }
 
 function PinIcon(): React.ReactElement {
@@ -106,8 +99,16 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
     <div>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          {timeChip ? <span className={styles.timeChip}>{timeChip}</span> : null}
-          <span className={`${styles.categoryBadge} ${categoryBadgeClass(entry.category)}`}>{entry.category}</span>
+          {timeChip ? (
+            <span className={styles.timeChip}>
+              <ClockIcon />
+              {timeChip}
+            </span>
+          ) : null}
+          <span className={styles.categoryBadge}>
+            <CategoryIcon category={entry.category} size={12} color="var(--color-teal-600)" />
+            {entry.category}
+          </span>
         </div>
         <div className={styles.menuWrap} ref={menuRef}>
           <button
@@ -173,14 +174,10 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
       ) : null}
 
       <div className={styles.badges}>
-        <span className={`${styles.statusPill} ${decisionClass}`}>{entry.decisionStatus}</span>
-        <span className={`${styles.statusPill} ${paymentClass}`}>{entry.paymentStatus}</span>
+        <span className={`${styles.statusPill} ${styles.decisionPill} ${decisionClass}`}>{entry.decisionStatus}</span>
+        <span className={`${styles.statusPill} ${styles.paymentPill} ${paymentClass}`}>{entry.paymentStatus}</span>
         {entry.bookingRequired ? (
-          <span
-            className={`${styles.statusPill} ${
-              entry.bookingStatus === 'Booked' ? styles.booking : styles.bookingPending
-            }`}
-          >
+          <span className={`${styles.statusPill} ${styles.bookingPill} ${styles.booking}`}>
             {entry.bookingStatus}
           </span>
         ) : null}

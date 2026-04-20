@@ -57,7 +57,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({ entry, categoryCol
   }, [deleteEntry, entry.id, setEditingCardId]);
 
   const dragStyle: React.CSSProperties = {
-    ['--card-node-category' as string]: categoryColor,
+    ['--category-color' as string]: categoryColor,
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,

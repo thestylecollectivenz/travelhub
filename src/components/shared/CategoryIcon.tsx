@@ -1,98 +1,65 @@
 import * as React from 'react';
-import type { BudgetCategoryKey } from '../../utils/financialUtils';
 
 export interface CategoryIconProps {
-  category: BudgetCategoryKey;
+  category: string;
   size?: number;
-  /** CSS color value, e.g. var(--color-sand-400) */
   color?: string;
 }
 
-function IconFlights({ className, style }: { className?: string; style?: React.CSSProperties }): React.ReactElement {
-  return (
-    <svg className={className} style={style} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M4 14 20 8M6 16l2-4M14 8l2 4M8 12l8-3"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
+export const CategoryIcon: React.FC<CategoryIconProps> = ({ category, size = 16, color = 'currentColor' }) => {
+  const common = {
+    stroke: color,
+    strokeWidth: 1.5,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const
+  };
 
-function IconAccommodation({ className, style }: { className?: string; style?: React.CSSProperties }): React.ReactElement {
-  return (
-    <svg className={className} style={style} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M5 20V10l7-5 7 5v10M9 20v-6h6v6"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconFood({ className, style }: { className?: string; style?: React.CSSProperties }): React.ReactElement {
-  return (
-    <svg className={className} style={style} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M6 4v8M6 12c0 2 1.5 4 4 4s4-2 4-4V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M14 8h6M17 5v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconActivities({ className, style }: { className?: string; style?: React.CSSProperties }): React.ReactElement {
-  return (
-    <svg className={className} style={style} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="7" stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="12" cy="12" r="2" fill="currentColor" />
-    </svg>
-  );
-}
-
-function IconTransport({ className, style }: { className?: string; style?: React.CSSProperties }): React.ReactElement {
-  return (
-    <svg className={className} style={style} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="4" y="8" width="14" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M8 8V6M16 8V6M6 18v2M18 18v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconOther({ className, style }: { className?: string; style?: React.CSSProperties }): React.ReactElement {
-  return (
-    <svg className={className} style={style} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M8 6h12v12H8zM4 10h12v12H4z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-const ICONS: Record<BudgetCategoryKey, React.FC<{ className?: string; style?: React.CSSProperties }>> = {
-  Flights: IconFlights,
-  Accommodation: IconAccommodation,
-  'Food & Dining': IconFood,
-  Activities: IconActivities,
-  Transport: IconTransport,
-  Other: IconOther
-};
-
-export const CategoryIcon: React.FC<CategoryIconProps> = ({ category, size = 14, color = 'var(--color-sand-400)' }) => {
-  const Icon = ICONS[category];
   const style: React.CSSProperties = {
-    color,
     width: size,
     height: size,
     flexShrink: 0,
     display: 'block'
   };
-  return <Icon style={style} />;
+
+  switch (category) {
+    case 'Flights':
+      return (
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden style={style}>
+          <path d="M1.5 8.5 14.5 6.5M6.2 7.8 4.5 4.5M7.8 7.4 9.5 4.2M5.8 9l1.2 2.4" {...common} />
+        </svg>
+      );
+    case 'Accommodation':
+      return (
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden style={style}>
+          <rect x="1.5" y="7.5" width="13" height="3.5" rx="0.8" {...common} />
+          <rect x="3" y="6" width="3.5" height="1.5" rx="0.6" {...common} />
+          <path d="M1.5 6.8V11M14.5 6.8V11M1.5 5.5h13" {...common} />
+        </svg>
+      );
+    case 'Food & Dining':
+      return (
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden style={style}>
+          <path d="M4.5 2.5v4.2M3.3 2.5v2.4M5.7 2.5v2.4M4.5 6.7v6.8M11.8 2.5l-3.5 4.1M8.3 6.6l3.5 6.9" {...common} />
+        </svg>
+      );
+    case 'Activities':
+      return (
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden style={style}>
+          <path d="m8 2.2 1.7 3.5 3.9.6-2.8 2.8.7 3.9L8 11.1 4.5 13l.7-3.9L2.4 6.3l3.9-.6L8 2.2Z" {...common} />
+        </svg>
+      );
+    case 'Transport':
+      return (
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden style={style}>
+          <rect x="3" y="2.8" width="10" height="8.2" rx="1.2" {...common} />
+          <path d="M5.2 5.1h2.2M8.6 5.1h2.2M3.2 8.5h9.6M5 13.2l1.2-1.8M11 13.2l-1.2-1.8" {...common} />
+        </svg>
+      );
+    default:
+      return (
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden style={style}>
+          <path d="M3 4.2h10M3 8h10M3 11.8h10" {...common} />
+        </svg>
+      );
+  }
 };
