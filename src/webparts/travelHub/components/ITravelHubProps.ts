@@ -1,3 +1,5 @@
+import { WebPartContext } from '@microsoft/sp-webpart-base';
+
 export interface ITravelHubProps {
   description: string;
   licenceKey: string;
@@ -5,4 +7,5 @@ export interface ITravelHubProps {
   environmentMessage: string;
   hasTeamsContext: boolean;
   userDisplayName: string;
+  context: WebPartContext;
 }
