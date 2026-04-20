@@ -1,8 +1,38 @@
-import type { ItineraryEntry } from '../models/ItineraryEntry';
+import type { ItineraryEntry, ItineraryPaymentStatus } from '../models/ItineraryEntry';
 
 function entryAmount(entry: ItineraryEntry): number {
   const n = entry.amount;
   return typeof n === 'number' && !Number.isNaN(n) ? n : 0;
+}
+
+interface FinancialLine {
+  amount: number;
+  paymentStatus: ItineraryPaymentStatus;
+  category: string;
+  dayId: string;
+}
+
+function getFinancialLines(entries: ItineraryEntry[]): FinancialLine[] {
+  const lines: FinancialLine[] = [];
+  for (const entry of entries) {
+    lines.push({
+      amount: entryAmount(entry),
+      paymentStatus: entry.paymentStatus,
+      category: entry.category,
+      dayId: entry.dayId
+    });
+    const subItems = entry.subItems ?? [];
+    for (const sub of subItems) {
+      const amount = typeof sub.amount === 'number' && !Number.isNaN(sub.amount) ? sub.amount : 0;
+      lines.push({
+        amount,
+        paymentStatus: sub.paymentStatus,
+        category: entry.category,
+        dayId: entry.dayId
+      });
+    }
+  }
+  return lines;
 }
 
 /**
@@ -17,15 +47,16 @@ export function sumByPaymentStatus(
   entries: ItineraryEntry[],
   status: 'paid' | 'unpaid' | 'all'
 ): number {
-  return entries.reduce((sum, entry) => {
-    const amt = entryAmount(entry);
+  const lines = getFinancialLines(entries);
+  return lines.reduce((sum, line) => {
+    const amt = line.amount;
     if (status === 'all') {
       return sum + amt;
     }
     if (status === 'paid') {
-      return entry.paymentStatus === 'Fully paid' ? sum + amt : sum;
+      return line.paymentStatus === 'Fully paid' ? sum + amt : sum;
     }
-    return entry.paymentStatus !== 'Fully paid' ? sum + amt : sum;
+    return line.paymentStatus !== 'Fully paid' ? sum + amt : sum;
   }, 0);
 }
 
@@ -63,24 +94,26 @@ function isBudgetCategoryKey(value: string): value is BudgetCategoryKey {
 
 /** Whole-trip totals keyed by category (always all six keys). */
 export function sumByCategory(entries: ItineraryEntry[]): Record<string, number> {
+  const lines = getFinancialLines(entries);
   const result: Record<string, number> = {};
   for (const key of BUDGET_CATEGORY_ORDER) {
     result[key] = 0;
   }
-  for (const entry of entries) {
-    const bucket: BudgetCategoryKey = isBudgetCategoryKey(entry.category) ? entry.category : 'Other';
-    result[bucket] = (result[bucket] ?? 0) + entryAmount(entry);
+  for (const line of lines) {
+    const bucket: BudgetCategoryKey = isBudgetCategoryKey(line.category) ? line.category : 'Other';
+    result[bucket] = (result[bucket] ?? 0) + line.amount;
   }
   return result;
 }
 
 /** Sum of line amounts for one calendar day. */
 export function sumForDay(entries: ItineraryEntry[], dayId: string): number {
-  return entries.reduce((sum, entry) => {
-    if (entry.dayId !== dayId) {
+  const lines = getFinancialLines(entries);
+  return lines.reduce((sum, line) => {
+    if (line.dayId !== dayId) {
       return sum;
     }
-    return sum + entryAmount(entry);
+    return sum + line.amount;
   }, 0);
 }
 
@@ -90,16 +123,17 @@ function bucketCategory(category: string): BudgetCategoryKey {
 
 /** Category totals for one day only (all six keys; unused stay 0). */
 export function sumForDayByCategory(entries: ItineraryEntry[], dayId: string): Record<string, number> {
+  const lines = getFinancialLines(entries);
   const result: Record<string, number> = {};
   for (const key of BUDGET_CATEGORY_ORDER) {
     result[key] = 0;
   }
-  for (const entry of entries) {
-    if (entry.dayId !== dayId) {
+  for (const line of lines) {
+    if (line.dayId !== dayId) {
       continue;
     }
-    const bucket = bucketCategory(entry.category);
-    result[bucket] = (result[bucket] ?? 0) + entryAmount(entry);
+    const bucket = bucketCategory(line.category);
+    result[bucket] = (result[bucket] ?? 0) + line.amount;
   }
   return result;
 }
@@ -119,20 +153,21 @@ export function getPaymentSummaryForDayCategory(
   dayId: string,
   category: string
 ): DayCategoryPaymentSummary {
+  const lines = getFinancialLines(entries);
   const bucket = bucketCategory(category);
   let paid = 0;
   let unpaid = 0;
   let itemCount = 0;
-  for (const entry of entries) {
-    if (entry.dayId !== dayId) {
+  for (const line of lines) {
+    if (line.dayId !== dayId) {
       continue;
     }
-    if (bucketCategory(entry.category) !== bucket) {
+    if (bucketCategory(line.category) !== bucket) {
       continue;
     }
     itemCount++;
-    const amt = entryAmount(entry);
-    if (entry.paymentStatus === 'Fully paid') {
+    const amt = line.amount;
+    if (line.paymentStatus === 'Fully paid') {
       paid += amt;
     } else {
       unpaid += amt;

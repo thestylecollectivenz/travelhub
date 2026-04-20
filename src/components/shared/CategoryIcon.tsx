@@ -6,7 +6,7 @@ export interface CategoryIconProps {
   color?: string;
 }
 
-export const CategoryIcon: React.FC<CategoryIconProps> = ({ category, size = 16, color = 'currentColor' }) => {
+export const CategoryIcon: React.FC<CategoryIconProps> = ({ category, size = 16, color = 'var(--color-sand-400)' }) => {
   const common = {
     stroke: color,
     strokeWidth: 1.5,

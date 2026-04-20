@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { CategoryIcon } from '../shared/CategoryIcon';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { getCategoryColor } from '../../utils/categoryUtils';
 import { BUDGET_CATEGORY_ORDER, formatNZD, sumByCategory } from '../../utils/financialUtils';
 import styles from './SidebarCategoryBudget.module.css';
 
@@ -24,7 +25,7 @@ export const SidebarCategoryBudget: React.FC = () => {
                 <CategoryIcon
                   category={key}
                   size={14}
-                  color={isZero ? 'var(--color-sand-400)' : 'var(--color-primary)'}
+                  color={isZero ? 'var(--color-sand-400)' : getCategoryColor(key)}
                 />
                 <span className={styles.label}>{key}</span>
               </div>

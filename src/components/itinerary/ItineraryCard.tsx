@@ -3,13 +3,13 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { getCategoryColor } from '../../utils/categoryUtils';
 import { ItineraryCardEdit } from './ItineraryCardEdit';
 import { ItineraryCardView } from './ItineraryCardView';
 import styles from './ItineraryCard.module.css';
 
 export interface ItineraryCardProps {
   entry: ItineraryEntry;
-  categoryColor: string;
   calendarDate: string;
   draggable?: boolean;
 }
@@ -27,7 +27,7 @@ function GripIcon(): React.ReactElement {
   );
 }
 
-export const ItineraryCard: React.FC<ItineraryCardProps> = ({ entry, categoryColor, calendarDate, draggable = true }) => {
+export const ItineraryCard: React.FC<ItineraryCardProps> = ({ entry, calendarDate, draggable = true }) => {
   const { editingCardId, setEditingCardId, updateEntry, deleteEntry, duplicateEntry } = useTripWorkspace();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: entry.id,
@@ -57,7 +57,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({ entry, categoryCol
   }, [deleteEntry, entry.id, setEditingCardId]);
 
   const dragStyle: React.CSSProperties = {
-    ['--category-color' as string]: categoryColor,
+    ['--category-color' as string]: getCategoryColor(entry.category),
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,

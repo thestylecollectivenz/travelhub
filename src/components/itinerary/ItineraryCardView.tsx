@@ -1,6 +1,7 @@
 import * as React from 'react';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { CategoryIcon } from '../shared/CategoryIcon';
+import { getCategoryBgColor, getCategoryColor, getCategoryColorValue } from '../../utils/categoryUtils';
 import { formatNZD } from '../../utils/financialUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { SubItemList } from './SubItemList';
@@ -92,6 +93,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
       : entry.paymentStatus === 'Part paid'
         ? styles.paymentPart
         : styles.paymentUnpaid;
+  const categoryColor = getCategoryColor(entry.category);
+  const categoryBgColor = getCategoryBgColor(entry.category);
   const subItems = entry.subItems ?? [];
   const hasSubItems = subItems.length > 0;
 
@@ -105,8 +108,17 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
               {timeChip}
             </span>
           ) : null}
-          <span className={styles.categoryBadge}>
-            <CategoryIcon category={entry.category} size={12} color="var(--color-teal-600)" />
+          <span
+            className={styles.categoryBadge}
+            style={
+              {
+                color: categoryColor,
+                backgroundColor: categoryBgColor,
+                borderColor: categoryColor
+              } as React.CSSProperties
+            }
+          >
+            <CategoryIcon category={entry.category} size={12} color={getCategoryColorValue(entry.category)} />
             {entry.category}
           </span>
         </div>

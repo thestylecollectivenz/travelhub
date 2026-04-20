@@ -3,8 +3,8 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { MOCK_TRIP_DAYS } from '../../mocks/tripMock';
+import { getCategoryColor } from '../../utils/categoryUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
-import { categoryNodeColor } from '../../utils/itineraryCategoryColors';
 import { ItineraryCard } from './ItineraryCard';
 import styles from './ItineraryTimeline.module.css';
 
@@ -58,7 +58,6 @@ const NewComposer: React.FC<NewComposerProps> = ({ tripId, dayId, calendarDate, 
   return (
     <ItineraryCard
       entry={draftEntry}
-      categoryColor={categoryNodeColor(draftEntry.category)}
       calendarDate={calendarDate}
       draggable={false}
     />
@@ -99,7 +98,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
       <div className={styles.rail} aria-hidden />
       <SortableContext items={sorted.map((entry) => entry.id)} strategy={verticalListSortingStrategy}>
         {sorted.map((entry) => {
-          const color = categoryNodeColor(entry.category);
+          const color = getCategoryColor(entry.category);
           const editing = editingCardId === entry.id;
           const timeLabel = formatTimeHHMM(entry.timeStart);
           return (
@@ -116,7 +115,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
                 />
               </div>
               <div className={styles.cardCell}>
-                <ItineraryCard entry={entry} categoryColor={color} calendarDate={calendarDate} />
+                <ItineraryCard entry={entry} calendarDate={calendarDate} />
               </div>
             </div>
           );
@@ -130,8 +129,8 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
               className={`${styles.node} ${styles.nodeEditing}`}
               style={
                 {
-                  borderColor: categoryNodeColor('Other'),
-                  '--node-category': categoryNodeColor('Other')
+                  borderColor: getCategoryColor('Other'),
+                  '--node-category': getCategoryColor('Other')
                 } as React.CSSProperties
               }
             />
