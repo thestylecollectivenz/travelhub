@@ -1,6 +1,6 @@
 import * as React from 'react';
+import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { CategoryIcon } from '../shared/CategoryIcon';
-import { MOCK_ITINERARY_ENTRIES } from '../../mocks/tripMock';
 import {
   BUDGET_CATEGORY_ORDER,
   formatNZD,
@@ -16,9 +16,11 @@ export interface BudgetBreakdownTileProps {
 }
 
 export const BudgetBreakdownTile: React.FC<BudgetBreakdownTileProps> = ({ tripId, dayId }) => {
+  const { localEntries } = useTripWorkspace();
+
   const entries = React.useMemo(
-    () => MOCK_ITINERARY_ENTRIES.filter((e) => e.tripId === tripId),
-    [tripId]
+    () => localEntries.filter((e) => e.tripId === tripId),
+    [localEntries, tripId]
   );
 
   const dayEntries = React.useMemo(() => entries.filter((e) => e.dayId === dayId), [entries, dayId]);

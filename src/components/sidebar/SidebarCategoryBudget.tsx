@@ -1,17 +1,13 @@
 import * as React from 'react';
 import { CategoryIcon } from '../shared/CategoryIcon';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
-import { MOCK_ITINERARY_ENTRIES } from '../../mocks/tripMock';
 import { BUDGET_CATEGORY_ORDER, formatNZD, sumByCategory } from '../../utils/financialUtils';
 import styles from './SidebarCategoryBudget.module.css';
 
 export const SidebarCategoryBudget: React.FC = () => {
-  const { trip } = useTripWorkspace();
+  const { trip, localEntries } = useTripWorkspace();
 
-  const entries = React.useMemo(
-    () => MOCK_ITINERARY_ENTRIES.filter((e) => e.tripId === trip.id),
-    [trip.id]
-  );
+  const entries = React.useMemo(() => localEntries.filter((e) => e.tripId === trip.id), [localEntries, trip.id]);
 
   const totals = React.useMemo(() => sumByCategory(entries), [entries]);
 

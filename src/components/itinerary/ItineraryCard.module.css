@@ -1,0 +1,14 @@
+.card {
+  box-sizing: border-box;
+  background: var(--color-surface-raised);
+  border: var(--border-default);
+  box-shadow: var(--shadow-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  transition: box-shadow 150ms ease, border-color 150ms ease;
+}
+
+.cardEditing {
+  box-shadow: var(--shadow-elevated);
+  border: 1px solid var(--color-blue-200);
+}

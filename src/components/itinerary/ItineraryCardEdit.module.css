@@ -1,0 +1,132 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(100px, 140px) 1fr;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+}
+
+.label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-sand-600);
+  text-transform: uppercase;
+}
+
+.input,
+.select,
+.textarea {
+  box-sizing: border-box;
+  width: 100%;
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-blue-800);
+  background: var(--color-surface-raised);
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  border: 1px solid var(--color-primary);
+  outline: none;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 4.5em;
+}
+
+.fullRow {
+  grid-column: 1 / -1;
+}
+
+.checkboxRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.checkboxRow .label {
+  text-transform: none;
+  margin: 0;
+}
+
+.checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+}
+
+.actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: var(--border-default);
+}
+
+.actionsRight {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-2);
+}
+
+.deleteBtn {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: var(--font-size-sm);
+  color: var(--color-warning);
+  cursor: pointer;
+}
+
+.deleteBtn:hover {
+  text-decoration: underline;
+}
+
+.btnSecondary {
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-emphasis);
+  border-radius: var(--radius-md);
+  background: transparent;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-blue-800);
+  cursor: pointer;
+}
+
+.btnSecondary:hover {
+  background: var(--color-sand-50);
+}
+
+.btnPrimary {
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: white;
+  cursor: pointer;
+}
+
+.btnPrimary:hover {
+  background: var(--color-primary-hover);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

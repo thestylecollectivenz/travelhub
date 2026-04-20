@@ -15,6 +15,8 @@ export interface ItineraryEntry {
   timeStart: string;
   duration: string;
   supplier: string;
+  /** Location or route detail (optional). */
+  location?: string;
   notes: string;
   decisionStatus: ItineraryDecisionStatus;
   bookingRequired: boolean;

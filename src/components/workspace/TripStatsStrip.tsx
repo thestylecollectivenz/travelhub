@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
-import { MOCK_ITINERARY_ENTRIES, MOCK_TRIP_DAYS } from '../../mocks/tripMock';
+import { MOCK_TRIP_DAYS } from '../../mocks/tripMock';
 import { avgPerDay, formatNZD, sumByPaymentStatus } from '../../utils/financialUtils';
 import styles from './TripStatsStrip.module.css';
 
@@ -50,12 +50,9 @@ function IconCalendar({ className }: { className?: string }): React.ReactElement
  * Private workspace budget summary (hidden in shared view when that mode is wired in Phase 3+).
  */
 export const TripStatsStrip: React.FC = () => {
-  const { trip } = useTripWorkspace();
+  const { trip, localEntries } = useTripWorkspace();
 
-  const entries = React.useMemo(
-    () => MOCK_ITINERARY_ENTRIES.filter((e) => e.tripId === trip.id),
-    [trip.id]
-  );
+  const entries = React.useMemo(() => localEntries.filter((e) => e.tripId === trip.id), [localEntries, trip.id]);
 
   const totalBudget = sumByPaymentStatus(entries, 'all');
   const spentSoFar = sumByPaymentStatus(entries, 'paid');
