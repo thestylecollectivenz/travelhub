@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
-import { getCategoryColor } from '../../utils/categoryUtils';
+import { getCategorySlug } from '../../utils/categoryUtils';
 import { ItineraryCardEdit } from './ItineraryCardEdit';
 import { ItineraryCardView } from './ItineraryCardView';
 import styles from './ItineraryCard.module.css';
@@ -56,8 +56,9 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({ entry, calendarDat
     setEditingCardId(null);
   }, [deleteEntry, entry.id, setEditingCardId]);
 
+  const categorySlug = getCategorySlug(entry.category);
+
   const dragStyle: React.CSSProperties = {
-    ['--category-color' as string]: getCategoryColor(entry.category),
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
@@ -67,7 +68,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({ entry, calendarDat
   return (
     <div
       ref={setNodeRef}
-      className={`${styles.card} ${showEdit ? styles.cardEditing : ''}`}
+      className={`${styles.card} th-cat-${categorySlug} th-cat-border ${showEdit ? styles.cardEditing : ''}`}
       style={dragStyle}
     >
       {draggable ? (

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
-import { getCategoryColor } from '../../utils/categoryUtils';
+import { getCategorySlug } from '../../utils/categoryUtils';
 import { CategoryIcon } from '../shared/CategoryIcon';
 import {
   BUDGET_CATEGORY_ORDER,
@@ -57,14 +57,13 @@ export const BudgetBreakdownTile: React.FC<BudgetBreakdownTileProps> = ({ tripId
           summary.total > 0 ? Math.min(100, Math.max(0, (summary.paid / summary.total) * 100)) : 0;
         const countLabel = summary.itemCount === 1 ? '1 item' : `${summary.itemCount} items`;
         const lineTotal = sumsByCategory[category] ?? summary.total;
+        const categorySlug = getCategorySlug(category);
         return (
           <div key={category} className={styles.row}>
             <div className={styles.rowLeft}>
-              <CategoryIcon
-                category={category}
-                size={14}
-                color={lineTotal > 0 ? getCategoryColor(category) : 'var(--color-sand-400)'}
-              />
+              <span className={lineTotal > 0 ? `th-cat-${categorySlug} th-cat-icon` : undefined}>
+                <CategoryIcon category={category} size={14} color={lineTotal > 0 ? 'currentColor' : 'var(--color-sand-400)'} />
+              </span>
               <span className={styles.name}>{category}</span>
               <span className={styles.count}>{countLabel}</span>
             </div>

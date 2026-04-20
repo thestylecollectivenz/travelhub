@@ -20,6 +20,9 @@
 }
 
 .right {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   flex-shrink: 0;
 }
 
@@ -80,4 +83,60 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-green-400);
+}
+
+.editButton {
+  border: none;
+  background: none;
+  color: var(--color-sand-400);
+  cursor: pointer;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+
+.row:hover .editButton {
+  opacity: 1;
+}
+
+.editButton:hover {
+  color: var(--color-blue-600);
+}
+
+.editForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+
+.editRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 84px;
+  gap: var(--space-2);
+}
+
+.field {
+  width: 100%;
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-blue-800);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-surface-raised);
+}
+
+.actions {
+  display: inline-flex;
+  gap: var(--space-2);
+}
+
+.actionButton {
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-primary);
+  font-size: var(--font-size-xs);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
 }

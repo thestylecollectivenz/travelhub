@@ -3,7 +3,6 @@
   box-sizing: border-box;
   background: var(--color-surface-raised);
   border: var(--border-default);
-  border-left: 3px solid var(--category-color, var(--color-sand-200));
   box-shadow: var(--shadow-card);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
@@ -12,7 +11,8 @@
 
 .cardEditing {
   box-shadow: var(--shadow-elevated);
-  border: 1px solid var(--color-blue-200);
+  border-color: var(--color-blue-200);
+  border-left-width: 3px;
 }
 
 .dragHandle {

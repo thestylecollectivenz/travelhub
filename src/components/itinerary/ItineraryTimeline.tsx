@@ -3,7 +3,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { MOCK_TRIP_DAYS } from '../../mocks/tripMock';
-import { getCategoryColor } from '../../utils/categoryUtils';
+import { getCategorySlug } from '../../utils/categoryUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { ItineraryCard } from './ItineraryCard';
 import styles from './ItineraryTimeline.module.css';
@@ -98,7 +98,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
       <div className={styles.rail} aria-hidden />
       <SortableContext items={sorted.map((entry) => entry.id)} strategy={verticalListSortingStrategy}>
         {sorted.map((entry) => {
-          const color = getCategoryColor(entry.category);
+          const categorySlug = getCategorySlug(entry.category);
           const editing = editingCardId === entry.id;
           const timeLabel = formatTimeHHMM(entry.timeStart);
           return (
@@ -106,12 +106,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
               <div className={styles.timeCell}>{timeLabel}</div>
               <div className={styles.nodeWrap}>
                 <div
-                  className={`${styles.node} ${editing ? styles.nodeEditing : ''}`}
-                  style={
-                    (editing
-                      ? { ['--node-category' as string]: color }
-                      : { borderColor: color }) as React.CSSProperties
-                  }
+                  className={`${styles.node} th-cat-${categorySlug} ${editing ? styles.nodeEditing : ''}`}
                 />
               </div>
               <div className={styles.cardCell}>
@@ -126,13 +121,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
           <div className={styles.timeCell} />
           <div className={styles.nodeWrap}>
             <div
-              className={`${styles.node} ${styles.nodeEditing}`}
-              style={
-                {
-                  borderColor: getCategoryColor('Other'),
-                  '--node-category': getCategoryColor('Other')
-                } as React.CSSProperties
-              }
+              className={`${styles.node} ${styles.nodeEditing} th-cat-other`}
             />
           </div>
           <div className={styles.cardCell}>

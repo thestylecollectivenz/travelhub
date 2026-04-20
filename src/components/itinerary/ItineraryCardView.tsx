@@ -1,7 +1,7 @@
 import * as React from 'react';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { CategoryIcon } from '../shared/CategoryIcon';
-import { getCategoryBgColor, getCategoryColor, getCategoryColorValue } from '../../utils/categoryUtils';
+import { getCategorySlug } from '../../utils/categoryUtils';
 import { formatNZD } from '../../utils/financialUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { SubItemList } from './SubItemList';
@@ -93,10 +93,11 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
       : entry.paymentStatus === 'Part paid'
         ? styles.paymentPart
         : styles.paymentUnpaid;
-  const categoryColor = getCategoryColor(entry.category);
-  const categoryBgColor = getCategoryBgColor(entry.category);
+  const categorySlug = getCategorySlug(entry.category);
   const subItems = entry.subItems ?? [];
   const hasSubItems = subItems.length > 0;
+  const subTotal = subItems.reduce((sum, s) => sum + s.amount, 0);
+  const hasSubTotal = subTotal > 0;
 
   return (
     <div>
@@ -108,17 +109,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
               {timeChip}
             </span>
           ) : null}
-          <span
-            className={styles.categoryBadge}
-            style={
-              {
-                color: categoryColor,
-                backgroundColor: categoryBgColor,
-                borderColor: categoryColor
-              } as React.CSSProperties
-            }
-          >
-            <CategoryIcon category={entry.category} size={12} color={getCategoryColorValue(entry.category)} />
+          <span className={`${styles.categoryBadge} th-cat-${categorySlug} th-cat-badge`}>
+            <CategoryIcon category={entry.category} size={12} color="currentColor" />
             {entry.category}
           </span>
         </div>
@@ -199,6 +191,12 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
         {formatNZD(entry.amount)}
         {unitSuffix ? <span className={styles.unitSuffix}>{unitSuffix}</span> : null}
       </div>
+      {hasSubTotal ? (
+        <div className={styles.cardTotalWithSubs}>
+          <span className={styles.subTotalLabel}>incl. options</span>
+          <span className={styles.subTotalAmount}>{formatNZD(entry.amount + subTotal)}</span>
+        </div>
+      ) : null}
 
       {entry.notes.trim() ? (
         <>
@@ -215,7 +213,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
             {subItemsOpen ? `Hide related items ▴` : `Show ${subItems.length} related items ▾`}
           </button>
           <div className={`${styles.relatedContent} ${subItemsOpen ? styles.relatedContentOpen : ''}`}>
-            <SubItemList subItems={subItems} />
+            <SubItemList subItems={subItems} entryId={entry.id} />
           </div>
         </>
       ) : null}

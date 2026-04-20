@@ -5,6 +5,7 @@ import styles from './SubItemList.module.css';
 
 export interface SubItemListProps {
   subItems: ItinerarySubItem[];
+  entryId: string;
 }
 
 interface SubItemGroup {
@@ -34,7 +35,7 @@ function groupSubItems(subItems: ItinerarySubItem[]): SubItemGroup[] {
   return groups;
 }
 
-export const SubItemList: React.FC<SubItemListProps> = ({ subItems }) => {
+export const SubItemList: React.FC<SubItemListProps> = ({ subItems, entryId }) => {
   const groups = React.useMemo(() => groupSubItems(subItems), [subItems]);
 
   return (
@@ -48,7 +49,7 @@ export const SubItemList: React.FC<SubItemListProps> = ({ subItems }) => {
           ) : null}
           <div className={styles.items}>
             {group.items.map((item) => (
-              <SubItem key={item.id} item={item} />
+              <SubItem key={item.id} item={item} parentEntryId={entryId} />
             ))}
           </div>
         </div>

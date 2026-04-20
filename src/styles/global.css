@@ -44,6 +44,27 @@
   --color-amber-800: #6E4208;
   --color-amber-900: #432804;
 
+  /* Accent Purple — booking states */
+  --color-purple-50: #F3EEFF;
+  --color-purple-200: #C9A8F5;
+  --color-purple-600: #7C3AED;
+
+  /* Category identity colours */
+  --color-cat-flights: var(--color-blue-600);
+  --color-cat-accommodation: var(--color-teal-600);
+  --color-cat-food: var(--color-amber-600);
+  --color-cat-activities: var(--color-green-600);
+  --color-cat-transport: var(--color-purple-600);
+  --color-cat-other: var(--color-sand-600);
+
+  /* Category background tints */
+  --color-cat-flights-bg: var(--color-blue-50);
+  --color-cat-accommodation-bg: var(--color-teal-50);
+  --color-cat-food-bg: var(--color-amber-50);
+  --color-cat-activities-bg: var(--color-green-50);
+  --color-cat-transport-bg: var(--color-purple-50);
+  --color-cat-other-bg: var(--color-sand-100);
+
   /* Semantic aliases */
   --color-hero-bg: var(--color-blue-800);
   --color-primary: var(--color-blue-600);
@@ -66,8 +87,8 @@
   --color-status-paid-bg: var(--color-green-50);
   --color-status-unpaid: var(--color-amber-600);
   --color-status-unpaid-bg: var(--color-amber-50);
-  --color-status-booked: var(--color-blue-600);
-  --color-status-booked-bg: var(--color-blue-50);
+  --color-status-booked: var(--color-purple-600);
+  --color-status-booked-bg: var(--color-purple-50);
 
   /* Typography */
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -133,4 +154,49 @@ a {
 
 a:hover {
   color: var(--color-primary-hover);
+}
+
+/* Category colour classes — global, not scoped */
+.th-cat-flights {
+  --cat-color: var(--color-cat-flights);
+  --cat-bg: var(--color-cat-flights-bg);
+}
+
+.th-cat-accommodation {
+  --cat-color: var(--color-cat-accommodation);
+  --cat-bg: var(--color-cat-accommodation-bg);
+}
+
+.th-cat-food {
+  --cat-color: var(--color-cat-food);
+  --cat-bg: var(--color-cat-food-bg);
+}
+
+.th-cat-activities {
+  --cat-color: var(--color-cat-activities);
+  --cat-bg: var(--color-cat-activities-bg);
+}
+
+.th-cat-transport {
+  --cat-color: var(--color-cat-transport);
+  --cat-bg: var(--color-cat-transport-bg);
+}
+
+.th-cat-other {
+  --cat-color: var(--color-cat-other);
+  --cat-bg: var(--color-cat-other-bg);
+}
+
+.th-cat-badge {
+  background-color: var(--cat-bg);
+  color: var(--cat-color);
+  border: 1px solid var(--cat-color);
+}
+
+.th-cat-border {
+  border-left: 3px solid var(--cat-color);
+}
+
+.th-cat-icon {
+  color: var(--cat-color);
 }

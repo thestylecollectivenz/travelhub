@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { ItineraryEntry } from '../models/ItineraryEntry';
+import type { ItineraryEntry, ItinerarySubItem } from '../models/ItineraryEntry';
 import type { Trip } from '../models/Trip';
 import { MOCK_ITINERARY_ENTRIES, MOCK_TRIP, MOCK_TRIP_DAYS } from '../mocks/tripMock';
 
@@ -22,6 +22,7 @@ export interface TripWorkspaceContextValue {
   duplicateEntry: (entryId: string) => void;
   reorderEntries: (dayId: string, orderedIds: string[]) => void;
   moveEntryToDay: (entryId: string, targetDayId: string) => void;
+  updateSubItem: (entryId: string, updatedSubItem: ItinerarySubItem) => void;
 }
 
 const TripWorkspaceContext = React.createContext<TripWorkspaceContextValue | undefined>(undefined);
@@ -112,6 +113,19 @@ export function TripWorkspaceProvider({ children }: { children: React.ReactNode 
     });
   }, []);
 
+  const updateSubItem = React.useCallback((entryId: string, updatedSubItem: ItinerarySubItem) => {
+    setLocalEntries((prev) =>
+      prev.map((entry) =>
+        entry.id === entryId
+          ? {
+              ...entry,
+              subItems: entry.subItems?.map((subItem) => (subItem.id === updatedSubItem.id ? updatedSubItem : subItem))
+            }
+          : entry
+      )
+    );
+  }, []);
+
   const value = React.useMemo(
     (): TripWorkspaceContextValue => ({
       trip: MOCK_TRIP,
@@ -124,9 +138,10 @@ export function TripWorkspaceProvider({ children }: { children: React.ReactNode 
       deleteEntry,
       duplicateEntry,
       reorderEntries,
-      moveEntryToDay
+      moveEntryToDay,
+      updateSubItem
     }),
-    [selectedDayId, editingCardId, localEntries, updateEntry, deleteEntry, duplicateEntry, reorderEntries, moveEntryToDay]
+    [selectedDayId, editingCardId, localEntries, updateEntry, deleteEntry, duplicateEntry, reorderEntries, moveEntryToDay, updateSubItem]
   );
 
   return <TripWorkspaceContext.Provider value={value}>{children}</TripWorkspaceContext.Provider>;

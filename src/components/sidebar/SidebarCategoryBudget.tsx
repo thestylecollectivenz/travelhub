@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { CategoryIcon } from '../shared/CategoryIcon';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
-import { getCategoryColor } from '../../utils/categoryUtils';
+import { getCategorySlug } from '../../utils/categoryUtils';
 import { BUDGET_CATEGORY_ORDER, formatNZD, sumByCategory } from '../../utils/financialUtils';
 import styles from './SidebarCategoryBudget.module.css';
 
@@ -19,14 +19,13 @@ export const SidebarCategoryBudget: React.FC = () => {
         {BUDGET_CATEGORY_ORDER.map((key) => {
           const amount = totals[key] ?? 0;
           const isZero = amount === 0;
+          const categorySlug = getCategorySlug(key);
           return (
             <div key={key} className={styles.row}>
               <div className={styles.rowLeft}>
-                <CategoryIcon
-                  category={key}
-                  size={14}
-                  color={isZero ? 'var(--color-sand-400)' : getCategoryColor(key)}
-                />
+                <span className={isZero ? undefined : `th-cat-${categorySlug} th-cat-icon`}>
+                  <CategoryIcon category={key} size={14} color={isZero ? 'var(--color-sand-400)' : 'currentColor'} />
+                </span>
                 <span className={styles.label}>{key}</span>
               </div>
               <span className={`${styles.total} ${isZero ? styles.totalZero : ''}`}>

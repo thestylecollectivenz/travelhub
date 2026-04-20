@@ -35,3 +35,20 @@ export function getCategoryBgColor(category: string): string {
 export function getCategoryColorValue(category: string): string {
   return getCategoryColor(category);
 }
+
+export function getCategorySlug(category: string): string {
+  switch (category) {
+    case 'Flights':
+      return 'flights';
+    case 'Accommodation':
+      return 'accommodation';
+    case 'Food & Dining':
+      return 'food';
+    case 'Activities':
+      return 'activities';
+    case 'Transport':
+      return 'transport';
+    default:
+      return 'other';
+  }
+}
