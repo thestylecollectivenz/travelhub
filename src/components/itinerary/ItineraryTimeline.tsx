@@ -106,7 +106,8 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
               <div className={styles.timeCell}>{timeLabel}</div>
               <div className={styles.nodeWrap}>
                 <div
-                  className={`${styles.node} th-cat-${categorySlug} ${editing ? styles.nodeEditing : ''}`}
+                  className={`${styles.node} ${editing ? styles.nodeEditing : ''}`}
+                  data-category={categorySlug}
                 />
               </div>
               <div className={styles.cardCell}>
@@ -121,7 +122,8 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
           <div className={styles.timeCell} />
           <div className={styles.nodeWrap}>
             <div
-              className={`${styles.node} ${styles.nodeEditing} th-cat-other`}
+              className={`${styles.node} ${styles.nodeEditing}`}
+              data-category="other"
             />
           </div>
           <div className={styles.cardCell}>

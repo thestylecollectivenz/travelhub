@@ -38,8 +38,16 @@ function EditIcon(): React.ReactElement {
   );
 }
 
+function DeleteIcon(): React.ReactElement {
+  return (
+    <svg width={12} height={12} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
-  const { updateSubItem } = useTripWorkspace();
+  const { updateSubItem, deleteSubItem } = useTripWorkspace();
   const [isEditing, setIsEditing] = React.useState(false);
   const [draft, setDraft] = React.useState<ItinerarySubItem>({ ...item });
 
@@ -127,6 +135,14 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
         {item.amount === 0 ? <span className={styles.free}>Free</span> : <span className={styles.amount}>{formatNZD(item.amount)}</span>}
         <button type="button" className={styles.editButton} onClick={() => setIsEditing(true)} aria-label="Edit sub-item">
           <EditIcon />
+        </button>
+        <button
+          type="button"
+          className={styles.deleteButton}
+          onClick={() => deleteSubItem(parentEntryId, item.id)}
+          aria-label="Delete sub-item"
+        >
+          <DeleteIcon />
         </button>
       </div>
     </div>

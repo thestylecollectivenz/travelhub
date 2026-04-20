@@ -48,10 +48,13 @@
   --color-purple-50: #F3EEFF;
   --color-purple-200: #C9A8F5;
   --color-purple-600: #7C3AED;
+  --color-rose-50: #FFF0F3;
+  --color-rose-200: #FFADC0;
+  --color-rose-600: #E0284F;
 
   /* Category identity colours */
   --color-cat-flights: var(--color-blue-600);
-  --color-cat-accommodation: var(--color-teal-600);
+  --color-cat-accommodation: var(--color-rose-600);
   --color-cat-food: var(--color-amber-600);
   --color-cat-activities: var(--color-green-600);
   --color-cat-transport: var(--color-purple-600);
@@ -59,7 +62,7 @@
 
   /* Category background tints */
   --color-cat-flights-bg: var(--color-blue-50);
-  --color-cat-accommodation-bg: var(--color-teal-50);
+  --color-cat-accommodation-bg: var(--color-rose-50);
   --color-cat-food-bg: var(--color-amber-50);
   --color-cat-activities-bg: var(--color-green-50);
   --color-cat-transport-bg: var(--color-purple-50);

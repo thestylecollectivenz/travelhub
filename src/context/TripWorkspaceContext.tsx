@@ -23,6 +23,8 @@ export interface TripWorkspaceContextValue {
   reorderEntries: (dayId: string, orderedIds: string[]) => void;
   moveEntryToDay: (entryId: string, targetDayId: string) => void;
   updateSubItem: (entryId: string, updatedSubItem: ItinerarySubItem) => void;
+  addSubItem: (entryId: string, subItem: ItinerarySubItem) => void;
+  deleteSubItem: (entryId: string, subItemId: string) => void;
 }
 
 const TripWorkspaceContext = React.createContext<TripWorkspaceContextValue | undefined>(undefined);
@@ -126,6 +128,32 @@ export function TripWorkspaceProvider({ children }: { children: React.ReactNode 
     );
   }, []);
 
+  const addSubItem = React.useCallback((entryId: string, subItem: ItinerarySubItem) => {
+    setLocalEntries((prev) =>
+      prev.map((entry) =>
+        entry.id === entryId
+          ? {
+              ...entry,
+              subItems: [...(entry.subItems ?? []), subItem]
+            }
+          : entry
+      )
+    );
+  }, []);
+
+  const deleteSubItem = React.useCallback((entryId: string, subItemId: string) => {
+    setLocalEntries((prev) =>
+      prev.map((entry) =>
+        entry.id === entryId
+          ? {
+              ...entry,
+              subItems: entry.subItems?.filter((subItem) => subItem.id !== subItemId)
+            }
+          : entry
+      )
+    );
+  }, []);
+
   const value = React.useMemo(
     (): TripWorkspaceContextValue => ({
       trip: MOCK_TRIP,
@@ -139,9 +167,23 @@ export function TripWorkspaceProvider({ children }: { children: React.ReactNode 
       duplicateEntry,
       reorderEntries,
       moveEntryToDay,
-      updateSubItem
+      updateSubItem,
+      addSubItem,
+      deleteSubItem
     }),
-    [selectedDayId, editingCardId, localEntries, updateEntry, deleteEntry, duplicateEntry, reorderEntries, moveEntryToDay, updateSubItem]
+    [
+      selectedDayId,
+      editingCardId,
+      localEntries,
+      updateEntry,
+      deleteEntry,
+      duplicateEntry,
+      reorderEntries,
+      moveEntryToDay,
+      updateSubItem,
+      addSubItem,
+      deleteSubItem
+    ]
   );
 
   return <TripWorkspaceContext.Provider value={value}>{children}</TripWorkspaceContext.Provider>;

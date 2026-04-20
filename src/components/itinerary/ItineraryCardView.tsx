@@ -1,5 +1,6 @@
 import * as React from 'react';
-import type { ItineraryEntry } from '../../models/ItineraryEntry';
+import type { ItineraryEntry, ItinerarySubItem } from '../../models/ItineraryEntry';
+import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { CategoryIcon } from '../shared/CategoryIcon';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { formatNZD } from '../../utils/financialUtils';
@@ -12,6 +13,17 @@ export interface ItineraryCardViewProps {
   onEdit: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+}
+
+function emptySubItem(): ItinerarySubItem {
+  return {
+    id: `sub-${Date.now()}`,
+    title: '',
+    decisionStatus: 'Idea',
+    paymentStatus: 'Not paid',
+    amount: 0,
+    currency: 'NZD'
+  };
 }
 
 function ClockIcon(): React.ReactElement {
@@ -38,9 +50,12 @@ function PinIcon(): React.ReactElement {
 }
 
 export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onEdit, onDuplicate, onDelete }) => {
+  const { addSubItem } = useTripWorkspace();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [notesOpen, setNotesOpen] = React.useState(false);
   const [subItemsOpen, setSubItemsOpen] = React.useState(false);
+  const [addingSubItem, setAddingSubItem] = React.useState(false);
+  const [newSub, setNewSub] = React.useState<ItinerarySubItem>(emptySubItem);
   const menuRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -98,6 +113,27 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
   const hasSubItems = subItems.length > 0;
   const subTotal = subItems.reduce((sum, s) => sum + s.amount, 0);
   const hasSubTotal = subTotal > 0;
+  const showSubItemContent = hasSubItems || addingSubItem;
+
+  const handleStartAddSubItem = React.useCallback(() => {
+    setSubItemsOpen(true);
+    setAddingSubItem(true);
+    setNewSub(emptySubItem());
+  }, []);
+
+  const handleSaveNewSubItem = React.useCallback(() => {
+    const title = newSub.title.trim();
+    if (!title) {
+      return;
+    }
+    addSubItem(entry.id, {
+      ...newSub,
+      title
+    });
+    setNewSub(emptySubItem());
+    setAddingSubItem(false);
+    setSubItemsOpen(true);
+  }, [addSubItem, entry.id, newSub]);
 
   return (
     <div>
@@ -207,15 +243,80 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
         </>
       ) : null}
 
+      <button type="button" className={styles.addSubItemBtn} onClick={handleStartAddSubItem}>
+        + Add option
+      </button>
+
       {hasSubItems ? (
         <>
           <button type="button" className={styles.relatedToggle} onClick={() => setSubItemsOpen((o) => !o)}>
             {subItemsOpen ? `Hide related items ▴` : `Show ${subItems.length} related items ▾`}
           </button>
-          <div className={`${styles.relatedContent} ${subItemsOpen ? styles.relatedContentOpen : ''}`}>
-            <SubItemList subItems={subItems} entryId={entry.id} />
-          </div>
         </>
+      ) : null}
+
+      {showSubItemContent ? (
+        <div className={`${styles.relatedContent} ${subItemsOpen || addingSubItem ? styles.relatedContentOpen : ''}`}>
+          <SubItemList subItems={subItems} entryId={entry.id} />
+          {addingSubItem ? (
+            <div className={styles.newSubItemForm}>
+              <input
+                className={styles.newSubField}
+                type="text"
+                placeholder="Option title"
+                value={newSub.title}
+                onChange={(e) => setNewSub((prev) => ({ ...prev, title: e.target.value }))}
+              />
+              <div className={styles.newSubRow}>
+                <select
+                  className={styles.newSubField}
+                  value={newSub.decisionStatus}
+                  onChange={(e) =>
+                    setNewSub((prev) => ({ ...prev, decisionStatus: e.target.value as ItinerarySubItem['decisionStatus'] }))
+                  }
+                >
+                  <option value="Idea">Idea</option>
+                  <option value="Planned">Planned</option>
+                  <option value="Confirmed">Confirmed</option>
+                </select>
+                <select
+                  className={styles.newSubField}
+                  value={newSub.paymentStatus}
+                  onChange={(e) =>
+                    setNewSub((prev) => ({ ...prev, paymentStatus: e.target.value as ItinerarySubItem['paymentStatus'] }))
+                  }
+                >
+                  <option value="Not paid">Not paid</option>
+                  <option value="Part paid">Part paid</option>
+                  <option value="Fully paid">Fully paid</option>
+                </select>
+                <input
+                  className={styles.newSubField}
+                  type="number"
+                  min={0}
+                  placeholder="Amount"
+                  value={newSub.amount}
+                  onChange={(e) => setNewSub((prev) => ({ ...prev, amount: Number(e.target.value) || 0 }))}
+                />
+              </div>
+              <div className={styles.newSubActions}>
+                <button type="button" className={styles.newSubActionBtn} onClick={handleSaveNewSubItem}>
+                  Add
+                </button>
+                <button
+                  type="button"
+                  className={styles.newSubActionBtn}
+                  onClick={() => {
+                    setAddingSubItem(false);
+                    setNewSub(emptySubItem());
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

@@ -9,6 +9,30 @@
   transition: box-shadow 150ms ease, border-color 150ms ease;
 }
 
+.card[data-category="flights"] {
+  border-left: 3px solid var(--color-cat-flights);
+}
+
+.card[data-category="accommodation"] {
+  border-left: 3px solid var(--color-cat-accommodation);
+}
+
+.card[data-category="food"] {
+  border-left: 3px solid var(--color-cat-food);
+}
+
+.card[data-category="activities"] {
+  border-left: 3px solid var(--color-cat-activities);
+}
+
+.card[data-category="transport"] {
+  border-left: 3px solid var(--color-cat-transport);
+}
+
+.card[data-category="other"] {
+  border-left: 3px solid var(--color-cat-other);
+}
+
 .cardEditing {
   box-shadow: var(--shadow-elevated);
   border-color: var(--color-blue-200);

@@ -103,6 +103,24 @@
   color: var(--color-blue-600);
 }
 
+.deleteButton {
+  border: none;
+  background: none;
+  color: var(--color-sand-400);
+  cursor: pointer;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+
+.row:hover .deleteButton {
+  opacity: 1;
+}
+
+.deleteButton:hover {
+  color: var(--color-status-unpaid);
+}
+
 .editForm {
   display: flex;
   flex-direction: column;

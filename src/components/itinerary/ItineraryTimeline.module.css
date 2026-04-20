@@ -52,15 +52,62 @@
   width: 12px;
   height: 12px;
   border-radius: var(--radius-full);
-  border: 2px solid var(--cat-color, var(--color-sand-400));
+  border: 2px solid var(--color-sand-400);
   background: var(--color-surface-raised);
   flex-shrink: 0;
   margin-top: 2px;
 }
 
+.node[data-category="flights"] {
+  border-color: var(--color-cat-flights);
+}
+
+.node[data-category="accommodation"] {
+  border-color: var(--color-cat-accommodation);
+}
+
+.node[data-category="food"] {
+  border-color: var(--color-cat-food);
+}
+
+.node[data-category="activities"] {
+  border-color: var(--color-cat-activities);
+}
+
+.node[data-category="transport"] {
+  border-color: var(--color-cat-transport);
+}
+
+.node[data-category="other"] {
+  border-color: var(--color-cat-other);
+}
+
 .nodeEditing {
-  background: var(--cat-color, var(--color-sand-400));
-  border-color: var(--cat-color, var(--color-sand-400));
+  background: currentColor;
+}
+
+.nodeEditing[data-category="flights"] {
+  background: var(--color-cat-flights);
+}
+
+.nodeEditing[data-category="accommodation"] {
+  background: var(--color-cat-accommodation);
+}
+
+.nodeEditing[data-category="food"] {
+  background: var(--color-cat-food);
+}
+
+.nodeEditing[data-category="activities"] {
+  background: var(--color-cat-activities);
+}
+
+.nodeEditing[data-category="transport"] {
+  background: var(--color-cat-transport);
+}
+
+.nodeEditing[data-category="other"] {
+  background: var(--color-cat-other);
 }
 
 .cardCell {
