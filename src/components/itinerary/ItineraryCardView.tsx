@@ -103,7 +103,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
         : styles.decisionConfirmed;
 
   const paymentClass =
-    entry.paymentStatus === 'Fully paid'
+    entry.paymentStatus === 'Free'
+      ? styles.paymentFree
+      : entry.paymentStatus === 'Fully paid'
       ? styles.paymentPaid
       : entry.paymentStatus === 'Part paid'
         ? styles.paymentPart
@@ -111,7 +113,17 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
   const categorySlug = getCategorySlug(entry.category);
   const subItems = entry.subItems ?? [];
   const hasSubItems = subItems.length > 0;
+  const subPaid = subItems.reduce((sum, s) => {
+    if (s.paymentStatus === 'Fully paid') {
+      return sum + s.amount;
+    }
+    if (s.paymentStatus === 'Part paid') {
+      return sum + (s.amountPaid ?? 0);
+    }
+    return sum;
+  }, 0);
   const subTotal = subItems.reduce((sum, s) => sum + s.amount, 0);
+  const subOwing = subTotal - subPaid;
   const hasSubTotal = subTotal > 0;
   const showSubItemContent = hasSubItems || addingSubItem;
 
@@ -235,9 +247,15 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
         </div>
       ) : null}
       {hasSubTotal ? (
-        <div className={styles.cardTotalWithSubs}>
+        <div className={styles.subTotalLine}>
           <span className={styles.subTotalLabel}>incl. options</span>
           <span className={styles.subTotalAmount}>{formatNZD(entry.amount + subTotal)}</span>
+          {subPaid > 0 || subOwing > 0 ? (
+            <span className={styles.subTotalSplit}>
+              <span className={styles.subPaid}>{formatNZD(subPaid)} paid</span>
+              {subOwing > 0 ? <span className={styles.subOwing}> · {formatNZD(subOwing)} owing</span> : null}
+            </span>
+          ) : null}
         </div>
       ) : null}
 
@@ -289,22 +307,30 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
                 <select
                   className={styles.newSubField}
                   value={newSub.paymentStatus}
-                  onChange={(e) =>
-                    setNewSub((prev) => ({ ...prev, paymentStatus: e.target.value as ItinerarySubItem['paymentStatus'] }))
-                  }
+                  onChange={(e) => {
+                    const value = e.target.value as ItinerarySubItem['paymentStatus'];
+                    setNewSub((prev) => ({
+                      ...prev,
+                      paymentStatus: value,
+                      amount: value === 'Free' ? 0 : prev.amount
+                    }));
+                  }}
                 >
                   <option value="Not paid">Not paid</option>
                   <option value="Part paid">Part paid</option>
                   <option value="Fully paid">Fully paid</option>
+                  <option value="Free">Free</option>
                 </select>
-                <input
-                  className={styles.newSubField}
-                  type="number"
-                  min={0}
-                  placeholder="Amount"
-                  value={newSub.amount}
-                  onChange={(e) => setNewSub((prev) => ({ ...prev, amount: Number(e.target.value) || 0 }))}
-                />
+                {newSub.paymentStatus !== 'Free' ? (
+                  <input
+                    className={styles.newSubField}
+                    type="number"
+                    min={0}
+                    placeholder="Amount"
+                    value={newSub.amount}
+                    onChange={(e) => setNewSub((prev) => ({ ...prev, amount: Number(e.target.value) || 0 }))}
+                  />
+                ) : null}
               </div>
               <div className={styles.newSubActions}>
                 <button type="button" className={styles.newSubActionBtn} onClick={handleSaveNewSubItem}>

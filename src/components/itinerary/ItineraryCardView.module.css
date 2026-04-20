@@ -173,6 +173,11 @@
   color: var(--color-status-paid);
 }
 
+.paymentFree {
+  background: var(--color-green-50);
+  color: var(--color-green-600);
+}
+
 .booking {
   background: var(--color-status-booked-bg);
   color: var(--color-status-booked);
@@ -202,10 +207,11 @@
   color: var(--color-status-unpaid);
 }
 
-.cardTotalWithSubs {
+.subTotalLine {
   margin-top: var(--space-1);
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: var(--space-2);
   font-size: var(--font-size-xs);
 }
@@ -217,6 +223,18 @@
 .subTotalAmount {
   color: var(--color-blue-600);
   font-weight: var(--font-weight-medium);
+}
+
+.subTotalSplit {
+  font-size: var(--font-size-xs);
+}
+
+.subPaid {
+  color: var(--color-status-paid);
+}
+
+.subOwing {
+  color: var(--color-status-unpaid);
 }
 
 .unitSuffix {

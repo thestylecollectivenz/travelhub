@@ -52,6 +52,10 @@ export function sumByPaymentStatus(
 ): number {
   const lines = getFinancialLines(entries);
   return lines.reduce((sum, line) => {
+    if (line.paymentStatus === 'Free') {
+      return sum;
+    }
+
     if (status === 'all') {
       return sum + line.amount;
     }
@@ -61,7 +65,7 @@ export function sumByPaymentStatus(
     }
 
     if (line.paymentStatus === 'Part paid') {
-      const paid = line.amountPaid ?? 0;
+      const paid = Math.min(line.amount, line.amountPaid ?? 0);
       const unpaid = line.amount - paid;
       if (status === 'paid') {
         return sum + paid;
@@ -185,6 +189,9 @@ export function getPaymentSummaryForDayCategory(
       continue;
     }
     itemCount++;
+    if (line.paymentStatus === 'Free') {
+      continue;
+    }
     if (line.paymentStatus === 'Fully paid') {
       paid += line.amount;
     } else if (line.paymentStatus === 'Part paid') {

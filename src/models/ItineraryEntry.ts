@@ -2,7 +2,7 @@ export type ItineraryDecisionStatus = 'Idea' | 'Planned' | 'Confirmed';
 
 export type ItineraryBookingStatus = 'Not booked' | 'Booked';
 
-export type ItineraryPaymentStatus = 'Not paid' | 'Part paid' | 'Fully paid';
+export type ItineraryPaymentStatus = 'Not paid' | 'Part paid' | 'Fully paid' | 'Free';
 
 export type ItineraryUnitType = 'PerPerson' | 'PerNight' | 'PerDay';
 

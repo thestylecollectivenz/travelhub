@@ -20,6 +20,9 @@ function decisionDotClass(status: ItinerarySubItem['decisionStatus']): string {
 }
 
 function paymentBadgeClass(status: ItinerarySubItem['paymentStatus']): string {
+  if (status === 'Free') {
+    return styles.paymentFree;
+  }
   if (status === 'Fully paid') {
     return styles.paymentPaid;
   }
@@ -87,6 +90,7 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
               setDraft((prev) => ({
                 ...prev,
                 paymentStatus: value,
+                amount: value === 'Free' ? 0 : prev.amount,
                 amountPaid: value === 'Part paid' ? prev.amountPaid : undefined
               }));
             }}
@@ -94,14 +98,17 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
             <option value="Not paid">Not paid</option>
             <option value="Part paid">Part paid</option>
             <option value="Fully paid">Fully paid</option>
+            <option value="Free">Free</option>
           </select>
-          <input
-            className={styles.field}
-            type="number"
-            min={0}
-            value={draft.amount}
-            onChange={(e) => setDraft((prev) => ({ ...prev, amount: Number(e.target.value) || 0 }))}
-          />
+          {draft.paymentStatus !== 'Free' ? (
+            <input
+              className={styles.field}
+              type="number"
+              min={0}
+              value={draft.amount}
+              onChange={(e) => setDraft((prev) => ({ ...prev, amount: Number(e.target.value) || 0 }))}
+            />
+          ) : null}
         </div>
         {draft.paymentStatus === 'Part paid' ? (
           <div className={styles.editRowSingle}>
@@ -156,7 +163,7 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
         <span className={`${styles.paymentBadge} ${paymentBadgeClass(item.paymentStatus)}`}>{item.paymentStatus}</span>
       </div>
       <div className={styles.right}>
-        {item.amount === 0 ? <span className={styles.free}>Free</span> : <span className={styles.amount}>{formatNZD(item.amount)}</span>}
+        {item.paymentStatus === 'Free' ? <span className={styles.free}>Free</span> : <span className={styles.amount}>{formatNZD(item.amount)}</span>}
         <button type="button" className={styles.editButton} onClick={() => setIsEditing(true)} aria-label="Edit sub-item">
           <EditIcon />
         </button>

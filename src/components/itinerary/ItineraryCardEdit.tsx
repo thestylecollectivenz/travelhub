@@ -195,6 +195,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
             const value = e.target.value as ItineraryEntry['paymentStatus'];
             patch({
               paymentStatus: value,
+              amount: value === 'Free' ? 0 : draft.amount,
               amountPaid: value === 'Part paid' ? draft.amountPaid : undefined
             });
           }}
@@ -202,6 +203,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           <option value="Not paid">Not paid</option>
           <option value="Part paid">Part paid</option>
           <option value="Fully paid">Fully paid</option>
+          <option value="Free">Free</option>
         </select>
 
         {draft.paymentStatus === 'Part paid' ? (
@@ -227,18 +229,22 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           </>
         ) : null}
 
-        <label className={styles.label} htmlFor={`amt-${draft.id}`}>
-          Amount
-        </label>
-        <input
-          id={`amt-${draft.id}`}
-          className={styles.input}
-          type="number"
-          min={0}
-          step={0.01}
-          value={Number.isNaN(draft.amount) ? '' : draft.amount}
-          onChange={(e) => patch({ amount: e.target.value === '' ? 0 : Number(e.target.value) })}
-        />
+        {draft.paymentStatus !== 'Free' ? (
+          <>
+            <label className={styles.label} htmlFor={`amt-${draft.id}`}>
+              Amount
+            </label>
+            <input
+              id={`amt-${draft.id}`}
+              className={styles.input}
+              type="number"
+              min={0}
+              step={0.01}
+              value={Number.isNaN(draft.amount) ? '' : draft.amount}
+              onChange={(e) => patch({ amount: e.target.value === '' ? 0 : Number(e.target.value) })}
+            />
+          </>
+        ) : null}
 
         <label className={styles.label} htmlFor={`cur-${draft.id}`}>
           Currency
