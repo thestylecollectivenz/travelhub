@@ -191,14 +191,41 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           id={`pay-${draft.id}`}
           className={styles.select}
           value={draft.paymentStatus}
-          onChange={(e) =>
-            patch({ paymentStatus: e.target.value as ItineraryEntry['paymentStatus'] })
-          }
+          onChange={(e) => {
+            const value = e.target.value as ItineraryEntry['paymentStatus'];
+            patch({
+              paymentStatus: value,
+              amountPaid: value === 'Part paid' ? draft.amountPaid : undefined
+            });
+          }}
         >
           <option value="Not paid">Not paid</option>
           <option value="Part paid">Part paid</option>
           <option value="Fully paid">Fully paid</option>
         </select>
+
+        {draft.paymentStatus === 'Part paid' ? (
+          <>
+            <label className={styles.label} htmlFor={`amt-paid-${draft.id}`}>
+              Amount paid so far
+            </label>
+            <input
+              id={`amt-paid-${draft.id}`}
+              className={styles.input}
+              type="number"
+              min={0}
+              max={draft.amount}
+              step={0.01}
+              placeholder="0.00"
+              value={draft.amountPaid ?? ''}
+              onChange={(e) =>
+                patch({
+                  amountPaid: e.target.value === '' ? undefined : Math.min(draft.amount, Number(e.target.value) || 0)
+                })
+              }
+            />
+          </>
+        ) : null}
 
         <label className={styles.label} htmlFor={`amt-${draft.id}`}>
           Amount

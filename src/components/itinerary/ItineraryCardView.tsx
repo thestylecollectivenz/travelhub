@@ -227,6 +227,13 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
         {formatNZD(entry.amount)}
         {unitSuffix ? <span className={styles.unitSuffix}>{unitSuffix}</span> : null}
       </div>
+      {entry.paymentStatus === 'Part paid' && entry.amountPaid !== undefined ? (
+        <div className={styles.partPaidDetail}>
+          <span className={styles.partPaidPaid}>{formatNZD(entry.amountPaid)} paid</span>
+          <span className={styles.partPaidSep}> · </span>
+          <span className={styles.partPaidOwing}>{formatNZD(entry.amount - entry.amountPaid)} owing</span>
+        </div>
+      ) : null}
       {hasSubTotal ? (
         <div className={styles.cardTotalWithSubs}>
           <span className={styles.subTotalLabel}>incl. options</span>

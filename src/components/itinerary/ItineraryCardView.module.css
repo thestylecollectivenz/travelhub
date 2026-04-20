@@ -185,6 +185,23 @@
   color: var(--color-blue-600);
 }
 
+.partPaidDetail {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-xs);
+}
+
+.partPaidPaid {
+  color: var(--color-status-paid);
+}
+
+.partPaidSep {
+  color: var(--color-sand-600);
+}
+
+.partPaidOwing {
+  color: var(--color-status-unpaid);
+}
+
 .cardTotalWithSubs {
   margin-top: var(--space-1);
   display: flex;

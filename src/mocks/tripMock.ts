@@ -114,6 +114,7 @@ export const MOCK_ITINERARY_ENTRIES: ItineraryEntry[] = [
     bookingStatus: 'Booked',
     paymentStatus: 'Part paid',
     amount: 890,
+    amountPaid: 445,
     currency: NZD,
     unitType: 'PerNight',
     unitAmount: 890,
@@ -266,6 +267,7 @@ export const MOCK_ITINERARY_ENTRIES: ItineraryEntry[] = [
     bookingStatus: 'Booked',
     paymentStatus: 'Part paid',
     amount: 420,
+    amountPaid: 210,
     currency: NZD,
     subItems: [
       {

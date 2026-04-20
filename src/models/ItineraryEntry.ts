@@ -12,6 +12,7 @@ export interface ItinerarySubItem {
   decisionStatus: ItineraryDecisionStatus;
   paymentStatus: ItineraryPaymentStatus;
   amount: number;
+  amountPaid?: number;
   currency: string;
   notes?: string;
   groupLabel?: string;
@@ -34,6 +35,7 @@ export interface ItineraryEntry {
   bookingStatus: ItineraryBookingStatus;
   paymentStatus: ItineraryPaymentStatus;
   amount: number;
+  amountPaid?: number;
   currency: string;
   unitType?: ItineraryUnitType;
   unitAmount?: number;

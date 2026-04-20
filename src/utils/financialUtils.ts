@@ -7,6 +7,7 @@ function entryAmount(entry: ItineraryEntry): number {
 
 interface FinancialLine {
   amount: number;
+  amountPaid?: number;
   paymentStatus: ItineraryPaymentStatus;
   category: string;
   dayId: string;
@@ -17,6 +18,7 @@ function getFinancialLines(entries: ItineraryEntry[]): FinancialLine[] {
   for (const entry of entries) {
     lines.push({
       amount: entryAmount(entry),
+      amountPaid: entry.amountPaid,
       paymentStatus: entry.paymentStatus,
       category: entry.category,
       dayId: entry.dayId
@@ -26,6 +28,7 @@ function getFinancialLines(entries: ItineraryEntry[]): FinancialLine[] {
       const amount = typeof sub.amount === 'number' && !Number.isNaN(sub.amount) ? sub.amount : 0;
       lines.push({
         amount,
+        amountPaid: sub.amountPaid,
         paymentStatus: sub.paymentStatus,
         category: entry.category,
         dayId: entry.dayId
@@ -49,14 +52,30 @@ export function sumByPaymentStatus(
 ): number {
   const lines = getFinancialLines(entries);
   return lines.reduce((sum, line) => {
-    const amt = line.amount;
     if (status === 'all') {
-      return sum + amt;
+      return sum + line.amount;
     }
-    if (status === 'paid') {
-      return line.paymentStatus === 'Fully paid' ? sum + amt : sum;
+
+    if (line.paymentStatus === 'Fully paid') {
+      return status === 'paid' ? sum + line.amount : sum;
     }
-    return line.paymentStatus !== 'Fully paid' ? sum + amt : sum;
+
+    if (line.paymentStatus === 'Part paid') {
+      const paid = line.amountPaid ?? 0;
+      const unpaid = line.amount - paid;
+      if (status === 'paid') {
+        return sum + paid;
+      }
+      if (status === 'unpaid') {
+        return sum + unpaid;
+      }
+    }
+
+    if (line.paymentStatus === 'Not paid') {
+      return status === 'unpaid' ? sum + line.amount : sum;
+    }
+
+    return sum;
   }, 0);
 }
 
@@ -166,11 +185,14 @@ export function getPaymentSummaryForDayCategory(
       continue;
     }
     itemCount++;
-    const amt = line.amount;
     if (line.paymentStatus === 'Fully paid') {
-      paid += amt;
+      paid += line.amount;
+    } else if (line.paymentStatus === 'Part paid') {
+      const paidPart = line.amountPaid ?? 0;
+      paid += paidPart;
+      unpaid += line.amount - paidPart;
     } else {
-      unpaid += amt;
+      unpaid += line.amount;
     }
   }
   return {

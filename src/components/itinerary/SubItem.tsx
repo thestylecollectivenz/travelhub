@@ -82,9 +82,14 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
           <select
             className={styles.field}
             value={draft.paymentStatus}
-            onChange={(e) =>
-              setDraft((prev) => ({ ...prev, paymentStatus: e.target.value as ItinerarySubItem['paymentStatus'] }))
-            }
+            onChange={(e) => {
+              const value = e.target.value as ItinerarySubItem['paymentStatus'];
+              setDraft((prev) => ({
+                ...prev,
+                paymentStatus: value,
+                amountPaid: value === 'Part paid' ? prev.amountPaid : undefined
+              }));
+            }}
           >
             <option value="Not paid">Not paid</option>
             <option value="Part paid">Part paid</option>
@@ -98,6 +103,25 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
             onChange={(e) => setDraft((prev) => ({ ...prev, amount: Number(e.target.value) || 0 }))}
           />
         </div>
+        {draft.paymentStatus === 'Part paid' ? (
+          <div className={styles.editRowSingle}>
+            <input
+              className={styles.field}
+              type="number"
+              min={0}
+              max={draft.amount}
+              step={0.01}
+              placeholder="Amount paid so far"
+              value={draft.amountPaid ?? ''}
+              onChange={(e) =>
+                setDraft((prev) => ({
+                  ...prev,
+                  amountPaid: e.target.value === '' ? undefined : Math.min(prev.amount, Number(e.target.value) || 0)
+                }))
+              }
+            />
+          </div>
+        ) : null}
         <div className={styles.actions}>
           <button
             type="button"
