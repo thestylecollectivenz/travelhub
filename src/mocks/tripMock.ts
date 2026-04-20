@@ -172,6 +172,26 @@ export const MOCK_ITINERARY_ENTRIES: ItineraryEntry[] = [
     paymentStatus: 'Fully paid',
     amount: 95,
     currency: NZD,
+    subItems: [
+      {
+        id: 'mock-entry-d2-2-sub-1',
+        title: 'Senso-ji Temple',
+        decisionStatus: 'Confirmed',
+        paymentStatus: 'Fully paid',
+        amount: 0,
+        currency: NZD,
+        groupLabel: 'Activities nearby'
+      },
+      {
+        id: 'mock-entry-d2-2-sub-2',
+        title: 'Shibuya Crossing',
+        decisionStatus: 'Planned',
+        paymentStatus: 'Not paid',
+        amount: 0,
+        currency: NZD,
+        groupLabel: 'Activities nearby'
+      }
+    ],
     sortOrder: 1
   },
   {
@@ -247,6 +267,17 @@ export const MOCK_ITINERARY_ENTRIES: ItineraryEntry[] = [
     paymentStatus: 'Part paid',
     amount: 420,
     currency: NZD,
+    subItems: [
+      {
+        id: 'mock-entry-d3-3-sub-1',
+        title: 'Gion Hatanaka tea ceremony',
+        decisionStatus: 'Idea',
+        paymentStatus: 'Not paid',
+        amount: 85,
+        currency: NZD,
+        groupLabel: 'After dinner'
+      }
+    ],
     sortOrder: 2
   },
   {

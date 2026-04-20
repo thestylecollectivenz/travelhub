@@ -6,6 +6,17 @@ export type ItineraryPaymentStatus = 'Not paid' | 'Part paid' | 'Fully paid';
 
 export type ItineraryUnitType = 'PerPerson' | 'PerNight' | 'PerDay';
 
+export interface ItinerarySubItem {
+  id: string;
+  title: string;
+  decisionStatus: ItineraryDecisionStatus;
+  paymentStatus: ItineraryPaymentStatus;
+  amount: number;
+  currency: string;
+  notes?: string;
+  groupLabel?: string;
+}
+
 export interface ItineraryEntry {
   id: string;
   dayId: string;
@@ -28,4 +39,5 @@ export interface ItineraryEntry {
   unitAmount?: number;
   sortOrder: number;
   parentEntryId?: string;
+  subItems?: ItinerarySubItem[];
 }

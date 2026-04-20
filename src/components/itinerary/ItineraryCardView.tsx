@@ -2,6 +2,7 @@ import * as React from 'react';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { formatNZD } from '../../utils/financialUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
+import { SubItemList } from './SubItemList';
 import styles from './ItineraryCardView.module.css';
 
 export interface ItineraryCardViewProps {
@@ -45,6 +46,7 @@ function PinIcon(): React.ReactElement {
 export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onEdit, onDuplicate, onDelete }) => {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [notesOpen, setNotesOpen] = React.useState(false);
+  const [subItemsOpen, setSubItemsOpen] = React.useState(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -97,6 +99,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
       : entry.paymentStatus === 'Part paid'
         ? styles.paymentPart
         : styles.paymentUnpaid;
+  const subItems = entry.subItems ?? [];
+  const hasSubItems = subItems.length > 0;
 
   return (
     <div>
@@ -193,6 +197,17 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
             {notesOpen ? 'Notes ▴' : 'Notes ▾'}
           </button>
           {notesOpen ? <div className={styles.notesBody}>{entry.notes}</div> : null}
+        </>
+      ) : null}
+
+      {hasSubItems ? (
+        <>
+          <button type="button" className={styles.relatedToggle} onClick={() => setSubItemsOpen((o) => !o)}>
+            {subItemsOpen ? `Hide related items ▴` : `Show ${subItems.length} related items ▾`}
+          </button>
+          <div className={`${styles.relatedContent} ${subItemsOpen ? styles.relatedContentOpen : ''}`}>
+            <SubItemList subItems={subItems} />
+          </div>
         </>
       ) : null}
     </div>
