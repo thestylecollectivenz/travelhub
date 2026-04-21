@@ -73,18 +73,22 @@ export class DayService {
   }
 
   async create(day: Omit<TripDay, 'id'>): Promise<TripDay> {
-    const body = JSON.stringify({
-      __metadata: { type: 'SP.Data.TripDaysListItem' },
-      ...mapToSpItem(day)
-    });
+    const body = JSON.stringify(mapToSpItem(day));
     try {
-      const resp: SPHttpClientResponse = await this.ctx.spHttpClient.post(this.baseUrl, SPHttpClient.configurations.v1, {
-        headers: { 'Content-Type': 'application/json;odata=verbose', Accept: 'application/json;odata=verbose' },
-        body
-      });
+      const resp: SPHttpClientResponse = await this.ctx.spHttpClient.post(
+        this.baseUrl,
+        SPHttpClient.configurations.v1,
+        {
+          headers: {
+            'Content-Type': 'application/json;odata=nometadata',
+            Accept: 'application/json;odata=nometadata'
+          },
+          body
+        }
+      );
       if (!resp.ok) throw new Error(`DayService.create failed: ${resp.status}`);
       const data = await resp.json();
-      return mapToDay(data.d ?? data);
+      return mapToDay(data);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('DayService.create', err);

@@ -194,18 +194,22 @@ export class ItineraryService {
   }
 
   async create(entry: Omit<ItineraryEntry, 'id' | 'subItems'>): Promise<ItineraryEntry> {
-    const body = JSON.stringify({
-      __metadata: { type: 'SP.Data.ItineraryEntriesListItem' },
-      ...mapToSpItem(entry)
-    });
+    const body = JSON.stringify(mapToSpItem(entry));
     try {
-      const resp: SPHttpClientResponse = await this.ctx.spHttpClient.post(this.baseUrl, SPHttpClient.configurations.v1, {
-        headers: { 'Content-Type': 'application/json;odata=verbose', Accept: 'application/json;odata=verbose' },
-        body
-      });
+      const resp: SPHttpClientResponse = await this.ctx.spHttpClient.post(
+        this.baseUrl,
+        SPHttpClient.configurations.v1,
+        {
+          headers: {
+            'Content-Type': 'application/json;odata=nometadata',
+            Accept: 'application/json;odata=nometadata'
+          },
+          body
+        }
+      );
       if (!resp.ok) throw new Error(`ItineraryService.create failed: ${resp.status}`);
       const data = await resp.json();
-      return { ...mapToEntry(data.d ?? data), subItems: [] };
+      return { ...mapToEntry(data), subItems: [] };
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('ItineraryService.create', err);
@@ -266,7 +270,6 @@ export class ItineraryService {
   /** Create a sub-item (an ItineraryEntry with parentEntryId set). */
   async createSubItem(parentEntry: ItineraryEntry, subItem: Omit<ItinerarySubItem, 'id'>): Promise<ItinerarySubItem> {
     const body = JSON.stringify({
-      __metadata: { type: 'SP.Data.ItineraryEntriesListItem' },
       Title: subItem.title,
       TripId: parentEntry.tripId,
       DayId: parentEntry.dayId,
@@ -284,13 +287,20 @@ export class ItineraryService {
       BookingStatus: 'Not booked'
     });
     try {
-      const resp: SPHttpClientResponse = await this.ctx.spHttpClient.post(this.baseUrl, SPHttpClient.configurations.v1, {
-        headers: { 'Content-Type': 'application/json;odata=verbose', Accept: 'application/json;odata=verbose' },
-        body
-      });
+      const resp: SPHttpClientResponse = await this.ctx.spHttpClient.post(
+        this.baseUrl,
+        SPHttpClient.configurations.v1,
+        {
+          headers: {
+            'Content-Type': 'application/json;odata=nometadata',
+            Accept: 'application/json;odata=nometadata'
+          },
+          body
+        }
+      );
       if (!resp.ok) throw new Error(`ItineraryService.createSubItem failed: ${resp.status}`);
       const data = await resp.json();
-      return mapToSubItem(data.d ?? data);
+      return mapToSubItem(data);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('ItineraryService.createSubItem', err);

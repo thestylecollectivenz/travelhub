@@ -75,18 +75,22 @@ export class TripService {
   }
 
   async create(trip: Omit<Trip, 'id'>): Promise<Trip> {
-    const body = JSON.stringify({
-      __metadata: { type: 'SP.Data.TripsListItem' },
-      ...mapToSpItem(trip)
-    });
+    const body = JSON.stringify(mapToSpItem(trip));
     try {
-      const resp: SPHttpClientResponse = await this.ctx.spHttpClient.post(this.baseUrl, SPHttpClient.configurations.v1, {
-        headers: { 'Content-Type': 'application/json;odata=verbose', Accept: 'application/json;odata=verbose' },
-        body
-      });
+      const resp: SPHttpClientResponse = await this.ctx.spHttpClient.post(
+        this.baseUrl,
+        SPHttpClient.configurations.v1,
+        {
+          headers: {
+            'Content-Type': 'application/json;odata=nometadata',
+            Accept: 'application/json;odata=nometadata'
+          },
+          body
+        }
+      );
       if (!resp.ok) throw new Error(`TripService.create failed: ${resp.status}`);
       const data = await resp.json();
-      return mapToTrip(data.d ?? data);
+      return mapToTrip(data);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('TripService.create', err);
