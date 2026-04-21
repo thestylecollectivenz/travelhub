@@ -82,8 +82,8 @@ export class TripService {
         SPHttpClient.configurations.v1,
         {
           headers: {
-            'Content-Type': 'application/json;odata=nometadata',
-            Accept: 'application/json;odata=nometadata'
+            'Content-Type': 'application/json;odata.metadata=minimal',
+            Accept: 'application/json;odata.metadata=minimal'
           },
           body
         }
