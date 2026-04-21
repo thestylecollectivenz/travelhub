@@ -100,6 +100,20 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
   return (
     <div className={styles.timeline}>
       <div className={styles.rail} aria-hidden />
+      {showComposer ? (
+        <div className={styles.row}>
+          <div className={styles.timeCell} />
+          <div className={styles.nodeWrap}>
+            <div
+              className={`${styles.node} ${styles.nodeEditing}`}
+              data-category="other"
+            />
+          </div>
+          <div className={styles.cardCell}>
+            <NewComposer tripId={trip.id} dayId={dayId} calendarDate={calendarDate} nextSortOrder={nextSortOrder} />
+          </div>
+        </div>
+      ) : null}
       <SortableContext items={sorted.map((entry) => entry.id)} strategy={verticalListSortingStrategy}>
         {sorted.map((entry) => {
           const categorySlug = getCategorySlug(entry.category);
@@ -121,20 +135,6 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
           );
         })}
       </SortableContext>
-      {showComposer ? (
-        <div className={styles.row}>
-          <div className={styles.timeCell} />
-          <div className={styles.nodeWrap}>
-            <div
-              className={`${styles.node} ${styles.nodeEditing}`}
-              data-category="other"
-            />
-          </div>
-          <div className={styles.cardCell}>
-            <NewComposer tripId={trip.id} dayId={dayId} calendarDate={calendarDate} nextSortOrder={nextSortOrder} />
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 };

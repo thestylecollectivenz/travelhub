@@ -99,7 +99,22 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
           next[exists] = updated;
           return next;
         }
-        return [...prev, updated];
+        // Insert in chronological order within the day if time is set
+        if (!updated.timeStart) {
+          return [...prev, updated];
+        }
+        const dayEntries = prev.filter((e) => e.dayId === updated.dayId && !e.parentEntryId);
+        const lastBefore = dayEntries.reduce<number>((lastIdx, e, i) => {
+          if (e.timeStart && e.timeStart <= updated.timeStart) return i;
+          return lastIdx;
+        }, -1);
+        const insertAt =
+          lastBefore >= 0
+            ? prev.indexOf(dayEntries[lastBefore]) + 1
+            : Math.max(0, prev.findIndex((e) => e.dayId === updated.dayId));
+        const next = [...prev];
+        next.splice(insertAt, 0, updated);
+        return next;
       });
       // Create in SP and replace temp ID with real SP ID
       const svc = new ItineraryService(spContext);
