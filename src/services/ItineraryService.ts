@@ -55,8 +55,12 @@ function parseTime(isoOrTime: string | null | undefined): string {
 
 function serializeTime(time: string | undefined): string | null {
   if (!time) return null;
-  if (/^\d{2}:\d{2}$/.test(time)) return `1970-01-01T${time}:00Z`;
-  return time; // already ISO
+  // HH:MM only - attach a base date
+  if (/^\d{2}:\d{2}$/.test(time)) return `1970-01-01T${time}:00.000Z`;
+  // Full local datetime from combineDayAndTime e.g. "2026-10-25T15:00:00" - add UTC marker
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(time)) return `${time}.000Z`;
+  // Already has timezone
+  return time;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
