@@ -14,6 +14,8 @@ export function categoryNodeColor(category: string): string {
     'Food & Dining': 'var(--color-amber-400)',
     Activities: 'var(--color-green-400)',
     Transport: 'var(--color-teal-600)',
+    'Travel Overheads': 'var(--color-teal-500)',
+    Preparation: 'var(--color-purple-400)',
     Other: 'var(--color-sand-400)'
   };
   return map[key];

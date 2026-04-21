@@ -126,7 +126,7 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   if (entry.dayId !== undefined) item.DayId = entry.dayId;
   if (entry.category !== undefined) item.Category = entry.category;
   if (entry.timeStart !== undefined) item.TimeStart = serializeTime(entry.timeStart);
-  if (entry.duration !== undefined) item.Duration = entry.duration !== '' ? parseFloat(entry.duration) : null;
+  if (entry.duration !== undefined) item.Duration = entry.duration ?? '';
   if (entry.supplier !== undefined) item.Supplier = entry.supplier;
   if (entry.location !== undefined) item.Location = entry.location;
   if (entry.notes !== undefined) item.Notes = entry.notes;

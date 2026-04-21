@@ -3,7 +3,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { getCategorySlug } from '../../utils/categoryUtils';
-import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
+import { formatTimeHHMM, minutesFromTimeStart } from '../../utils/itineraryTimeUtils';
 import { ItineraryCard } from './ItineraryCard';
 import styles from './ItineraryTimeline.module.css';
 
@@ -12,8 +12,15 @@ export interface ItineraryTimelineProps {
 }
 
 function sortEntriesForDay(entries: ItineraryEntry[], dayId: string): ItineraryEntry[] {
-  const forDay = entries.filter((e) => e.dayId === dayId);
-  return [...forDay].sort((a, b) => a.sortOrder - b.sortOrder);
+  const forDay = entries.filter((e) => e.dayId === dayId && !e.parentEntryId);
+  return [...forDay].sort((a, b) => {
+    const aMin = minutesFromTimeStart(a.timeStart);
+    const bMin = minutesFromTimeStart(b.timeStart);
+    if (aMin !== undefined && bMin !== undefined) return aMin - bMin;
+    if (aMin !== undefined) return -1;
+    if (bMin !== undefined) return 1;
+    return a.sortOrder - b.sortOrder;
+  });
 }
 
 function createBlankEntry(tripId: string, dayId: string, sortOrder: number, id: string): ItineraryEntry {

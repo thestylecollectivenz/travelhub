@@ -73,12 +73,19 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
   }, [menuOpen]);
 
   const hhmm = formatTimeHHMM(entry.timeStart);
+  // Guard: if duration is a bare number (legacy Number column value) hide it
+  const durationDisplay = (() => {
+    const d = entry.duration?.trim() ?? '';
+    if (!d) return '';
+    // If it's purely numeric (old Number column artifact) suppress it
+    if (/^\d+(\.\d+)?$/.test(d)) return '';
+    return d;
+  })();
+
   const timeChip =
     hhmm !== ''
-      ? `${hhmm}${entry.duration.trim() ? ` · ${entry.duration}` : ''}`
-      : entry.duration.trim()
-        ? entry.duration
-        : null;
+      ? `${hhmm}${durationDisplay ? ` · ${durationDisplay}` : ''}`
+      : durationDisplay || null;
 
   const supplier = entry.supplier.trim();
   const location = (entry.location ?? '').trim();

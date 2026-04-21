@@ -97,13 +97,25 @@ export class DayService {
   }
 
   /**
-   * Generates and creates one TripDay per calendar day between dateStart and dateEnd (inclusive).
-   * Returns the created days in order.
+   * Creates Day 0 (Pre-trip) plus one TripDay per calendar day between dateStart and dateEnd (inclusive).
    */
   async generateDays(tripId: string, dateStart: string, dateEnd: string): Promise<TripDay[]> {
+    const created: TripDay[] = [];
+
+    // Day 0 — Pre-trip day for costs and tasks before travel starts
+    // eslint-disable-next-line no-await-in-loop
+    const preTrip = await this.create({
+      tripId,
+      dayNumber: 0,
+      calendarDate: dateStart, // same date as day 1 — used for reference only
+      displayTitle: 'Pre-trip',
+      dayType: 'PreTrip'
+    });
+    created.push(preTrip);
+
+    // Day 1..N — one per calendar day inclusive
     const start = new Date(dateStart);
     const end = new Date(dateEnd);
-    const created: TripDay[] = [];
     let dayNumber = 1;
     const current = new Date(start);
     while (current <= end) {

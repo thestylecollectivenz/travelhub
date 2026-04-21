@@ -1,3 +1,16 @@
+export const CATEGORY_LIST = [
+  'Flights',
+  'Accommodation',
+  'Food & Dining',
+  'Activities',
+  'Transport',
+  'Travel Overheads',
+  'Preparation',
+  'Other'
+] as const;
+
+export type CategoryName = (typeof CATEGORY_LIST)[number];
+
 export function getCategoryColor(category: string): string {
   switch (category) {
     case 'Flights':
@@ -10,6 +23,10 @@ export function getCategoryColor(category: string): string {
       return 'var(--color-cat-activities)';
     case 'Transport':
       return 'var(--color-cat-transport)';
+    case 'Travel Overheads':
+      return 'var(--color-cat-overheads)';
+    case 'Preparation':
+      return 'var(--color-cat-preparation)';
     default:
       return 'var(--color-cat-other)';
   }
@@ -27,6 +44,10 @@ export function getCategoryBgColor(category: string): string {
       return 'var(--color-cat-activities-bg)';
     case 'Transport':
       return 'var(--color-cat-transport-bg)';
+    case 'Travel Overheads':
+      return 'var(--color-cat-overheads-bg)';
+    case 'Preparation':
+      return 'var(--color-cat-preparation-bg)';
     default:
       return 'var(--color-cat-other-bg)';
   }
@@ -48,6 +69,10 @@ export function getCategorySlug(category: string): string {
       return 'activities';
     case 'Transport':
       return 'transport';
+    case 'Travel Overheads':
+      return 'overheads';
+    case 'Preparation':
+      return 'preparation';
     default:
       return 'other';
   }

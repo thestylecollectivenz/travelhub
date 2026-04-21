@@ -18,7 +18,9 @@ export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected,
   });
 
   const badge =
-    day.dayType === 'Sea' ? (
+    day.dayType === 'PreTrip' ? (
+      <span className={`${styles.badge} ${styles.badgePreTrip}`}>Pre-trip</span>
+    ) : day.dayType === 'Sea' ? (
       <span className={`${styles.badge} ${styles.badgeSea}`}>Sea</span>
     ) : day.dayType === 'TravelTransit' ? (
       <span className={`${styles.badge} ${styles.badgeTransit}`}>Transit</span>
@@ -43,8 +45,7 @@ export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected,
       >
         <div className={styles.row1}>
           <span className={styles.dayNumberLabel}>
-            Day {day.dayNumber}
-            {dayDate ? ` · ${dayDate}` : ''}
+            {day.dayType === 'PreTrip' ? 'Pre-trip' : `Day ${day.dayNumber}${dayDate ? ` · ${dayDate}` : ''}`}
           </span>
           {badge}
         </div>

@@ -6,6 +6,7 @@ import { TripService } from '../services/TripService';
 import { DayService } from '../services/DayService';
 import { ItineraryService } from '../services/ItineraryService';
 import { useSpContext } from './SpContext';
+import { minutesFromTimeStart } from '../utils/itineraryTimeUtils';
 
 function newTempId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -103,9 +104,11 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
         if (!updated.timeStart) {
           return [...prev, updated];
         }
+        const updatedMinutes = minutesFromTimeStart(updated.timeStart) ?? Infinity;
         const dayEntries = prev.filter((e) => e.dayId === updated.dayId && !e.parentEntryId);
         const lastBefore = dayEntries.reduce<number>((lastIdx, e, i) => {
-          if (e.timeStart && e.timeStart <= updated.timeStart) return i;
+          const eMinutes = minutesFromTimeStart(e.timeStart) ?? Infinity;
+          if (eMinutes <= updatedMinutes) return i;
           return lastIdx;
         }, -1);
         const insertAt =

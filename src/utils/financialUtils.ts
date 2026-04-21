@@ -106,6 +106,8 @@ export const BUDGET_CATEGORY_ORDER = [
   'Food & Dining',
   'Activities',
   'Transport',
+  'Travel Overheads',
+  'Preparation',
   'Other'
 ] as const;
 

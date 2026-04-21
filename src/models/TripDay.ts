@@ -1,4 +1,4 @@
-export type TripDayType = 'PlacePort' | 'Sea' | 'TravelTransit';
+export type TripDayType = 'PlacePort' | 'Sea' | 'TravelTransit' | 'PreTrip';
 
 export interface TripDay {
   id: string;
