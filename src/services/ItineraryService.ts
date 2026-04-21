@@ -36,31 +36,42 @@ const SELECT = [
   'GroupLabel'
 ].join(',');
 
+function pad2(n: number): string {
+  return n < 10 ? `0${n}` : String(n);
+}
+
 function parseTime(isoOrTime: string | null | undefined): string {
   if (!isoOrTime) return '';
-  // If already HH:MM return as-is
-  if (/^\d{2}:\d{2}$/.test(isoOrTime)) return isoOrTime;
-  // Extract from ISO datetime
+  // Already HH:MM — return as-is
+  if (/^\d{2}:\d{2}$/.test(isoOrTime.trim())) return isoOrTime.trim();
+  // ISO datetime — extract UTC hours/minutes (we store on fixed UTC reference date)
   try {
     const d = new Date(isoOrTime);
-    const hours = d.getUTCHours();
-    const minutes = d.getUTCMinutes();
-    const hh = hours < 10 ? `0${hours}` : String(hours);
-    const mm = minutes < 10 ? `0${minutes}` : String(minutes);
+    if (Number.isNaN(d.getTime())) return '';
+    const hh = pad2(d.getUTCHours());
+    const mm = pad2(d.getUTCMinutes());
     return `${hh}:${mm}`;
   } catch {
-    return isoOrTime;
+    return '';
   }
 }
 
 function serializeTime(time: string | undefined): string | null {
   if (!time) return null;
-  // HH:MM only - attach a base date
-  if (/^\d{2}:\d{2}$/.test(time)) return `1970-01-01T${time}:00.000Z`;
-  // Full local datetime from combineDayAndTime e.g. "2026-10-25T15:00:00" - add UTC marker
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(time)) return `${time}.000Z`;
-  // Already has timezone
-  return time;
+  // HH:MM — store on fixed UTC reference date to avoid timezone issues
+  if (/^\d{2}:\d{2}$/.test(time.trim())) {
+    return `1970-01-01T${time.trim()}:00.000Z`;
+  }
+  // Already a full ISO string — extract time and re-serialize on reference date
+  try {
+    const d = new Date(time);
+    if (!Number.isNaN(d.getTime())) {
+      return `1970-01-01T${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:00.000Z`;
+    }
+  } catch {
+    /* fall through */
+  }
+  return null;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
