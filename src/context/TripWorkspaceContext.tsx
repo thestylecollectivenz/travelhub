@@ -86,9 +86,40 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
     loadData().catch(console.error);
   }, [loadData]);
 
-  const updateEntry = React.useCallback(
-    (updated: ItineraryEntry) => {
-      // Optimistic update
+  const updateEntry = React.useCallback((updated: ItineraryEntry) => {
+    const isNew = updated.id.startsWith('new-') || updated.id.startsWith('temp-');
+
+    if (isNew) {
+      // Optimistically add with temp ID
+      const tempId = updated.id;
+      setLocalEntries((prev) => {
+        const exists = prev.findIndex((e) => e.id === tempId);
+        if (exists >= 0) {
+          const next = [...prev];
+          next[exists] = updated;
+          return next;
+        }
+        return [...prev, updated];
+      });
+      // Create in SP and replace temp ID with real SP ID
+      const svc = new ItineraryService(spContext);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { id: _id, subItems: _sub, ...createPayload } = updated;
+      svc
+        .create(createPayload)
+        .then((created) => {
+          setLocalEntries((prev) =>
+            prev.map((e) => (e.id === tempId ? { ...created, subItems: e.subItems ?? [] } : e))
+          );
+        })
+        .catch((err) => {
+          // eslint-disable-next-line no-console
+          console.error('updateEntry (create): SP persist failed', err);
+          // Roll back - remove the temp entry
+          setLocalEntries((prev) => prev.filter((e) => e.id !== tempId));
+        });
+    } else {
+      // Existing entry - optimistic update then PATCH
       setLocalEntries((prev) => {
         const i = prev.findIndex((e) => e.id === updated.id);
         if (i >= 0) {
@@ -98,17 +129,15 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
         }
         return [...prev, updated];
       });
-      // Persist to SP
       const svc = new ItineraryService(spContext);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars -- strip nested items before PATCH
       const { subItems: _subItems, ...entryWithoutSubItems } = updated;
       svc.update(updated.id, entryWithoutSubItems).catch((err) => {
         // eslint-disable-next-line no-console
-        console.error('updateEntry: SP persist failed', err);
+        console.error('updateEntry (update): SP persist failed', err);
       });
-    },
-    [spContext]
-  );
+    }
+  }, [spContext]);
 
   const deleteEntry = React.useCallback(
     (entryId: string) => {
