@@ -24,6 +24,14 @@ export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected,
       <span className={`${styles.badge} ${styles.badgeTransit}`}>Transit</span>
     ) : null;
 
+  const dayDate = day.calendarDate
+    ? new Date(day.calendarDate + 'T00:00:00').toLocaleDateString('en-NZ', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short'
+      })
+    : '';
+
   return (
     <li className={styles.listItemWrap}>
       <button
@@ -34,7 +42,10 @@ export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected,
         aria-current={isSelected ? 'true' : undefined}
       >
         <div className={styles.row1}>
-          <span className={styles.dayNumberLabel}>Day {day.dayNumber}</span>
+          <span className={styles.dayNumberLabel}>
+            Day {day.dayNumber}
+            {dayDate ? ` · ${dayDate}` : ''}
+          </span>
           {badge}
         </div>
         <div className={styles.row2}>
