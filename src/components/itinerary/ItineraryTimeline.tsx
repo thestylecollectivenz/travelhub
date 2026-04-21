@@ -2,7 +2,6 @@ import * as React from 'react';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
-import { MOCK_TRIP_DAYS } from '../../mocks/tripMock';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { ItineraryCard } from './ItineraryCard';
@@ -65,12 +64,13 @@ const NewComposer: React.FC<NewComposerProps> = ({ tripId, dayId, calendarDate, 
 };
 
 export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) => {
-  const { trip, localEntries, editingCardId } = useTripWorkspace();
+  const { trip, localEntries, editingCardId, tripDays } = useTripWorkspace();
 
   const calendarDate = React.useMemo(() => {
-    const d = MOCK_TRIP_DAYS.find((x) => x.id === dayId && x.tripId === trip.id);
+    if (!trip) return '';
+    const d = tripDays.find((x) => x.id === dayId && x.tripId === trip.id);
     return d?.calendarDate ?? '';
-  }, [dayId, trip.id]);
+  }, [dayId, trip, tripDays]);
 
   const sorted = React.useMemo(() => sortEntriesForDay(localEntries, dayId), [localEntries, dayId]);
 
@@ -81,6 +81,10 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
     }
     return Math.max(...dayE.map((e) => e.sortOrder)) + 1;
   }, [localEntries, dayId]);
+
+  if (!trip) {
+    return null;
+  }
 
   const showComposer = editingCardId === 'new';
   const showEmpty = sorted.length === 0 && !showComposer;

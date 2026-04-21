@@ -8,7 +8,10 @@ import styles from './SidebarCategoryBudget.module.css';
 export const SidebarCategoryBudget: React.FC = () => {
   const { trip, localEntries } = useTripWorkspace();
 
-  const entries = React.useMemo(() => localEntries.filter((e) => e.tripId === trip.id), [localEntries, trip.id]);
+  const entries = React.useMemo(
+    () => (trip ? localEntries.filter((e) => e.tripId === trip.id) : []),
+    [localEntries, trip]
+  );
 
   const totals = React.useMemo(() => sumByCategory(entries), [entries]);
 

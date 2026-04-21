@@ -11,7 +11,59 @@ export interface ITripWorkspaceProps {
 }
 
 const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) => {
-  const { trip } = useTripWorkspace();
+  const { trip, loading, error, retryLoad } = useTripWorkspace();
+
+  const loadingStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '60vh',
+    fontFamily: 'var(--font-sans)',
+    color: 'var(--color-sand-600)',
+    fontSize: 'var(--font-size-sm)'
+  };
+
+  const errorStyle: React.CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 'var(--space-4)',
+    minHeight: '60vh',
+    fontFamily: 'var(--font-sans)',
+    color: 'var(--color-warning)',
+    fontSize: 'var(--font-size-sm)',
+    textAlign: 'center',
+    padding: 'var(--space-6)'
+  };
+
+  const retryButtonStyle: React.CSSProperties = {
+    padding: 'var(--space-2) var(--space-5)',
+    background: 'transparent',
+    color: 'var(--color-primary)',
+    border: 'var(--border-emphasis)',
+    borderRadius: 'var(--radius-md)',
+    fontSize: 'var(--font-size-sm)',
+    cursor: 'pointer'
+  };
+
+  if (loading) {
+    return <div style={loadingStyle}>Loading trip…</div>;
+  }
+
+  if (error || !trip) {
+    return (
+      <div style={errorStyle}>
+        <p>{error ?? 'Trip could not be loaded.'}</p>
+        <button type="button" style={retryButtonStyle} onClick={retryLoad}>
+          Retry
+        </button>
+        <button type="button" style={retryButtonStyle} onClick={onBack}>
+          ← All Trips
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.workspace} data-trip-id={tripId}>
@@ -29,7 +81,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
 
 export const TripWorkspace: React.FC<ITripWorkspaceProps> = (props) => {
   return (
-    <TripWorkspaceProvider>
+    <TripWorkspaceProvider tripId={props.tripId}>
       <TripWorkspaceLayout {...props} />
     </TripWorkspaceProvider>
   );
