@@ -69,8 +69,8 @@
   --color-cat-other-bg: var(--color-sand-100);
   --color-cat-overheads: var(--color-amber-600);
   --color-cat-overheads-bg: var(--color-amber-50);
-  --color-cat-preparation: var(--color-sand-600);
-  --color-cat-preparation-bg: var(--color-sand-100);
+  --color-cat-preparation: #6B7280;
+  --color-cat-preparation-bg: #F3F4F6;
 
   /* Semantic aliases */
   --color-hero-bg: var(--color-blue-800);
