@@ -29,6 +29,11 @@ export class FxService {
     return amount / rate;
   }
 
+  /** Expose the populated session cache for external consumers. */
+  getRates(): Map<string, number> {
+    return new Map(this.sessionCache);
+  }
+
   /**
    * Initialise the service by loading today's rates.
    * Checks SP cache first; fetches fresh from API if stale or missing.

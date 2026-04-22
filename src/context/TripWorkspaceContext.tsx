@@ -36,7 +36,6 @@ export interface TripWorkspaceContextValue {
   addSubItem: (entryId: string, subItem: ItinerarySubItem) => void;
   deleteSubItem: (entryId: string, subItemId: string) => void;
   convertToNZD: (amount: number, currency: string) => number;
-  fxReady: boolean;
 }
 
 const TripWorkspaceContext = React.createContext<TripWorkspaceContextValue | undefined>(undefined);
@@ -56,8 +55,7 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
   const [editingCardId, setEditingCardId] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
-  const fxServiceRef = React.useRef<FxService>(new FxService(spContext));
-  const [fxReady, setFxReady] = React.useState<boolean>(false);
+  const [fxRates, setFxRates] = React.useState<Map<string, number>>(new Map());
 
   const loadData = React.useCallback(async (): Promise<void> => {
     setLoading(true);
@@ -78,11 +76,13 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
       setLocalEntries(loadedEntries);
       // Initialise FX rates
       try {
-        await fxServiceRef.current.initialise();
-        setFxReady(true);
+        const fxSvc = new FxService(spContext);
+        await fxSvc.initialise();
+        // Extract the populated session cache via a helper
+        const ratesMap = fxSvc.getRates();
+        setFxRates(ratesMap);
       } catch (err) {
         console.error('FX init failed — proceeding without FX conversion', err);
-        setFxReady(true); // still mark ready so UI doesn't block
       }
       if (loadedDays.length > 0) {
         setSelectedDayId(loadedDays[0].id);
@@ -342,9 +342,11 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
   );
 
   const convertToNZD = React.useCallback((amount: number, currency: string): number => {
-    return fxServiceRef.current.convertToNZD(amount, currency);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fxReady]);
+    if (!currency || currency.toUpperCase() === 'NZD') return amount;
+    const rate = fxRates.get(currency.toUpperCase());
+    if (!rate || rate === 0) return amount;
+    return amount / rate;
+  }, [fxRates]);
 
   const value = React.useMemo(
     (): TripWorkspaceContextValue => ({
@@ -368,8 +370,7 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
       updateSubItem,
       addSubItem,
       deleteSubItem,
-      convertToNZD,
-      fxReady
+      convertToNZD
     }),
     [
       trip,
@@ -388,8 +389,7 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
       updateSubItem,
       addSubItem,
       deleteSubItem,
-      convertToNZD,
-      fxReady
+      convertToNZD
     ]
   );
 
