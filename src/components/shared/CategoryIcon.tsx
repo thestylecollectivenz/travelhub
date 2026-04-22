@@ -55,6 +55,21 @@ export const CategoryIcon: React.FC<CategoryIconProps> = ({ category, size = 16,
           <path d="M5.2 5.1h2.2M8.6 5.1h2.2M3.2 8.5h9.6M5 13.2l1.2-1.8M11 13.2l-1.2-1.8" {...common} />
         </svg>
       );
+    case 'Travel Overheads':
+      return (
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden style={style}>
+          <circle cx="8" cy="8" r="5.5" {...common} />
+          <path d="M8 5v3.5l2.5 1.5" {...common} />
+        </svg>
+      );
+    case 'Preparation':
+      return (
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden style={style}>
+          <path d="M5.5 8.5 7.2 10.5 10.5 6" {...common} />
+          <rect x="2.5" y="2.5" width="11" height="11" rx="1.5" {...common} />
+          <path d="M5.5 2.5v2M10.5 2.5v2" {...common} />
+        </svg>
+      );
     default:
       return (
         <svg viewBox="0 0 16 16" fill="none" aria-hidden style={style}>
