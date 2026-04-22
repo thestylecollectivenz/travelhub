@@ -50,7 +50,7 @@ function PinIcon(): React.ReactElement {
 }
 
 export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onEdit, onDuplicate, onDelete }) => {
-  const { addSubItem } = useTripWorkspace();
+  const { addSubItem, convertToNZD } = useTripWorkspace();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [notesOpen, setNotesOpen] = React.useState(false);
   const [subItemsOpen, setSubItemsOpen] = React.useState(false);
@@ -72,6 +72,10 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
     return () => document.removeEventListener('mousedown', onDoc);
   }, [menuOpen]);
 
+  const displayAmountNZD = convertToNZD(entry.amount, entry.currency || 'NZD');
+  const displayAmountPaidNZD = entry.amountPaid !== undefined
+    ? convertToNZD(entry.amountPaid, entry.currency || 'NZD')
+    : undefined;
   const hhmm = formatTimeHHMM(entry.timeStart);
   // Guard: if duration is a bare number (legacy Number column value) hide it
   const durationDisplay = (() => {
@@ -243,17 +247,17 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
       </div>
 
       <div className={styles.amountRow}>
-        {formatNZD(entry.amount)}
+        {formatNZD(displayAmountNZD)}
         {entry.currency && entry.currency !== 'NZD' ? (
           <span className={styles.unitSuffix}> ({entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {entry.currency})</span>
         ) : null}
         {unitSuffix ? <span className={styles.unitSuffix}>{unitSuffix}</span> : null}
       </div>
-      {entry.paymentStatus === 'Part paid' && entry.amountPaid !== undefined ? (
+      {entry.paymentStatus === 'Part paid' && entry.amountPaid !== undefined && displayAmountPaidNZD !== undefined ? (
         <div className={styles.partPaidDetail}>
-          <span className={styles.partPaidPaid}>{formatNZD(entry.amountPaid)} paid</span>
+          <span className={styles.partPaidPaid}>{formatNZD(displayAmountPaidNZD)} paid</span>
           <span className={styles.partPaidSep}> · </span>
-          <span className={styles.partPaidOwing}>{formatNZD(entry.amount - entry.amountPaid)} owing</span>
+          <span className={styles.partPaidOwing}>{formatNZD(displayAmountNZD - displayAmountPaidNZD)} owing</span>
         </div>
       ) : null}
       {hasSubTotal ? (
