@@ -249,14 +249,65 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
         <label className={styles.label} htmlFor={`cur-${draft.id}`}>
           Currency
         </label>
-        <input
+        <select
           id={`cur-${draft.id}`}
-          className={styles.input}
-          type="text"
-          maxLength={3}
+          className={styles.select}
           value={draft.currency}
-          onChange={(e) => patch({ currency: e.target.value.toUpperCase().slice(0, 3) })}
-        />
+          onChange={(e) => patch({ currency: e.target.value })}
+        >
+          <option value="NZD">NZD — New Zealand Dollar</option>
+          <option value="AUD">AUD — Australian Dollar</option>
+          <option value="USD">USD — US Dollar</option>
+          <option value="EUR">EUR — Euro</option>
+          <option value="GBP">GBP — British Pound</option>
+          <option value="JPY">JPY — Japanese Yen</option>
+          <option value="CNY">CNY — Chinese Yuan</option>
+          <option value="SGD">SGD — Singapore Dollar</option>
+          <option value="HKD">HKD — Hong Kong Dollar</option>
+          <option value="THB">THB — Thai Baht</option>
+          <option value="IDR">IDR — Indonesian Rupiah</option>
+          <option value="MYR">MYR — Malaysian Ringgit</option>
+          <option value="PHP">PHP — Philippine Peso</option>
+          <option value="KRW">KRW — South Korean Won</option>
+          <option value="INR">INR — Indian Rupee</option>
+          <option value="AED">AED — UAE Dirham</option>
+          <option value="SAR">SAR — Saudi Riyal</option>
+          <option value="ZAR">ZAR — South African Rand</option>
+          <option value="CHF">CHF — Swiss Franc</option>
+          <option value="SEK">SEK — Swedish Krona</option>
+          <option value="NOK">NOK — Norwegian Krone</option>
+          <option value="DKK">DKK — Danish Krone</option>
+          <option value="CAD">CAD — Canadian Dollar</option>
+          <option value="MXN">MXN — Mexican Peso</option>
+          <option value="BRL">BRL — Brazilian Real</option>
+          <option value="CZK">CZK — Czech Koruna</option>
+          <option value="HUF">HUF — Hungarian Forint</option>
+          <option value="PLN">PLN — Polish Zloty</option>
+          <option value="RON">RON — Romanian Leu</option>
+          <option value="TRY">TRY — Turkish Lira</option>
+          <option value="ILS">ILS — Israeli Shekel</option>
+          <option value="EGP">EGP — Egyptian Pound</option>
+          <option value="VND">VND — Vietnamese Dong</option>
+          <option value="TWD">TWD — Taiwan Dollar</option>
+          <option value="PKR">PKR — Pakistani Rupee</option>
+          <option value="BDT">BDT — Bangladeshi Taka</option>
+          <option value="CLP">CLP — Chilean Peso</option>
+          <option value="COP">COP — Colombian Peso</option>
+          <option value="PEN">PEN — Peruvian Sol</option>
+          <option value="UAH">UAH — Ukrainian Hryvnia</option>
+          <option value="NGN">NGN — Nigerian Naira</option>
+          <option value="KES">KES — Kenyan Shilling</option>
+          <option value="GHS">GHS — Ghanaian Cedi</option>
+          <option value="MAD">MAD — Moroccan Dirham</option>
+          <option value="XOF">XOF — West African CFA Franc</option>
+          <option value="XAF">XAF — Central African CFA Franc</option>
+          <option value="FJD">FJD — Fijian Dollar</option>
+          <option value="PGK">PGK — Papua New Guinea Kina</option>
+          <option value="WST">WST — Samoan Tala</option>
+          <option value="TOP">TOP — Tongan Paʻanga</option>
+          <option value="SBD">SBD — Solomon Islands Dollar</option>
+          <option value="VUV">VUV — Vanuatu Vatu</option>
+        </select>
       </div>
 
       <div className={styles.actions}>

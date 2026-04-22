@@ -343,7 +343,8 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
 
   const convertToNZD = React.useCallback((amount: number, currency: string): number => {
     return fxServiceRef.current.convertToNZD(amount, currency);
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fxReady]);
 
   const value = React.useMemo(
     (): TripWorkspaceContextValue => ({

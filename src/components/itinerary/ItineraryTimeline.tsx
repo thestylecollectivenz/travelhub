@@ -53,6 +53,14 @@ interface NewComposerProps {
 }
 
 const NewComposer: React.FC<NewComposerProps> = ({ tripId, dayId, calendarDate, nextSortOrder }) => {
+  const composerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (composerRef.current) {
+      composerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
+
   const [draftEntry] = React.useState<ItineraryEntry>(() => {
     const id =
       typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -62,11 +70,13 @@ const NewComposer: React.FC<NewComposerProps> = ({ tripId, dayId, calendarDate, 
   });
 
   return (
-    <ItineraryCard
-      entry={draftEntry}
-      calendarDate={calendarDate}
-      draggable={false}
-    />
+    <div ref={composerRef}>
+      <ItineraryCard
+        entry={draftEntry}
+        calendarDate={calendarDate}
+        draggable={false}
+      />
+    </div>
   );
 };
 
