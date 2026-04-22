@@ -185,6 +185,16 @@ a:hover {
   --cat-bg: var(--color-cat-transport-bg);
 }
 
+.th-cat-overheads {
+  --cat-color: var(--color-cat-overheads);
+  --cat-bg: var(--color-cat-overheads-bg);
+}
+
+.th-cat-preparation {
+  --cat-color: var(--color-cat-preparation);
+  --cat-bg: var(--color-cat-preparation-bg);
+}
+
 .th-cat-overheads.th-cat-badge {
   background: var(--color-cat-overheads-bg);
   color: var(--color-cat-overheads);
