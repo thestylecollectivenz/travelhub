@@ -244,6 +244,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
 
       <div className={styles.amountRow}>
         {formatNZD(entry.amount)}
+        {entry.currency && entry.currency !== 'NZD' ? (
+          <span className={styles.unitSuffix}> ({entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {entry.currency})</span>
+        ) : null}
         {unitSuffix ? <span className={styles.unitSuffix}>{unitSuffix}</span> : null}
       </div>
       {entry.paymentStatus === 'Part paid' && entry.amountPaid !== undefined ? (
