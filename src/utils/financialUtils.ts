@@ -13,22 +13,40 @@ interface FinancialLine {
   dayId: string;
 }
 
-function getFinancialLines(entries: ItineraryEntry[]): FinancialLine[] {
+export type CurrencyConverter = (amount: number, currency: string) => number;
+
+const identityConverter: CurrencyConverter = (amount) => amount;
+
+function getFinancialLines(
+  entries: ItineraryEntry[],
+  converter: CurrencyConverter = identityConverter
+): FinancialLine[] {
   const lines: FinancialLine[] = [];
   for (const entry of entries) {
+    const currency = entry.currency || 'NZD';
+    const amount = converter(entryAmount(entry), currency);
+    const amountPaid = entry.amountPaid !== undefined
+      ? converter(entry.amountPaid, currency)
+      : undefined;
     lines.push({
-      amount: entryAmount(entry),
-      amountPaid: entry.amountPaid,
+      amount,
+      amountPaid,
       paymentStatus: entry.paymentStatus,
       category: entry.category,
       dayId: entry.dayId
     });
     const subItems = entry.subItems ?? [];
     for (const sub of subItems) {
-      const amount = typeof sub.amount === 'number' && !Number.isNaN(sub.amount) ? sub.amount : 0;
+      const subCurrency = sub.currency || 'NZD';
+      const subAmount = typeof sub.amount === 'number' && !Number.isNaN(sub.amount)
+        ? converter(sub.amount, subCurrency)
+        : 0;
+      const subAmountPaid = sub.amountPaid !== undefined
+        ? converter(sub.amountPaid, subCurrency)
+        : undefined;
       lines.push({
-        amount,
-        amountPaid: sub.amountPaid,
+        amount: subAmount,
+        amountPaid: subAmountPaid,
         paymentStatus: sub.paymentStatus,
         category: entry.category,
         dayId: entry.dayId
@@ -48,9 +66,10 @@ function getFinancialLines(entries: ItineraryEntry[]): FinancialLine[] {
  */
 export function sumByPaymentStatus(
   entries: ItineraryEntry[],
-  status: 'paid' | 'unpaid' | 'all'
+  status: 'paid' | 'unpaid' | 'all',
+  converter: CurrencyConverter = identityConverter
 ): number {
-  const lines = getFinancialLines(entries);
+  const lines = getFinancialLines(entries, converter);
   return lines.reduce((sum, line) => {
     if (line.paymentStatus === 'Free') {
       return sum;
@@ -118,8 +137,11 @@ function isBudgetCategoryKey(value: string): value is BudgetCategoryKey {
 }
 
 /** Whole-trip totals keyed by category (always all six keys). */
-export function sumByCategory(entries: ItineraryEntry[]): Record<string, number> {
-  const lines = getFinancialLines(entries);
+export function sumByCategory(
+  entries: ItineraryEntry[],
+  converter: CurrencyConverter = identityConverter
+): Record<string, number> {
+  const lines = getFinancialLines(entries, converter);
   const result: Record<string, number> = {};
   for (const key of BUDGET_CATEGORY_ORDER) {
     result[key] = 0;
@@ -132,8 +154,12 @@ export function sumByCategory(entries: ItineraryEntry[]): Record<string, number>
 }
 
 /** Sum of line amounts for one calendar day. */
-export function sumForDay(entries: ItineraryEntry[], dayId: string): number {
-  const lines = getFinancialLines(entries);
+export function sumForDay(
+  entries: ItineraryEntry[],
+  dayId: string,
+  converter: CurrencyConverter = identityConverter
+): number {
+  const lines = getFinancialLines(entries, converter);
   return lines.reduce((sum, line) => {
     if (line.dayId !== dayId) {
       return sum;
@@ -147,8 +173,12 @@ function bucketCategory(category: string): BudgetCategoryKey {
 }
 
 /** Category totals for one day only (all six keys; unused stay 0). */
-export function sumForDayByCategory(entries: ItineraryEntry[], dayId: string): Record<string, number> {
-  const lines = getFinancialLines(entries);
+export function sumForDayByCategory(
+  entries: ItineraryEntry[],
+  dayId: string,
+  converter: CurrencyConverter = identityConverter
+): Record<string, number> {
+  const lines = getFinancialLines(entries, converter);
   const result: Record<string, number> = {};
   for (const key of BUDGET_CATEGORY_ORDER) {
     result[key] = 0;
@@ -176,9 +206,10 @@ export interface DayCategoryPaymentSummary {
 export function getPaymentSummaryForDayCategory(
   entries: ItineraryEntry[],
   dayId: string,
-  category: string
+  category: string,
+  converter: CurrencyConverter = identityConverter
 ): DayCategoryPaymentSummary {
-  const lines = getFinancialLines(entries);
+  const lines = getFinancialLines(entries, converter);
   const bucket = bucketCategory(category);
   let paid = 0;
   let unpaid = 0;

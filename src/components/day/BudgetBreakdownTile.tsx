@@ -17,7 +17,7 @@ export interface BudgetBreakdownTileProps {
 }
 
 export const BudgetBreakdownTile: React.FC<BudgetBreakdownTileProps> = ({ tripId, dayId }) => {
-  const { localEntries } = useTripWorkspace();
+  const { localEntries, convertToNZD } = useTripWorkspace();
 
   const entries = React.useMemo(
     () => localEntries.filter((e) => e.tripId === tripId),
@@ -26,16 +26,16 @@ export const BudgetBreakdownTile: React.FC<BudgetBreakdownTileProps> = ({ tripId
 
   const dayEntries = React.useMemo(() => entries.filter((e) => e.dayId === dayId), [entries, dayId]);
 
-  const sumsByCategory = React.useMemo(() => sumForDayByCategory(entries, dayId), [entries, dayId]);
+  const sumsByCategory = React.useMemo(() => sumForDayByCategory(entries, dayId, convertToNZD), [entries, dayId, convertToNZD]);
 
   const categoriesToShow = React.useMemo(() => {
     return BUDGET_CATEGORY_ORDER.filter((key) => {
-      const s = getPaymentSummaryForDayCategory(entries, dayId, key);
+      const s = getPaymentSummaryForDayCategory(entries, dayId, key, convertToNZD);
       return s.itemCount > 0;
     });
-  }, [entries, dayId]);
+  }, [entries, dayId, convertToNZD]);
 
-  const dayTotalAll = sumForDay(entries, dayId);
+  const dayTotalAll = sumForDay(entries, dayId, convertToNZD);
 
   if (dayEntries.length === 0) {
     return (
@@ -52,7 +52,7 @@ export const BudgetBreakdownTile: React.FC<BudgetBreakdownTileProps> = ({ tripId
         <span className={styles.tileTotal}>{formatNZD(dayTotalAll)}</span>
       </div>
       {categoriesToShow.map((category) => {
-        const summary = getPaymentSummaryForDayCategory(entries, dayId, category);
+        const summary = getPaymentSummaryForDayCategory(entries, dayId, category, convertToNZD);
         const pct =
           summary.total > 0 ? Math.min(100, Math.max(0, (summary.paid / summary.total) * 100)) : 0;
         const countLabel = summary.itemCount === 1 ? '1 item' : `${summary.itemCount} items`;

@@ -49,16 +49,16 @@ function IconCalendar({ className }: { className?: string }): React.ReactElement
  * Private workspace budget summary (hidden in shared view when that mode is wired in Phase 3+).
  */
 export const TripStatsStrip: React.FC = () => {
-  const { trip, localEntries, tripDays } = useTripWorkspace();
+  const { trip, localEntries, tripDays, convertToNZD } = useTripWorkspace();
 
   const entries = React.useMemo(
     () => (trip ? localEntries.filter((e) => e.tripId === trip.id) : []),
     [localEntries, trip]
   );
 
-  const totalBudget = sumByPaymentStatus(entries, 'all');
-  const spentSoFar = sumByPaymentStatus(entries, 'paid');
-  const remaining = sumByPaymentStatus(entries, 'unpaid');
+  const totalBudget = sumByPaymentStatus(entries, 'all', convertToNZD);
+  const spentSoFar = sumByPaymentStatus(entries, 'paid', convertToNZD);
+  const remaining = sumByPaymentStatus(entries, 'unpaid', convertToNZD);
   const dayCount = tripDays.filter((d) => trip && d.tripId === trip.id).length;
   const averagePerDay = avgPerDay(totalBudget, dayCount);
 

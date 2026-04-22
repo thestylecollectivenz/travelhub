@@ -6,14 +6,14 @@ import { BUDGET_CATEGORY_ORDER, formatNZD, sumByCategory } from '../../utils/fin
 import styles from './SidebarCategoryBudget.module.css';
 
 export const SidebarCategoryBudget: React.FC = () => {
-  const { trip, localEntries } = useTripWorkspace();
+  const { trip, localEntries, convertToNZD } = useTripWorkspace();
 
   const entries = React.useMemo(
     () => (trip ? localEntries.filter((e) => e.tripId === trip.id) : []),
     [localEntries, trip]
   );
 
-  const totals = React.useMemo(() => sumByCategory(entries), [entries]);
+  const totals = React.useMemo(() => sumByCategory(entries, convertToNZD), [entries, convertToNZD]);
 
   return (
     <section className={styles.section} aria-label="Trip budget by category">

@@ -5,6 +5,7 @@ import type { TripDay } from '../models/TripDay';
 import { TripService } from '../services/TripService';
 import { DayService } from '../services/DayService';
 import { ItineraryService } from '../services/ItineraryService';
+import { FxService } from '../services/FxService';
 import { useSpContext } from './SpContext';
 import { minutesFromTimeStart } from '../utils/itineraryTimeUtils';
 
@@ -34,6 +35,8 @@ export interface TripWorkspaceContextValue {
   updateSubItem: (entryId: string, updatedSubItem: ItinerarySubItem) => void;
   addSubItem: (entryId: string, subItem: ItinerarySubItem) => void;
   deleteSubItem: (entryId: string, subItemId: string) => void;
+  convertToNZD: (amount: number, currency: string) => number;
+  fxReady: boolean;
 }
 
 const TripWorkspaceContext = React.createContext<TripWorkspaceContextValue | undefined>(undefined);
@@ -53,6 +56,8 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
   const [editingCardId, setEditingCardId] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
+  const fxServiceRef = React.useRef<FxService>(new FxService(spContext));
+  const [fxReady, setFxReady] = React.useState<boolean>(false);
 
   const loadData = React.useCallback(async (): Promise<void> => {
     setLoading(true);
@@ -71,6 +76,14 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
       setTrip(loadedTrip);
       setTripDays(loadedDays);
       setLocalEntries(loadedEntries);
+      // Initialise FX rates
+      try {
+        await fxServiceRef.current.initialise();
+        setFxReady(true);
+      } catch (err) {
+        console.error('FX init failed — proceeding without FX conversion', err);
+        setFxReady(true); // still mark ready so UI doesn't block
+      }
       if (loadedDays.length > 0) {
         setSelectedDayId(loadedDays[0].id);
       }
@@ -328,6 +341,10 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
     [spContext]
   );
 
+  const convertToNZD = React.useCallback((amount: number, currency: string): number => {
+    return fxServiceRef.current.convertToNZD(amount, currency);
+  }, []);
+
   const value = React.useMemo(
     (): TripWorkspaceContextValue => ({
       trip,
@@ -349,7 +366,9 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
       moveEntryToDay,
       updateSubItem,
       addSubItem,
-      deleteSubItem
+      deleteSubItem,
+      convertToNZD,
+      fxReady
     }),
     [
       trip,
@@ -367,7 +386,9 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
       moveEntryToDay,
       updateSubItem,
       addSubItem,
-      deleteSubItem
+      deleteSubItem,
+      convertToNZD,
+      fxReady
     ]
   );
 
