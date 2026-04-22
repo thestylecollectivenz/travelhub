@@ -65,12 +65,9 @@ export const CategoryIcon: React.FC<CategoryIconProps> = ({ category, size = 16,
     case 'Travel Overheads':
       return (
         <svg viewBox="0 0 16 16" fill="none" aria-hidden style={style}>
-          {/* Circle */}
-          <circle cx="8" cy="8.5" r="4.5" {...common} />
-          {/* Dollar sign vertical stroke */}
-          <path d="M8 5v7" {...common} />
-          {/* Dollar sign curves */}
-          <path d="M9.5 6.3c0 0-4 0-1.5 2.2s1.5 2.2-1.5 2.2" {...common} />
+          <circle cx="8" cy="8" r="5.5" {...common} />
+          <path d="M8 4.5v7" {...common} />
+          <path d="M10 6a2 2 0 0 0-2-1.5A1.5 1.5 0 0 0 8 7.5c1.1 0 2 .7 2 1.5A2 2 0 0 1 8 10.5 2 2 0 0 1 6 9" {...common} />
         </svg>
       );
     case 'Preparation':

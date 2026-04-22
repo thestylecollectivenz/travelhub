@@ -67,6 +67,10 @@
   --color-cat-activities-bg: var(--color-green-50);
   --color-cat-transport-bg: var(--color-purple-50);
   --color-cat-other-bg: var(--color-sand-100);
+  --color-cat-overheads: var(--color-teal-600);
+  --color-cat-overheads-bg: var(--color-teal-50);
+  --color-cat-preparation: var(--color-purple-600);
+  --color-cat-preparation-bg: var(--color-purple-50);
 
   /* Semantic aliases */
   --color-hero-bg: var(--color-blue-800);
