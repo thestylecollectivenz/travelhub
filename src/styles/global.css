@@ -185,6 +185,24 @@ a:hover {
   --cat-bg: var(--color-cat-transport-bg);
 }
 
+.th-cat-overheads.th-cat-badge {
+  background: var(--color-cat-overheads-bg);
+  color: var(--color-cat-overheads);
+}
+
+.th-cat-overheads.th-cat-icon {
+  color: var(--color-cat-overheads);
+}
+
+.th-cat-preparation.th-cat-badge {
+  background: var(--color-cat-preparation-bg);
+  color: var(--color-cat-preparation);
+}
+
+.th-cat-preparation.th-cat-icon {
+  color: var(--color-cat-preparation);
+}
+
 .th-cat-other {
   --cat-color: var(--color-cat-other);
   --cat-bg: var(--color-cat-other-bg);

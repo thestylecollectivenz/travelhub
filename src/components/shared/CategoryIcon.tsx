@@ -31,9 +31,16 @@ export const CategoryIcon: React.FC<CategoryIconProps> = ({ category, size = 16,
     case 'Accommodation':
       return (
         <svg viewBox="0 0 16 16" fill="none" aria-hidden style={style}>
-          <rect x="1.5" y="7.5" width="13" height="3.5" rx="0.8" {...common} />
-          <rect x="3" y="6" width="3.5" height="1.5" rx="0.6" {...common} />
-          <path d="M1.5 6.8V11M14.5 6.8V11M1.5 5.5h13" {...common} />
+          {/* Bed base */}
+          <path d="M1.5 11.5v-4a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v4" {...common} />
+          {/* Headboard */}
+          <path d="M3 6.5V4.5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v2" {...common} />
+          {/* Pillow */}
+          <rect x="4.5" y="5" width="3" height="1.5" rx="0.5" {...common} />
+          {/* Floor line */}
+          <path d="M1 11.5h14" {...common} />
+          {/* Legs */}
+          <path d="M3 11.5v1.5M13 11.5v1.5" {...common} />
         </svg>
       );
     case 'Food & Dining':
@@ -58,8 +65,12 @@ export const CategoryIcon: React.FC<CategoryIconProps> = ({ category, size = 16,
     case 'Travel Overheads':
       return (
         <svg viewBox="0 0 16 16" fill="none" aria-hidden style={style}>
-          <circle cx="8" cy="8" r="5.5" {...common} />
-          <path d="M8 5v3.5l2.5 1.5" {...common} />
+          {/* Circle */}
+          <circle cx="8" cy="8.5" r="4.5" {...common} />
+          {/* Dollar sign vertical stroke */}
+          <path d="M8 5v7" {...common} />
+          {/* Dollar sign curves */}
+          <path d="M9.5 6.3c0 0-4 0-1.5 2.2s1.5 2.2-1.5 2.2" {...common} />
         </svg>
       );
     case 'Preparation':
