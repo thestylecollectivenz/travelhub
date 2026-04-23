@@ -29,12 +29,37 @@ function statusDotClass(status: TripLifecycleStatus): string {
   }
 }
 
+function countdownLabel(trip: Trip): string | null {
+  if (trip.status === 'Completed' || trip.status === 'Archived') {
+    return null;
+  }
+  if (trip.status === 'In Progress') {
+    return 'In progress';
+  }
+
+  const today = new Date();
+  const start = new Date(`${trip.dateStart}T00:00:00`);
+  const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const startLocal = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const diffDays = Math.floor((startLocal.getTime() - todayLocal.getTime()) / 86400000);
+
+  if (diffDays > 0) {
+    return diffDays === 1 ? '1 day to go' : `${diffDays} days to go`;
+  }
+  if (diffDays === 0) {
+    return 'Starts today';
+  }
+  return null;
+}
+
 export const TripHero: React.FC<TripHeroProps> = ({ trip }) => {
   const hasHeroImage = Boolean(trip.heroImageUrl && trip.heroImageUrl.trim() !== '');
   const dayCount = inclusiveTripDayCount(trip.dateStart, trip.dateEnd);
   const dayLabel = dayCount === 1 ? '1 day' : `${dayCount} days`;
   const metaLine = `${trip.destination} · ${formatDateRange(trip.dateStart, trip.dateEnd)} · ${dayLabel}`;
   const showDescription = Boolean(trip.description && trip.description.trim() !== '');
+  const countdown = countdownLabel(trip);
+  const countdownClass = trip.status === 'In Progress' ? styles.countdownInProgress : styles.countdownUpcoming;
 
   return (
     <section className={styles.hero} aria-label="Trip hero">
@@ -55,6 +80,7 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip }) => {
         <div className={styles.heroBody}>
           <h1 className={styles.title}>{trip.title}</h1>
           <p className={styles.meta}>{metaLine}</p>
+          {countdown ? <span className={`${styles.countdownChip} ${countdownClass}`}>{countdown}</span> : null}
           {showDescription ? <p className={styles.description}>{trip.description}</p> : null}
         </div>
       </div>

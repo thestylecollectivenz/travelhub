@@ -98,6 +98,28 @@
   opacity: 0.85;
 }
 
+.countdownChip {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0 var(--space-2) 0;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.countdownUpcoming {
+  background: color-mix(in srgb, var(--color-primary) 16%, transparent);
+  color: var(--color-surface-raised);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 45%, transparent);
+}
+
+.countdownInProgress {
+  background: color-mix(in srgb, var(--color-status-confirmed) 18%, transparent);
+  color: var(--color-surface-raised);
+  border: 1px solid color-mix(in srgb, var(--color-status-confirmed) 50%, transparent);
+}
+
 .description {
   margin: 0;
   font-size: var(--font-size-sm);
