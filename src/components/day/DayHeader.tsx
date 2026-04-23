@@ -1,7 +1,8 @@
 import * as React from 'react';
 import type { TripDay } from '../../models/TripDay';
+import { useConfig } from '../../context/ConfigContext';
 import { formatDayDate } from '../../utils/dateUtils';
-import { formatNZD } from '../../utils/financialUtils';
+import { formatCurrency } from '../../utils/financialUtils';
 import styles from './DayHeader.module.css';
 
 export interface DayHeaderProps {
@@ -11,6 +12,8 @@ export interface DayHeaderProps {
 }
 
 export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry }) => {
+  const { config } = useConfig();
+
   return (
     <header className={styles.bar}>
       <div className={styles.left}>
@@ -21,7 +24,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry 
         <div className={styles.date}>{formatDayDate(day.calendarDate)}</div>
       </div>
       <div className={styles.right}>
-        <span className={styles.totalChip}>{formatNZD(dayTotal)}</span>
+        <span className={styles.totalChip}>{formatCurrency(dayTotal, config.homeCurrency)}</span>
         <button type="button" className={styles.addButton} onClick={onAddEntry}>
           + Add
         </button>

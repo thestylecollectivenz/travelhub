@@ -3,6 +3,7 @@ import { TripWorkspaceProvider, useTripWorkspace } from '../../context/TripWorks
 import { TripHero } from './TripHero';
 import { TripStatsStrip } from './TripStatsStrip';
 import { TripContent } from './TripContent';
+import { ConfigPanel } from './ConfigPanel';
 import styles from './TripWorkspace.module.css';
 
 export interface ITripWorkspaceProps {
@@ -12,6 +13,7 @@ export interface ITripWorkspaceProps {
 
 const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) => {
   const { trip, loading, error, retryLoad } = useTripWorkspace();
+  const [configOpen, setConfigOpen] = React.useState(false);
 
   const loadingStyle: React.CSSProperties = {
     display: 'flex',
@@ -71,10 +73,14 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
         <button type="button" className={styles.backButton} onClick={onBack}>
           ← All Trips
         </button>
+        <button type="button" className={styles.settingsButton} onClick={() => setConfigOpen(true)} aria-label="Open settings">
+          <span aria-hidden>⚙</span> Settings
+        </button>
       </div>
       <TripHero trip={trip} />
       <TripStatsStrip />
       <TripContent />
+      <ConfigPanel isOpen={configOpen} onClose={() => setConfigOpen(false)} />
     </div>
   );
 };

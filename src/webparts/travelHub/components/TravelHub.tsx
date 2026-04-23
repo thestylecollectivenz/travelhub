@@ -4,6 +4,7 @@ import type { ITravelHubProps } from './ITravelHubProps';
 import { LicenceGate } from './app/LicenceGate';
 import { AppRouter } from './app/AppRouter';
 import { SpContext } from '../../../context/SpContext';
+import { ConfigProvider } from '../../../context/ConfigContext';
 
 const TravelHub: React.FC<ITravelHubProps> = (props) => {
   const [licenceKey, setLicenceKey] = React.useState<string>(props.licenceKey || '');
@@ -14,9 +15,11 @@ const TravelHub: React.FC<ITravelHubProps> = (props) => {
 
   return (
     <SpContext.Provider value={props.context}>
-      <LicenceGate licenceKey={licenceKey} onKeySubmit={setLicenceKey}>
-        <AppRouter />
-      </LicenceGate>
+      <ConfigProvider>
+        <LicenceGate licenceKey={licenceKey} onKeySubmit={setLicenceKey}>
+          <AppRouter />
+        </LicenceGate>
+      </ConfigProvider>
     </SpContext.Provider>
   );
 };

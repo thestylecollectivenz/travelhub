@@ -1,9 +1,10 @@
 import * as React from 'react';
 import type { ItineraryEntry, ItinerarySubItem } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { useConfig } from '../../context/ConfigContext';
 import { CategoryIcon } from '../shared/CategoryIcon';
 import { getCategorySlug } from '../../utils/categoryUtils';
-import { formatNZD } from '../../utils/financialUtils';
+import { formatCurrency } from '../../utils/financialUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { SubItemList } from './SubItemList';
 import styles from './ItineraryCardView.module.css';
@@ -50,7 +51,8 @@ function PinIcon(): React.ReactElement {
 }
 
 export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onEdit, onDuplicate, onDelete }) => {
-  const { addSubItem, convertToNZD } = useTripWorkspace();
+  const { addSubItem, convertToHomeCurrency } = useTripWorkspace();
+  const { config } = useConfig();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [notesOpen, setNotesOpen] = React.useState(false);
   const [subItemsOpen, setSubItemsOpen] = React.useState(false);
@@ -72,9 +74,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
     return () => document.removeEventListener('mousedown', onDoc);
   }, [menuOpen]);
 
-  const displayAmountNZD = convertToNZD(entry.amount, entry.currency || 'NZD');
-  const displayAmountPaidNZD = entry.amountPaid !== undefined
-    ? convertToNZD(entry.amountPaid, entry.currency || 'NZD')
+  const displayAmountHome = convertToHomeCurrency(entry.amount, entry.currency || 'NZD');
+  const displayAmountPaidHome = entry.amountPaid !== undefined
+    ? convertToHomeCurrency(entry.amountPaid, entry.currency || 'NZD')
     : undefined;
   const hhmm = formatTimeHHMM(entry.timeStart);
   // Guard: if duration is a bare number (legacy Number column value) hide it
@@ -96,7 +98,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
 
   let unitSuffix = '';
   if (entry.unitType && typeof entry.unitAmount === 'number' && !Number.isNaN(entry.unitAmount)) {
-    const amt = formatNZD(entry.unitAmount);
+    const unitAmountHome = convertToHomeCurrency(entry.unitAmount, entry.currency || 'NZD');
+    const amt = formatCurrency(unitAmountHome, config.homeCurrency);
     if (entry.unitType === 'PerPerson') {
       unitSuffix = ` · ${amt} pp`;
     } else if (entry.unitType === 'PerNight') {
@@ -126,14 +129,15 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
   const hasSubItems = subItems.length > 0;
   const subPaid = subItems.reduce((sum, s) => {
     if (s.paymentStatus === 'Fully paid') {
-      return sum + s.amount;
+      return sum + convertToHomeCurrency(s.amount, s.currency || 'NZD');
     }
     if (s.paymentStatus === 'Part paid') {
-      return sum + (s.amountPaid ?? 0);
+      const paid = s.amountPaid ?? 0;
+      return sum + convertToHomeCurrency(paid, s.currency || 'NZD');
     }
     return sum;
   }, 0);
-  const subTotal = subItems.reduce((sum, s) => sum + s.amount, 0);
+  const subTotal = subItems.reduce((sum, s) => sum + convertToHomeCurrency(s.amount, s.currency || 'NZD'), 0);
   const subOwing = subTotal - subPaid;
   const hasSubTotal = subTotal > 0;
   const showSubItemContent = hasSubItems || addingSubItem;
@@ -247,27 +251,27 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
       </div>
 
       <div className={styles.amountRow}>
-        {formatNZD(displayAmountNZD)}
-        {entry.currency && entry.currency !== 'NZD' ? (
+        {formatCurrency(displayAmountHome, config.homeCurrency)}
+        {entry.currency && entry.currency.toUpperCase() !== config.homeCurrency.toUpperCase() ? (
           <span className={styles.unitSuffix}> ({entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {entry.currency})</span>
         ) : null}
         {unitSuffix ? <span className={styles.unitSuffix}>{unitSuffix}</span> : null}
       </div>
-      {entry.paymentStatus === 'Part paid' && entry.amountPaid !== undefined && displayAmountPaidNZD !== undefined ? (
+      {entry.paymentStatus === 'Part paid' && entry.amountPaid !== undefined && displayAmountPaidHome !== undefined ? (
         <div className={styles.partPaidDetail}>
-          <span className={styles.partPaidPaid}>{formatNZD(displayAmountPaidNZD)} paid</span>
+          <span className={styles.partPaidPaid}>{formatCurrency(displayAmountPaidHome, config.homeCurrency)} paid</span>
           <span className={styles.partPaidSep}> · </span>
-          <span className={styles.partPaidOwing}>{formatNZD(displayAmountNZD - displayAmountPaidNZD)} owing</span>
+          <span className={styles.partPaidOwing}>{formatCurrency(displayAmountHome - displayAmountPaidHome, config.homeCurrency)} owing</span>
         </div>
       ) : null}
       {hasSubTotal ? (
         <div className={styles.subTotalLine}>
           <span className={styles.subTotalLabel}>incl. options</span>
-          <span className={styles.subTotalAmount}>{formatNZD(entry.amount + subTotal)}</span>
+          <span className={styles.subTotalAmount}>{formatCurrency(displayAmountHome + subTotal, config.homeCurrency)}</span>
           {subPaid > 0 || subOwing > 0 ? (
             <span className={styles.subTotalSplit}>
-              <span className={styles.subPaid}>{formatNZD(subPaid)} paid</span>
-              {subOwing > 0 ? <span className={styles.subOwing}> · {formatNZD(subOwing)} owing</span> : null}
+              <span className={styles.subPaid}>{formatCurrency(subPaid, config.homeCurrency)} paid</span>
+              {subOwing > 0 ? <span className={styles.subOwing}> · {formatCurrency(subOwing, config.homeCurrency)} owing</span> : null}
             </span>
           ) : null}
         </div>

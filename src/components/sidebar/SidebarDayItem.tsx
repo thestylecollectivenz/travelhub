@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import type { TripDay } from '../../models/TripDay';
-import { formatNZD } from '../../utils/financialUtils';
+import { useConfig } from '../../context/ConfigContext';
+import { formatCurrency } from '../../utils/financialUtils';
 import styles from './SidebarDayItem.module.css';
 
 export interface SidebarDayItemProps {
@@ -12,6 +13,7 @@ export interface SidebarDayItemProps {
 }
 
 export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected, onSelect, dayTotal }) => {
+  const { config } = useConfig();
   const { setNodeRef, isOver } = useDroppable({
     id: day.id,
     data: { type: 'day' }
@@ -51,7 +53,7 @@ export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected,
         </div>
         <div className={styles.row2}>
           <span className={styles.title}>{day.displayTitle}</span>
-          <span className={styles.dayTotal}>{formatNZD(dayTotal)}</span>
+          <span className={styles.dayTotal}>{formatCurrency(dayTotal, config.homeCurrency)}</span>
         </div>
       </button>
     </li>

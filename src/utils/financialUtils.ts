@@ -102,10 +102,11 @@ export function sumByPaymentStatus(
   }, 0);
 }
 
-export function formatNZD(amount: number): string {
+export function formatCurrency(amount: number, currency: string): string {
+  const code = (currency || 'NZD').toUpperCase();
   return amount.toLocaleString('en-NZ', {
     style: 'currency',
-    currency: 'NZD',
+    currency: code,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });

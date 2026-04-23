@@ -1,19 +1,21 @@
 import * as React from 'react';
 import { CategoryIcon } from '../shared/CategoryIcon';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { useConfig } from '../../context/ConfigContext';
 import { getCategorySlug } from '../../utils/categoryUtils';
-import { BUDGET_CATEGORY_ORDER, formatNZD, sumByCategory } from '../../utils/financialUtils';
+import { BUDGET_CATEGORY_ORDER, formatCurrency, sumByCategory } from '../../utils/financialUtils';
 import styles from './SidebarCategoryBudget.module.css';
 
 export const SidebarCategoryBudget: React.FC = () => {
-  const { trip, localEntries, convertToNZD } = useTripWorkspace();
+  const { trip, localEntries, convertToHomeCurrency } = useTripWorkspace();
+  const { config } = useConfig();
 
   const entries = React.useMemo(
     () => (trip ? localEntries.filter((e) => e.tripId === trip.id) : []),
     [localEntries, trip]
   );
 
-  const totals = React.useMemo(() => sumByCategory(entries, convertToNZD), [entries, convertToNZD]);
+  const totals = React.useMemo(() => sumByCategory(entries, convertToHomeCurrency), [entries, convertToHomeCurrency]);
 
   return (
     <section className={styles.section} aria-label="Trip budget by category">
@@ -32,7 +34,7 @@ export const SidebarCategoryBudget: React.FC = () => {
                 <span className={styles.label}>{key}</span>
               </div>
               <span className={`${styles.total} ${isZero ? styles.totalZero : ''}`}>
-                {isZero ? '—' : formatNZD(amount)}
+                {isZero ? '—' : formatCurrency(amount, config.homeCurrency)}
               </span>
             </div>
           );

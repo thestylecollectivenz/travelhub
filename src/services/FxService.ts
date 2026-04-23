@@ -16,17 +16,27 @@ export class FxService {
   }
 
   /**
-   * Convert an amount in the given currency to NZD.
-   * If currency is NZD returns amount unchanged.
-   * Rate is NZD per 1 unit of quote currency — we invert to get NZD value.
-   * e.g. if rate for USD is 0.5849 (1 NZD = 0.5849 USD),
-   * then 100 USD = 100 / 0.5849 NZD.
+   * Convert amount from source currency into configured home currency.
+   * Rates are stored as: 1 NZD = quoteCurrency rate.
    */
-  convertToNZD(amount: number, currency: string): number {
-    if (!currency || currency.toUpperCase() === 'NZD') return amount;
-    const rate = this.sessionCache.get(currency.toUpperCase());
-    if (!rate || rate === 0) return amount; // fallback: treat as NZD if rate unknown
-    return amount / rate;
+  convertToHomeCurrency(amount: number, currency: string, homeCurrency: string): number {
+    const source = (currency || 'NZD').toUpperCase();
+    const target = (homeCurrency || 'NZD').toUpperCase();
+
+    if (source === target) return amount;
+    if (source === 'NZD') {
+      const targetRate = this.sessionCache.get(target);
+      return targetRate && targetRate !== 0 ? amount * targetRate : amount;
+    }
+    const sourceRate = this.sessionCache.get(source);
+    if (!sourceRate || sourceRate === 0) return amount;
+
+    const nzdAmount = amount / sourceRate;
+    if (target === 'NZD') return nzdAmount;
+
+    const targetRate = this.sessionCache.get(target);
+    if (!targetRate || targetRate === 0) return amount;
+    return nzdAmount * targetRate;
   }
 
   /** Expose the populated session cache for external consumers. */

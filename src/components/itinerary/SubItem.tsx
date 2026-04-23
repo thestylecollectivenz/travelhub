@@ -1,7 +1,8 @@
 import * as React from 'react';
 import type { ItinerarySubItem } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
-import { formatNZD } from '../../utils/financialUtils';
+import { useConfig } from '../../context/ConfigContext';
+import { formatCurrency } from '../../utils/financialUtils';
 import styles from './SubItem.module.css';
 
 export interface SubItemProps {
@@ -50,7 +51,8 @@ function DeleteIcon(): React.ReactElement {
 }
 
 export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
-  const { updateSubItem, deleteSubItem } = useTripWorkspace();
+  const { config } = useConfig();
+  const { updateSubItem, deleteSubItem, convertToHomeCurrency } = useTripWorkspace();
   const [isEditing, setIsEditing] = React.useState(false);
   const [draft, setDraft] = React.useState<ItinerarySubItem>({ ...item });
 
@@ -163,7 +165,13 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
         <span className={`${styles.paymentBadge} ${paymentBadgeClass(item.paymentStatus)}`}>{item.paymentStatus}</span>
       </div>
       <div className={styles.right}>
-        {item.paymentStatus === 'Free' ? <span className={styles.free}>Free</span> : <span className={styles.amount}>{formatNZD(item.amount)}</span>}
+        {item.paymentStatus === 'Free' ? (
+          <span className={styles.free}>Free</span>
+        ) : (
+          <span className={styles.amount}>
+            {formatCurrency(convertToHomeCurrency(item.amount, item.currency || 'NZD'), config.homeCurrency)}
+          </span>
+        )}
         <button type="button" className={styles.editButton} onClick={() => setIsEditing(true)} aria-label="Edit sub-item">
           <EditIcon />
         </button>

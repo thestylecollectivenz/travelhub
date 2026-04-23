@@ -8,6 +8,7 @@ import { ItineraryService } from '../services/ItineraryService';
 import { FxService } from '../services/FxService';
 import { useSpContext } from './SpContext';
 import { minutesFromTimeStart } from '../utils/itineraryTimeUtils';
+import { useConfig } from './ConfigContext';
 
 function newTempId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -35,7 +36,7 @@ export interface TripWorkspaceContextValue {
   updateSubItem: (entryId: string, updatedSubItem: ItinerarySubItem) => void;
   addSubItem: (entryId: string, subItem: ItinerarySubItem) => void;
   deleteSubItem: (entryId: string, subItemId: string) => void;
-  convertToNZD: (amount: number, currency: string) => number;
+  convertToHomeCurrency: (amount: number, currency: string) => number;
 }
 
 const TripWorkspaceContext = React.createContext<TripWorkspaceContextValue | undefined>(undefined);
@@ -47,6 +48,7 @@ export interface ITripWorkspaceProviderProps {
 
 export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProviderProps): React.ReactElement {
   const spContext = useSpContext();
+  const { config } = useConfig();
 
   const [trip, setTrip] = React.useState<Trip | null>(null);
   const [tripDays, setTripDays] = React.useState<TripDay[]>([]);
@@ -341,12 +343,22 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
     [spContext]
   );
 
-  const convertToNZD = React.useCallback((amount: number, currency: string): number => {
-    if (!currency || currency.toUpperCase() === 'NZD') return amount;
-    const rate = fxRates.get(currency.toUpperCase());
-    if (!rate || rate === 0) return amount;
-    return amount / rate;
-  }, [fxRates]);
+  const convertToHomeCurrency = React.useCallback((amount: number, currency: string): number => {
+    const source = (currency || 'NZD').toUpperCase();
+    const target = (config.homeCurrency || 'NZD').toUpperCase();
+    if (source === target) return amount;
+    if (source === 'NZD') {
+      const targetRate = fxRates.get(target);
+      return targetRate && targetRate !== 0 ? amount * targetRate : amount;
+    }
+    const sourceRate = fxRates.get(source);
+    if (!sourceRate || sourceRate === 0) return amount;
+    const nzdAmount = amount / sourceRate;
+    if (target === 'NZD') return nzdAmount;
+    const targetRate = fxRates.get(target);
+    if (!targetRate || targetRate === 0) return amount;
+    return nzdAmount * targetRate;
+  }, [config.homeCurrency, fxRates]);
 
   const value = React.useMemo(
     (): TripWorkspaceContextValue => ({
@@ -370,7 +382,7 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
       updateSubItem,
       addSubItem,
       deleteSubItem,
-      convertToNZD
+      convertToHomeCurrency
     }),
     [
       trip,
@@ -389,7 +401,7 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
       updateSubItem,
       addSubItem,
       deleteSubItem,
-      convertToNZD
+      convertToHomeCurrency
     ]
   );
 

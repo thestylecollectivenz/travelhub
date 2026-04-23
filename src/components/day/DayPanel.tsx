@@ -7,7 +7,7 @@ import { DayHeader } from './DayHeader';
 import styles from './DayPanel.module.css';
 
 export const DayPanel: React.FC = () => {
-  const { trip, tripDays, selectedDayId, setEditingCardId, localEntries, convertToNZD } = useTripWorkspace();
+  const { trip, tripDays, selectedDayId, setEditingCardId, localEntries, convertToHomeCurrency } = useTripWorkspace();
 
   const day = React.useMemo(() => {
     if (!trip) return undefined;
@@ -24,7 +24,7 @@ export const DayPanel: React.FC = () => {
 
   const entries = React.useMemo(() => localEntries.filter((e) => e.tripId === trip.id), [localEntries, trip.id]);
 
-  const dayTotal = sumForDay(entries, day.id, convertToNZD);
+  const dayTotal = sumForDay(entries, day.id, convertToHomeCurrency);
 
   return (
     <div className={styles.root}>

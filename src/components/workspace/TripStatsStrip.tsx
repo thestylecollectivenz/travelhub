@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
-import { avgPerDay, formatNZD, sumByPaymentStatus } from '../../utils/financialUtils';
+import { useConfig } from '../../context/ConfigContext';
+import { avgPerDay, formatCurrency, sumByPaymentStatus } from '../../utils/financialUtils';
 import styles from './TripStatsStrip.module.css';
 
 function IconWallet({ className }: { className?: string }): React.ReactElement {
@@ -49,16 +50,17 @@ function IconCalendar({ className }: { className?: string }): React.ReactElement
  * Private workspace budget summary (hidden in shared view when that mode is wired in Phase 3+).
  */
 export const TripStatsStrip: React.FC = () => {
-  const { trip, localEntries, tripDays, convertToNZD } = useTripWorkspace();
+  const { trip, localEntries, tripDays, convertToHomeCurrency } = useTripWorkspace();
+  const { config } = useConfig();
 
   const entries = React.useMemo(
     () => (trip ? localEntries.filter((e) => e.tripId === trip.id) : []),
     [localEntries, trip]
   );
 
-  const totalBudget = sumByPaymentStatus(entries, 'all', convertToNZD);
-  const spentSoFar = sumByPaymentStatus(entries, 'paid', convertToNZD);
-  const remaining = sumByPaymentStatus(entries, 'unpaid', convertToNZD);
+  const totalBudget = sumByPaymentStatus(entries, 'all', convertToHomeCurrency);
+  const spentSoFar = sumByPaymentStatus(entries, 'paid', convertToHomeCurrency);
+  const remaining = sumByPaymentStatus(entries, 'unpaid', convertToHomeCurrency);
   const dayCount = tripDays.filter((d) => trip && d.tripId === trip.id).length;
   const averagePerDay = avgPerDay(totalBudget, dayCount);
 
@@ -66,22 +68,22 @@ export const TripStatsStrip: React.FC = () => {
     <section className={styles.strip} aria-label="Trip budget summary">
       <div className={styles.chip}>
         <IconWallet className={`${styles.icon} ${styles.iconPrimary}`} />
-        <span className={styles.value}>{formatNZD(totalBudget)}</span>
+        <span className={styles.value}>{formatCurrency(totalBudget, config.homeCurrency)}</span>
         <span className={styles.label}>Total Budget</span>
       </div>
       <div className={styles.chip}>
         <IconCheckCircle className={`${styles.icon} ${styles.iconPaid}`} />
-        <span className={styles.value}>{formatNZD(spentSoFar)}</span>
+        <span className={styles.value}>{formatCurrency(spentSoFar, config.homeCurrency)}</span>
         <span className={styles.label}>Spent So Far</span>
       </div>
       <div className={styles.chip}>
         <IconClock className={`${styles.icon} ${styles.iconWarning}`} />
-        <span className={styles.value}>{formatNZD(remaining)}</span>
+        <span className={styles.value}>{formatCurrency(remaining, config.homeCurrency)}</span>
         <span className={styles.label}>Remaining</span>
       </div>
       <div className={styles.chip}>
         <IconCalendar className={`${styles.icon} ${styles.iconPrimary}`} />
-        <span className={styles.value}>{formatNZD(averagePerDay)}</span>
+        <span className={styles.value}>{formatCurrency(averagePerDay, config.homeCurrency)}</span>
         <span className={styles.label}>Avg Per Day</span>
       </div>
     </section>

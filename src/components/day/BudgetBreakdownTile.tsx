@@ -1,10 +1,11 @@
 import * as React from 'react';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { useConfig } from '../../context/ConfigContext';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { CategoryIcon } from '../shared/CategoryIcon';
 import {
   BUDGET_CATEGORY_ORDER,
-  formatNZD,
+  formatCurrency,
   getPaymentSummaryForDayCategory,
   sumForDay,
   sumForDayByCategory
@@ -17,7 +18,8 @@ export interface BudgetBreakdownTileProps {
 }
 
 export const BudgetBreakdownTile: React.FC<BudgetBreakdownTileProps> = ({ tripId, dayId }) => {
-  const { localEntries, convertToNZD } = useTripWorkspace();
+  const { localEntries, convertToHomeCurrency } = useTripWorkspace();
+  const { config } = useConfig();
 
   const entries = React.useMemo(
     () => localEntries.filter((e) => e.tripId === tripId),
@@ -26,16 +28,16 @@ export const BudgetBreakdownTile: React.FC<BudgetBreakdownTileProps> = ({ tripId
 
   const dayEntries = React.useMemo(() => entries.filter((e) => e.dayId === dayId), [entries, dayId]);
 
-  const sumsByCategory = React.useMemo(() => sumForDayByCategory(entries, dayId, convertToNZD), [entries, dayId, convertToNZD]);
+  const sumsByCategory = React.useMemo(() => sumForDayByCategory(entries, dayId, convertToHomeCurrency), [entries, dayId, convertToHomeCurrency]);
 
   const categoriesToShow = React.useMemo(() => {
     return BUDGET_CATEGORY_ORDER.filter((key) => {
-      const s = getPaymentSummaryForDayCategory(entries, dayId, key, convertToNZD);
+      const s = getPaymentSummaryForDayCategory(entries, dayId, key, convertToHomeCurrency);
       return s.itemCount > 0;
     });
-  }, [entries, dayId, convertToNZD]);
+  }, [entries, dayId, convertToHomeCurrency]);
 
-  const dayTotalAll = sumForDay(entries, dayId, convertToNZD);
+  const dayTotalAll = sumForDay(entries, dayId, convertToHomeCurrency);
 
   if (dayEntries.length === 0) {
     return (
@@ -49,10 +51,10 @@ export const BudgetBreakdownTile: React.FC<BudgetBreakdownTileProps> = ({ tripId
     <section className={styles.tile} aria-label="Day budget breakdown">
       <div className={styles.tileHeader}>
         <h2 className={styles.tileTitle}>Day Breakdown</h2>
-        <span className={styles.tileTotal}>{formatNZD(dayTotalAll)}</span>
+        <span className={styles.tileTotal}>{formatCurrency(dayTotalAll, config.homeCurrency)}</span>
       </div>
       {categoriesToShow.map((category) => {
-        const summary = getPaymentSummaryForDayCategory(entries, dayId, category, convertToNZD);
+        const summary = getPaymentSummaryForDayCategory(entries, dayId, category, convertToHomeCurrency);
         const pct =
           summary.total > 0 ? Math.min(100, Math.max(0, (summary.paid / summary.total) * 100)) : 0;
         const countLabel = summary.itemCount === 1 ? '1 item' : `${summary.itemCount} items`;
@@ -71,7 +73,7 @@ export const BudgetBreakdownTile: React.FC<BudgetBreakdownTileProps> = ({ tripId
             <div className={styles.progressWrap} aria-hidden>
               <div className={styles.progressFill} style={{ width: `${pct}%` }} />
             </div>
-            <span className={styles.amount}>{formatNZD(lineTotal)}</span>
+            <span className={styles.amount}>{formatCurrency(lineTotal, config.homeCurrency)}</span>
           </div>
         );
       })}

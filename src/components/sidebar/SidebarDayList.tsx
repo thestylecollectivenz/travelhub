@@ -5,7 +5,7 @@ import { SidebarDayItem } from './SidebarDayItem';
 import styles from './TripSidebar.module.css';
 
 export const SidebarDayList: React.FC = () => {
-  const { trip, tripDays, selectedDayId, setSelectedDayId, localEntries, convertToNZD } = useTripWorkspace();
+  const { trip, tripDays, selectedDayId, setSelectedDayId, localEntries, convertToHomeCurrency } = useTripWorkspace();
 
   const days = React.useMemo(() => {
     if (!trip) return [];
@@ -29,7 +29,7 @@ export const SidebarDayList: React.FC = () => {
             day={day}
             isSelected={day.id === selectedDayId}
             onSelect={() => setSelectedDayId(day.id)}
-            dayTotal={sumForDay(entries, day.id, convertToNZD)}
+            dayTotal={sumForDay(entries, day.id, convertToHomeCurrency)}
           />
         ))}
       </ul>
