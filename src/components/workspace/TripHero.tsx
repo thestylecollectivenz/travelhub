@@ -5,6 +5,7 @@ import styles from './TripHero.module.css';
 
 export interface TripHeroProps {
   trip: Trip;
+  onEdit: () => void;
 }
 
 function inclusiveTripDayCount(dateStart: string, dateEnd: string): number {
@@ -52,7 +53,7 @@ function countdownLabel(trip: Trip): string | null {
   return null;
 }
 
-export const TripHero: React.FC<TripHeroProps> = ({ trip }) => {
+export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit }) => {
   const hasHeroImage = Boolean(trip.heroImageUrl && trip.heroImageUrl.trim() !== '');
   const dayCount = inclusiveTripDayCount(trip.dateStart, trip.dateEnd);
   const dayLabel = dayCount === 1 ? '1 day' : `${dayCount} days`;
@@ -73,6 +74,12 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip }) => {
       <div className={styles.heroOverlay} role="presentation" />
       <div className={styles.heroForeground}>
         <div className={styles.badge}>✦ Travel Hub</div>
+        <button type="button" className={styles.editButton} onClick={onEdit} aria-label="Edit trip details">
+          <svg viewBox="0 0 16 16" width={12} height={12} fill="none" aria-hidden>
+            <path d="M3 11.8 11.6 3.2l1.2 1.2L4.2 13H3v-1.2Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M9.9 4.9 11.1 6.1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          </svg>
+        </button>
         <div className={styles.statusChip}>
           <span className={`${styles.statusDot} ${statusDotClass(trip.status)}`} aria-hidden />
           <span>{trip.status}</span>

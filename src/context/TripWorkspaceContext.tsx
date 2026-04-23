@@ -28,6 +28,7 @@ export interface TripWorkspaceContextValue {
   loading: boolean;
   error: string | null;
   retryLoad: () => void;
+  updateTrip: (partial: Partial<Trip>) => void;
   updateEntry: (updated: ItineraryEntry) => void;
   deleteEntry: (entryId: string) => void;
   duplicateEntry: (entryId: string) => void;
@@ -101,6 +102,20 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
   React.useEffect(() => {
     loadData().catch(console.error);
   }, [loadData]);
+
+  const updateTrip = React.useCallback(
+    (partial: Partial<Trip>) => {
+      setTrip((prev) => (prev ? { ...prev, ...partial } : prev));
+      const currentTripId = trip?.id;
+      if (!currentTripId) return;
+      const svc = new TripService(spContext);
+      svc.update(currentTripId, partial).catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error('updateTrip: SP persist failed', err);
+      });
+    },
+    [spContext, trip?.id]
+  );
 
   const updateEntry = React.useCallback((updated: ItineraryEntry) => {
     const isNew = updated.id.startsWith('new-') || updated.id.startsWith('temp-');
@@ -374,6 +389,7 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
       retryLoad: () => {
         loadData().catch(console.error);
       },
+      updateTrip,
       updateEntry,
       deleteEntry,
       duplicateEntry,
@@ -393,6 +409,7 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
       loading,
       error,
       loadData,
+      updateTrip,
       updateEntry,
       deleteEntry,
       duplicateEntry,

@@ -4,6 +4,7 @@ import { TripHero } from './TripHero';
 import { TripStatsStrip } from './TripStatsStrip';
 import { TripContent } from './TripContent';
 import { ConfigPanel } from './ConfigPanel';
+import { EditTripPanel } from './EditTripPanel';
 import styles from './TripWorkspace.module.css';
 
 export interface ITripWorkspaceProps {
@@ -12,8 +13,9 @@ export interface ITripWorkspaceProps {
 }
 
 const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) => {
-  const { trip, loading, error, retryLoad } = useTripWorkspace();
+  const { trip, loading, error, retryLoad, updateTrip } = useTripWorkspace();
   const [configOpen, setConfigOpen] = React.useState(false);
+  const [editOpen, setEditOpen] = React.useState(false);
 
   const loadingStyle: React.CSSProperties = {
     display: 'flex',
@@ -77,10 +79,11 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
           <span aria-hidden>⚙</span> Settings
         </button>
       </div>
-      <TripHero trip={trip} />
+      <TripHero trip={trip} onEdit={() => setEditOpen(true)} />
       <TripStatsStrip />
       <TripContent />
       <ConfigPanel isOpen={configOpen} onClose={() => setConfigOpen(false)} />
+      <EditTripPanel trip={trip} isOpen={editOpen} onClose={() => setEditOpen(false)} onSave={updateTrip} />
     </div>
   );
 };
