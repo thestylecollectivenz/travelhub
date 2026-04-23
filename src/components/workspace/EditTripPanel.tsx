@@ -31,34 +31,47 @@ export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onCl
   const dateRangeValid = !draft.dateStart || !draft.dateEnd || new Date(draft.dateEnd) >= new Date(draft.dateStart);
   const canSave = draft.title.trim().length > 0 && draft.dateStart.length > 0 && draft.dateEnd.length > 0 && dateRangeValid && !isUploading;
 
-  const folderRelativeUrl = `${spContext.pageContext.web.serverRelativeUrl.replace(/\/$/, '')}/TravelHubAssets/hero-images/${trip.id}`;
+  const webAbsoluteUrl = React.useMemo(
+    () => spContext.pageContext.web.absoluteUrl.replace(/\/$/, ''),
+    [spContext.pageContext.web.absoluteUrl]
+  );
 
-  const ensureFolder = React.useCallback(async (): Promise<void> => {
-    const resp: SPHttpClientResponse = await spContext.spHttpClient.post(
-      `${spContext.pageContext.web.absoluteUrl}/_api/web/folders`,
-      SPHttpClient.configurations.v1,
-      {
+  const { heroImagesFolderPath, tripHeroFolderPath } = React.useMemo(() => {
+    const webServerRelative = spContext.pageContext.web.serverRelativeUrl.replace(/\/$/, '');
+    const heroImages = `${webServerRelative}/TravelHubAssets/hero-images`;
+    return { heroImagesFolderPath: heroImages, tripHeroFolderPath: `${heroImages}/${trip.id}` };
+  }, [spContext.pageContext.web.serverRelativeUrl, trip.id]);
+
+  /** POST .../folders/add('path') — treat 200 and 400/409 as OK (created or already exists). */
+  const addFolderLevel = React.useCallback(
+    async (serverRelativeFolderPath: string): Promise<void> => {
+      const escaped = serverRelativeFolderPath.replace(/'/g, "''");
+      const url = `${webAbsoluteUrl}/_api/web/folders/add('${escaped}')`;
+      const resp: SPHttpClientResponse = await spContext.spHttpClient.post(url, SPHttpClient.configurations.v1, {
         headers: {
-          'Content-Type': 'application/json;odata.metadata=minimal',
           Accept: 'application/json;odata.metadata=minimal'
-        },
-        body: JSON.stringify({
-          ServerRelativeUrl: folderRelativeUrl
-        })
+        }
+      });
+      if (resp.ok || resp.status === 400 || resp.status === 409) {
+        return;
       }
-    );
-    if (!resp.ok && resp.status !== 409) {
-      throw new Error(`Could not create folder (${resp.status})`);
-    }
-  }, [folderRelativeUrl, spContext.pageContext.web.absoluteUrl, spContext.spHttpClient]);
+      throw new Error(`Could not ensure folder (${resp.status})`);
+    },
+    [spContext.spHttpClient, webAbsoluteUrl]
+  );
+
+  const ensureHeroImageFolders = React.useCallback(async (): Promise<void> => {
+    await addFolderLevel(heroImagesFolderPath);
+    await addFolderLevel(tripHeroFolderPath);
+  }, [addFolderLevel, heroImagesFolderPath, tripHeroFolderPath]);
 
   const uploadHeroImage = React.useCallback(async (file: File): Promise<string> => {
-    await ensureFolder();
+    await ensureHeroImageFolders();
     const buffer = await file.arrayBuffer();
-    const safeFolder = folderRelativeUrl.replace(/'/g, "''");
+    const safeFolder = tripHeroFolderPath.replace(/'/g, "''");
     const encodedFileName = encodeURIComponent(file.name);
     const uploadUrl =
-      `${spContext.pageContext.web.absoluteUrl}/_api/web/getfolderbyserverrelativeurl('${safeFolder}')/files/add(url='${encodedFileName}',overwrite=true)`;
+      `${webAbsoluteUrl}/_api/web/getfolderbyserverrelativeurl('${safeFolder}')/files/add(url='${encodedFileName}',overwrite=true)`;
     const uploadResp = await spContext.spHttpClient.post(uploadUrl, SPHttpClient.configurations.v1, {
       headers: {
         Accept: 'application/json;odata.metadata=minimal'
@@ -76,8 +89,8 @@ export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onCl
     if (!serverRelativeUrl) {
       throw new Error('Upload succeeded but no file URL returned');
     }
-    return `${spContext.pageContext.web.absoluteUrl.replace(/\/$/, '')}${serverRelativeUrl}`;
-  }, [ensureFolder, folderRelativeUrl, spContext.pageContext.web.absoluteUrl, spContext.spHttpClient]);
+    return `${webAbsoluteUrl}${serverRelativeUrl}`;
+  }, [ensureHeroImageFolders, tripHeroFolderPath, webAbsoluteUrl, spContext.spHttpClient]);
 
   if (!isOpen) {
     return null;
