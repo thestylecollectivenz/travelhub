@@ -50,10 +50,12 @@
 
 .badge {
   flex-shrink: 0;
+  border: none;
   border-radius: var(--radius-full);
   padding: 2px var(--space-2);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
+  cursor: pointer;
 }
 
 .badgeSea {
@@ -69,6 +71,40 @@
 .badgePreTrip {
   background: var(--color-teal-50);
   color: var(--color-teal-600);
+}
+
+.badgePlacePort {
+  background: var(--color-blue-50);
+  color: var(--color-blue-700);
+}
+
+.badgeWrap {
+  position: relative;
+}
+
+.badgeOptions {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-card);
+  min-width: 10rem;
+}
+
+.badgeOption {
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 2px var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
 }
 
 .row2 {

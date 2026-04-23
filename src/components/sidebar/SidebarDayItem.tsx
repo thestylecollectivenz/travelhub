@@ -13,6 +13,20 @@ export interface SidebarDayItemProps {
   dayTotal: number;
 }
 
+function dayTypeLabel(dayType: TripDay['dayType']): string {
+  switch (dayType) {
+    case 'Sea':
+      return 'Sea day';
+    case 'TravelTransit':
+      return 'Transit';
+    case 'PreTrip':
+      return 'Pre-trip';
+    case 'PlacePort':
+    default:
+      return 'Place / Port';
+  }
+}
+
 export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected, onSelect, dayTotal }) => {
   const { config } = useConfig();
   const { updateDay } = useTripWorkspace();
@@ -22,6 +36,7 @@ export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected,
   });
   const [isEditingTitle, setIsEditingTitle] = React.useState(false);
   const [titleDraft, setTitleDraft] = React.useState(day.displayTitle);
+  const [typePickerOpen, setTypePickerOpen] = React.useState(false);
 
   React.useEffect(() => {
     setTitleDraft(day.displayTitle);
@@ -43,14 +58,14 @@ export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected,
     setIsEditingTitle(false);
   }, [day.displayTitle]);
 
-  const badge =
-    day.dayType === 'PreTrip' ? (
-      <span className={`${styles.badge} ${styles.badgePreTrip}`}>Pre-trip</span>
-    ) : day.dayType === 'Sea' ? (
-      <span className={`${styles.badge} ${styles.badgeSea}`}>Sea</span>
-    ) : day.dayType === 'TravelTransit' ? (
-      <span className={`${styles.badge} ${styles.badgeTransit}`}>Transit</span>
-    ) : null;
+  const badgeColorClass =
+    day.dayType === 'PreTrip'
+      ? styles.badgePreTrip
+      : day.dayType === 'Sea'
+        ? styles.badgeSea
+        : day.dayType === 'TravelTransit'
+          ? styles.badgeTransit
+          : styles.badgePlacePort;
 
   const dayDate = day.calendarDate
     ? new Date(day.calendarDate + 'T00:00:00').toLocaleDateString('en-NZ', {
@@ -73,7 +88,43 @@ export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected,
           <span className={styles.dayNumberLabel}>
             {day.dayType === 'PreTrip' ? 'Pre-trip' : `Day ${day.dayNumber}${dayDate ? ` · ${dayDate}` : ''}`}
           </span>
-          {badge}
+          <div className={styles.badgeWrap}>
+            <button
+              type="button"
+              className={`${styles.badge} ${badgeColorClass}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setTypePickerOpen((v) => !v);
+              }}
+            >
+              {dayTypeLabel(day.dayType)}
+            </button>
+            {typePickerOpen ? (
+              <div className={styles.badgeOptions} onClick={(e) => e.stopPropagation()}>
+                {(['PlacePort', 'Sea', 'TravelTransit', 'PreTrip'] as const).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    className={`${styles.badgeOption} ${
+                      option === 'PreTrip'
+                        ? styles.badgePreTrip
+                        : option === 'Sea'
+                          ? styles.badgeSea
+                          : option === 'TravelTransit'
+                            ? styles.badgeTransit
+                            : styles.badgePlacePort
+                    }`}
+                    onClick={() => {
+                      updateDay(day.id, { dayType: option });
+                      setTypePickerOpen(false);
+                    }}
+                  >
+                    {dayTypeLabel(option)}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </div>
         <div className={styles.row2}>
           {isEditingTitle ? (

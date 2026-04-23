@@ -71,9 +71,17 @@
   overflow: hidden;
 }
 
-.sidebar {
-  width: var(--sidebar-width);
+.sidebarShell {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
   flex-shrink: 0;
+  min-width: 180px;
+  max-width: 400px;
+}
+
+.sidebar {
+  flex: 1;
   box-sizing: border-box;
   align-self: stretch;
   position: sticky;
@@ -84,6 +92,18 @@
   border-right: var(--border-default);
   background: var(--color-surface-raised);
   padding: 0;
+}
+
+.sidebarResizeHandle {
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  border-right: var(--border-default);
+  flex-shrink: 0;
+}
+
+.sidebarResizeHandle:hover {
+  background: var(--color-blue-100);
 }
 
 .main {

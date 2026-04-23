@@ -9,6 +9,7 @@ import styles from './TripWorkspace.module.css';
 export const TripContent: React.FC = () => {
   const { selectedDayId, localEntries, reorderEntries, moveEntryToDay } = useTripWorkspace();
   const [activeId, setActiveId] = React.useState<string | null>(null);
+  const [sidebarWidth, setSidebarWidth] = React.useState<number>(320);
 
   const dayEntries = React.useMemo(() => {
     return [...localEntries]
@@ -53,12 +54,41 @@ export const TripContent: React.FC = () => {
     [dayEntries, moveEntryToDay, reorderEntries, selectedDayId]
   );
 
+  const startSidebarResize = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = sidebarWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent): void => {
+      const delta = moveEvent.clientX - startX;
+      const nextWidth = Math.max(180, Math.min(400, startWidth + delta));
+      setSidebarWidth(nextWidth);
+    };
+
+    const onMouseUp = (): void => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }, [sidebarWidth]);
+
   return (
     <DndContext collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className={styles.tripContent}>
-        <aside className={styles.sidebar} aria-label="Trip navigation and budget">
-          <TripSidebar />
-        </aside>
+        <div className={styles.sidebarShell} style={{ width: `${sidebarWidth}px` }}>
+          <aside className={styles.sidebar} aria-label="Trip navigation and budget">
+            <TripSidebar />
+          </aside>
+          <div
+            className={styles.sidebarResizeHandle}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize sidebar"
+            onMouseDown={startSidebarResize}
+          />
+        </div>
         <main className={styles.main}>
           <DayPanel />
         </main>

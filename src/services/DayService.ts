@@ -137,16 +137,13 @@ export class DayService {
 
   async update(id: string, day: Partial<TripDay>): Promise<void> {
     const url = `${this.baseUrl}(${id})`;
-    const body = JSON.stringify({
-      __metadata: { type: 'SP.Data.TripDaysListItem' },
-      ...mapToSpItem(day)
-    });
+    const body = JSON.stringify(mapToSpItem(day));
     try {
       const resp: SPHttpClientResponse = await this.ctx.spHttpClient.fetch(url, SPHttpClient.configurations.v1, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json;odata=verbose',
-          Accept: 'application/json;odata=verbose',
+          'Content-Type': 'application/json;odata.metadata=minimal',
+          Accept: 'application/json;odata.metadata=minimal',
           'IF-MATCH': '*',
           'X-HTTP-Method': 'MERGE'
         },

@@ -28,10 +28,6 @@ export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onCl
     }
   }, [isOpen, trip]);
 
-  if (!isOpen) {
-    return null;
-  }
-
   const dateRangeValid = !draft.dateStart || !draft.dateEnd || new Date(draft.dateEnd) >= new Date(draft.dateStart);
   const canSave = draft.title.trim().length > 0 && draft.dateStart.length > 0 && draft.dateEnd.length > 0 && dateRangeValid && !isUploading;
 
@@ -82,6 +78,10 @@ export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onCl
     }
     return `${spContext.pageContext.web.absoluteUrl.replace(/\/$/, '')}${serverRelativeUrl}`;
   }, [ensureFolder, folderRelativeUrl, spContext.pageContext.web.absoluteUrl, spContext.spHttpClient]);
+
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div
