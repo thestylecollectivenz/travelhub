@@ -29,6 +29,7 @@ export interface TripWorkspaceContextValue {
   error: string | null;
   retryLoad: () => void;
   updateTrip: (partial: Partial<Trip>) => void;
+  updateDay: (dayId: string, partial: Partial<TripDay>) => void;
   updateEntry: (updated: ItineraryEntry) => void;
   deleteEntry: (entryId: string) => void;
   duplicateEntry: (entryId: string) => void;
@@ -115,6 +116,18 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
       });
     },
     [spContext, trip?.id]
+  );
+
+  const updateDay = React.useCallback(
+    (dayId: string, partial: Partial<TripDay>) => {
+      setTripDays((prev) => prev.map((d) => (d.id === dayId ? { ...d, ...partial } : d)));
+      const svc = new DayService(spContext);
+      svc.update(dayId, partial).catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error('updateDay: SP persist failed', err);
+      });
+    },
+    [spContext]
   );
 
   const updateEntry = React.useCallback((updated: ItineraryEntry) => {
@@ -390,6 +403,7 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
         loadData().catch(console.error);
       },
       updateTrip,
+      updateDay,
       updateEntry,
       deleteEntry,
       duplicateEntry,
@@ -410,6 +424,7 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
       error,
       loadData,
       updateTrip,
+      updateDay,
       updateEntry,
       deleteEntry,
       duplicateEntry,

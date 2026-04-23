@@ -88,6 +88,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: text;
+}
+
+.titleInput {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-blue-800);
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
 }
 
 .dayTotal {

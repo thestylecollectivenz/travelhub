@@ -53,7 +53,7 @@
 
 .statusChip {
   position: absolute;
-  top: calc(var(--space-4) + 2.1rem);
+  top: calc(var(--space-4) + 2.8rem);
   right: var(--space-5);
   display: inline-flex;
   align-items: center;

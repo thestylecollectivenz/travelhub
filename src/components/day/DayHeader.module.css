@@ -18,10 +18,11 @@
 .line1 {
   display: flex;
   flex-direction: row;
-  align-items: baseline;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 0;
+  gap: var(--space-2);
   min-width: 0;
+  position: relative;
 }
 
 .dayNumber {
@@ -36,6 +37,85 @@
   font-weight: var(--font-weight-bold);
   color: var(--color-blue-800);
   min-width: 0;
+}
+
+.titleButton {
+  margin-left: var(--space-2);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-blue-800);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  cursor: text;
+}
+
+.titleInput {
+  margin-left: var(--space-2);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-blue-800);
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
+  min-width: 12rem;
+}
+
+.dayTypeWrap {
+  position: relative;
+}
+
+.dayTypeBadge {
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 2px var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.dayTypeOptions {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  background: var(--color-surface-raised);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-2);
+  z-index: 3;
+}
+
+.dayTypeOption {
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 2px var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.badgeSea {
+  background: var(--color-teal-50);
+  color: var(--color-teal-600);
+}
+
+.badgeTransit {
+  background: var(--color-sand-100);
+  color: var(--color-sand-600);
+}
+
+.badgePreTrip {
+  background: var(--color-teal-50);
+  color: var(--color-teal-600);
+}
+
+.badgePlacePort {
+  background: var(--color-blue-50);
+  color: var(--color-blue-700);
 }
 
 .date {

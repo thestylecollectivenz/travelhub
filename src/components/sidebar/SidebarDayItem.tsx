@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import type { TripDay } from '../../models/TripDay';
 import { useConfig } from '../../context/ConfigContext';
+import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { formatCurrency } from '../../utils/financialUtils';
 import styles from './SidebarDayItem.module.css';
 
@@ -14,10 +15,33 @@ export interface SidebarDayItemProps {
 
 export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected, onSelect, dayTotal }) => {
   const { config } = useConfig();
+  const { updateDay } = useTripWorkspace();
   const { setNodeRef, isOver } = useDroppable({
     id: day.id,
     data: { type: 'day' }
   });
+  const [isEditingTitle, setIsEditingTitle] = React.useState(false);
+  const [titleDraft, setTitleDraft] = React.useState(day.displayTitle);
+
+  React.useEffect(() => {
+    setTitleDraft(day.displayTitle);
+  }, [day.displayTitle]);
+
+  const saveTitle = React.useCallback(() => {
+    const next = titleDraft.trim();
+    if (!next || next === day.displayTitle) {
+      setTitleDraft(day.displayTitle);
+      setIsEditingTitle(false);
+      return;
+    }
+    updateDay(day.id, { displayTitle: next });
+    setIsEditingTitle(false);
+  }, [day.displayTitle, day.id, titleDraft, updateDay]);
+
+  const cancelTitle = React.useCallback(() => {
+    setTitleDraft(day.displayTitle);
+    setIsEditingTitle(false);
+  }, [day.displayTitle]);
 
   const badge =
     day.dayType === 'PreTrip' ? (
@@ -52,7 +76,30 @@ export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected,
           {badge}
         </div>
         <div className={styles.row2}>
-          <span className={styles.title}>{day.displayTitle}</span>
+          {isEditingTitle ? (
+            <input
+              className={styles.titleInput}
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') saveTitle();
+                if (e.key === 'Escape') cancelTitle();
+              }}
+              onClick={(e) => e.stopPropagation()}
+              autoFocus
+            />
+          ) : (
+            <span
+              className={styles.title}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsEditingTitle(true);
+              }}
+            >
+              {day.displayTitle}
+            </span>
+          )}
           <span className={styles.dayTotal}>{formatCurrency(dayTotal, config.homeCurrency)}</span>
         </div>
       </button>

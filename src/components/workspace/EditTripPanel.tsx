@@ -1,5 +1,7 @@
 import * as React from 'react';
+import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 import type { Trip, TripLifecycleStatus } from '../../models/Trip';
+import { useSpContext } from '../../context/SpContext';
 
 export interface EditTripPanelProps {
   trip: Trip;
@@ -11,11 +13,18 @@ export interface EditTripPanelProps {
 const STATUSES: TripLifecycleStatus[] = ['Planning', 'Upcoming', 'In Progress', 'Completed', 'Archived'];
 
 export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onClose, onSave }) => {
+  const spContext = useSpContext();
   const [draft, setDraft] = React.useState<Trip>(trip);
+  const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
+  const [isUploading, setIsUploading] = React.useState(false);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (isOpen) {
       setDraft(trip);
+      setSelectedFile(null);
+      setIsUploading(false);
+      setUploadError(null);
     }
   }, [isOpen, trip]);
 
@@ -24,7 +33,55 @@ export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onCl
   }
 
   const dateRangeValid = !draft.dateStart || !draft.dateEnd || new Date(draft.dateEnd) >= new Date(draft.dateStart);
-  const canSave = draft.title.trim().length > 0 && draft.dateStart.length > 0 && draft.dateEnd.length > 0 && dateRangeValid;
+  const canSave = draft.title.trim().length > 0 && draft.dateStart.length > 0 && draft.dateEnd.length > 0 && dateRangeValid && !isUploading;
+
+  const folderRelativeUrl = `${spContext.pageContext.web.serverRelativeUrl.replace(/\/$/, '')}/TravelHubAssets/hero-images/${trip.id}`;
+
+  const ensureFolder = React.useCallback(async (): Promise<void> => {
+    const resp: SPHttpClientResponse = await spContext.spHttpClient.post(
+      `${spContext.pageContext.web.absoluteUrl}/_api/web/folders`,
+      SPHttpClient.configurations.v1,
+      {
+        headers: {
+          'Content-Type': 'application/json;odata.metadata=minimal',
+          Accept: 'application/json;odata.metadata=minimal'
+        },
+        body: JSON.stringify({
+          ServerRelativeUrl: folderRelativeUrl
+        })
+      }
+    );
+    if (!resp.ok && resp.status !== 409) {
+      throw new Error(`Could not create folder (${resp.status})`);
+    }
+  }, [folderRelativeUrl, spContext.pageContext.web.absoluteUrl, spContext.spHttpClient]);
+
+  const uploadHeroImage = React.useCallback(async (file: File): Promise<string> => {
+    await ensureFolder();
+    const buffer = await file.arrayBuffer();
+    const safeFolder = folderRelativeUrl.replace(/'/g, "''");
+    const encodedFileName = encodeURIComponent(file.name);
+    const uploadUrl =
+      `${spContext.pageContext.web.absoluteUrl}/_api/web/getfolderbyserverrelativeurl('${safeFolder}')/files/add(url='${encodedFileName}',overwrite=true)`;
+    const uploadResp = await spContext.spHttpClient.post(uploadUrl, SPHttpClient.configurations.v1, {
+      headers: {
+        Accept: 'application/json;odata.metadata=minimal'
+      },
+      body: buffer
+    });
+    if (!uploadResp.ok) {
+      throw new Error(`Upload failed (${uploadResp.status})`);
+    }
+    const payload = await uploadResp.json();
+    const serverRelativeUrl: string | undefined =
+      payload?.ServerRelativeUrl ??
+      payload?.d?.ServerRelativeUrl ??
+      payload?.ListItemAllFields?.FileRef;
+    if (!serverRelativeUrl) {
+      throw new Error('Upload succeeded but no file URL returned');
+    }
+    return `${spContext.pageContext.web.absoluteUrl.replace(/\/$/, '')}${serverRelativeUrl}`;
+  }, [ensureFolder, folderRelativeUrl, spContext.pageContext.web.absoluteUrl, spContext.spHttpClient]);
 
   return (
     <div
@@ -143,16 +200,33 @@ export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onCl
             />
           </label>
 
-          <label style={{ display: 'grid', gap: 'var(--space-1)' }}>
-            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-700)' }}>Hero image URL</span>
+          <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
+            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-700)' }}>Hero image</span>
+            <input
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+              onChange={(e) => {
+                const nextFile = e.target.files?.[0] ?? null;
+                if (nextFile && nextFile.size > 10 * 1024 * 1024) {
+                  setUploadError('Image must be 10MB or smaller.');
+                  setSelectedFile(null);
+                  return;
+                }
+                setUploadError(null);
+                setSelectedFile(nextFile);
+              }}
+              style={{ padding: 'var(--space-2)', border: 'var(--border-default)', borderRadius: 'var(--radius-md)' }}
+            />
             <input
               type="url"
               value={draft.heroImageUrl}
               onChange={(e) => setDraft((prev) => ({ ...prev, heroImageUrl: e.target.value }))}
-              placeholder="https://..."
+              placeholder="Fallback URL (https://...)"
               style={{ padding: 'var(--space-2) var(--space-3)', border: 'var(--border-default)', borderRadius: 'var(--radius-md)' }}
             />
-          </label>
+            {isUploading ? <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-sand-600)' }}>Uploading…</span> : null}
+            {uploadError ? <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-warning)' }}>{uploadError}</span> : null}
+          </div>
         </div>
 
         <div style={{ marginTop: 'auto', padding: 'var(--space-4) var(--space-5)', borderTop: 'var(--border-default)', display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)' }}>
@@ -162,17 +236,29 @@ export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onCl
           <button
             type="button"
             disabled={!canSave}
-            onClick={() => {
-              onSave({
-                title: draft.title.trim(),
-                destination: draft.destination.trim(),
-                dateStart: draft.dateStart,
-                dateEnd: draft.dateEnd,
-                status: draft.status,
-                description: (draft.description ?? '').trim(),
-                heroImageUrl: draft.heroImageUrl.trim()
-              });
-              onClose();
+            onClick={async () => {
+              try {
+                setUploadError(null);
+                let heroImageUrl = draft.heroImageUrl.trim();
+                if (selectedFile) {
+                  setIsUploading(true);
+                  heroImageUrl = await uploadHeroImage(selectedFile);
+                }
+                onSave({
+                  title: draft.title.trim(),
+                  destination: draft.destination.trim(),
+                  dateStart: draft.dateStart,
+                  dateEnd: draft.dateEnd,
+                  status: draft.status,
+                  description: (draft.description ?? '').trim(),
+                  heroImageUrl
+                });
+                onClose();
+              } catch (err) {
+                setUploadError(err instanceof Error ? err.message : 'Image upload failed');
+              } finally {
+                setIsUploading(false);
+              }
             }}
             style={{
               padding: 'var(--space-2) var(--space-4)',
