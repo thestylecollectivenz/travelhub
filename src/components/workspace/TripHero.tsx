@@ -76,7 +76,7 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit }) => {
         />
       ) : null}
       <div className={`${styles.heroOverlay} ${hasHeroImage ? styles.heroOverlayWithImage : styles.heroOverlayNoImage}`} role="presentation" />
-      <div className={styles.heroForeground}>
+      <div className={`${styles.heroForeground} ${hasHeroImage ? styles.heroForegroundImage : ''}`}>
         <div className={styles.badge}>✦ Travel Hub</div>
         <button type="button" className={styles.editButton} onClick={onEdit} aria-label="Edit trip details">
           <svg viewBox="0 0 16 16" width={12} height={12} fill="none" aria-hidden>

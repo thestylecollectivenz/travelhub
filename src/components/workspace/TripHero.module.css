@@ -40,7 +40,7 @@
 
 .heroOverlayWithImage {
   background-color: var(--color-blue-900);
-  opacity: 0.12;
+  opacity: 0.25;
 }
 
 .heroOverlayNoImage {
@@ -55,6 +55,11 @@
   height: 100%;
   z-index: 2;
   pointer-events: none;
+}
+
+.heroForegroundImage {
+  color: var(--color-surface-raised);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
 }
 
 .badge {
@@ -133,7 +138,7 @@
   font-weight: var(--font-weight-bold);
   color: var(--color-surface-raised);
   line-height: 1.15;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  text-shadow: inherit;
 }
 
 .meta {
@@ -142,7 +147,7 @@
   font-weight: var(--font-weight-normal);
   color: var(--color-surface-raised);
   opacity: 0.85;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  text-shadow: inherit;
 }
 
 .countdownChip {
@@ -173,6 +178,7 @@
   font-weight: var(--font-weight-normal);
   color: var(--color-surface-raised);
   opacity: 0.78;
+  text-shadow: inherit;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
