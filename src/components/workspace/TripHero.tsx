@@ -1,7 +1,7 @@
 import * as React from 'react';
 import type { Trip, TripLifecycleStatus } from '../../models/Trip';
 import { formatDateRange } from '../../utils/dateUtils';
-import { joinWebAbsoluteAndServerRelative, normalizeSharePointHeroUrl } from '../../utils/sharePointUrl';
+import { resolveSharePointMediaSrc } from '../../utils/sharePointUrl';
 import { useSpContext } from '../../context/SpContext';
 import styles from './TripHero.module.css';
 
@@ -57,37 +57,13 @@ function countdownLabel(trip: Trip): string | null {
   return null;
 }
 
-/** Accept absolute http(s), protocol-relative, and SharePoint server-relative paths. */
-function resolveHeroImageSrc(raw: string, webAbsoluteUrl: string, webServerRelativeUrl: string): string | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-  if (/^https:\/\//i.test(trimmed)) return normalizeSharePointHeroUrl(trimmed);
-  if (/^http:\/\//i.test(trimmed)) {
-    if (typeof window !== 'undefined' && window.isSecureContext) {
-      return normalizeSharePointHeroUrl(`https://${trimmed.slice('http://'.length)}`);
-    }
-    return normalizeSharePointHeroUrl(trimmed);
-  }
-  if (trimmed.startsWith('//')) return normalizeSharePointHeroUrl(`${window.location.protocol}${trimmed}`);
-  const base = webAbsoluteUrl.replace(/\/$/, '');
-  const webRoot = webServerRelativeUrl.replace(/\/$/, '');
-  if (trimmed.startsWith('/')) {
-    return normalizeSharePointHeroUrl(joinWebAbsoluteAndServerRelative(base, trimmed));
-  }
-  const rel = trimmed.replace(/^\/+/, '');
-  if (webRoot) {
-    return normalizeSharePointHeroUrl(joinWebAbsoluteAndServerRelative(base, `${webRoot}/${rel}`));
-  }
-  return normalizeSharePointHeroUrl(joinWebAbsoluteAndServerRelative(base, `/${rel}`));
-}
-
 export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit, showEditButton = true }) => {
   const spContext = useSpContext();
   const webAbsoluteUrl = spContext.pageContext.web.absoluteUrl.replace(/\/$/, '');
   const webServerRelativeUrl = spContext.pageContext.web.serverRelativeUrl.replace(/\/$/, '');
   const heroImageUrl = trip.heroImageUrl?.trim() ?? '';
   const heroImageSrc = React.useMemo(
-    () => resolveHeroImageSrc(heroImageUrl, webAbsoluteUrl, webServerRelativeUrl),
+    () => resolveSharePointMediaSrc(heroImageUrl, webAbsoluteUrl, webServerRelativeUrl),
     [heroImageUrl, webAbsoluteUrl, webServerRelativeUrl]
   );
   const [heroImageFailed, setHeroImageFailed] = React.useState(false);

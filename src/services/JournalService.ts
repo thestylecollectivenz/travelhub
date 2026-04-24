@@ -2,6 +2,7 @@ import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 import type { JournalComment, JournalEntry, JournalPhoto } from '../models';
 import { ensureFolderChain, uploadFileToFolder } from '../utils/spFileUpload';
+import { resolveSharePointMediaSrc } from '../utils/sharePointUrl';
 
 const ENTRIES_LIST = 'JournalEntries';
 const PHOTOS_LIST = 'JournalPhotos';
@@ -39,18 +40,6 @@ function mapJournalEntry(item: Record<string, unknown>): JournalEntry {
   };
 }
 
-function mapJournalPhoto(item: Record<string, unknown>): JournalPhoto {
-  return {
-    id: String(item.ID),
-    title: String(item.Title ?? ''),
-    journalEntryId: String(item.JournalEntryId ?? ''),
-    tripId: String(item.TripId ?? ''),
-    dayId: String(item.DayId ?? ''),
-    fileUrl: String(item.FileUrl ?? ''),
-    caption: String(item.Caption ?? '')
-  };
-}
-
 function mapJournalComment(item: Record<string, unknown>): JournalComment {
   return {
     id: String(item.ID),
@@ -75,6 +64,26 @@ export class JournalService {
     this.entriesUrl = `${web}/_api/web/lists/getbytitle('${ENTRIES_LIST}')/items`;
     this.photosUrl = `${web}/_api/web/lists/getbytitle('${PHOTOS_LIST}')/items`;
     this.commentsUrl = `${web}/_api/web/lists/getbytitle('${COMMENTS_LIST}')/items`;
+  }
+
+  /** Same URL rules as trip hero images (join web + path, collapse doubled /sites/…, HTTPS, TravelHubAssets typo). */
+  private resolveJournalFileUrl(raw: string): string {
+    const web = this.ctx.pageContext.web.absoluteUrl.replace(/\/$/, '');
+    const sr = this.ctx.pageContext.web.serverRelativeUrl.replace(/\/$/, '');
+    return resolveSharePointMediaSrc(raw, web, sr) ?? raw;
+  }
+
+  private mapJournalPhotoItem(item: Record<string, unknown>): JournalPhoto {
+    const raw = String(item.FileUrl ?? '');
+    return {
+      id: String(item.ID),
+      title: String(item.Title ?? ''),
+      journalEntryId: String(item.JournalEntryId ?? ''),
+      tripId: String(item.TripId ?? ''),
+      dayId: String(item.DayId ?? ''),
+      fileUrl: this.resolveJournalFileUrl(raw),
+      caption: String(item.Caption ?? '')
+    };
   }
 
   // --- JournalEntries ---
@@ -216,7 +225,7 @@ export class JournalService {
     const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
     if (!resp.ok) throw new Error(`JournalService.getForEntry photos failed: ${resp.status}`);
     const data = await resp.json();
-    return (data.value ?? []).map((item: Record<string, unknown>) => mapJournalPhoto(item));
+    return (data.value ?? []).map((item: Record<string, unknown>) => this.mapJournalPhotoItem(item));
   }
 
   async getForTrip(tripId: string): Promise<JournalPhoto[]> {
@@ -227,7 +236,7 @@ export class JournalService {
     const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
     if (!resp.ok) throw new Error(`JournalService.getForTrip photos failed: ${resp.status}`);
     const data = await resp.json();
-    return (data.value ?? []).map((item: Record<string, unknown>) => mapJournalPhoto(item));
+    return (data.value ?? []).map((item: Record<string, unknown>) => this.mapJournalPhotoItem(item));
   }
 
   /** Photos list — cannot overload `getForDay` with journal entries in TypeScript. */
@@ -239,7 +248,7 @@ export class JournalService {
     const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
     if (!resp.ok) throw new Error(`JournalService.getForDay photos failed: ${resp.status}`);
     const data = await resp.json();
-    return (data.value ?? []).map((item: Record<string, unknown>) => mapJournalPhoto(item));
+    return (data.value ?? []).map((item: Record<string, unknown>) => this.mapJournalPhotoItem(item));
   }
 
   async createPhoto(photo: Omit<JournalPhoto, 'id'>): Promise<JournalPhoto> {
@@ -265,7 +274,7 @@ export class JournalService {
     });
     if (!resp.ok) throw new Error(`JournalService.createPhoto failed: ${resp.status}`);
     const created = await resp.json();
-    return mapJournalPhoto(created);
+    return this.mapJournalPhotoItem(created);
   }
 
   async deletePhoto(id: string): Promise<void> {
@@ -292,7 +301,8 @@ export class JournalService {
     const dayFolder = `${tripFolder}/${dayId}`;
     await ensureFolderChain(this.ctx, webAbsoluteUrl, [rootFolder, tripFolder, dayFolder]);
 
-    const fileUrl = await uploadFileToFolder(this.ctx, webAbsoluteUrl, dayFolder, file);
+    const rawUrl = await uploadFileToFolder(this.ctx, webAbsoluteUrl, dayFolder, file);
+    const fileUrl = this.resolveJournalFileUrl(rawUrl);
     return this.createPhoto({
       title: file.name,
       journalEntryId: journalEntryId?.trim() ? journalEntryId.trim() : '',

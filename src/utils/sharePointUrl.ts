@@ -59,3 +59,37 @@ export function normalizeSharePointHeroUrl(url: string): string {
     return trimmed;
   }
 }
+
+/**
+ * Resolve stored SharePoint file URLs for use in <img src> (hero, journal photos, album).
+ * Handles doubled site roots, TravelHubAssets path typo, http→https in secure contexts, and server-relative paths.
+ */
+export function resolveSharePointMediaSrc(
+  raw: string,
+  webAbsoluteUrl: string,
+  webServerRelativeUrl: string
+): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (/^https:\/\//i.test(trimmed)) return normalizeSharePointHeroUrl(trimmed);
+  if (/^http:\/\//i.test(trimmed)) {
+    if (typeof window !== 'undefined' && window.isSecureContext) {
+      return normalizeSharePointHeroUrl(`https://${trimmed.slice('http://'.length)}`);
+    }
+    return normalizeSharePointHeroUrl(trimmed);
+  }
+  if (trimmed.startsWith('//')) {
+    const proto = typeof window !== 'undefined' ? window.location.protocol : 'https:';
+    return normalizeSharePointHeroUrl(`${proto}${trimmed}`);
+  }
+  const base = webAbsoluteUrl.replace(/\/$/, '');
+  const webRoot = webServerRelativeUrl.replace(/\/$/, '');
+  if (trimmed.startsWith('/')) {
+    return normalizeSharePointHeroUrl(joinWebAbsoluteAndServerRelative(base, trimmed));
+  }
+  const rel = trimmed.replace(/^\/+/, '');
+  if (webRoot) {
+    return normalizeSharePointHeroUrl(joinWebAbsoluteAndServerRelative(base, `${webRoot}/${rel}`));
+  }
+  return normalizeSharePointHeroUrl(joinWebAbsoluteAndServerRelative(base, `/${rel}`));
+}
