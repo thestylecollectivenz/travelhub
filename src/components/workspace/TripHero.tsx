@@ -1,6 +1,7 @@
 import * as React from 'react';
 import type { Trip, TripLifecycleStatus } from '../../models/Trip';
 import { formatDateRange } from '../../utils/dateUtils';
+import { useSpContext } from '../../context/SpContext';
 import styles from './TripHero.module.css';
 
 export interface TripHeroProps {
@@ -53,9 +54,40 @@ function countdownLabel(trip: Trip): string | null {
   return null;
 }
 
+/** Accept absolute http(s), protocol-relative, and SharePoint server-relative paths. */
+function resolveHeroImageSrc(raw: string, webAbsoluteUrl: string, webServerRelativeUrl: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith('//')) return `${window.location.protocol}${trimmed}`;
+  const base = webAbsoluteUrl.replace(/\/$/, '');
+  const webRoot = webServerRelativeUrl.replace(/\/$/, '');
+  if (trimmed.startsWith('/')) {
+    return `${base}${trimmed}`;
+  }
+  const rel = trimmed.replace(/^\/+/, '');
+  if (webRoot) {
+    return `${base}${webRoot}/${rel}`;
+  }
+  return `${base}/${rel}`;
+}
+
 export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit }) => {
+  const spContext = useSpContext();
+  const webAbsoluteUrl = spContext.pageContext.web.absoluteUrl.replace(/\/$/, '');
+  const webServerRelativeUrl = spContext.pageContext.web.serverRelativeUrl.replace(/\/$/, '');
   const heroImageUrl = trip.heroImageUrl?.trim() ?? '';
-  const hasHeroImage = heroImageUrl !== '' && /^https?:\/\//i.test(heroImageUrl);
+  const heroImageSrc = React.useMemo(
+    () => resolveHeroImageSrc(heroImageUrl, webAbsoluteUrl, webServerRelativeUrl),
+    [heroImageUrl, webAbsoluteUrl, webServerRelativeUrl]
+  );
+  const [heroImageFailed, setHeroImageFailed] = React.useState(false);
+
+  React.useEffect(() => {
+    setHeroImageFailed(false);
+  }, [heroImageSrc]);
+
+  const hasHeroImage = Boolean(heroImageSrc) && !heroImageFailed;
   const dayCount = inclusiveTripDayCount(trip.dateStart, trip.dateEnd);
   const dayLabel = dayCount === 1 ? '1 day' : `${dayCount} days`;
   const metaLine = `${trip.destination} · ${formatDateRange(trip.dateStart, trip.dateEnd)} · ${dayLabel}`;
@@ -68,11 +100,15 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit }) => {
       {hasHeroImage ? (
         <img
           className={styles.heroImageLayer}
-          src={heroImageUrl}
+          src={heroImageSrc ?? ''}
           alt=""
           role="presentation"
           aria-hidden
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          onError={() => {
+            // eslint-disable-next-line no-console
+            console.warn('TripHero: hero image failed to load', heroImageSrc);
+            setHeroImageFailed(true);
+          }}
         />
       ) : null}
       <div className={`${styles.heroOverlay} ${hasHeroImage ? styles.heroOverlayWithImage : styles.heroOverlayNoImage}`} role="presentation" />
