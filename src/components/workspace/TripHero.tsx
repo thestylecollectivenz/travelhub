@@ -58,7 +58,13 @@ function countdownLabel(trip: Trip): string | null {
 function resolveHeroImageSrc(raw: string, webAbsoluteUrl: string, webServerRelativeUrl: string): string | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^https:\/\//i.test(trimmed)) return trimmed;
+  if (/^http:\/\//i.test(trimmed)) {
+    if (typeof window !== 'undefined' && window.isSecureContext) {
+      return `https://${trimmed.slice('http://'.length)}`;
+    }
+    return trimmed;
+  }
   if (trimmed.startsWith('//')) return `${window.location.protocol}${trimmed}`;
   const base = webAbsoluteUrl.replace(/\/$/, '');
   const webRoot = webServerRelativeUrl.replace(/\/$/, '');

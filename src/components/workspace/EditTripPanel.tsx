@@ -12,6 +12,26 @@ export interface EditTripPanelProps {
 
 const STATUSES: TripLifecycleStatus[] = ['Planning', 'Upcoming', 'In Progress', 'Completed', 'Archived'];
 
+function pickServerRelativeUrl(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== 'object') return undefined;
+  const root = payload as Record<string, unknown>;
+  const direct = root.ServerRelativeUrl ?? root.FileRef;
+  if (typeof direct === 'string' && direct.trim() !== '') return direct;
+  const d = root.d;
+  if (d && typeof d === 'object') {
+    const dd = d as Record<string, unknown>;
+    const nested = dd.ServerRelativeUrl ?? dd.FileRef;
+    if (typeof nested === 'string' && nested.trim() !== '') return nested;
+  }
+  const list = root.ListItemAllFields;
+  if (list && typeof list === 'object') {
+    const lf = list as Record<string, unknown>;
+    const ref = lf.FileRef ?? lf.ServerRelativeUrl;
+    if (typeof ref === 'string' && ref.trim() !== '') return ref;
+  }
+  return undefined;
+}
+
 export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onClose, onSave }) => {
   const spContext = useSpContext();
   const [draft, setDraft] = React.useState<Trip>(trip);
@@ -82,14 +102,12 @@ export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onCl
       throw new Error(`Upload failed (${uploadResp.status})`);
     }
     const payload = await uploadResp.json();
-    const serverRelativeUrl: string | undefined =
-      payload?.ServerRelativeUrl ??
-      payload?.d?.ServerRelativeUrl ??
-      payload?.ListItemAllFields?.FileRef;
+    const serverRelativeUrl = pickServerRelativeUrl(payload);
     if (!serverRelativeUrl) {
       throw new Error('Upload succeeded but no file URL returned');
     }
-    return `${webAbsoluteUrl}${serverRelativeUrl}`;
+    const rel = serverRelativeUrl.startsWith('/') ? serverRelativeUrl : `/${serverRelativeUrl}`;
+    return `${webAbsoluteUrl}${rel}`;
   }, [ensureHeroImageFolders, tripHeroFolderPath, webAbsoluteUrl, spContext.spHttpClient]);
 
   if (!isOpen) {

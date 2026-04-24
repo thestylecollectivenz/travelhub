@@ -25,6 +25,9 @@ coverage
 # OSX
 .DS_Store
 
+# Local licence file (do not commit)
+licence.txt
+
 # Visual Studio files
 .ntvs_analysis.dat
 .vs
