@@ -174,6 +174,15 @@ export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onCl
             />
           </label>
 
+          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <input
+              type="checkbox"
+              checked={draft.showAuthorName !== false}
+              onChange={(e) => setDraft((prev) => ({ ...prev, showAuthorName: e.target.checked }))}
+            />
+            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-700)' }}>Show author name on journal entries</span>
+          </label>
+
           <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
             <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-700)' }}>Hero image</span>
             <input
@@ -225,6 +234,7 @@ export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onCl
                   dateEnd: draft.dateEnd,
                   status: draft.status,
                   description: (draft.description ?? '').trim(),
+                  showAuthorName: draft.showAuthorName !== false,
                   heroImageUrl
                 });
                 onClose();

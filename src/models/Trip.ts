@@ -15,6 +15,8 @@ export interface Trip {
   heroImageUrl: string;
   status: TripLifecycleStatus;
   sharedViewEnabled: boolean;
+  /** When false, journal cards show timestamp only (no author line). */
+  showAuthorName: boolean;
   /** Optional short trip blurb; omit or leave empty to hide on hero. */
   description?: string;
 }

@@ -115,10 +115,35 @@
 }
 
 .fileRow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.filePreview {
+  width: 3.75rem;
+  height: 3.75rem;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: var(--border-default);
+  flex-shrink: 0;
+}
+
+.filePreviewPlaceholder {
+  width: 3.75rem;
+  height: 3.75rem;
+  border-radius: var(--radius-sm);
+  border: var(--border-default);
+  background: var(--color-sand-100);
+  flex-shrink: 0;
+}
+
+.fileRowMain {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-2);
-  align-items: center;
+  min-width: 0;
+  flex: 1;
 }
 
 .fileName {
@@ -188,6 +213,18 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-lg);
+  border: var(--border-default);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-card);
+}
+
+.figure {
+  position: relative;
+  margin: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }
 
 .thumbBtn {
@@ -208,10 +245,88 @@
   vertical-align: middle;
 }
 
+.captionRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 1.25rem;
+}
+
 .caption {
   font-size: var(--font-size-xs);
   color: var(--color-sand-700);
   line-height: 1.4;
+  flex: 1;
+}
+
+.captionInput {
+  flex: 1;
+  font-size: var(--font-size-xs);
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+}
+
+.captionEditBtn {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.cell:hover .captionEditBtn {
+  opacity: 1;
+}
+
+.captionEditIcon {
+  padding: 2px 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.captionActionBtn {
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: var(--font-size-xs);
+  color: var(--color-blue-800);
+  cursor: pointer;
+}
+
+.heartWrap {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-surface-raised) 88%, transparent);
+  border: var(--border-default);
+}
+
+.heartBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.likeCount {
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-blue-800);
 }
 
 .empty {

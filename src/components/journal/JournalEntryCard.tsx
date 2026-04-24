@@ -2,7 +2,11 @@ import * as React from 'react';
 import type { JournalComment, JournalEntry, JournalPhoto } from '../../models';
 import { useJournal } from '../../context/JournalContext';
 import { useSpContext } from '../../context/SpContext';
+import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { useConfig } from '../../context/ConfigContext';
 import { JournalImageLightbox } from './JournalImageLightbox';
+import { RichTextEditor } from './RichTextEditor';
+import { isLikelyJournalHtml, plainTextToEditorHtml } from '../../utils/journalRichText';
 import styles from './JournalEntryCard.module.css';
 
 export interface JournalEntryCardProps {
@@ -22,8 +26,123 @@ function formatTimestamp(iso: string): string {
   }
 }
 
+function JournalPhotoSlot({
+  photo,
+  onOpenLightbox
+}: {
+  photo: JournalPhoto;
+  onOpenLightbox: (url: string) => void;
+}): React.ReactElement {
+  const { updatePhotoCaption, togglePhotoLike } = useJournal();
+  const spContext = useSpContext();
+  const [editingCap, setEditingCap] = React.useState(false);
+  const [capDraft, setCapDraft] = React.useState(photo.caption);
+
+  React.useEffect(() => {
+    setCapDraft(photo.caption);
+  }, [photo.caption]);
+
+  const liked = React.useMemo(() => {
+    const users = (photo.likedByUsers ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const login = (spContext.pageContext.user.loginName ?? '').trim();
+    return users.some((u) => u.toLowerCase() === login.toLowerCase());
+  }, [photo.likedByUsers, spContext.pageContext.user.loginName]);
+
+  return (
+    <div className={styles.photoCard}>
+      <figure className={styles.photoFigure}>
+        <img
+          className={styles.photoThumb}
+          src={photo.fileUrl}
+          alt={photo.caption ? photo.caption : ''}
+          loading="lazy"
+          onClick={() => onOpenLightbox(photo.fileUrl)}
+        />
+        <div className={styles.photoHeartWrap}>
+          <button
+            type="button"
+            className={styles.photoHeartBtn}
+            onClick={() => togglePhotoLike(photo.id).catch(console.error)}
+            aria-label="Like photo"
+          >
+            {liked ? (
+              <svg viewBox="0 0 16 16" width={12} height={12} aria-hidden>
+                <path
+                  d="M3.2 3.6c0-1.1.9-2 2-2 1 0 1.8.6 2.1 1.4.3-.8 1.1-1.4 2.1-1.4 1.1 0 2 .9 2 2 0 2.4-3.5 5.6-4.1 6.1-.1.1-.3.1-.4 0-.6-.5-4.1-3.7-4.1-6.1Z"
+                  fill="currentColor"
+                />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 16 16" width={12} height={12} aria-hidden>
+                <path
+                  d="M3.2 3.6c0-1.1.9-2 2-2 1 0 1.8.6 2.1 1.4.3-.8 1.1-1.4 2.1-1.4 1.1 0 2 .9 2 2 0 2.4-3.5 5.6-4.1 6.1-.1.1-.3.1-.4 0-.6-.5-4.1-3.7-4.1-6.1Z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+          </button>
+          {photo.likeCount > 0 ? <span className={styles.photoLikeCount}>{photo.likeCount}</span> : null}
+        </div>
+      </figure>
+      <div className={styles.photoCaptionRow}>
+        {editingCap ? (
+          <>
+            <input
+              className={styles.photoCaptionInput}
+              value={capDraft}
+              onChange={(e) => setCapDraft(e.target.value)}
+              aria-label="Caption"
+            />
+            <button
+              type="button"
+              className={styles.iconButton}
+              onClick={() => {
+                updatePhotoCaption(photo.id, capDraft.trim())
+                  .then(() => setEditingCap(false))
+                  .catch(console.error);
+              }}
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              className={styles.iconButton}
+              onClick={() => {
+                setCapDraft(photo.caption);
+                setEditingCap(false);
+              }}
+            >
+              Cancel
+            </button>
+          </>
+        ) : (
+          <>
+            <span className={styles.photoCaption}>{photo.caption?.trim() || '\u00a0'}</span>
+            <button
+              type="button"
+              className={`${styles.iconButton} ${styles.photoCaptionEdit}`}
+              aria-label="Edit caption"
+              onClick={() => setEditingCap(true)}
+            >
+              ✎
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photos, canModerate = true }) => {
   const spContext = useSpContext();
+  const { trip } = useTripWorkspace();
+  const { journalAuthorName } = useConfig();
   const {
     updateEntry,
     deleteEntry,
@@ -37,12 +156,13 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
   } = useJournal();
 
   const displayName = spContext.pageContext.user.displayName ?? '';
-  const isOwner = entry.authorName === displayName;
+  const isOwner = entry.authorName === journalAuthorName || entry.authorName === displayName;
   const showMenu = canModerate || isOwner;
+  const showAuthorLine = trip?.showAuthorName !== false;
 
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
-  const [draftText, setDraftText] = React.useState(entry.entryText);
+  const [draftHtml, setDraftHtml] = React.useState(() => plainTextToEditorHtml(entry.entryText));
   const [draftLocation, setDraftLocation] = React.useState(entry.location);
 
   const [commentsOpen, setCommentsOpen] = React.useState(false);
@@ -60,7 +180,7 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
   const webShareSupported = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
   React.useEffect(() => {
-    setDraftText(entry.entryText);
+    setDraftHtml(isLikelyJournalHtml(entry.entryText) ? entry.entryText : plainTextToEditorHtml(entry.entryText));
     setDraftLocation(entry.location);
   }, [entry.entryText, entry.location]);
 
@@ -138,8 +258,14 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
     <article className={styles.card}>
       <div className={styles.metaRow}>
         <div>
-          <div className={styles.author}>{entry.authorName || 'Traveller'}</div>
-          <div className={styles.timestamp}>{formatTimestamp(entry.entryTimestamp)}</div>
+          {showAuthorLine ? (
+            <>
+              <div className={styles.author}>{entry.authorName || 'Traveller'}</div>
+              <div className={styles.timestamp}>{formatTimestamp(entry.entryTimestamp)}</div>
+            </>
+          ) : (
+            <div className={styles.timestamp}>{formatTimestamp(entry.entryTimestamp)}</div>
+          )}
         </div>
         {showMenu ? (
           <div className={styles.menuWrap}>
@@ -180,7 +306,7 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
 
       {editing ? (
         <div className={styles.editForm}>
-          <textarea className={styles.textarea} value={draftText} onChange={(e) => setDraftText(e.target.value)} />
+          <RichTextEditor value={draftHtml} onChange={setDraftHtml} />
           <input className={styles.input} value={draftLocation} onChange={(e) => setDraftLocation(e.target.value)} placeholder="Location" />
           <div className={styles.editActions}>
             <button type="button" className={styles.iconButton} onClick={() => setEditing(false)}>
@@ -190,7 +316,7 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
               type="button"
               className={styles.iconButton}
               onClick={() => {
-                updateEntry(entry.id, { entryText: draftText, location: draftLocation })
+                updateEntry(entry.id, { entryText: draftHtml, location: draftLocation })
                   .then(() => setEditing(false))
                   .catch(console.error);
               }}
@@ -199,6 +325,8 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
             </button>
           </div>
         </div>
+      ) : isLikelyJournalHtml(entry.entryText) ? (
+        <div className={styles.richText} dangerouslySetInnerHTML={{ __html: entry.entryText }} />
       ) : (
         <div className={styles.text}>{entry.entryText}</div>
       )}
@@ -206,14 +334,7 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
       {photos.length ? (
         <div className={styles.photoGrid}>
           {photos.map((p) => (
-            <img
-              key={p.id}
-              className={styles.photoThumb}
-              src={p.fileUrl}
-              alt={p.caption ? p.caption : ''}
-              loading="lazy"
-              onClick={() => setLightboxUrl(p.fileUrl)}
-            />
+            <JournalPhotoSlot key={p.id} photo={p} onOpenLightbox={setLightboxUrl} />
           ))}
         </div>
       ) : null}
@@ -260,32 +381,74 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
         <div className={styles.sharePanel} role="region" aria-label="Share journal entry">
           {shareBusy ? <div className={styles.timestamp}>Preparing link…</div> : null}
           {!shareBusy && shareUrl ? (
-            <div className={styles.shareGrid}>
-              <button type="button" className={styles.shareButton} onClick={() => copyShareLink().catch(console.error)}>
-                Copy link{copied ? ' · Copied!' : ''}
+            <div className={styles.shareRow}>
+              <button type="button" className={styles.shareAction} onClick={() => copyShareLink().catch(console.error)}>
+                <span className={styles.shareIconBtn} aria-hidden>
+                  <svg viewBox="0 0 24 24" width={18} height={18} fill="none">
+                    <path
+                      d="M10 13a5 5 0 0 1 5-5h1M15 8l2-2m0 0l2 2m-2-2v6"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path d="M8 11H6a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h5a2 2 0 0 0 2-2v-2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                  </svg>
+                </span>
+                <span className={copied ? `${styles.shareActionLabel} ${styles.shareActionLabelCopied}` : styles.shareActionLabel}>
+                  {copied ? 'Copied!' : 'Copy link'}
+                </span>
               </button>
               <a
-                className={styles.shareLinkButton}
+                className={styles.shareAction}
                 href={`https://wa.me/?text=${encodeURIComponent(shareUrl)}`}
                 target="_blank"
                 rel="noreferrer"
               >
-                WhatsApp
+                <span className={styles.shareIconBtn} aria-hidden>
+                  <svg viewBox="0 0 24 24" width={18} height={18} fill="none">
+                    <path
+                      d="M12 3C7 3 3 6.8 3 11.4c0 2 .9 3.8 2.4 5.1L3 21l4.7-2.3c1.3.7 2.8 1.1 4.3 1.1 5 0 9-3.8 9-8.4S17 3 12 3Z"
+                      stroke="currentColor"
+                      strokeWidth="1.4"
+                      strokeLinejoin="round"
+                    />
+                    <path d="M9 10h.01M12 10h.01M15 10h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                </span>
+                <span className={styles.shareActionLabel}>WhatsApp</span>
               </a>
-              <a className={styles.shareLinkButton} href={`mailto:?subject=${encodeURIComponent('Travel Journal')}&body=${encodeURIComponent(shareUrl)}`}>
-                Email
+              <a
+                className={styles.shareAction}
+                href={`mailto:?subject=${encodeURIComponent('Travel Journal')}&body=${encodeURIComponent(shareUrl)}`}
+              >
+                <span className={styles.shareIconBtn} aria-hidden>
+                  <svg viewBox="0 0 24 24" width={18} height={18} fill="none">
+                    <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                    <path d="M3 7l9 6 9-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                <span className={styles.shareActionLabel}>Email</span>
               </a>
               {webShareSupported ? (
                 <button
                   type="button"
-                  className={styles.shareButton}
+                  className={styles.shareAction}
                   onClick={() => {
                     navigator
                       .share({ title: 'Travel journal entry', url: shareUrl })
                       .catch((err) => console.error('navigator.share', err));
                   }}
                 >
-                  Share…
+                  <span className={styles.shareIconBtn} aria-hidden>
+                    <svg viewBox="0 0 24 24" width={18} height={18} fill="none">
+                      <circle cx="18" cy="5" r="2.5" fill="currentColor" />
+                      <circle cx="6" cy="12" r="2.5" fill="currentColor" />
+                      <circle cx="18" cy="19" r="2.5" fill="currentColor" />
+                      <path d="M8 11l8-4M8 13l8 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                    </svg>
+                  </span>
+                  <span className={styles.shareActionLabel}>Share</span>
                 </button>
               ) : null}
             </div>

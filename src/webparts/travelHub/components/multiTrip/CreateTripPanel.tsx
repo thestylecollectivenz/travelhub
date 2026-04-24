@@ -48,6 +48,7 @@ export const CreateTripPanel: React.FC<ICreateTripPanelProps> = ({ onCreated, on
         heroImageUrl: '',
         status,
         sharedViewEnabled: false,
+        showAuthorName: true,
         description: description.trim()
       });
 

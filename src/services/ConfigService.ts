@@ -8,13 +8,16 @@ export interface UserConfig {
   temperatureUnit: 'Celsius' | 'Fahrenheit';
   distanceUnit: 'Kilometres' | 'Miles';
   showTravellerNames: boolean;
+  /** Stored display name for new journal entries; empty = use M365 display name at write time. */
+  journalAuthorName: string;
 }
 
 export const DEFAULT_USER_CONFIG: UserConfig = {
   homeCurrency: 'NZD',
   temperatureUnit: 'Celsius',
   distanceUnit: 'Kilometres',
-  showTravellerNames: true
+  showTravellerNames: true,
+  journalAuthorName: ''
 };
 
 export class ConfigService {
@@ -45,7 +48,8 @@ export class ConfigService {
       showTravellerNames:
         typeof item.ShowTravellerNames === 'boolean'
           ? item.ShowTravellerNames
-          : DEFAULT_USER_CONFIG.showTravellerNames
+          : DEFAULT_USER_CONFIG.showTravellerNames,
+      journalAuthorName: typeof item.JournalAuthorName === 'string' ? item.JournalAuthorName : ''
     };
   }
 
@@ -65,7 +69,8 @@ export class ConfigService {
       HomeCurrency: config.homeCurrency,
       TemperatureUnit: config.temperatureUnit,
       DistanceUnit: config.distanceUnit,
-      ShowTravellerNames: config.showTravellerNames
+      ShowTravellerNames: config.showTravellerNames,
+      JournalAuthorName: config.journalAuthorName ?? ''
     });
 
     if (existing?.ID) {

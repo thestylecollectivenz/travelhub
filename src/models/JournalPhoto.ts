@@ -6,4 +6,6 @@ export interface JournalPhoto {
   dayId: string;
   fileUrl: string;
   caption: string;
+  likeCount: number;
+  likedByUsers: string;
 }

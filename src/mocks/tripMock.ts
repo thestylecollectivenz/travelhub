@@ -12,6 +12,7 @@ export const MOCK_TRIP: Trip = {
   heroImageUrl: '',
   status: 'In Progress',
   sharedViewEnabled: false,
+  showAuthorName: true,
   description:
     'A 10-day journey through Japan by rail and sea, exploring Tokyo, Kyoto, Osaka and beyond.'
 };

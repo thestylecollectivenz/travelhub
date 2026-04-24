@@ -4,6 +4,8 @@ import { ConfigService, DEFAULT_USER_CONFIG, UserConfig } from '../services/Conf
 
 export interface ConfigContextValue {
   config: UserConfig;
+  /** Resolved name for journal bylines and new entries: custom JournalAuthorName or M365 display name. */
+  journalAuthorName: string;
   userId: string;
   saveConfig: (next: UserConfig) => Promise<void>;
 }
@@ -37,6 +39,12 @@ export const ConfigProvider: React.FC<ConfigProviderProps> = ({ children }) => {
     };
   }, [spContext, userId]);
 
+  const journalAuthorName = React.useMemo(() => {
+    const custom = (config.journalAuthorName ?? '').trim();
+    const dn = (spContext.pageContext.user.displayName ?? '').trim();
+    return custom || dn;
+  }, [config.journalAuthorName, spContext.pageContext.user.displayName]);
+
   const saveConfig = React.useCallback(
     async (next: UserConfig): Promise<void> => {
       setConfig(next);
@@ -54,10 +62,11 @@ export const ConfigProvider: React.FC<ConfigProviderProps> = ({ children }) => {
   const value = React.useMemo<ConfigContextValue>(
     () => ({
       config,
+      journalAuthorName,
       userId,
       saveConfig
     }),
-    [config, userId, saveConfig]
+    [config, journalAuthorName, userId, saveConfig]
   );
 
   return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>;

@@ -1,9 +1,119 @@
 import * as React from 'react';
 import type { JournalPhoto } from '../../models';
 import { useJournal } from '../../context/JournalContext';
+import { useSpContext } from '../../context/SpContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { JournalImageLightbox } from './JournalImageLightbox';
 import styles from './TripPhotoAlbum.module.css';
+
+function AlbumPhotoCell({
+  photo,
+  onOpenLightbox
+}: {
+  photo: JournalPhoto;
+  onOpenLightbox: (url: string) => void;
+}): React.ReactElement {
+  const { updatePhotoCaption, togglePhotoLike } = useJournal();
+  const spContext = useSpContext();
+  const [editingCap, setEditingCap] = React.useState(false);
+  const [capDraft, setCapDraft] = React.useState(photo.caption);
+
+  React.useEffect(() => {
+    setCapDraft(photo.caption);
+  }, [photo.caption]);
+
+  const liked = React.useMemo(() => {
+    const users = (photo.likedByUsers ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const login = (spContext.pageContext.user.loginName ?? '').trim();
+    return users.some((u) => u.toLowerCase() === login.toLowerCase());
+  }, [photo.likedByUsers, spContext.pageContext.user.loginName]);
+
+  return (
+    <div className={styles.cell}>
+      <figure className={styles.figure}>
+        <button type="button" className={styles.thumbBtn} onClick={() => onOpenLightbox(photo.fileUrl)} aria-label="View full size">
+          <img src={photo.fileUrl} alt="" className={styles.thumb} loading="lazy" />
+        </button>
+        <div className={styles.heartWrap}>
+          <button
+            type="button"
+            className={styles.heartBtn}
+            onClick={() => togglePhotoLike(photo.id).catch(console.error)}
+            aria-label="Like photo"
+          >
+            {liked ? (
+              <svg viewBox="0 0 16 16" width={12} height={12} aria-hidden>
+                <path
+                  d="M3.2 3.6c0-1.1.9-2 2-2 1 0 1.8.6 2.1 1.4.3-.8 1.1-1.4 2.1-1.4 1.1 0 2 .9 2 2 0 2.4-3.5 5.6-4.1 6.1-.1.1-.3.1-.4 0-.6-.5-4.1-3.7-4.1-6.1Z"
+                  fill="currentColor"
+                />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 16 16" width={12} height={12} aria-hidden>
+                <path
+                  d="M3.2 3.6c0-1.1.9-2 2-2 1 0 1.8.6 2.1 1.4.3-.8 1.1-1.4 2.1-1.4 1.1 0 2 .9 2 2 0 2.4-3.5 5.6-4.1 6.1-.1.1-.3.1-.4 0-.6-.5-4.1-3.7-4.1-6.1Z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+          </button>
+          {photo.likeCount > 0 ? <span className={styles.likeCount}>{photo.likeCount}</span> : null}
+        </div>
+      </figure>
+      <div className={styles.captionRow}>
+        {editingCap ? (
+          <>
+            <input
+              className={styles.captionInput}
+              value={capDraft}
+              onChange={(e) => setCapDraft(e.target.value)}
+              aria-label="Caption"
+            />
+            <button
+              type="button"
+              className={styles.captionActionBtn}
+              onClick={() => {
+                updatePhotoCaption(photo.id, capDraft.trim())
+                  .then(() => setEditingCap(false))
+                  .catch(console.error);
+              }}
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              className={styles.captionActionBtn}
+              onClick={() => {
+                setCapDraft(photo.caption);
+                setEditingCap(false);
+              }}
+            >
+              Cancel
+            </button>
+          </>
+        ) : (
+          <>
+            <span className={styles.caption}>{photo.caption?.trim() || '\u00a0'}</span>
+            <button
+              type="button"
+              className={`${styles.captionEditBtn} ${styles.captionEditIcon}`}
+              aria-label="Edit caption"
+              onClick={() => setEditingCap(true)}
+            >
+              ✎
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 type AlbumLayout = 'all' | 'by-day';
 
@@ -26,6 +136,7 @@ export const TripPhotoAlbum: React.FC = () => {
   const [uploadDayId, setUploadDayId] = React.useState<string>('');
   const [pendingFiles, setPendingFiles] = React.useState<File[]>([]);
   const [captions, setCaptions] = React.useState<string[]>([]);
+  const [pendingPreviews, setPendingPreviews] = React.useState<string[]>([]);
   const [uploading, setUploading] = React.useState(false);
   const [progress, setProgress] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -40,6 +151,14 @@ export const TripPhotoAlbum: React.FC = () => {
       setUploadDayId(days[0].id);
     }
   }, [days, uploadDayId]);
+
+  React.useEffect(() => {
+    const urls = pendingFiles.map((f) => URL.createObjectURL(f));
+    setPendingPreviews(urls);
+    return () => {
+      urls.forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, [pendingFiles]);
 
   const photos = allTripPhotos;
 
@@ -204,17 +323,24 @@ export const TripPhotoAlbum: React.FC = () => {
           </label>
           {pendingFiles.map((f, i) => (
             <div key={`${f.name}-${i}`} className={styles.fileRow}>
-              <span className={styles.fileName}>{f.name}</span>
-              <input
-                className={styles.captionInput}
-                placeholder="Caption (optional)"
-                value={captions[i] ?? ''}
-                onChange={(e) => {
-                  const next = [...captions];
-                  next[i] = e.target.value;
-                  setCaptions(next);
-                }}
-              />
+              {pendingPreviews[i] ? (
+                <img className={styles.filePreview} src={pendingPreviews[i]} alt="" />
+              ) : (
+                <span className={styles.filePreviewPlaceholder} aria-hidden />
+              )}
+              <div className={styles.fileRowMain}>
+                <span className={styles.fileName}>{f.name}</span>
+                <input
+                  className={styles.captionInput}
+                  placeholder="Caption (optional)"
+                  value={captions[i] ?? ''}
+                  onChange={(e) => {
+                    const next = [...captions];
+                    next[i] = e.target.value;
+                    setCaptions(next);
+                  }}
+                />
+              </div>
             </div>
           ))}
           {error ? <div className={styles.error}>{error}</div> : null}
@@ -237,12 +363,7 @@ export const TripPhotoAlbum: React.FC = () => {
             {sec.title ? <h3 className={styles.sectionTitle}>{sec.title}</h3> : null}
             <div className={styles.grid}>
               {sec.items.map((p) => (
-                <figure key={p.id} className={styles.cell}>
-                  <button type="button" className={styles.thumbBtn} onClick={() => setLightboxUrl(p.fileUrl)} aria-label="View full size">
-                    <img src={p.fileUrl} alt="" className={styles.thumb} loading="lazy" />
-                  </button>
-                  {p.caption?.trim() ? <figcaption className={styles.caption}>{p.caption}</figcaption> : null}
-                </figure>
+                <AlbumPhotoCell key={p.id} photo={p} onOpenLightbox={(url) => setLightboxUrl(url)} />
               ))}
             </div>
           </div>

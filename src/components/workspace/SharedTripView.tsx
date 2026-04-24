@@ -1,9 +1,13 @@
 import * as React from 'react';
 import { TripSidebar } from '../sidebar/TripSidebar';
 import { SharedDayPanel } from '../day/SharedDayPanel';
+import { TripJournalFeed } from '../journal/TripJournalFeed';
+import { TripPhotoAlbum } from '../journal/TripPhotoAlbum';
+import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import styles from './TripWorkspace.module.css';
 
 export const SharedTripView: React.FC = () => {
+  const { mainWorkspaceTab } = useTripWorkspace();
   const [sidebarWidth, setSidebarWidth] = React.useState<number>(320);
 
   const startSidebarResize = React.useCallback(
@@ -44,7 +48,9 @@ export const SharedTripView: React.FC = () => {
         />
       </div>
       <main className={styles.main}>
-        <SharedDayPanel />
+        {mainWorkspaceTab === 'itinerary' ? <SharedDayPanel /> : null}
+        {mainWorkspaceTab === 'journal' ? <TripJournalFeed /> : null}
+        {mainWorkspaceTab === 'photos' ? <TripPhotoAlbum /> : null}
       </main>
     </div>
   );

@@ -6,6 +6,8 @@ const LIST = 'Trips';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapToTrip(item: any): Trip {
+  const sn = item.ShowAuthorName;
+  const showAuthorName = sn === false || sn === 'No' ? false : true;
   return {
     id: String(item.ID),
     title: item.Title ?? '',
@@ -15,6 +17,7 @@ function mapToTrip(item: any): Trip {
     heroImageUrl: item.HeroImageUrl ?? '',
     status: (item.Status as TripLifecycleStatus) ?? 'Planning',
     sharedViewEnabled: item.SharedViewEnabled === true,
+    showAuthorName,
     description: item.Description ?? ''
   };
 }
@@ -30,6 +33,7 @@ function mapToSpItem(trip: Partial<Trip>): Record<string, any> {
   if (trip.heroImageUrl !== undefined) item.HeroImageUrl = trip.heroImageUrl;
   if (trip.status !== undefined) item.Status = trip.status;
   if (trip.sharedViewEnabled !== undefined) item.SharedViewEnabled = trip.sharedViewEnabled;
+  if (trip.showAuthorName !== undefined) item.ShowAuthorName = trip.showAuthorName;
   if (trip.description !== undefined) item.Description = trip.description;
   return item;
 }
@@ -44,7 +48,8 @@ export class TripService {
   }
 
   async getAll(): Promise<Trip[]> {
-    const select = '$select=ID,Title,Destination,DateStart,DateEnd,HeroImageUrl,Status,SharedViewEnabled,Description';
+    const select =
+      '$select=ID,Title,Destination,DateStart,DateEnd,HeroImageUrl,Status,SharedViewEnabled,ShowAuthorName,Description';
     const orderby = '$orderby=DateStart desc';
     const url = `${this.baseUrl}?${select}&${orderby}`;
     try {
@@ -60,7 +65,8 @@ export class TripService {
   }
 
   async getById(id: string): Promise<Trip> {
-    const select = '$select=ID,Title,Destination,DateStart,DateEnd,HeroImageUrl,Status,SharedViewEnabled,Description';
+    const select =
+      '$select=ID,Title,Destination,DateStart,DateEnd,HeroImageUrl,Status,SharedViewEnabled,ShowAuthorName,Description';
     const url = `${this.baseUrl}(${id})?${select}`;
     try {
       const resp: SPHttpClientResponse = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);

@@ -82,7 +82,9 @@ export class JournalService {
       tripId: String(item.TripId ?? ''),
       dayId: String(item.DayId ?? ''),
       fileUrl: this.resolveJournalFileUrl(raw),
-      caption: String(item.Caption ?? '')
+      caption: String(item.Caption ?? ''),
+      likeCount: typeof item.LikeCount === 'number' ? item.LikeCount : Number(item.LikeCount ?? 0) || 0,
+      likedByUsers: String(item.LikedByUsers ?? '')
     };
   }
 
@@ -114,10 +116,13 @@ export class JournalService {
     return (data.value ?? []).map((item: Record<string, unknown>) => mapJournalEntry(item));
   }
 
-  async create(entry: Pick<JournalEntry, 'tripId' | 'dayId' | 'entryText' | 'location'> & Partial<Pick<JournalEntry, 'shareableLink'>>): Promise<JournalEntry> {
+  async create(
+    entry: Pick<JournalEntry, 'tripId' | 'dayId' | 'entryText' | 'location'> &
+      Partial<Pick<JournalEntry, 'shareableLink' | 'authorName'>>
+  ): Promise<JournalEntry> {
     const nowIso = new Date().toISOString();
     const titleIso = nowIso;
-    const authorName = this.ctx.pageContext.user.displayName ?? '';
+    const authorName = (entry.authorName?.trim() || this.ctx.pageContext.user.displayName || '').trim();
     const body = JSON.stringify({
       Title: titleIso,
       TripId: entry.tripId,
@@ -219,7 +224,7 @@ export class JournalService {
   // --- JournalPhotos ---
   async getForEntry(journalEntryId: string): Promise<JournalPhoto[]> {
     const safe = odataEscapeString(journalEntryId);
-    const select = '$select=ID,Title,JournalEntryId,TripId,DayId,FileUrl,Caption';
+    const select = '$select=ID,Title,JournalEntryId,TripId,DayId,FileUrl,Caption,LikeCount,LikedByUsers';
     const filter = `$filter=JournalEntryId eq '${safe}'`;
     const url = `${this.photosUrl}?${select}&${filter}`;
     const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
@@ -230,7 +235,7 @@ export class JournalService {
 
   async getForTrip(tripId: string): Promise<JournalPhoto[]> {
     const safeTrip = odataEscapeString(tripId);
-    const select = '$select=ID,Title,JournalEntryId,TripId,DayId,FileUrl,Caption';
+    const select = '$select=ID,Title,JournalEntryId,TripId,DayId,FileUrl,Caption,LikeCount,LikedByUsers';
     const filter = `$filter=TripId eq '${safeTrip}'`;
     const url = `${this.photosUrl}?${select}&${filter}`;
     const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
@@ -242,7 +247,7 @@ export class JournalService {
   /** Photos list — cannot overload `getForDay` with journal entries in TypeScript. */
   async getPhotosForDay(dayId: string): Promise<JournalPhoto[]> {
     const safeDay = odataEscapeString(dayId);
-    const select = '$select=ID,Title,JournalEntryId,TripId,DayId,FileUrl,Caption';
+    const select = '$select=ID,Title,JournalEntryId,TripId,DayId,FileUrl,Caption,LikeCount,LikedByUsers';
     const filter = `$filter=DayId eq '${safeDay}'`;
     const url = `${this.photosUrl}?${select}&${filter}`;
     const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
@@ -258,7 +263,9 @@ export class JournalService {
       TripId: photo.tripId,
       DayId: photo.dayId,
       FileUrl: photo.fileUrl,
-      Caption: photo.caption ?? ''
+      Caption: photo.caption ?? '',
+      LikeCount: typeof photo.likeCount === 'number' ? photo.likeCount : 0,
+      LikedByUsers: photo.likedByUsers ?? ''
     };
     if (photo.journalEntryId && photo.journalEntryId.trim() !== '') {
       item.JournalEntryId = photo.journalEntryId;
@@ -309,8 +316,55 @@ export class JournalService {
       tripId,
       dayId,
       fileUrl,
-      caption: caption ?? ''
+      caption: caption ?? '',
+      likeCount: 0,
+      likedByUsers: ''
     });
+  }
+
+  async updatePhoto(id: string, partial: Partial<Pick<JournalPhoto, 'caption' | 'title' | 'fileUrl' | 'likeCount' | 'likedByUsers'>>): Promise<void> {
+    const url = `${this.photosUrl}(${id})`;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const item: Record<string, any> = {};
+    if (partial.title !== undefined) item.Title = partial.title;
+    if (partial.caption !== undefined) item.Caption = partial.caption;
+    if (partial.fileUrl !== undefined) item.FileUrl = partial.fileUrl;
+    if (partial.likeCount !== undefined) item.LikeCount = partial.likeCount;
+    if (partial.likedByUsers !== undefined) item.LikedByUsers = partial.likedByUsers;
+    const body = JSON.stringify(item);
+    const resp = await this.ctx.spHttpClient.fetch(url, SPHttpClient.configurations.v1, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json;odata.metadata=minimal',
+        Accept: 'application/json;odata.metadata=minimal',
+        'IF-MATCH': '*',
+        'X-HTTP-Method': 'MERGE'
+      },
+      body
+    });
+    if (!resp.ok && resp.status !== 204) throw new Error(`JournalService.updatePhoto failed: ${resp.status}`);
+  }
+
+  async togglePhotoLike(
+    id: string,
+    currentLikeCount: number,
+    likedByUsers: string,
+    userId: string
+  ): Promise<{ likeCount: number; likedByUsers: string }> {
+    const users = parseCsvLoginNames(likedByUsers);
+    const normalizedTarget = userId.trim();
+    const idx = users.findIndex((u) => u.toLowerCase() === normalizedTarget.toLowerCase());
+    let nextUsers: string[];
+    let nextCount: number;
+    if (idx >= 0) {
+      nextUsers = users.filter((_, i) => i !== idx);
+      nextCount = Math.max(0, currentLikeCount - 1);
+    } else {
+      nextUsers = [...users, normalizedTarget];
+      nextCount = currentLikeCount + 1;
+    }
+    await this.updatePhoto(id, { likeCount: nextCount, likedByUsers: serializeCsvLoginNames(nextUsers) });
+    return { likeCount: nextCount, likedByUsers: serializeCsvLoginNames(nextUsers) };
   }
 
   // --- JournalComments ---

@@ -123,6 +123,17 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
             </select>
           </label>
 
+          <label style={{ display: 'grid', gap: 'var(--space-1)' }}>
+            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-800)' }}>Journal display name</span>
+            <input
+              type="text"
+              value={draft.journalAuthorName}
+              onChange={(e) => setDraft((d) => ({ ...d, journalAuthorName: e.target.value }))}
+              placeholder="Leave blank to use your Microsoft 365 display name"
+              style={{ border: 'var(--border-default)', borderRadius: 'var(--radius-md)', padding: 'var(--space-2)' }}
+            />
+          </label>
+
           <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <input
               type="checkbox"

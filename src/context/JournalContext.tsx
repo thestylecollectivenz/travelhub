@@ -3,6 +3,7 @@ import type { JournalComment, JournalEntry, JournalPhoto } from '../models';
 import { JournalService } from '../services/JournalService';
 import { useSpContext } from './SpContext';
 import { useTripWorkspace } from './TripWorkspaceContext';
+import { useConfig } from './ConfigContext';
 
 export interface JournalContextValue {
   allEntries: JournalEntry[];
@@ -18,6 +19,8 @@ export interface JournalContextValue {
   addPhoto: (input: { journalEntryId: string; dayId: string; file: File; caption?: string }) => Promise<JournalPhoto>;
   addAlbumPhoto: (dayId: string, file: File, caption?: string) => Promise<JournalPhoto>;
   deletePhoto: (id: string) => Promise<void>;
+  updatePhotoCaption: (photoId: string, caption: string) => Promise<void>;
+  togglePhotoLike: (photoId: string) => Promise<void>;
   toggleLike: (entryId: string) => Promise<void>;
   addComment: (journalEntryId: string, text: string) => Promise<void>;
   deleteComment: (journalEntryId: string, commentId: string) => Promise<void>;
@@ -28,6 +31,7 @@ const JournalContext = React.createContext<JournalContextValue | undefined>(unde
 
 export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const spContext = useSpContext();
+  const { journalAuthorName } = useConfig();
   const { trip } = useTripWorkspace();
   const tripId = trip?.id ?? '';
 
@@ -119,7 +123,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         title: new Date().toISOString(),
         tripId,
         dayId: input.dayId,
-        authorName: userDisplayName,
+        authorName: journalAuthorName,
         entryText: input.entryText,
         location: input.location ?? '',
         entryTimestamp: new Date().toISOString(),
@@ -134,7 +138,8 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
           tripId,
           dayId: input.dayId,
           entryText: input.entryText,
-          location: input.location ?? ''
+          location: input.location ?? '',
+          authorName: journalAuthorName
         });
         setEntries((prev) => prev.map((e) => (e.id === optimistic.id ? created : e)));
         return created;
@@ -145,7 +150,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw err;
       }
     },
-    [spContext, tripId, userDisplayName]
+    [spContext, tripId, journalAuthorName]
   );
 
   const updateEntry = React.useCallback(
@@ -256,6 +261,53 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     },
     [photos, spContext]
+  );
+
+  const updatePhotoCaption = React.useCallback(
+    async (photoId: string, caption: string): Promise<void> => {
+      const prev = photos.find((p) => p.id === photoId);
+      if (!prev) return;
+      setPhotos((x) => x.map((p) => (p.id === photoId ? { ...p, caption } : p)));
+      try {
+        const svc = new JournalService(spContext);
+        await svc.updatePhoto(photoId, { caption });
+      } catch (err) {
+        if (prev) setPhotos((x) => x.map((p) => (p.id === photoId ? prev : p)));
+        // eslint-disable-next-line no-console
+        console.error('JournalProvider.updatePhotoCaption', err);
+        throw err;
+      }
+    },
+    [photos, spContext]
+  );
+
+  const togglePhotoLike = React.useCallback(
+    async (photoId: string): Promise<void> => {
+      const snapshot = photos.find((p) => p.id === photoId);
+      if (!snapshot) return;
+      const users = (snapshot.likedByUsers ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const idx = users.findIndex((u) => u.toLowerCase() === userLogin.toLowerCase());
+      const optimisticUsers = idx >= 0 ? users.filter((_, i) => i !== idx) : [...users, userLogin];
+      const optimisticCount = Math.max(0, idx >= 0 ? snapshot.likeCount - 1 : snapshot.likeCount + 1);
+      setPhotos((prev) =>
+        prev.map((p) => (p.id === photoId ? { ...p, likeCount: optimisticCount, likedByUsers: optimisticUsers.join(',') } : p))
+      );
+      try {
+        const svc = new JournalService(spContext);
+        const result = await svc.togglePhotoLike(photoId, snapshot.likeCount, snapshot.likedByUsers, userLogin);
+        setPhotos((prev) =>
+          prev.map((p) => (p.id === photoId ? { ...p, likeCount: result.likeCount, likedByUsers: result.likedByUsers } : p))
+        );
+      } catch (err) {
+        setPhotos((prev) => prev.map((p) => (p.id === photoId ? snapshot : p)));
+        // eslint-disable-next-line no-console
+        console.error('JournalProvider.togglePhotoLike', err);
+      }
+    },
+    [photos, spContext, userLogin]
   );
 
   const toggleLike = React.useCallback(
@@ -402,6 +454,8 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       addPhoto,
       addAlbumPhoto,
       deletePhoto,
+      updatePhotoCaption,
+      togglePhotoLike,
       toggleLike,
       addComment,
       deleteComment,
@@ -421,6 +475,8 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       addPhoto,
       addAlbumPhoto,
       deletePhoto,
+      updatePhotoCaption,
+      togglePhotoLike,
       toggleLike,
       addComment,
       deleteComment,

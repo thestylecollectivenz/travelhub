@@ -1,5 +1,7 @@
 import * as React from 'react';
 import { useJournal } from '../../context/JournalContext';
+import { RichTextEditor } from './RichTextEditor';
+import { isRichTextEditorEmpty } from '../../utils/journalRichText';
 import styles from './JournalEntryComposer.module.css';
 
 export interface JournalEntryComposerProps {
@@ -17,12 +19,26 @@ function isAllowedImage(file: File): boolean {
 
 export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayId, onCancel, onSaved }) => {
   const { addEntry, addPhoto } = useJournal();
-  const [text, setText] = React.useState('');
+  const [entryHtml, setEntryHtml] = React.useState('<p><br></p>');
   const [location, setLocation] = React.useState('');
   const [files, setFiles] = React.useState<File[]>([]);
+  const [photoCaptions, setPhotoCaptions] = React.useState<string[]>([]);
+  const [previewUrls, setPreviewUrls] = React.useState<string[]>([]);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [progress, setProgress] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const urls = files.map((f) => URL.createObjectURL(f));
+    setPreviewUrls(urls);
+    setPhotoCaptions((prev) => {
+      const next = files.map((_, i) => prev[i] ?? '');
+      return next;
+    });
+    return () => {
+      urls.forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, [files]);
 
   const onPickFiles = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const picked = Array.from(e.target.files ?? []);
@@ -40,11 +56,11 @@ export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayI
     }
     setFiles(next);
     if (next.length) setError(null);
+    e.target.value = '';
   };
 
   const save = async (): Promise<void> => {
-    const trimmed = text.trim();
-    if (!trimmed) {
+    if (isRichTextEditorEmpty(entryHtml)) {
       setError('Please write something for this entry.');
       return;
     }
@@ -52,11 +68,12 @@ export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayI
     setError(null);
     setProgress(null);
     try {
-      const entry = await addEntry({ dayId, entryText: trimmed, location: location.trim() || undefined });
+      const entry = await addEntry({ dayId, entryText: entryHtml.trim(), location: location.trim() || undefined });
       if (files.length > 0) {
         for (let i = 0; i < files.length; i++) {
           setProgress(`Uploading photo ${i + 1} of ${files.length}…`);
-          await addPhoto({ journalEntryId: entry.id, dayId, file: files[i], caption: '' });
+          const cap = photoCaptions[i]?.trim() ?? '';
+          await addPhoto({ journalEntryId: entry.id, dayId, file: files[i], caption: cap });
         }
       }
       onSaved();
@@ -70,10 +87,12 @@ export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayI
 
   return (
     <div className={styles.root}>
-      <label className={styles.label}>
-        Entry
-        <textarea className={styles.textarea} value={text} onChange={(e) => setText(e.target.value)} />
-      </label>
+      <div className={styles.label}>
+        <span>Entry</span>
+        <div className={styles.editorWrap}>
+          <RichTextEditor value={entryHtml} onChange={setEntryHtml} disabled={saving} minHeight="9rem" />
+        </div>
+      </div>
       <label className={styles.label}>
         Location (optional)
         <input className={styles.input} value={location} onChange={(e) => setLocation(e.target.value)} />
@@ -82,6 +101,26 @@ export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayI
         Photos (optional)
         <input type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple onChange={onPickFiles} />
       </label>
+      {files.map((f, i) => (
+        <div key={`${f.name}-${i}`} className={styles.photoRow}>
+          {previewUrls[i] ? (
+            <img className={styles.photoPreview} src={previewUrls[i]} alt="" />
+          ) : null}
+          <div className={styles.photoMeta}>
+            <span className={styles.fileName}>{f.name}</span>
+            <input
+              className={styles.captionInput}
+              placeholder="Caption (optional)"
+              value={photoCaptions[i] ?? ''}
+              onChange={(e) => {
+                const next = [...photoCaptions];
+                next[i] = e.target.value;
+                setPhotoCaptions(next);
+              }}
+            />
+          </div>
+        </div>
+      ))}
       {error ? <div className={styles.error}>{error}</div> : null}
       {progress ? <div className={styles.progress}>{progress}</div> : null}
       <div className={styles.actions}>
