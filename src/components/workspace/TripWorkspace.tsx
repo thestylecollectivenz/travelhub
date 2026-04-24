@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { TripWorkspaceProvider, useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { JournalProvider } from '../../context/JournalContext';
 import { TripHero } from './TripHero';
 import { TripStatsStrip } from './TripStatsStrip';
 import { TripContent } from './TripContent';
@@ -154,7 +155,9 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
 export const TripWorkspace: React.FC<ITripWorkspaceProps> = (props) => {
   return (
     <TripWorkspaceProvider tripId={props.tripId} onBack={props.onBack}>
-      <TripWorkspaceLayout {...props} />
+      <JournalProvider>
+        <TripWorkspaceLayout {...props} />
+      </JournalProvider>
     </TripWorkspaceProvider>
   );
 };

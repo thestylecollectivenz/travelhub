@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { ItineraryTimeline } from '../itinerary/ItineraryTimeline';
+import { JournalFeed } from '../journal/JournalFeed';
 import { sumForDay } from '../../utils/financialUtils';
 import { BudgetBreakdownTile } from './BudgetBreakdownTile';
 import { DayHeader } from './DayHeader';
@@ -31,6 +32,7 @@ export const DayPanel: React.FC = () => {
       <DayHeader day={day} dayTotal={dayTotal} onAddEntry={() => setEditingCardId('new')} />
       <BudgetBreakdownTile tripId={trip.id} dayId={day.id} />
       <ItineraryTimeline dayId={day.id} />
+      <JournalFeed dayId={day.id} />
     </div>
   );
 };

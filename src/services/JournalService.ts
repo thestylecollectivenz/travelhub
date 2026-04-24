@@ -105,7 +105,7 @@ export class JournalService {
     return (data.value ?? []).map((item: Record<string, unknown>) => mapJournalEntry(item));
   }
 
-  async create(entry: Omit<JournalEntry, 'id'>): Promise<JournalEntry> {
+  async create(entry: Pick<JournalEntry, 'tripId' | 'dayId' | 'entryText' | 'location'> & Partial<Pick<JournalEntry, 'shareableLink'>>): Promise<JournalEntry> {
     const nowIso = new Date().toISOString();
     const titleIso = nowIso;
     const authorName = this.ctx.pageContext.user.displayName ?? '';
