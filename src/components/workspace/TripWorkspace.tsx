@@ -13,9 +13,20 @@ export interface ITripWorkspaceProps {
 }
 
 const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) => {
-  const { trip, loading, error, retryLoad, updateTrip } = useTripWorkspace();
+  const {
+    trip,
+    loading,
+    error,
+    retryLoad,
+    updateTrip,
+    deleteTrip,
+    deletingTrip,
+    deleteTripError,
+    clearDeleteTripError
+  } = useTripWorkspace();
   const [configOpen, setConfigOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
 
   const loadingStyle: React.CSSProperties = {
     display: 'flex',
@@ -72,13 +83,65 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
   return (
     <div className={styles.workspace} data-trip-id={tripId}>
       <div className={styles.toolbar}>
-        <button type="button" className={styles.backButton} onClick={onBack}>
+        <button type="button" className={styles.backButton} onClick={onBack} disabled={deletingTrip}>
           ← All Trips
         </button>
-        <button type="button" className={styles.settingsButton} onClick={() => setConfigOpen(true)} aria-label="Open settings">
-          <span aria-hidden>⚙</span> Settings
-        </button>
+        <div className={styles.toolbarActions}>
+          {confirmDelete ? (
+            <div className={styles.deleteConfirm}>
+              <span className={styles.deletePrompt}>{deletingTrip ? 'Deleting…' : 'Delete this trip?'}</span>
+              <button
+                type="button"
+                className={styles.deleteConfirmButton}
+                disabled={deletingTrip}
+                onClick={() => {
+                  deleteTrip().catch(console.error);
+                }}
+              >
+                Confirm delete
+              </button>
+              <button
+                type="button"
+                className={styles.deleteCancelButton}
+                disabled={deletingTrip}
+                onClick={() => {
+                  setConfirmDelete(false);
+                  clearDeleteTripError();
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                className={styles.settingsButton}
+                onClick={() => setConfigOpen(true)}
+                aria-label="Open settings"
+                disabled={deletingTrip}
+              >
+                <span aria-hidden>⚙</span> Settings
+              </button>
+              <button
+                type="button"
+                className={styles.deleteButton}
+                disabled={deletingTrip}
+                onClick={() => {
+                  setConfirmDelete(true);
+                  clearDeleteTripError();
+                }}
+              >
+                <svg viewBox="0 0 16 16" width={12} height={12} fill="none" aria-hidden>
+                  <path d="M3 4.5h10M6 4.5v-1h4v1M5.5 6v6m5-6v6M4.5 4.5l.5 8a1 1 0 0 0 1 .9h3.9a1 1 0 0 0 1-.9l.5-8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Delete trip
+              </button>
+            </>
+          )}
+        </div>
       </div>
+      {deleteTripError ? <div className={styles.deleteError}>{deleteTripError}</div> : null}
       <TripHero trip={trip} onEdit={() => setEditOpen(true)} />
       <TripStatsStrip />
       <TripContent />
@@ -90,7 +153,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
 
 export const TripWorkspace: React.FC<ITripWorkspaceProps> = (props) => {
   return (
-    <TripWorkspaceProvider tripId={props.tripId}>
+    <TripWorkspaceProvider tripId={props.tripId} onBack={props.onBack}>
       <TripWorkspaceLayout {...props} />
     </TripWorkspaceProvider>
   );

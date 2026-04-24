@@ -27,8 +27,12 @@ export interface TripWorkspaceContextValue {
   localEntries: ItineraryEntry[];
   loading: boolean;
   error: string | null;
+  deletingTrip: boolean;
+  deleteTripError: string | null;
   retryLoad: () => void;
   updateTrip: (partial: Partial<Trip>) => void;
+  deleteTrip: () => Promise<void>;
+  clearDeleteTripError: () => void;
   updateDay: (dayId: string, partial: Partial<TripDay>) => void;
   updateEntry: (updated: ItineraryEntry) => void;
   deleteEntry: (entryId: string) => void;
@@ -45,10 +49,18 @@ const TripWorkspaceContext = React.createContext<TripWorkspaceContextValue | und
 
 export interface ITripWorkspaceProviderProps {
   tripId: string;
+  onBack: () => void;
   children: React.ReactNode;
 }
 
-export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProviderProps): React.ReactElement {
+async function runBatched<T>(items: T[], batchSize: number, worker: (item: T) => Promise<void>): Promise<void> {
+  for (let i = 0; i < items.length; i += batchSize) {
+    const chunk = items.slice(i, i + batchSize);
+    await Promise.all(chunk.map(worker));
+  }
+}
+
+export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspaceProviderProps): React.ReactElement {
   const spContext = useSpContext();
   const { config } = useConfig();
 
@@ -59,7 +71,14 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
   const [editingCardId, setEditingCardId] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [deletingTrip, setDeletingTrip] = React.useState<boolean>(false);
+  const [deleteTripError, setDeleteTripError] = React.useState<string | null>(null);
   const [fxRates, setFxRates] = React.useState<Map<string, number>>(new Map());
+  const onBackRef = React.useRef(onBack);
+
+  React.useEffect(() => {
+    onBackRef.current = onBack;
+  }, [onBack]);
 
   const loadData = React.useCallback(async (): Promise<void> => {
     setLoading(true);
@@ -117,6 +136,44 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
     },
     [spContext, trip?.id]
   );
+
+  const clearDeleteTripError = React.useCallback(() => {
+    setDeleteTripError(null);
+  }, []);
+
+  const deleteTrip = React.useCallback(async (): Promise<void> => {
+    if (deletingTrip) return;
+    setDeletingTrip(true);
+    setDeleteTripError(null);
+    try {
+      const entrySvc = new ItineraryService(spContext);
+      const daySvc = new DayService(spContext);
+      const tripSvc = new TripService(spContext);
+
+      const allEntries = await entrySvc.getAll(tripId);
+      const entryIds: string[] = [];
+      for (const entry of allEntries) {
+        entryIds.push(entry.id);
+        for (const sub of entry.subItems ?? []) {
+          entryIds.push(sub.id);
+        }
+      }
+      await runBatched(entryIds, 10, async (id) => entrySvc.delete(id));
+
+      const days = await daySvc.getAll(tripId);
+      const dayIds = days.map((d) => d.id);
+      await runBatched(dayIds, 10, async (id) => daySvc.delete(id));
+
+      await tripSvc.delete(tripId);
+      onBackRef.current();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('deleteTrip failed', err);
+      setDeleteTripError('Delete failed. Please try again.');
+    } finally {
+      setDeletingTrip(false);
+    }
+  }, [deletingTrip, spContext, tripId]);
 
   const updateDay = React.useCallback(
     (dayId: string, partial: Partial<TripDay>) => {
@@ -399,10 +456,14 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
       localEntries,
       loading,
       error,
+      deletingTrip,
+      deleteTripError,
       retryLoad: () => {
         loadData().catch(console.error);
       },
       updateTrip,
+      deleteTrip,
+      clearDeleteTripError,
       updateDay,
       updateEntry,
       deleteEntry,
@@ -422,8 +483,12 @@ export function TripWorkspaceProvider({ tripId, children }: ITripWorkspaceProvid
       localEntries,
       loading,
       error,
+      deletingTrip,
+      deleteTripError,
       loadData,
       updateTrip,
+      deleteTrip,
+      clearDeleteTripError,
       updateDay,
       updateEntry,
       deleteEntry,

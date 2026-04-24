@@ -63,6 +63,70 @@
   color: var(--color-blue-800);
 }
 
+.toolbarActions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.deleteButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-warning);
+  cursor: pointer;
+}
+
+.deleteButton:hover {
+  border-color: color-mix(in srgb, var(--color-warning) 50%, var(--color-sand-400));
+}
+
+.deleteConfirm {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.deletePrompt {
+  font-size: var(--font-size-sm);
+  color: var(--color-sand-700);
+}
+
+.deleteConfirmButton {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-warning);
+  color: var(--color-surface-raised);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.deleteCancelButton {
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-blue-700);
+  cursor: pointer;
+}
+
+.deleteError {
+  padding: var(--space-1) var(--space-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 10%, var(--color-surface-raised));
+  border-bottom: var(--border-default);
+}
+
 .tripContent {
   display: flex;
   flex-direction: row;
