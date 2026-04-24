@@ -10,6 +10,8 @@ import { useSpContext } from './SpContext';
 import { minutesFromTimeStart } from '../utils/itineraryTimeUtils';
 import { useConfig } from './ConfigContext';
 
+export type MainWorkspaceTab = 'itinerary' | 'journal' | 'photos';
+
 function newTempId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return `temp-${crypto.randomUUID()}`;
@@ -43,6 +45,10 @@ export interface TripWorkspaceContextValue {
   addSubItem: (entryId: string, subItem: ItinerarySubItem) => void;
   deleteSubItem: (entryId: string, subItemId: string) => void;
   convertToHomeCurrency: (amount: number, currency: string) => number;
+  mainWorkspaceTab: MainWorkspaceTab;
+  setMainWorkspaceTab: (tab: MainWorkspaceTab) => void;
+  sharedPreview: boolean;
+  setSharedPreview: (value: boolean) => void;
 }
 
 const TripWorkspaceContext = React.createContext<TripWorkspaceContextValue | undefined>(undefined);
@@ -69,6 +75,8 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
   const [localEntries, setLocalEntries] = React.useState<ItineraryEntry[]>([]);
   const [selectedDayId, setSelectedDayId] = React.useState<string>('');
   const [editingCardId, setEditingCardId] = React.useState<string | null>(null);
+  const [mainWorkspaceTab, setMainWorkspaceTab] = React.useState<MainWorkspaceTab>('itinerary');
+  const [sharedPreview, setSharedPreview] = React.useState(false);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
   const [deletingTrip, setDeletingTrip] = React.useState<boolean>(false);
@@ -473,7 +481,11 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       updateSubItem,
       addSubItem,
       deleteSubItem,
-      convertToHomeCurrency
+      convertToHomeCurrency,
+      mainWorkspaceTab,
+      setMainWorkspaceTab,
+      sharedPreview,
+      setSharedPreview
     }),
     [
       trip,
@@ -498,7 +510,9 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       updateSubItem,
       addSubItem,
       deleteSubItem,
-      convertToHomeCurrency
+      convertToHomeCurrency,
+      mainWorkspaceTab,
+      sharedPreview
     ]
   );
 

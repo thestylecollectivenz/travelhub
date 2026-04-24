@@ -50,6 +50,14 @@
   cursor: text;
 }
 
+.titleReadonly {
+  margin-left: var(--space-2);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-800);
+  min-width: 0;
+}
+
 .titleInput {
   margin-left: var(--space-2);
   font-size: var(--font-size-lg);

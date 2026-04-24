@@ -5,14 +5,18 @@ import { useSpContext } from './SpContext';
 import { useTripWorkspace } from './TripWorkspaceContext';
 
 export interface JournalContextValue {
+  allEntries: JournalEntry[];
+  allTripPhotos: JournalPhoto[];
   entriesByDay: (dayId: string) => JournalEntry[];
   photosForEntry: (journalEntryId: string) => JournalPhoto[];
+  commentCountForEntry: (journalEntryId: string) => number;
   commentsForEntry: (journalEntryId: string) => JournalComment[];
   loadCommentsForEntry: (journalEntryId: string) => Promise<void>;
   addEntry: (input: { dayId: string; entryText: string; location?: string }) => Promise<JournalEntry>;
   updateEntry: (id: string, partial: Partial<Pick<JournalEntry, 'entryText' | 'location'>>) => Promise<void>;
   deleteEntry: (id: string) => Promise<void>;
   addPhoto: (input: { journalEntryId: string; dayId: string; file: File; caption?: string }) => Promise<JournalPhoto>;
+  addAlbumPhoto: (dayId: string, file: File, caption?: string) => Promise<JournalPhoto>;
   deletePhoto: (id: string) => Promise<void>;
   toggleLike: (entryId: string) => Promise<void>;
   addComment: (journalEntryId: string, text: string) => Promise<void>;
@@ -30,6 +34,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [entries, setEntries] = React.useState<JournalEntry[]>([]);
   const [photos, setPhotos] = React.useState<JournalPhoto[]>([]);
   const [commentsByEntry, setCommentsByEntry] = React.useState<Record<string, JournalComment[]>>({});
+  const [commentCountByEntry, setCommentCountByEntry] = React.useState<Record<string, number>>({});
   const loadedCommentsRef = React.useRef<Set<string>>(new Set());
 
   const webAbsoluteUrl = React.useMemo(
@@ -49,13 +54,19 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setEntries([]);
       setPhotos([]);
       setCommentsByEntry({});
+      setCommentCountByEntry({});
       loadedCommentsRef.current = new Set();
       return;
     }
     const svc = new JournalService(spContext);
-    const [e, p] = await Promise.all([svc.getAll(tripId), svc.getForTrip(tripId)]);
+    const [e, p, counts] = await Promise.all([
+      svc.getAll(tripId),
+      svc.getForTrip(tripId),
+      svc.getCommentCountsByEntryForTrip(tripId)
+    ]);
     setEntries(e);
     setPhotos(p);
+    setCommentCountByEntry(counts);
     setCommentsByEntry({});
     loadedCommentsRef.current = new Set();
   }, [spContext, tripId]);
@@ -77,6 +88,11 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     [photos]
   );
 
+  const commentCountForEntry = React.useCallback(
+    (journalEntryId: string) => commentCountByEntry[journalEntryId] ?? 0,
+    [commentCountByEntry]
+  );
+
   const commentsForEntry = React.useCallback(
     (journalEntryId: string) => commentsByEntry[journalEntryId] ?? [],
     [commentsByEntry]
@@ -90,6 +106,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const rows = await svc.getCommentsForEntry(journalEntryId);
       loadedCommentsRef.current.add(journalEntryId);
       setCommentsByEntry((prev) => ({ ...prev, [journalEntryId]: rows }));
+      setCommentCountByEntry((prev) => ({ ...prev, [journalEntryId]: rows.length }));
     },
     [spContext]
   );
@@ -161,6 +178,11 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         delete next[id];
         return next;
       });
+      setCommentCountByEntry((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       loadedCommentsRef.current.delete(id);
       try {
         const svc = new JournalService(spContext);
@@ -200,6 +222,25 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     [spContext, tripId, webAbsoluteUrl, serverRelativeUrl]
   );
 
+  const addAlbumPhoto = React.useCallback(
+    async (dayId: string, file: File, caption?: string): Promise<JournalPhoto> => {
+      if (!tripId) throw new Error('No trip loaded');
+      const svc = new JournalService(spContext);
+      const created = await svc.uploadPhoto(
+        file,
+        tripId,
+        dayId,
+        undefined,
+        webAbsoluteUrl,
+        serverRelativeUrl,
+        caption ?? ''
+      );
+      setPhotos((prev) => [...prev, created]);
+      return created;
+    },
+    [spContext, tripId, webAbsoluteUrl, serverRelativeUrl]
+  );
+
   const deletePhoto = React.useCallback(
     async (id: string): Promise<void> => {
       const prev = photos.find((p) => p.id === id);
@@ -219,26 +260,29 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const toggleLike = React.useCallback(
     async (entryId: string): Promise<void> => {
-      const entry = entries.find((e) => e.id === entryId);
-      if (!entry) return;
-      const svc = new JournalService(spContext);
-      const users = (entry.likedByUsers ?? '')
+      const snapshot = entries.find((e) => e.id === entryId);
+      if (!snapshot) return;
+
+      const users = (snapshot.likedByUsers ?? '')
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean);
       const idx = users.findIndex((u) => u.toLowerCase() === userLogin.toLowerCase());
       const optimisticUsers = idx >= 0 ? users.filter((_, i) => i !== idx) : [...users, userLogin];
-      const optimisticCount = Math.max(0, idx >= 0 ? entry.likeCount - 1 : entry.likeCount + 1);
+      const optimisticCount = Math.max(0, idx >= 0 ? snapshot.likeCount - 1 : snapshot.likeCount + 1);
+
       setEntries((prev) =>
         prev.map((e) => (e.id === entryId ? { ...e, likeCount: optimisticCount, likedByUsers: optimisticUsers.join(',') } : e))
       );
+
       try {
-        const result = await svc.toggleLike(entryId, entry.likeCount, entry.likedByUsers, userLogin);
+        const svc = new JournalService(spContext);
+        const result = await svc.toggleLike(entryId, snapshot.likeCount, snapshot.likedByUsers, userLogin);
         setEntries((prev) =>
           prev.map((e) => (e.id === entryId ? { ...e, likeCount: result.likeCount, likedByUsers: result.likedByUsers } : e))
         );
       } catch (err) {
-        setEntries((prev) => prev.map((e) => (e.id === entryId ? entry : e)));
+        setEntries((prev) => prev.map((e) => (e.id === entryId ? snapshot : e)));
         // eslint-disable-next-line no-console
         console.error('JournalProvider.toggleLike', err);
       }
@@ -262,6 +306,10 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         ...prev,
         [journalEntryId]: [...(prev[journalEntryId] ?? []), optimistic]
       }));
+      setCommentCountByEntry((prev) => ({
+        ...prev,
+        [journalEntryId]: (prev[journalEntryId] ?? 0) + 1
+      }));
       try {
         const svc = new JournalService(spContext);
         const created = await svc.createComment(journalEntryId, tripId, text);
@@ -274,6 +322,10 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
           ...prev,
           [journalEntryId]: (prev[journalEntryId] ?? []).filter((c) => c.id !== optimistic.id)
         }));
+        setCommentCountByEntry((prev) => ({
+          ...prev,
+          [journalEntryId]: Math.max(0, (prev[journalEntryId] ?? 1) - 1)
+        }));
         // eslint-disable-next-line no-console
         console.error('JournalProvider.addComment', err);
         throw err;
@@ -284,22 +336,34 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const deleteComment = React.useCallback(
     async (journalEntryId: string, commentId: string): Promise<void> => {
-      const list = commentsByEntry[journalEntryId] ?? [];
-      const prevComment = list.find((c) => c.id === commentId);
-      setCommentsByEntry((prev) => ({
+      let prevComment: JournalComment | undefined;
+      setCommentsByEntry((prev) => {
+        const list = prev[journalEntryId] ?? [];
+        prevComment = list.find((c) => c.id === commentId);
+        return {
+          ...prev,
+          [journalEntryId]: list.filter((c) => c.id !== commentId)
+        };
+      });
+      setCommentCountByEntry((prev) => ({
         ...prev,
-        [journalEntryId]: (prev[journalEntryId] ?? []).filter((c) => c.id !== commentId)
+        [journalEntryId]: Math.max(0, (prev[journalEntryId] ?? 1) - 1)
       }));
       try {
         const svc = new JournalService(spContext);
         await svc.deleteComment(commentId);
       } catch (err) {
-        if (prevComment) {
-          setCommentsByEntry((prev) => ({
-            ...prev,
-            [journalEntryId]: [...(prev[journalEntryId] ?? []), prevComment].sort((a, b) =>
+        const restored = prevComment;
+        if (restored) {
+          setCommentsByEntry((prev) => {
+            const nextList = [...(prev[journalEntryId] ?? []), restored].sort((a, b) =>
               a.commentTimestamp.localeCompare(b.commentTimestamp)
-            )
+            );
+            return { ...prev, [journalEntryId]: nextList };
+          });
+          setCommentCountByEntry((prev) => ({
+            ...prev,
+            [journalEntryId]: (prev[journalEntryId] ?? 0) + 1
           }));
         }
         // eslint-disable-next-line no-console
@@ -307,7 +371,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw err;
       }
     },
-    [commentsByEntry, spContext]
+    [spContext]
   );
 
   const ensureShareableLink = React.useCallback(
@@ -325,14 +389,18 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const value = React.useMemo(
     (): JournalContextValue => ({
+      allEntries: entries,
+      allTripPhotos: photos,
       entriesByDay,
       photosForEntry,
+      commentCountForEntry,
       commentsForEntry,
       loadCommentsForEntry,
       addEntry,
       updateEntry,
       deleteEntry,
       addPhoto,
+      addAlbumPhoto,
       deletePhoto,
       toggleLike,
       addComment,
@@ -340,14 +408,18 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ensureShareableLink
     }),
     [
+      entries,
+      photos,
       entriesByDay,
       photosForEntry,
+      commentCountForEntry,
       commentsForEntry,
       loadCommentsForEntry,
       addEntry,
       updateEntry,
       deleteEntry,
       addPhoto,
+      addAlbumPhoto,
       deletePhoto,
       toggleLike,
       addComment,

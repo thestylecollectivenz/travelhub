@@ -8,6 +8,8 @@ import styles from './TripHero.module.css';
 export interface TripHeroProps {
   trip: Trip;
   onEdit: () => void;
+  /** When false, hides the edit control (e.g. shared / follower view). */
+  showEditButton?: boolean;
 }
 
 function inclusiveTripDayCount(dateStart: string, dateEnd: string): number {
@@ -79,7 +81,7 @@ function resolveHeroImageSrc(raw: string, webAbsoluteUrl: string, webServerRelat
   return normalizeSharePointHeroUrl(joinWebAbsoluteAndServerRelative(base, `/${rel}`));
 }
 
-export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit }) => {
+export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit, showEditButton = true }) => {
   const spContext = useSpContext();
   const webAbsoluteUrl = spContext.pageContext.web.absoluteUrl.replace(/\/$/, '');
   const webServerRelativeUrl = spContext.pageContext.web.serverRelativeUrl.replace(/\/$/, '');
@@ -121,12 +123,14 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit }) => {
       <div className={`${styles.heroOverlay} ${hasHeroImage ? styles.heroOverlayWithImage : styles.heroOverlayNoImage}`} role="presentation" />
       <div className={`${styles.heroForeground} ${hasHeroImage ? styles.heroForegroundImage : ''}`}>
         <div className={styles.badge}>✦ Travel Hub</div>
-        <button type="button" className={styles.editButton} onClick={onEdit} aria-label="Edit trip details">
-          <svg viewBox="0 0 16 16" width={12} height={12} fill="none" aria-hidden>
-            <path d="M3 11.8 11.6 3.2l1.2 1.2L4.2 13H3v-1.2Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M9.9 4.9 11.1 6.1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-          </svg>
-        </button>
+        {showEditButton ? (
+          <button type="button" className={styles.editButton} onClick={onEdit} aria-label="Edit trip details">
+            <svg viewBox="0 0 16 16" width={12} height={12} fill="none" aria-hidden>
+              <path d="M3 11.8 11.6 3.2l1.2 1.2L4.2 13H3v-1.2Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M9.9 4.9 11.1 6.1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+          </button>
+        ) : null}
         <div className={styles.statusChip}>
           <span className={`${styles.statusDot} ${statusDotClass(trip.status)}`} aria-hidden />
           <span>{trip.status}</span>

@@ -2,6 +2,7 @@ import * as React from 'react';
 import type { JournalComment, JournalEntry, JournalPhoto } from '../../models';
 import { useJournal } from '../../context/JournalContext';
 import { useSpContext } from '../../context/SpContext';
+import { JournalImageLightbox } from './JournalImageLightbox';
 import styles from './JournalEntryCard.module.css';
 
 export interface JournalEntryCardProps {
@@ -30,7 +31,9 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
     commentsForEntry,
     loadCommentsForEntry,
     addComment,
-    deleteComment
+    deleteComment,
+    ensureShareableLink,
+    commentCountForEntry
   } = useJournal();
 
   const displayName = spContext.pageContext.user.displayName ?? '';
@@ -44,9 +47,17 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
 
   const [commentsOpen, setCommentsOpen] = React.useState(false);
   const [commentsLoading, setCommentsLoading] = React.useState(false);
+  const [commentsLoaded, setCommentsLoaded] = React.useState(false);
   const [commentDraft, setCommentDraft] = React.useState('');
 
   const [lightboxUrl, setLightboxUrl] = React.useState<string | null>(null);
+  const [shareOpen, setShareOpen] = React.useState(false);
+  const [shareUrl, setShareUrl] = React.useState<string>('');
+  const [shareBusy, setShareBusy] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
+  const copyTimerRef = React.useRef<number | undefined>(undefined);
+
+  const webShareSupported = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
   React.useEffect(() => {
     setDraftText(entry.entryText);
@@ -54,15 +65,21 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
   }, [entry.entryText, entry.location]);
 
   React.useEffect(() => {
-    if (!lightboxUrl) return;
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') setLightboxUrl(null);
+    return () => {
+      if (copyTimerRef.current) {
+        window.clearTimeout(copyTimerRef.current);
+      }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [lightboxUrl]);
+  }, []);
 
   const comments: JournalComment[] = commentsForEntry(entry.id);
+  const commentCountDisplay = commentsOpen && commentsLoaded ? comments.length : commentCountForEntry(entry.id);
+  const commentButtonLabel =
+    commentCountDisplay === 0
+      ? 'Comments'
+      : commentCountDisplay === 1
+        ? '1 comment'
+        : `${commentCountDisplay} comments`;
 
   const openComments = async (): Promise<void> => {
     const next = !commentsOpen;
@@ -71,8 +88,40 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
     setCommentsLoading(true);
     try {
       await loadCommentsForEntry(entry.id);
+      setCommentsLoaded(true);
     } finally {
       setCommentsLoading(false);
+    }
+  };
+
+  const openShare = async (): Promise<void> => {
+    const next = !shareOpen;
+    setShareOpen(next);
+    setCopied(false);
+    if (!next) return;
+    setShareBusy(true);
+    try {
+      const existing = entry.shareableLink?.trim() ?? '';
+      const url = existing || (await ensureShareableLink(entry.id));
+      setShareUrl(url);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('JournalEntryCard.openShare', err);
+      setShareUrl('');
+    } finally {
+      setShareBusy(false);
+    }
+  };
+
+  const copyShareLink = async (): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = window.setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('JournalEntryCard.copyShareLink', err);
     }
   };
 
@@ -193,12 +242,10 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
         </button>
 
         <button type="button" className={styles.iconButton} onClick={() => openComments().catch(console.error)}>
-          💬 {commentsOpen ? 'Hide' : 'Comments'}
-          <span aria-hidden>·</span>
-          <span>{comments.length}</span>
+          💬 {commentsOpen ? 'Hide' : commentButtonLabel}
         </button>
 
-        <button type="button" className={styles.iconButton} aria-label="Share (coming next)" disabled title="Sharing options arrive in P4-3">
+        <button type="button" className={styles.iconButton} onClick={() => openShare().catch(console.error)} aria-expanded={shareOpen}>
           <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden>
             <path d="M4 10V6l8-3v8" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
             <circle cx="4" cy="10" r="1.6" fill="currentColor" />
@@ -208,6 +255,44 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
           Share
         </button>
       </div>
+
+      {shareOpen ? (
+        <div className={styles.sharePanel} role="region" aria-label="Share journal entry">
+          {shareBusy ? <div className={styles.timestamp}>Preparing link…</div> : null}
+          {!shareBusy && shareUrl ? (
+            <div className={styles.shareGrid}>
+              <button type="button" className={styles.shareButton} onClick={() => copyShareLink().catch(console.error)}>
+                Copy link{copied ? ' · Copied!' : ''}
+              </button>
+              <a
+                className={styles.shareLinkButton}
+                href={`https://wa.me/?text=${encodeURIComponent(shareUrl)}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                WhatsApp
+              </a>
+              <a className={styles.shareLinkButton} href={`mailto:?subject=${encodeURIComponent('Travel Journal')}&body=${encodeURIComponent(shareUrl)}`}>
+                Email
+              </a>
+              {webShareSupported ? (
+                <button
+                  type="button"
+                  className={styles.shareButton}
+                  onClick={() => {
+                    navigator
+                      .share({ title: 'Travel journal entry', url: shareUrl })
+                      .catch((err) => console.error('navigator.share', err));
+                  }}
+                >
+                  Share…
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {!shareBusy && !shareUrl ? <div className={styles.timestamp}>Could not generate a share link.</div> : null}
+        </div>
+      ) : null}
 
       {commentsOpen ? (
         <div className={styles.comments}>
@@ -250,16 +335,7 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
         </div>
       ) : null}
 
-      {lightboxUrl ? (
-        <button
-          type="button"
-          className={styles.lightbox}
-          onClick={() => setLightboxUrl(null)}
-          aria-label="Close image preview"
-        >
-          <img className={styles.lightboxImg} src={lightboxUrl} alt="" />
-        </button>
-      ) : null}
+      {lightboxUrl ? <JournalImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} /> : null}
     </article>
   );
 };

@@ -10,6 +10,8 @@ export interface DayHeaderProps {
   day: TripDay;
   dayTotal: number;
   onAddEntry: () => void;
+  /** Shared / read-only: no totals, no add, no inline edits. */
+  variant?: 'default' | 'shared';
 }
 
 function dayTypeLabel(dayType: TripDay['dayType']): string {
@@ -26,9 +28,10 @@ function dayTypeLabel(dayType: TripDay['dayType']): string {
   }
 }
 
-export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry }) => {
+export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry, variant = 'default' }) => {
   const { config } = useConfig();
   const { updateDay } = useTripWorkspace();
+  const isShared = variant === 'shared';
   const [isEditingTitle, setIsEditingTitle] = React.useState(false);
   const [titleDraft, setTitleDraft] = React.useState(day.displayTitle);
   const [typePickerOpen, setTypePickerOpen] = React.useState(false);
@@ -67,7 +70,9 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry 
       <div className={styles.left}>
         <div className={styles.line1}>
           <span className={styles.dayNumber}>Day {day.dayNumber}</span>
-          {isEditingTitle ? (
+          {isShared ? (
+            <span className={styles.titleReadonly}>{day.displayTitle}</span>
+          ) : isEditingTitle ? (
             <input
               className={styles.titleInput}
               value={titleDraft}
@@ -85,44 +90,52 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry 
             </button>
           )}
           <div className={styles.dayTypeWrap}>
-            <button type="button" className={`${styles.dayTypeBadge} ${dayTypeClass}`} onClick={() => setTypePickerOpen((v) => !v)}>
-              {dayTypeLabel(day.dayType)}
-            </button>
-            {typePickerOpen ? (
-              <div className={styles.dayTypeOptions}>
-                {(['PlacePort', 'Sea', 'TravelTransit', 'PreTrip'] as const).map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    className={`${styles.dayTypeOption} ${
-                      option === 'PreTrip'
-                        ? styles.badgePreTrip
-                        : option === 'Sea'
-                          ? styles.badgeSea
-                          : option === 'TravelTransit'
-                            ? styles.badgeTransit
-                            : styles.badgePlacePort
-                    }`}
-                    onClick={() => {
-                      updateDay(day.id, { dayType: option });
-                      setTypePickerOpen(false);
-                    }}
-                  >
-                    {dayTypeLabel(option)}
-                  </button>
-                ))}
-              </div>
-            ) : null}
+            {isShared ? (
+              <span className={`${styles.dayTypeBadge} ${dayTypeClass}`}>{dayTypeLabel(day.dayType)}</span>
+            ) : (
+              <>
+                <button type="button" className={`${styles.dayTypeBadge} ${dayTypeClass}`} onClick={() => setTypePickerOpen((v) => !v)}>
+                  {dayTypeLabel(day.dayType)}
+                </button>
+                {typePickerOpen ? (
+                  <div className={styles.dayTypeOptions}>
+                    {(['PlacePort', 'Sea', 'TravelTransit', 'PreTrip'] as const).map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        className={`${styles.dayTypeOption} ${
+                          option === 'PreTrip'
+                            ? styles.badgePreTrip
+                            : option === 'Sea'
+                              ? styles.badgeSea
+                              : option === 'TravelTransit'
+                                ? styles.badgeTransit
+                                : styles.badgePlacePort
+                        }`}
+                        onClick={() => {
+                          updateDay(day.id, { dayType: option });
+                          setTypePickerOpen(false);
+                        }}
+                      >
+                        {dayTypeLabel(option)}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </>
+            )}
           </div>
         </div>
         <div className={styles.date}>{formatDayDate(day.calendarDate)}</div>
       </div>
-      <div className={styles.right}>
-        <span className={styles.totalChip}>{formatCurrency(dayTotal, config.homeCurrency)}</span>
-        <button type="button" className={styles.addButton} onClick={onAddEntry}>
-          + Add
-        </button>
-      </div>
+      {isShared ? null : (
+        <div className={styles.right}>
+          <span className={styles.totalChip}>{formatCurrency(dayTotal, config.homeCurrency)}</span>
+          <button type="button" className={styles.addButton} onClick={onAddEntry}>
+            + Add
+          </button>
+        </div>
+      )}
     </header>
   );
 };

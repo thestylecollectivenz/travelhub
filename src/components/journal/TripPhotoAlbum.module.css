@@ -1,0 +1,225 @@
+.root {
+  padding: var(--space-5) var(--space-6);
+  box-sizing: border-box;
+  min-height: 0;
+}
+
+.header {
+  margin-bottom: var(--space-4);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-900);
+}
+
+.subtitle {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-600);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.segment {
+  display: inline-flex;
+  border-radius: var(--radius-md);
+  border: var(--border-default);
+  overflow: hidden;
+}
+
+.segmentButton {
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: transparent;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-blue-800);
+  cursor: pointer;
+}
+
+.segmentButton + .segmentButton {
+  border-left: var(--border-default);
+}
+
+.segmentActive {
+  background: color-mix(in srgb, var(--color-sand-100) 80%, var(--color-surface-raised));
+}
+
+.dayFilter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-600);
+}
+
+.dayFilterLabel {
+  font-weight: var(--font-weight-medium);
+}
+
+.select {
+  min-width: 12rem;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: var(--border-default);
+  font-size: var(--font-size-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-blue-900);
+}
+
+.addButton {
+  margin-left: auto;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  border: var(--border-default);
+  background: var(--color-surface-raised);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-blue-800);
+  cursor: pointer;
+}
+
+.addButton:hover {
+  border-color: var(--color-sand-400);
+}
+
+.uploadPanel {
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: var(--border-default);
+  background: color-mix(in srgb, var(--color-sand-50) 50%, var(--color-surface-raised));
+  display: grid;
+  gap: var(--space-3);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-600);
+}
+
+.fieldLabel {
+  font-weight: var(--font-weight-medium);
+}
+
+.fileRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.fileName {
+  font-size: var(--font-size-xs);
+  color: var(--color-blue-800);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.captionInput {
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+}
+
+.error {
+  font-size: var(--font-size-xs);
+  color: var(--color-warning);
+}
+
+.progress {
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-600);
+}
+
+.uploadActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.submitUpload {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  border: var(--border-default);
+  background: var(--color-primary);
+  color: var(--color-surface-raised);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.submitUpload:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.section {
+  margin-bottom: var(--space-6);
+}
+
+.sectionTitle {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-800);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-3);
+}
+
+.cell {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.thumbBtn {
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: zoom-in;
+  background: var(--color-surface);
+  display: block;
+}
+
+.thumb {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: var(--border-default);
+  vertical-align: middle;
+}
+
+.caption {
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-700);
+  line-height: 1.4;
+}
+
+.empty {
+  padding: var(--space-6);
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-sand-600);
+  border-radius: var(--radius-lg);
+  border: var(--border-default);
+  background: var(--color-surface-raised);
+}

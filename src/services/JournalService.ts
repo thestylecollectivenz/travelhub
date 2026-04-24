@@ -347,4 +347,40 @@ export class JournalService {
     });
     if (!resp.ok && resp.status !== 204) throw new Error(`JournalService.deleteComment failed: ${resp.status}`);
   }
+
+  /**
+   * Returns comment counts per journal entry for a trip (JournalEntryId only — no comment bodies).
+   * Paginates through all matching rows.
+   */
+  async getCommentCountsByEntryForTrip(tripId: string): Promise<Record<string, number>> {
+    const web = this.ctx.pageContext.web.absoluteUrl.replace(/\/$/, '');
+    const safeTrip = odataEscapeString(tripId);
+    const select = '$select=ID,JournalEntryId';
+    const filter = `$filter=TripId eq '${safeTrip}'`;
+    let nextUrl: string | null = `${this.commentsUrl}?${select}&${filter}&$top=200`;
+    const counts: Record<string, number> = {};
+
+    const resolveNext = (raw: string): string => {
+      if (raw.startsWith('http')) return raw;
+      return raw.startsWith('/') ? `${web}${raw}` : `${web}/${raw}`;
+    };
+
+    while (nextUrl) {
+      const resp = await this.ctx.spHttpClient.get(nextUrl, SPHttpClient.configurations.v1);
+      if (!resp.ok) throw new Error(`JournalService.getCommentCountsByEntryForTrip failed: ${resp.status}`);
+      const data = (await resp.json()) as {
+        value?: Record<string, unknown>[];
+        '@odata.nextLink'?: string;
+        'odata.nextLink'?: string;
+      };
+      for (const item of data.value ?? []) {
+        const jid = String(item.JournalEntryId ?? '');
+        if (!jid) continue;
+        counts[jid] = (counts[jid] ?? 0) + 1;
+      }
+      const nl = data['@odata.nextLink'] ?? data['odata.nextLink'];
+      nextUrl = typeof nl === 'string' && nl.length > 0 ? resolveNext(nl) : null;
+    }
+    return counts;
+  }
 }

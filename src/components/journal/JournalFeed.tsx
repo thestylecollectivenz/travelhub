@@ -6,9 +6,11 @@ import styles from './JournalFeed.module.css';
 
 export interface JournalFeedProps {
   dayId: string;
+  /** When false, only entry authors see edit/delete (no moderator shortcuts). */
+  canModerate?: boolean;
 }
 
-export const JournalFeed: React.FC<JournalFeedProps> = ({ dayId }) => {
+export const JournalFeed: React.FC<JournalFeedProps> = ({ dayId, canModerate = true }) => {
   const { entriesByDay, photosForEntry } = useJournal();
   const entries = entriesByDay(dayId);
   const [composerOpen, setComposerOpen] = React.useState(false);
@@ -36,7 +38,7 @@ export const JournalFeed: React.FC<JournalFeedProps> = ({ dayId }) => {
 
       <div className={styles.list}>
         {entries.map((e) => (
-          <JournalEntryCard key={e.id} entry={e} photos={photosForEntry(e.id)} />
+          <JournalEntryCard key={e.id} entry={e} photos={photosForEntry(e.id)} canModerate={canModerate} />
         ))}
       </div>
     </section>

@@ -21,7 +21,7 @@ export const SidebarDayList: React.FC = () => {
 
   return (
     <div className={styles.dayListSection}>
-      <h2 className={styles.dayListHeading}>Itinerary</h2>
+      <h2 className={styles.dayListHeading}>Days</h2>
       <ul className={styles.dayList}>
         {days.map((day) => (
           <SidebarDayItem

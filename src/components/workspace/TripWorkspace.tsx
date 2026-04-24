@@ -4,6 +4,7 @@ import { JournalProvider } from '../../context/JournalContext';
 import { TripHero } from './TripHero';
 import { TripStatsStrip } from './TripStatsStrip';
 import { TripContent } from './TripContent';
+import { SharedTripView } from './SharedTripView';
 import { ConfigPanel } from './ConfigPanel';
 import { EditTripPanel } from './EditTripPanel';
 import styles from './TripWorkspace.module.css';
@@ -23,7 +24,9 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
     deleteTrip,
     deletingTrip,
     deleteTripError,
-    clearDeleteTripError
+    clearDeleteTripError,
+    sharedPreview,
+    setSharedPreview
   } = useTripWorkspace();
   const [configOpen, setConfigOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
@@ -88,7 +91,11 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
           ← All Trips
         </button>
         <div className={styles.toolbarActions}>
-          {confirmDelete ? (
+          {sharedPreview ? (
+            <button type="button" className={styles.settingsButton} onClick={() => setSharedPreview(false)}>
+              Exit preview
+            </button>
+          ) : confirmDelete ? (
             <div className={styles.deleteConfirm}>
               <span className={styles.deletePrompt}>{deletingTrip ? 'Deleting…' : 'Delete this trip?'}</span>
               <button
@@ -115,6 +122,9 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
             </div>
           ) : (
             <>
+              <button type="button" className={styles.settingsButton} onClick={() => setSharedPreview(true)}>
+                Preview shared view
+              </button>
               <button
                 type="button"
                 className={styles.settingsButton}
@@ -143,9 +153,9 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
         </div>
       </div>
       {deleteTripError ? <div className={styles.deleteError}>{deleteTripError}</div> : null}
-      <TripHero trip={trip} onEdit={() => setEditOpen(true)} />
-      <TripStatsStrip />
-      <TripContent />
+      <TripHero trip={trip} onEdit={() => setEditOpen(true)} showEditButton={!sharedPreview} />
+      {sharedPreview ? null : <TripStatsStrip />}
+      {sharedPreview ? <SharedTripView /> : <TripContent />}
       <ConfigPanel isOpen={configOpen} onClose={() => setConfigOpen(false)} />
       <EditTripPanel trip={trip} isOpen={editOpen} onClose={() => setEditOpen(false)} onSave={updateTrip} />
     </div>
