@@ -2,7 +2,7 @@ import * as React from 'react';
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 import type { Trip, TripLifecycleStatus } from '../../models/Trip';
 import { useSpContext } from '../../context/SpContext';
-import { joinWebAbsoluteAndServerRelative } from '../../utils/sharePointUrl';
+import { joinWebAbsoluteAndServerRelative, normalizeSharePointHeroUrl } from '../../utils/sharePointUrl';
 
 export interface EditTripPanelProps {
   trip: Trip;
@@ -108,7 +108,7 @@ export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onCl
       throw new Error('Upload succeeded but no file URL returned');
     }
     const rel = serverRelativeUrl.startsWith('/') ? serverRelativeUrl : `/${serverRelativeUrl}`;
-    return joinWebAbsoluteAndServerRelative(webAbsoluteUrl, rel);
+    return normalizeSharePointHeroUrl(joinWebAbsoluteAndServerRelative(webAbsoluteUrl, rel));
   }, [ensureHeroImageFolders, tripHeroFolderPath, webAbsoluteUrl, spContext.spHttpClient]);
 
   if (!isOpen) {

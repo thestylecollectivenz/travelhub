@@ -1,7 +1,7 @@
 import * as React from 'react';
 import type { Trip, TripLifecycleStatus } from '../../models/Trip';
 import { formatDateRange } from '../../utils/dateUtils';
-import { joinWebAbsoluteAndServerRelative } from '../../utils/sharePointUrl';
+import { joinWebAbsoluteAndServerRelative, normalizeSharePointHeroUrl } from '../../utils/sharePointUrl';
 import { useSpContext } from '../../context/SpContext';
 import styles from './TripHero.module.css';
 
@@ -59,24 +59,24 @@ function countdownLabel(trip: Trip): string | null {
 function resolveHeroImageSrc(raw: string, webAbsoluteUrl: string, webServerRelativeUrl: string): string | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
-  if (/^https:\/\//i.test(trimmed)) return trimmed;
+  if (/^https:\/\//i.test(trimmed)) return normalizeSharePointHeroUrl(trimmed);
   if (/^http:\/\//i.test(trimmed)) {
     if (typeof window !== 'undefined' && window.isSecureContext) {
-      return `https://${trimmed.slice('http://'.length)}`;
+      return normalizeSharePointHeroUrl(`https://${trimmed.slice('http://'.length)}`);
     }
-    return trimmed;
+    return normalizeSharePointHeroUrl(trimmed);
   }
-  if (trimmed.startsWith('//')) return `${window.location.protocol}${trimmed}`;
+  if (trimmed.startsWith('//')) return normalizeSharePointHeroUrl(`${window.location.protocol}${trimmed}`);
   const base = webAbsoluteUrl.replace(/\/$/, '');
   const webRoot = webServerRelativeUrl.replace(/\/$/, '');
   if (trimmed.startsWith('/')) {
-    return joinWebAbsoluteAndServerRelative(base, trimmed);
+    return normalizeSharePointHeroUrl(joinWebAbsoluteAndServerRelative(base, trimmed));
   }
   const rel = trimmed.replace(/^\/+/, '');
   if (webRoot) {
-    return joinWebAbsoluteAndServerRelative(base, `${webRoot}/${rel}`);
+    return normalizeSharePointHeroUrl(joinWebAbsoluteAndServerRelative(base, `${webRoot}/${rel}`));
   }
-  return joinWebAbsoluteAndServerRelative(base, `/${rel}`);
+  return normalizeSharePointHeroUrl(joinWebAbsoluteAndServerRelative(base, `/${rel}`));
 }
 
 export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit }) => {

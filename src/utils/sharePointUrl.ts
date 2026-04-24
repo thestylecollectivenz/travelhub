@@ -27,3 +27,35 @@ export function joinWebAbsoluteAndServerRelative(webAbsoluteUrl: string, serverR
 
   return `${base}${rel}`;
 }
+
+/** Collapse accidental doubled site roots like `/sites/foo/sites/foo/...` → `/sites/foo/...`. */
+export function collapseDoubledSitesPath(pathname: string): string {
+  const normalized = pathname.replace(/\/+/g, '/');
+  return normalized.replace(/(\/sites\/[^/]+)\1(?=\/)/gi, '$1');
+}
+
+/** Older bad URLs used `TravelHub/assets` instead of the provisioned `TravelHubAssets` folder. */
+export function fixTravelHubAssetsFolderTypo(pathname: string): string {
+  return pathname.replace(/\/TravelHub\/assets\//i, '/TravelHubAssets/');
+}
+
+export function normalizeSharePointHeroUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return trimmed;
+  try {
+    const u = new URL(trimmed);
+    let path = u.pathname || '';
+    path = collapseDoubledSitesPath(path);
+    path = fixTravelHubAssetsFolderTypo(path);
+    u.pathname = path;
+    return u.toString();
+  } catch {
+    if (trimmed.startsWith('/')) {
+      let path = trimmed;
+      path = collapseDoubledSitesPath(path);
+      path = fixTravelHubAssetsFolderTypo(path);
+      return path;
+    }
+    return trimmed;
+  }
+}
