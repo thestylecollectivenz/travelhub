@@ -65,10 +65,12 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit }) => {
   return (
     <section className={`${styles.hero} ${hasHeroImage ? styles.heroWithImage : styles.heroNoImage}`} aria-label="Trip hero">
       {hasHeroImage ? (
-        <div
+        <img
           className={styles.heroImageLayer}
-          style={{ backgroundImage: `url(${trip.heroImageUrl})` }}
+          src={trip.heroImageUrl}
+          alt=""
           role="presentation"
+          aria-hidden
         />
       ) : null}
       <div className={`${styles.heroOverlay} ${hasHeroImage ? styles.heroOverlayWithImage : styles.heroOverlayNoImage}`} role="presentation" />
