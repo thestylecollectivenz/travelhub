@@ -52,6 +52,7 @@ function IconCalendar({ className }: { className?: string }): React.ReactElement
 export const TripStatsStrip: React.FC = () => {
   const { trip, localEntries, tripDays, convertToHomeCurrency } = useTripWorkspace();
   const { config } = useConfig();
+  const [collapsed, setCollapsed] = React.useState(false);
 
   const entries = React.useMemo(
     () => (trip ? localEntries.filter((e) => e.tripId === trip.id) : []),
@@ -66,26 +67,49 @@ export const TripStatsStrip: React.FC = () => {
 
   return (
     <section className={styles.strip} aria-label="Trip budget summary">
-      <div className={styles.chip}>
-        <IconWallet className={`${styles.icon} ${styles.iconPrimary}`} />
-        <span className={styles.value}>{formatCurrency(totalBudget, config.homeCurrency)}</span>
-        <span className={styles.label}>Total Budget</span>
-      </div>
-      <div className={styles.chip}>
-        <IconCheckCircle className={`${styles.icon} ${styles.iconPaid}`} />
-        <span className={styles.value}>{formatCurrency(spentSoFar, config.homeCurrency)}</span>
-        <span className={styles.label}>Spent So Far</span>
-      </div>
-      <div className={styles.chip}>
-        <IconClock className={`${styles.icon} ${styles.iconWarning}`} />
-        <span className={styles.value}>{formatCurrency(remaining, config.homeCurrency)}</span>
-        <span className={styles.label}>Remaining</span>
-      </div>
-      <div className={styles.chip}>
-        <IconCalendar className={`${styles.icon} ${styles.iconPrimary}`} />
-        <span className={styles.value}>{formatCurrency(averagePerDay, config.homeCurrency)}</span>
-        <span className={styles.label}>Avg Per Day</span>
-      </div>
+      {collapsed ? (
+        <div className={styles.collapsedSummary}>
+          {`Total: ${formatCurrency(totalBudget, config.homeCurrency)} · Spent: ${formatCurrency(spentSoFar, config.homeCurrency)} · Remaining: ${formatCurrency(remaining, config.homeCurrency)}`}
+        </div>
+      ) : (
+        <>
+          <div className={styles.chip}>
+            <IconWallet className={`${styles.icon} ${styles.iconPrimary}`} />
+            <span className={styles.value}>{formatCurrency(totalBudget, config.homeCurrency)}</span>
+            <span className={styles.label}>Total Budget</span>
+          </div>
+          <div className={styles.chip}>
+            <IconCheckCircle className={`${styles.icon} ${styles.iconPaid}`} />
+            <span className={styles.value}>{formatCurrency(spentSoFar, config.homeCurrency)}</span>
+            <span className={styles.label}>Spent So Far</span>
+          </div>
+          <div className={styles.chip}>
+            <IconClock className={`${styles.icon} ${styles.iconWarning}`} />
+            <span className={styles.value}>{formatCurrency(remaining, config.homeCurrency)}</span>
+            <span className={styles.label}>Remaining</span>
+          </div>
+          <div className={styles.chip}>
+            <IconCalendar className={`${styles.icon} ${styles.iconPrimary}`} />
+            <span className={styles.value}>{formatCurrency(averagePerDay, config.homeCurrency)}</span>
+            <span className={styles.label}>Avg Per Day</span>
+          </div>
+        </>
+      )}
+      <button
+        type="button"
+        className={styles.toggleButton}
+        onClick={() => setCollapsed((v) => !v)}
+        aria-label={collapsed ? 'Expand stats strip' : 'Collapse stats strip'}
+        aria-expanded={!collapsed}
+      >
+        <svg viewBox="0 0 16 16" width={14} height={14} fill="none" aria-hidden>
+          {collapsed ? (
+            <path d="M4 6.5 8 10l4-3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          ) : (
+            <path d="M4 9.5 8 6l4 3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          )}
+        </svg>
+      </button>
     </section>
   );
 };
