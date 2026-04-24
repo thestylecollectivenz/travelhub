@@ -1,6 +1,7 @@
 export interface JournalPhoto {
   id: string;
-  journalEntryId?: string;
+  title: string;
+  journalEntryId: string;
   tripId: string;
   dayId: string;
   fileUrl: string;

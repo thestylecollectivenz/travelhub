@@ -1,8 +1,8 @@
 import * as React from 'react';
-import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 import type { Trip, TripLifecycleStatus } from '../../models/Trip';
 import { useSpContext } from '../../context/SpContext';
-import { joinWebAbsoluteAndServerRelative, normalizeSharePointHeroUrl } from '../../utils/sharePointUrl';
+import { normalizeSharePointHeroUrl } from '../../utils/sharePointUrl';
+import { ensureFolderChain, uploadFileToFolder } from '../../utils/spFileUpload';
 
 export interface EditTripPanelProps {
   trip: Trip;
@@ -12,26 +12,6 @@ export interface EditTripPanelProps {
 }
 
 const STATUSES: TripLifecycleStatus[] = ['Planning', 'Upcoming', 'In Progress', 'Completed', 'Archived'];
-
-function pickServerRelativeUrl(payload: unknown): string | undefined {
-  if (!payload || typeof payload !== 'object') return undefined;
-  const root = payload as Record<string, unknown>;
-  const direct = root.ServerRelativeUrl ?? root.FileRef;
-  if (typeof direct === 'string' && direct.trim() !== '') return direct;
-  const d = root.d;
-  if (d && typeof d === 'object') {
-    const dd = d as Record<string, unknown>;
-    const nested = dd.ServerRelativeUrl ?? dd.FileRef;
-    if (typeof nested === 'string' && nested.trim() !== '') return nested;
-  }
-  const list = root.ListItemAllFields;
-  if (list && typeof list === 'object') {
-    const lf = list as Record<string, unknown>;
-    const ref = lf.FileRef ?? lf.ServerRelativeUrl;
-    if (typeof ref === 'string' && ref.trim() !== '') return ref;
-  }
-  return undefined;
-}
 
 export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onClose, onSave }) => {
   const spContext = useSpContext();
@@ -63,53 +43,15 @@ export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onCl
     return { heroImagesFolderPath: heroImages, tripHeroFolderPath: `${heroImages}/${trip.id}` };
   }, [spContext.pageContext.web.serverRelativeUrl, trip.id]);
 
-  /** POST .../folders/add('path') — treat 200 and 400/409 as OK (created or already exists). */
-  const addFolderLevel = React.useCallback(
-    async (serverRelativeFolderPath: string): Promise<void> => {
-      const escaped = serverRelativeFolderPath.replace(/'/g, "''");
-      const url = `${webAbsoluteUrl}/_api/web/folders/add('${escaped}')`;
-      const resp: SPHttpClientResponse = await spContext.spHttpClient.post(url, SPHttpClient.configurations.v1, {
-        headers: {
-          Accept: 'application/json;odata.metadata=minimal'
-        }
-      });
-      if (resp.ok || resp.status === 400 || resp.status === 409) {
-        return;
-      }
-      throw new Error(`Could not ensure folder (${resp.status})`);
-    },
-    [spContext.spHttpClient, webAbsoluteUrl]
-  );
-
   const ensureHeroImageFolders = React.useCallback(async (): Promise<void> => {
-    await addFolderLevel(heroImagesFolderPath);
-    await addFolderLevel(tripHeroFolderPath);
-  }, [addFolderLevel, heroImagesFolderPath, tripHeroFolderPath]);
+    await ensureFolderChain(spContext, webAbsoluteUrl, [heroImagesFolderPath, tripHeroFolderPath]);
+  }, [heroImagesFolderPath, tripHeroFolderPath, spContext, webAbsoluteUrl]);
 
   const uploadHeroImage = React.useCallback(async (file: File): Promise<string> => {
     await ensureHeroImageFolders();
-    const buffer = await file.arrayBuffer();
-    const safeFolder = tripHeroFolderPath.replace(/'/g, "''");
-    const encodedFileName = encodeURIComponent(file.name);
-    const uploadUrl =
-      `${webAbsoluteUrl}/_api/web/getfolderbyserverrelativeurl('${safeFolder}')/files/add(url='${encodedFileName}',overwrite=true)`;
-    const uploadResp = await spContext.spHttpClient.post(uploadUrl, SPHttpClient.configurations.v1, {
-      headers: {
-        Accept: 'application/json;odata.metadata=minimal'
-      },
-      body: buffer
-    });
-    if (!uploadResp.ok) {
-      throw new Error(`Upload failed (${uploadResp.status})`);
-    }
-    const payload = await uploadResp.json();
-    const serverRelativeUrl = pickServerRelativeUrl(payload);
-    if (!serverRelativeUrl) {
-      throw new Error('Upload succeeded but no file URL returned');
-    }
-    const rel = serverRelativeUrl.startsWith('/') ? serverRelativeUrl : `/${serverRelativeUrl}`;
-    return normalizeSharePointHeroUrl(joinWebAbsoluteAndServerRelative(webAbsoluteUrl, rel));
-  }, [ensureHeroImageFolders, tripHeroFolderPath, webAbsoluteUrl, spContext.spHttpClient]);
+    const absoluteFileUrl = await uploadFileToFolder(spContext, webAbsoluteUrl, tripHeroFolderPath, file);
+    return normalizeSharePointHeroUrl(absoluteFileUrl);
+  }, [ensureHeroImageFolders, tripHeroFolderPath, webAbsoluteUrl, spContext]);
 
   if (!isOpen) {
     return null;

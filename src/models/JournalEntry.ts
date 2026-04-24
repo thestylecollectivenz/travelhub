@@ -1,9 +1,13 @@
 export interface JournalEntry {
   id: string;
-  dayId: string;
+  title: string;
   tripId: string;
+  dayId: string;
   authorName: string;
-  text: string;
+  entryText: string;
   location: string;
-  timestamp: string;
+  entryTimestamp: string;
+  likeCount: number;
+  likedByUsers: string;
+  shareableLink: string;
 }
