@@ -4,6 +4,8 @@
   width: 100%;
   height: 100vh;
   min-height: 0;
+  margin: 0;
+  padding: 0;
   box-sizing: border-box;
   background: var(--color-surface);
   color: var(--color-blue-900);
@@ -18,6 +20,7 @@
   gap: var(--space-3);
   flex-shrink: 0;
   padding: var(--space-1) var(--space-4);
+  margin: 0;
   border-bottom: var(--border-default);
   background: var(--color-surface-raised);
 }
@@ -68,6 +71,8 @@
   min-height: 0;
   width: 100%;
   max-width: 100%;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
 }
 

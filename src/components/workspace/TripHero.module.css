@@ -5,16 +5,16 @@
   height: 170px;
   overflow: hidden;
   box-sizing: border-box;
-  background-color: var(--color-hero-bg);
+  margin: 0;
   flex-shrink: 0;
 }
 
 .heroNoImage {
-  background-color: var(--color-hero-bg);
+  background-color: transparent;
 }
 
 .heroWithImage {
-  background-color: var(--color-hero-bg);
+  background-color: transparent;
 }
 
 .heroImageLayer {
@@ -39,10 +39,12 @@
 }
 
 .heroOverlayWithImage {
+  background-color: var(--color-blue-900);
   opacity: 0.5;
 }
 
 .heroOverlayNoImage {
+  background-color: var(--color-hero-bg);
   opacity: 1;
 }
 

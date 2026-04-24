@@ -10,6 +10,7 @@
   border-bottom: var(--border-default);
   box-shadow: var(--shadow-card);
   padding: var(--space-3) calc(var(--space-5) + 2rem) var(--space-3) var(--space-5);
+  margin: 0;
 }
 
 .chip {
