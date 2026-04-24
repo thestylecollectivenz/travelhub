@@ -1,6 +1,7 @@
 import * as React from 'react';
 import type { Trip, TripLifecycleStatus } from '../../models/Trip';
 import { formatDateRange } from '../../utils/dateUtils';
+import { joinWebAbsoluteAndServerRelative } from '../../utils/sharePointUrl';
 import { useSpContext } from '../../context/SpContext';
 import styles from './TripHero.module.css';
 
@@ -69,13 +70,13 @@ function resolveHeroImageSrc(raw: string, webAbsoluteUrl: string, webServerRelat
   const base = webAbsoluteUrl.replace(/\/$/, '');
   const webRoot = webServerRelativeUrl.replace(/\/$/, '');
   if (trimmed.startsWith('/')) {
-    return `${base}${trimmed}`;
+    return joinWebAbsoluteAndServerRelative(base, trimmed);
   }
   const rel = trimmed.replace(/^\/+/, '');
   if (webRoot) {
-    return `${base}${webRoot}/${rel}`;
+    return joinWebAbsoluteAndServerRelative(base, `${webRoot}/${rel}`);
   }
-  return `${base}/${rel}`;
+  return joinWebAbsoluteAndServerRelative(base, `/${rel}`);
 }
 
 export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit }) => {
