@@ -40,7 +40,7 @@
 
 .heroOverlayWithImage {
   background-color: var(--color-blue-900);
-  opacity: 0.5;
+  opacity: 0.3;
 }
 
 .heroOverlayNoImage {
@@ -133,6 +133,7 @@
   font-weight: var(--font-weight-bold);
   color: var(--color-surface-raised);
   line-height: 1.15;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 .meta {
@@ -141,6 +142,7 @@
   font-weight: var(--font-weight-normal);
   color: var(--color-surface-raised);
   opacity: 0.85;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 .countdownChip {
