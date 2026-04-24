@@ -63,7 +63,7 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit }) => {
   const countdownClass = trip.status === 'In Progress' ? styles.countdownInProgress : styles.countdownUpcoming;
 
   return (
-    <section className={styles.hero} aria-label="Trip hero">
+    <section className={`${styles.hero} ${hasHeroImage ? styles.heroWithImage : styles.heroNoImage}`} aria-label="Trip hero">
       {hasHeroImage ? (
         <div
           className={styles.heroImageLayer}
@@ -71,7 +71,7 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit }) => {
           role="presentation"
         />
       ) : null}
-      <div className={styles.heroOverlay} role="presentation" />
+      <div className={`${styles.heroOverlay} ${hasHeroImage ? styles.heroOverlayWithImage : styles.heroOverlayNoImage}`} role="presentation" />
       <div className={styles.heroForeground}>
         <div className={styles.badge}>✦ Travel Hub</div>
         <button type="button" className={styles.editButton} onClick={onEdit} aria-label="Edit trip details">
