@@ -54,7 +54,8 @@ function countdownLabel(trip: Trip): string | null {
 }
 
 export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit }) => {
-  const hasHeroImage = Boolean(trip.heroImageUrl && trip.heroImageUrl.trim() !== '');
+  const heroImageUrl = trip.heroImageUrl?.trim() ?? '';
+  const hasHeroImage = heroImageUrl !== '' && /^https?:\/\//i.test(heroImageUrl);
   const dayCount = inclusiveTripDayCount(trip.dateStart, trip.dateEnd);
   const dayLabel = dayCount === 1 ? '1 day' : `${dayCount} days`;
   const metaLine = `${trip.destination} · ${formatDateRange(trip.dateStart, trip.dateEnd)} · ${dayLabel}`;
@@ -67,10 +68,11 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit }) => {
       {hasHeroImage ? (
         <img
           className={styles.heroImageLayer}
-          src={trip.heroImageUrl}
+          src={heroImageUrl}
           alt=""
           role="presentation"
           aria-hidden
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
         />
       ) : null}
       <div className={`${styles.heroOverlay} ${hasHeroImage ? styles.heroOverlayWithImage : styles.heroOverlayNoImage}`} role="presentation" />
