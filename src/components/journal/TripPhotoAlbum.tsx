@@ -92,6 +92,20 @@ function AlbumPhotoCell({
                   type="button"
                   className={styles.captionActionBtn}
                   onClick={() => {
+                    updatePhotoCaption(photo.id, '')
+                      .then(() => {
+                        setCapDraft('');
+                        setEditingCap(false);
+                      })
+                      .catch(console.error);
+                  }}
+                >
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  className={styles.captionActionBtn}
+                  onClick={() => {
                     setCapDraft(photo.caption);
                     setEditingCap(false);
                   }}
@@ -147,7 +161,7 @@ export const TripPhotoAlbum: React.FC = () => {
 
   const days = React.useMemo(() => {
     if (!trip) return [];
-    return tripDays.filter((d) => d.tripId === trip.id).sort((a, b) => a.dayNumber - b.dayNumber);
+    return tripDays.filter((d) => d.tripId === trip.id && d.dayType !== 'PreTrip').sort((a, b) => a.dayNumber - b.dayNumber);
   }, [trip, tripDays]);
 
   React.useEffect(() => {

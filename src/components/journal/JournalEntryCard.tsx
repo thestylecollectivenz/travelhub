@@ -116,6 +116,20 @@ function JournalPhotoSlot({
                   type="button"
                   className={styles.iconButton}
                   onClick={() => {
+                    updatePhotoCaption(photo.id, '')
+                      .then(() => {
+                        setCapDraft('');
+                        setEditingCap(false);
+                      })
+                      .catch(console.error);
+                  }}
+                >
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  className={styles.iconButton}
+                  onClick={() => {
                     setCapDraft(photo.caption);
                     setEditingCap(false);
                   }}
