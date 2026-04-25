@@ -70,6 +70,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({ entry, calendarDat
       ref={setNodeRef}
       className={`${styles.card} ${showEdit ? styles.cardEditing : ''}`}
       data-category={categorySlug}
+      data-entry-id={entry.id}
       style={dragStyle}
     >
       {draggable ? (

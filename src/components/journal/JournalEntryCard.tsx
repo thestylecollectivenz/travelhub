@@ -52,7 +52,7 @@ function JournalPhotoSlot({
   }, [photo.likedByUsers, spContext.pageContext.user.loginName]);
 
   return (
-    <div className={styles.photoCard}>
+    <div className={styles.photoCard} data-photo-id={photo.id}>
       <figure className={styles.photoFigure}>
         <img
           className={styles.photoThumb}
@@ -273,7 +273,7 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
   }, [entry.likedByUsers, spContext.pageContext.user.loginName]);
 
   return (
-    <article className={styles.card}>
+    <article className={styles.card} data-journal-id={entry.id}>
       <div className={styles.metaRow}>
         <div>
           {showAuthorLine ? (
@@ -421,7 +421,7 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
                 className={styles.shareAction}
                 href={`https://wa.me/?text=${encodeURIComponent(shareUrl)}`}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
               >
                 <span className={styles.shareIconBtn} aria-hidden>
                   <svg viewBox="0 0 24 24" width={18} height={18} fill="none">
@@ -439,6 +439,8 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
               <a
                 className={styles.shareAction}
                 href={`mailto:?subject=${encodeURIComponent('Travel Journal')}&body=${encodeURIComponent(shareUrl)}`}
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 <span className={styles.shareIconBtn} aria-hidden>
                   <svg viewBox="0 0 24 24" width={18} height={18} fill="none">

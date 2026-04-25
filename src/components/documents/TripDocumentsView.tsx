@@ -48,16 +48,24 @@ function DocumentTypeIcon({ type }: { type: EntryDocumentType }): React.ReactEle
 }
 
 export const TripDocumentsView: React.FC = () => {
-  const { documents, addDocument, deleteDocument, highlightedDocumentId } = useAttachments();
+  const { documents, addDocument, updateDocument, deleteDocument, highlightedDocumentId } = useAttachments();
   const { trip, tripDays, localEntries } = useTripWorkspace();
   const [search, setSearch] = React.useState('');
   const [typeFilter, setTypeFilter] = React.useState<'all' | EntryDocumentType>('all');
   const [dayFilter, setDayFilter] = React.useState<string>('all');
+  const [adding, setAdding] = React.useState(false);
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [saving, setSaving] = React.useState(false);
   const [docType, setDocType] = React.useState<EntryDocumentType>('Other');
   const [docNotes, setDocNotes] = React.useState('');
   const [docDayId, setDocDayId] = React.useState('');
   const [docEntryId, setDocEntryId] = React.useState('');
   const [uploading, setUploading] = React.useState(false);
+  const [draft, setDraft] = React.useState({
+    title: '',
+    documentType: 'Other' as EntryDocumentType,
+    notes: ''
+  });
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const days = React.useMemo(() => {
@@ -80,21 +88,52 @@ export const TripDocumentsView: React.FC = () => {
       if (typeFilter !== 'all' && d.documentType !== typeFilter) return false;
       if (dayFilter !== 'all' && d.dayId !== dayFilter) return false;
       if (!q) return true;
-      return (d.fileName || d.title).toLowerCase().includes(q) || (d.notes || '').toLowerCase().includes(q);
+      return (
+        (d.fileName || '').toLowerCase().includes(q) ||
+        (d.title || '').toLowerCase().includes(q) ||
+        (d.notes || '').toLowerCase().includes(q)
+      );
     });
   }, [documents, typeFilter, dayFilter, search]);
+
+  const resetAddForm = React.useCallback(() => {
+    setDocType('Other');
+    setDocNotes('');
+    setDocDayId('');
+    setDocEntryId('');
+  }, []);
+
+  const startEdit = React.useCallback((doc: (typeof documents)[number]) => {
+    setEditingId(doc.id);
+    setDraft({
+      title: doc.title || doc.fileName || '',
+      documentType: doc.documentType,
+      notes: doc.notes || ''
+    });
+  }, []);
 
   return (
     <section className={styles.root} aria-label="Trip documents">
       <header className={styles.header}>
         <h2 className={styles.title}>Documents</h2>
-        <button type="button" className={`${styles.button} ${styles.buttonPrimary}`} onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-          {uploading ? 'Uploading…' : 'Upload document'}
+        <button
+          type="button"
+          className={`${styles.button} ${styles.buttonPrimary}`}
+          onClick={() => {
+            setAdding((v) => {
+              const next = !v;
+              if (next) resetAddForm();
+              return next;
+            });
+          }}
+          disabled={uploading}
+        >
+          {adding ? 'Close upload' : uploading ? 'Uploading…' : 'Upload document'}
         </button>
       </header>
 
       <div className={styles.filters}>
-        <input className={styles.input} placeholder="Search file name or notes" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input className={styles.input} placeholder="Search filename, title, notes" value={search} onChange={(e) => setSearch(e.target.value)} />
         <select className={styles.select} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as 'all' | EntryDocumentType)}>
           <option value="all">All document types</option>
           <option value="Ticket">Ticket</option>
@@ -111,84 +150,126 @@ export const TripDocumentsView: React.FC = () => {
             </option>
           ))}
         </select>
-        <select className={styles.select} value={docType} onChange={(e) => setDocType(e.target.value as EntryDocumentType)}>
-          <option value="Ticket">Ticket</option>
-          <option value="Confirmation">Confirmation</option>
-          <option value="Image">Image</option>
-          <option value="PDF">PDF</option>
-          <option value="Other">Other</option>
-        </select>
-        <select className={styles.select} value={docDayId} onChange={(e) => setDocDayId(e.target.value)}>
-          <option value="">No day linked</option>
-          {days.map((d) => (
-            <option key={d.id} value={d.id}>
-              Day {d.dayNumber} — {d.displayTitle}
-            </option>
-          ))}
-        </select>
-        <select className={styles.select} value={docEntryId} onChange={(e) => setDocEntryId(e.target.value)}>
-          <option value="">No entry linked</option>
-          {localEntries
-            .filter((e) => !docDayId || e.dayId === docDayId)
-            .map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.title || 'Untitled'}
+      </div>
+      {adding ? (
+        <div className={styles.row} style={{ marginTop: 'var(--space-4)' }}>
+          <select className={styles.select} value={docType} onChange={(e) => setDocType(e.target.value as EntryDocumentType)}>
+            <option value="Ticket">Ticket</option>
+            <option value="Confirmation">Confirmation</option>
+            <option value="Image">Image</option>
+            <option value="PDF">PDF</option>
+            <option value="Other">Other</option>
+          </select>
+          <select className={styles.select} value={docDayId} onChange={(e) => setDocDayId(e.target.value)}>
+            <option value="">No day linked</option>
+            {days.map((d) => (
+              <option key={d.id} value={d.id}>
+                Day {d.dayNumber} — {d.displayTitle}
               </option>
             ))}
-        </select>
-        <input className={styles.input} placeholder="Upload notes (optional)" value={docNotes} onChange={(e) => setDocNotes(e.target.value)} />
-        <input
-          ref={fileInputRef}
-          type="file"
-          style={{ display: 'none' }}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (!file || !trip) return;
-            setUploading(true);
-            addDocument({
-              file,
-              dayId: docDayId,
-              entryId: docEntryId,
-              documentType: docType,
-              notes: docNotes.trim()
-            })
-              .then(() => {
-                setDocNotes('');
-                e.target.value = '';
-                setUploading(false);
+          </select>
+          <select className={styles.select} value={docEntryId} onChange={(e) => setDocEntryId(e.target.value)}>
+            <option value="">No entry linked</option>
+            {localEntries
+              .filter((e) => !docDayId || e.dayId === docDayId)
+              .map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.title || 'Untitled'}
+                </option>
+              ))}
+          </select>
+          <input className={styles.input} placeholder="Notes (optional)" value={docNotes} onChange={(e) => setDocNotes(e.target.value)} />
+          <button type="button" className={styles.button} onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+            {uploading ? 'Uploading…' : 'Choose file'}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file || !trip) return;
+              setUploading(true);
+              addDocument({
+                file,
+                dayId: docDayId,
+                entryId: docEntryId,
+                documentType: docType,
+                notes: docNotes.trim()
               })
-              .catch((err) => {
-                setUploading(false);
-                // eslint-disable-next-line no-console
-                console.error(err);
-              });
-          }}
-        />
-      </div>
+                .then(() => {
+                  e.target.value = '';
+                  setAdding(false);
+                  resetAddForm();
+                  setUploading(false);
+                })
+                .catch((err) => {
+                  setUploading(false);
+                  console.error(err);
+                });
+            }}
+          />
+        </div>
+      ) : null}
 
       {visible.length === 0 ? (
         <div className={styles.empty}>No documents yet</div>
       ) : (
         <div className={styles.list}>
           {visible.map((d) => (
-            <div
-              key={d.id}
-              className={styles.row}
-              style={highlightedDocumentId === d.id ? { outline: '2px solid var(--color-primary)' } : undefined}
-            >
-              <span aria-hidden><DocumentTypeIcon type={d.documentType} /></span>
-              <a className={styles.name} href={d.fileUrl} target="_blank" rel="noreferrer">
-                {d.fileName || d.title}
-              </a>
-              <span className={styles.badge}>{d.documentType}</span>
-              <span className={styles.meta}>{d.dayId ? dayLabel(d.dayId) : 'No day'}</span>
-              <span className={styles.meta}>{d.entryId ? entryLabel(d.entryId) : 'No entry'}</span>
-              <button type="button" className={styles.button} onClick={() => window.open(d.fileUrl, '_blank', 'noopener,noreferrer')}>
-                Open
-              </button>
-              <button type="button" className={styles.button} onClick={() => deleteDocument(d.id).catch(console.error)}>
-                Delete
-              </button>
+            <div key={d.id} className={styles.row} style={highlightedDocumentId === d.id ? { outline: '2px solid var(--color-primary)' } : undefined}>
+              {editingId === d.id ? (
+                <>
+                  <input className={styles.input} value={draft.title} onChange={(e) => setDraft((prev) => ({ ...prev, title: e.target.value }))} />
+                  <select className={styles.select} value={draft.documentType} onChange={(e) => setDraft((prev) => ({ ...prev, documentType: e.target.value as EntryDocumentType }))}>
+                    <option value="Ticket">Ticket</option>
+                    <option value="Confirmation">Confirmation</option>
+                    <option value="Image">Image</option>
+                    <option value="PDF">PDF</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  <input className={styles.input} value={draft.notes} onChange={(e) => setDraft((prev) => ({ ...prev, notes: e.target.value }))} placeholder="Notes (optional)" />
+                  <button
+                    type="button"
+                    className={styles.button}
+                    disabled={saving}
+                    onClick={() => {
+                      setSaving(true);
+                      updateDocument(d.id, { title: draft.title.trim(), documentType: draft.documentType, notes: draft.notes.trim() })
+                        .then(() => {
+                          setEditingId(null);
+                          setSaving(false);
+                        })
+                        .catch((err) => {
+                          setSaving(false);
+                          console.error(err);
+                        });
+                    }}
+                  >
+                    Save
+                  </button>
+                  <button type="button" className={styles.button} onClick={() => setEditingId(null)}>
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span aria-hidden><DocumentTypeIcon type={d.documentType} /></span>
+                  <a className={styles.name} href={d.fileUrl} target="_blank" rel="noopener noreferrer">
+                    {d.fileName || d.title}
+                  </a>
+                  <span className={styles.badge}>{d.documentType}</span>
+                  <span className={styles.meta}>{d.dayId ? dayLabel(d.dayId) : 'No day'}</span>
+                  <span className={styles.meta}>{d.entryId ? entryLabel(d.entryId) : 'No entry'}</span>
+                  <button type="button" className={styles.button} onClick={() => startEdit(d)}>
+                    Edit
+                  </button>
+                  <button type="button" className={styles.button} onClick={() => deleteDocument(d.id).catch(console.error)}>
+                    Delete
+                  </button>
+                  {d.notes?.trim() ? <div className={styles.meta} style={{ gridColumn: '1 / -1', whiteSpace: 'normal' }}>{d.notes}</div> : null}
+                </>
+              )}
             </div>
           ))}
         </div>

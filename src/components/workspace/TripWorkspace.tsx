@@ -35,7 +35,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
     setSelectedDayId,
     setMainWorkspaceTab
   } = useTripWorkspace();
-  const { allEntries: journalEntries } = useJournal();
+  const { allEntries: journalEntries, allTripPhotos } = useJournal();
   const { documents, links, setHighlightedDocumentId, setHighlightedLinkId } = useAttachments();
   const [configOpen, setConfigOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
@@ -70,10 +70,11 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
 
   type SearchResult = {
     id: string;
-    kind: 'itinerary' | 'journal' | 'document' | 'link';
+    kind: 'itinerary' | 'journal' | 'photo' | 'document' | 'link';
     dayId: string;
     title: string;
     subtitle: string;
+    url?: string;
   };
 
   const dayLabel = React.useCallback(
@@ -109,14 +110,15 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
       }
     }
     for (const d of documents) {
-      const hay = `${d.fileName} ${d.notes}`.toLowerCase();
+      const hay = `${d.fileName} ${d.title} ${d.notes}`.toLowerCase();
       if (hay.includes(searchQuery)) {
         out.push({
           id: d.id,
           kind: 'document',
           dayId: d.dayId,
           title: d.fileName || d.title,
-          subtitle: `${d.documentType}${d.dayId ? ` · ${dayLabel(d.dayId)}` : ''}`
+          subtitle: `${d.documentType}${d.dayId ? ` · ${dayLabel(d.dayId)}` : ''}`,
+          url: d.fileUrl
         });
       }
     }
@@ -128,21 +130,53 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
           kind: 'link',
           dayId: l.dayId,
           title: l.linkTitle,
-          subtitle: l.url
+          subtitle: l.url,
+          url: l.url
+        });
+      }
+    }
+    for (const p of allTripPhotos) {
+      const hay = `${p.caption} ${p.fileUrl}`.toLowerCase();
+      if (hay.includes(searchQuery)) {
+        out.push({
+          id: p.id,
+          kind: 'photo',
+          dayId: p.dayId,
+          title: p.caption?.trim() || 'Photo',
+          subtitle: `Day: ${dayLabel(p.dayId)}`
         });
       }
     }
     return out;
-  }, [searchQuery, localEntries, journalEntries, documents, links, dayLabel]);
+  }, [searchQuery, localEntries, journalEntries, documents, links, allTripPhotos, dayLabel]);
 
   const groupedResults = React.useMemo(() => {
     return {
       itinerary: searchResults.filter((x) => x.kind === 'itinerary'),
       journal: searchResults.filter((x) => x.kind === 'journal'),
+      photo: searchResults.filter((x) => x.kind === 'photo'),
       document: searchResults.filter((x) => x.kind === 'document'),
       link: searchResults.filter((x) => x.kind === 'link')
     };
   }, [searchResults]);
+
+  const scrollToResult = React.useCallback((selector: string): void => {
+    let attempts = 0;
+    const run = (): void => {
+      const el = document.querySelector(selector) as HTMLElement | null;
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        el.classList.add(styles.searchFlash);
+        window.setTimeout(() => el.classList.remove(styles.searchFlash), 1500);
+        return;
+      }
+      attempts += 1;
+      if (attempts < 8) {
+        window.setTimeout(run, 120);
+      }
+    };
+    run();
+  }, []);
 
   const loadingStyle: React.CSSProperties = {
     display: 'flex',
@@ -293,13 +327,13 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
           </div>
           {searchQuery ? (
             <div className={styles.searchResults}>
-              {(['itinerary', 'journal', 'document', 'link'] as const).map((group) => {
+              {(['itinerary', 'journal', 'photo', 'document', 'link'] as const).map((group) => {
                 const rows = groupedResults[group];
                 if (!rows.length) return null;
                 return (
                   <div key={group} className={styles.searchGroup}>
                     <div className={styles.searchGroupTitle}>
-                      {group === 'itinerary' ? 'Itinerary' : group === 'journal' ? 'Journal' : group === 'document' ? 'Documents' : 'Links'}
+                      {group === 'itinerary' ? 'Itinerary' : group === 'journal' ? 'Journal' : group === 'photo' ? 'Photos' : group === 'document' ? 'Documents' : 'Links'}
                     </div>
                     {rows.map((r) => (
                       <button
@@ -310,12 +344,21 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
                           if (r.kind === 'itinerary' || r.kind === 'journal') {
                             if (r.dayId) setSelectedDayId(r.dayId);
                             setMainWorkspaceTab(r.kind === 'itinerary' ? 'itinerary' : 'journal');
+                            window.setTimeout(() => {
+                              scrollToResult(r.kind === 'itinerary' ? `[data-entry-id="${r.id}"]` : `[data-journal-id="${r.id}"]`);
+                            }, 80);
+                          } else if (r.kind === 'photo') {
+                            if (r.dayId) setSelectedDayId(r.dayId);
+                            setMainWorkspaceTab('photos');
+                            window.setTimeout(() => {
+                              scrollToResult(`[data-photo-id="${r.id}"]`);
+                            }, 80);
                           } else if (r.kind === 'document') {
-                            setMainWorkspaceTab('documents');
-                            setHighlightedDocumentId(r.id);
+                            if (r.url) window.open(r.url, '_blank', 'noopener,noreferrer');
+                            setHighlightedDocumentId(null);
                           } else {
-                            setMainWorkspaceTab('links');
-                            setHighlightedLinkId(r.id);
+                            if (r.url) window.open(r.url, '_blank', 'noopener,noreferrer');
+                            setHighlightedLinkId(null);
                           }
                           setSearchOpen(false);
                         }}

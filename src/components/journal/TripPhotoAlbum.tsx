@@ -32,7 +32,7 @@ function AlbumPhotoCell({
   }, [photo.likedByUsers, spContext.pageContext.user.loginName]);
 
   return (
-    <div className={styles.cell}>
+    <div className={styles.cell} data-photo-id={photo.id}>
       <figure className={styles.figure}>
         <button type="button" className={styles.thumbBtn} onClick={() => onOpenLightbox(photo.fileUrl)} aria-label="View full size">
           <img src={photo.fileUrl} alt="" className={styles.thumb} loading="lazy" />

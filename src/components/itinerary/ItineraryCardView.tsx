@@ -107,7 +107,7 @@ function DocumentTypeIcon({ type }: { type: EntryDocumentType }): React.ReactEle
 export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onEdit, onDuplicate, onDelete }) => {
   const { addSubItem, convertToHomeCurrency } = useTripWorkspace();
   const { config } = useConfig();
-  const { docsForEntry, linksForEntry, addDocument, deleteDocument, addLink, deleteLink } = useAttachments();
+  const { docsForEntry, linksForEntry, addDocument, updateDocument, deleteDocument, addLink, updateLink, deleteLink } = useAttachments();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [notesOpen, setNotesOpen] = React.useState(false);
   const [attachmentsOpen, setAttachmentsOpen] = React.useState(false);
@@ -119,6 +119,13 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
   const [docBusy, setDocBusy] = React.useState(false);
   const [linkOpen, setLinkOpen] = React.useState(false);
   const [linkBusy, setLinkBusy] = React.useState(false);
+  const [editingDocId, setEditingDocId] = React.useState<string | null>(null);
+  const [editingLinkId, setEditingLinkId] = React.useState<string | null>(null);
+  const [docDraft, setDocDraft] = React.useState<{ title: string; documentType: EntryDocumentType; notes: string }>({
+    title: '',
+    documentType: 'Other',
+    notes: ''
+  });
   const [linkDraft, setLinkDraft] = React.useState<{
     linkTitle: string;
     url: string;
@@ -259,6 +266,10 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
     },
     [addDocument, docNotes, docType, entry.dayId, entry.id]
   );
+
+  const resetLinkDraft = React.useCallback(() => {
+    setLinkDraft({ linkTitle: '', url: '', linkType: 'Url', notes: '' });
+  }, []);
 
   return (
     <div>
@@ -419,7 +430,17 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
                 handleDocumentPick(e).catch(console.error);
               }}
             />
-            <button type="button" className={styles.newSubActionBtn} onClick={() => setLinkOpen((v) => !v)}>
+            <button
+              type="button"
+              className={styles.newSubActionBtn}
+              onClick={() =>
+                setLinkOpen((v) => {
+                  const next = !v;
+                  if (next) resetLinkDraft();
+                  return next;
+                })
+              }
+            >
               {linkOpen ? 'Close link form' : 'Add link'}
             </button>
           </div>
@@ -472,7 +493,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
                       notes: linkDraft.notes.trim()
                     })
                       .then(() => {
-                        setLinkDraft({ linkTitle: '', url: '', linkType: 'Url', notes: '' });
+                        resetLinkDraft();
                         setLinkOpen(false);
                         setLinkBusy(false);
                       })
@@ -492,25 +513,122 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
             {docs.map((doc) => (
               <div key={doc.id} className={styles.attachmentRow}>
                 <span className={styles.attachmentIcon}><DocumentTypeIcon type={doc.documentType} /></span>
-                <a className={styles.attachmentTitle} href={doc.fileUrl} target="_blank" rel="noreferrer">
-                  {doc.fileName || doc.title}
-                </a>
-                <span className={styles.attachmentType}>{doc.documentType}</span>
-                <button type="button" className={styles.newSubActionBtn} onClick={() => deleteDocument(doc.id).catch(console.error)}>
-                  Delete
-                </button>
+                {editingDocId === doc.id ? (
+                  <>
+                    <input className={styles.newSubField} value={docDraft.title} onChange={(e) => setDocDraft((prev) => ({ ...prev, title: e.target.value }))} />
+                    <select className={styles.newSubField} value={docDraft.documentType} onChange={(e) => setDocDraft((prev) => ({ ...prev, documentType: e.target.value as EntryDocumentType }))}>
+                      <option value="Ticket">Ticket</option>
+                      <option value="Confirmation">Confirmation</option>
+                      <option value="Image">Image</option>
+                      <option value="PDF">PDF</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    <input className={styles.newSubField} value={docDraft.notes} onChange={(e) => setDocDraft((prev) => ({ ...prev, notes: e.target.value }))} placeholder="Notes (optional)" />
+                    <button
+                      type="button"
+                      className={styles.newSubActionBtn}
+                      onClick={() => {
+                        updateDocument(doc.id, {
+                          title: docDraft.title.trim(),
+                          documentType: docDraft.documentType,
+                          notes: docDraft.notes.trim()
+                        })
+                          .then(() => setEditingDocId(null))
+                          .catch(console.error);
+                      }}
+                    >
+                      Save
+                    </button>
+                    <button type="button" className={styles.newSubActionBtn} onClick={() => setEditingDocId(null)}>
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <a className={styles.attachmentTitle} href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
+                      {doc.fileName || doc.title}
+                    </a>
+                    <span className={styles.attachmentType}>{doc.documentType}</span>
+                    <button
+                      type="button"
+                      className={styles.newSubActionBtn}
+                      onClick={() => {
+                        setEditingDocId(doc.id);
+                        setDocDraft({ title: doc.title || doc.fileName || '', documentType: doc.documentType, notes: doc.notes || '' });
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button type="button" className={styles.newSubActionBtn} onClick={() => deleteDocument(doc.id).catch(console.error)}>
+                      Delete
+                    </button>
+                    {doc.notes?.trim() ? <span className={styles.attachmentType}>{doc.notes}</span> : null}
+                  </>
+                )}
               </div>
             ))}
             {links.map((link) => (
               <div key={link.id} className={styles.attachmentRow}>
                 <span className={styles.attachmentIcon}><LinkIcon /></span>
-                <a className={styles.attachmentTitle} href={link.url} target="_blank" rel="noreferrer">
-                  {link.linkTitle}
-                </a>
-                <span className={styles.attachmentType}>{link.linkType}</span>
-                <button type="button" className={styles.newSubActionBtn} onClick={() => deleteLink(link.id).catch(console.error)}>
-                  Delete
-                </button>
+                {editingLinkId === link.id ? (
+                  <>
+                    <input className={styles.newSubField} value={linkDraft.linkTitle} onChange={(e) => setLinkDraft((prev) => ({ ...prev, linkTitle: e.target.value }))} />
+                    <input className={styles.newSubField} value={linkDraft.url} onChange={(e) => setLinkDraft((prev) => ({ ...prev, url: e.target.value }))} />
+                    <select className={styles.newSubField} value={linkDraft.linkType} onChange={(e) => setLinkDraft((prev) => ({ ...prev, linkType: e.target.value as EntryLinkType }))}>
+                      <option value="Url">Url</option>
+                      <option value="Supplier">Supplier</option>
+                      <option value="Booking">Booking</option>
+                      <option value="Email">Email</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    <input className={styles.newSubField} value={linkDraft.notes} onChange={(e) => setLinkDraft((prev) => ({ ...prev, notes: e.target.value }))} placeholder="Notes (optional)" />
+                    <button
+                      type="button"
+                      className={styles.newSubActionBtn}
+                      onClick={() => {
+                        updateLink(link.id, {
+                          title: linkDraft.linkTitle.trim(),
+                          linkTitle: linkDraft.linkTitle.trim(),
+                          url: linkDraft.url.trim(),
+                          linkType: linkDraft.linkType,
+                          notes: linkDraft.notes.trim()
+                        })
+                          .then(() => setEditingLinkId(null))
+                          .catch(console.error);
+                      }}
+                    >
+                      Save
+                    </button>
+                    <button type="button" className={styles.newSubActionBtn} onClick={() => setEditingLinkId(null)}>
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <a className={styles.attachmentTitle} href={link.url} target="_blank" rel="noopener noreferrer">
+                      {link.linkTitle}
+                    </a>
+                    <span className={styles.attachmentType}>{link.linkType}</span>
+                    <button
+                      type="button"
+                      className={styles.newSubActionBtn}
+                      onClick={() => {
+                        setEditingLinkId(link.id);
+                        setLinkDraft({
+                          linkTitle: link.linkTitle,
+                          url: link.url,
+                          linkType: link.linkType,
+                          notes: link.notes || ''
+                        });
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button type="button" className={styles.newSubActionBtn} onClick={() => deleteLink(link.id).catch(console.error)}>
+                      Delete
+                    </button>
+                  </>
+                )}
               </div>
             ))}
           </div>

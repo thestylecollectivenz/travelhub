@@ -19,6 +19,7 @@ export interface AttachmentsContextValue {
     documentType: EntryDocumentType;
     notes?: string;
   }) => Promise<EntryDocument>;
+  updateDocument: (id: string, partial: Partial<Omit<EntryDocument, 'id'>>) => Promise<void>;
   deleteDocument: (id: string) => Promise<void>;
   addLink: (input: {
     dayId: string;
@@ -128,6 +129,22 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [documents, spContext]
   );
 
+  const updateDocument = React.useCallback(
+    async (id: string, partial: Partial<Omit<EntryDocument, 'id'>>): Promise<void> => {
+      const snapshot = documents.find((d) => d.id === id);
+      if (!snapshot) return;
+      setDocuments((prev) => prev.map((d) => (d.id === id ? { ...d, ...partial } : d)));
+      try {
+        const svc = new DocumentService(spContext);
+        await svc.update(id, partial);
+      } catch (err) {
+        setDocuments((prev) => prev.map((d) => (d.id === id ? snapshot : d)));
+        throw err;
+      }
+    },
+    [documents, spContext]
+  );
+
   const addLink = React.useCallback(
     async (input: {
       dayId: string;
@@ -195,6 +212,7 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       docsForEntry,
       linksForEntry,
       addDocument,
+      updateDocument,
       deleteDocument,
       addLink,
       updateLink,
@@ -212,6 +230,7 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       docsForEntry,
       linksForEntry,
       addDocument,
+      updateDocument,
       deleteDocument,
       addLink,
       updateLink,

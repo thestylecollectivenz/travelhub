@@ -10,6 +10,8 @@ export interface UserConfig {
   showTravellerNames: boolean;
   /** Stored display name for new journal entries; empty = use M365 display name at write time. */
   journalAuthorName: string;
+  /** Persisted workspace sidebar width (px). */
+  sidebarWidth: number;
 }
 
 export const DEFAULT_USER_CONFIG: UserConfig = {
@@ -17,7 +19,8 @@ export const DEFAULT_USER_CONFIG: UserConfig = {
   temperatureUnit: 'Celsius',
   distanceUnit: 'Kilometres',
   showTravellerNames: true,
-  journalAuthorName: ''
+  journalAuthorName: '',
+  sidebarWidth: 260
 };
 
 export class ConfigService {
@@ -31,7 +34,7 @@ export class ConfigService {
 
   async getConfig(userId: string): Promise<UserConfig> {
     const safeUserId = userId.replace(/'/g, "''");
-    const url = `${this.baseUrl}?$select=ID,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames&$filter=UserId eq '${safeUserId}'&$top=1`;
+    const url = `${this.baseUrl}?$select=ID,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth&$filter=UserId eq '${safeUserId}'&$top=1`;
     const resp: SPHttpClientResponse = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
     if (!resp.ok) {
       throw new Error(`ConfigService.getConfig failed: ${resp.status}`);
@@ -49,7 +52,8 @@ export class ConfigService {
         typeof item.ShowTravellerNames === 'boolean'
           ? item.ShowTravellerNames
           : DEFAULT_USER_CONFIG.showTravellerNames,
-      journalAuthorName: typeof item.JournalAuthorName === 'string' ? item.JournalAuthorName : ''
+      journalAuthorName: typeof item.JournalAuthorName === 'string' ? item.JournalAuthorName : '',
+      sidebarWidth: typeof item.SidebarWidth === 'number' ? item.SidebarWidth : Number(item.SidebarWidth ?? DEFAULT_USER_CONFIG.sidebarWidth) || DEFAULT_USER_CONFIG.sidebarWidth
     };
   }
 
@@ -70,7 +74,8 @@ export class ConfigService {
       TemperatureUnit: config.temperatureUnit,
       DistanceUnit: config.distanceUnit,
       ShowTravellerNames: config.showTravellerNames,
-      JournalAuthorName: config.journalAuthorName ?? ''
+      JournalAuthorName: config.journalAuthorName ?? '',
+      SidebarWidth: typeof config.sidebarWidth === 'number' ? config.sidebarWidth : DEFAULT_USER_CONFIG.sidebarWidth
     });
 
     if (existing?.ID) {

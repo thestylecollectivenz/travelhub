@@ -133,6 +133,19 @@
   font-size: var(--font-size-xs);
 }
 
+.searchFlash {
+  animation: searchFlashFade 1.5s ease;
+}
+
+@keyframes searchFlashFade {
+  0% {
+    background-color: color-mix(in srgb, var(--color-warning) 35%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
 .deleteButton {
   display: inline-flex;
   align-items: center;

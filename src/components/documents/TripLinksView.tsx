@@ -65,11 +65,25 @@ export const TripLinksView: React.FC = () => {
     });
   }, []);
 
+  const resetDraft = React.useCallback(() => {
+    setDraft({ dayId: '', entryId: '', linkTitle: '', url: '', linkType: 'Url', notes: '' });
+  }, []);
+
   return (
     <section className={styles.root} aria-label="Trip links">
       <header className={styles.header}>
         <h2 className={styles.title}>Links</h2>
-        <button type="button" className={`${styles.button} ${styles.buttonPrimary}`} onClick={() => setAdding((v) => !v)}>
+        <button
+          type="button"
+          className={`${styles.button} ${styles.buttonPrimary}`}
+          onClick={() =>
+            setAdding((v) => {
+              const next = !v;
+              if (next) resetDraft();
+              return next;
+            })
+          }
+        >
           {adding ? 'Close form' : 'Add link'}
         </button>
       </header>
@@ -218,10 +232,12 @@ export const TripLinksView: React.FC = () => {
                   <>
                     <div className={styles.line1}>
                       <span className={styles.badge}>{link.linkType}</span>
-                      <a className={styles.linkTitle} href={link.url} target="_blank" rel="noreferrer">
+                      <a className={styles.linkTitle} href={link.url} target="_blank" rel="noopener noreferrer">
                         {link.linkTitle}
                       </a>
-                      <span className={styles.url}>{link.url}</span>
+                      <a className={styles.url} href={link.url} target="_blank" rel="noopener noreferrer">
+                        {link.url}
+                      </a>
                     </div>
                     <div className={styles.line2}>
                       <span className={styles.badge}>{link.dayId ? dayLabel(link.dayId) : 'No day'}</span>

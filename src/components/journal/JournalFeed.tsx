@@ -26,10 +26,14 @@ export const JournalFeed: React.FC<JournalFeedProps> = ({ dayId, canModerate = t
   const allowJournalWrite = !(hidePreTripJournal && isPreTripDay);
   const [composerOpen, setComposerOpen] = React.useState(false);
   const composerAnchorRef = React.useRef<HTMLDivElement | null>(null);
+  const prevOpenComposerSignalRef = React.useRef<number | undefined>(undefined);
 
   React.useEffect(() => {
     if (!allowJournalWrite) return;
     if (openComposerSignal === undefined) return;
+    if (prevOpenComposerSignalRef.current === openComposerSignal) return;
+    prevOpenComposerSignalRef.current = openComposerSignal;
+    if (openComposerSignal <= 0) return;
     setComposerOpen(true);
     // Wait for composer mount before scrolling.
     window.requestAnimationFrame(() => {
