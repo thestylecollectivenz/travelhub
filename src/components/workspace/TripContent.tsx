@@ -4,6 +4,8 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { DayPanel } from '../day/DayPanel';
 import { TripJournalFeed } from '../journal/TripJournalFeed';
 import { TripPhotoAlbum } from '../journal/TripPhotoAlbum';
+import { TripDocumentsView } from '../documents/TripDocumentsView';
+import { TripLinksView } from '../documents/TripLinksView';
 import { TripSidebar } from '../sidebar/TripSidebar';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import styles from './TripWorkspace.module.css';
@@ -97,6 +99,8 @@ export const TripContent: React.FC = () => {
         {mainWorkspaceTab === 'itinerary' ? <DayPanel /> : null}
         {mainWorkspaceTab === 'journal' ? <TripJournalFeed /> : null}
         {mainWorkspaceTab === 'photos' ? <TripPhotoAlbum /> : null}
+        {mainWorkspaceTab === 'documents' ? <TripDocumentsView /> : null}
+        {mainWorkspaceTab === 'links' ? <TripLinksView /> : null}
       </main>
     </div>
   );

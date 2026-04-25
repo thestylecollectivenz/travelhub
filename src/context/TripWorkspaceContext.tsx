@@ -10,7 +10,7 @@ import { useSpContext } from './SpContext';
 import { minutesFromTimeStart } from '../utils/itineraryTimeUtils';
 import { useConfig } from './ConfigContext';
 
-export type MainWorkspaceTab = 'itinerary' | 'journal' | 'photos';
+export type MainWorkspaceTab = 'itinerary' | 'journal' | 'photos' | 'documents' | 'links';
 
 function newTempId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
