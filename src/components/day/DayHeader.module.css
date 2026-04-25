@@ -161,6 +161,22 @@
   cursor: pointer;
 }
 
+.journalButton {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: var(--border-default);
+  background: var(--color-surface-raised);
+  color: var(--color-blue-800);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+.journalButton:hover {
+  border-color: var(--color-sand-400);
+}
+
 .addButton:hover {
   background: var(--color-primary-hover);
 }

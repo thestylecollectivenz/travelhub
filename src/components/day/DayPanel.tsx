@@ -9,6 +9,7 @@ import styles from './DayPanel.module.css';
 
 export const DayPanel: React.FC = () => {
   const { trip, tripDays, selectedDayId, setEditingCardId, localEntries, convertToHomeCurrency } = useTripWorkspace();
+  const [openJournalSignal, setOpenJournalSignal] = React.useState(0);
 
   const day = React.useMemo(() => {
     if (!trip) return undefined;
@@ -29,10 +30,15 @@ export const DayPanel: React.FC = () => {
 
   return (
     <div className={styles.root}>
-      <DayHeader day={day} dayTotal={dayTotal} onAddEntry={() => setEditingCardId('new')} />
+      <DayHeader
+        day={day}
+        dayTotal={dayTotal}
+        onAddEntry={() => setEditingCardId('new')}
+        onWriteJournal={() => setOpenJournalSignal((n) => n + 1)}
+      />
       <BudgetBreakdownTile tripId={trip.id} dayId={day.id} />
       <ItineraryTimeline dayId={day.id} />
-      <JournalFeed dayId={day.id} />
+      <JournalFeed dayId={day.id} openComposerSignal={openJournalSignal} />
     </div>
   );
 };

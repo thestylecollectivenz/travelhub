@@ -255,7 +255,7 @@
 
 .photoThumb {
   width: 100%;
-  aspect-ratio: 4 / 3;
+  height: 10rem;
   object-fit: cover;
   display: block;
   border-radius: var(--radius-md);
@@ -273,6 +273,7 @@
 
 .photoLikeCell {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   gap: 4px;
   flex-shrink: 0;

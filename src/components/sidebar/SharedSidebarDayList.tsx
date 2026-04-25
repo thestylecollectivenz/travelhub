@@ -23,8 +23,15 @@ export const SharedSidebarDayList: React.FC = () => {
 
   const days = React.useMemo(() => {
     if (!trip) return [];
-    return tripDays.filter((d) => d.tripId === trip.id).sort((a, b) => a.dayNumber - b.dayNumber);
+    return tripDays.filter((d) => d.tripId === trip.id && d.dayType !== 'PreTrip').sort((a, b) => a.dayNumber - b.dayNumber);
   }, [trip, tripDays]);
+
+  React.useEffect(() => {
+    if (!days.length) return;
+    if (!days.some((d) => d.id === selectedDayId)) {
+      setSelectedDayId(days[0].id);
+    }
+  }, [days, selectedDayId, setSelectedDayId]);
 
   return (
     <div className={styles.dayListSection}>

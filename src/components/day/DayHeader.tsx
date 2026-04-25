@@ -10,6 +10,7 @@ export interface DayHeaderProps {
   day: TripDay;
   dayTotal: number;
   onAddEntry: () => void;
+  onWriteJournal?: () => void;
   /** Shared / read-only: no totals, no add, no inline edits. */
   variant?: 'default' | 'shared';
 }
@@ -28,7 +29,7 @@ function dayTypeLabel(dayType: TripDay['dayType']): string {
   }
 }
 
-export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry, variant = 'default' }) => {
+export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry, onWriteJournal, variant = 'default' }) => {
   const { config } = useConfig();
   const { updateDay } = useTripWorkspace();
   const isShared = variant === 'shared';
@@ -131,6 +132,9 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
       {isShared ? null : (
         <div className={styles.right}>
           <span className={styles.totalChip}>{formatCurrency(dayTotal, config.homeCurrency)}</span>
+          <button type="button" className={styles.journalButton} onClick={() => onWriteJournal?.()}>
+            Write journal entry
+          </button>
           <button type="button" className={styles.addButton} onClick={onAddEntry}>
             + Add
           </button>

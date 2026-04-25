@@ -6,12 +6,23 @@ import { DayHeader } from './DayHeader';
 import styles from './DayPanel.module.css';
 
 export const SharedDayPanel: React.FC = () => {
-  const { trip, tripDays, selectedDayId, localEntries } = useTripWorkspace();
+  const { trip, tripDays, selectedDayId, setSelectedDayId, localEntries } = useTripWorkspace();
+
+  const visibleDays = React.useMemo(() => {
+    if (!trip) return [];
+    return tripDays.filter((d) => d.tripId === trip.id && d.dayType !== 'PreTrip').sort((a, b) => a.dayNumber - b.dayNumber);
+  }, [trip, tripDays]);
 
   const day = React.useMemo(() => {
-    if (!trip) return undefined;
-    return tripDays.find((d) => d.tripId === trip.id && d.id === selectedDayId);
-  }, [trip, tripDays, selectedDayId]);
+    return visibleDays.find((d) => d.id === selectedDayId);
+  }, [visibleDays, selectedDayId]);
+
+  React.useEffect(() => {
+    if (!visibleDays.length) return;
+    if (!visibleDays.some((d) => d.id === selectedDayId)) {
+      setSelectedDayId(visibleDays[0].id);
+    }
+  }, [visibleDays, selectedDayId, setSelectedDayId]);
 
   if (!day || !trip) {
     return (

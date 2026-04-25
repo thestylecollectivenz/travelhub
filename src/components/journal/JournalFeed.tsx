@@ -9,9 +9,10 @@ export interface JournalFeedProps {
   dayId: string;
   /** When false, only entry authors see edit/delete (no moderator shortcuts). */
   canModerate?: boolean;
+  openComposerSignal?: number;
 }
 
-export const JournalFeed: React.FC<JournalFeedProps> = ({ dayId, canModerate = true }) => {
+export const JournalFeed: React.FC<JournalFeedProps> = ({ dayId, canModerate = true, openComposerSignal }) => {
   const { entriesByDay, photosForEntry } = useJournal();
   const { tripDays, trip, sharedPreview } = useTripWorkspace();
   const dayMeta = React.useMemo(
@@ -24,6 +25,17 @@ export const JournalFeed: React.FC<JournalFeedProps> = ({ dayId, canModerate = t
     hidePreTripJournal && isPreTripDay ? [] : entriesByDay(dayId);
   const allowJournalWrite = !(hidePreTripJournal && isPreTripDay);
   const [composerOpen, setComposerOpen] = React.useState(false);
+  const composerAnchorRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (!allowJournalWrite) return;
+    if (openComposerSignal === undefined) return;
+    setComposerOpen(true);
+    // Wait for composer mount before scrolling.
+    window.requestAnimationFrame(() => {
+      composerAnchorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, [allowJournalWrite, openComposerSignal]);
 
   return (
     <section className={styles.root} aria-label="Travel journal">
@@ -37,11 +49,13 @@ export const JournalFeed: React.FC<JournalFeedProps> = ({ dayId, canModerate = t
       </div>
 
       {composerOpen && allowJournalWrite ? (
-        <JournalEntryComposer
-          dayId={dayId}
-          onCancel={() => setComposerOpen(false)}
-          onSaved={() => setComposerOpen(false)}
-        />
+        <div ref={composerAnchorRef}>
+          <JournalEntryComposer
+            dayId={dayId}
+            onCancel={() => setComposerOpen(false)}
+            onSaved={() => setComposerOpen(false)}
+          />
+        </div>
       ) : null}
 
       {entries.length === 0 && !composerOpen ? (
