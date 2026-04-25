@@ -1,0 +1,117 @@
+.root {
+  padding: var(--space-5) var(--space-6);
+  display: grid;
+  gap: var(--space-4);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  color: var(--color-blue-900);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.input,
+.select {
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  font-size: var(--font-size-sm);
+}
+
+.button {
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-blue-800);
+  cursor: pointer;
+}
+
+.buttonPrimary {
+  border: none;
+  background: var(--color-primary);
+  color: var(--color-surface-raised);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.row {
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.line1 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.line2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.linkTitle {
+  color: var(--color-blue-800);
+  text-decoration: none;
+  font-weight: var(--font-weight-medium);
+}
+
+.url {
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-600);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 36rem;
+}
+
+.badge {
+  border: var(--border-default);
+  border-radius: var(--radius-full);
+  padding: 1px var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-700);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.empty {
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-sand-600);
+  font-size: var(--font-size-sm);
+  padding: var(--space-4);
+}
+
