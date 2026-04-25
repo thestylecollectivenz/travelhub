@@ -61,7 +61,9 @@ function JournalPhotoSlot({
           loading="lazy"
           onClick={() => onOpenLightbox(photo.fileUrl)}
         />
-        <div className={styles.photoHeartWrap}>
+      </figure>
+      <div className={styles.photoFooter}>
+        <div className={styles.photoLikeCell}>
           <button
             type="button"
             className={styles.photoHeartBtn}
@@ -89,51 +91,53 @@ function JournalPhotoSlot({
           </button>
           {photo.likeCount > 0 ? <span className={styles.photoLikeCount}>{photo.likeCount}</span> : null}
         </div>
-      </figure>
-      <div className={styles.photoCaptionRow}>
-        {editingCap ? (
-          <>
-            <input
-              className={styles.photoCaptionInput}
-              value={capDraft}
-              onChange={(e) => setCapDraft(e.target.value)}
-              aria-label="Caption"
-            />
-            <button
-              type="button"
-              className={styles.iconButton}
-              onClick={() => {
-                updatePhotoCaption(photo.id, capDraft.trim())
-                  .then(() => setEditingCap(false))
-                  .catch(console.error);
-              }}
-            >
-              Save
-            </button>
-            <button
-              type="button"
-              className={styles.iconButton}
-              onClick={() => {
-                setCapDraft(photo.caption);
-                setEditingCap(false);
-              }}
-            >
-              Cancel
-            </button>
-          </>
-        ) : (
-          <>
-            <span className={styles.photoCaption}>{photo.caption?.trim() || '\u00a0'}</span>
-            <button
-              type="button"
-              className={`${styles.iconButton} ${styles.photoCaptionEdit}`}
-              aria-label="Edit caption"
-              onClick={() => setEditingCap(true)}
-            >
-              ✎
-            </button>
-          </>
-        )}
+        <div className={styles.photoCaptionCell}>
+          {editingCap ? (
+            <>
+              <input
+                className={styles.photoCaptionInput}
+                value={capDraft}
+                onChange={(e) => setCapDraft(e.target.value)}
+                aria-label="Caption"
+              />
+              <div className={styles.photoCaptionEditActions}>
+                <button
+                  type="button"
+                  className={styles.iconButton}
+                  onClick={() => {
+                    updatePhotoCaption(photo.id, capDraft.trim())
+                      .then(() => setEditingCap(false))
+                      .catch(console.error);
+                  }}
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  className={styles.iconButton}
+                  onClick={() => {
+                    setCapDraft(photo.caption);
+                    setEditingCap(false);
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className={styles.photoCaptionView}>
+              <span className={styles.photoCaption}>{photo.caption?.trim() || '\u00a0'}</span>
+              <button
+                type="button"
+                className={`${styles.iconButton} ${styles.photoCaptionEdit}`}
+                aria-label="Edit caption"
+                onClick={() => setEditingCap(true)}
+              >
+                ✎
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

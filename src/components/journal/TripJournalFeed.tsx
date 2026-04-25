@@ -9,18 +9,32 @@ type SortOrder = 'newest' | 'oldest';
 
 export const TripJournalFeed: React.FC = () => {
   const { allEntries, photosForEntry } = useJournal();
-  const { trip, tripDays } = useTripWorkspace();
+  const { trip, tripDays, sharedPreview } = useTripWorkspace();
   const [sortOrder, setSortOrder] = React.useState<SortOrder>('newest');
 
+  const hidePreTripJournal = sharedPreview;
+
+  const preTripDayIds = React.useMemo(() => {
+    if (!trip) return new Set<string>();
+    return new Set(
+      tripDays.filter((d) => d.tripId === trip.id && d.dayType === 'PreTrip').map((d) => d.id)
+    );
+  }, [trip, tripDays]);
+
+  const entriesForFeed = React.useMemo(() => {
+    if (!hidePreTripJournal) return allEntries;
+    return allEntries.filter((e) => !preTripDayIds.has(e.dayId));
+  }, [allEntries, hidePreTripJournal, preTripDayIds]);
+
   const sorted = React.useMemo(() => {
-    const list = [...allEntries];
+    const list = [...entriesForFeed];
     list.sort((a, b) =>
       sortOrder === 'newest'
         ? b.entryTimestamp.localeCompare(a.entryTimestamp)
         : a.entryTimestamp.localeCompare(b.entryTimestamp)
     );
     return list;
-  }, [allEntries, sortOrder]);
+  }, [entriesForFeed, sortOrder]);
 
   const dayHeading = React.useCallback(
     (dayId: string): string => {
@@ -31,18 +45,23 @@ export const TripJournalFeed: React.FC = () => {
     [trip, tripDays]
   );
 
+  /** One section per calendar day: bucket entries by dayId, order sections by trip day number. */
   const groupedByDay = React.useMemo(() => {
-    const order: string[] = [];
     const map = new Map<string, JournalEntry[]>();
     for (const e of sorted) {
-      if (!map.has(e.dayId)) {
-        map.set(e.dayId, []);
-        order.push(e.dayId);
-      }
+      if (!map.has(e.dayId)) map.set(e.dayId, []);
       map.get(e.dayId)!.push(e);
     }
-    return { order, map };
-  }, [sorted]);
+    const sectionOrder =
+      trip && tripDays.length
+        ? [...tripDays]
+            .filter((d) => d.tripId === trip.id)
+            .sort((a, b) => a.dayNumber - b.dayNumber)
+            .map((d) => d.id)
+            .filter((id) => (map.get(id) ?? []).length > 0)
+        : Array.from(map.keys());
+    return { order: sectionOrder, map };
+  }, [sorted, trip, tripDays]);
 
   return (
     <section className={styles.root} aria-label="Trip journal">
@@ -79,7 +98,7 @@ export const TripJournalFeed: React.FC = () => {
               <div className={styles.dayEntries}>
                 {(groupedByDay.map.get(dayId) ?? []).map((e) => (
                   <div key={e.id} className={styles.block}>
-                    <JournalEntryCard entry={e} photos={photosForEntry(e.id)} />
+                    <JournalEntryCard entry={e} photos={photosForEntry(e.id)} canModerate={!sharedPreview} />
                   </div>
                 ))}
               </div>

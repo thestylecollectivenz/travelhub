@@ -221,7 +221,6 @@
 }
 
 .figure {
-  position: relative;
   margin: 0;
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -245,11 +244,38 @@
   vertical-align: middle;
 }
 
-.captionRow {
+.photoFooter {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.likeCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 2px 0;
+}
+
+.captionCell {
+  flex: 1;
+  min-width: 0;
+}
+
+.captionView {
   display: flex;
   align-items: center;
   gap: var(--space-1);
   min-height: 1.25rem;
+}
+
+.captionEditRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
 }
 
 .caption {
@@ -260,7 +286,8 @@
 }
 
 .captionInput {
-  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
   font-size: var(--font-size-xs);
   padding: var(--space-1) var(--space-2);
   border: var(--border-default);
@@ -294,19 +321,6 @@
   font-size: var(--font-size-xs);
   color: var(--color-blue-800);
   cursor: pointer;
-}
-
-.heartWrap {
-  position: absolute;
-  right: var(--space-2);
-  bottom: var(--space-2);
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-surface-raised) 88%, transparent);
-  border: var(--border-default);
 }
 
 .heartBtn {

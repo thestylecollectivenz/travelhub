@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useJournal } from '../../context/JournalContext';
+import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { JournalEntryCard } from './JournalEntryCard';
 import { JournalEntryComposer } from './JournalEntryComposer';
 import styles from './JournalFeed.module.css';
@@ -12,19 +13,30 @@ export interface JournalFeedProps {
 
 export const JournalFeed: React.FC<JournalFeedProps> = ({ dayId, canModerate = true }) => {
   const { entriesByDay, photosForEntry } = useJournal();
-  const entries = entriesByDay(dayId);
+  const { tripDays, trip, sharedPreview } = useTripWorkspace();
+  const dayMeta = React.useMemo(
+    () => tripDays.find((d) => d.id === dayId && trip && d.tripId === trip.id),
+    [tripDays, dayId, trip]
+  );
+  const hidePreTripJournal = sharedPreview || !canModerate;
+  const isPreTripDay = dayMeta?.dayType === 'PreTrip';
+  const entries =
+    hidePreTripJournal && isPreTripDay ? [] : entriesByDay(dayId);
+  const allowJournalWrite = !(hidePreTripJournal && isPreTripDay);
   const [composerOpen, setComposerOpen] = React.useState(false);
 
   return (
     <section className={styles.root} aria-label="Travel journal">
       <div className={styles.headerRow}>
         <h2 className={styles.title}>Journal</h2>
-        <button type="button" className={styles.writeButton} onClick={() => setComposerOpen(true)}>
-          Write an entry
-        </button>
+        {allowJournalWrite ? (
+          <button type="button" className={styles.writeButton} onClick={() => setComposerOpen(true)}>
+            Write an entry
+          </button>
+        ) : null}
       </div>
 
-      {composerOpen ? (
+      {composerOpen && allowJournalWrite ? (
         <JournalEntryComposer
           dayId={dayId}
           onCancel={() => setComposerOpen(false)}

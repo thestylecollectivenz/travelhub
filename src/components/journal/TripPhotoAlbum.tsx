@@ -37,7 +37,9 @@ function AlbumPhotoCell({
         <button type="button" className={styles.thumbBtn} onClick={() => onOpenLightbox(photo.fileUrl)} aria-label="View full size">
           <img src={photo.fileUrl} alt="" className={styles.thumb} loading="lazy" />
         </button>
-        <div className={styles.heartWrap}>
+      </figure>
+      <div className={styles.photoFooter}>
+        <div className={styles.likeCell}>
           <button
             type="button"
             className={styles.heartBtn}
@@ -65,51 +67,53 @@ function AlbumPhotoCell({
           </button>
           {photo.likeCount > 0 ? <span className={styles.likeCount}>{photo.likeCount}</span> : null}
         </div>
-      </figure>
-      <div className={styles.captionRow}>
-        {editingCap ? (
-          <>
-            <input
-              className={styles.captionInput}
-              value={capDraft}
-              onChange={(e) => setCapDraft(e.target.value)}
-              aria-label="Caption"
-            />
-            <button
-              type="button"
-              className={styles.captionActionBtn}
-              onClick={() => {
-                updatePhotoCaption(photo.id, capDraft.trim())
-                  .then(() => setEditingCap(false))
-                  .catch(console.error);
-              }}
-            >
-              Save
-            </button>
-            <button
-              type="button"
-              className={styles.captionActionBtn}
-              onClick={() => {
-                setCapDraft(photo.caption);
-                setEditingCap(false);
-              }}
-            >
-              Cancel
-            </button>
-          </>
-        ) : (
-          <>
-            <span className={styles.caption}>{photo.caption?.trim() || '\u00a0'}</span>
-            <button
-              type="button"
-              className={`${styles.captionEditBtn} ${styles.captionEditIcon}`}
-              aria-label="Edit caption"
-              onClick={() => setEditingCap(true)}
-            >
-              ✎
-            </button>
-          </>
-        )}
+        <div className={styles.captionCell}>
+          {editingCap ? (
+            <>
+              <input
+                className={styles.captionInput}
+                value={capDraft}
+                onChange={(e) => setCapDraft(e.target.value)}
+                aria-label="Caption"
+              />
+              <div className={styles.captionEditRow}>
+                <button
+                  type="button"
+                  className={styles.captionActionBtn}
+                  onClick={() => {
+                    updatePhotoCaption(photo.id, capDraft.trim())
+                      .then(() => setEditingCap(false))
+                      .catch(console.error);
+                  }}
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  className={styles.captionActionBtn}
+                  onClick={() => {
+                    setCapDraft(photo.caption);
+                    setEditingCap(false);
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className={styles.captionView}>
+              <span className={styles.caption}>{photo.caption?.trim() || '\u00a0'}</span>
+              <button
+                type="button"
+                className={`${styles.captionEditBtn} ${styles.captionEditIcon}`}
+                aria-label="Edit caption"
+                onClick={() => setEditingCap(true)}
+              >
+                ✎
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
