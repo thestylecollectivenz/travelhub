@@ -2,6 +2,8 @@ import * as React from 'react';
 import type { ItineraryEntry, ItinerarySubItem } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
+import { useAttachments } from '../../context/AttachmentsContext';
+import type { EntryDocumentType, EntryLinkType } from '../../models';
 import { CategoryIcon } from '../shared/CategoryIcon';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { formatCurrency } from '../../utils/financialUtils';
@@ -50,14 +52,85 @@ function PinIcon(): React.ReactElement {
   );
 }
 
+function LinkIcon(): React.ReactElement {
+  return (
+    <svg width={14} height={14} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path d="M6 10l4-4M5 5h2M9 11h2M3.5 8a2.5 2.5 0 0 1 2.5-2.5M12.5 8A2.5 2.5 0 0 1 10 10.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function DocumentTypeIcon({ type }: { type: EntryDocumentType }): React.ReactElement {
+  if (type === 'PDF') {
+    return (
+      <svg width={14} height={14} viewBox="0 0 16 16" fill="none" aria-hidden>
+        <path d="M4 1.5h5l3 3V14.5H4V1.5Z" stroke="currentColor" strokeWidth="1.2" />
+        <path d="M9 1.5V5h3" stroke="currentColor" strokeWidth="1.2" />
+        <text x="5" y="11.5" fontSize="4" fill="currentColor">PDF</text>
+      </svg>
+    );
+  }
+  if (type === 'Image') {
+    return (
+      <svg width={14} height={14} viewBox="0 0 16 16" fill="none" aria-hidden>
+        <rect x="2" y="2.5" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+        <circle cx="6" cy="6" r="1.1" fill="currentColor" />
+        <path d="M3.8 11l2.4-2.4 2.2 1.8 2.1-2.3L12.2 11" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === 'Ticket') {
+    return (
+      <svg width={14} height={14} viewBox="0 0 16 16" fill="none" aria-hidden>
+        <path d="M2 5.2h12v2a1.4 1.4 0 0 0 0 2.8v2H2v-2a1.4 1.4 0 1 0 0-2.8v-2Z" stroke="currentColor" strokeWidth="1.2" />
+        <path d="M8 5.2v6.8" stroke="currentColor" strokeWidth="1.1" strokeDasharray="1.2 1.2" />
+      </svg>
+    );
+  }
+  if (type === 'Confirmation') {
+    return (
+      <svg width={14} height={14} viewBox="0 0 16 16" fill="none" aria-hidden>
+        <rect x="2" y="3" width="12" height="10" rx="1.6" stroke="currentColor" strokeWidth="1.2" />
+        <path d="M2.5 5.2l5.5 3.8 5.5-3.8" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+        <path d="M6.3 10.6l1.1 1.1 2.3-2.2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg width={14} height={14} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path d="M4 1.5h5l3 3V14.5H4V1.5Z" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M9 1.5V5h3" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  );
+}
+
 export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onEdit, onDuplicate, onDelete }) => {
   const { addSubItem, convertToHomeCurrency } = useTripWorkspace();
   const { config } = useConfig();
+  const { docsForEntry, linksForEntry, addDocument, deleteDocument, addLink, deleteLink } = useAttachments();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [notesOpen, setNotesOpen] = React.useState(false);
+  const [attachmentsOpen, setAttachmentsOpen] = React.useState(false);
   const [subItemsOpen, setSubItemsOpen] = React.useState(false);
   const [addingSubItem, setAddingSubItem] = React.useState(false);
   const [newSub, setNewSub] = React.useState<ItinerarySubItem>(emptySubItem);
+  const [docType, setDocType] = React.useState<EntryDocumentType>('Other');
+  const [docNotes, setDocNotes] = React.useState('');
+  const [docBusy, setDocBusy] = React.useState(false);
+  const [linkOpen, setLinkOpen] = React.useState(false);
+  const [linkBusy, setLinkBusy] = React.useState(false);
+  const [linkDraft, setLinkDraft] = React.useState<{
+    linkTitle: string;
+    url: string;
+    linkType: EntryLinkType;
+    notes: string;
+  }>({
+    linkTitle: '',
+    url: '',
+    linkType: 'Url',
+    notes: ''
+  });
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -141,6 +214,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
   const subOwing = subTotal - subPaid;
   const hasSubTotal = subTotal > 0;
   const showSubItemContent = hasSubItems || addingSubItem;
+  const docs = docsForEntry(entry.id);
+  const links = linksForEntry(entry.id);
 
   const handleStartAddSubItem = React.useCallback(() => {
     setSubItemsOpen(true);
@@ -161,6 +236,29 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
     setAddingSubItem(false);
     setSubItemsOpen(true);
   }, [addSubItem, entry.id, newSub]);
+
+  const handleDocumentPick = React.useCallback(
+    async (ev: React.ChangeEvent<HTMLInputElement>) => {
+      const inputEl = ev.currentTarget;
+      const file = ev.target.files?.[0];
+      if (!file) return;
+      setDocBusy(true);
+      try {
+        await addDocument({
+          file,
+          dayId: entry.dayId,
+          entryId: entry.id,
+          documentType: docType,
+          notes: docNotes.trim()
+        });
+        setDocNotes('');
+      } finally {
+        setDocBusy(false);
+        inputEl.value = '';
+      }
+    },
+    [addDocument, docNotes, docType, entry.dayId, entry.id]
+  );
 
   return (
     <div>
@@ -284,6 +382,139 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
           </button>
           {notesOpen ? <div className={styles.notesBody}>{entry.notes}</div> : null}
         </>
+      ) : null}
+
+      <button type="button" className={styles.relatedToggle} onClick={() => setAttachmentsOpen((o) => !o)}>
+        {attachmentsOpen
+          ? 'Hide attachments ▴'
+          : `${docs.length} document${docs.length === 1 ? '' : 's'} · ${links.length} link${links.length === 1 ? '' : 's'} ▾`}
+      </button>
+      {attachmentsOpen ? (
+        <div className={styles.attachmentsPanel}>
+          <div className={styles.attachmentsSummary}>
+            {docs.length} document{docs.length === 1 ? '' : 's'} · {links.length} link{links.length === 1 ? '' : 's'}
+          </div>
+          <div className={styles.attachmentsActions}>
+            <select className={styles.newSubField} value={docType} onChange={(e) => setDocType(e.target.value as EntryDocumentType)}>
+              <option value="Ticket">Ticket</option>
+              <option value="Confirmation">Confirmation</option>
+              <option value="Image">Image</option>
+              <option value="PDF">PDF</option>
+              <option value="Other">Other</option>
+            </select>
+            <input
+              className={styles.newSubField}
+              value={docNotes}
+              onChange={(e) => setDocNotes(e.target.value)}
+              placeholder="Document notes (optional)"
+            />
+            <button type="button" className={styles.newSubActionBtn} disabled={docBusy} onClick={() => fileInputRef.current?.click()}>
+              {docBusy ? 'Uploading…' : 'Add document'}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                handleDocumentPick(e).catch(console.error);
+              }}
+            />
+            <button type="button" className={styles.newSubActionBtn} onClick={() => setLinkOpen((v) => !v)}>
+              {linkOpen ? 'Close link form' : 'Add link'}
+            </button>
+          </div>
+          {linkOpen ? (
+            <div className={styles.newSubItemForm}>
+              <input
+                className={styles.newSubField}
+                placeholder="Title"
+                value={linkDraft.linkTitle}
+                onChange={(e) => setLinkDraft((prev) => ({ ...prev, linkTitle: e.target.value }))}
+              />
+              <input
+                className={styles.newSubField}
+                placeholder="URL"
+                value={linkDraft.url}
+                onChange={(e) => setLinkDraft((prev) => ({ ...prev, url: e.target.value }))}
+              />
+              <div className={styles.newSubRow}>
+                <select
+                  className={styles.newSubField}
+                  value={linkDraft.linkType}
+                  onChange={(e) => setLinkDraft((prev) => ({ ...prev, linkType: e.target.value as EntryLinkType }))}
+                >
+                  <option value="Url">Url</option>
+                  <option value="Supplier">Supplier</option>
+                  <option value="Booking">Booking</option>
+                  <option value="Email">Email</option>
+                  <option value="Other">Other</option>
+                </select>
+                <input
+                  className={styles.newSubField}
+                  placeholder="Notes (optional)"
+                  value={linkDraft.notes}
+                  onChange={(e) => setLinkDraft((prev) => ({ ...prev, notes: e.target.value }))}
+                />
+              </div>
+              <div className={styles.newSubActions}>
+                <button
+                  type="button"
+                  className={styles.newSubActionBtn}
+                  disabled={linkBusy || linkDraft.linkTitle.trim() === '' || linkDraft.url.trim() === ''}
+                  onClick={() => {
+                    setLinkBusy(true);
+                    addLink({
+                      dayId: entry.dayId,
+                      entryId: entry.id,
+                      linkTitle: linkDraft.linkTitle.trim(),
+                      url: linkDraft.url.trim(),
+                      linkType: linkDraft.linkType,
+                      notes: linkDraft.notes.trim()
+                    })
+                      .then(() => {
+                        setLinkDraft({ linkTitle: '', url: '', linkType: 'Url', notes: '' });
+                        setLinkOpen(false);
+                        setLinkBusy(false);
+                      })
+                      .catch((err) => {
+                        setLinkBusy(false);
+                        // eslint-disable-next-line no-console
+                        console.error(err);
+                      });
+                  }}
+                >
+                  {linkBusy ? 'Saving…' : 'Save link'}
+                </button>
+              </div>
+            </div>
+          ) : null}
+          <div className={styles.attachmentsList}>
+            {docs.map((doc) => (
+              <div key={doc.id} className={styles.attachmentRow}>
+                <span className={styles.attachmentIcon}><DocumentTypeIcon type={doc.documentType} /></span>
+                <a className={styles.attachmentTitle} href={doc.fileUrl} target="_blank" rel="noreferrer">
+                  {doc.fileName || doc.title}
+                </a>
+                <span className={styles.attachmentType}>{doc.documentType}</span>
+                <button type="button" className={styles.newSubActionBtn} onClick={() => deleteDocument(doc.id).catch(console.error)}>
+                  Delete
+                </button>
+              </div>
+            ))}
+            {links.map((link) => (
+              <div key={link.id} className={styles.attachmentRow}>
+                <span className={styles.attachmentIcon}><LinkIcon /></span>
+                <a className={styles.attachmentTitle} href={link.url} target="_blank" rel="noreferrer">
+                  {link.linkTitle}
+                </a>
+                <span className={styles.attachmentType}>{link.linkType}</span>
+                <button type="button" className={styles.newSubActionBtn} onClick={() => deleteLink(link.id).catch(console.error)}>
+                  Delete
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       ) : null}
 
       <button type="button" className={styles.addSubItemBtn} onClick={handleStartAddSubItem}>
