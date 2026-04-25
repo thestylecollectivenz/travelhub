@@ -29,6 +29,8 @@ const SELECT = [
   'Amount',
   'AmountPaid',
   'Currency',
+  'DateStart',
+  'DateEnd',
   'UnitType',
   'UnitAmount',
   'SortOrder',
@@ -74,6 +76,42 @@ function serializeTime(time: string | undefined): string | null {
   return null;
 }
 
+function parseDate(isoOrDate: string | null | undefined): string | undefined {
+  if (!isoOrDate) return undefined;
+  const s = String(isoOrDate).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  try {
+    const d = new Date(s);
+    if (Number.isNaN(d.getTime())) return undefined;
+    const yyyy = d.getUTCFullYear();
+    const mm = pad2(d.getUTCMonth() + 1);
+    const dd = pad2(d.getUTCDate());
+    return `${yyyy}-${mm}-${dd}`;
+  } catch {
+    return undefined;
+  }
+}
+
+function serializeDate(date: string | undefined): string | null {
+  if (!date) return null;
+  const s = date.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    return `${s}T00:00:00.000Z`;
+  }
+  try {
+    const d = new Date(s);
+    if (!Number.isNaN(d.getTime())) {
+      const yyyy = d.getUTCFullYear();
+      const mm = pad2(d.getUTCMonth() + 1);
+      const dd = pad2(d.getUTCDate());
+      return `${yyyy}-${mm}-${dd}T00:00:00.000Z`;
+    }
+  } catch {
+    /* fall through */
+  }
+  return null;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapToEntry(item: any): ItineraryEntry {
   return {
@@ -94,6 +132,8 @@ function mapToEntry(item: any): ItineraryEntry {
     amount: item.Amount ?? 0,
     amountPaid: item.AmountPaid ?? undefined,
     currency: item.Currency ?? 'NZD',
+    dateStart: parseDate(item.DateStart),
+    dateEnd: parseDate(item.DateEnd),
     unitType: item.UnitType ? (item.UnitType as ItineraryUnitType) : undefined,
     unitAmount: item.UnitAmount ?? undefined,
     sortOrder: item.SortOrder ?? 0,
@@ -137,6 +177,8 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   if (entry.amount !== undefined) item.Amount = entry.amount;
   if (entry.amountPaid !== undefined) item.AmountPaid = entry.amountPaid;
   if (entry.currency !== undefined) item.Currency = entry.currency;
+  if (entry.dateStart !== undefined) item.DateStart = serializeDate(entry.dateStart);
+  if (entry.dateEnd !== undefined) item.DateEnd = serializeDate(entry.dateEnd);
   if (entry.unitType !== undefined) item.UnitType = entry.unitType;
   if (entry.unitAmount !== undefined) item.UnitAmount = entry.unitAmount;
   if (entry.sortOrder !== undefined) item.SortOrder = entry.sortOrder;

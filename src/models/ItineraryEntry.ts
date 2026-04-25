@@ -37,6 +37,10 @@ export interface ItineraryEntry {
   amount: number;
   amountPaid?: number;
   currency: string;
+  /** Check-in/start date in YYYY-MM-DD form (persisted as ISO date in SharePoint). */
+  dateStart?: string;
+  /** Check-out/end date in YYYY-MM-DD form (persisted as ISO date in SharePoint). */
+  dateEnd?: string;
   unitType?: ItineraryUnitType;
   unitAmount?: number;
   sortOrder: number;

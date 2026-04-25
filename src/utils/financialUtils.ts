@@ -5,6 +5,30 @@ function entryAmount(entry: ItineraryEntry): number {
   return typeof n === 'number' && !Number.isNaN(n) ? n : 0;
 }
 
+function nightsForAccommodation(entry: ItineraryEntry): number {
+  if (entry.category !== 'Accommodation' || !entry.dateStart || !entry.dateEnd) return 0;
+  const start = new Date(`${entry.dateStart}T00:00:00.000Z`);
+  const end = new Date(`${entry.dateEnd}T00:00:00.000Z`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+  const diff = Math.floor((end.getTime() - start.getTime()) / 86400000);
+  return diff > 0 ? diff : 0;
+}
+
+function isAccommodationOnDate(entry: ItineraryEntry, dayCalendarDate?: string): boolean {
+  if (!dayCalendarDate) return false;
+  if (entry.category !== 'Accommodation' || !entry.dateStart || !entry.dateEnd) return false;
+  const day = new Date(`${dayCalendarDate}T00:00:00.000Z`);
+  const start = new Date(`${entry.dateStart}T00:00:00.000Z`);
+  const end = new Date(`${entry.dateEnd}T00:00:00.000Z`);
+  if (Number.isNaN(day.getTime()) || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
+  return day.getTime() >= start.getTime() && day.getTime() < end.getTime();
+}
+
+function appliesToDay(entry: ItineraryEntry, dayId: string, dayCalendarDate?: string): boolean {
+  if (entry.dayId === dayId) return true;
+  return isAccommodationOnDate(entry, dayCalendarDate);
+}
+
 interface FinancialLine {
   amount: number;
   amountPaid?: number;
@@ -19,21 +43,30 @@ const identityConverter: CurrencyConverter = (amount) => amount;
 
 function getFinancialLines(
   entries: ItineraryEntry[],
-  converter: CurrencyConverter = identityConverter
+  converter: CurrencyConverter = identityConverter,
+  dayId?: string,
+  dayCalendarDate?: string
 ): FinancialLine[] {
   const lines: FinancialLine[] = [];
   for (const entry of entries) {
+    if (dayId && !appliesToDay(entry, dayId, dayCalendarDate)) {
+      continue;
+    }
     const currency = entry.currency || 'NZD';
-    const amount = converter(entryAmount(entry), currency);
+    const fullAmount = entryAmount(entry);
+    const nights = nightsForAccommodation(entry);
+    const splitAmount = dayId && nights > 0 ? fullAmount / nights : fullAmount;
+    const amount = converter(splitAmount, currency);
     const amountPaid = entry.amountPaid !== undefined
-      ? converter(entry.amountPaid, currency)
+      ? converter(dayId && nights > 0 ? entry.amountPaid / nights : entry.amountPaid, currency)
       : undefined;
+    const lineDayId = dayId ?? entry.dayId;
     lines.push({
       amount,
       amountPaid,
       paymentStatus: entry.paymentStatus,
       category: entry.category,
-      dayId: entry.dayId
+      dayId: lineDayId
     });
     const subItems = entry.subItems ?? [];
     for (const sub of subItems) {
@@ -49,7 +82,7 @@ function getFinancialLines(
         amountPaid: subAmountPaid,
         paymentStatus: sub.paymentStatus,
         category: entry.category,
-        dayId: entry.dayId
+        dayId: lineDayId
       });
     }
   }
@@ -158,9 +191,10 @@ export function sumByCategory(
 export function sumForDay(
   entries: ItineraryEntry[],
   dayId: string,
-  converter: CurrencyConverter = identityConverter
+  converter: CurrencyConverter = identityConverter,
+  dayCalendarDate?: string
 ): number {
-  const lines = getFinancialLines(entries, converter);
+  const lines = getFinancialLines(entries, converter, dayId, dayCalendarDate);
   return lines.reduce((sum, line) => {
     if (line.dayId !== dayId) {
       return sum;
@@ -177,9 +211,10 @@ function bucketCategory(category: string): BudgetCategoryKey {
 export function sumForDayByCategory(
   entries: ItineraryEntry[],
   dayId: string,
-  converter: CurrencyConverter = identityConverter
+  converter: CurrencyConverter = identityConverter,
+  dayCalendarDate?: string
 ): Record<string, number> {
-  const lines = getFinancialLines(entries, converter);
+  const lines = getFinancialLines(entries, converter, dayId, dayCalendarDate);
   const result: Record<string, number> = {};
   for (const key of BUDGET_CATEGORY_ORDER) {
     result[key] = 0;
@@ -208,9 +243,10 @@ export function getPaymentSummaryForDayCategory(
   entries: ItineraryEntry[],
   dayId: string,
   category: string,
-  converter: CurrencyConverter = identityConverter
+  converter: CurrencyConverter = identityConverter,
+  dayCalendarDate?: string
 ): DayCategoryPaymentSummary {
-  const lines = getFinancialLines(entries, converter);
+  const lines = getFinancialLines(entries, converter, dayId, dayCalendarDate);
   const bucket = bucketCategory(category);
   let paid = 0;
   let unpaid = 0;

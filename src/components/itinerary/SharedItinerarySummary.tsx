@@ -6,10 +6,27 @@ import styles from './SharedItinerarySummary.module.css';
 export interface SharedItinerarySummaryProps {
   entries: ItineraryEntry[];
   dayId: string;
+  calendarDate: string;
 }
 
-function sortEntriesForDay(entries: ItineraryEntry[], dayId: string): ItineraryEntry[] {
-  const forDay = entries.filter((e) => e.dayId === dayId && !e.parentEntryId);
+function isAccommodationOnDate(entry: ItineraryEntry, calendarDate: string): boolean {
+  if (entry.category !== 'Accommodation' || !entry.dateStart || !entry.dateEnd || !calendarDate) return false;
+  const day = new Date(`${calendarDate}T00:00:00.000Z`);
+  const start = new Date(`${entry.dateStart}T00:00:00.000Z`);
+  const end = new Date(`${entry.dateEnd}T00:00:00.000Z`);
+  if (Number.isNaN(day.getTime()) || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
+  return day.getTime() >= start.getTime() && day.getTime() < end.getTime();
+}
+
+function sortEntriesForDay(entries: ItineraryEntry[], dayId: string, calendarDate: string): ItineraryEntry[] {
+  const map = new Map<string, ItineraryEntry>();
+  for (const e of entries) {
+    if (e.parentEntryId) continue;
+    if (e.dayId === dayId || isAccommodationOnDate(e, calendarDate)) {
+      map.set(e.id, e);
+    }
+  }
+  const forDay = Array.from(map.values());
   return [...forDay].sort((a, b) => {
     const aMin = minutesFromTimeStart(a.timeStart);
     const bMin = minutesFromTimeStart(b.timeStart);
@@ -20,8 +37,8 @@ function sortEntriesForDay(entries: ItineraryEntry[], dayId: string): ItineraryE
   });
 }
 
-export const SharedItinerarySummary: React.FC<SharedItinerarySummaryProps> = ({ entries, dayId }) => {
-  const sorted = React.useMemo(() => sortEntriesForDay(entries, dayId), [entries, dayId]);
+export const SharedItinerarySummary: React.FC<SharedItinerarySummaryProps> = ({ entries, dayId, calendarDate }) => {
+  const sorted = React.useMemo(() => sortEntriesForDay(entries, dayId, calendarDate), [entries, dayId, calendarDate]);
 
   if (sorted.length === 0) {
     return (

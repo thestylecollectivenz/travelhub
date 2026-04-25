@@ -18,7 +18,7 @@ export interface BudgetBreakdownTileProps {
 }
 
 export const BudgetBreakdownTile: React.FC<BudgetBreakdownTileProps> = ({ tripId, dayId }) => {
-  const { localEntries, convertToHomeCurrency } = useTripWorkspace();
+  const { localEntries, convertToHomeCurrency, tripDays, trip } = useTripWorkspace();
   const { config } = useConfig();
 
   const entries = React.useMemo(
@@ -26,20 +26,26 @@ export const BudgetBreakdownTile: React.FC<BudgetBreakdownTileProps> = ({ tripId
     [localEntries, tripId]
   );
 
-  const dayEntries = React.useMemo(() => entries.filter((e) => e.dayId === dayId), [entries, dayId]);
+  const dayCalendarDate = React.useMemo(() => {
+    if (!trip) return '';
+    return tripDays.find((d) => d.tripId === trip.id && d.id === dayId)?.calendarDate ?? '';
+  }, [trip, tripDays, dayId]);
 
-  const sumsByCategory = React.useMemo(() => sumForDayByCategory(entries, dayId, convertToHomeCurrency), [entries, dayId, convertToHomeCurrency]);
+  const sumsByCategory = React.useMemo(
+    () => sumForDayByCategory(entries, dayId, convertToHomeCurrency, dayCalendarDate),
+    [entries, dayId, convertToHomeCurrency, dayCalendarDate]
+  );
 
   const categoriesToShow = React.useMemo(() => {
     return BUDGET_CATEGORY_ORDER.filter((key) => {
-      const s = getPaymentSummaryForDayCategory(entries, dayId, key, convertToHomeCurrency);
+      const s = getPaymentSummaryForDayCategory(entries, dayId, key, convertToHomeCurrency, dayCalendarDate);
       return s.itemCount > 0;
     });
-  }, [entries, dayId, convertToHomeCurrency]);
+  }, [entries, dayId, convertToHomeCurrency, dayCalendarDate]);
 
-  const dayTotalAll = sumForDay(entries, dayId, convertToHomeCurrency);
+  const dayTotalAll = sumForDay(entries, dayId, convertToHomeCurrency, dayCalendarDate);
 
-  if (dayEntries.length === 0) {
+  if (categoriesToShow.length === 0) {
     return (
       <section className={styles.tile} aria-label="Day budget breakdown">
         <div className={styles.empty}>No items for this day yet</div>
@@ -54,7 +60,7 @@ export const BudgetBreakdownTile: React.FC<BudgetBreakdownTileProps> = ({ tripId
         <span className={styles.tileTotal}>{formatCurrency(dayTotalAll, config.homeCurrency)}</span>
       </div>
       {categoriesToShow.map((category) => {
-        const summary = getPaymentSummaryForDayCategory(entries, dayId, category, convertToHomeCurrency);
+        const summary = getPaymentSummaryForDayCategory(entries, dayId, category, convertToHomeCurrency, dayCalendarDate);
         const pct =
           summary.total > 0 ? Math.min(100, Math.max(0, (summary.paid / summary.total) * 100)) : 0;
         const countLabel = summary.itemCount === 1 ? '1 item' : `${summary.itemCount} items`;

@@ -255,7 +255,16 @@ export const TripDocumentsView: React.FC = () => {
               ) : (
                 <>
                   <span aria-hidden><DocumentTypeIcon type={d.documentType} /></span>
-                  <a className={styles.name} href={d.fileUrl} target="_blank" rel="noopener noreferrer">
+                  <a
+                    className={styles.name}
+                    href={d.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(ev) => {
+                      ev.preventDefault();
+                      window.open(d.fileUrl, '_blank', 'noopener,noreferrer');
+                    }}
+                  >
                     {d.fileName || d.title}
                   </a>
                   <span className={styles.badge}>{d.documentType}</span>

@@ -11,9 +11,24 @@ export interface ItineraryTimelineProps {
   dayId: string;
 }
 
-function sortEntriesForDay(entries: ItineraryEntry[], dayId: string): ItineraryEntry[] {
-  const forDay = entries.filter((e) => e.dayId === dayId && !e.parentEntryId);
-  return [...forDay].sort((a, b) => {
+function isEntryOnCalendarDate(entry: ItineraryEntry, calendarDate: string): boolean {
+  if (entry.category !== 'Accommodation' || !entry.dateStart || !entry.dateEnd || !calendarDate) return false;
+  const day = new Date(`${calendarDate}T00:00:00.000Z`);
+  const start = new Date(`${entry.dateStart}T00:00:00.000Z`);
+  const end = new Date(`${entry.dateEnd}T00:00:00.000Z`);
+  if (Number.isNaN(day.getTime()) || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
+  return day.getTime() >= start.getTime() && day.getTime() < end.getTime();
+}
+
+function sortEntriesForDay(entries: ItineraryEntry[], dayId: string, calendarDate: string): ItineraryEntry[] {
+  const map = new Map<string, ItineraryEntry>();
+  for (const e of entries) {
+    if (e.parentEntryId) continue;
+    if (e.dayId === dayId || isEntryOnCalendarDate(e, calendarDate)) {
+      map.set(e.id, e);
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => {
     const aMin = minutesFromTimeStart(a.timeStart);
     const bMin = minutesFromTimeStart(b.timeStart);
     if (aMin !== undefined && bMin !== undefined) return aMin - bMin;
@@ -89,7 +104,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
     return d?.calendarDate ?? '';
   }, [dayId, trip, tripDays]);
 
-  const sorted = React.useMemo(() => sortEntriesForDay(localEntries, dayId), [localEntries, dayId]);
+  const sorted = React.useMemo(() => sortEntriesForDay(localEntries, dayId, calendarDate), [localEntries, dayId, calendarDate]);
 
   const nextSortOrder = React.useMemo(() => {
     const dayE = localEntries.filter((e) => e.dayId === dayId);
@@ -146,7 +161,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
                 />
               </div>
               <div className={styles.cardCell}>
-                <ItineraryCard entry={entry} calendarDate={calendarDate} />
+                <ItineraryCard entry={entry} calendarDate={calendarDate} draggable={entry.dayId === dayId} />
               </div>
             </div>
           );

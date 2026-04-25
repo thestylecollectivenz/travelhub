@@ -29,7 +29,7 @@ export const SidebarDayList: React.FC = () => {
             day={day}
             isSelected={day.id === selectedDayId}
             onSelect={() => setSelectedDayId(day.id)}
-            dayTotal={sumForDay(entries, day.id, convertToHomeCurrency)}
+            dayTotal={sumForDay(entries, day.id, convertToHomeCurrency, day.calendarDate)}
           />
         ))}
       </ul>

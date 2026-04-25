@@ -43,6 +43,11 @@
   min-height: 4.5em;
 }
 
+.readOnlyValue {
+  font-size: var(--font-size-sm);
+  color: var(--color-sand-700);
+}
+
 .fullRow {
   grid-column: 1 / -1;
 }

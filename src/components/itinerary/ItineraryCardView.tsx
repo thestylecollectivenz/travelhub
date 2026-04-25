@@ -13,6 +13,7 @@ import styles from './ItineraryCardView.module.css';
 
 export interface ItineraryCardViewProps {
   entry: ItineraryEntry;
+  calendarDate: string;
   onEdit: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
@@ -104,7 +105,15 @@ function DocumentTypeIcon({ type }: { type: EntryDocumentType }): React.ReactEle
   );
 }
 
-export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onEdit, onDuplicate, onDelete }) => {
+function formatYmdRange(start?: string, end?: string): string {
+  if (!start || !end) return '';
+  const s = new Date(`${start}T00:00:00.000Z`);
+  const e = new Date(`${end}T00:00:00.000Z`);
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return '';
+  return `${s.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' })} → ${e.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' })}`;
+}
+
+export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, calendarDate, onEdit, onDuplicate, onDelete }) => {
   const { addSubItem, convertToHomeCurrency } = useTripWorkspace();
   const { config } = useConfig();
   const { docsForEntry, linksForEntry, addDocument, updateDocument, deleteDocument, addLink, updateLink, deleteLink } = useAttachments();
@@ -175,6 +184,30 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
 
   const supplier = entry.supplier.trim();
   const location = (entry.location ?? '').trim();
+  const isAccommodation = entry.category === 'Accommodation' && !!entry.dateStart && !!entry.dateEnd;
+  const nights = React.useMemo(() => {
+    if (!isAccommodation) return 0;
+    const start = new Date(`${entry.dateStart}T00:00:00.000Z`);
+    const end = new Date(`${entry.dateEnd}T00:00:00.000Z`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+    return Math.max(0, Math.floor((end.getTime() - start.getTime()) / 86400000));
+  }, [isAccommodation, entry.dateStart, entry.dateEnd]);
+  const perNightHome = nights > 0 ? displayAmountHome / nights : 0;
+  const isContinuation = React.useMemo(() => {
+    if (!isAccommodation || !entry.dateStart || !entry.dateEnd) return false;
+    const thisDay = new Date(`${calendarDate}T00:00:00.000Z`);
+    const start = new Date(`${entry.dateStart}T00:00:00.000Z`);
+    const end = new Date(`${entry.dateEnd}T00:00:00.000Z`);
+    if (Number.isNaN(thisDay.getTime()) || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
+    const inRange = thisDay.getTime() >= start.getTime() && thisDay.getTime() < end.getTime();
+    return inRange && calendarDate !== entry.dateStart;
+  }, [calendarDate, entry.dateEnd, entry.dateStart, isAccommodation]);
+  const nightNumber = React.useMemo(() => {
+    if (!isContinuation || !entry.dateStart) return 0;
+    const thisDay = new Date(`${calendarDate}T00:00:00.000Z`);
+    const start = new Date(`${entry.dateStart}T00:00:00.000Z`);
+    return Math.floor((thisDay.getTime() - start.getTime()) / 86400000) + 1;
+  }, [calendarDate, entry.dateStart, isContinuation]);
 
   let unitSuffix = '';
   if (entry.unitType && typeof entry.unitAmount === 'number' && !Number.isNaN(entry.unitAmount)) {
@@ -335,6 +368,14 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
       </div>
 
       <h3 className={styles.title}>{entry.title || 'Untitled'}</h3>
+      {isContinuation ? <div className={styles.continuationLabel}>Continuing stay — Night {nightNumber} of {nights}</div> : null}
+      {isAccommodation ? (
+        <div className={styles.metaRow}>
+          <span>{formatYmdRange(entry.dateStart, entry.dateEnd)}</span>
+          <span aria-hidden> · </span>
+          <span>{nights} night{nights === 1 ? '' : 's'}</span>
+        </div>
+      ) : null}
 
       {supplier || location ? (
         <div className={styles.metaRow}>
@@ -360,7 +401,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
       </div>
 
       <div className={styles.amountRow}>
-        {formatCurrency(displayAmountHome, config.homeCurrency)}
+        {isAccommodation && nights > 0
+          ? `${formatCurrency(displayAmountHome, config.homeCurrency)} total · ${formatCurrency(perNightHome, config.homeCurrency)} /night`
+          : formatCurrency(displayAmountHome, config.homeCurrency)}
         {entry.currency && entry.currency.toUpperCase() !== config.homeCurrency.toUpperCase() ? (
           <span className={styles.unitSuffix}> ({entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {entry.currency})</span>
         ) : null}
@@ -545,7 +588,16 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
                   </>
                 ) : (
                   <>
-                    <a className={styles.attachmentTitle} href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
+                    <a
+                      className={styles.attachmentTitle}
+                      href={doc.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(ev) => {
+                        ev.preventDefault();
+                        window.open(doc.fileUrl, '_blank', 'noopener,noreferrer');
+                      }}
+                    >
                       {doc.fileName || doc.title}
                     </a>
                     <span className={styles.attachmentType}>{doc.documentType}</span>
@@ -605,7 +657,16 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
                   </>
                 ) : (
                   <>
-                    <a className={styles.attachmentTitle} href={link.url} target="_blank" rel="noopener noreferrer">
+                    <a
+                      className={styles.attachmentTitle}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(ev) => {
+                        ev.preventDefault();
+                        window.open(link.url, '_blank', 'noopener,noreferrer');
+                      }}
+                    >
                       {link.linkTitle}
                     </a>
                     <span className={styles.attachmentType}>{link.linkType}</span>
@@ -635,17 +696,16 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, onE
         </div>
       ) : null}
 
-      <button type="button" className={styles.addSubItemBtn} onClick={handleStartAddSubItem}>
-        + Add option
-      </button>
-
-      {hasSubItems ? (
-        <>
+      <div className={styles.subItemActionsRow}>
+        <button type="button" className={styles.addSubItemBtn} onClick={handleStartAddSubItem}>
+          + Add option
+        </button>
+        {hasSubItems ? (
           <button type="button" className={styles.relatedToggle} onClick={() => setSubItemsOpen((o) => !o)}>
             {subItemsOpen ? `Hide related items ▴` : `Show ${subItems.length} related items ▾`}
           </button>
-        </>
-      ) : null}
+        ) : null}
+      </div>
 
       {showSubItemContent ? (
         <div className={`${styles.relatedContent} ${subItemsOpen || addingSubItem ? styles.relatedContentOpen : ''}`}>

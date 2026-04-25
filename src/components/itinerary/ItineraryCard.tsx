@@ -96,6 +96,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({ entry, calendarDat
       ) : (
         <ItineraryCardView
           entry={entry}
+          calendarDate={calendarDate}
           onEdit={() => setEditingCardId(entry.id)}
           onDuplicate={() => duplicateEntry(entry.id)}
           onDelete={() => deleteEntry(entry.id)}

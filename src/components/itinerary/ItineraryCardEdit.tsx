@@ -2,6 +2,7 @@ import * as React from 'react';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { BUDGET_CATEGORY_ORDER } from '../../utils/financialUtils';
 import { combineDayAndTime, formatTimeHHMM } from '../../utils/itineraryTimeUtils';
+import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import styles from './ItineraryCardEdit.module.css';
 
 export interface ItineraryCardEditProps {
@@ -19,6 +20,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   onCancel,
   onDelete
 }) => {
+  const { trip, tripDays } = useTripWorkspace();
   const [draft, setDraft] = React.useState<ItineraryEntry>(() => ({ ...entry }));
 
   const timeValue = formatTimeHHMM(draft.timeStart);
@@ -26,6 +28,32 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   const patch = React.useCallback((partial: Partial<ItineraryEntry>) => {
     setDraft((d) => ({ ...d, ...partial }));
   }, []);
+  const isAccommodation = draft.category === 'Accommodation';
+
+  const nights = React.useMemo(() => {
+    if (!draft.dateStart || !draft.dateEnd) return 0;
+    const start = new Date(`${draft.dateStart}T00:00:00.000Z`);
+    const end = new Date(`${draft.dateEnd}T00:00:00.000Z`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+    const diff = Math.floor((end.getTime() - start.getTime()) / 86400000);
+    return diff > 0 ? diff : 0;
+  }, [draft.dateStart, draft.dateEnd]);
+
+  const perNight = React.useMemo(() => {
+    if (!isAccommodation || nights <= 0) return 0;
+    return draft.amount / nights;
+  }, [draft.amount, isAccommodation, nights]);
+
+  React.useEffect(() => {
+    if (!isAccommodation) return;
+    setDraft((prev) => ({
+      ...prev,
+      dateStart: prev.dateStart || calendarDate,
+      dateEnd: prev.dateEnd || prev.dateStart || calendarDate,
+      unitType: 'PerNight',
+      unitAmount: nights > 0 ? perNight : prev.unitAmount ?? 0
+    }));
+  }, [isAccommodation, calendarDate, nights, perNight]);
 
   const handleSave = React.useCallback(() => {
     const title = draft.title.trim();
@@ -42,10 +70,22 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       supplier: draft.supplier.trim(),
       notes: draft.notes.trim(),
       location: draft.location?.trim() || undefined,
-      duration: draft.duration.trim()
+      duration: draft.duration.trim(),
+      dateStart: draft.dateStart,
+      dateEnd: draft.dateEnd
     };
+    if (saved.category === 'Accommodation') {
+      saved.unitType = 'PerNight';
+      saved.unitAmount = nights > 0 ? perNight : saved.unitAmount;
+      if (saved.dateStart && trip) {
+        const checkInDay = tripDays.find((d) => d.tripId === trip.id && d.calendarDate === saved.dateStart);
+        if (checkInDay) {
+          saved.dayId = checkInDay.id;
+        }
+      }
+    }
     onSave(saved);
-  }, [calendarDate, draft, timeValue]);
+  }, [calendarDate, draft, timeValue, nights, perNight, trip, tripDays]);
 
   const canSave = draft.title.trim().length > 0;
 
@@ -102,6 +142,35 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
             </option>
           ))}
         </select>
+
+        {isAccommodation ? (
+          <>
+            <label className={styles.label} htmlFor={`checkin-${draft.id}`}>
+              Check-in date
+            </label>
+            <input
+              id={`checkin-${draft.id}`}
+              className={styles.input}
+              type="date"
+              value={draft.dateStart ?? ''}
+              onChange={(e) => patch({ dateStart: e.target.value })}
+            />
+
+            <label className={styles.label} htmlFor={`checkout-${draft.id}`}>
+              Check-out date
+            </label>
+            <input
+              id={`checkout-${draft.id}`}
+              className={styles.input}
+              type="date"
+              value={draft.dateEnd ?? ''}
+              onChange={(e) => patch({ dateEnd: e.target.value })}
+            />
+
+            <label className={styles.label}>Nights</label>
+            <div className={styles.readOnlyValue}>{nights > 0 ? `${nights} night${nights === 1 ? '' : 's'}` : '—'}</div>
+          </>
+        ) : null}
 
         <label className={styles.label} htmlFor={`sup-${draft.id}`}>
           Supplier
@@ -232,7 +301,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
         {draft.paymentStatus !== 'Free' ? (
           <>
             <label className={styles.label} htmlFor={`amt-${draft.id}`}>
-              Amount
+              {isAccommodation ? 'Total cost' : 'Amount'}
             </label>
             <input
               id={`amt-${draft.id}`}
@@ -243,6 +312,13 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
               value={Number.isNaN(draft.amount) ? '' : draft.amount}
               onChange={(e) => patch({ amount: e.target.value === '' ? 0 : Number(e.target.value) })}
             />
+          </>
+        ) : null}
+
+        {isAccommodation ? (
+          <>
+            <label className={styles.label}>Per-night cost</label>
+            <div className={styles.readOnlyValue}>{nights > 0 ? perNight.toFixed(2) : '—'}</div>
           </>
         ) : null}
 

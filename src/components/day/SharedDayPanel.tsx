@@ -37,7 +37,7 @@ export const SharedDayPanel: React.FC = () => {
   return (
     <div className={styles.root}>
       <DayHeader variant="shared" day={day} dayTotal={0} onAddEntry={() => undefined} />
-      <SharedItinerarySummary entries={entries} dayId={day.id} />
+      <SharedItinerarySummary entries={entries} dayId={day.id} calendarDate={day.calendarDate} />
       <JournalFeed dayId={day.id} canModerate={false} />
     </div>
   );

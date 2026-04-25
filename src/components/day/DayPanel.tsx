@@ -26,7 +26,7 @@ export const DayPanel: React.FC = () => {
 
   const entries = React.useMemo(() => localEntries.filter((e) => e.tripId === trip.id), [localEntries, trip.id]);
 
-  const dayTotal = sumForDay(entries, day.id, convertToHomeCurrency);
+  const dayTotal = sumForDay(entries, day.id, convertToHomeCurrency, day.calendarDate);
 
   return (
     <div className={styles.root}>

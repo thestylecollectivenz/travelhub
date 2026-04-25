@@ -269,7 +269,7 @@
 }
 
 .relatedToggle {
-  margin-top: var(--space-3);
+  margin-top: 0;
   padding: 0;
   border: none;
   background: none;
@@ -279,13 +279,26 @@
 }
 
 .addSubItemBtn {
-  margin-top: var(--space-2);
+  margin-top: 0;
   padding: 0;
   border: none;
   background: none;
   font-size: var(--font-size-xs);
   color: var(--color-primary);
   cursor: pointer;
+}
+
+.subItemActionsRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.continuationLabel {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-400);
 }
 
 .attachmentsPanel {
