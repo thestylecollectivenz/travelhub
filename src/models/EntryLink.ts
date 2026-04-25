@@ -1,12 +1,13 @@
-export type EntryLinkType = 'Url' | 'Supplier' | 'Email' | 'Other';
+export type EntryLinkType = 'Url' | 'Supplier' | 'Booking' | 'Email' | 'Other';
 
 export interface EntryLink {
   id: string;
-  entryId: string;
-  tripId: string;
   title: string;
-  url: string;
-  linkType: EntryLinkType;
+  tripId: string;
   dayId: string;
-  category: string;
+  entryId: string;
+  linkType: EntryLinkType;
+  url: string;
+  linkTitle: string;
+  notes: string;
 }

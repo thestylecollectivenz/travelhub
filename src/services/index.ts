@@ -5,3 +5,5 @@ export * from './ItineraryService';
 export * from './JournalService';
 export * from './FxService';
 export * from './PermissionService';
+export * from './DocumentService';
+export * from './LinkService';

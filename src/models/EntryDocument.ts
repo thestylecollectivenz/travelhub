@@ -2,16 +2,17 @@ export type EntryDocumentType =
   | 'Ticket'
   | 'Confirmation'
   | 'Image'
-  | 'Pdf'
+  | 'PDF'
   | 'Other';
 
 export interface EntryDocument {
   id: string;
-  entryId: string;
-  tripId: string;
   title: string;
-  fileUrl: string;
-  documentType: EntryDocumentType;
+  tripId: string;
   dayId: string;
-  category: string;
+  entryId: string;
+  documentType: EntryDocumentType;
+  fileUrl: string;
+  fileName: string;
+  notes: string;
 }
