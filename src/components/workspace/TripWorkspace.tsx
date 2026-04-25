@@ -244,7 +244,11 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
                 aria-label="Search trip content"
                 disabled={deletingTrip}
               >
-                <span aria-hidden>🔎</span> Search
+                <svg viewBox="0 0 16 16" width={12} height={12} fill="none" aria-hidden>
+                  <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.4" />
+                  <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
+                Search
               </button>
               <button
                 type="button"
