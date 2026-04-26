@@ -7,3 +7,4 @@ export * from './FxService';
 export * from './PermissionService';
 export * from './DocumentService';
 export * from './LinkService';
+export * from './PlaceService';

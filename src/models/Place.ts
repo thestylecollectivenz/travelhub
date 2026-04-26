@@ -1,11 +1,11 @@
 export type PlaceType =
-  | 'City'
-  | 'Port'
-  | 'Airport'
-  | 'Region'
-  | 'Landmark'
-  | 'Accommodation'
-  | 'Other';
+  | 'city'
+  | 'port'
+  | 'airport'
+  | 'region'
+  | 'landmark'
+  | 'accommodation'
+  | 'other';
 
 export interface Place {
   id: string;
@@ -13,5 +13,19 @@ export interface Place {
   latitude: number;
   longitude: number;
   country: string;
+  countryCode: string;
   placeType: PlaceType;
+  timeZone: string;
+  nominatimId: string;
+}
+
+export interface PlaceCandidate {
+  title: string;
+  latitude: number;
+  longitude: number;
+  country: string;
+  countryCode: string;
+  placeType: string;
+  timeZone: string;
+  nominatimId: string;
 }
