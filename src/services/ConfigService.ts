@@ -12,6 +12,7 @@ export interface UserConfig {
   journalAuthorName: string;
   /** Persisted workspace sidebar width (px). */
   sidebarWidth: number;
+  weatherApiKey: string;
 }
 
 export const DEFAULT_USER_CONFIG: UserConfig = {
@@ -20,7 +21,8 @@ export const DEFAULT_USER_CONFIG: UserConfig = {
   distanceUnit: 'Kilometres',
   showTravellerNames: true,
   journalAuthorName: '',
-  sidebarWidth: 260
+  sidebarWidth: 260,
+  weatherApiKey: ''
 };
 
 export class ConfigService {
@@ -34,7 +36,7 @@ export class ConfigService {
 
   async getConfig(userId: string): Promise<UserConfig> {
     const safeUserId = userId.replace(/'/g, "''");
-    const url = `${this.baseUrl}?$select=ID,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth&$filter=UserId eq '${safeUserId}'&$top=1`;
+    const url = `${this.baseUrl}?$select=ID,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,WeatherApiKey&$filter=UserId eq '${safeUserId}'&$top=1`;
     const resp: SPHttpClientResponse = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
     if (!resp.ok) {
       throw new Error(`ConfigService.getConfig failed: ${resp.status}`);
@@ -53,7 +55,8 @@ export class ConfigService {
           ? item.ShowTravellerNames
           : DEFAULT_USER_CONFIG.showTravellerNames,
       journalAuthorName: typeof item.JournalAuthorName === 'string' ? item.JournalAuthorName : '',
-      sidebarWidth: typeof item.SidebarWidth === 'number' ? item.SidebarWidth : Number(item.SidebarWidth ?? DEFAULT_USER_CONFIG.sidebarWidth) || DEFAULT_USER_CONFIG.sidebarWidth
+      sidebarWidth: typeof item.SidebarWidth === 'number' ? item.SidebarWidth : Number(item.SidebarWidth ?? DEFAULT_USER_CONFIG.sidebarWidth) || DEFAULT_USER_CONFIG.sidebarWidth,
+      weatherApiKey: typeof item.WeatherApiKey === 'string' ? item.WeatherApiKey : ''
     };
   }
 
@@ -75,7 +78,8 @@ export class ConfigService {
       DistanceUnit: config.distanceUnit,
       ShowTravellerNames: config.showTravellerNames,
       JournalAuthorName: config.journalAuthorName ?? '',
-      SidebarWidth: typeof config.sidebarWidth === 'number' ? config.sidebarWidth : DEFAULT_USER_CONFIG.sidebarWidth
+      SidebarWidth: typeof config.sidebarWidth === 'number' ? config.sidebarWidth : DEFAULT_USER_CONFIG.sidebarWidth,
+      WeatherApiKey: config.weatherApiKey ?? ''
     });
 
     if (existing?.ID) {

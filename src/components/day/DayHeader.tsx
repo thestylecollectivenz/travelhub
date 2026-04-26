@@ -4,6 +4,8 @@ import { useConfig } from '../../context/ConfigContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
 import type { PlaceCandidate } from '../../models/Place';
+import { COUNTRY_DATA } from '../../data/countryData';
+import { SEASONAL_BY_REGION } from '../../data/seasonalWeather';
 import { formatDayDate } from '../../utils/dateUtils';
 import { formatCurrency } from '../../utils/financialUtils';
 import styles from './DayHeader.module.css';
@@ -31,6 +33,26 @@ function dayTypeLabel(dayType: TripDay['dayType']): string {
   }
 }
 
+function WeatherIcon({ kind }: { kind: string }): React.ReactElement {
+  const k = kind.toLowerCase();
+  if (k.includes('thunder')) {
+    return <span aria-hidden>⛈</span>;
+  }
+  if (k.includes('snow')) {
+    return <span aria-hidden>❄</span>;
+  }
+  if (k.includes('rain')) {
+    return <span aria-hidden>🌧</span>;
+  }
+  if (k.includes('mist') || k.includes('fog') || k.includes('haze')) {
+    return <span aria-hidden>🌫</span>;
+  }
+  if (k.includes('cloud')) {
+    return <span aria-hidden>☁</span>;
+  }
+  return <span aria-hidden>☀</span>;
+}
+
 export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry, onWriteJournal, variant = 'default' }) => {
   const { config } = useConfig();
   const { updateDay } = useTripWorkspace();
@@ -45,12 +67,29 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
   const [additionalSearch, setAdditionalSearch] = React.useState('');
   const [additionalResults, setAdditionalResults] = React.useState<PlaceCandidate[]>([]);
   const [placeInfoOpen, setPlaceInfoOpen] = React.useState(false);
+  const [weather, setWeather] = React.useState<{
+    temp: number;
+    description: string;
+    main: string;
+    sunrise: number;
+    sunset: number;
+    timezoneOffset: number;
+  } | null>(null);
 
   const primaryPlace = placeById(day.primaryPlaceId);
   const additionalPlaces = React.useMemo(
     () => (day.additionalPlaceIds ?? []).map((id) => placeById(id)).filter(Boolean),
     [day.additionalPlaceIds, placeById]
   );
+  const countryData = primaryPlace ? COUNTRY_DATA[primaryPlace.countryCode] : undefined;
+  const monthIndex = React.useMemo(() => {
+    const d = new Date(`${day.calendarDate}T00:00:00.000Z`);
+    return Number.isNaN(d.getTime()) ? 0 : d.getUTCMonth();
+  }, [day.calendarDate]);
+  const seasonal = React.useMemo(() => {
+    if (!countryData) return undefined;
+    return SEASONAL_BY_REGION[countryData.region]?.[monthIndex];
+  }, [countryData, monthIndex]);
 
   React.useEffect(() => {
     setTitleDraft(day.displayTitle);
@@ -81,6 +120,38 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
     }, 400);
     return () => window.clearTimeout(t);
   }, [additionalSearch, searchPlaces]);
+
+  React.useEffect(() => {
+    if (!placeInfoOpen || !primaryPlace || !config.weatherApiKey.trim()) {
+      setWeather(null);
+      return;
+    }
+    const units = config.temperatureUnit === 'Fahrenheit' ? 'imperial' : 'metric';
+    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${primaryPlace.latitude}&lon=${primaryPlace.longitude}&units=${units}&appid=${encodeURIComponent(config.weatherApiKey.trim())}`;
+    fetch(url)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Weather ${r.status}`))))
+      .then((data) => {
+        setWeather({
+          temp: Number(data.main?.temp ?? 0),
+          description: String(data.weather?.[0]?.description ?? ''),
+          main: String(data.weather?.[0]?.main ?? ''),
+          sunrise: Number(data.sys?.sunrise ?? 0),
+          sunset: Number(data.sys?.sunset ?? 0),
+          timezoneOffset: Number(data.timezone ?? 0)
+        });
+      })
+      .catch(() => {
+        setWeather(null);
+      });
+  }, [placeInfoOpen, primaryPlace, config.temperatureUnit, config.weatherApiKey]);
+
+  const formatLocalFromUnix = React.useCallback((unix: number, tzOffsetSec: number): string => {
+    if (!unix) return '—';
+    const d = new Date((unix + tzOffsetSec) * 1000);
+    const hh = d.getUTCHours() < 10 ? `0${d.getUTCHours()}` : `${d.getUTCHours()}`;
+    const mm = d.getUTCMinutes() < 10 ? `0${d.getUTCMinutes()}` : `${d.getUTCMinutes()}`;
+    return `${hh}:${mm}`;
+  }, []);
 
   const saveTitle = React.useCallback(() => {
     const next = titleDraft.trim();
@@ -319,7 +390,41 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
           <button type="button" className={styles.linkButton} onClick={() => setPlaceInfoOpen((v) => !v)}>
             {placeInfoOpen ? 'Hide place info' : 'Place info'}
           </button>
-          {placeInfoOpen ? <div className={styles.placeInfoCard}>Place info will appear here when enabled.</div> : null}
+          {placeInfoOpen ? (
+            <div className={styles.placeInfoCard}>
+              {primaryPlace ? (
+                <div className={styles.placeInfoGrid}>
+                  {config.weatherApiKey.trim() && weather ? (
+                    <div className={styles.infoTile}>
+                      <div className={styles.infoTitle}>Current weather</div>
+                      <div className={styles.infoLine}>
+                        <WeatherIcon kind={weather.main} />
+                        {Math.round(weather.temp)}°{config.temperatureUnit === 'Fahrenheit' ? 'F' : 'C'} · {weather.description}
+                      </div>
+                      <div className={styles.infoSub}>Sunrise {formatLocalFromUnix(weather.sunrise, weather.timezoneOffset)} · Sunset {formatLocalFromUnix(weather.sunset, weather.timezoneOffset)}</div>
+                    </div>
+                  ) : null}
+                  {countryData && seasonal ? (
+                    <div className={styles.infoTile}>
+                      <div className={styles.infoTitle}>Typical for {new Date(`${day.calendarDate}T00:00:00.000Z`).toLocaleString('en-NZ', { month: 'long' })}</div>
+                      <div className={styles.infoLine}>{seasonal.tempRange} · {seasonal.conditions}</div>
+                      <div className={styles.infoSub}>Daylight: {seasonal.daylight}</div>
+                    </div>
+                  ) : null}
+                  {countryData ? (
+                    <div className={styles.infoTile}>
+                      <div className={styles.infoTitle}>Currency and tipping</div>
+                      <div className={styles.infoLine}>{countryData.currency} ({countryData.currencyCode})</div>
+                      <div className={styles.infoSub}>{countryData.tipping}</div>
+                    </div>
+                  ) : null}
+                  {!config.weatherApiKey.trim() ? <div className={styles.infoSub}>Set Weather API key in Settings to show live weather.</div> : null}
+                </div>
+              ) : (
+                <div className={styles.infoSub}>Set a primary place to view place intelligence.</div>
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
       {isShared ? null : (

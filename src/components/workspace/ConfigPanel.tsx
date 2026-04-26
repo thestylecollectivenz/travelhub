@@ -134,6 +134,20 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
             />
           </label>
 
+          <label style={{ display: 'grid', gap: 'var(--space-1)' }}>
+            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-800)' }}>Weather API key</span>
+            <input
+              type="text"
+              value={draft.weatherApiKey}
+              onChange={(e) => setDraft((d) => ({ ...d, weatherApiKey: e.target.value }))}
+              placeholder="OpenWeatherMap API key (optional)"
+              style={{ border: 'var(--border-default)', borderRadius: 'var(--radius-md)', padding: 'var(--space-2)' }}
+            />
+            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-sand-600)' }}>
+              Add your free OpenWeatherMap API key to enable weather.
+            </span>
+          </label>
+
           <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <input
               type="checkbox"
