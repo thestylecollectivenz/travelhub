@@ -6,6 +6,7 @@ import { PlacesProvider } from '../../context/PlacesContext';
 import { useJournal } from '../../context/JournalContext';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { TripHero } from './TripHero';
+import { RouteStrip } from '../maps/RouteStrip';
 import { TripStatsStrip } from './TripStatsStrip';
 import { TripContent } from './TripContent';
 import { SharedTripView } from './SharedTripView';
@@ -377,6 +378,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
       ) : null}
       {deleteTripError ? <div className={styles.deleteError}>{deleteTripError}</div> : null}
       <TripHero trip={trip} onEdit={() => setEditOpen(true)} showEditButton={!sharedPreview} />
+      {sharedPreview ? null : <RouteStrip />}
       {sharedPreview ? null : <TripStatsStrip />}
       {sharedPreview ? <SharedTripView /> : <TripContent />}
       <ConfigPanel isOpen={configOpen} onClose={() => setConfigOpen(false)} />
