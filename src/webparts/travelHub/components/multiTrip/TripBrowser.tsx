@@ -42,6 +42,8 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
   const spContext = useSpContext();
   const [trips, setTrips] = React.useState<Trip[]>([]);
   const [placePins, setPlacePins] = React.useState<Array<{ id: string; title: string; lat: number; lon: number }>>([]);
+  const [allPlaces, setAllPlaces] = React.useState<Array<{ id: string; countryCode: string; country: string }>>([]);
+  const [allTripDays, setAllTripDays] = React.useState<Array<{ tripId: string; primaryPlaceId?: string }>>([]);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
   const mapRef = React.useRef<HTMLDivElement | null>(null);
@@ -60,6 +62,8 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
         Promise.all(result.map((t) => daySvc.getAll(t.id)))
       ]);
       const allDayRows = dayRows.reduce((acc, rows) => acc.concat(rows), [] as typeof dayRows[number]);
+      setAllTripDays(allDayRows.map((d) => ({ tripId: d.tripId, primaryPlaceId: d.primaryPlaceId })));
+      setAllPlaces(places.map((p) => ({ id: p.id, countryCode: p.countryCode, country: p.country })));
       const placeIdSet = new Set(
         allDayRows
           .map((d: { primaryPlaceId?: string }) => d.primaryPlaceId)
@@ -221,6 +225,44 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
     height: '24rem',
     width: '100%'
   };
+  const statsWrapStyle: React.CSSProperties = {
+    marginTop: 'var(--space-6)',
+    border: 'var(--border-default)',
+    borderRadius: 'var(--radius-lg)',
+    background: 'var(--color-surface-raised)',
+    padding: 'var(--space-4)'
+  };
+  const statsGridStyle: React.CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(12rem, 1fr))',
+    gap: 'var(--space-3)'
+  };
+
+  const eligibleTripIds = React.useMemo(
+    () => new Set(trips.filter((t) => t.status !== 'Planning' && t.status !== 'Upcoming').map((t) => t.id)),
+    [trips]
+  );
+  const eligibleDays = React.useMemo(
+    () => allTripDays.filter((d) => eligibleTripIds.has(d.tripId)),
+    [allTripDays, eligibleTripIds]
+  );
+  const placeIdSetEligible = React.useMemo(
+    () => new Set(eligibleDays.map((d) => d.primaryPlaceId).filter(Boolean) as string[]),
+    [eligibleDays]
+  );
+  const countriesVisited = React.useMemo(() => {
+    const rows = allPlaces.filter((p) => placeIdSetEligible.has(p.id) && p.countryCode);
+    const map = new Map<string, string>();
+    rows.forEach((r) => map.set(r.countryCode.toUpperCase(), r.country || r.countryCode.toUpperCase()));
+    return Array.from(map.entries()).map(([code, name]) => ({ code, name }));
+  }, [allPlaces, placeIdSetEligible]);
+  const totalCitiesVisited = placeIdSetEligible.size;
+  const totalTripDays = eligibleDays.length;
+  const totalNightsAway = Math.max(0, totalTripDays - eligibleTripIds.size);
+  const flagEmoji = (cc: string): string =>
+    cc
+      .toUpperCase()
+      .replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0)));
 
   const errorStyle: React.CSSProperties = {
     ...feedbackStyle,
@@ -283,6 +325,24 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
               <div ref={mapRef} style={mapStyle} />
             </section>
           ) : null}
+          <section style={statsWrapStyle} aria-label="Travel stats">
+            <h2 style={{ margin: '0 0 var(--space-3)', color: 'var(--color-blue-800)', fontSize: 'var(--font-size-lg)' }}>Stats</h2>
+            <div style={statsGridStyle}>
+              <div>Total countries visited: <strong>{countriesVisited.length}</strong></div>
+              <div>Total cities/places visited: <strong>{totalCitiesVisited}</strong></div>
+              <div>Total trip days: <strong>{totalTripDays}</strong></div>
+              <div>Total nights away: <strong>{totalNightsAway}</strong></div>
+            </div>
+            {countriesVisited.length ? (
+              <div style={{ marginTop: 'var(--space-3)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+                {countriesVisited.map((c) => (
+                  <span key={c.code} style={{ border: 'var(--border-default)', borderRadius: 'var(--radius-full)', padding: '2px var(--space-2)', fontSize: 'var(--font-size-xs)' }}>
+                    {flagEmoji(c.code)} {c.name}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </section>
         </>
       )}
     </div>
