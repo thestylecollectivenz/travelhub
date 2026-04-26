@@ -10,7 +10,7 @@ import { useSpContext } from './SpContext';
 import { minutesFromTimeStart } from '../utils/itineraryTimeUtils';
 import { useConfig } from './ConfigContext';
 
-export type MainWorkspaceTab = 'itinerary' | 'journal' | 'photos' | 'documents' | 'links' | 'map';
+export type MainWorkspaceTab = 'itinerary' | 'journal' | 'photos' | 'files' | 'map' | 'tasks' | 'packing';
 
 function newTempId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -49,6 +49,8 @@ export interface TripWorkspaceContextValue {
   setMainWorkspaceTab: (tab: MainWorkspaceTab) => void;
   sharedPreview: boolean;
   setSharedPreview: (value: boolean) => void;
+  usedSuppliers: string[];
+  usedLocations: string[];
 }
 
 const TripWorkspaceContext = React.createContext<TripWorkspaceContextValue | undefined>(undefined);
@@ -485,7 +487,9 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       mainWorkspaceTab,
       setMainWorkspaceTab,
       sharedPreview,
-      setSharedPreview
+      setSharedPreview,
+      usedSuppliers: Array.from(new Set(localEntries.map((e) => (e.supplier || '').trim()).filter(Boolean))).sort(),
+      usedLocations: Array.from(new Set(localEntries.map((e) => (e.location || '').trim()).filter(Boolean))).sort()
     }),
     [
       trip,

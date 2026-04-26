@@ -87,21 +87,14 @@ export const TripSidebar: React.FC = () => {
         <button
           type="button"
           role="tab"
-          aria-selected={mainWorkspaceTab === 'documents'}
-          className={`${styles.tab} ${mainWorkspaceTab === 'documents' ? styles.tabActive : ''}`}
-          onClick={() => setMainWorkspaceTab('documents')}
+          aria-selected={mainWorkspaceTab === 'files'}
+          className={`${styles.tab} ${mainWorkspaceTab === 'files' ? styles.tabActive : ''}`}
+          onClick={() => setMainWorkspaceTab('files')}
         >
-          Documents
+          Files & Links
         </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mainWorkspaceTab === 'links'}
-          className={`${styles.tab} ${mainWorkspaceTab === 'links' ? styles.tabActive : ''}`}
-          onClick={() => setMainWorkspaceTab('links')}
-        >
-          Links
-        </button>
+        <button type="button" role="tab" aria-selected={mainWorkspaceTab === 'tasks'} className={`${styles.tab} ${mainWorkspaceTab === 'tasks' ? styles.tabActive : ''}`} onClick={() => setMainWorkspaceTab('tasks')}>Tasks</button>
+        <button type="button" role="tab" aria-selected={mainWorkspaceTab === 'packing'} className={`${styles.tab} ${mainWorkspaceTab === 'packing' ? styles.tabActive : ''}`} onClick={() => setMainWorkspaceTab('packing')}>Packing</button>
       </div>
       {mainWorkspaceTab === 'itinerary' ? <SidebarDayList /> : null}
       <div className={styles.divider} role="presentation" />

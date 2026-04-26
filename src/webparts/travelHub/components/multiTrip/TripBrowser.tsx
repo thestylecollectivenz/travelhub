@@ -54,6 +54,8 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
     try {
       const svc = new TripService(spContext);
       const result = await svc.getAll();
+      // eslint-disable-next-line no-console
+      console.log('TripBrowser trips', result);
       setTrips(result);
       const daySvc = new DayService(spContext);
       const placeSvc = new PlaceService(spContext);
@@ -61,6 +63,10 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
         placeSvc.getAll(),
         Promise.all(result.map((t) => daySvc.getAll(t.id)))
       ]);
+      // eslint-disable-next-line no-console
+      console.log('TripBrowser places', places);
+      // eslint-disable-next-line no-console
+      console.log('TripBrowser dayRows', dayRows);
       const allDayRows = dayRows.reduce((acc, rows) => acc.concat(rows), [] as typeof dayRows[number]);
       setAllTripDays(allDayRows.map((d) => ({ tripId: d.tripId, primaryPlaceId: d.primaryPlaceId })));
       setAllPlaces(places.map((p) => ({ id: p.id, countryCode: p.countryCode, country: p.country })));

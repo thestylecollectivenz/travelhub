@@ -7,6 +7,7 @@ export interface SharedItinerarySummaryProps {
   entries: ItineraryEntry[];
   dayId: string;
   calendarDate: string;
+  dayType?: string;
 }
 
 function isAccommodationOnDate(entry: ItineraryEntry, calendarDate: string): boolean {
@@ -18,11 +19,11 @@ function isAccommodationOnDate(entry: ItineraryEntry, calendarDate: string): boo
   return day.getTime() >= start.getTime() && day.getTime() < end.getTime();
 }
 
-function sortEntriesForDay(entries: ItineraryEntry[], dayId: string, calendarDate: string): ItineraryEntry[] {
+function sortEntriesForDay(entries: ItineraryEntry[], dayId: string, calendarDate: string, dayType?: string): ItineraryEntry[] {
   const map = new Map<string, ItineraryEntry>();
   for (const e of entries) {
     if (e.parentEntryId) continue;
-    if (e.dayId === dayId || isAccommodationOnDate(e, calendarDate)) {
+    if (e.dayId === dayId || (dayType !== 'PreTrip' && isAccommodationOnDate(e, calendarDate))) {
       map.set(e.id, e);
     }
   }
@@ -37,8 +38,8 @@ function sortEntriesForDay(entries: ItineraryEntry[], dayId: string, calendarDat
   });
 }
 
-export const SharedItinerarySummary: React.FC<SharedItinerarySummaryProps> = ({ entries, dayId, calendarDate }) => {
-  const sorted = React.useMemo(() => sortEntriesForDay(entries, dayId, calendarDate), [entries, dayId, calendarDate]);
+export const SharedItinerarySummary: React.FC<SharedItinerarySummaryProps> = ({ entries, dayId, calendarDate, dayType }) => {
+  const sorted = React.useMemo(() => sortEntriesForDay(entries, dayId, calendarDate, dayType), [entries, dayId, calendarDate, dayType]);
 
   if (sorted.length === 0) {
     return (

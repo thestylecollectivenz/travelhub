@@ -51,6 +51,9 @@ export const ConfigProvider: React.FC<ConfigProviderProps> = ({ children }) => {
       const svc = new ConfigService(spContext);
       try {
         await svc.saveConfig(userId, next);
+        const roundTrip = await svc.getConfig(userId);
+        // eslint-disable-next-line no-console
+        console.log('ConfigContext.saveConfig roundTrip', roundTrip);
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error('ConfigContext.saveConfig', err);

@@ -3,6 +3,7 @@ import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { BUDGET_CATEGORY_ORDER } from '../../utils/financialUtils';
 import { combineDayAndTime, formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { useConfig } from '../../context/ConfigContext';
 import styles from './ItineraryCardEdit.module.css';
 
 export interface ItineraryCardEditProps {
@@ -20,7 +21,8 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   onCancel,
   onDelete
 }) => {
-  const { trip, tripDays } = useTripWorkspace();
+  const { trip, tripDays, usedSuppliers, usedLocations } = useTripWorkspace();
+  const { config } = useConfig();
   const [draft, setDraft] = React.useState<ItineraryEntry>(() => ({ ...entry }));
 
   const timeValue = formatTimeHHMM(draft.timeStart);
@@ -72,7 +74,8 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       location: draft.location?.trim() || undefined,
       duration: draft.duration.trim(),
       dateStart: draft.dateStart,
-      dateEnd: draft.dateEnd
+      dateEnd: draft.dateEnd,
+      paymentCurrency: draft.paymentCurrency || config.homeCurrency
     };
     if (saved.category === 'Accommodation') {
       saved.unitType = 'PerNight';
@@ -85,7 +88,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       }
     }
     onSave(saved);
-  }, [calendarDate, draft, timeValue, nights, perNight, trip, tripDays]);
+  }, [calendarDate, draft, timeValue, nights, perNight, trip, tripDays, config.homeCurrency]);
 
   const canSave = draft.title.trim().length > 0;
 
@@ -179,9 +182,15 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           id={`sup-${draft.id}`}
           className={styles.input}
           type="text"
+          list={`supplier-list-${draft.id}`}
           value={draft.supplier}
           onChange={(e) => patch({ supplier: e.target.value })}
         />
+        <datalist id={`supplier-list-${draft.id}`}>
+          {usedSuppliers.map((value) => (
+            <option key={value} value={value} />
+          ))}
+        </datalist>
 
         <label className={styles.label} htmlFor={`loc-${draft.id}`}>
           Location
@@ -190,9 +199,15 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           id={`loc-${draft.id}`}
           className={styles.input}
           type="text"
+          list={`location-list-${draft.id}`}
           value={draft.location ?? ''}
           onChange={(e) => patch({ location: e.target.value })}
         />
+        <datalist id={`location-list-${draft.id}`}>
+          {usedLocations.map((value) => (
+            <option key={value} value={value} />
+          ))}
+        </datalist>
 
         <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`notes-${draft.id}`}>
           Notes
@@ -295,6 +310,26 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
                 })
               }
             />
+            <label className={styles.label} htmlFor={`paycur-${draft.id}`}>
+              Payment currency
+            </label>
+            <select
+              id={`paycur-${draft.id}`}
+              className={styles.select}
+              value={draft.paymentCurrency || config.homeCurrency}
+              onChange={(e) => patch({ paymentCurrency: e.target.value })}
+            >
+              <option value={config.homeCurrency}>{config.homeCurrency}</option>
+              <option value={draft.currency}>{draft.currency}</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+              <option value="GBP">GBP</option>
+              <option value="AUD">AUD</option>
+              <option value="SGD">SGD</option>
+            </select>
+            {(draft.paymentCurrency || config.homeCurrency) !== draft.currency ? (
+              <div className={styles.readOnlyValue}>Will be converted to {config.homeCurrency} at current FX rate</div>
+            ) : null}
           </>
         ) : null}
 

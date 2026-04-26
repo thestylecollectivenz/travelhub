@@ -11,7 +11,8 @@ export interface ItineraryTimelineProps {
   dayId: string;
 }
 
-function isEntryOnCalendarDate(entry: ItineraryEntry, calendarDate: string): boolean {
+function isEntryOnCalendarDate(entry: ItineraryEntry, calendarDate: string, dayType?: string): boolean {
+  if (dayType === 'PreTrip') return false;
   if (entry.category !== 'Accommodation' || !entry.dateStart || !entry.dateEnd || !calendarDate) return false;
   const day = new Date(`${calendarDate}T00:00:00.000Z`);
   const start = new Date(`${entry.dateStart}T00:00:00.000Z`);
@@ -20,11 +21,11 @@ function isEntryOnCalendarDate(entry: ItineraryEntry, calendarDate: string): boo
   return day.getTime() >= start.getTime() && day.getTime() < end.getTime();
 }
 
-function sortEntriesForDay(entries: ItineraryEntry[], dayId: string, calendarDate: string): ItineraryEntry[] {
+function sortEntriesForDay(entries: ItineraryEntry[], dayId: string, calendarDate: string, dayType?: string): ItineraryEntry[] {
   const map = new Map<string, ItineraryEntry>();
   for (const e of entries) {
     if (e.parentEntryId) continue;
-    if (e.dayId === dayId || isEntryOnCalendarDate(e, calendarDate)) {
+    if (e.dayId === dayId || isEntryOnCalendarDate(e, calendarDate, dayType)) {
       map.set(e.id, e);
     }
   }
@@ -103,8 +104,9 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
     const d = tripDays.find((x) => x.id === dayId && x.tripId === trip.id);
     return d?.calendarDate ?? '';
   }, [dayId, trip, tripDays]);
+  const dayType = React.useMemo(() => tripDays.find((x) => x.id === dayId)?.dayType, [tripDays, dayId]);
 
-  const sorted = React.useMemo(() => sortEntriesForDay(localEntries, dayId, calendarDate), [localEntries, dayId, calendarDate]);
+  const sorted = React.useMemo(() => sortEntriesForDay(localEntries, dayId, calendarDate, dayType), [localEntries, dayId, calendarDate, dayType]);
 
   const nextSortOrder = React.useMemo(() => {
     const dayE = localEntries.filter((e) => e.dayId === dayId);

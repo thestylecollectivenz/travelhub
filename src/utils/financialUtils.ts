@@ -58,7 +58,9 @@ function getFinancialLines(
     const splitAmount = dayId && nights > 0 ? fullAmount / nights : fullAmount;
     const amount = converter(splitAmount, currency);
     const amountPaid = entry.amountPaid !== undefined
-      ? converter(dayId && nights > 0 ? entry.amountPaid / nights : entry.amountPaid, currency)
+      ? (typeof entry.amountPaidConverted === 'number'
+          ? (dayId && nights > 0 ? entry.amountPaidConverted / nights : entry.amountPaidConverted)
+          : converter(dayId && nights > 0 ? entry.amountPaid / nights : entry.amountPaid, entry.paymentCurrency || currency))
       : undefined;
     const lineDayId = dayId ?? entry.dayId;
     lines.push({

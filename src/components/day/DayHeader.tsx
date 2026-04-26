@@ -113,16 +113,24 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
     sunset: number;
     timezoneName: string;
   } | null>(null);
+  const [typicalWeather, setTypicalWeather] = React.useState<{
+    tempRange: string;
+    conditions: string;
+    sunrise: string;
+    sunset: string;
+  } | null>(null);
+  const [locationMessage, setLocationMessage] = React.useState('');
 
   const dayLocations = React.useMemo(
     () => {
       const ids = [day.primaryPlaceId, ...(day.additionalPlaceIds ?? [])].filter(Boolean) as string[];
       return ids.map((id) => placeById(id)).filter(Boolean);
     },
-    [day.additionalPlaceIds, placeById]
+    [day.primaryPlaceId, day.additionalPlaceIds, placeById]
   );
   const primaryPlace = dayLocations[0];
-  const countryData = primaryPlace ? COUNTRY_DATA[primaryPlace.countryCode] : undefined;
+  const infoPlace = dayLocations.length ? dayLocations[dayLocations.length - 1] : undefined;
+  const countryData = infoPlace ? COUNTRY_DATA[infoPlace.countryCode] : undefined;
   const monthIndex = React.useMemo(() => {
     const d = new Date(`${day.calendarDate}T00:00:00.000Z`);
     return Number.isNaN(d.getTime()) ? 0 : d.getUTCMonth();
@@ -150,12 +158,12 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
   }, [locationSearch, searchPlaces]);
 
   React.useEffect(() => {
-    if (!placeInfoOpen || !primaryPlace || !config.weatherApiKey.trim()) {
+    if (!placeInfoOpen || !infoPlace || !config.weatherApiKey.trim()) {
       setWeather(null);
       return;
     }
     const units = config.temperatureUnit === 'Fahrenheit' ? 'us' : 'metric';
-    const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${primaryPlace.latitude},${primaryPlace.longitude}?key=${encodeURIComponent(config.weatherApiKey.trim())}&unitGroup=${units}&include=current,days&contentType=json`;
+    const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${infoPlace.latitude},${infoPlace.longitude}?key=${encodeURIComponent(config.weatherApiKey.trim())}&unitGroup=${units}&include=current,days&contentType=json`;
     fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Weather ${r.status}`))))
       .then((data) => {
@@ -172,7 +180,37 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
       .catch(() => {
         setWeather(null);
       });
-  }, [placeInfoOpen, primaryPlace, config.temperatureUnit, config.weatherApiKey]);
+  }, [placeInfoOpen, infoPlace, config.temperatureUnit, config.weatherApiKey]);
+  React.useEffect(() => {
+    if (!placeInfoOpen || !infoPlace) {
+      setTypicalWeather(null);
+      return;
+    }
+    if (!config.weatherApiKey.trim()) {
+      setTypicalWeather(null);
+      return;
+    }
+    const units = config.temperatureUnit === 'Fahrenheit' ? 'us' : 'metric';
+    const date = day.calendarDate;
+    const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${infoPlace.latitude},${infoPlace.longitude}/${date}?key=${encodeURIComponent(config.weatherApiKey.trim())}&include=days&elements=tempmax,tempmin,sunrise,sunset,conditions&unitGroup=${units}&contentType=json`;
+    fetch(url)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Weather ${r.status}`))))
+      .then((data) => {
+        const d = (data.days ?? [])[0] ?? {};
+        setTypicalWeather({
+          tempRange: `${Math.round(Number(d.tempmin ?? 0))}° to ${Math.round(Number(d.tempmax ?? 0))}°${config.temperatureUnit === 'Fahrenheit' ? 'F' : 'C'}`,
+          conditions: String(d.conditions ?? 'Typical conditions unavailable'),
+          sunrise: String(d.sunrise ?? '—'),
+          sunset: String(d.sunset ?? '—')
+        });
+      })
+      .catch(() => setTypicalWeather(null));
+  }, [placeInfoOpen, infoPlace, config.weatherApiKey, config.temperatureUnit, day.calendarDate]);
+  React.useEffect(() => {
+    if (!locationMessage) return undefined;
+    const t = window.setTimeout(() => setLocationMessage(''), 1400);
+    return () => window.clearTimeout(t);
+  }, [locationMessage]);
 
   const formatLocalFromUnix = React.useCallback((unix: number, tzName: string): string => {
     if (!unix) return '—';
@@ -295,6 +333,14 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
                       onClick={() => {
                         createOrReusePlace(p).then((saved) => {
                           const existingIds = dayLocations.map((x) => x!.id);
+                          const alreadyById = existingIds.indexOf(saved.id) >= 0;
+                          const alreadyByTitle = dayLocations.some((x) => (x?.title || '').trim().toLowerCase() === (saved.title || '').trim().toLowerCase());
+                          if (alreadyById || alreadyByTitle || ((saved.nominatimId || '') && dayLocations.some((x) => (x?.nominatimId || '') === saved.nominatimId))) {
+                            setLocationMessage('Already added');
+                            setLocationSearch('');
+                            setLocationResults([]);
+                            return;
+                          }
                           updateLocations(Array.from(new Set([...existingIds, saved.id])));
                           setLocationSearch('');
                           setLocationResults([]);
@@ -366,6 +412,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
               </span>
             ))}
           </div>
+          {locationMessage ? <div className={styles.infoSub}>{locationMessage}</div> : null}
         </div>
       </div>
       <div className={styles.right}>
@@ -374,33 +421,55 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
         </button>
         {placeInfoOpen ? (
           <div className={styles.placeInfoCard}>
-            {primaryPlace ? (
+            {infoPlace ? (
               <div className={styles.placeInfoGrid}>
-                {config.weatherApiKey.trim() && weather ? (
-                  <div className={styles.infoTile}>
-                    <div className={styles.infoTitle}>Current weather</div>
-                    <div className={styles.infoLine}>
-                      <WeatherIcon iconCode={weather.iconCode} />
-                      {Math.round(weather.temp)}°{config.temperatureUnit === 'Fahrenheit' ? 'F' : 'C'} · {weather.description}
-                    </div>
-                    <div className={styles.infoSub}>Sunrise {formatLocalFromUnix(weather.sunrise, weather.timezoneName)} · Sunset {formatLocalFromUnix(weather.sunset, weather.timezoneName)}</div>
-                  </div>
-                ) : null}
-                {countryData && seasonal ? (
-                  <div className={styles.infoTile}>
-                    <div className={styles.infoTitle}>Typical for {new Date(`${day.calendarDate}T00:00:00.000Z`).toLocaleString('en-NZ', { month: 'long' })}</div>
-                    <div className={styles.infoLine}>{seasonal.tempRange} · {seasonal.conditions}</div>
-                    <div className={styles.infoSub}>Daylight: {seasonal.daylight}</div>
-                  </div>
-                ) : null}
-                {countryData ? (
-                  <div className={styles.infoTile}>
-                    <div className={styles.infoTitle}>Currency and tipping</div>
-                    <div className={styles.infoLine}>{countryData.currency} ({countryData.currencyCode})</div>
-                    <div className={styles.infoSub}>{countryData.tipping}</div>
-                  </div>
-                ) : null}
-                {!config.weatherApiKey.trim() ? <div className={styles.infoSub}>Set Visual Crossing API key in Settings to show live weather.</div> : null}
+                {dayLocations.length > 1 ? <div className={styles.infoSub}>Place info for {infoPlace.title}</div> : null}
+                <div className={styles.infoTile}>
+                  <div className={styles.infoTitle}>Current weather</div>
+                  {config.weatherApiKey.trim() && weather ? (
+                    <>
+                      <div className={styles.infoLine}>
+                        <WeatherIcon iconCode={weather.iconCode} />
+                        {Math.round(weather.temp)}°{config.temperatureUnit === 'Fahrenheit' ? 'F' : 'C'} · {weather.description}
+                      </div>
+                      <div className={styles.infoSub}>Sunrise {formatLocalFromUnix(weather.sunrise, weather.timezoneName)} · Sunset {formatLocalFromUnix(weather.sunset, weather.timezoneName)}</div>
+                    </>
+                  ) : (
+                    <div className={styles.infoSub}>Set Visual Crossing API key in Settings</div>
+                  )}
+                </div>
+                <div className={styles.infoTile}>
+                  <div className={styles.infoTitle}>Typical for {(() => {
+                    const d = new Date(`${day.calendarDate}T00:00:00.000Z`);
+                    const dayOfMonth = d.getUTCDate();
+                    const part = dayOfMonth <= 10 ? 'early' : dayOfMonth <= 20 ? 'mid' : 'late';
+                    return `${part} ${d.toLocaleString('en-NZ', { month: 'long' })}`;
+                  })()}</div>
+                  {typicalWeather ? (
+                    <>
+                      <div className={styles.infoLine}>{typicalWeather.tempRange} · {typicalWeather.conditions}</div>
+                      <div className={styles.infoSub}>Sunrise {typicalWeather.sunrise} · Sunset {typicalWeather.sunset}</div>
+                    </>
+                  ) : countryData && seasonal ? (
+                    <>
+                      <div className={styles.infoLine}>{seasonal.tempRange} · {seasonal.conditions}</div>
+                      <div className={styles.infoSub}>Daylight: {seasonal.daylight}</div>
+                    </>
+                  ) : (
+                    <div className={styles.infoSub}>Typical weather unavailable.</div>
+                  )}
+                </div>
+                <div className={styles.infoTile}>
+                  <div className={styles.infoTitle}>Currency and tipping</div>
+                  {countryData ? (
+                    <>
+                      <div className={styles.infoLine}>{countryData.currency} ({countryData.currencyCode})</div>
+                      <div className={styles.infoSub}>{countryData.tipping}</div>
+                    </>
+                  ) : (
+                    <div className={styles.infoSub}>Currency/tipping guidance unavailable.</div>
+                  )}
+                </div>
               </div>
             ) : (
               <div className={styles.infoSub}>Set a primary location to view place intelligence.</div>

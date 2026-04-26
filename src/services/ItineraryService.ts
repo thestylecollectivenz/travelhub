@@ -28,6 +28,8 @@ const SELECT = [
   'PaymentStatus',
   'Amount',
   'AmountPaid',
+  'PaymentCurrency',
+  'AmountPaidConverted',
   'Currency',
   'DateStart',
   'DateEnd',
@@ -131,6 +133,8 @@ function mapToEntry(item: any): ItineraryEntry {
     paymentStatus: (item.PaymentStatus as ItineraryPaymentStatus) ?? 'Not paid',
     amount: item.Amount ?? 0,
     amountPaid: item.AmountPaid ?? undefined,
+    paymentCurrency: item.PaymentCurrency ?? undefined,
+    amountPaidConverted: item.AmountPaidConverted ?? undefined,
     currency: item.Currency ?? 'NZD',
     dateStart: parseDate(item.DateStart),
     dateEnd: parseDate(item.DateEnd),
@@ -176,6 +180,8 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   if (entry.paymentStatus !== undefined) item.PaymentStatus = entry.paymentStatus;
   if (entry.amount !== undefined) item.Amount = entry.amount;
   if (entry.amountPaid !== undefined) item.AmountPaid = entry.amountPaid;
+  if (entry.paymentCurrency !== undefined) item.PaymentCurrency = entry.paymentCurrency;
+  if (entry.amountPaidConverted !== undefined) item.AmountPaidConverted = entry.amountPaidConverted;
   if (entry.currency !== undefined) item.Currency = entry.currency;
   if (entry.dateStart !== undefined) item.DateStart = serializeDate(entry.dateStart);
   if (entry.dateEnd !== undefined) item.DateEnd = serializeDate(entry.dateEnd);

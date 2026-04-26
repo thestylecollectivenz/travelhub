@@ -22,8 +22,8 @@ function createPinIcon(): L.DivIcon {
       <path d="M10 1.5C5.3 1.5 1.5 5.3 1.5 10c0 6.3 8.5 12.5 8.5 12.5S18.5 16.3 18.5 10C18.5 5.3 14.7 1.5 10 1.5Z" fill="var(--color-primary)" stroke="#ffffff" stroke-width="1.2"/>
       <circle cx="10" cy="10" r="3" fill="#ffffff"/>
     </svg>`,
-    iconSize: [20, 24],
-    iconAnchor: [10, 24],
+    iconSize: [24, 24],
+    iconAnchor: [12, 24],
     popupAnchor: [0, -20]
   });
 }
@@ -35,8 +35,8 @@ function createSmallPinIcon(): L.DivIcon {
       <path d="M10 1.5C5.3 1.5 1.5 5.3 1.5 10c0 6.3 8.5 12.5 8.5 12.5S18.5 16.3 18.5 10C18.5 5.3 14.7 1.5 10 1.5Z" fill="var(--color-blue-200)" stroke="#ffffff" stroke-width="1.2"/>
       <circle cx="10" cy="10" r="2.4" fill="#ffffff"/>
     </svg>`,
-    iconSize: [14, 18],
-    iconAnchor: [7, 18],
+    iconSize: [24, 24],
+    iconAnchor: [12, 24],
     popupAnchor: [0, -14]
   });
 }
@@ -106,7 +106,7 @@ export const TripMap: React.FC = () => {
     }
     const primaryPoints = stops.filter((s) => s.isPrimary).map((s) => [s.latitude, s.longitude] as L.LatLngExpression);
     if (primaryPoints.length >= 2) {
-      L.polyline(primaryPoints, { color: 'var(--color-primary)', weight: 2 }).addTo(map);
+      L.polyline(primaryPoints, { color: '#1A6399', weight: 2 }).addTo(map);
     }
     if (points.length) {
       map.fitBounds(L.latLngBounds(points), { padding: [20, 20] });

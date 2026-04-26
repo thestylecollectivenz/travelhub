@@ -62,6 +62,11 @@ export const RouteStrip: React.FC = () => {
   }, [trip, tripDays]);
 
   const stops = React.useMemo((): Stop[] => {
+    const parseAdditional = (value: unknown): string[] => {
+      if (Array.isArray(value)) return value.map((x) => String(x).trim()).filter(Boolean);
+      if (typeof value === 'string') return value.split(',').map((x) => x.trim()).filter(Boolean);
+      return [];
+    };
     const out: Stop[] = [];
     for (const day of orderedDays) {
       const place = placeById(day.primaryPlaceId);
@@ -77,7 +82,7 @@ export const RouteStrip: React.FC = () => {
         startDay: day.dayNumber,
         endDay: day.dayNumber,
         dayId: day.id,
-        additionalTitles: (day.additionalPlaceIds ?? [])
+        additionalTitles: parseAdditional((day as unknown as { additionalPlaceIds?: string[] | string }).additionalPlaceIds)
           .map((id) => placeById(id)?.title)
           .filter(Boolean) as string[]
       });
@@ -94,8 +99,11 @@ export const RouteStrip: React.FC = () => {
       <div className={styles.scroll}>
         {stops.map((s, i) => {
           const next = stops[i + 1];
-          const transitionEntry = next ? entries.find((e) => e.dayId === next.dayId) : undefined;
-          const kind = getTransportKind(transitionEntry?.category ?? '');
+          const transitionEntries = next ? entries.filter((e) => e.dayId === next.dayId) : [];
+          // eslint-disable-next-line no-console
+          console.log('RouteStrip transition entries', next?.dayId, transitionEntries.map((e) => ({ id: e.id, category: e.category, title: e.title })));
+          const transitionEntry = transitionEntries[0];
+          const kind = getTransportKind(transitionEntries.map((e) => e.category).join(' '));
           const isActive =
             selectedDayId === s.dayId ||
             orderedDays.find((d) => d.id === selectedDayId)?.dayNumber === s.startDay;

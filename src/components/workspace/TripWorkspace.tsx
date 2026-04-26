@@ -12,6 +12,7 @@ import { TripContent } from './TripContent';
 import { SharedTripView } from './SharedTripView';
 import { ConfigPanel } from './ConfigPanel';
 import { EditTripPanel } from './EditTripPanel';
+import { ErrorBoundary } from '../shared/ErrorBoundary';
 import styles from './TripWorkspace.module.css';
 
 export interface ITripWorkspaceProps {
@@ -386,7 +387,11 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
       <TripHero trip={trip} onEdit={() => setEditOpen(true)} showEditButton={!sharedPreview} />
       {sharedPreview ? null : <TripStatsStrip />}
       {sharedPreview ? null : <RouteStrip />}
-      {sharedPreview ? <SharedTripView /> : <TripContent />}
+      {sharedPreview ? (
+        <ErrorBoundary fallbackTitle="Something went wrong in shared view">
+          <SharedTripView />
+        </ErrorBoundary>
+      ) : <TripContent />}
       <ConfigPanel isOpen={configOpen} onClose={() => setConfigOpen(false)} />
       <EditTripPanel trip={trip} isOpen={editOpen} onClose={() => setEditOpen(false)} onSave={updateTrip} />
     </div>

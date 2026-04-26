@@ -70,7 +70,7 @@ export const SharedTripView: React.FC = () => {
         />
       </div>
       <main className={styles.main}>
-        {mainWorkspaceTab === 'itinerary' || mainWorkspaceTab === 'documents' || mainWorkspaceTab === 'links' || mainWorkspaceTab === 'map' ? <SharedDayPanel /> : null}
+        {mainWorkspaceTab === 'itinerary' || mainWorkspaceTab === 'files' || mainWorkspaceTab === 'map' || mainWorkspaceTab === 'tasks' || mainWorkspaceTab === 'packing' ? <SharedDayPanel /> : null}
         {mainWorkspaceTab === 'journal' ? <TripJournalFeed /> : null}
         {mainWorkspaceTab === 'photos' ? <TripPhotoAlbum /> : null}
       </main>

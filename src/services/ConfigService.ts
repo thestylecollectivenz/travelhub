@@ -46,7 +46,7 @@ export class ConfigService {
     if (!item) {
       return { ...DEFAULT_USER_CONFIG };
     }
-    return {
+    const resolved: UserConfig = {
       homeCurrency: item.HomeCurrency || DEFAULT_USER_CONFIG.homeCurrency,
       temperatureUnit: item.TemperatureUnit === 'Fahrenheit' ? 'Fahrenheit' : 'Celsius',
       distanceUnit: item.DistanceUnit === 'Miles' ? 'Miles' : 'Kilometres',
@@ -58,6 +58,9 @@ export class ConfigService {
       sidebarWidth: typeof item.SidebarWidth === 'number' ? item.SidebarWidth : Number(item.SidebarWidth ?? DEFAULT_USER_CONFIG.sidebarWidth) || DEFAULT_USER_CONFIG.sidebarWidth,
       weatherApiKey: typeof item.WeatherApiKey === 'string' ? item.WeatherApiKey : ''
     };
+    // eslint-disable-next-line no-console
+    console.log('ConfigService.getConfig read', resolved);
+    return resolved;
   }
 
   async saveConfig(userId: string, config: UserConfig): Promise<void> {
@@ -81,6 +84,8 @@ export class ConfigService {
       SidebarWidth: typeof config.sidebarWidth === 'number' ? config.sidebarWidth : DEFAULT_USER_CONFIG.sidebarWidth,
       WeatherApiKey: config.weatherApiKey ?? ''
     });
+    // eslint-disable-next-line no-console
+    console.log('ConfigService.saveConfig write', config);
 
     if (existing?.ID) {
       const updateResp = await this.ctx.spHttpClient.post(
@@ -99,6 +104,8 @@ export class ConfigService {
       if (!updateResp.ok) {
         throw new Error(`ConfigService.saveConfig update failed: ${updateResp.status}`);
       }
+      // eslint-disable-next-line no-console
+      console.log('ConfigService.saveConfig update ok');
       return;
     }
 
@@ -116,5 +123,7 @@ export class ConfigService {
     if (!createResp.ok && createResp.status !== 201) {
       throw new Error(`ConfigService.saveConfig create failed: ${createResp.status}`);
     }
+    // eslint-disable-next-line no-console
+    console.log('ConfigService.saveConfig create ok');
   }
 }
