@@ -210,7 +210,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
   }, [calendarDate, entry.dateStart, isContinuation]);
 
   let unitSuffix = '';
-  if (entry.unitType && typeof entry.unitAmount === 'number' && !Number.isNaN(entry.unitAmount)) {
+  if (!isAccommodation && entry.unitType && typeof entry.unitAmount === 'number' && !Number.isNaN(entry.unitAmount)) {
     const unitAmountHome = convertToHomeCurrency(entry.unitAmount, entry.currency || 'NZD');
     const amt = formatCurrency(unitAmountHome, config.homeCurrency);
     if (entry.unitType === 'PerPerson') {
@@ -405,7 +405,11 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
           ? `${formatCurrency(displayAmountHome, config.homeCurrency)} total · ${formatCurrency(perNightHome, config.homeCurrency)} /night`
           : formatCurrency(displayAmountHome, config.homeCurrency)}
         {entry.currency && entry.currency.toUpperCase() !== config.homeCurrency.toUpperCase() ? (
-          <span className={styles.unitSuffix}> ({entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {entry.currency})</span>
+          <span className={styles.unitSuffix}>
+            {isAccommodation && nights > 0
+              ? ` (${entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency} · ${(entry.amount / nights).toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency} /night)`
+              : ` (${entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency})`}
+          </span>
         ) : null}
         {unitSuffix ? <span className={styles.unitSuffix}>{unitSuffix}</span> : null}
       </div>
