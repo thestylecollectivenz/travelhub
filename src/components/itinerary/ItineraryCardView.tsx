@@ -118,7 +118,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
   const { config } = useConfig();
   const { docsForEntry, linksForEntry, addDocument, updateDocument, deleteDocument, addLink, updateLink, deleteLink } = useAttachments();
   const [menuOpen, setMenuOpen] = React.useState(false);
-  const [notesOpen, setNotesOpen] = React.useState(false);
+  const [notesOpen, setNotesOpen] = React.useState(Boolean(entry.notes && entry.notes.trim()));
   const [attachmentsOpen, setAttachmentsOpen] = React.useState(false);
   const [subItemsOpen, setSubItemsOpen] = React.useState(false);
   const [addingSubItem, setAddingSubItem] = React.useState(false);
@@ -162,6 +162,10 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, [menuOpen]);
+
+  React.useEffect(() => {
+    setNotesOpen(Boolean(entry.notes && entry.notes.trim()));
+  }, [entry.notes]);
 
   const displayAmountHome = convertToHomeCurrency(entry.amount, entry.currency || 'NZD');
   const displayAmountPaidHome = entry.amountPaid !== undefined

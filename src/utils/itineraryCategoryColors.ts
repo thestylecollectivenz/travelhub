@@ -11,6 +11,7 @@ export function categoryNodeColor(category: string): string {
   const map: Record<BudgetCategoryKey, string> = {
     Flights: 'var(--color-blue-400)',
     Accommodation: 'var(--color-teal-400)',
+    Cruise: 'var(--color-blue-400)',
     'Food & Dining': 'var(--color-amber-400)',
     Activities: 'var(--color-green-400)',
     Transport: 'var(--color-teal-600)',

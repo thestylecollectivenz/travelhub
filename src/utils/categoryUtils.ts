@@ -1,6 +1,7 @@
 export const CATEGORY_LIST = [
   'Flights',
   'Accommodation',
+  'Cruise',
   'Food & Dining',
   'Activities',
   'Transport',
@@ -17,6 +18,8 @@ export function getCategoryColor(category: string): string {
       return 'var(--color-cat-flights)';
     case 'Accommodation':
       return 'var(--color-cat-accommodation)';
+    case 'Cruise':
+      return 'var(--color-cat-cruise)';
     case 'Food & Dining':
       return 'var(--color-cat-food)';
     case 'Activities':
@@ -38,6 +41,8 @@ export function getCategoryBgColor(category: string): string {
       return 'var(--color-cat-flights-bg)';
     case 'Accommodation':
       return 'var(--color-cat-accommodation-bg)';
+    case 'Cruise':
+      return 'var(--color-cat-cruise-bg)';
     case 'Food & Dining':
       return 'var(--color-cat-food-bg)';
     case 'Activities':
@@ -63,6 +68,8 @@ export function getCategorySlug(category: string): string {
       return 'flights';
     case 'Accommodation':
       return 'accommodation';
+    case 'Cruise':
+      return 'cruise';
     case 'Food & Dining':
       return 'food';
     case 'Activities':

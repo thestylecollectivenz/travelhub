@@ -43,6 +43,13 @@ export const CategoryIcon: React.FC<CategoryIconProps> = ({ category, size = 16,
           <path d="M3 11.5v1.5M13 11.5v1.5" {...common} />
         </svg>
       );
+    case 'Cruise':
+      return (
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden style={style}>
+          <path d="M2 10.8h12l-1.1 2H3.1l-1.1-2Z" {...common} />
+          <path d="M5.2 10.8V6.3h5.6v4.5M7.2 6.3V4.5h1.6v1.8M10.8 6.3h1.3" {...common} />
+        </svg>
+      );
     case 'Food & Dining':
       return (
         <svg viewBox="0 0 16 16" fill="none" aria-hidden style={style}>

@@ -33,24 +33,65 @@ function dayTypeLabel(dayType: TripDay['dayType']): string {
   }
 }
 
-function WeatherIcon({ kind }: { kind: string }): React.ReactElement {
-  const k = kind.toLowerCase();
-  if (k.includes('thunder')) {
-    return <span aria-hidden>⛈</span>;
+function WeatherIcon({ iconCode }: { iconCode: string }): React.ReactElement {
+  const code = (iconCode || '').toLowerCase();
+  if (code.includes('clear-night')) {
+    return (
+      <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden>
+        <path d="M10.8 2.2a5.2 5.2 0 1 0 3 8.7 5 5 0 1 1-3-8.7Z" fill="var(--color-blue-400)" />
+      </svg>
+    );
   }
-  if (k.includes('snow')) {
-    return <span aria-hidden>❄</span>;
+  if (code.includes('clear-day')) {
+    return (
+      <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden>
+        <circle cx="8" cy="8" r="3.2" fill="var(--color-amber-400)" />
+        <path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3 3l1.4 1.4M11.6 11.6 13 13M3 13l1.4-1.4M11.6 4.4 13 3" stroke="var(--color-amber-400)" strokeWidth="1.2" />
+      </svg>
+    );
   }
-  if (k.includes('rain')) {
-    return <span aria-hidden>🌧</span>;
+  if (code.includes('partly-cloudy')) {
+    return (
+      <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden>
+        <circle cx="6" cy="6" r="2.4" fill="var(--color-amber-400)" />
+        <path d="M6.2 12.5h5.1a2 2 0 0 0 0-4 2.8 2.8 0 0 0-5.2-.8A2 2 0 0 0 6.2 12.5Z" fill="var(--color-blue-200)" />
+      </svg>
+    );
   }
-  if (k.includes('mist') || k.includes('fog') || k.includes('haze')) {
-    return <span aria-hidden>🌫</span>;
+  if (code.includes('cloud')) {
+    return (
+      <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden>
+        <path d="M4.3 12h7.2a2.4 2.4 0 0 0 0-4.8A3.3 3.3 0 0 0 5 6 2.8 2.8 0 0 0 4.3 12Z" fill="var(--color-blue-200)" />
+      </svg>
+    );
   }
-  if (k.includes('cloud')) {
-    return <span aria-hidden>☁</span>;
+  if (code.includes('rain')) {
+    return (
+      <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden>
+        <path d="M4.3 9h7.2a2.4 2.4 0 0 0 0-4.8A3.3 3.3 0 0 0 5 3 2.8 2.8 0 0 0 4.3 9Z" fill="var(--color-blue-200)" />
+        <path d="M6 10.5 5.4 12M8.2 10.5 7.6 12M10.4 10.5 9.8 12" stroke="var(--color-blue-400)" strokeWidth="1.2" strokeLinecap="round" />
+      </svg>
+    );
   }
-  return <span aria-hidden>☀</span>;
+  if (code.includes('snow')) {
+    return (
+      <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden>
+        <path d="M8 3.5v9M4.5 5.5l7 5M11.5 5.5l-7 5" stroke="var(--color-blue-200)" strokeWidth="1.2" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (code.includes('thunder')) {
+    return (
+      <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden>
+        <path d="M7.2 2.5 4.8 8h2.4L5.7 13.5 11.2 7.2H8.7L10.2 2.5Z" fill="var(--color-amber-400)" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden>
+      <path d="M3.5 5.5h9M2.8 8h10.4M3.5 10.5h9" stroke="var(--color-sand-400)" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry, onWriteJournal, variant = 'default' }) => {
@@ -61,26 +102,26 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
   const [isEditingTitle, setIsEditingTitle] = React.useState(false);
   const [titleDraft, setTitleDraft] = React.useState(day.displayTitle);
   const [typePickerOpen, setTypePickerOpen] = React.useState(false);
-  const [primarySearchOpen, setPrimarySearchOpen] = React.useState(false);
-  const [primarySearch, setPrimarySearch] = React.useState('');
-  const [primaryResults, setPrimaryResults] = React.useState<PlaceCandidate[]>([]);
-  const [additionalSearch, setAdditionalSearch] = React.useState('');
-  const [additionalResults, setAdditionalResults] = React.useState<PlaceCandidate[]>([]);
-  const [placeInfoOpen, setPlaceInfoOpen] = React.useState(false);
+  const [locationSearch, setLocationSearch] = React.useState('');
+  const [locationResults, setLocationResults] = React.useState<PlaceCandidate[]>([]);
+  const [placeInfoOpen, setPlaceInfoOpen] = React.useState(true);
   const [weather, setWeather] = React.useState<{
     temp: number;
     description: string;
-    main: string;
+    iconCode: string;
     sunrise: number;
     sunset: number;
-    timezoneOffset: number;
+    timezoneName: string;
   } | null>(null);
 
-  const primaryPlace = placeById(day.primaryPlaceId);
-  const additionalPlaces = React.useMemo(
-    () => (day.additionalPlaceIds ?? []).map((id) => placeById(id)).filter(Boolean),
+  const dayLocations = React.useMemo(
+    () => {
+      const ids = [day.primaryPlaceId, ...(day.additionalPlaceIds ?? [])].filter(Boolean) as string[];
+      return ids.map((id) => placeById(id)).filter(Boolean);
+    },
     [day.additionalPlaceIds, placeById]
   );
+  const primaryPlace = dayLocations[0];
   const countryData = primaryPlace ? COUNTRY_DATA[primaryPlace.countryCode] : undefined;
   const monthIndex = React.useMemo(() => {
     const d = new Date(`${day.calendarDate}T00:00:00.000Z`);
@@ -96,48 +137,36 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
   }, [day.displayTitle]);
 
   React.useEffect(() => {
-    if (!primarySearchOpen || !primarySearch.trim()) {
-      setPrimaryResults([]);
+    if (!locationSearch.trim()) {
+      setLocationResults([]);
       return;
     }
     const t = window.setTimeout(() => {
-      searchPlaces(primarySearch)
-        .then((rows) => setPrimaryResults(rows))
+      searchPlaces(locationSearch)
+        .then((rows) => setLocationResults(rows))
         .catch(console.error);
     }, 400);
     return () => window.clearTimeout(t);
-  }, [primarySearch, primarySearchOpen, searchPlaces]);
-
-  React.useEffect(() => {
-    if (!additionalSearch.trim()) {
-      setAdditionalResults([]);
-      return;
-    }
-    const t = window.setTimeout(() => {
-      searchPlaces(additionalSearch)
-        .then((rows) => setAdditionalResults(rows))
-        .catch(console.error);
-    }, 400);
-    return () => window.clearTimeout(t);
-  }, [additionalSearch, searchPlaces]);
+  }, [locationSearch, searchPlaces]);
 
   React.useEffect(() => {
     if (!placeInfoOpen || !primaryPlace || !config.weatherApiKey.trim()) {
       setWeather(null);
       return;
     }
-    const units = config.temperatureUnit === 'Fahrenheit' ? 'imperial' : 'metric';
-    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${primaryPlace.latitude}&lon=${primaryPlace.longitude}&units=${units}&appid=${encodeURIComponent(config.weatherApiKey.trim())}`;
+    const units = config.temperatureUnit === 'Fahrenheit' ? 'us' : 'metric';
+    const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${primaryPlace.latitude},${primaryPlace.longitude}?key=${encodeURIComponent(config.weatherApiKey.trim())}&unitGroup=${units}&include=current,days&contentType=json`;
     fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Weather ${r.status}`))))
       .then((data) => {
+        const current = data.currentConditions ?? {};
         setWeather({
-          temp: Number(data.main?.temp ?? 0),
-          description: String(data.weather?.[0]?.description ?? ''),
-          main: String(data.weather?.[0]?.main ?? ''),
-          sunrise: Number(data.sys?.sunrise ?? 0),
-          sunset: Number(data.sys?.sunset ?? 0),
-          timezoneOffset: Number(data.timezone ?? 0)
+          temp: Number(current.temp ?? 0),
+          description: String(current.conditions ?? ''),
+          iconCode: String(current.icon ?? ''),
+          sunrise: Number(current.sunriseEpoch ?? 0),
+          sunset: Number(current.sunsetEpoch ?? 0),
+          timezoneName: String(data.timezone ?? '')
         });
       })
       .catch(() => {
@@ -145,13 +174,19 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
       });
   }, [placeInfoOpen, primaryPlace, config.temperatureUnit, config.weatherApiKey]);
 
-  const formatLocalFromUnix = React.useCallback((unix: number, tzOffsetSec: number): string => {
+  const formatLocalFromUnix = React.useCallback((unix: number, tzName: string): string => {
     if (!unix) return '—';
-    const d = new Date((unix + tzOffsetSec) * 1000);
-    const hh = d.getUTCHours() < 10 ? `0${d.getUTCHours()}` : `${d.getUTCHours()}`;
-    const mm = d.getUTCMinutes() < 10 ? `0${d.getUTCMinutes()}` : `${d.getUTCMinutes()}`;
-    return `${hh}:${mm}`;
+    const d = new Date(unix * 1000);
+    return d.toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tzName || undefined });
   }, []);
+
+  const updateLocations = React.useCallback((ids: string[]) => {
+    const normalized = ids.filter(Boolean);
+    updateDay(day.id, {
+      primaryPlaceId: normalized[0] ?? '',
+      additionalPlaceIds: normalized.slice(1)
+    });
+  }, [day.id, updateDay]);
 
   const saveTitle = React.useCallback(() => {
     const next = titleDraft.trim();
@@ -241,72 +276,29 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
         </div>
         <div className={styles.date}>{formatDayDate(day.calendarDate)}</div>
         <div className={styles.placeSection}>
-          <div className={styles.primaryRow}>
-            {primaryPlace ? (
-              <>
-                <span className={styles.placePill}>
-                  <span aria-hidden>📍</span> {primaryPlace.title}
-                </span>
-                <a
-                  className={styles.mapLink}
-                  href={`https://www.google.com/maps/search/?api=1&query=${primaryPlace.latitude},${primaryPlace.longitude}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Open in Google Maps
-                </a>
-                {isShared ? null : (
-                  <button
-                    type="button"
-                    className={styles.clearPlaceBtn}
-                    onClick={() => updateDay(day.id, { primaryPlaceId: '', additionalPlaceIds: (day.additionalPlaceIds ?? []).filter(Boolean) })}
-                    aria-label="Clear primary place"
-                  >
-                    ×
-                  </button>
-                )}
-              </>
-            ) : isShared ? (
-              <span className={styles.mapLink}>No location set</span>
-            ) : (
-              <button type="button" className={styles.linkButton} onClick={() => setPrimarySearchOpen((v) => !v)}>
-                Add location
-              </button>
-            )}
-          </div>
-          {!isShared && primarySearchOpen ? (
+          <div className={styles.alsoVisiting}>Locations</div>
+          {!isShared ? (
             <div className={styles.searchWrap}>
               <input
                 className={styles.placeInput}
-                value={primarySearch}
-                onChange={(e) => setPrimarySearch(e.target.value)}
-                placeholder="Search location"
+                value={locationSearch}
+                onChange={(e) => setLocationSearch(e.target.value)}
+                placeholder="Add location"
               />
-              {primaryResults.length ? (
+              {locationResults.length ? (
                 <div className={styles.searchDropdown}>
-                  {primaryResults.map((p) => (
+                  {locationResults.map((p) => (
                     <button
                       key={p.nominatimId}
                       type="button"
                       className={styles.searchOption}
                       onClick={() => {
-                        createOrReusePlace({
-                          title: p.title,
-                          latitude: p.latitude,
-                          longitude: p.longitude,
-                          country: p.country,
-                          countryCode: p.countryCode,
-                          placeType: p.placeType,
-                          timeZone: p.timeZone,
-                          nominatimId: p.nominatimId
-                        })
-                          .then((saved) => {
-                            updateDay(day.id, { primaryPlaceId: saved.id });
-                            setPrimarySearchOpen(false);
-                            setPrimarySearch('');
-                            setPrimaryResults([]);
-                          })
-                          .catch(console.error);
+                        createOrReusePlace(p).then((saved) => {
+                          const existingIds = dayLocations.map((x) => x!.id);
+                          updateLocations(Array.from(new Set([...existingIds, saved.id])));
+                          setLocationSearch('');
+                          setLocationResults([]);
+                        }).catch(console.error);
                       }}
                     >
                       <span>{p.title}</span>
@@ -317,118 +309,106 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
               ) : null}
             </div>
           ) : null}
-
-          {(additionalPlaces.length > 0 || !isShared) ? (
-            <div className={styles.additionalRow}>
-              <span className={styles.alsoVisiting}>Also visiting</span>
-              <div className={styles.additionalList}>
-                {additionalPlaces.map((p) => (
-                  <span key={p!.id} className={styles.placePill}>
-                    {p!.title}
-                    {isShared ? null : (
+          <div className={styles.additionalList}>
+            {dayLocations.map((p, idx) => (
+              <span key={p!.id} className={styles.additionalRow}>
+                <span className={styles.placePill}>
+                  <span aria-hidden>📍</span> {p!.title}
+                  {isShared ? null : (
+                    <>
                       <button
                         type="button"
                         className={styles.clearPlaceBtn}
-                        onClick={() =>
-                          updateDay(day.id, {
-                            additionalPlaceIds: (day.additionalPlaceIds ?? []).filter((id) => id !== p!.id)
-                          })
-                        }
+                        onClick={() => {
+                          const ids = dayLocations.map((x) => x!.id).filter((id) => id !== p!.id);
+                          updateLocations(ids);
+                        }}
+                        aria-label="Remove location"
                       >
                         ×
                       </button>
-                    )}
-                  </span>
-                ))}
-              </div>
-              {isShared ? null : (
-                <div className={styles.searchWrap}>
-                  <input
-                    className={styles.placeInput}
-                    value={additionalSearch}
-                    onChange={(e) => setAdditionalSearch(e.target.value)}
-                    placeholder="Add another place"
-                  />
-                  {additionalResults.length ? (
-                    <div className={styles.searchDropdown}>
-                      {additionalResults.map((p) => (
-                        <button
-                          key={p.nominatimId}
-                          type="button"
-                          className={styles.searchOption}
-                          onClick={() => {
-                            createOrReusePlace({
-                              title: p.title,
-                              latitude: p.latitude,
-                              longitude: p.longitude,
-                              country: p.country,
-                              countryCode: p.countryCode,
-                              placeType: p.placeType,
-                              timeZone: p.timeZone,
-                              nominatimId: p.nominatimId
-                            })
-                              .then((saved) => {
-                                const next = Array.from(new Set([...(day.additionalPlaceIds ?? []), saved.id]));
-                                updateDay(day.id, { additionalPlaceIds: next });
-                                setAdditionalSearch('');
-                                setAdditionalResults([]);
-                              })
-                              .catch(console.error);
-                          }}
-                        >
-                          <span>{p.title}</span>
-                          <span className={styles.searchMeta}>{p.country}</span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              )}
-            </div>
-          ) : null}
-
-          <button type="button" className={styles.linkButton} onClick={() => setPlaceInfoOpen((v) => !v)}>
-            {placeInfoOpen ? 'Hide place info' : 'Place info'}
-          </button>
-          {placeInfoOpen ? (
-            <div className={styles.placeInfoCard}>
-              {primaryPlace ? (
-                <div className={styles.placeInfoGrid}>
-                  {config.weatherApiKey.trim() && weather ? (
-                    <div className={styles.infoTile}>
-                      <div className={styles.infoTitle}>Current weather</div>
-                      <div className={styles.infoLine}>
-                        <WeatherIcon kind={weather.main} />
-                        {Math.round(weather.temp)}°{config.temperatureUnit === 'Fahrenheit' ? 'F' : 'C'} · {weather.description}
-                      </div>
-                      <div className={styles.infoSub}>Sunrise {formatLocalFromUnix(weather.sunrise, weather.timezoneOffset)} · Sunset {formatLocalFromUnix(weather.sunset, weather.timezoneOffset)}</div>
-                    </div>
-                  ) : null}
-                  {countryData && seasonal ? (
-                    <div className={styles.infoTile}>
-                      <div className={styles.infoTitle}>Typical for {new Date(`${day.calendarDate}T00:00:00.000Z`).toLocaleString('en-NZ', { month: 'long' })}</div>
-                      <div className={styles.infoLine}>{seasonal.tempRange} · {seasonal.conditions}</div>
-                      <div className={styles.infoSub}>Daylight: {seasonal.daylight}</div>
-                    </div>
-                  ) : null}
-                  {countryData ? (
-                    <div className={styles.infoTile}>
-                      <div className={styles.infoTitle}>Currency and tipping</div>
-                      <div className={styles.infoLine}>{countryData.currency} ({countryData.currencyCode})</div>
-                      <div className={styles.infoSub}>{countryData.tipping}</div>
-                    </div>
-                  ) : null}
-                  {!config.weatherApiKey.trim() ? <div className={styles.infoSub}>Set Weather API key in Settings to show live weather.</div> : null}
-                </div>
-              ) : (
-                <div className={styles.infoSub}>Set a primary place to view place intelligence.</div>
-              )}
-            </div>
-          ) : null}
+                      <button
+                        type="button"
+                        className={styles.clearPlaceBtn}
+                        onClick={() => {
+                          if (idx === 0) return;
+                          const ids = dayLocations.map((x) => x!.id);
+                          const temp = ids[idx - 1];
+                          ids[idx - 1] = ids[idx];
+                          ids[idx] = temp;
+                          updateLocations(ids);
+                        }}
+                        aria-label="Move location up"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.clearPlaceBtn}
+                        onClick={() => {
+                          if (idx >= dayLocations.length - 1) return;
+                          const ids = dayLocations.map((x) => x!.id);
+                          const temp = ids[idx + 1];
+                          ids[idx + 1] = ids[idx];
+                          ids[idx] = temp;
+                          updateLocations(ids);
+                        }}
+                        aria-label="Move location down"
+                      >
+                        ↓
+                      </button>
+                    </>
+                  )}
+                </span>
+                <a className={styles.mapLink} href={`https://www.google.com/maps/@${p!.latitude},${p!.longitude},10z`} target="_blank" rel="noopener noreferrer">
+                  Open in Google Maps
+                </a>
+              </span>
+            ))}
+          </div>
         </div>
       </div>
-      {isShared ? null : (
-        <div className={styles.right}>
+      <div className={styles.right}>
+        <button type="button" className={styles.linkButton} onClick={() => setPlaceInfoOpen((v) => !v)}>
+          {placeInfoOpen ? 'Hide place info' : 'Show place info'}
+        </button>
+        {placeInfoOpen ? (
+          <div className={styles.placeInfoCard}>
+            {primaryPlace ? (
+              <div className={styles.placeInfoGrid}>
+                {config.weatherApiKey.trim() && weather ? (
+                  <div className={styles.infoTile}>
+                    <div className={styles.infoTitle}>Current weather</div>
+                    <div className={styles.infoLine}>
+                      <WeatherIcon iconCode={weather.iconCode} />
+                      {Math.round(weather.temp)}°{config.temperatureUnit === 'Fahrenheit' ? 'F' : 'C'} · {weather.description}
+                    </div>
+                    <div className={styles.infoSub}>Sunrise {formatLocalFromUnix(weather.sunrise, weather.timezoneName)} · Sunset {formatLocalFromUnix(weather.sunset, weather.timezoneName)}</div>
+                  </div>
+                ) : null}
+                {countryData && seasonal ? (
+                  <div className={styles.infoTile}>
+                    <div className={styles.infoTitle}>Typical for {new Date(`${day.calendarDate}T00:00:00.000Z`).toLocaleString('en-NZ', { month: 'long' })}</div>
+                    <div className={styles.infoLine}>{seasonal.tempRange} · {seasonal.conditions}</div>
+                    <div className={styles.infoSub}>Daylight: {seasonal.daylight}</div>
+                  </div>
+                ) : null}
+                {countryData ? (
+                  <div className={styles.infoTile}>
+                    <div className={styles.infoTitle}>Currency and tipping</div>
+                    <div className={styles.infoLine}>{countryData.currency} ({countryData.currencyCode})</div>
+                    <div className={styles.infoSub}>{countryData.tipping}</div>
+                  </div>
+                ) : null}
+                {!config.weatherApiKey.trim() ? <div className={styles.infoSub}>Set Visual Crossing API key in Settings to show live weather.</div> : null}
+              </div>
+            ) : (
+              <div className={styles.infoSub}>Set a primary location to view place intelligence.</div>
+            )}
+          </div>
+        ) : null}
+        {isShared ? null : (
+          <div className={styles.rightActions}>
           <span className={styles.totalChip}>{formatCurrency(dayTotal, config.homeCurrency)}</span>
           <button type="button" className={styles.journalButton} onClick={() => onWriteJournal?.()}>
             Write journal entry
@@ -436,8 +416,9 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
           <button type="button" className={styles.addButton} onClick={onAddEntry}>
             + Add
           </button>
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </header>
   );
 };

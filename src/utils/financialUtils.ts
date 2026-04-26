@@ -156,6 +156,7 @@ export function avgPerDay(total: number, dayCount: number): number {
 export const BUDGET_CATEGORY_ORDER = [
   'Flights',
   'Accommodation',
+  'Cruise',
   'Food & Dining',
   'Activities',
   'Transport',

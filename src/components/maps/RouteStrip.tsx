@@ -9,16 +9,18 @@ type Stop = {
   startDay: number;
   endDay: number;
   dayId: string;
+  additionalTitles: string[];
 };
 
-function getTransportKind(title: string): 'flight' | 'ground' | 'arrow' {
+function getTransportKind(title: string): 'flight' | 'ground' | 'cruise' | 'arrow' {
   const t = title.toLowerCase();
   if (t.includes('flight')) return 'flight';
+  if (t.includes('cruise')) return 'cruise';
   if (t.includes('transport')) return 'ground';
   return 'arrow';
 }
 
-function TransportIcon({ kind }: { kind: 'flight' | 'ground' | 'arrow' }): React.ReactElement {
+function TransportIcon({ kind }: { kind: 'flight' | 'ground' | 'cruise' | 'arrow' }): React.ReactElement {
   if (kind === 'flight') {
     return (
       <svg viewBox="0 0 16 16" width={12} height={12} fill="none" aria-hidden>
@@ -32,6 +34,14 @@ function TransportIcon({ kind }: { kind: 'flight' | 'ground' | 'arrow' }): React
         <rect x="2" y="4" width="12" height="7" rx="1.4" stroke="currentColor" strokeWidth="1.2" />
         <circle cx="5" cy="12" r="1" fill="currentColor" />
         <circle cx="11" cy="12" r="1" fill="currentColor" />
+      </svg>
+    );
+  }
+  if (kind === 'cruise') {
+    return (
+      <svg viewBox="0 0 16 16" width={12} height={12} fill="none" aria-hidden>
+        <path d="M2.5 10.5h11l-1.2 2H3.7l-1.2-2Z" fill="currentColor" />
+        <path d="M5 10.5V6h6v4.5M7 6V4h2v2" stroke="currentColor" strokeWidth="1.1" />
       </svg>
     );
   }
@@ -66,7 +76,10 @@ export const RouteStrip: React.FC = () => {
         title: place.title,
         startDay: day.dayNumber,
         endDay: day.dayNumber,
-        dayId: day.id
+        dayId: day.id,
+        additionalTitles: (day.additionalPlaceIds ?? [])
+          .map((id) => placeById(id)?.title)
+          .filter(Boolean) as string[]
       });
     }
     return out;
@@ -97,11 +110,11 @@ export const RouteStrip: React.FC = () => {
                 <span className={styles.range}>
                   {s.startDay === s.endDay ? `Day ${s.startDay}` : `Days ${s.startDay}-${s.endDay}`}
                 </span>
+                {s.additionalTitles.length ? <span className={styles.range}>+ {s.additionalTitles.join(', ')}</span> : null}
               </button>
               {next ? (
                 <span className={styles.connector}>
                   <TransportIcon kind={kind} />
-                  {Math.max(1, next.startDay - s.endDay)} day
                 </span>
               ) : null}
             </React.Fragment>

@@ -70,6 +70,12 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  React.useEffect(() => {
+    if (sharedPreview && (trip && (tripDays.length >= 0))) {
+      setMainWorkspaceTab('itinerary');
+    }
+  }, [sharedPreview, setMainWorkspaceTab, trip, tripDays.length]);
+
   type SearchResult = {
     id: string;
     kind: 'itinerary' | 'journal' | 'photo' | 'document' | 'link';
@@ -378,8 +384,8 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
       ) : null}
       {deleteTripError ? <div className={styles.deleteError}>{deleteTripError}</div> : null}
       <TripHero trip={trip} onEdit={() => setEditOpen(true)} showEditButton={!sharedPreview} />
-      {sharedPreview ? null : <RouteStrip />}
       {sharedPreview ? null : <TripStatsStrip />}
+      {sharedPreview ? null : <RouteStrip />}
       {sharedPreview ? <SharedTripView /> : <TripContent />}
       <ConfigPanel isOpen={configOpen} onClose={() => setConfigOpen(false)} />
       <EditTripPanel trip={trip} isOpen={editOpen} onClose={() => setEditOpen(false)} onSave={updateTrip} />

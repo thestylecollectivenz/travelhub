@@ -55,6 +55,7 @@
   /* Category identity colours */
   --color-cat-flights: var(--color-blue-600);
   --color-cat-accommodation: var(--color-rose-600);
+  --color-cat-cruise: var(--color-blue-400);
   --color-cat-food: var(--color-amber-600);
   --color-cat-activities: var(--color-green-600);
   --color-cat-transport: var(--color-purple-600);
@@ -63,6 +64,7 @@
   /* Category background tints */
   --color-cat-flights-bg: var(--color-blue-50);
   --color-cat-accommodation-bg: var(--color-rose-50);
+  --color-cat-cruise-bg: var(--color-blue-50);
   --color-cat-food-bg: var(--color-amber-50);
   --color-cat-activities-bg: var(--color-green-50);
   --color-cat-transport-bg: var(--color-purple-50);
@@ -179,6 +181,11 @@ a:hover {
   --cat-bg: var(--color-cat-food-bg);
 }
 
+.th-cat-cruise {
+  --cat-color: var(--color-cat-cruise);
+  --cat-bg: var(--color-cat-cruise-bg);
+}
+
 .th-cat-activities {
   --cat-color: var(--color-cat-activities);
   --cat-bg: var(--color-cat-activities-bg);
@@ -215,6 +222,15 @@ a:hover {
 
 .th-cat-preparation.th-cat-icon {
   color: var(--color-cat-preparation);
+}
+
+.th-cat-cruise.th-cat-badge {
+  background: var(--color-cat-cruise-bg);
+  color: var(--color-cat-cruise);
+}
+
+.th-cat-cruise.th-cat-icon {
+  color: var(--color-cat-cruise);
 }
 
 .th-cat-other {
