@@ -6,6 +6,7 @@ import { TripJournalFeed } from '../journal/TripJournalFeed';
 import { TripPhotoAlbum } from '../journal/TripPhotoAlbum';
 import { TripFilesLinksView } from '../documents/TripFilesLinksView';
 import { TripMap } from '../maps/TripMap';
+import { TripTasksView } from '../tasks/TripTasksView';
 import { TripSidebar } from '../sidebar/TripSidebar';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
@@ -123,6 +124,8 @@ export const TripContent: React.FC = () => {
         {mainWorkspaceTab === 'photos' ? <TripPhotoAlbum /> : null}
         {mainWorkspaceTab === 'files' ? <TripFilesLinksView /> : null}
         {mainWorkspaceTab === 'map' ? <TripMap /> : null}
+        {mainWorkspaceTab === 'tasks' ? <TripTasksView /> : null}
+        {mainWorkspaceTab === 'packing' ? <div style={{ padding: 'var(--space-4)' }}>Packing list coming next.</div> : null}
       </main>
     </div>
   );
