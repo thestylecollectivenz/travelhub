@@ -93,6 +93,15 @@ export const TripSidebar: React.FC = () => {
         >
           Links
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mainWorkspaceTab === 'map'}
+          className={`${styles.tab} ${mainWorkspaceTab === 'map' ? styles.tabActive : ''}`}
+          onClick={() => setMainWorkspaceTab('map')}
+        >
+          Map
+        </button>
       </div>
       {mainWorkspaceTab === 'itinerary' ? <SidebarDayList /> : null}
       <div className={styles.divider} role="presentation" />

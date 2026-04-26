@@ -1,0 +1,11 @@
+.root {
+  height: 100%;
+  min-height: 24rem;
+  border-top: var(--border-default);
+  background: var(--color-surface-raised);
+}
+
+.map {
+  height: 100%;
+  min-height: 24rem;
+}

@@ -6,6 +6,7 @@ import { TripJournalFeed } from '../journal/TripJournalFeed';
 import { TripPhotoAlbum } from '../journal/TripPhotoAlbum';
 import { TripDocumentsView } from '../documents/TripDocumentsView';
 import { TripLinksView } from '../documents/TripLinksView';
+import { TripMap } from '../maps/TripMap';
 import { TripSidebar } from '../sidebar/TripSidebar';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
@@ -123,6 +124,7 @@ export const TripContent: React.FC = () => {
         {mainWorkspaceTab === 'photos' ? <TripPhotoAlbum /> : null}
         {mainWorkspaceTab === 'documents' ? <TripDocumentsView /> : null}
         {mainWorkspaceTab === 'links' ? <TripLinksView /> : null}
+        {mainWorkspaceTab === 'map' ? <TripMap /> : null}
       </main>
     </div>
   );
