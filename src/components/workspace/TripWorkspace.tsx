@@ -2,6 +2,7 @@ import * as React from 'react';
 import { TripWorkspaceProvider, useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { JournalProvider } from '../../context/JournalContext';
 import { AttachmentsProvider } from '../../context/AttachmentsContext';
+import { PlacesProvider } from '../../context/PlacesContext';
 import { useJournal } from '../../context/JournalContext';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { TripHero } from './TripHero';
@@ -388,9 +389,11 @@ export const TripWorkspace: React.FC<ITripWorkspaceProps> = (props) => {
   return (
     <TripWorkspaceProvider tripId={props.tripId} onBack={props.onBack}>
       <JournalProvider>
-        <AttachmentsProvider>
-          <TripWorkspaceLayout {...props} />
-        </AttachmentsProvider>
+        <PlacesProvider>
+          <AttachmentsProvider>
+            <TripWorkspaceLayout {...props} />
+          </AttachmentsProvider>
+        </PlacesProvider>
       </JournalProvider>
     </TripWorkspaceProvider>
   );

@@ -6,13 +6,20 @@ const LIST = 'TripDays';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapToDay(item: any): TripDay {
+  const additionalRaw = String(item.AdditionalPlaceIds ?? '');
+  const additionalPlaceIds = additionalRaw
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
   return {
     id: String(item.ID),
     tripId: item.TripId ?? '',
     dayNumber: item.DayNumber ?? 0,
     calendarDate: item.CalendarDate ? item.CalendarDate.split('T')[0] : '',
     displayTitle: item.DisplayTitle ?? item.Title ?? '',
-    dayType: (item.DayType as TripDayType) ?? 'PlacePort'
+    dayType: (item.DayType as TripDayType) ?? 'PlacePort',
+    primaryPlaceId: item.PrimaryPlaceId ? String(item.PrimaryPlaceId) : undefined,
+    additionalPlaceIds
   };
 }
 
@@ -28,6 +35,8 @@ function mapToSpItem(day: Partial<TripDay>): Record<string, any> {
     item.Title = day.displayTitle; // Title is required by SP
   }
   if (day.dayType !== undefined) item.DayType = day.dayType;
+  if (day.primaryPlaceId !== undefined) item.PrimaryPlaceId = day.primaryPlaceId || null;
+  if (day.additionalPlaceIds !== undefined) item.AdditionalPlaceIds = day.additionalPlaceIds.join(',');
   return item;
 }
 
@@ -41,7 +50,7 @@ export class DayService {
   }
 
   async getAll(tripId: string): Promise<TripDay[]> {
-    const select = '$select=ID,Title,TripId,DayNumber,CalendarDate,DisplayTitle,DayType';
+    const select = '$select=ID,Title,TripId,DayNumber,CalendarDate,DisplayTitle,DayType,PrimaryPlaceId,AdditionalPlaceIds';
     const filter = `$filter=TripId eq '${tripId}'`;
     const orderby = '$orderby=DayNumber asc';
     const url = `${this.baseUrl}?${select}&${filter}&${orderby}`;
@@ -58,7 +67,7 @@ export class DayService {
   }
 
   async getById(id: string): Promise<TripDay> {
-    const select = '$select=ID,Title,TripId,DayNumber,CalendarDate,DisplayTitle,DayType';
+    const select = '$select=ID,Title,TripId,DayNumber,CalendarDate,DisplayTitle,DayType,PrimaryPlaceId,AdditionalPlaceIds';
     const url = `${this.baseUrl}(${id})?${select}`;
     try {
       const resp: SPHttpClientResponse = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
@@ -109,7 +118,8 @@ export class DayService {
       dayNumber: 0,
       calendarDate: dateStart, // same date as day 1 — used for reference only
       displayTitle: 'Pre-trip',
-      dayType: 'PreTrip'
+      dayType: 'PreTrip',
+      additionalPlaceIds: []
     });
     created.push(preTrip);
 
@@ -126,7 +136,8 @@ export class DayService {
         dayNumber,
         calendarDate: isoDate,
         displayTitle: `Day ${dayNumber}`,
-        dayType: 'PlacePort'
+        dayType: 'PlacePort',
+        additionalPlaceIds: []
       });
       created.push(day);
       dayNumber++;

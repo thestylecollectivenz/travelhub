@@ -7,4 +7,6 @@ export interface TripDay {
   calendarDate: string;
   displayTitle: string;
   dayType: TripDayType;
+  primaryPlaceId?: string;
+  additionalPlaceIds?: string[];
 }
