@@ -2,7 +2,11 @@ import * as React from 'react';
 import type { Trip, TripLifecycleStatus } from '../../models/Trip';
 import { formatDateRange } from '../../utils/dateUtils';
 import { resolveSharePointMediaSrc } from '../../utils/sharePointUrl';
+import { haversineKm, kmToMiles, formatDistance } from '../../utils/distanceUtils';
 import { useSpContext } from '../../context/SpContext';
+import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { usePlaces } from '../../context/PlacesContext';
+import { useConfig } from '../../context/ConfigContext';
 import styles from './TripHero.module.css';
 
 export interface TripHeroProps {
@@ -59,6 +63,9 @@ function countdownLabel(trip: Trip): string | null {
 
 export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit, showEditButton = true }) => {
   const spContext = useSpContext();
+  const { tripDays, localEntries } = useTripWorkspace();
+  const { placeById } = usePlaces();
+  const { config } = useConfig();
   const webAbsoluteUrl = spContext.pageContext.web.absoluteUrl.replace(/\/$/, '');
   const webServerRelativeUrl = spContext.pageContext.web.serverRelativeUrl.replace(/\/$/, '');
   const heroImageUrl = trip.heroImageUrl?.trim() ?? '';
@@ -79,6 +86,38 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit, showEditButton
   const showDescription = Boolean(trip.description && trip.description.trim() !== '');
   const countdown = countdownLabel(trip);
   const countdownClass = trip.status === 'In Progress' ? styles.countdownInProgress : styles.countdownUpcoming;
+  const distanceLine = React.useMemo(() => {
+    const days = tripDays.filter((d) => d.tripId === trip.id).sort((a, b) => a.dayNumber - b.dayNumber);
+    const stops: Array<{ dayId: string; lat: number; lon: number }> = [];
+    for (const day of days) {
+      const place = placeById(day.primaryPlaceId);
+      if (!place) continue;
+      const prev = stops[stops.length - 1];
+      if (prev && Math.abs(prev.lat - place.latitude) < 0.00001 && Math.abs(prev.lon - place.longitude) < 0.00001) {
+        continue;
+      }
+      stops.push({ dayId: day.id, lat: place.latitude, lon: place.longitude });
+    }
+    if (stops.length < 2) return '';
+    const entries = localEntries.filter((e) => e.tripId === trip.id);
+    let airKm = 0;
+    let groundKm = 0;
+    for (let i = 0; i < stops.length - 1; i++) {
+      const a = stops[i];
+      const b = stops[i + 1];
+      const km = haversineKm(a.lat, a.lon, b.lat, b.lon);
+      const transitionDayEntries = entries.filter((e) => e.dayId === b.dayId);
+      const hasFlight = transitionDayEntries.some((e) => e.category === 'Flights');
+      const hasGround = transitionDayEntries.some((e) => e.category === 'Transport');
+      if (hasFlight) airKm += km;
+      else if (hasGround) groundKm += km;
+      else groundKm += km;
+    }
+    const unit = config.distanceUnit;
+    const air = unit === 'Miles' ? kmToMiles(airKm) : airKm;
+    const ground = unit === 'Miles' ? kmToMiles(groundKm) : groundKm;
+    return `~${formatDistance(air, unit)} by air · ~${formatDistance(ground, unit)} by ground`;
+  }, [tripDays, trip.id, placeById, localEntries, config.distanceUnit]);
 
   return (
     <section className={`${styles.hero} ${hasHeroImage ? styles.heroWithImage : styles.heroNoImage}`} aria-label="Trip hero">
@@ -114,6 +153,7 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit, showEditButton
         <div className={styles.heroBody}>
           <h1 className={styles.title}>{trip.title}</h1>
           <p className={styles.meta}>{metaLine}</p>
+          {distanceLine ? <p className={styles.meta}>{distanceLine}</p> : null}
           {countdown ? <span className={`${styles.countdownChip} ${countdownClass}`}>{countdown}</span> : null}
           {showDescription ? <p className={styles.description}>{trip.description}</p> : null}
         </div>
