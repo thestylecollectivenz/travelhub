@@ -13,6 +13,8 @@ import { SharedTripView } from './SharedTripView';
 import { ConfigPanel } from './ConfigPanel';
 import { EditTripPanel } from './EditTripPanel';
 import { ErrorBoundary } from '../shared/ErrorBoundary';
+import * as XLSX from 'xlsx';
+import { sumByCategory, sumByPaymentStatus } from '../../utils/financialUtils';
 import styles from './TripWorkspace.module.css';
 
 export interface ITripWorkspaceProps {
@@ -44,6 +46,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
   const [editOpen, setEditOpen] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [searchOpen, setSearchOpen] = React.useState(false);
+  const [exportOpen, setExportOpen] = React.useState(false);
   const [searchInput, setSearchInput] = React.useState('');
   const [searchQuery, setSearchQuery] = React.useState('');
 
@@ -170,6 +173,49 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
       link: searchResults.filter((x) => x.kind === 'link')
     };
   }, [searchResults]);
+
+  const exportTripToExcel = React.useCallback((): void => {
+    if (!trip) return;
+    const orderedDays = [...tripDays].sort((a, b) => a.dayNumber - b.dayNumber);
+    const workbook = XLSX.utils.book_new();
+
+    const totalBudget = sumByPaymentStatus(localEntries, 'all');
+    const spent = sumByPaymentStatus(localEntries, 'paid');
+    const remaining = sumByPaymentStatus(localEntries, 'unpaid');
+    const byCategory = sumByCategory(localEntries);
+    const summaryRows: Array<Record<string, string | number>> = [
+      { Field: 'Trip title', Value: trip.title },
+      { Field: 'Date range', Value: `${trip.dateStart} to ${trip.dateEnd}` },
+      { Field: 'Total budget', Value: totalBudget },
+      { Field: 'Spent so far', Value: spent },
+      { Field: 'Remaining', Value: remaining }
+    ];
+    Object.keys(byCategory).forEach((key) => summaryRows.push({ Field: `Category: ${key}`, Value: byCategory[key] || 0 }));
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), 'Summary');
+
+    for (const day of orderedDays) {
+      const rows = localEntries
+        .filter((e) => e.dayId === day.id)
+        .map((e) => ({
+          Time: e.timeStart,
+          Title: e.title,
+          Category: e.category,
+          Supplier: e.supplier,
+          Location: e.location || '',
+          DecisionStatus: e.decisionStatus,
+          BookingStatus: e.bookingStatus,
+          PaymentStatus: e.paymentStatus,
+          AmountHome: e.amount,
+          OriginalAmount: e.currency !== 'NZD' ? e.amount : '',
+          OriginalCurrency: e.currency,
+          Notes: e.notes
+        }));
+      const safeTitle = `Day ${day.dayNumber} - ${day.displayTitle}`.slice(0, 31);
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), safeTitle || `Day ${day.dayNumber}`);
+    }
+
+    XLSX.writeFile(workbook, `${trip.title.replace(/[^\w-]+/g, '_') || 'trip'}-itinerary.xlsx`);
+  }, [trip, tripDays, localEntries]);
 
   const scrollToResult = React.useCallback((selector: string): void => {
     let attempts = 0;
@@ -306,6 +352,14 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
               </button>
               <button
                 type="button"
+                className={styles.settingsButton}
+                onClick={() => setExportOpen((v) => !v)}
+                disabled={deletingTrip}
+              >
+                Export
+              </button>
+              <button
+                type="button"
                 className={styles.deleteButton}
                 disabled={deletingTrip}
                 onClick={() => {
@@ -383,6 +437,18 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
               })}
             </div>
           ) : null}
+        </div>
+      ) : null}
+      {exportOpen ? (
+        <div className={styles.searchPanel}>
+          <div className={styles.searchRow}>
+            <button type="button" className={styles.settingsButton} onClick={exportTripToExcel}>
+              Export itinerary to Excel
+            </button>
+            <button type="button" className={styles.settingsButton} onClick={() => setExportOpen(false)}>
+              Close
+            </button>
+          </div>
         </div>
       ) : null}
       {deleteTripError ? <div className={styles.deleteError}>{deleteTripError}</div> : null}
