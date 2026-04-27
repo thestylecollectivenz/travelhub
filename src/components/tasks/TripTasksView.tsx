@@ -42,32 +42,6 @@ export const TripTasksView: React.FC = () => {
       </div>
 
       <div className={styles.group}>
-        <h3 className={styles.title}>Bookings needed</h3>
-        {bookingTasks.map((entry) => (
-          <div key={entry.id} className={styles.item}>
-            <div>
-              <div>Book: {entry.title}</div>
-              <div className={styles.meta}>{dayName(entry.dayId)}</div>
-            </div>
-            <div className={styles.actions}><button className={styles.button} type="button" onClick={() => updateEntry({ ...entry, bookingStatus: 'Booked' })}>Mark done</button></div>
-          </div>
-        ))}
-      </div>
-
-      <div className={styles.group}>
-        <h3 className={styles.title}>Payments due</h3>
-        {paymentTasks.map((entry) => (
-          <div key={entry.id} className={styles.item}>
-            <div>
-              <div>{entry.paymentStatus === 'Part paid' ? `Pay balance: ${entry.title}` : `Pay: ${entry.title}`} ({Math.max(0, entry.amount - (entry.amountPaid || 0)).toFixed(2)})</div>
-              <div className={styles.meta}>{dayName(entry.dayId)}</div>
-            </div>
-            <div className={styles.actions}><button className={styles.button} type="button" onClick={() => updateEntry({ ...entry, paymentStatus: 'Fully paid', amountPaid: entry.amount })}>Mark done</button></div>
-          </div>
-        ))}
-      </div>
-
-      <div className={styles.group}>
         <h3 className={styles.title}>Custom reminders</h3>
         <div className={styles.filters}>
           <input className={styles.input} placeholder="Reminder text" value={text} onChange={(e) => setText(e.target.value)} />
@@ -91,6 +65,32 @@ export const TripTasksView: React.FC = () => {
               <button className={styles.button} type="button" onClick={() => svc.update(m.id, { isComplete: !m.isComplete }).then(refresh).catch(console.error)}>{m.isComplete ? 'Mark incomplete' : 'Complete'}</button>
               <button className={styles.button} type="button" onClick={() => svc.delete(m.id).then(refresh).catch(console.error)}>Delete</button>
             </div>
+          </div>
+        ))}
+      </div>
+
+      <div className={styles.group}>
+        <h3 className={styles.title}>Bookings needed</h3>
+        {bookingTasks.map((entry) => (
+          <div key={entry.id} className={styles.item}>
+            <div>
+              <div>Book: {entry.title}</div>
+              <div className={styles.meta}>{dayName(entry.dayId)}</div>
+            </div>
+            <div className={styles.actions}><button className={styles.button} type="button" onClick={() => updateEntry({ ...entry, bookingStatus: 'Booked' })}>Mark done</button></div>
+          </div>
+        ))}
+      </div>
+
+      <div className={styles.group}>
+        <h3 className={styles.title}>Payments due</h3>
+        {paymentTasks.map((entry) => (
+          <div key={entry.id} className={styles.item}>
+            <div>
+              <div>{entry.paymentStatus === 'Part paid' ? `Pay balance: ${entry.title}` : `Pay: ${entry.title}`} ({Math.max(0, entry.amount - (entry.amountPaid || 0)).toFixed(2)})</div>
+              <div className={styles.meta}>{dayName(entry.dayId)}</div>
+            </div>
+            <div className={styles.actions}><button className={styles.button} type="button" onClick={() => updateEntry({ ...entry, paymentStatus: 'Fully paid', amountPaid: entry.amount })}>Mark done</button></div>
           </div>
         ))}
       </div>

@@ -7,18 +7,9 @@ type Stop = {
   placeId: string;
   title: string;
   startDay: number;
-  endDay: number;
   dayId: string;
   additionalTitles: string[];
 };
-
-function getTransportKind(title: string): 'flight' | 'ground' | 'cruise' | 'arrow' {
-  const t = title.toLowerCase();
-  if (t.includes('flight')) return 'flight';
-  if (t.includes('cruise')) return 'cruise';
-  if (t.includes('transport')) return 'ground';
-  return 'arrow';
-}
 
 function TransportIcon({ kind }: { kind: 'flight' | 'ground' | 'cruise' | 'arrow' }): React.ReactElement {
   if (kind === 'flight') {
@@ -52,6 +43,8 @@ function TransportIcon({ kind }: { kind: 'flight' | 'ground' | 'cruise' | 'arrow
   );
 }
 
+type IconKind = 'flight' | 'ground' | 'cruise' | 'arrow';
+
 export const RouteStrip: React.FC = () => {
   const { trip, tripDays, selectedDayId, setSelectedDayId, localEntries } = useTripWorkspace();
   const { placeById } = usePlaces();
@@ -71,16 +64,10 @@ export const RouteStrip: React.FC = () => {
     for (const day of orderedDays) {
       const place = placeById(day.primaryPlaceId);
       if (!place) continue;
-      const prev = out[out.length - 1];
-      if (prev && prev.placeId === place.id) {
-        prev.endDay = day.dayNumber;
-        continue;
-      }
       out.push({
         placeId: place.id,
         title: place.title,
         startDay: day.dayNumber,
-        endDay: day.dayNumber,
         dayId: day.id,
         additionalTitles: parseAdditional((day as unknown as { additionalPlaceIds?: string[] | string }).additionalPlaceIds)
           .map((id) => placeById(id)?.title)
@@ -93,17 +80,21 @@ export const RouteStrip: React.FC = () => {
   if (!stops.length) return null;
 
   const entries = trip ? localEntries.filter((e) => e.tripId === trip.id) : [];
+  const iconsForDay = React.useCallback((dayId: string): IconKind[] => {
+    const cats = entries.filter((e) => e.dayId === dayId).map((e) => (e.category || '').toLowerCase());
+    const out: IconKind[] = [];
+    if (cats.some((c) => c.indexOf('flight') >= 0)) out.push('flight');
+    if (cats.some((c) => c.indexOf('cruise') >= 0)) out.push('cruise');
+    if (cats.some((c) => c.indexOf('transport') >= 0)) out.push('ground');
+    return out.length ? out : ['arrow'];
+  }, [entries]);
 
   return (
     <section className={styles.root} aria-label="Trip route strip">
       <div className={styles.scroll}>
         {stops.map((s, i) => {
           const next = stops[i + 1];
-          const transitionEntries = next ? entries.filter((e) => e.dayId === next.dayId) : [];
-          // eslint-disable-next-line no-console
-          console.log('RouteStrip transition entries', next?.dayId, transitionEntries.map((e) => ({ id: e.id, category: e.category, title: e.title })));
-          const transitionEntry = transitionEntries[0];
-          const kind = getTransportKind(transitionEntries.map((e) => e.category).join(' '));
+          const kinds = next ? iconsForDay(next.dayId) : [];
           const isActive =
             selectedDayId === s.dayId ||
             orderedDays.find((d) => d.id === selectedDayId)?.dayNumber === s.startDay;
@@ -115,14 +106,12 @@ export const RouteStrip: React.FC = () => {
                 onClick={() => setSelectedDayId(s.dayId)}
               >
                 <span className={styles.placeName}>📍 {s.title}</span>
-                <span className={styles.range}>
-                  {s.startDay === s.endDay ? `Day ${s.startDay}` : `Days ${s.startDay}-${s.endDay}`}
-                </span>
+                <span className={styles.range}>Day {s.startDay}</span>
                 {s.additionalTitles.length ? <span className={styles.range}>+ {s.additionalTitles.join(', ')}</span> : null}
               </button>
               {next ? (
                 <span className={styles.connector}>
-                  <TransportIcon kind={kind} />
+                  {kinds.map((kind, idx) => <TransportIcon key={`${kind}-${idx}`} kind={kind} />)}
                 </span>
               ) : null}
             </React.Fragment>

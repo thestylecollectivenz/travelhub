@@ -3,6 +3,8 @@ import { TripSidebar } from '../sidebar/TripSidebar';
 import { SharedDayPanel } from '../day/SharedDayPanel';
 import { TripJournalFeed } from '../journal/TripJournalFeed';
 import { TripPhotoAlbum } from '../journal/TripPhotoAlbum';
+import { TripMap } from '../maps/TripMap';
+import { TripFilesLinksView } from '../documents/TripFilesLinksView';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
 import styles from './TripWorkspace.module.css';
@@ -70,7 +72,10 @@ export const SharedTripView: React.FC = () => {
         />
       </div>
       <main className={styles.main}>
-        {mainWorkspaceTab === 'itinerary' || mainWorkspaceTab === 'files' || mainWorkspaceTab === 'map' || mainWorkspaceTab === 'tasks' || mainWorkspaceTab === 'packing' ? <SharedDayPanel /> : null}
+        {mainWorkspaceTab === 'itinerary' ? <SharedDayPanel /> : null}
+        {mainWorkspaceTab === 'map' ? <TripMap /> : null}
+        {mainWorkspaceTab === 'files' ? <TripFilesLinksView includeDocuments={false} /> : null}
+        {mainWorkspaceTab === 'tasks' || mainWorkspaceTab === 'packing' ? <SharedDayPanel /> : null}
         {mainWorkspaceTab === 'journal' ? <TripJournalFeed /> : null}
         {mainWorkspaceTab === 'photos' ? <TripPhotoAlbum /> : null}
       </main>

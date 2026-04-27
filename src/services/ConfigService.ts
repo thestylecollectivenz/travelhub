@@ -36,7 +36,7 @@ export class ConfigService {
 
   async getConfig(userId: string): Promise<UserConfig> {
     const safeUserId = userId.replace(/'/g, "''");
-    const url = `${this.baseUrl}?$select=ID,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,WeatherApiKey&$filter=UserId eq '${safeUserId}'&$top=1`;
+    const url = `${this.baseUrl}?$select=ID,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,WeatherApiKey&$filter=UserId eq '${safeUserId}'&$orderby=ID desc&$top=1`;
     const resp: SPHttpClientResponse = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
     if (!resp.ok) {
       throw new Error(`ConfigService.getConfig failed: ${resp.status}`);
@@ -65,7 +65,7 @@ export class ConfigService {
 
   async saveConfig(userId: string, config: UserConfig): Promise<void> {
     const safeUserId = userId.replace(/'/g, "''");
-    const findUrl = `${this.baseUrl}?$select=ID&$filter=UserId eq '${safeUserId}'&$top=1`;
+    const findUrl = `${this.baseUrl}?$select=ID&$filter=UserId eq '${safeUserId}'&$orderby=ID desc&$top=1`;
     const findResp: SPHttpClientResponse = await this.ctx.spHttpClient.get(findUrl, SPHttpClient.configurations.v1);
     if (!findResp.ok) {
       throw new Error(`ConfigService.saveConfig find failed: ${findResp.status}`);

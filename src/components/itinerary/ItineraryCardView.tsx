@@ -2,7 +2,9 @@ import * as React from 'react';
 import type { ItineraryEntry, ItinerarySubItem } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
+import { useSpContext } from '../../context/SpContext';
 import { useAttachments } from '../../context/AttachmentsContext';
+import { ReminderService } from '../../services/ReminderService';
 import type { EntryDocumentType, EntryLinkType } from '../../models';
 import { CategoryIcon } from '../shared/CategoryIcon';
 import { getCategorySlug } from '../../utils/categoryUtils';
@@ -114,6 +116,7 @@ function formatYmdRange(start?: string, end?: string): string {
 }
 
 export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, calendarDate, onEdit, onDuplicate, onDelete }) => {
+  const spContext = useSpContext();
   const { addSubItem, convertToHomeCurrency } = useTripWorkspace();
   const { config } = useConfig();
   const { docsForEntry, linksForEntry, addDocument, updateDocument, deleteDocument, addLink, updateLink, deleteLink } = useAttachments();
@@ -148,6 +151,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
   });
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
+  const [taskPromptOpen, setTaskPromptOpen] = React.useState(false);
+  const [taskDueDate, setTaskDueDate] = React.useState('');
 
   React.useEffect(() => {
     if (!menuOpen) {
@@ -168,8 +173,11 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
   }, [entry.notes]);
 
   const displayAmountHome = convertToHomeCurrency(entry.amount, entry.currency || 'NZD');
+  const paidCurrency = (entry.paymentCurrency || config.homeCurrency || 'NZD').toUpperCase();
   const displayAmountPaidHome = entry.amountPaid !== undefined
-    ? convertToHomeCurrency(entry.amountPaid, entry.currency || 'NZD')
+    ? (paidCurrency === (config.homeCurrency || 'NZD').toUpperCase()
+      ? entry.amountPaid
+      : convertToHomeCurrency(entry.amountPaid, paidCurrency))
     : undefined;
   const hhmm = formatTimeHHMM(entry.timeStart);
   // Guard: if duration is a bare number (legacy Number column value) hide it
@@ -705,6 +713,13 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
       ) : null}
 
       <div className={styles.subItemActionsRow}>
+        <button
+          type="button"
+          className={styles.addSubItemBtn}
+          onClick={() => setTaskPromptOpen((v) => !v)}
+        >
+          + Add to tasks
+        </button>
         <button type="button" className={styles.addSubItemBtn} onClick={handleStartAddSubItem}>
           + Add option
         </button>
@@ -714,6 +729,35 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
           </button>
         ) : null}
       </div>
+      {taskPromptOpen ? (
+        <div className={styles.newSubItemForm}>
+          <div className={styles.newSubRow}>
+            <input className={styles.newSubField} type="date" value={taskDueDate} onChange={(e) => setTaskDueDate(e.target.value)} />
+            <button
+              type="button"
+              className={styles.newSubActionBtn}
+              onClick={() => {
+                const svc = new ReminderService(spContext);
+                svc.create({
+                  title: `Task: ${entry.title || 'Itinerary item'}`,
+                  tripId: entry.tripId,
+                  dayId: entry.dayId,
+                  entryId: entry.id,
+                  reminderType: 'Manual',
+                  reminderText: `Follow up: ${entry.title || 'Itinerary item'}`,
+                  dueDate: taskDueDate ? `${taskDueDate}T00:00:00.000Z` : undefined,
+                  isComplete: false
+                }).then(() => {
+                  setTaskPromptOpen(false);
+                  setTaskDueDate('');
+                }).catch(console.error);
+              }}
+            >
+              Save task
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {showSubItemContent ? (
         <div className={`${styles.relatedContent} ${subItemsOpen || addingSubItem ? styles.relatedContentOpen : ''}`}>

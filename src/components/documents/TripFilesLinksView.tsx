@@ -4,8 +4,11 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import styles from './TripDocumentsView.module.css';
 
 type KindFilter = 'all' | 'documents' | 'links';
+export interface TripFilesLinksViewProps {
+  includeDocuments?: boolean;
+}
 
-export const TripFilesLinksView: React.FC = () => {
+export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeDocuments = true }) => {
   const { documents, links } = useAttachments();
   const { tripDays } = useTripWorkspace();
   const [kind, setKind] = React.useState<KindFilter>('all');
@@ -19,7 +22,7 @@ export const TripFilesLinksView: React.FC = () => {
   const rows = React.useMemo(() => {
     const q = search.trim().toLowerCase();
     const out: Array<{ id: string; kind: 'document' | 'link'; title: string; url: string; dayId: string; meta: string }> = [];
-    if (kind === 'all' || kind === 'documents') {
+    if (includeDocuments && (kind === 'all' || kind === 'documents')) {
       for (const d of documents) {
         out.push({ id: d.id, kind: 'document', title: d.fileName || d.title, url: d.fileUrl, dayId: d.dayId, meta: d.documentType });
       }
@@ -34,7 +37,7 @@ export const TripFilesLinksView: React.FC = () => {
       if (!q) return true;
       return `${r.title} ${r.url} ${r.meta}`.toLowerCase().includes(q);
     });
-  }, [documents, links, kind, dayFilter, search]);
+  }, [documents, links, kind, dayFilter, search, includeDocuments]);
 
   return (
     <section className={styles.root} aria-label="Files and links">
@@ -45,7 +48,7 @@ export const TripFilesLinksView: React.FC = () => {
         <input className={styles.input} placeholder="Search files and links" value={search} onChange={(e) => setSearch(e.target.value)} />
         <select className={styles.select} value={kind} onChange={(e) => setKind(e.target.value as KindFilter)}>
           <option value="all">All</option>
-          <option value="documents">Documents</option>
+          {includeDocuments ? <option value="documents">Documents</option> : null}
           <option value="links">Links</option>
         </select>
         <select className={styles.select} value={dayFilter} onChange={(e) => setDayFilter(e.target.value)}>

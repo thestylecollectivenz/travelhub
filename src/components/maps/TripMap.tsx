@@ -45,6 +45,9 @@ export const TripMap: React.FC = () => {
   const { trip, tripDays } = useTripWorkspace();
   const { placeById } = usePlaces();
   const mapRef = React.useRef<HTMLDivElement | null>(null);
+  const mapInstanceRef = React.useRef<L.Map | null>(null);
+  const layerGroupRef = React.useRef<L.LayerGroup | null>(null);
+  const [lastStops, setLastStops] = React.useState<Stop[]>([]);
 
   const stops = React.useMemo((): Stop[] => {
     if (!trip) return [];
@@ -85,16 +88,32 @@ export const TripMap: React.FC = () => {
   }, [trip, tripDays, placeById]);
 
   React.useEffect(() => {
-    if (!mapRef.current || stops.length === 0) return;
-    const map = L.map(mapRef.current, { zoomControl: true });
+    if (stops.length) setLastStops(stops);
+  }, [stops]);
+
+  const renderedStops = stops.length ? stops : lastStops;
+
+  React.useEffect(() => {
+    if (!mapRef.current || renderedStops.length === 0) return;
+    if (!mapInstanceRef.current) {
+      mapInstanceRef.current = L.map(mapRef.current, { zoomControl: true });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(mapInstanceRef.current);
+    }
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    if (layerGroupRef.current) {
+      layerGroupRef.current.removeFrom(map);
+    }
+    const layerGroup = L.layerGroup();
+    layerGroupRef.current = layerGroup;
+    layerGroup.addTo(map);
     const markerIcon = createPinIcon();
     const markerIconSmall = createSmallPinIcon();
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
 
     const points: L.LatLngExpression[] = [];
-    for (const s of stops) {
+    for (const s of renderedStops) {
       const ll: L.LatLngExpression = [s.latitude, s.longitude];
       points.push(ll);
       const range = s.startDay === s.endDay ? `Day ${s.startDay}` : `Days ${s.startDay}-${s.endDay}`;
@@ -102,23 +121,30 @@ export const TripMap: React.FC = () => {
         .bindPopup(
           `<strong>${s.title}</strong><br/>${range}<br/><a href="https://www.google.com/maps/@${s.latitude},${s.longitude},10z" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>`
         )
-        .addTo(map);
+        .addTo(layerGroup);
     }
-    const primaryPoints = stops.filter((s) => s.isPrimary).map((s) => [s.latitude, s.longitude] as L.LatLngExpression);
+    const primaryPoints = renderedStops.filter((s) => s.isPrimary).map((s) => [s.latitude, s.longitude] as L.LatLngExpression);
     if (primaryPoints.length >= 2) {
-      L.polyline(primaryPoints, { color: '#1A6399', weight: 2 }).addTo(map);
+      L.polyline(primaryPoints, { color: '#1A6399', weight: 2 }).addTo(layerGroup);
     }
     if (points.length) {
       map.fitBounds(L.latLngBounds(points), { padding: [20, 20] });
     } else {
       map.setView([0, 0], 4);
     }
-    return () => {
-      map.remove();
-    };
-  }, [stops]);
+    window.setTimeout(() => map.invalidateSize(), 0);
+    return undefined;
+  }, [renderedStops]);
 
-  if (!stops.length) {
+  React.useEffect(() => () => {
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+      layerGroupRef.current = null;
+    }
+  }, []);
+
+  if (!renderedStops.length) {
     return null;
   }
 

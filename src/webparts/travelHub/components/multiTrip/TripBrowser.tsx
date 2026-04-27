@@ -244,10 +244,7 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
     gap: 'var(--space-3)'
   };
 
-  const eligibleTripIds = React.useMemo(
-    () => new Set(trips.filter((t) => t.status !== 'Planning' && t.status !== 'Upcoming').map((t) => t.id)),
-    [trips]
-  );
+  const eligibleTripIds = React.useMemo(() => new Set(trips.map((t) => t.id)), [trips]);
   const eligibleDays = React.useMemo(
     () => allTripDays.filter((d) => eligibleTripIds.has(d.tripId)),
     [allTripDays, eligibleTripIds]

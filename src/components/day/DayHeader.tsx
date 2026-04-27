@@ -128,7 +128,6 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
     },
     [day.primaryPlaceId, day.additionalPlaceIds, placeById]
   );
-  const primaryPlace = dayLocations[0];
   const infoPlace = dayLocations.length ? dayLocations[dayLocations.length - 1] : undefined;
   const countryData = infoPlace ? COUNTRY_DATA[infoPlace.countryCode] : undefined;
   const monthIndex = React.useMemo(() => {
@@ -216,6 +215,12 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
     if (!unix) return '—';
     const d = new Date(unix * 1000);
     return d.toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tzName || undefined });
+  }, []);
+  const hhmmOnly = React.useCallback((value: string): string => {
+    if (!value) return '—';
+    const parts = value.split(':');
+    if (parts.length < 2) return value;
+    return `${parts[0]}:${parts[1]}`;
   }, []);
 
   const updateLocations = React.useCallback((ids: string[]) => {
@@ -448,7 +453,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
                   {typicalWeather ? (
                     <>
                       <div className={styles.infoLine}>{typicalWeather.tempRange} · {typicalWeather.conditions}</div>
-                      <div className={styles.infoSub}>Sunrise {typicalWeather.sunrise} · Sunset {typicalWeather.sunset}</div>
+                      <div className={styles.infoSub}>Sunrise {hhmmOnly(typicalWeather.sunrise)} · Sunset {hhmmOnly(typicalWeather.sunset)}</div>
                     </>
                   ) : countryData && seasonal ? (
                     <>
@@ -467,7 +472,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
                       <div className={styles.infoSub}>{countryData.tipping}</div>
                     </>
                   ) : (
-                    <div className={styles.infoSub}>Currency/tipping guidance unavailable.</div>
+                  <div className={styles.infoSub}>Currency/tipping guidance unavailable.</div>
                   )}
                 </div>
               </div>

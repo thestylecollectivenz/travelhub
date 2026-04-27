@@ -71,11 +71,13 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  const sharedPreviewWasOnRef = React.useRef(false);
   React.useEffect(() => {
-    if (sharedPreview && (trip && (tripDays.length >= 0))) {
+    if (sharedPreview && !sharedPreviewWasOnRef.current) {
       setMainWorkspaceTab('itinerary');
     }
-  }, [sharedPreview, setMainWorkspaceTab, trip, tripDays.length]);
+    sharedPreviewWasOnRef.current = sharedPreview;
+  }, [sharedPreview, setMainWorkspaceTab]);
 
   type SearchResult = {
     id: string;
@@ -386,7 +388,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
       {deleteTripError ? <div className={styles.deleteError}>{deleteTripError}</div> : null}
       <TripHero trip={trip} onEdit={() => setEditOpen(true)} showEditButton={!sharedPreview} />
       {sharedPreview ? null : <TripStatsStrip />}
-      {sharedPreview ? null : <RouteStrip />}
+      <RouteStrip />
       {sharedPreview ? (
         <ErrorBoundary fallbackTitle="Something went wrong in shared view">
           <SharedTripView />

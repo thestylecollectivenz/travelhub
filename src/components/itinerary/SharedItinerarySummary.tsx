@@ -23,6 +23,7 @@ function sortEntriesForDay(entries: ItineraryEntry[], dayId: string, calendarDat
   const map = new Map<string, ItineraryEntry>();
   for (const e of entries) {
     if (e.parentEntryId) continue;
+    if (dayType === 'PreTrip' && e.category === 'Accommodation' && e.dateStart && e.dateStart !== calendarDate) continue;
     if (e.dayId === dayId || (dayType !== 'PreTrip' && isAccommodationOnDate(e, calendarDate))) {
       map.set(e.id, e);
     }
@@ -54,7 +55,14 @@ export const SharedItinerarySummary: React.FC<SharedItinerarySummaryProps> = ({ 
       {sorted.map((entry) => (
         <li key={entry.id} className={styles.row}>
           <span className={styles.time}>{formatTimeHHMM(entry.timeStart)}</span>
-          <span className={styles.title}>{entry.title?.trim() || 'Untitled'}</span>
+          <span className={styles.title}>
+            {entry.title?.trim() || 'Untitled'}
+            {(entry.subItems ?? []).length > 0 ? (
+              <span style={{ display: 'block', marginTop: '4px', fontSize: 'var(--font-size-xs)', color: 'var(--color-sand-700)' }}>
+                Related items: {(entry.subItems ?? []).map((s) => s.title?.trim() || 'Untitled').join(' · ')}
+              </span>
+            ) : null}
+          </span>
           <span className={styles.category}>{entry.category}</span>
         </li>
       ))}
