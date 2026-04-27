@@ -108,9 +108,8 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit, showEditButton
       const km = haversineKm(a.lat, a.lon, b.lat, b.lon);
       const transitionDayEntries = entries.filter((e) => e.dayId === b.dayId);
       const hasFlight = transitionDayEntries.some((e) => e.category === 'Flights');
-      const hasGround = transitionDayEntries.some((e) => e.category === 'Transport');
+      // Air only when a flight exists on the arrival day; surface (Transport, Cruise, etc.) counts as ground.
       if (hasFlight) airKm += km;
-      else if (hasGround) groundKm += km;
       else groundKm += km;
     }
     const unit = config.distanceUnit;

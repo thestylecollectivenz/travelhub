@@ -9,6 +9,7 @@ type Stop = {
   startDay: number;
   dayId: string;
   additionalTitles: string[];
+  calendarDate: string;
 };
 
 function TransportIcon({ kind }: { kind: 'flight' | 'ground' | 'cruise' | 'arrow' }): React.ReactElement {
@@ -69,6 +70,7 @@ export const RouteStrip: React.FC = () => {
         title: place.title,
         startDay: day.dayNumber,
         dayId: day.id,
+        calendarDate: day.calendarDate,
         additionalTitles: parseAdditional((day as unknown as { additionalPlaceIds?: string[] | string }).additionalPlaceIds)
           .map((id) => placeById(id)?.title)
           .filter(Boolean) as string[]
@@ -80,12 +82,20 @@ export const RouteStrip: React.FC = () => {
   if (!stops.length) return null;
 
   const entries = trip ? localEntries.filter((e) => e.tripId === trip.id) : [];
-  const iconsForDay = React.useCallback((dayId: string): IconKind[] => {
-    const cats = entries.filter((e) => e.dayId === dayId).map((e) => (e.category || '').toLowerCase());
+  const iconsForLeg = React.useCallback((leaving: Stop, arriving?: Stop): IconKind[] => {
+    if (!arriving) return [];
+    const dayEntries = entries.filter((e) => e.dayId === leaving.dayId);
     const out: IconKind[] = [];
-    if (cats.some((c) => c.indexOf('flight') >= 0)) out.push('flight');
-    if (cats.some((c) => c.indexOf('cruise') >= 0)) out.push('cruise');
-    if (cats.some((c) => c.indexOf('transport') >= 0)) out.push('ground');
+    const hasFlight = dayEntries.some((e) => (e.category || '').toLowerCase() === 'flights');
+    const hasGround = dayEntries.some((e) => (e.category || '').toLowerCase() === 'transport');
+    const hasCruiseActive = entries.some((e) => {
+      if ((e.category || '').toLowerCase() !== 'cruise' || !e.embarksDate || !e.disembarksDate) return false;
+      return leaving.calendarDate >= e.embarksDate && leaving.calendarDate <= e.disembarksDate;
+    });
+    const nextDayGap = arriving.startDay >= leaving.startDay + 1;
+    if (hasFlight && nextDayGap) out.push('flight');
+    if (hasGround && nextDayGap) out.push('ground');
+    if (hasCruiseActive) out.push('cruise');
     return out.length ? out : ['arrow'];
   }, [entries]);
 
@@ -94,7 +104,7 @@ export const RouteStrip: React.FC = () => {
       <div className={styles.scroll}>
         {stops.map((s, i) => {
           const next = stops[i + 1];
-          const kinds = next ? iconsForDay(next.dayId) : [];
+          const kinds = iconsForLeg(s, next);
           const isActive =
             selectedDayId === s.dayId ||
             orderedDays.find((d) => d.id === selectedDayId)?.dayNumber === s.startDay;
@@ -107,7 +117,7 @@ export const RouteStrip: React.FC = () => {
               >
                 <span className={styles.placeName}>📍 {s.title}</span>
                 <span className={styles.range}>Day {s.startDay}</span>
-                {s.additionalTitles.length ? <span className={styles.range}>+ {s.additionalTitles.join(', ')}</span> : null}
+                {s.additionalTitles.length ? <span className={styles.range}>Also visiting: {s.additionalTitles.join(', ')} (return)</span> : null}
               </button>
               {next ? (
                 <span className={styles.connector}>

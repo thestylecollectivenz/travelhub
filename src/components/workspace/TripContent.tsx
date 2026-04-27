@@ -17,6 +17,7 @@ export const TripContent: React.FC = () => {
   const { selectedDayId, localEntries, reorderEntries, moveEntryToDay, mainWorkspaceTab } = useTripWorkspace();
   const { config, saveConfig } = useConfig();
   const [activeId, setActiveId] = React.useState<string | null>(null);
+  const [planTab, setPlanTab] = React.useState<'tasks' | 'packing'>('tasks');
   const [sidebarWidth, setSidebarWidth] = React.useState<number>(config.sidebarWidth || 260);
   const sidebarWidthRef = React.useRef(sidebarWidth);
   const saveTimerRef = React.useRef<number | null>(null);
@@ -125,8 +126,15 @@ export const TripContent: React.FC = () => {
         {mainWorkspaceTab === 'photos' ? <TripPhotoAlbum /> : null}
         {mainWorkspaceTab === 'files' ? <TripFilesLinksView /> : null}
         {mainWorkspaceTab === 'map' ? <TripMap /> : null}
-        {mainWorkspaceTab === 'tasks' ? <TripTasksView /> : null}
-        {mainWorkspaceTab === 'packing' ? <PackingListView /> : null}
+        {mainWorkspaceTab === 'plan' ? (
+          <section style={{ padding: 'var(--space-4)', display: 'grid', gap: 'var(--space-3)' }}>
+            <div style={{ display: 'inline-flex', gap: 'var(--space-2)' }}>
+              <button type="button" className={styles.settingsButton} onClick={() => setPlanTab('tasks')}>Tasks</button>
+              <button type="button" className={styles.settingsButton} onClick={() => setPlanTab('packing')}>Packing</button>
+            </div>
+            {planTab === 'tasks' ? <TripTasksView /> : <PackingListView />}
+          </section>
+        ) : null}
       </main>
     </div>
   );

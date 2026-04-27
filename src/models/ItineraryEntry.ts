@@ -25,6 +25,10 @@ export interface ItineraryEntry {
   title: string;
   category: string;
   timeStart: string;
+  arrivalTime?: string;
+  arrivalDate?: string;
+  embarksDate?: string;
+  disembarksDate?: string;
   duration: string;
   supplier: string;
   /** Location or route detail (optional). */

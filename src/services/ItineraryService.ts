@@ -18,6 +18,10 @@ const SELECT = [
   'DayId',
   'Category',
   'TimeStart',
+  'ArrivalTime',
+  'ArrivalDate',
+  'EmbarksDate',
+  'DisembarksDate',
   'Duration',
   'Supplier',
   'Location',
@@ -123,6 +127,10 @@ function mapToEntry(item: any): ItineraryEntry {
     title: item.Title ?? '',
     category: item.Category ?? 'Other',
     timeStart: parseTime(item.TimeStart),
+    arrivalTime: parseTime(item.ArrivalTime),
+    arrivalDate: parseDate(item.ArrivalDate),
+    embarksDate: parseDate(item.EmbarksDate),
+    disembarksDate: parseDate(item.DisembarksDate),
     duration: item.Duration != null ? String(item.Duration) : '',
     supplier: item.Supplier ?? '',
     location: item.Location ?? '',
@@ -170,6 +178,10 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   if (entry.dayId !== undefined) item.DayId = entry.dayId;
   if (entry.category !== undefined) item.Category = entry.category;
   if (entry.timeStart !== undefined) item.TimeStart = serializeTime(entry.timeStart);
+  if (entry.arrivalTime !== undefined) item.ArrivalTime = serializeTime(entry.arrivalTime);
+  if (entry.arrivalDate !== undefined) item.ArrivalDate = serializeDate(entry.arrivalDate);
+  if (entry.embarksDate !== undefined) item.EmbarksDate = serializeDate(entry.embarksDate);
+  if (entry.disembarksDate !== undefined) item.DisembarksDate = serializeDate(entry.disembarksDate);
   if (entry.duration !== undefined) item.Duration = entry.duration ?? '';
   if (entry.supplier !== undefined) item.Supplier = entry.supplier;
   if (entry.location !== undefined) item.Location = entry.location;

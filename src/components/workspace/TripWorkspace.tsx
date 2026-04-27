@@ -6,6 +6,7 @@ import { PlacesProvider } from '../../context/PlacesContext';
 import { useJournal } from '../../context/JournalContext';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { TripHero } from './TripHero';
+import { CruiseItineraryImport } from '../cruise/CruiseItineraryImport';
 import { RouteStrip } from '../maps/RouteStrip';
 import { TripStatsStrip } from './TripStatsStrip';
 import { TripContent } from './TripContent';
@@ -14,7 +15,8 @@ import { ConfigPanel } from './ConfigPanel';
 import { EditTripPanel } from './EditTripPanel';
 import { ErrorBoundary } from '../shared/ErrorBoundary';
 import * as XLSX from 'xlsx';
-import { sumByCategory, sumByPaymentStatus } from '../../utils/financialUtils';
+import { formatCurrency, sumByCategory, sumByPaymentStatus } from '../../utils/financialUtils';
+import { useConfig } from '../../context/ConfigContext';
 import { JournalPdfExport } from '../export/JournalPdfExport';
 import styles from './TripWorkspace.module.css';
 
@@ -39,9 +41,11 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack, on
     setSharedPreview,
     tripDays,
     localEntries,
+    convertToHomeCurrency,
     setSelectedDayId,
     setMainWorkspaceTab
   } = useTripWorkspace();
+  const { config } = useConfig();
   const { allEntries: journalEntries, allTripPhotos, commentsForEntry } = useJournal();
   const { documents, links, setHighlightedDocumentId, setHighlightedLinkId } = useAttachments();
   const [configOpen, setConfigOpen] = React.useState(false);
@@ -75,6 +79,15 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack, on
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  React.useEffect(() => {
+    const onOpenJournalExport = (): void => {
+      setExportOpen(true);
+      setMainWorkspaceTab('journal');
+    };
+    window.addEventListener('open-journal-export', onOpenJournalExport);
+    return () => window.removeEventListener('open-journal-export', onOpenJournalExport);
+  }, [setMainWorkspaceTab]);
 
   const sharedPreviewWasOnRef = React.useRef(false);
   React.useEffect(() => {
@@ -181,23 +194,45 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack, on
     const orderedDays = [...tripDays].sort((a, b) => a.dayNumber - b.dayNumber);
     const workbook = XLSX.utils.book_new();
 
-    const totalBudget = sumByPaymentStatus(localEntries, 'all');
-    const spent = sumByPaymentStatus(localEntries, 'paid');
-    const remaining = sumByPaymentStatus(localEntries, 'unpaid');
-    const byCategory = sumByCategory(localEntries);
+    const totalBudget = sumByPaymentStatus(localEntries, 'all', convertToHomeCurrency);
+    const spent = sumByPaymentStatus(localEntries, 'paid', convertToHomeCurrency);
+    const remaining = sumByPaymentStatus(localEntries, 'unpaid', convertToHomeCurrency);
+    const byCategory = sumByCategory(localEntries, convertToHomeCurrency);
     const summaryRows: Array<Record<string, string | number>> = [
       { Field: 'Trip title', Value: trip.title },
       { Field: 'Date range', Value: `${trip.dateStart} to ${trip.dateEnd}` },
-      { Field: 'Total budget', Value: totalBudget },
-      { Field: 'Spent so far', Value: spent },
-      { Field: 'Remaining', Value: remaining }
+      { Field: 'Total budget', Value: formatCurrency(totalBudget, config.homeCurrency) },
+      { Field: 'Spent so far', Value: formatCurrency(spent, config.homeCurrency) },
+      { Field: 'Remaining', Value: formatCurrency(remaining, config.homeCurrency) }
     ];
-    Object.keys(byCategory).forEach((key) => summaryRows.push({ Field: `Category: ${key}`, Value: byCategory[key] || 0 }));
+    Object.keys(byCategory).forEach((key) => summaryRows.push({ Field: `Category: ${key}`, Value: formatCurrency(byCategory[key] || 0, config.homeCurrency) }));
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), 'Summary');
 
     for (const day of orderedDays) {
+      const perDayPortion = (entry: typeof localEntries[number]): number => {
+        if (entry.category === 'Accommodation' && entry.dateStart && entry.dateEnd) {
+          const start = new Date(`${entry.dateStart}T00:00:00.000Z`);
+          const end = new Date(`${entry.dateEnd}T00:00:00.000Z`);
+          const current = new Date(`${day.calendarDate}T00:00:00.000Z`);
+          const nights = Math.floor((end.getTime() - start.getTime()) / 86400000);
+          if (nights > 0 && current.getTime() >= start.getTime() && current.getTime() < end.getTime()) return entry.amount / nights;
+        }
+        if (entry.category === 'Cruise' && entry.embarksDate && entry.disembarksDate) {
+          const start = new Date(`${entry.embarksDate}T00:00:00.000Z`);
+          const end = new Date(`${entry.disembarksDate}T00:00:00.000Z`);
+          const current = new Date(`${day.calendarDate}T00:00:00.000Z`);
+          const cruiseDays = Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
+          if (cruiseDays > 0 && current.getTime() >= start.getTime() && current.getTime() <= end.getTime()) return entry.amount / cruiseDays;
+        }
+        return entry.amount;
+      };
       const rows = localEntries
-        .filter((e) => e.dayId === day.id)
+        .filter((e) => {
+          if (e.dayId === day.id) return true;
+          if (e.category === 'Accommodation' && e.dateStart && e.dateEnd) return day.calendarDate >= e.dateStart && day.calendarDate < e.dateEnd;
+          if (e.category === 'Cruise' && e.embarksDate && e.disembarksDate) return day.calendarDate >= e.embarksDate && day.calendarDate <= e.disembarksDate;
+          return false;
+        })
         .map((e) => ({
           Time: e.timeStart,
           Title: e.title,
@@ -207,9 +242,8 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack, on
           DecisionStatus: e.decisionStatus,
           BookingStatus: e.bookingStatus,
           PaymentStatus: e.paymentStatus,
-          AmountHome: e.amount,
-          OriginalAmount: e.currency !== 'NZD' ? e.amount : '',
-          OriginalCurrency: e.currency,
+          'Amount (original)': formatCurrency(perDayPortion(e), e.currency || 'NZD'),
+          [`Amount (${config.homeCurrency})`]: formatCurrency(convertToHomeCurrency(perDayPortion(e), e.currency || 'NZD'), config.homeCurrency),
           Notes: e.notes
         }));
       const safeTitle = `Day ${day.dayNumber} - ${day.displayTitle}`.slice(0, 31);
@@ -217,7 +251,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack, on
     }
 
     XLSX.writeFile(workbook, `${trip.title.replace(/[^\w-]+/g, '_') || 'trip'}-itinerary.xlsx`);
-  }, [trip, tripDays, localEntries]);
+  }, [trip, tripDays, localEntries, convertToHomeCurrency, config.homeCurrency]);
 
   const scrollToResult = React.useCallback((selector: string): void => {
     let attempts = 0;
@@ -464,6 +498,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack, on
       ) : null}
       {deleteTripError ? <div className={styles.deleteError}>{deleteTripError}</div> : null}
       <TripHero trip={trip} onEdit={() => setEditOpen(true)} showEditButton={!sharedPreview} />
+      {trip && !sharedPreview ? <CruiseItineraryImport trip={trip} /> : null}
       {sharedPreview ? null : <TripStatsStrip />}
       <RouteStrip />
       {sharedPreview ? (
@@ -475,7 +510,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack, on
       <EditTripPanel trip={trip} isOpen={editOpen} onClose={() => setEditOpen(false)} onSave={updateTrip} />
       {onOpenTerms ? (
         <footer style={{ borderTop: 'var(--border-default)', padding: 'var(--space-2) var(--space-4)', display: 'flex', justifyContent: 'flex-end' }}>
-          <button type="button" className={styles.settingsButton} onClick={onOpenTerms}>Terms and Conditions</button>
+          <button type="button" onClick={onOpenTerms} style={{ border: 'none', background: 'transparent', color: 'var(--color-primary)', textDecoration: 'underline', cursor: 'pointer', fontSize: 'var(--font-size-sm)', fontFamily: 'var(--font-sans)', padding: 0 }}>Terms and Conditions</button>
         </footer>
       ) : null}
     </div>

@@ -95,16 +95,26 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
   }, [loadTrips]);
 
   React.useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log('trips loaded:', trips.length);
+    // eslint-disable-next-line no-console
+    console.log('places loaded:', allPlaces.length);
+    // eslint-disable-next-line no-console
+    console.log('tripDays loaded:', allTripDays.length);
+  }, [trips.length, allPlaces.length, allTripDays.length]);
+
+  React.useEffect(() => {
     if (!mapRef.current || placePins.length === 0) return;
     const map = L.map(mapRef.current, { zoomControl: true });
     const markerIcon = L.divIcon({
-      className: '',
+      className: 'th-map-pin',
       html: `<svg width="20" height="24" viewBox="0 0 20 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <path d="M10 1.5C5.3 1.5 1.5 5.3 1.5 10c0 6.3 8.5 12.5 8.5 12.5S18.5 16.3 18.5 10C18.5 5.3 14.7 1.5 10 1.5Z" fill="var(--color-primary)" stroke="#ffffff" stroke-width="1.2"/>
         <circle cx="10" cy="10" r="3" fill="#ffffff"/>
       </svg>`,
-      iconSize: [20, 24],
-      iconAnchor: [10, 24]
+      iconSize: [20, 28],
+      iconAnchor: [10, 28],
+      popupAnchor: [0, -28]
     });
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors'
@@ -351,7 +361,7 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
       )}
       {onOpenTerms ? (
         <div style={{ marginTop: 'var(--space-6)', paddingTop: 'var(--space-3)', borderTop: 'var(--border-default)', textAlign: 'right' }}>
-          <button type="button" style={{ border: 'none', background: 'transparent', textDecoration: 'underline', color: 'var(--color-primary)', cursor: 'pointer' }} onClick={onOpenTerms}>
+          <button type="button" style={{ border: 'none', background: 'transparent', textDecoration: 'underline', color: 'var(--color-primary)', cursor: 'pointer', fontSize: 'var(--font-size-sm)', fontFamily: 'var(--font-sans)', padding: 0 }} onClick={onOpenTerms}>
             Terms and Conditions
           </button>
         </div>

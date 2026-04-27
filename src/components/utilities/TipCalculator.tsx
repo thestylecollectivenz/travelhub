@@ -1,4 +1,5 @@
 import * as React from 'react';
+import styles from './TipCalculator.module.css';
 
 export interface TipCalculatorProps {
   currency: string;
@@ -17,28 +18,28 @@ export const TipCalculator: React.FC<TipCalculatorProps> = ({ currency, defaultP
   const perPerson = people > 0 ? total / people : total;
 
   return (
-    <div style={{ marginTop: 'var(--space-2)', border: 'var(--border-default)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)', background: 'var(--color-surface-raised)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-2)', alignItems: 'center' }}>
-        <strong>Tip calculator</strong>
-        <button type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', color: 'var(--color-primary)', cursor: 'pointer' }}>Close</button>
+    <div className={styles.card}>
+      <div className={styles.head}>
+        <h4 className={styles.title}>Tip calculator</h4>
+        <button type="button" onClick={onClose} className={styles.closeBtn}>Close</button>
       </div>
-      <div style={{ display: 'grid', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
-        <label>
+      <div className={styles.grid}>
+        <label className={styles.label}>
           Bill amount ({currency})
-          <input type="number" min={0} value={amount} onChange={(e) => setAmount(Math.max(0, Number(e.target.value) || 0))} style={{ width: '100%' }} />
+          <input className={styles.input} type="number" min={0} value={amount} onChange={(e) => setAmount(Math.max(0, Number(e.target.value) || 0))} />
         </label>
-        <label>
+        <label className={styles.label}>
           Tip %
-          <input type="number" min={0} value={percent} onChange={(e) => setPercent(Math.max(0, Number(e.target.value) || 0))} style={{ width: '100%' }} />
+          <input className={styles.input} type="number" min={0} value={percent} onChange={(e) => setPercent(Math.max(0, Number(e.target.value) || 0))} />
         </label>
-        <label>
+        <label className={styles.label}>
           Split people
-          <input type="number" min={1} value={people} onChange={(e) => setPeople(Math.max(1, Number(e.target.value) || 1))} style={{ width: '100%' }} />
+          <input className={styles.input} type="number" min={1} value={people} onChange={(e) => setPeople(Math.max(1, Number(e.target.value) || 1))} />
         </label>
-        <div>Tip amount: <strong>{tipAmount.toFixed(2)} {currency}</strong></div>
-        <div>Total: <strong>{total.toFixed(2)} {currency}</strong></div>
-        <div>Per person: <strong>{perPerson.toFixed(2)} {currency}</strong></div>
-        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-sand-600)' }}>{note}</div>
+        <div className={styles.result}>Tip amount: <strong>{tipAmount.toFixed(2)} {currency}</strong></div>
+        <div className={styles.result}>Total: <strong>{total.toFixed(2)} {currency}</strong></div>
+        <div className={styles.result}>Per person: <strong>{perPerson.toFixed(2)} {currency}</strong></div>
+        <div className={styles.note}>{note}</div>
       </div>
     </div>
   );

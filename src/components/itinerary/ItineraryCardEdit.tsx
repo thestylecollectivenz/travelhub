@@ -26,11 +26,15 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   const [draft, setDraft] = React.useState<ItineraryEntry>(() => ({ ...entry }));
 
   const timeValue = formatTimeHHMM(draft.timeStart);
+  const arrivalTimeValue = formatTimeHHMM(draft.arrivalTime ?? '');
 
   const patch = React.useCallback((partial: Partial<ItineraryEntry>) => {
     setDraft((d) => ({ ...d, ...partial }));
   }, []);
   const isAccommodation = draft.category === 'Accommodation';
+  const isFlights = draft.category === 'Flights';
+  const isTransport = draft.category === 'Transport';
+  const isCruise = draft.category === 'Cruise';
 
   const nights = React.useMemo(() => {
     if (!draft.dateStart || !draft.dateEnd) return 0;
@@ -57,6 +61,14 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
     }));
   }, [isAccommodation, calendarDate, nights, perNight]);
 
+  React.useEffect(() => {
+    if (!isFlights) return;
+    setDraft((prev) => ({
+      ...prev,
+      arrivalDate: prev.arrivalDate || prev.dateStart || calendarDate
+    }));
+  }, [isFlights, calendarDate]);
+
   const handleSave = React.useCallback(() => {
     const title = draft.title.trim();
     if (!title) {
@@ -73,6 +85,10 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       notes: draft.notes.trim(),
       location: draft.location?.trim() || undefined,
       duration: draft.duration.trim(),
+      arrivalTime: draft.arrivalTime,
+      arrivalDate: draft.arrivalDate,
+      embarksDate: draft.embarksDate,
+      disembarksDate: draft.disembarksDate,
       dateStart: draft.dateStart,
       dateEnd: draft.dateEnd,
       paymentCurrency: draft.paymentCurrency || config.homeCurrency
@@ -117,6 +133,58 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           value={draft.duration}
           onChange={(e) => patch({ duration: e.target.value })}
         />
+        {isFlights || isTransport ? (
+          <>
+            <label className={styles.label} htmlFor={`arr-time-${draft.id}`}>
+              Arrival time
+            </label>
+            <input
+              id={`arr-time-${draft.id}`}
+              className={styles.input}
+              type="time"
+              value={arrivalTimeValue}
+              onChange={(e) => patch({ arrivalTime: combineDayAndTime(calendarDate, e.target.value) })}
+            />
+          </>
+        ) : null}
+        {isFlights ? (
+          <>
+            <label className={styles.label} htmlFor={`arr-date-${draft.id}`}>
+              Arrival date
+            </label>
+            <input
+              id={`arr-date-${draft.id}`}
+              className={styles.input}
+              type="date"
+              value={draft.arrivalDate ?? ''}
+              onChange={(e) => patch({ arrivalDate: e.target.value })}
+            />
+          </>
+        ) : null}
+        {isCruise ? (
+          <>
+            <label className={styles.label} htmlFor={`embark-date-${draft.id}`}>
+              Embark date
+            </label>
+            <input
+              id={`embark-date-${draft.id}`}
+              className={styles.input}
+              type="date"
+              value={draft.embarksDate ?? ''}
+              onChange={(e) => patch({ embarksDate: e.target.value })}
+            />
+            <label className={styles.label} htmlFor={`disembark-date-${draft.id}`}>
+              Disembark date
+            </label>
+            <input
+              id={`disembark-date-${draft.id}`}
+              className={styles.input}
+              type="date"
+              value={draft.disembarksDate ?? ''}
+              onChange={(e) => patch({ disembarksDate: e.target.value })}
+            />
+          </>
+        ) : null}
 
         <label className={styles.label} htmlFor={`title-${draft.id}`}>
           Title

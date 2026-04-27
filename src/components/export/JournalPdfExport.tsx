@@ -25,8 +25,8 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({ trip, tripDa
   }, [tripDays, includePreTrip]);
 
   return (
-    <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
-      <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
+    <div className="controls">
+      <div className="controlsRow">
         <label><input type="checkbox" checked={showCover} onChange={(e) => setShowCover(e.target.checked)} /> Cover page</label>
         <label><input type="checkbox" checked={includePreTrip} onChange={(e) => setIncludePreTrip(e.target.checked)} /> Include pre-trip</label>
         <label><input type="checkbox" checked={includeComments} onChange={(e) => setIncludeComments(e.target.checked)} /> Include comments</label>
@@ -38,7 +38,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({ trip, tripDa
         <button type="button" onClick={() => window.print()}>Print / Save PDF</button>
       </div>
 
-      <section className="th-journal-print">
+      <section className="th-journal-print printRoot">
         {showCover ? (
           <div>
             <h1>{trip.title}</h1>
@@ -63,10 +63,10 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({ trip, tripDa
                     <div dangerouslySetInnerHTML={{ __html: entry.entryText || '' }} />
                     {includeLikes ? <div>Likes: {entry.likeCount}</div> : null}
                     {entryPhotos.length ? (
-                      <div style={{ display: 'grid', gridTemplateColumns: layout === 'photo' ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 8 }}>
+                      <div className={`photoGrid ${layout === 'photo' ? 'photoHeavy' : 'textHeavy'}`}>
                         {entryPhotos.map((p) => (
                           <figure key={p.id} style={{ margin: 0 }}>
-                            <img src={p.fileUrl} alt={p.caption || 'Journal photo'} style={{ width: '100%', maxHeight: layout === 'photo' ? 260 : 120, objectFit: 'cover' }} />
+                            <img src={p.fileUrl} alt={p.caption || 'Journal photo'} />
                             {p.caption ? <figcaption style={{ fontSize: 11 }}>{p.caption}</figcaption> : null}
                           </figure>
                         ))}

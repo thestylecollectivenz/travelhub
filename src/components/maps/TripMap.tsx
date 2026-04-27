@@ -17,27 +17,27 @@ type Stop = {
 
 function createPinIcon(): L.DivIcon {
   return L.divIcon({
-    className: '',
+    className: 'th-map-pin',
     html: `<svg width="20" height="24" viewBox="0 0 20 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <path d="M10 1.5C5.3 1.5 1.5 5.3 1.5 10c0 6.3 8.5 12.5 8.5 12.5S18.5 16.3 18.5 10C18.5 5.3 14.7 1.5 10 1.5Z" fill="var(--color-primary)" stroke="#ffffff" stroke-width="1.2"/>
       <circle cx="10" cy="10" r="3" fill="#ffffff"/>
     </svg>`,
-    iconSize: [24, 24],
-    iconAnchor: [12, 24],
-    popupAnchor: [0, -20]
+    iconSize: [20, 28],
+    iconAnchor: [10, 28],
+    popupAnchor: [0, -28]
   });
 }
 
 function createSmallPinIcon(): L.DivIcon {
   return L.divIcon({
-    className: '',
+    className: 'th-map-pin-small',
     html: `<svg width="14" height="18" viewBox="0 0 20 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <path d="M10 1.5C5.3 1.5 1.5 5.3 1.5 10c0 6.3 8.5 12.5 8.5 12.5S18.5 16.3 18.5 10C18.5 5.3 14.7 1.5 10 1.5Z" fill="var(--color-blue-200)" stroke="#ffffff" stroke-width="1.2"/>
       <circle cx="10" cy="10" r="2.4" fill="#ffffff"/>
     </svg>`,
-    iconSize: [24, 24],
-    iconAnchor: [12, 24],
-    popupAnchor: [0, -14]
+    iconSize: [20, 28],
+    iconAnchor: [10, 28],
+    popupAnchor: [0, -28]
   });
 }
 
@@ -47,6 +47,7 @@ export const TripMap: React.FC = () => {
   const mapRef = React.useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = React.useRef<L.Map | null>(null);
   const layerGroupRef = React.useRef<L.LayerGroup | null>(null);
+  const polylineRef = React.useRef<L.Polyline | null>(null);
   const [lastStops, setLastStops] = React.useState<Stop[]>([]);
 
   const stops = React.useMemo((): Stop[] => {
@@ -94,21 +95,21 @@ export const TripMap: React.FC = () => {
   const renderedStops = stops.length ? stops : lastStops;
 
   React.useEffect(() => {
-    if (!mapRef.current || renderedStops.length === 0) return;
-    if (!mapInstanceRef.current) {
-      mapInstanceRef.current = L.map(mapRef.current, { zoomControl: true });
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-      }).addTo(mapInstanceRef.current);
-    }
+    if (!mapRef.current) return;
+    if (mapInstanceRef.current) return;
+    mapInstanceRef.current = L.map(mapRef.current, { zoomControl: true });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(mapInstanceRef.current);
+    layerGroupRef.current = L.layerGroup().addTo(mapInstanceRef.current);
+  }, []);
+
+  React.useEffect(() => {
+    if (!mapInstanceRef.current || renderedStops.length === 0) return;
     const map = mapInstanceRef.current;
-    if (!map) return;
-    if (layerGroupRef.current) {
-      layerGroupRef.current.removeFrom(map);
-    }
-    const layerGroup = L.layerGroup();
+    const layerGroup = layerGroupRef.current ?? L.layerGroup().addTo(map);
     layerGroupRef.current = layerGroup;
-    layerGroup.addTo(map);
+    layerGroup.clearLayers();
     const markerIcon = createPinIcon();
     const markerIconSmall = createSmallPinIcon();
 
@@ -123,9 +124,31 @@ export const TripMap: React.FC = () => {
         )
         .addTo(layerGroup);
     }
-    const primaryPoints = renderedStops.filter((s) => s.isPrimary).map((s) => [s.latitude, s.longitude] as L.LatLngExpression);
-    if (primaryPoints.length >= 2) {
-      L.polyline(primaryPoints, { color: '#1A6399', weight: 2 }).addTo(layerGroup);
+    if (polylineRef.current) {
+      map.removeLayer(polylineRef.current);
+      polylineRef.current = null;
+    }
+    const orderedDays = tripDays
+      .filter((d) => (trip ? d.tripId === trip.id : true))
+      .sort((a, b) => a.dayNumber - b.dayNumber);
+    const polylinePoints: L.LatLngExpression[] = [];
+    for (const day of orderedDays) {
+      const primary = placeById(day.primaryPlaceId);
+      if (!primary) continue;
+      const primaryPoint: L.LatLngExpression = [primary.latitude, primary.longitude];
+      polylinePoints.push(primaryPoint);
+      for (const addId of day.additionalPlaceIds ?? []) {
+        const add = placeById(addId);
+        if (!add) continue;
+        polylinePoints.push([add.latitude, add.longitude]);
+      }
+      if ((day.additionalPlaceIds ?? []).length > 0) {
+        polylinePoints.push(primaryPoint);
+      }
+    }
+    if (polylinePoints.length >= 2) {
+      polylineRef.current = L.polyline(polylinePoints, { color: '#1A6399', weight: 2 });
+      polylineRef.current.addTo(map);
     }
     if (points.length) {
       map.fitBounds(L.latLngBounds(points), { padding: [20, 20] });
@@ -133,8 +156,7 @@ export const TripMap: React.FC = () => {
       map.setView([0, 0], 4);
     }
     window.setTimeout(() => map.invalidateSize(), 0);
-    return undefined;
-  }, [renderedStops]);
+  }, [renderedStops, trip, tripDays, placeById]);
 
   React.useEffect(() => () => {
     if (mapInstanceRef.current) {

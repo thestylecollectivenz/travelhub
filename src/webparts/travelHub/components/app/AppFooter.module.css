@@ -1,0 +1,25 @@
+.footer {
+  border-top: var(--border-default);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface-raised);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-sans);
+}
+
+.brand {
+  font-size: var(--font-size-sm);
+  color: var(--color-blue-800);
+}
+
+.linkBtn {
+  border: none;
+  background: transparent;
+  color: var(--color-primary);
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-sans);
+  padding: 0;
+}

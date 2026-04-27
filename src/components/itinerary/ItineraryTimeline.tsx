@@ -15,12 +15,22 @@ export interface ItineraryTimelineProps {
 
 function isEntryOnCalendarDate(entry: ItineraryEntry, calendarDate: string, dayType?: string): boolean {
   if (dayType === 'PreTrip') return false;
-  if (entry.category !== 'Accommodation' || !entry.dateStart || !entry.dateEnd || !calendarDate) return false;
-  const day = new Date(`${calendarDate}T00:00:00.000Z`);
-  const start = new Date(`${entry.dateStart}T00:00:00.000Z`);
-  const end = new Date(`${entry.dateEnd}T00:00:00.000Z`);
-  if (Number.isNaN(day.getTime()) || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
-  return day.getTime() >= start.getTime() && day.getTime() < end.getTime();
+  if (!calendarDate) return false;
+  if (entry.category === 'Accommodation' && entry.dateStart && entry.dateEnd) {
+    const day = new Date(`${calendarDate}T00:00:00.000Z`);
+    const start = new Date(`${entry.dateStart}T00:00:00.000Z`);
+    const end = new Date(`${entry.dateEnd}T00:00:00.000Z`);
+    if (Number.isNaN(day.getTime()) || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
+    return day.getTime() >= start.getTime() && day.getTime() < end.getTime();
+  }
+  if (entry.category === 'Cruise' && entry.embarksDate && entry.disembarksDate) {
+    const day = new Date(`${calendarDate}T00:00:00.000Z`);
+    const start = new Date(`${entry.embarksDate}T00:00:00.000Z`);
+    const end = new Date(`${entry.disembarksDate}T00:00:00.000Z`);
+    if (Number.isNaN(day.getTime()) || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
+    return day.getTime() >= start.getTime() && day.getTime() <= end.getTime();
+  }
+  return false;
 }
 
 function sortEntriesForDay(entries: ItineraryEntry[], dayId: string, calendarDate: string, dayType?: string): ItineraryEntry[] {

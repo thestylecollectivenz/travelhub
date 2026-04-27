@@ -1,3 +1,48 @@
+ .controls {
+  display: grid;
+  gap: var(--space-2);
+  font-family: var(--font-sans);
+ }
+
+.controlsRow {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.printRoot {
+  font-family: var(--font-sans);
+}
+
+.photoGrid {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.photoHeavy {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.textHeavy {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.photoGrid img {
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  image-orientation: from-image;
+}
+
+.photoHeavy img {
+  max-height: 24rem;
+}
+
+.textHeavy img {
+  max-height: 8rem;
+}
+
 @media print {
   body * {
     visibility: hidden !important;
@@ -13,10 +58,10 @@
     left: 0;
     top: 0;
     width: 100%;
-    padding: 24px;
+    padding: var(--space-4);
     background: white;
     color: black;
-    font-family: Arial, sans-serif;
+    font-family: var(--font-sans);
   }
 
   .th-journal-print h1,

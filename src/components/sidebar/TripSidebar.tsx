@@ -24,6 +24,12 @@ export const TripSidebar: React.FC = () => {
     [localEntries]
   );
   const taskCount = manualIncomplete + autoIncomplete;
+const mapIcon = (
+  <svg viewBox="0 0 16 16" width={12} height={12} fill="none" aria-hidden>
+    <path d="M8 14s4.5-2.8 4.5-6.4A4.5 4.5 0 1 0 3.5 7.6C3.5 11.2 8 14 8 14Z" stroke="currentColor" strokeWidth="1.2" />
+    <circle cx="8" cy="7.2" r="1.5" fill="currentColor" />
+  </svg>
+);
 
   if (sharedPreview) {
     return (
@@ -33,10 +39,12 @@ export const TripSidebar: React.FC = () => {
             type="button"
             role="tab"
             aria-selected={mainWorkspaceTab === 'map'}
-            className={`${styles.tab} ${mainWorkspaceTab === 'map' ? styles.tabActive : ''}`}
+            className={`${styles.tab} ${styles.tabIconOnly} ${mainWorkspaceTab === 'map' ? styles.tabActive : ''}`}
             onClick={() => setMainWorkspaceTab('map')}
+            title="Map"
+            aria-label="Map"
           >
-            Map
+            {mapIcon}
           </button>
           <button
             type="button"
@@ -96,10 +104,12 @@ export const TripSidebar: React.FC = () => {
           type="button"
           role="tab"
           aria-selected={mainWorkspaceTab === 'map'}
-          className={`${styles.tab} ${mainWorkspaceTab === 'map' ? styles.tabActive : ''}`}
+          className={`${styles.tab} ${styles.tabIconOnly} ${mainWorkspaceTab === 'map' ? styles.tabActive : ''}`}
           onClick={() => setMainWorkspaceTab('map')}
+          title="Map"
+          aria-label="Map"
         >
-          Map
+          {mapIcon}
         </button>
         <button
           type="button"
@@ -128,8 +138,7 @@ export const TripSidebar: React.FC = () => {
         >
           Files & Links
         </button>
-        <button type="button" role="tab" aria-selected={mainWorkspaceTab === 'tasks'} className={`${styles.tab} ${mainWorkspaceTab === 'tasks' ? styles.tabActive : ''}`} onClick={() => setMainWorkspaceTab('tasks')}>Tasks{taskCount > 0 ? ` (${taskCount})` : ''}</button>
-        <button type="button" role="tab" aria-selected={mainWorkspaceTab === 'packing'} className={`${styles.tab} ${mainWorkspaceTab === 'packing' ? styles.tabActive : ''}`} onClick={() => setMainWorkspaceTab('packing')}>Packing</button>
+        <button type="button" role="tab" aria-selected={mainWorkspaceTab === 'plan'} className={`${styles.tab} ${mainWorkspaceTab === 'plan' ? styles.tabActive : ''}`} onClick={() => setMainWorkspaceTab('plan')}>Plan{taskCount > 0 ? ` (${taskCount})` : ''}</button>
       </div>
       {mainWorkspaceTab === 'itinerary' ? <SidebarDayList /> : null}
       <div className={styles.divider} role="presentation" />

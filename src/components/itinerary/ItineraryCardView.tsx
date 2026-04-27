@@ -116,6 +116,13 @@ function formatYmdRange(start?: string, end?: string): string {
   return `${s.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' })} → ${e.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' })}`;
 }
 
+function formatYmd(date?: string): string {
+  if (!date) return '';
+  const d = new Date(`${date}T00:00:00.000Z`);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, calendarDate, hasTask = false, onEdit, onDuplicate, onDelete }) => {
   const spContext = useSpContext();
   const { addSubItem, convertToHomeCurrency } = useTripWorkspace();
@@ -198,6 +205,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
   const supplier = entry.supplier.trim();
   const location = (entry.location ?? '').trim();
   const isAccommodation = entry.category === 'Accommodation' && !!entry.dateStart && !!entry.dateEnd;
+  const isCruise = entry.category === 'Cruise' && !!entry.embarksDate && !!entry.disembarksDate;
   const nights = React.useMemo(() => {
     if (!isAccommodation) return 0;
     const start = new Date(`${entry.dateStart}T00:00:00.000Z`);
@@ -221,6 +229,25 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
     const start = new Date(`${entry.dateStart}T00:00:00.000Z`);
     return Math.floor((thisDay.getTime() - start.getTime()) / 86400000) + 1;
   }, [calendarDate, entry.dateStart, isContinuation]);
+  const isCruiseContinuation = React.useMemo(() => {
+    if (!isCruise || !entry.embarksDate || !entry.disembarksDate) return false;
+    const thisDay = new Date(`${calendarDate}T00:00:00.000Z`);
+    const start = new Date(`${entry.embarksDate}T00:00:00.000Z`);
+    if (Number.isNaN(thisDay.getTime()) || Number.isNaN(start.getTime())) return false;
+    return thisDay.getTime() > start.getTime();
+  }, [calendarDate, entry.disembarksDate, entry.embarksDate, isCruise]);
+  const cruiseDayNumber = React.useMemo(() => {
+    if (!isCruise || !entry.embarksDate || !entry.disembarksDate) return 0;
+    const thisDay = new Date(`${calendarDate}T00:00:00.000Z`);
+    const start = new Date(`${entry.embarksDate}T00:00:00.000Z`);
+    return Math.floor((thisDay.getTime() - start.getTime()) / 86400000) + 1;
+  }, [calendarDate, entry.disembarksDate, entry.embarksDate, isCruise]);
+  const cruiseTotalDays = React.useMemo(() => {
+    if (!isCruise || !entry.embarksDate || !entry.disembarksDate) return 0;
+    const start = new Date(`${entry.embarksDate}T00:00:00.000Z`);
+    const end = new Date(`${entry.disembarksDate}T00:00:00.000Z`);
+    return Math.max(1, Math.floor((end.getTime() - start.getTime()) / 86400000) + 1);
+  }, [entry.disembarksDate, entry.embarksDate, isCruise]);
 
   let unitSuffix = '';
   if (!isAccommodation && entry.unitType && typeof entry.unitAmount === 'number' && !Number.isNaN(entry.unitAmount)) {
@@ -382,11 +409,26 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
 
       <h3 className={styles.title}>{entry.title || 'Untitled'}</h3>
       {isContinuation ? <div className={styles.continuationLabel}>Continuing stay — Night {nightNumber} of {nights}</div> : null}
+      {isCruise && isCruiseContinuation ? <div className={styles.continuationLabel}>Day {cruiseDayNumber} of cruise</div> : null}
       {isAccommodation ? (
         <div className={styles.metaRow}>
           <span>{formatYmdRange(entry.dateStart, entry.dateEnd)}</span>
           <span aria-hidden> · </span>
           <span>{nights} night{nights === 1 ? '' : 's'}</span>
+        </div>
+      ) : null}
+      {(entry.category === 'Flights' && (entry.arrivalTime || entry.arrivalDate)) ? (
+        <div className={styles.metaRow}>
+          <span>Arrives {entry.arrivalDate ? formatYmd(entry.arrivalDate) : ''}{entry.arrivalDate && entry.arrivalTime ? ' · ' : ''}{entry.arrivalTime ? formatTimeHHMM(entry.arrivalTime) : ''}</span>
+        </div>
+      ) : null}
+      {isCruise ? (
+        <div className={styles.metaRow}>
+          <span>Embark {formatYmd(entry.embarksDate)}</span>
+          <span aria-hidden> · </span>
+          <span>Disembark {formatYmd(entry.disembarksDate)}</span>
+          <span aria-hidden> · </span>
+          <span>{cruiseTotalDays} day{cruiseTotalDays === 1 ? '' : 's'}</span>
         </div>
       ) : null}
 

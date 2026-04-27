@@ -26,6 +26,14 @@
   cursor: pointer;
 }
 
+.tabIconOnly {
+  flex: 0 0 auto;
+  width: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .tab:hover {
   color: var(--color-blue-800);
 }

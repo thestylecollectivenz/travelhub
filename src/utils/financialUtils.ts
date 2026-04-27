@@ -24,9 +24,28 @@ function isAccommodationOnDate(entry: ItineraryEntry, dayCalendarDate?: string):
   return day.getTime() >= start.getTime() && day.getTime() < end.getTime();
 }
 
+function daysForCruise(entry: ItineraryEntry): number {
+  if (entry.category !== 'Cruise' || !entry.embarksDate || !entry.disembarksDate) return 0;
+  const start = new Date(`${entry.embarksDate}T00:00:00.000Z`);
+  const end = new Date(`${entry.disembarksDate}T00:00:00.000Z`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+  const diff = Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
+  return diff > 0 ? diff : 0;
+}
+
+function isCruiseOnDate(entry: ItineraryEntry, dayCalendarDate?: string): boolean {
+  if (!dayCalendarDate) return false;
+  if (entry.category !== 'Cruise' || !entry.embarksDate || !entry.disembarksDate) return false;
+  const day = new Date(`${dayCalendarDate}T00:00:00.000Z`);
+  const start = new Date(`${entry.embarksDate}T00:00:00.000Z`);
+  const end = new Date(`${entry.disembarksDate}T00:00:00.000Z`);
+  if (Number.isNaN(day.getTime()) || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
+  return day.getTime() >= start.getTime() && day.getTime() <= end.getTime();
+}
+
 function appliesToDay(entry: ItineraryEntry, dayId: string, dayCalendarDate?: string): boolean {
   if (entry.dayId === dayId) return true;
-  return isAccommodationOnDate(entry, dayCalendarDate);
+  return isAccommodationOnDate(entry, dayCalendarDate) || isCruiseOnDate(entry, dayCalendarDate);
 }
 
 interface FinancialLine {
@@ -55,12 +74,14 @@ function getFinancialLines(
     const currency = entry.currency || 'NZD';
     const fullAmount = entryAmount(entry);
     const nights = nightsForAccommodation(entry);
-    const splitAmount = dayId && nights > 0 ? fullAmount / nights : fullAmount;
+    const cruiseDays = daysForCruise(entry);
+    const splitDivisor = nights > 0 ? nights : cruiseDays > 0 ? cruiseDays : 0;
+    const splitAmount = dayId && splitDivisor > 0 ? fullAmount / splitDivisor : fullAmount;
     const amount = converter(splitAmount, currency);
     const amountPaid = entry.amountPaid !== undefined
       ? (typeof entry.amountPaidConverted === 'number'
-          ? (dayId && nights > 0 ? entry.amountPaidConverted / nights : entry.amountPaidConverted)
-          : converter(dayId && nights > 0 ? entry.amountPaid / nights : entry.amountPaid, entry.paymentCurrency || currency))
+          ? (dayId && splitDivisor > 0 ? entry.amountPaidConverted / splitDivisor : entry.amountPaidConverted)
+          : converter(dayId && splitDivisor > 0 ? entry.amountPaid / splitDivisor : entry.amountPaid, entry.paymentCurrency || currency))
       : undefined;
     const lineDayId = dayId ?? entry.dayId;
     lines.push({

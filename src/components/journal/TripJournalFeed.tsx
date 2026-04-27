@@ -88,6 +88,13 @@ export const TripJournalFeed: React.FC = () => {
       <header className={styles.header}>
         <h2 className={styles.title}>Journal</h2>
         <div className={styles.sortRow} role="group" aria-label="Sort entries">
+          <button
+            type="button"
+            className={styles.sortBtn}
+            onClick={() => window.dispatchEvent(new CustomEvent('open-journal-export'))}
+          >
+            Export journal
+          </button>
           <span className={styles.sortLabel}>Order</span>
           <button
             type="button"
