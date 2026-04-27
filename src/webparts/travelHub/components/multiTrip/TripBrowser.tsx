@@ -36,9 +36,10 @@ function getStatusBadgeStyles(status: string): React.CSSProperties {
 export interface ITripBrowserProps {
   onSelectTrip: (tripId: string) => void;
   onCreateTrip: () => void;
+  onOpenTerms?: () => void;
 }
 
-export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreateTrip }) => {
+export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreateTrip, onOpenTerms }) => {
   const spContext = useSpContext();
   const [trips, setTrips] = React.useState<Trip[]>([]);
   const [placePins, setPlacePins] = React.useState<Array<{ id: string; title: string; lat: number; lon: number }>>([]);
@@ -348,6 +349,13 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
           </section>
         </>
       )}
+      {onOpenTerms ? (
+        <div style={{ marginTop: 'var(--space-6)', paddingTop: 'var(--space-3)', borderTop: 'var(--border-default)', textAlign: 'right' }}>
+          <button type="button" style={{ border: 'none', background: 'transparent', textDecoration: 'underline', color: 'var(--color-primary)', cursor: 'pointer' }} onClick={onOpenTerms}>
+            Terms and Conditions
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 };

@@ -2,8 +2,10 @@ import * as React from 'react';
 import { TripBrowser } from '../multiTrip/TripBrowser';
 import { CreateTripPanel } from '../multiTrip/CreateTripPanel';
 import { TripWorkspace } from '../../../../components/workspace/TripWorkspace';
+import { TermsAndConditions } from './TermsAndConditions';
+import { AppFooter } from './AppFooter';
 
-type AppView = 'multiTrip' | 'singleTrip' | 'createTrip';
+type AppView = 'multiTrip' | 'singleTrip' | 'createTrip' | 'terms';
 
 export const AppRouter: React.FC = () => {
   const [view, setView] = React.useState<AppView>('multiTrip');
@@ -14,11 +16,16 @@ export const AppRouter: React.FC = () => {
     setView('singleTrip');
   };
 
+  if (view === 'terms') {
+    return <TermsAndConditions onBack={() => setView(selectedTripId ? 'singleTrip' : 'multiTrip')} />;
+  }
+
   if (view === 'singleTrip') {
     return (
       <TripWorkspace
         tripId={selectedTripId}
         onBack={() => setView('multiTrip')}
+        onOpenTerms={() => setView('terms')}
       />
     );
   }
@@ -30,7 +37,9 @@ export const AppRouter: React.FC = () => {
       <TripBrowser
         onSelectTrip={goToTrip}
         onCreateTrip={() => setView('createTrip')}
+        onOpenTerms={() => setView('terms')}
       />
+      <AppFooter onOpenTerms={() => setView('terms')} />
       {view === 'createTrip' && (
         <CreateTripPanel
           onCreated={(newTripId) => goToTrip(newTripId)}
