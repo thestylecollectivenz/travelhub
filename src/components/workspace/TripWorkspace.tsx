@@ -15,6 +15,7 @@ import { EditTripPanel } from './EditTripPanel';
 import { ErrorBoundary } from '../shared/ErrorBoundary';
 import * as XLSX from 'xlsx';
 import { sumByCategory, sumByPaymentStatus } from '../../utils/financialUtils';
+import { JournalPdfExport } from '../export/JournalPdfExport';
 import styles from './TripWorkspace.module.css';
 
 export interface ITripWorkspaceProps {
@@ -40,7 +41,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
     setSelectedDayId,
     setMainWorkspaceTab
   } = useTripWorkspace();
-  const { allEntries: journalEntries, allTripPhotos } = useJournal();
+  const { allEntries: journalEntries, allTripPhotos, commentsForEntry } = useJournal();
   const { documents, links, setHighlightedDocumentId, setHighlightedLinkId } = useAttachments();
   const [configOpen, setConfigOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
@@ -441,13 +442,22 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
       ) : null}
       {exportOpen ? (
         <div className={styles.searchPanel}>
-          <div className={styles.searchRow}>
-            <button type="button" className={styles.settingsButton} onClick={exportTripToExcel}>
-              Export itinerary to Excel
-            </button>
-            <button type="button" className={styles.settingsButton} onClick={() => setExportOpen(false)}>
-              Close
-            </button>
+          <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
+            <div className={styles.searchRow}>
+              <button type="button" className={styles.settingsButton} onClick={exportTripToExcel}>
+                Export itinerary to Excel
+              </button>
+              <button type="button" className={styles.settingsButton} onClick={() => setExportOpen(false)}>
+                Close
+              </button>
+            </div>
+            <JournalPdfExport
+              trip={trip}
+              tripDays={tripDays}
+              entries={journalEntries}
+              photos={allTripPhotos}
+              commentsForEntry={commentsForEntry}
+            />
           </div>
         </div>
       ) : null}

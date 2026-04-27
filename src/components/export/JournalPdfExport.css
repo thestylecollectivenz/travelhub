@@ -1,0 +1,31 @@
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  .th-journal-print,
+  .th-journal-print * {
+    visibility: visible !important;
+  }
+
+  .th-journal-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 24px;
+    background: white;
+    color: black;
+    font-family: Arial, sans-serif;
+  }
+
+  .th-journal-print h1,
+  .th-journal-print h2,
+  .th-journal-print h3 {
+    page-break-after: avoid;
+  }
+
+  .th-journal-print .page-break {
+    page-break-before: always;
+  }
+}
