@@ -8,6 +8,7 @@ import { COUNTRY_DATA } from '../../data/countryData';
 import { SEASONAL_BY_REGION } from '../../data/seasonalWeather';
 import { formatDayDate } from '../../utils/dateUtils';
 import { formatCurrency } from '../../utils/financialUtils';
+import { TipCalculator } from '../utilities/TipCalculator';
 import styles from './DayHeader.module.css';
 
 export interface DayHeaderProps {
@@ -120,6 +121,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
     sunset: string;
   } | null>(null);
   const [locationMessage, setLocationMessage] = React.useState('');
+  const [tipOpen, setTipOpen] = React.useState(false);
 
   const dayLocations = React.useMemo(
     () => {
@@ -484,6 +486,13 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
         {isShared ? null : (
           <div className={styles.rightActions}>
           <span className={styles.totalChip}>{formatCurrency(dayTotal, config.homeCurrency)}</span>
+          <button
+            type="button"
+            className={styles.journalButton}
+            onClick={() => setTipOpen((v) => !v)}
+          >
+            Tip calculator
+          </button>
           <button type="button" className={styles.journalButton} onClick={() => onWriteJournal?.()}>
             Write journal entry
           </button>
@@ -492,6 +501,19 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
           </button>
           </div>
         )}
+        {tipOpen ? (
+          <TipCalculator
+            currency={countryData?.currencyCode || config.homeCurrency}
+            defaultPercent={(() => {
+              const t = (countryData?.tipping || '').toLowerCase();
+              if (t.indexOf('not expected') >= 0 || t.indexOf('not customary') >= 0) return 0;
+              const m = (countryData?.tipping || '').match(/(\d{1,2})\s?%/);
+              return m ? Number(m[1]) : 10;
+            })()}
+            note={countryData?.tipping || 'No tipping guidance available for this location.'}
+            onClose={() => setTipOpen(false)}
+          />
+        ) : null}
       </div>
     </header>
   );
