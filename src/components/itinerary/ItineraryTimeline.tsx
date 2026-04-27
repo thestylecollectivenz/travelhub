@@ -2,9 +2,11 @@ import * as React from 'react';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { useSpContext } from '../../context/SpContext';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { formatTimeHHMM, minutesFromTimeStart } from '../../utils/itineraryTimeUtils';
 import { ItineraryCard } from './ItineraryCard';
+import { ReminderService } from '../../services/ReminderService';
 import styles from './ItineraryTimeline.module.css';
 
 export interface ItineraryTimelineProps {
@@ -98,7 +100,9 @@ const NewComposer: React.FC<NewComposerProps> = ({ tripId, dayId, calendarDate, 
 };
 
 export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) => {
+  const spContext = useSpContext();
   const { trip, localEntries, editingCardId, tripDays } = useTripWorkspace();
+  const [taskEntryIds, setTaskEntryIds] = React.useState<Set<string>>(new Set());
 
   const calendarDate = React.useMemo(() => {
     if (!trip) return '';
@@ -108,6 +112,31 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
   const dayType = React.useMemo(() => tripDays.find((x) => x.id === dayId)?.dayType, [tripDays, dayId]);
 
   const sorted = React.useMemo(() => sortEntriesForDay(localEntries, dayId, calendarDate, dayType), [localEntries, dayId, calendarDate, dayType]);
+
+  const loadEntryTasks = React.useCallback((): void => {
+    if (!trip?.id) {
+      setTaskEntryIds(new Set());
+      return;
+    }
+    const svc = new ReminderService(spContext);
+    svc
+      .getForTrip(trip.id)
+      .then((rows) => {
+        const ids = new Set(rows.map((r) => (r.entryId || '').trim()).filter(Boolean));
+        setTaskEntryIds(ids);
+      })
+      .catch(() => setTaskEntryIds(new Set()));
+  }, [spContext, trip?.id]);
+
+  React.useEffect(() => {
+    loadEntryTasks();
+  }, [loadEntryTasks]);
+
+  React.useEffect(() => {
+    const onReminderUpdated = (): void => loadEntryTasks();
+    window.addEventListener('trip-reminders-updated', onReminderUpdated);
+    return () => window.removeEventListener('trip-reminders-updated', onReminderUpdated);
+  }, [loadEntryTasks]);
 
   const nextSortOrder = React.useMemo(() => {
     const dayE = localEntries.filter((e) => e.dayId === dayId);
@@ -164,7 +193,12 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
                 />
               </div>
               <div className={styles.cardCell}>
-                <ItineraryCard entry={entry} calendarDate={calendarDate} draggable={entry.dayId === dayId} />
+                <ItineraryCard
+                  entry={entry}
+                  calendarDate={calendarDate}
+                  draggable={entry.dayId === dayId}
+                  hasTask={taskEntryIds.has(entry.id)}
+                />
               </div>
             </div>
           );

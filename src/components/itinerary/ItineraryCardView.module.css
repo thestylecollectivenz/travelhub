@@ -183,6 +183,12 @@
   color: var(--color-status-booked);
 }
 
+.taskPill {
+  background: var(--color-blue-100);
+  color: var(--color-blue-700);
+  border-radius: var(--radius-full);
+}
+
 .amountRow {
   margin-top: var(--space-2);
   font-size: var(--font-size-base);

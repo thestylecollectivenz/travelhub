@@ -12,6 +12,7 @@ export interface ItineraryCardProps {
   entry: ItineraryEntry;
   calendarDate: string;
   draggable?: boolean;
+  hasTask?: boolean;
 }
 
 function GripIcon(): React.ReactElement {
@@ -27,7 +28,7 @@ function GripIcon(): React.ReactElement {
   );
 }
 
-export const ItineraryCard: React.FC<ItineraryCardProps> = ({ entry, calendarDate, draggable = true }) => {
+export const ItineraryCard: React.FC<ItineraryCardProps> = ({ entry, calendarDate, draggable = true, hasTask = false }) => {
   const { editingCardId, setEditingCardId, updateEntry, deleteEntry, duplicateEntry } = useTripWorkspace();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: entry.id,
@@ -97,6 +98,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({ entry, calendarDat
         <ItineraryCardView
           entry={entry}
           calendarDate={calendarDate}
+          hasTask={hasTask}
           onEdit={() => setEditingCardId(entry.id)}
           onDuplicate={() => duplicateEntry(entry.id)}
           onDelete={() => deleteEntry(entry.id)}

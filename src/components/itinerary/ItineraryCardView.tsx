@@ -16,6 +16,7 @@ import styles from './ItineraryCardView.module.css';
 export interface ItineraryCardViewProps {
   entry: ItineraryEntry;
   calendarDate: string;
+  hasTask?: boolean;
   onEdit: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
@@ -115,7 +116,7 @@ function formatYmdRange(start?: string, end?: string): string {
   return `${s.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' })} → ${e.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' })}`;
 }
 
-export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, calendarDate, onEdit, onDuplicate, onDelete }) => {
+export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, calendarDate, hasTask = false, onEdit, onDuplicate, onDelete }) => {
   const spContext = useSpContext();
   const { addSubItem, convertToHomeCurrency } = useTripWorkspace();
   const { config } = useConfig();
@@ -410,6 +411,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
             {entry.bookingStatus}
           </span>
         ) : null}
+        {hasTask ? <span className={`${styles.statusPill} ${styles.taskPill}`}>Task added</span> : null}
       </div>
 
       <div className={styles.amountRow}>
@@ -718,7 +720,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
           className={styles.addSubItemBtn}
           onClick={() => setTaskPromptOpen((v) => !v)}
         >
-          + Add to tasks
+          {hasTask ? 'Task linked' : '+ Add to tasks'}
         </button>
         <button type="button" className={styles.addSubItemBtn} onClick={handleStartAddSubItem}>
           + Add option
@@ -748,6 +750,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
                   dueDate: taskDueDate ? `${taskDueDate}T00:00:00.000Z` : undefined,
                   isComplete: false
                 }).then(() => {
+                  window.dispatchEvent(new CustomEvent('trip-reminders-updated'));
                   setTaskPromptOpen(false);
                   setTaskDueDate('');
                 }).catch(console.error);
