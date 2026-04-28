@@ -8,6 +8,7 @@ import { COUNTRY_DATA } from '../../data/countryData';
 import { SEASONAL_BY_REGION } from '../../data/seasonalWeather';
 import { formatDayDate } from '../../utils/dateUtils';
 import { formatCurrency } from '../../utils/financialUtils';
+import { parseAdditionalPlaceRefs, serializeAdditionalPlaceRef } from '../../utils/tripDayPlaces';
 import { TipCalculator } from '../utilities/TipCalculator';
 import styles from './DayHeader.module.css';
 
@@ -123,14 +124,19 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
   const [locationMessage, setLocationMessage] = React.useState('');
   const [tipOpen, setTipOpen] = React.useState(false);
 
-  const dayLocations = React.useMemo(
-    () => {
-      const ids = [day.primaryPlaceId, ...(day.additionalPlaceIds ?? [])].filter(Boolean) as string[];
-      return ids.map((id) => placeById(id)).filter(Boolean);
-    },
-    [day.primaryPlaceId, day.additionalPlaceIds, placeById]
-  );
-  const infoPlace = dayLocations.length ? dayLocations[dayLocations.length - 1] : undefined;
+  const additionalRefs = React.useMemo(() => parseAdditionalPlaceRefs(day.additionalPlaceIds), [day.additionalPlaceIds]);
+  const dayLocations = React.useMemo(() => {
+    const primary = day.primaryPlaceId ? placeById(day.primaryPlaceId) : undefined;
+    const additional = additionalRefs
+      .map((ref) => {
+        const p = placeById(ref.placeId);
+        if (!p) return undefined;
+        return { placeId: ref.placeId, place: p, returnToPrimary: ref.returnToPrimary };
+      })
+      .filter(Boolean) as Array<{ placeId: string; place: NonNullable<ReturnType<typeof placeById>>; returnToPrimary: boolean }>;
+    return { primary, additional };
+  }, [day.primaryPlaceId, additionalRefs, placeById]);
+  const infoPlace = dayLocations.primary;
   const countryData = infoPlace ? COUNTRY_DATA[infoPlace.countryCode] : undefined;
   const monthIndex = React.useMemo(() => {
     const d = new Date(`${day.calendarDate}T00:00:00.000Z`);
@@ -225,13 +231,15 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
     return `${parts[0]}:${parts[1]}`;
   }, []);
 
-  const updateLocations = React.useCallback((ids: string[]) => {
-    const normalized = ids.filter(Boolean);
-    updateDay(day.id, {
-      primaryPlaceId: normalized[0] ?? '',
-      additionalPlaceIds: normalized.slice(1)
-    });
-  }, [day.id, updateDay]);
+  const updateLocations = React.useCallback(
+    (primaryId: string, additional: Array<{ placeId: string; returnToPrimary: boolean }>) => {
+      updateDay(day.id, {
+        primaryPlaceId: primaryId || '',
+        additionalPlaceIds: additional.map((x) => serializeAdditionalPlaceRef(x))
+      });
+    },
+    [day.id, updateDay]
+  );
 
   const saveTitle = React.useCallback(() => {
     const next = titleDraft.trim();
@@ -339,16 +347,34 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
                       className={styles.searchOption}
                       onClick={() => {
                         createOrReusePlace(p).then((saved) => {
-                          const existingIds = dayLocations.map((x) => x!.id);
+                          const existingIds = [
+                            ...(dayLocations.primary ? [dayLocations.primary.id] : []),
+                            ...dayLocations.additional.map((x) => x.place.id)
+                          ];
                           const alreadyById = existingIds.indexOf(saved.id) >= 0;
-                          const alreadyByTitle = dayLocations.some((x) => (x?.title || '').trim().toLowerCase() === (saved.title || '').trim().toLowerCase());
-                          if (alreadyById || alreadyByTitle || ((saved.nominatimId || '') && dayLocations.some((x) => (x?.nominatimId || '') === saved.nominatimId))) {
+                          const alreadyByTitle =
+                            (dayLocations.primary ? [dayLocations.primary, ...dayLocations.additional.map((x) => x.place)] : dayLocations.additional.map((x) => x.place))
+                              .some((x) => (x?.title || '').trim().toLowerCase() === (saved.title || '').trim().toLowerCase());
+                          if (
+                            alreadyById ||
+                            alreadyByTitle ||
+                            ((saved.nominatimId || '') &&
+                              (dayLocations.primary ? [dayLocations.primary, ...dayLocations.additional.map((x) => x.place)] : dayLocations.additional.map((x) => x.place))
+                                .some((x) => (x?.nominatimId || '') === saved.nominatimId))
+                          ) {
                             setLocationMessage('Already added');
                             setLocationSearch('');
                             setLocationResults([]);
                             return;
                           }
-                          updateLocations(Array.from(new Set([...existingIds, saved.id])));
+                          if (!dayLocations.primary) {
+                            updateLocations(saved.id, dayLocations.additional.map((x) => ({ placeId: x.placeId, returnToPrimary: x.returnToPrimary })));
+                          } else {
+                            updateLocations(dayLocations.primary.id, [
+                              ...dayLocations.additional.map((x) => ({ placeId: x.placeId, returnToPrimary: x.returnToPrimary })),
+                              { placeId: saved.id, returnToPrimary: true }
+                            ]);
+                          }
                           setLocationSearch('');
                           setLocationResults([]);
                         }).catch(console.error);
@@ -363,18 +389,71 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
             </div>
           ) : null}
           <div className={styles.additionalList}>
-            {dayLocations.map((p, idx) => (
-              <span key={p!.id} className={styles.additionalRow}>
+            {(dayLocations.primary ? [{ place: dayLocations.primary, primary: true, returnToPrimary: true }] : [])
+              .concat(dayLocations.additional.map((a) => ({ place: a.place, primary: false, returnToPrimary: a.returnToPrimary })))
+              .map((row, idx) => (
+              <span key={row.place.id} className={styles.additionalRow}>
                 <span className={styles.placePill}>
-                  <span aria-hidden>📍</span> {p!.title}
+                  <span aria-hidden>📍</span> {row.place.title}
+                  {row.primary ? <span className={styles.placeMeta}>Primary</span> : null}
                   {isShared ? null : (
                     <>
+                      {!row.primary ? (
+                        <button
+                          type="button"
+                          className={styles.clearPlaceBtn}
+                          onClick={() => {
+                            const list = dayLocations.additional.map((x) => ({ ...x }));
+                            const addIdx = idx - 1;
+                            if (addIdx < 0) return;
+                            list[addIdx] = { ...list[addIdx], returnToPrimary: !list[addIdx].returnToPrimary };
+                            updateLocations(dayLocations.primary?.id ?? '', list.map((x) => ({ placeId: x.placeId, returnToPrimary: x.returnToPrimary })));
+                          }}
+                          aria-label="Toggle return to primary"
+                        >
+                          Return: {row.returnToPrimary ? 'Yes' : 'No'}
+                        </button>
+                      ) : null}
+                      {!row.primary ? (
+                        <button
+                          type="button"
+                          className={styles.clearPlaceBtn}
+                          onClick={() => {
+                            const addIdx = idx - 1;
+                            if (addIdx < 0 || !dayLocations.primary) return;
+                            const nextPrimary = dayLocations.additional[addIdx];
+                            const remaining = dayLocations.additional
+                              .filter((_, i) => i !== addIdx)
+                              .map((x) => ({ ...x }));
+                            remaining.unshift({ placeId: dayLocations.primary.id, place: dayLocations.primary, returnToPrimary: true });
+                            updateLocations(nextPrimary.place.id, remaining.map((x) => ({ placeId: x.placeId, returnToPrimary: x.returnToPrimary })));
+                          }}
+                          aria-label="Set as primary"
+                        >
+                          Set as primary
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className={styles.clearPlaceBtn}
                         onClick={() => {
-                          const ids = dayLocations.map((x) => x!.id).filter((id) => id !== p!.id);
-                          updateLocations(ids);
+                          if (row.primary) {
+                            const firstAdditional = dayLocations.additional[0];
+                            if (!firstAdditional) {
+                              updateLocations('', []);
+                              return;
+                            }
+                            updateLocations(
+                              firstAdditional.place.id,
+                              dayLocations.additional.slice(1).map((x) => ({ placeId: x.placeId, returnToPrimary: x.returnToPrimary }))
+                            );
+                          } else {
+                            const addIdx = idx - 1;
+                            updateLocations(
+                              dayLocations.primary?.id ?? '',
+                              dayLocations.additional.filter((_, i) => i !== addIdx).map((x) => ({ placeId: x.placeId, returnToPrimary: x.returnToPrimary }))
+                            );
+                          }
                         }}
                         aria-label="Remove location"
                       >
@@ -385,11 +464,14 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
                         className={styles.clearPlaceBtn}
                         onClick={() => {
                           if (idx === 0) return;
-                          const ids = dayLocations.map((x) => x!.id);
-                          const temp = ids[idx - 1];
-                          ids[idx - 1] = ids[idx];
-                          ids[idx] = temp;
-                          updateLocations(ids);
+                          const rows = dayLocations.additional.map((x) => ({ ...x }));
+                          const current = idx - 1;
+                          const prior = current - 1;
+                          if (current < 0 || prior < 0 || !dayLocations.primary) return;
+                          const temp = rows[prior];
+                          rows[prior] = rows[current];
+                          rows[current] = temp;
+                          updateLocations(dayLocations.primary.id, rows.map((x) => ({ placeId: x.placeId, returnToPrimary: x.returnToPrimary })));
                         }}
                         aria-label="Move location up"
                       >
@@ -399,12 +481,13 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
                         type="button"
                         className={styles.clearPlaceBtn}
                         onClick={() => {
-                          if (idx >= dayLocations.length - 1) return;
-                          const ids = dayLocations.map((x) => x!.id);
-                          const temp = ids[idx + 1];
-                          ids[idx + 1] = ids[idx];
-                          ids[idx] = temp;
-                          updateLocations(ids);
+                          const rows = dayLocations.additional.map((x) => ({ ...x }));
+                          const current = idx - 1;
+                          if (current < 0 || current >= rows.length - 1 || !dayLocations.primary) return;
+                          const temp = rows[current + 1];
+                          rows[current + 1] = rows[current];
+                          rows[current] = temp;
+                          updateLocations(dayLocations.primary.id, rows.map((x) => ({ placeId: x.placeId, returnToPrimary: x.returnToPrimary })));
                         }}
                         aria-label="Move location down"
                       >
@@ -413,7 +496,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
                     </>
                   )}
                 </span>
-                <a className={styles.mapLink} href={`https://www.google.com/maps/@${p!.latitude},${p!.longitude},10z`} target="_blank" rel="noopener noreferrer">
+                <a className={styles.mapLink} href={`https://www.google.com/maps/@${row.place.latitude},${row.place.longitude},10z`} target="_blank" rel="noopener noreferrer">
                   Open in Google Maps
                 </a>
               </span>
@@ -430,7 +513,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
           <div className={styles.placeInfoCard}>
             {infoPlace ? (
               <div className={styles.placeInfoGrid}>
-                {dayLocations.length > 1 ? <div className={styles.infoSub}>Place info for {infoPlace.title}</div> : null}
+                {dayLocations.additional.length ? <div className={styles.infoSub}>Place info for {infoPlace.title}</div> : null}
                 <div className={styles.infoTile}>
                   <div className={styles.infoTitle}>Current weather</div>
                   {config.weatherApiKey.trim() && weather ? (
@@ -486,15 +569,26 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
         {isShared ? null : (
           <div className={styles.rightActions}>
           <span className={styles.totalChip}>{formatCurrency(dayTotal, config.homeCurrency)}</span>
+          {day.dayType === 'Sea' ? (
+            <button
+              type="button"
+              className={styles.journalButton}
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('open-cruise-import'));
+              }}
+            >
+              Import cruise
+            </button>
+          ) : null}
           <button
             type="button"
             className={styles.journalButton}
             onClick={() => setTipOpen((v) => !v)}
           >
-            Tip calculator
+            Tip calc
           </button>
           <button type="button" className={styles.journalButton} onClick={() => onWriteJournal?.()}>
-            Write journal entry
+            Journal entry
           </button>
           <button type="button" className={styles.addButton} onClick={onAddEntry}>
             + Add

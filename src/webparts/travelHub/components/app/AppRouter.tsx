@@ -16,29 +16,29 @@ export const AppRouter: React.FC = () => {
     setView('singleTrip');
   };
 
+  let content: React.ReactNode;
   if (view === 'terms') {
-    return <TermsAndConditions onBack={() => setView(selectedTripId ? 'singleTrip' : 'multiTrip')} />;
-  }
-
-  if (view === 'singleTrip') {
-    return (
+    content = <TermsAndConditions onBack={() => setView(selectedTripId ? 'singleTrip' : 'multiTrip')} />;
+  } else if (view === 'singleTrip') {
+    content = (
       <TripWorkspace
         tripId={selectedTripId}
         onBack={() => setView('multiTrip')}
-        onOpenTerms={() => setView('terms')}
+      />
+    );
+  } else {
+    // createTrip view is handled by panel overlay.
+    content = (
+      <TripBrowser
+        onSelectTrip={goToTrip}
+        onCreateTrip={() => setView('createTrip')}
       />
     );
   }
 
-  // createTrip view will be implemented in Task 3.3
-  // For now render TripBrowser with a placeholder — view state is ready
   return (
     <>
-      <TripBrowser
-        onSelectTrip={goToTrip}
-        onCreateTrip={() => setView('createTrip')}
-        onOpenTerms={() => setView('terms')}
-      />
+      {content}
       <AppFooter onOpenTerms={() => setView('terms')} />
       {view === 'createTrip' && (
         <CreateTripPanel

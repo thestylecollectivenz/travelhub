@@ -68,7 +68,7 @@ export class ConfigService {
 
   private async getConfigItem(userId: string): Promise<{ id?: number; config: UserConfig; raw?: any }> {
     const safeUserId = userId.replace(/'/g, "''");
-    const url = `${this.baseUrl}?$select=ID,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,WeatherApiKey&$filter=UserId eq '${safeUserId}'&$orderby=ID desc&$top=1`;
+    const url = `${this.baseUrl}?$select=ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,WeatherApiKey&$filter=UserId eq '${safeUserId}'&$top=1`;
     // eslint-disable-next-line no-console
     console.log('ConfigService.getConfig query', { userId, url });
     const resp: SPHttpClientResponse = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);

@@ -158,6 +158,11 @@
   color: var(--color-blue-800);
 }
 
+.placeMeta {
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-600);
+}
+
 .clearPlaceBtn {
   border: none;
   background: transparent;
@@ -310,6 +315,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-3);
+  flex-wrap: nowrap;
 }
 
 .totalChip {
@@ -332,6 +338,8 @@
   font-weight: var(--font-weight-medium);
   font-family: var(--font-sans);
   cursor: pointer;
+  white-space: nowrap;
+  min-height: 2.25rem;
 }
 
 .journalButton {
@@ -344,6 +352,8 @@
   font-weight: var(--font-weight-medium);
   font-family: var(--font-sans);
   cursor: pointer;
+  white-space: nowrap;
+  min-height: 2.25rem;
 }
 
 .journalButton:hover {

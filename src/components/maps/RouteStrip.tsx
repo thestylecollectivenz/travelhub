@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
+import { parseAdditionalPlaceRefs } from '../../utils/tripDayPlaces';
 import styles from './RouteStrip.module.css';
 
 type Stop = {
@@ -9,6 +10,7 @@ type Stop = {
   startDay: number;
   dayId: string;
   additionalTitles: string[];
+  hasThroughStop: boolean;
   calendarDate: string;
 };
 
@@ -56,24 +58,19 @@ export const RouteStrip: React.FC = () => {
   }, [trip, tripDays]);
 
   const stops = React.useMemo((): Stop[] => {
-    const parseAdditional = (value: unknown): string[] => {
-      if (Array.isArray(value)) return value.map((x) => String(x).trim()).filter(Boolean);
-      if (typeof value === 'string') return value.split(',').map((x) => x.trim()).filter(Boolean);
-      return [];
-    };
     const out: Stop[] = [];
     for (const day of orderedDays) {
       const place = placeById(day.primaryPlaceId);
       if (!place) continue;
+      const refs = parseAdditionalPlaceRefs(day.additionalPlaceIds);
       out.push({
         placeId: place.id,
         title: place.title,
         startDay: day.dayNumber,
         dayId: day.id,
         calendarDate: day.calendarDate,
-        additionalTitles: parseAdditional((day as unknown as { additionalPlaceIds?: string[] | string }).additionalPlaceIds)
-          .map((id) => placeById(id)?.title)
-          .filter(Boolean) as string[]
+        additionalTitles: refs.map((r) => placeById(r.placeId)?.title).filter(Boolean) as string[],
+        hasThroughStop: refs.some((r) => !r.returnToPrimary)
       });
     }
     return out;
@@ -117,7 +114,11 @@ export const RouteStrip: React.FC = () => {
               >
                 <span className={styles.placeName}>📍 {s.title}</span>
                 <span className={styles.range}>Day {s.startDay}</span>
-                {s.additionalTitles.length ? <span className={styles.range}>Also visiting: {s.additionalTitles.join(', ')} (return)</span> : null}
+                {s.additionalTitles.length ? (
+                  <span className={styles.range}>
+                    Also visiting: {s.additionalTitles.join(', ')} {s.hasThroughStop ? '(through-stop)' : '(return)'}
+                  </span>
+                ) : null}
               </button>
               {next ? (
                 <span className={styles.connector}>

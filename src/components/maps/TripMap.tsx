@@ -3,6 +3,7 @@ import L from 'leaflet';
 import './LeafletCompat.css';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
+import { parseAdditionalPlaceRefs } from '../../utils/tripDayPlaces';
 import styles from './TripMap.module.css';
 
 type Stop = {
@@ -14,32 +15,6 @@ type Stop = {
   endDay: number;
   isPrimary: boolean;
 };
-
-function createPinIcon(): L.DivIcon {
-  return L.divIcon({
-    className: 'th-map-pin',
-    html: `<svg width="20" height="24" viewBox="0 0 20 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M10 1.5C5.3 1.5 1.5 5.3 1.5 10c0 6.3 8.5 12.5 8.5 12.5S18.5 16.3 18.5 10C18.5 5.3 14.7 1.5 10 1.5Z" fill="var(--color-primary)" stroke="#ffffff" stroke-width="1.2"/>
-      <circle cx="10" cy="10" r="3" fill="#ffffff"/>
-    </svg>`,
-    iconSize: [20, 28],
-    iconAnchor: [10, 28],
-    popupAnchor: [0, -28]
-  });
-}
-
-function createSmallPinIcon(): L.DivIcon {
-  return L.divIcon({
-    className: 'th-map-pin-small',
-    html: `<svg width="14" height="18" viewBox="0 0 20 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M10 1.5C5.3 1.5 1.5 5.3 1.5 10c0 6.3 8.5 12.5 8.5 12.5S18.5 16.3 18.5 10C18.5 5.3 14.7 1.5 10 1.5Z" fill="var(--color-blue-200)" stroke="#ffffff" stroke-width="1.2"/>
-      <circle cx="10" cy="10" r="2.4" fill="#ffffff"/>
-    </svg>`,
-    iconSize: [20, 28],
-    iconAnchor: [10, 28],
-    popupAnchor: [0, -28]
-  });
-}
 
 export const TripMap: React.FC = () => {
   const { trip, tripDays } = useTripWorkspace();
@@ -71,8 +46,9 @@ export const TripMap: React.FC = () => {
           isPrimary: true
         });
       }
-      for (const id of day.additionalPlaceIds ?? []) {
-        const add = placeById(id);
+      const additional = parseAdditionalPlaceRefs(day.additionalPlaceIds);
+      for (const ref of additional) {
+        const add = placeById(ref.placeId);
         if (!add) continue;
         out.push({
           placeId: `${add.id}-${day.id}`,
@@ -110,15 +86,19 @@ export const TripMap: React.FC = () => {
     const layerGroup = layerGroupRef.current ?? L.layerGroup().addTo(map);
     layerGroupRef.current = layerGroup;
     layerGroup.clearLayers();
-    const markerIcon = createPinIcon();
-    const markerIconSmall = createSmallPinIcon();
-
     const points: L.LatLngExpression[] = [];
     for (const s of renderedStops) {
       const ll: L.LatLngExpression = [s.latitude, s.longitude];
       points.push(ll);
       const range = s.startDay === s.endDay ? `Day ${s.startDay}` : `Days ${s.startDay}-${s.endDay}`;
-      L.marker(ll, { icon: s.isPrimary ? markerIcon : markerIconSmall })
+      L.circleMarker(ll, {
+        radius: s.isPrimary ? 8 : 6,
+        fillColor: '#1A6399',
+        color: '#ffffff',
+        weight: 2,
+        opacity: 1,
+        fillOpacity: s.isPrimary ? 1 : 0.8
+      })
         .bindPopup(
           `<strong>${s.title}</strong><br/>${range}<br/><a href="https://www.google.com/maps/@${s.latitude},${s.longitude},10z" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>`
         )
@@ -137,12 +117,14 @@ export const TripMap: React.FC = () => {
       if (!primary) continue;
       const primaryPoint: L.LatLngExpression = [primary.latitude, primary.longitude];
       polylinePoints.push(primaryPoint);
-      for (const addId of day.additionalPlaceIds ?? []) {
-        const add = placeById(addId);
+      const additional = parseAdditionalPlaceRefs(day.additionalPlaceIds);
+      for (const ref of additional) {
+        const add = placeById(ref.placeId);
         if (!add) continue;
         polylinePoints.push([add.latitude, add.longitude]);
+        if (!ref.returnToPrimary) break;
       }
-      if ((day.additionalPlaceIds ?? []).length > 0) {
+      if (additional.some((x) => x.returnToPrimary)) {
         polylinePoints.push(primaryPoint);
       }
     }

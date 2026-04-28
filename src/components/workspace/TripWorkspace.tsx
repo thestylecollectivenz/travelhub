@@ -23,10 +23,9 @@ import styles from './TripWorkspace.module.css';
 export interface ITripWorkspaceProps {
   tripId: string;
   onBack: () => void;
-  onOpenTerms?: () => void;
 }
 
-const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack, onOpenTerms }) => {
+const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) => {
   const {
     trip,
     loading,
@@ -508,11 +507,6 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack, on
       ) : <TripContent />}
       <ConfigPanel isOpen={configOpen} onClose={() => setConfigOpen(false)} />
       <EditTripPanel trip={trip} isOpen={editOpen} onClose={() => setEditOpen(false)} onSave={updateTrip} />
-      {onOpenTerms ? (
-        <footer style={{ borderTop: 'var(--border-default)', padding: 'var(--space-2) var(--space-4)', display: 'flex', justifyContent: 'flex-end' }}>
-          <button type="button" onClick={onOpenTerms} style={{ border: 'none', background: 'transparent', color: 'var(--color-primary)', textDecoration: 'underline', cursor: 'pointer', fontSize: 'var(--font-size-sm)', fontFamily: 'var(--font-sans)', padding: 0 }}>Terms and Conditions</button>
-        </footer>
-      ) : null}
     </div>
   );
 };

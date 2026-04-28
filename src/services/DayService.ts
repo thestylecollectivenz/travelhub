@@ -1,6 +1,7 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 import { TripDay, TripDayType } from '../models';
+import { parseAdditionalPlaceRef, serializeAdditionalPlaceRef } from '../utils/tripDayPlaces';
 
 const LIST = 'TripDays';
 
@@ -9,8 +10,9 @@ function mapToDay(item: any): TripDay {
   const additionalRaw = String(item.AdditionalPlaceIds ?? '');
   const additionalPlaceIds = additionalRaw
     .split(',')
-    .map((x) => x.trim())
-    .filter(Boolean);
+    .map((x) => parseAdditionalPlaceRef(x))
+    .filter(Boolean)
+    .map((x) => serializeAdditionalPlaceRef(x!));
   return {
     id: String(item.ID),
     tripId: item.TripId ?? '',

@@ -36,18 +36,19 @@ function getStatusBadgeStyles(status: string): React.CSSProperties {
 export interface ITripBrowserProps {
   onSelectTrip: (tripId: string) => void;
   onCreateTrip: () => void;
-  onOpenTerms?: () => void;
 }
 
-export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreateTrip, onOpenTerms }) => {
+export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreateTrip }) => {
   const spContext = useSpContext();
   const [trips, setTrips] = React.useState<Trip[]>([]);
   const [placePins, setPlacePins] = React.useState<Array<{ id: string; title: string; lat: number; lon: number }>>([]);
-  const [allPlaces, setAllPlaces] = React.useState<Array<{ id: string; countryCode: string; country: string }>>([]);
+  const [allPlaces, setAllPlaces] = React.useState<Array<{ id: string; title: string; lat: number; lon: number; countryCode: string; country: string }>>([]);
   const [allTripDays, setAllTripDays] = React.useState<Array<{ tripId: string; primaryPlaceId?: string }>>([]);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
   const mapRef = React.useRef<HTMLDivElement | null>(null);
+  const mapInstanceRef = React.useRef<L.Map | null>(null);
+  const markerLayerRef = React.useRef<L.LayerGroup | null>(null);
 
   const loadTrips = React.useCallback(async (): Promise<void> => {
     setLoading(true);
@@ -70,7 +71,7 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
       console.log('TripBrowser dayRows', dayRows);
       const allDayRows = dayRows.reduce((acc, rows) => acc.concat(rows), [] as typeof dayRows[number]);
       setAllTripDays(allDayRows.map((d) => ({ tripId: d.tripId, primaryPlaceId: d.primaryPlaceId })));
-      setAllPlaces(places.map((p) => ({ id: p.id, countryCode: p.countryCode, country: p.country })));
+      setAllPlaces(places.map((p) => ({ id: p.id, title: p.title, lat: p.latitude, lon: p.longitude, countryCode: p.countryCode, country: p.country })));
       const placeIdSet = new Set(
         allDayRows
           .map((d: { primaryPlaceId?: string }) => d.primaryPlaceId)
@@ -104,32 +105,52 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
   }, [trips.length, allPlaces.length, allTripDays.length]);
 
   React.useEffect(() => {
-    if (!mapRef.current || placePins.length === 0) return;
+    if (!mapRef.current || mapInstanceRef.current) return;
     const map = L.map(mapRef.current, { zoomControl: true });
-    const markerIcon = L.divIcon({
-      className: 'th-map-pin',
-      html: `<svg width="20" height="24" viewBox="0 0 20 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M10 1.5C5.3 1.5 1.5 5.3 1.5 10c0 6.3 8.5 12.5 8.5 12.5S18.5 16.3 18.5 10C18.5 5.3 14.7 1.5 10 1.5Z" fill="var(--color-primary)" stroke="#ffffff" stroke-width="1.2"/>
-        <circle cx="10" cy="10" r="3" fill="#ffffff"/>
-      </svg>`,
-      iconSize: [20, 28],
-      iconAnchor: [10, 28],
-      popupAnchor: [0, -28]
-    });
+    mapInstanceRef.current = map;
+    markerLayerRef.current = L.layerGroup().addTo(map);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
+  }, []);
+
+  React.useEffect(() => {
+    if (!mapInstanceRef.current || !markerLayerRef.current || placePins.length === 0) return;
+    const map = mapInstanceRef.current;
+    const layer = markerLayerRef.current;
+    layer.clearLayers();
     const points: L.LatLngExpression[] = [];
     for (const p of placePins) {
       const ll: L.LatLngExpression = [p.lat, p.lon];
       points.push(ll);
-      L.marker(ll, { icon: markerIcon }).bindPopup(`<strong>${p.title}</strong>`).addTo(map);
+      L.circleMarker(ll, {
+        radius: 8,
+        fillColor: '#1A6399',
+        color: '#ffffff',
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 1
+      }).bindPopup(`<strong>${p.title}</strong>`).addTo(layer);
     }
     if (points.length) map.fitBounds(L.latLngBounds(points), { padding: [20, 20] });
-    return () => {
-      map.remove();
-    };
   }, [placePins]);
+
+  React.useEffect(() => {
+    if (!allPlaces.length || !allTripDays.length) return;
+    const placeLookup = new Map(placePins.map((p) => [p.id, p]));
+    const nextPins = allPlaces
+      .filter((p) => allTripDays.some((d) => d.primaryPlaceId === p.id))
+      .map((p) => placeLookup.get(p.id) ?? ({ id: p.id, title: p.title, lat: p.lat, lon: p.lon }));
+    if (nextPins.length) setPlacePins(nextPins);
+  }, [allPlaces, allTripDays]);
+
+  React.useEffect(() => () => {
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+      markerLayerRef.current = null;
+    }
+  }, []);
 
   // -- Styles -------------------------------------------------------------
   const pageStyle: React.CSSProperties = {
@@ -239,7 +260,7 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
     background: 'var(--color-surface-raised)'
   };
   const mapStyle: React.CSSProperties = {
-    height: '24rem',
+    height: '500px',
     width: '100%'
   };
   const statsWrapStyle: React.CSSProperties = {
@@ -359,13 +380,6 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
           </section>
         </>
       )}
-      {onOpenTerms ? (
-        <div style={{ marginTop: 'var(--space-6)', paddingTop: 'var(--space-3)', borderTop: 'var(--border-default)', textAlign: 'right' }}>
-          <button type="button" style={{ border: 'none', background: 'transparent', textDecoration: 'underline', color: 'var(--color-primary)', cursor: 'pointer', fontSize: 'var(--font-size-sm)', fontFamily: 'var(--font-sans)', padding: 0 }} onClick={onOpenTerms}>
-            Terms and Conditions
-          </button>
-        </div>
-      ) : null}
     </div>
   );
 };

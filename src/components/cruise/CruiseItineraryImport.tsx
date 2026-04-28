@@ -6,7 +6,6 @@ import { useConfig } from '../../context/ConfigContext';
 import type { PlaceCandidate } from '../../models/Place';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import {
-  parseCruiseItineraryFromHtml,
   parseCruiseItineraryFromText,
   type ParsedCruiseRow
 } from '../../utils/cruiseItineraryImportParser';
@@ -33,9 +32,7 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
   const { config } = useConfig();
 
   const [open, setOpen] = React.useState(false);
-  const [url, setUrl] = React.useState('');
   const [pasteText, setPasteText] = React.useState('');
-  const [showPasteFallback, setShowPasteFallback] = React.useState(false);
   const [error, setError] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [parsed, setParsed] = React.useState<ParsedCruiseRow[]>([]);
@@ -52,50 +49,6 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
     setError('');
     setApplyWarnings([]);
   }, []);
-
-  const handleFetchAndParse = React.useCallback(async () => {
-    resetPreview();
-    const trimmed = url.trim();
-    if (!trimmed) {
-      setError('Enter a cruise itinerary URL.');
-      return;
-    }
-    setLoading(true);
-    setShowPasteFallback(false);
-    try {
-      let html: string;
-      try {
-        const res = await fetch(trimmed, { mode: 'cors', credentials: 'omit', cache: 'no-store' });
-        if (!res.ok) throw new Error(`Could not load page (${res.status}).`);
-        html = await res.text();
-      } catch (fetchErr) {
-        const name = fetchErr instanceof Error ? fetchErr.name : '';
-        const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
-        if (name === 'TypeError' || msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
-          setShowPasteFallback(true);
-          setError(
-            'Could not fetch this URL directly (often blocked by CORS). Please paste the itinerary text below instead, or use “Manual entry”.'
-          );
-          setLoading(false);
-          return;
-        }
-        throw fetchErr;
-      }
-      const rows = parseCruiseItineraryFromHtml(trimmed, html);
-      if (!rows.length) {
-        setShowPasteFallback(true);
-        setError('No port rows were recognised from that page. Paste the itinerary text below instead.');
-        setLoading(false);
-        return;
-      }
-      setParsed(rows);
-      setError('');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Import failed.');
-    } finally {
-      setLoading(false);
-    }
-  }, [url, resetPreview]);
 
   const handleParsePasted = React.useCallback(() => {
     resetPreview();
@@ -218,10 +171,8 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
       setPostApplyNotes(warnings);
       setApplyWarnings([]);
       setOpen(false);
-      setUrl('');
       setPasteText('');
       setParsed([]);
-      setShowPasteFallback(false);
       setError('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Apply failed.');
@@ -242,6 +193,15 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
     config.homeCurrency
   ]);
 
+  React.useEffect(() => {
+    const onOpen = (): void => {
+      setOpen(true);
+      setError('');
+    };
+    window.addEventListener('open-cruise-import', onOpen);
+    return () => window.removeEventListener('open-cruise-import', onOpen);
+  }, []);
+
   return (
     <div className={styles.root}>
       <div className={styles.triggerRow}>
@@ -259,7 +219,7 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
           {open ? 'Hide import cruise itinerary' : 'Import cruise itinerary'}
         </button>
         {!open ? (
-          <span className={styles.hint}>Paste a cruise line itinerary URL or page text (Holland America pages supported).</span>
+          <span className={styles.hint}>Paste itinerary text from a Holland America voyage page.</span>
         ) : null}
       </div>
       {postApplyNotes.length ? (
@@ -273,33 +233,8 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
       {open ? (
         <div className={styles.panel} role="region" aria-label="Import cruise itinerary">
           <div className={styles.row}>
-            <label className={styles.label} htmlFor="cruise-import-url">
-              Itinerary URL
-            </label>
-            <input
-              id="cruise-import-url"
-              className={styles.input}
-              type="url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://www.hollandamerica.com/..."
-            />
-            <div className={styles.actions}>
-              <button
-                type="button"
-                className={styles.primaryBtn}
-                disabled={loading}
-                onClick={() => {
-                  handleFetchAndParse().catch(() => undefined);
-                }}
-              >
-                {loading ? 'Working…' : 'Fetch and parse'}
-              </button>
-            </div>
-          </div>
-          <div className={styles.row}>
             <label className={styles.label} htmlFor="cruise-import-paste">
-              {showPasteFallback ? 'Paste itinerary text (URL was blocked or unreadable)' : 'Or paste itinerary text'}
+              Go to the Holland America voyage page, select all page text (Ctrl+A, Ctrl+C), and paste it here
             </label>
             <textarea
               id="cruise-import-paste"
@@ -310,14 +245,11 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
             />
             <div className={styles.actions}>
               <button type="button" className={styles.secondaryBtn} disabled={loading} onClick={handleParsePasted}>
-                Parse pasted text
+                Parse itinerary
               </button>
-              <a className={styles.ghostBtn} href="https://www.hollandamerica.com/" target="_blank" rel="noopener noreferrer">
-                Open Holland America (example)
-              </a>
             </div>
             <p className={styles.hint}>
-              Many cruise sites block cross-origin fetch; pasting the visible page text usually works.
+              Direct fetch is disabled due to CORS restrictions; paste-only mode is used for reliable import.
             </p>
           </div>
           {error ? (

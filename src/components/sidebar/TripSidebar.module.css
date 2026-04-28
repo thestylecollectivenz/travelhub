@@ -10,28 +10,24 @@
   display: flex;
   flex-shrink: 0;
   border-bottom: var(--border-default);
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-2) var(--space-1);
 }
 
 .tab {
-  flex: 1;
-  padding: var(--space-3) var(--space-2);
-  border: none;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-sand-600);
-  cursor: pointer;
-}
-
-.tabIconOnly {
   flex: 0 0 auto;
   width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  color: var(--color-sand-600);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
 }
 
 .tab:hover {
@@ -39,9 +35,9 @@
 }
 
 .tabActive {
-  color: var(--color-blue-800);
-  border-bottom-color: var(--color-primary);
-  background: color-mix(in srgb, var(--color-sand-50) 40%, transparent);
+  color: var(--color-primary);
+  border-color: var(--color-blue-100);
+  background: var(--color-blue-50);
 }
 
 .divider {
