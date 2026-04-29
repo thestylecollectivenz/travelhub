@@ -475,7 +475,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
         </div>
       ) : null}
       {exportOpen ? (
-        <div className={styles.searchPanel}>
+        <div className={`${styles.searchPanel} ${styles.journalExportPanel}`}>
           <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
             <div className={styles.searchRow}>
               <button type="button" className={styles.settingsButton} onClick={exportTripToExcel}>

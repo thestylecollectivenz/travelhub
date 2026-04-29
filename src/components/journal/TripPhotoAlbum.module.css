@@ -12,7 +12,7 @@
   margin: 0;
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
-  color: var(--color-blue-900);
+  color: var(--color-blue-800);
 }
 
 .subtitle {
@@ -83,7 +83,7 @@
   border: var(--border-default);
   background: var(--color-surface-raised);
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-bold);
   color: var(--color-blue-800);
   cursor: pointer;
 }

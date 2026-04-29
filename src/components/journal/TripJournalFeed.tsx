@@ -54,6 +54,7 @@ export const TripJournalFeed: React.FC = () => {
     (dayId: string): string => {
       const d = tripDays.find((x) => x.id === dayId && trip && x.tripId === trip.id);
       if (!d) return 'Journal';
+      if (d.dayType === 'PreTrip') return 'Pre-trip';
       return `Day ${d.dayNumber} — ${d.displayTitle}`;
     },
     [trip, tripDays]
@@ -90,7 +91,7 @@ export const TripJournalFeed: React.FC = () => {
         <div className={styles.sortRow} role="group" aria-label="Sort entries">
           <button
             type="button"
-            className={styles.sortBtn}
+            className={styles.exportAction}
             onClick={() => window.dispatchEvent(new CustomEvent('open-journal-export'))}
           >
             Export journal

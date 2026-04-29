@@ -115,10 +115,14 @@ export class DayService {
 
     // Day 0 — Pre-trip day for costs and tasks before travel starts
     // eslint-disable-next-line no-await-in-loop
+    // Calendar date one day before trip start so pre-trip is never the same "night" as day 1 for spans / exports.
+    const preAnchor = new Date(`${dateStart}T12:00:00`);
+    preAnchor.setDate(preAnchor.getDate() - 1);
+    const preCalendar = preAnchor.toISOString().split('T')[0];
     const preTrip = await this.create({
       tripId,
       dayNumber: 0,
-      calendarDate: dateStart, // same date as day 1 — used for reference only
+      calendarDate: preCalendar,
       displayTitle: 'Pre-trip',
       dayType: 'PreTrip',
       additionalPlaceIds: []

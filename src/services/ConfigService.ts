@@ -55,7 +55,6 @@ export class ConfigService {
   private mapToSpItem(userId: string, config: UserConfig): Record<string, unknown> {
     return {
       Title: userId,
-      UserId: userId,
       HomeCurrency: config.homeCurrency,
       TemperatureUnit: config.temperatureUnit,
       DistanceUnit: config.distanceUnit,
@@ -68,7 +67,10 @@ export class ConfigService {
 
   private async getConfigItem(userId: string): Promise<{ id?: number; config: UserConfig; raw?: any }> {
     const safeUserId = userId.replace(/'/g, "''");
-    const url = `${this.baseUrl}?$select=ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,WeatherApiKey&$filter=UserId eq '${safeUserId}'&$top=1`;
+    // Title stores the user key; "UserId" is not a reliable OData field name on all lists and can cause 400.
+    const select =
+      'ID,Title,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,WeatherApiKey';
+    const url = `${this.baseUrl}?$select=${select}&$filter=Title eq '${safeUserId}'&$top=1`;
     // eslint-disable-next-line no-console
     console.log('ConfigService.getConfig query', { userId, url });
     const resp: SPHttpClientResponse = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);

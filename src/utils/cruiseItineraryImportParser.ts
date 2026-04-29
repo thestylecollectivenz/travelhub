@@ -51,7 +51,88 @@ function parseHollandAmerica(html: string): ParsedCruiseRow[] {
   return rows;
 }
 
+const DATE_LINE = /^([A-Za-z]{3})\s+(\d{1,2}),\s+(\d{4})$/;
+const AD_TIME = /^(?:ARRIVES|DEPARTS)\s*(\d{1,2}:\d{2}\s*(?:AM|PM)?)/i;
+const AD_STUCK = /^(?:ARRIVES|DEPARTS)(\d{1,2}:\d{2}\s*(?:AM|PM)?)/i;
+
+function isNoiseLine(line: string): boolean {
+  const u = line.toUpperCase();
+  if (!line.trim()) return true;
+  if (u.startsWith('VISA')) return true;
+  if (u.includes('WHEELCHAIR')) return true;
+  if (u === 'CRUISING ONLY') return true;
+  if (u === 'OVERNIGHT') return true;
+  if (u.startsWith('TENDER')) return true;
+  return false;
+}
+
+/** Holland America / similar: date line, port line, ARRIVES/DEPARTS (with or without space before time). */
+function parseCruiseBlockPlainText(text: string): ParsedCruiseRow[] {
+  const raw = text.split(/\r?\n/).map((l) => l.trim());
+  const rows: ParsedCruiseRow[] = [];
+  let curDate = '';
+  let curPort = '';
+  let arrive = '';
+  let depart = '';
+  let dayCounter = 0;
+
+  const flush = (): void => {
+    if (!curPort) return;
+    dayCounter += 1;
+    rows.push({
+      dayNumber: dayCounter,
+      port: curPort,
+      arrive,
+      depart,
+      date: curDate || undefined
+    });
+    curPort = '';
+    arrive = '';
+    depart = '';
+  };
+
+  for (const line of raw) {
+    if (!line) continue;
+    const dm = line.match(DATE_LINE);
+    if (dm) {
+      flush();
+      const mon = dm[1];
+      const dayPart = dm[2];
+      const yr = dm[3];
+      const tryIso = Date.parse(`${mon} ${Number(dayPart)}, ${yr}`);
+      curDate = Number.isNaN(tryIso) ? '' : new Date(tryIso).toISOString().split('T')[0];
+      continue;
+    }
+    let m = line.match(AD_TIME);
+    if (!m) m = line.match(AD_STUCK);
+    if (m) {
+      const t = normalizeTime(m[1] || '');
+      if (/^DEPARTS/i.test(line)) depart = t || depart;
+      else arrive = t || arrive;
+      continue;
+    }
+    if (isNoiseLine(line)) continue;
+    if (/^DAYS?\s+AT\s+SEA/i.test(line) || /^DAY\s+AT\s+SEA/i.test(line)) {
+      flush();
+      curPort = line.replace(/\s+/g, ' ');
+      continue;
+    }
+    if (/^SCENIC/i.test(line) || /^CROSSING\s+THE/i.test(line)) {
+      flush();
+      curPort = line;
+      continue;
+    }
+    flush();
+    curPort = line;
+  }
+  flush();
+  return rows;
+}
+
 function parseGenericText(text: string): ParsedCruiseRow[] {
+  const block = parseCruiseBlockPlainText(text);
+  if (block.length) return block;
+
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const rows: ParsedCruiseRow[] = [];
   for (const line of lines) {

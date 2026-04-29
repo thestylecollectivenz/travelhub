@@ -2,6 +2,7 @@ import * as React from 'react';
 import type { EntryDocumentType } from '../../models';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { resolveAbsoluteUrl } from '../../utils/resolveAbsoluteUrl';
 import styles from './TripDocumentsView.module.css';
 
 function DocumentTypeIcon({ type }: { type: EntryDocumentType }): React.ReactElement {
@@ -257,12 +258,12 @@ export const TripDocumentsView: React.FC = () => {
                   <span aria-hidden><DocumentTypeIcon type={d.documentType} /></span>
                   <a
                     className={styles.name}
-                    href={d.fileUrl}
+                    href={resolveAbsoluteUrl(d.fileUrl)}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(ev) => {
                       ev.preventDefault();
-                      window.open(d.fileUrl, '_blank', 'noopener,noreferrer');
+                      window.open(resolveAbsoluteUrl(d.fileUrl), '_blank', 'noopener,noreferrer');
                     }}
                   >
                     {d.fileName || d.title}

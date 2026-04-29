@@ -81,11 +81,33 @@ export const TripMap: React.FC = () => {
   }, []);
 
   React.useEffect(() => {
-    if (!mapInstanceRef.current || renderedStops.length === 0) return;
+    const el = mapRef.current;
+    const map = mapInstanceRef.current;
+    if (!el || !map) return;
+    const ro = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [trip?.id]);
+
+  React.useEffect(() => {
+    if (!mapInstanceRef.current) return;
     const map = mapInstanceRef.current;
     const layerGroup = layerGroupRef.current ?? L.layerGroup().addTo(map);
     layerGroupRef.current = layerGroup;
     layerGroup.clearLayers();
+    if (polylineRef.current) {
+      map.removeLayer(polylineRef.current);
+      polylineRef.current = null;
+    }
+
+    if (!renderedStops.length) {
+      map.setView([20, 0], 2);
+      window.setTimeout(() => map.invalidateSize(), 0);
+      return;
+    }
+
     const points: L.LatLngExpression[] = [];
     for (const s of renderedStops) {
       const ll: L.LatLngExpression = [s.latitude, s.longitude];
@@ -103,10 +125,6 @@ export const TripMap: React.FC = () => {
           `<strong>${s.title}</strong><br/>${range}<br/><a href="https://www.google.com/maps/@${s.latitude},${s.longitude},10z" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>`
         )
         .addTo(layerGroup);
-    }
-    if (polylineRef.current) {
-      map.removeLayer(polylineRef.current);
-      polylineRef.current = null;
     }
     const orderedDays = tripDays
       .filter((d) => (trip ? d.tripId === trip.id : true))
@@ -148,12 +166,13 @@ export const TripMap: React.FC = () => {
     }
   }, []);
 
-  if (!renderedStops.length) {
-    return null;
-  }
-
   return (
     <section className={styles.root} aria-label="Trip map">
+      {!stops.length ? (
+        <p className={styles.emptyHint}>
+          Add a primary location to each itinerary day to see stops on the map. The map still loads so you can confirm the tab is working.
+        </p>
+      ) : null}
       <div className={styles.map} ref={mapRef} />
     </section>
   );

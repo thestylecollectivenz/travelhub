@@ -1,11 +1,22 @@
 .root {
+  display: flex;
+  flex-direction: column;
   height: 100%;
   min-height: 500px;
   border-top: var(--border-default);
   background: var(--color-surface-raised);
 }
 
+.emptyHint {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-sand-600);
+  flex-shrink: 0;
+}
+
 .map {
-  height: 100%;
-  min-height: 500px;
+  flex: 1;
+  min-height: 420px;
+  width: 100%;
 }

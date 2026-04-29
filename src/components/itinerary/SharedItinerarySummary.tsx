@@ -23,8 +23,13 @@ function sortEntriesForDay(entries: ItineraryEntry[], dayId: string, calendarDat
   const map = new Map<string, ItineraryEntry>();
   for (const e of entries) {
     if (e.parentEntryId) continue;
-    if (dayType === 'PreTrip' && e.category === 'Accommodation' && e.dateStart && e.dateStart !== calendarDate) continue;
-    if (e.dayId === dayId || (dayType !== 'PreTrip' && isAccommodationOnDate(e, calendarDate))) {
+    if (dayType === 'PreTrip') {
+      if (e.dayId === dayId) {
+        map.set(e.id, e);
+      }
+      continue;
+    }
+    if (e.dayId === dayId || isAccommodationOnDate(e, calendarDate)) {
       map.set(e.id, e);
     }
   }

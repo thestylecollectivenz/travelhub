@@ -43,7 +43,7 @@ export const PackingListView: React.FC = () => {
   return (
     <section className={styles.root}>
       <div className={styles.row}>
-        <h2 style={{ margin: 0 }}>Packing</h2>
+        <h2 className={styles.heading}>Packing</h2>
         <span className={styles.muted}>{packedCount} of {items.length} items packed</span>
         <button className={styles.button} type="button" onClick={() => {
           Promise.all(items.filter((i) => i.isPacked).map((i) => service.update(i.id, { isPacked: false }))).then(refresh).catch(console.error);

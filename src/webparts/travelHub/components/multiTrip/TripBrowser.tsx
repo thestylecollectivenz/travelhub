@@ -41,7 +41,6 @@ export interface ITripBrowserProps {
 export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreateTrip }) => {
   const spContext = useSpContext();
   const [trips, setTrips] = React.useState<Trip[]>([]);
-  const [placePins, setPlacePins] = React.useState<Array<{ id: string; title: string; lat: number; lon: number }>>([]);
   const [allPlaces, setAllPlaces] = React.useState<Array<{ id: string; title: string; lat: number; lon: number; countryCode: string; country: string }>>([]);
   const [allTripDays, setAllTripDays] = React.useState<Array<{ tripId: string; primaryPlaceId?: string }>>([]);
   const [loading, setLoading] = React.useState<boolean>(true);
@@ -72,16 +71,6 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
       const allDayRows = dayRows.reduce((acc, rows) => acc.concat(rows), [] as typeof dayRows[number]);
       setAllTripDays(allDayRows.map((d) => ({ tripId: d.tripId, primaryPlaceId: d.primaryPlaceId })));
       setAllPlaces(places.map((p) => ({ id: p.id, title: p.title, lat: p.latitude, lon: p.longitude, countryCode: p.countryCode, country: p.country })));
-      const placeIdSet = new Set(
-        allDayRows
-          .map((d: { primaryPlaceId?: string }) => d.primaryPlaceId)
-          .filter(Boolean) as string[]
-      );
-      setPlacePins(
-        places
-          .filter((p) => placeIdSet.has(p.id))
-          .map((p) => ({ id: p.id, title: p.title, lat: p.latitude, lon: p.longitude }))
-      );
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('TripBrowser: failed to load trips', err);
@@ -90,6 +79,20 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
       setLoading(false);
     }
   }, [spContext]);
+
+  const eligibleTripIds = React.useMemo(() => new Set(trips.map((t) => t.id)), [trips]);
+  const eligibleDays = React.useMemo(
+    () => allTripDays.filter((d) => eligibleTripIds.has(d.tripId)),
+    [allTripDays, eligibleTripIds]
+  );
+  const placeIdSetEligible = React.useMemo(
+    () => new Set(eligibleDays.map((d) => d.primaryPlaceId).filter(Boolean) as string[]),
+    [eligibleDays]
+  );
+  const mapPins = React.useMemo(
+    () => allPlaces.filter((p) => placeIdSetEligible.has(p.id)).map((p) => ({ id: p.id, title: p.title, lat: p.lat, lon: p.lon })),
+    [allPlaces, placeIdSetEligible]
+  );
 
   React.useEffect(() => {
     loadTrips().catch(console.error);
@@ -105,6 +108,7 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
   }, [trips.length, allPlaces.length, allTripDays.length]);
 
   React.useEffect(() => {
+    if (loading || trips.length === 0) return;
     if (!mapRef.current || mapInstanceRef.current) return;
     const map = L.map(mapRef.current, { zoomControl: true });
     mapInstanceRef.current = map;
@@ -112,15 +116,15 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
-  }, []);
+  }, [loading, trips.length]);
 
   React.useEffect(() => {
-    if (!mapInstanceRef.current || !markerLayerRef.current || placePins.length === 0) return;
+    if (!mapInstanceRef.current || !markerLayerRef.current) return;
     const map = mapInstanceRef.current;
     const layer = markerLayerRef.current;
     layer.clearLayers();
     const points: L.LatLngExpression[] = [];
-    for (const p of placePins) {
+    for (const p of mapPins) {
       const ll: L.LatLngExpression = [p.lat, p.lon];
       points.push(ll);
       L.circleMarker(ll, {
@@ -132,17 +136,22 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
         fillOpacity: 1
       }).bindPopup(`<strong>${p.title}</strong>`).addTo(layer);
     }
-    if (points.length) map.fitBounds(L.latLngBounds(points), { padding: [20, 20] });
-  }, [placePins]);
+    if (points.length) {
+      map.fitBounds(L.latLngBounds(points), { padding: [20, 20] });
+    } else {
+      map.setView([20, 0], 2);
+    }
+    window.setTimeout(() => map.invalidateSize(), 0);
+  }, [mapPins]);
 
   React.useEffect(() => {
-    if (!allPlaces.length || !allTripDays.length) return;
-    const placeLookup = new Map(placePins.map((p) => [p.id, p]));
-    const nextPins = allPlaces
-      .filter((p) => allTripDays.some((d) => d.primaryPlaceId === p.id))
-      .map((p) => placeLookup.get(p.id) ?? ({ id: p.id, title: p.title, lat: p.lat, lon: p.lon }));
-    if (nextPins.length) setPlacePins(nextPins);
-  }, [allPlaces, allTripDays]);
+    const el = mapRef.current;
+    const map = mapInstanceRef.current;
+    if (!el || !map) return;
+    const ro = new ResizeObserver(() => map.invalidateSize());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [loading, trips.length]);
 
   React.useEffect(() => () => {
     if (mapInstanceRef.current) {
@@ -276,15 +285,6 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
     gap: 'var(--space-3)'
   };
 
-  const eligibleTripIds = React.useMemo(() => new Set(trips.map((t) => t.id)), [trips]);
-  const eligibleDays = React.useMemo(
-    () => allTripDays.filter((d) => eligibleTripIds.has(d.tripId)),
-    [allTripDays, eligibleTripIds]
-  );
-  const placeIdSetEligible = React.useMemo(
-    () => new Set(eligibleDays.map((d) => d.primaryPlaceId).filter(Boolean) as string[]),
-    [eligibleDays]
-  );
   const countriesVisited = React.useMemo(() => {
     const rows = allPlaces.filter((p) => placeIdSetEligible.has(p.id) && p.countryCode);
     const map = new Map<string, string>();
@@ -355,11 +355,14 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
               </article>
             ))}
           </div>
-          {placePins.length ? (
-            <section style={mapWrapStyle} aria-label="All trips places map">
-              <div ref={mapRef} style={mapStyle} />
-            </section>
-          ) : null}
+          <section style={mapWrapStyle} aria-label="All trips places map">
+            {!mapPins.length ? (
+              <p style={{ margin: 0, padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--font-size-sm)', color: 'var(--color-sand-600)' }}>
+                No primary places on trip days yet — map loads here once days have locations.
+              </p>
+            ) : null}
+            <div ref={mapRef} style={mapStyle} />
+          </section>
           <section style={statsWrapStyle} aria-label="Travel stats">
             <h2 style={{ margin: '0 0 var(--space-3)', color: 'var(--color-blue-800)', fontSize: 'var(--font-size-lg)' }}>Stats</h2>
             <div style={statsGridStyle}>

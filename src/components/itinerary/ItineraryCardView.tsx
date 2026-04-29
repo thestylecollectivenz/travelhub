@@ -11,6 +11,7 @@ import { getCategorySlug } from '../../utils/categoryUtils';
 import { formatCurrency } from '../../utils/financialUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { SubItemList } from './SubItemList';
+import { resolveAbsoluteUrl } from '../../utils/resolveAbsoluteUrl';
 import styles from './ItineraryCardView.module.css';
 
 export interface ItineraryCardViewProps {
@@ -650,12 +651,12 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
                   <>
                     <a
                       className={styles.attachmentTitle}
-                      href={doc.fileUrl}
+                      href={resolveAbsoluteUrl(doc.fileUrl)}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(ev) => {
                         ev.preventDefault();
-                        window.open(doc.fileUrl, '_blank', 'noopener,noreferrer');
+                        window.open(resolveAbsoluteUrl(doc.fileUrl), '_blank', 'noopener,noreferrer');
                       }}
                     >
                       {doc.fileName || doc.title}
@@ -719,12 +720,12 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
                   <>
                     <a
                       className={styles.attachmentTitle}
-                      href={link.url}
+                      href={resolveAbsoluteUrl(link.url)}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(ev) => {
                         ev.preventDefault();
-                        window.open(link.url, '_blank', 'noopener,noreferrer');
+                        window.open(resolveAbsoluteUrl(link.url), '_blank', 'noopener,noreferrer');
                       }}
                     >
                       {link.linkTitle}

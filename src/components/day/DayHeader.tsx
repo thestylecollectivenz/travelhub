@@ -98,7 +98,7 @@ function WeatherIcon({ iconCode }: { iconCode: string }): React.ReactElement {
 
 export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry, onWriteJournal, variant = 'default' }) => {
   const { config } = useConfig();
-  const { updateDay } = useTripWorkspace();
+  const { updateDay, trip } = useTripWorkspace();
   const { searchPlaces, createOrReusePlace, placeById } = usePlaces();
   const isShared = variant === 'shared';
   const [isEditingTitle, setIsEditingTitle] = React.useState(false);
@@ -138,10 +138,13 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
   }, [day.primaryPlaceId, additionalRefs, placeById]);
   const infoPlace = dayLocations.primary;
   const countryData = infoPlace ? COUNTRY_DATA[infoPlace.countryCode] : undefined;
+  const weatherAnchorDate =
+    day.dayType === 'PreTrip' && trip?.dateStart ? trip.dateStart.split('T')[0] : day.calendarDate;
+
   const monthIndex = React.useMemo(() => {
-    const d = new Date(`${day.calendarDate}T00:00:00.000Z`);
+    const d = new Date(`${weatherAnchorDate}T00:00:00.000Z`);
     return Number.isNaN(d.getTime()) ? 0 : d.getUTCMonth();
-  }, [day.calendarDate]);
+  }, [weatherAnchorDate]);
   const seasonal = React.useMemo(() => {
     if (!countryData) return undefined;
     return SEASONAL_BY_REGION[countryData.region]?.[monthIndex];
@@ -198,7 +201,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
       return;
     }
     const units = config.temperatureUnit === 'Fahrenheit' ? 'us' : 'metric';
-    const date = day.calendarDate;
+    const date = weatherAnchorDate;
     const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${infoPlace.latitude},${infoPlace.longitude}/${date}?key=${encodeURIComponent(config.weatherApiKey.trim())}&include=days&elements=tempmax,tempmin,sunrise,sunset,conditions&unitGroup=${units}&contentType=json`;
     fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Weather ${r.status}`))))
@@ -212,7 +215,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
         });
       })
       .catch(() => setTypicalWeather(null));
-  }, [placeInfoOpen, infoPlace, config.weatherApiKey, config.temperatureUnit, day.calendarDate]);
+  }, [placeInfoOpen, infoPlace, config.weatherApiKey, config.temperatureUnit, weatherAnchorDate]);
   React.useEffect(() => {
     if (!locationMessage) return undefined;
     const t = window.setTimeout(() => setLocationMessage(''), 1400);
@@ -327,7 +330,9 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
             )}
           </div>
         </div>
-        <div className={styles.date}>{formatDayDate(day.calendarDate)}</div>
+        <div className={styles.date}>
+          {day.dayType === 'PreTrip' ? 'Before trip starts' : formatDayDate(day.calendarDate)}
+        </div>
         <div className={styles.placeSection}>
           <div className={styles.alsoVisiting}>Locations</div>
           {!isShared ? (
@@ -530,7 +535,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
                 </div>
                 <div className={styles.infoTile}>
                   <div className={styles.infoTitle}>Typical for {(() => {
-                    const d = new Date(`${day.calendarDate}T00:00:00.000Z`);
+                    const d = new Date(`${weatherAnchorDate}T00:00:00.000Z`);
                     const dayOfMonth = d.getUTCDate();
                     const part = dayOfMonth <= 10 ? 'early' : dayOfMonth <= 20 ? 'mid' : 'late';
                     return `${part} ${d.toLocaleString('en-NZ', { month: 'long' })}`;

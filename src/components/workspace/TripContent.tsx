@@ -11,6 +11,7 @@ import { PackingListView } from '../packing/PackingListView';
 import { TripSidebar } from '../sidebar/TripSidebar';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
+import dayHeaderStyles from '../day/DayHeader.module.css';
 import styles from './TripWorkspace.module.css';
 
 export const TripContent: React.FC = () => {
@@ -128,9 +129,23 @@ export const TripContent: React.FC = () => {
         {mainWorkspaceTab === 'map' ? <TripMap /> : null}
         {mainWorkspaceTab === 'plan' ? (
           <section style={{ padding: 'var(--space-4)', display: 'grid', gap: 'var(--space-3)' }}>
-            <div style={{ display: 'inline-flex', gap: 'var(--space-2)' }}>
-              <button type="button" className={styles.settingsButton} onClick={() => setPlanTab('tasks')}>Tasks</button>
-              <button type="button" className={styles.settingsButton} onClick={() => setPlanTab('packing')}>Packing</button>
+            <div style={{ display: 'inline-flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className={dayHeaderStyles.journalButton}
+                style={planTab === 'tasks' ? { borderColor: 'var(--color-primary)', boxShadow: '0 0 0 1px var(--color-primary)' } : undefined}
+                onClick={() => setPlanTab('tasks')}
+              >
+                Tasks
+              </button>
+              <button
+                type="button"
+                className={dayHeaderStyles.journalButton}
+                style={planTab === 'packing' ? { borderColor: 'var(--color-primary)', boxShadow: '0 0 0 1px var(--color-primary)' } : undefined}
+                onClick={() => setPlanTab('packing')}
+              >
+                Packing
+              </button>
             </div>
             {planTab === 'tasks' ? <TripTasksView /> : <PackingListView />}
           </section>

@@ -15,7 +15,8 @@
 .title {
   margin: 0;
   font-size: var(--font-size-lg);
-  color: var(--color-blue-900);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-800);
 }
 
 .filters {

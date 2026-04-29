@@ -1,7 +1,22 @@
 .root { display: grid; gap: var(--space-3); }
+
+.heading {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-800);
+}
 .row { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
 .input, .select { border: var(--border-default); border-radius: var(--radius-sm); padding: var(--space-2); }
-.button { border: var(--border-default); border-radius: var(--radius-sm); background: var(--color-surface-raised); color: var(--color-primary); padding: var(--space-2) var(--space-3); cursor: pointer; }
+.button {
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-primary);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  font-weight: var(--font-weight-bold);
+}
 .group { border: var(--border-default); border-radius: var(--radius-md); background: var(--color-surface-raised); padding: var(--space-3); }
 .groupHead { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); cursor: pointer; }
 .item { display: grid; grid-template-columns: auto 1fr auto auto; gap: var(--space-2); align-items: center; margin-top: var(--space-2); }

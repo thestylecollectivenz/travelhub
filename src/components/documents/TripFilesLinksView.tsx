@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { resolveAbsoluteUrl } from '../../utils/resolveAbsoluteUrl';
 import styles from './TripDocumentsView.module.css';
 
 type KindFilter = 'all' | 'documents' | 'links';
@@ -16,7 +17,10 @@ export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeD
   const [search, setSearch] = React.useState('');
 
   const dayLabel = React.useCallback((dayId: string): string => {
-    return tripDays.find((d) => d.id === dayId)?.displayTitle ?? 'Unlinked';
+    const d = tripDays.find((x) => x.id === dayId);
+    if (!d) return 'Unlinked';
+    if (d.dayType === 'PreTrip') return 'Pre-trip';
+    return `Day ${d.dayNumber} — ${d.displayTitle}`;
   }, [tripDays]);
 
   const rows = React.useMemo(() => {
@@ -54,7 +58,9 @@ export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeD
         <select className={styles.select} value={dayFilter} onChange={(e) => setDayFilter(e.target.value)}>
           <option value="all">All days</option>
           {tripDays.map((d) => (
-            <option key={d.id} value={d.id}>Day {d.dayNumber} - {d.displayTitle}</option>
+            <option key={d.id} value={d.id}>
+              {d.dayType === 'PreTrip' ? 'Pre-trip' : `Day ${d.dayNumber} — ${d.displayTitle}`}
+            </option>
           ))}
         </select>
       </div>
@@ -63,7 +69,16 @@ export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeD
           {rows.map((r) => (
             <div key={`${r.kind}-${r.id}`} className={styles.row}>
               <span className={styles.badge}>{r.kind === 'document' ? 'Document' : 'Link'}</span>
-              <a className={styles.name} href={r.url} target="_blank" rel="noopener noreferrer" onClick={(ev) => { ev.preventDefault(); window.open(r.url, '_blank', 'noopener,noreferrer'); }}>
+              <a
+                className={styles.name}
+                href={resolveAbsoluteUrl(r.url)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(ev) => {
+                  ev.preventDefault();
+                  window.open(resolveAbsoluteUrl(r.url), '_blank', 'noopener,noreferrer');
+                }}
+              >
                 {r.title}
               </a>
               <span className={styles.meta}>{r.meta}</span>

@@ -18,7 +18,7 @@
   margin: 0;
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
-  color: var(--color-blue-900);
+  color: var(--color-blue-800);
 }
 
 .sortRow {
@@ -55,6 +55,24 @@
   border-color: var(--color-primary);
   background: color-mix(in srgb, var(--color-sand-50) 65%, var(--color-surface-raised));
   font-weight: var(--font-weight-medium);
+}
+
+.exportAction {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  border: var(--border-default);
+  background: var(--color-surface-raised);
+  color: var(--color-blue-800);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  font-family: var(--font-sans);
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 2.25rem;
+}
+
+.exportAction:hover {
+  border-color: var(--color-sand-400);
 }
 
 .list {

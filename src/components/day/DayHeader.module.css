@@ -335,7 +335,7 @@
   background: var(--color-primary);
   color: var(--color-surface-raised);
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-bold);
   font-family: var(--font-sans);
   cursor: pointer;
   white-space: nowrap;
@@ -349,7 +349,7 @@
   background: var(--color-surface-raised);
   color: var(--color-blue-800);
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-bold);
   font-family: var(--font-sans);
   cursor: pointer;
   white-space: nowrap;
