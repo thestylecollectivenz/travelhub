@@ -66,7 +66,9 @@ export const SharedSidebarDayList: React.FC = () => {
                   <span className={itemStyles.dayNumberLabel}>
                     {day.dayType === 'PreTrip' ? 'Pre-trip' : `Day ${day.dayNumber}${dayDate ? ` · ${dayDate}` : ''}`}
                   </span>
-                  <span className={`${itemStyles.badge} ${badgeColorClass}`}>{dayTypeLabel(day.dayType)}</span>
+                  {day.dayType !== 'Sea' ? (
+                    <span className={`${itemStyles.badge} ${badgeColorClass}`}>{dayTypeLabel(day.dayType)}</span>
+                  ) : null}
                 </div>
                 <div className={itemStyles.row2}>
                   <span className={itemStyles.title}>{day.displayTitle}</span>

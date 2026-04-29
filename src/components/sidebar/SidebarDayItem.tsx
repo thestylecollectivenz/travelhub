@@ -88,43 +88,45 @@ export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected,
           <span className={styles.dayNumberLabel}>
             {day.dayType === 'PreTrip' ? 'Pre-trip' : `Day ${day.dayNumber}${dayDate ? ` · ${dayDate}` : ''}`}
           </span>
-          <div className={styles.badgeWrap}>
-            <button
-              type="button"
-              className={`${styles.badge} ${badgeColorClass}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                setTypePickerOpen((v) => !v);
-              }}
-            >
-              {dayTypeLabel(day.dayType)}
-            </button>
-            {typePickerOpen ? (
-              <div className={styles.badgeOptions} onClick={(e) => e.stopPropagation()}>
-                {(['PlacePort', 'Sea', 'TravelTransit', 'PreTrip'] as const).map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    className={`${styles.badgeOption} ${
-                      option === 'PreTrip'
-                        ? styles.badgePreTrip
-                        : option === 'Sea'
-                          ? styles.badgeSea
-                          : option === 'TravelTransit'
-                            ? styles.badgeTransit
-                            : styles.badgePlacePort
-                    }`}
-                    onClick={() => {
-                      updateDay(day.id, { dayType: option });
-                      setTypePickerOpen(false);
-                    }}
-                  >
-                    {dayTypeLabel(option)}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
+          {day.dayType !== 'Sea' ? (
+            <div className={styles.badgeWrap}>
+              <button
+                type="button"
+                className={`${styles.badge} ${badgeColorClass}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setTypePickerOpen((v) => !v);
+                }}
+              >
+                {dayTypeLabel(day.dayType)}
+              </button>
+              {typePickerOpen ? (
+                <div className={styles.badgeOptions} onClick={(e) => e.stopPropagation()}>
+                  {(['PlacePort', 'Sea', 'TravelTransit', 'PreTrip'] as const).map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      className={`${styles.badgeOption} ${
+                        option === 'PreTrip'
+                          ? styles.badgePreTrip
+                          : option === 'Sea'
+                            ? styles.badgeSea
+                            : option === 'TravelTransit'
+                              ? styles.badgeTransit
+                              : styles.badgePlacePort
+                      }`}
+                      onClick={() => {
+                        updateDay(day.id, { dayType: option });
+                        setTypePickerOpen(false);
+                      }}
+                    >
+                      {dayTypeLabel(option)}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         <div className={styles.row2}>
           {isEditingTitle ? (

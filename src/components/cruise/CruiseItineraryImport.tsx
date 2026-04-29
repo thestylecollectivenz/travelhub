@@ -43,6 +43,10 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
     () => tripDays.filter((d) => d.tripId === trip.id).sort((a, b) => a.dayNumber - b.dayNumber),
     [tripDays, trip.id]
   );
+  const hasCalendarDates = React.useMemo(
+    () => daysForTrip.some((d) => d.dayType !== 'PreTrip' && Boolean((d.calendarDate || '').trim())),
+    [daysForTrip]
+  );
 
   const resetPreview = React.useCallback(() => {
     setParsed([]);
@@ -68,14 +72,59 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
 
   const resolveDay = React.useCallback(
     (row: ParsedCruiseRow) => {
+      const rowDate = (row.date || '').trim();
+      if (rowDate) {
+        const byDate = daysForTrip.find((d) => d.dayType !== 'PreTrip' && d.calendarDate === rowDate);
+        if (byDate) return byDate;
+        if (hasCalendarDates) return undefined;
+      }
       const byNum = daysForTrip.find((d) => d.dayNumber === row.dayNumber);
       if (byNum) return byNum;
       const idx = row.dayNumber - 1;
       if (idx >= 0 && idx < daysForTrip.length) return daysForTrip[idx];
       return undefined;
     },
-    [daysForTrip]
+    [daysForTrip, hasCalendarDates]
   );
+
+  const isSeaOrScenicLine = React.useCallback((port: string): boolean => {
+    const p = (port || '').toLowerCase();
+    if (p.includes('days at sea') || p.includes('day at sea')) return true;
+    if (/\bat sea\b/.test(p)) return true;
+    if (p.includes('scenic')) return true;
+    if (p.includes('crossing the arctic')) return true;
+    if (p.includes('cruising only')) return true;
+    return false;
+  }, []);
+
+  const seaDayTitle = React.useCallback((port: string): string => {
+    const p = (port || '').toLowerCase();
+    if (p.includes('days at sea') || p.includes('day at sea') || /\bat sea\b/.test(p)) {
+      return 'Sea day';
+    }
+    return port;
+  }, []);
+
+  const scoreCandidate = React.useCallback((candidate: PlaceCandidate, rowPort: string): number => {
+    const normalize = (v: string): string =>
+      (v || '')
+        .toLowerCase()
+        .replace(/^the\s+/, '')
+        .replace(/[^\w\s,]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    const parts = rowPort.split(',').map((x) => x.trim()).filter(Boolean);
+    const city = normalize(parts[0] || '');
+    const country = normalize(parts.slice(1).join(', '));
+    const title = normalize(candidate.title || '');
+    const candCountry = normalize(candidate.country || '');
+    let score = 0;
+    if (city && title.includes(city)) score += 6;
+    if (city && title.startsWith(city)) score += 2;
+    if (country && (candCountry.includes(country) || title.includes(country))) score += 8;
+    if (title.includes('port') || title.includes('harbor') || title.includes('harbour')) score += 1;
+    return score;
+  }, []);
 
   const geocodePort = React.useCallback(
     async (portName: string): Promise<PlaceCandidate | null> => {
@@ -84,10 +133,13 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
       if (!results.length) {
         results = await searchPlaces(portName);
       }
-      const c = results[0];
-      return c ?? null;
+      if (!results.length) return null;
+      const ranked = [...results]
+        .map((c) => ({ c, score: scoreCandidate(c, portName) }))
+        .sort((a, b) => b.score - a.score);
+      return ranked[0]?.c ?? null;
     },
-    [searchPlaces]
+    [scoreCandidate, searchPlaces]
   );
 
   const handleApply = React.useCallback(async () => {
@@ -95,34 +147,134 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
     setLoading(true);
     setApplyWarnings([]);
     const warnings: string[] = [];
-    const rowsSorted = [...parsed].sort((a, b) => a.dayNumber - b.dayNumber);
+    const rowsSorted = [...parsed].sort((a, b) => {
+      const ad = (a.date || '').trim();
+      const bd = (b.date || '').trim();
+      if (ad && bd && ad !== bd) return ad.localeCompare(bd);
+      if (ad && !bd) return -1;
+      if (!ad && bd) return 1;
+      return a.dayNumber - b.dayNumber;
+    });
     const resolved: Array<{ row: ParsedCruiseRow; dayId: string; calendarDate: string }> = [];
 
+    const maxSortOnDay = (dayId: string): number =>
+      localEntries.filter((e) => e.dayId === dayId && !e.parentEntryId).reduce((m, e) => Math.max(m, e.sortOrder), 0);
+
+    const makeSegmentEntry = (dayId: string, row: ParsedCruiseRow, sortOrder: number): ItineraryEntry => {
+      const title = isSeaOrScenicLine(row.port) ? seaDayTitle(row.port) : row.port;
+      return {
+        id: newTempEntryId(),
+        dayId,
+        tripId: trip.id,
+        title,
+        category: 'Other',
+        timeStart: row.arrive || '',
+        arrivalTime: row.depart?.trim() ? row.depart : undefined,
+        duration: '',
+        supplier: '',
+        location: row.port,
+        notes: row.date ? `Cruise import · ${row.date}` : 'Cruise import',
+        decisionStatus: 'Planned',
+        bookingRequired: false,
+        bookingStatus: 'Not booked',
+        paymentStatus: 'Not paid',
+        amount: 0,
+        currency: config.homeCurrency?.trim() || 'NZD',
+        sortOrder
+      };
+    };
+
     try {
-      for (let i = 0; i < rowsSorted.length; i++) {
-        const row = rowsSorted[i];
+      type Hit = { row: ParsedCruiseRow; day: (typeof daysForTrip)[0] };
+      const hits: Hit[] = [];
+      for (const row of rowsSorted) {
         const day = resolveDay(row);
         if (!day) {
-          warnings.push(`No trip day matched “Day ${row.dayNumber}” (${row.port}).`);
+          if (row.date) {
+            warnings.push(`No trip day matched date ${row.date} (${row.port}).`);
+          } else {
+            warnings.push(`No trip day matched “Day ${row.dayNumber}” (${row.port}).`);
+          }
           continue;
         }
         if (day.dayType === 'PreTrip') {
           warnings.push(`Skipped pre-trip day ${row.dayNumber} for ${row.port}.`);
           continue;
         }
-        const candidate = await geocodePort(row.port);
-        if (!candidate) {
-          warnings.push(`No geocode result for “${row.port}”.`);
-          continue;
+        hits.push({ row, day });
+      }
+
+      if (!hits.length) {
+        setApplyWarnings(warnings);
+        setError('Nothing was applied. Check day numbers match your trip days, or add days manually.');
+        setLoading(false);
+        return;
+      }
+
+      const byDayId = new Map<string, ParsedCruiseRow[]>();
+      for (const { row, day } of hits) {
+        const list = byDayId.get(day.id) ?? [];
+        list.push(row);
+        byDayId.set(day.id, list);
+      }
+
+      const dayProcessOrder = daysForTrip.filter((d) => d.tripId === trip.id && d.dayType !== 'PreTrip');
+
+      const sortCursorByDay = new Map<string, number>();
+      for (const d of dayProcessOrder) {
+        if (byDayId.get(d.id)?.length) {
+          sortCursorByDay.set(d.id, maxSortOnDay(d.id));
         }
-        const place = await createOrReusePlace({ ...candidate, placeType: 'port' });
+      }
+
+      for (const day of dayProcessOrder) {
+        const rows = byDayId.get(day.id);
+        if (!rows?.length) continue;
+
+        const landRows = rows.filter((r) => !isSeaOrScenicLine(r.port));
+        const seaRows = rows.filter((r) => isSeaOrScenicLine(r.port));
+        const ordered = [...landRows, ...seaRows];
+
+        let firstLandPlaceId: string | undefined;
+        let firstLandTitle: string | undefined;
+
+        for (const row of ordered) {
+          const nextSort = (sortCursorByDay.get(day.id) ?? 0) + 1;
+          sortCursorByDay.set(day.id, nextSort);
+
+          if (isSeaOrScenicLine(row.port)) {
+            updateEntry(makeSegmentEntry(day.id, row, nextSort));
+            resolved.push({ row, dayId: day.id, calendarDate: day.calendarDate });
+            await delay(250);
+            continue;
+          }
+
+          const candidate = await geocodePort(row.port);
+          if (!candidate) {
+            warnings.push(`No geocode result for “${row.port}” (${day.calendarDate || `day ${day.dayNumber}`}).`);
+            updateEntry(makeSegmentEntry(day.id, row, nextSort));
+            resolved.push({ row, dayId: day.id, calendarDate: day.calendarDate });
+            await delay(250);
+            continue;
+          }
+
+          const place = await createOrReusePlace({ ...candidate, placeType: 'port' });
+          if (!firstLandPlaceId) {
+            firstLandPlaceId = place.id;
+            firstLandTitle = row.port;
+          }
+          updateEntry(makeSegmentEntry(day.id, row, nextSort));
+          resolved.push({ row, dayId: day.id, calendarDate: day.calendarDate });
+          await delay(650);
+        }
+
+        const seaOnly = landRows.length === 0;
         updateDay(day.id, {
-          displayTitle: row.port,
-          primaryPlaceId: place.id,
+          dayType: seaOnly ? 'Sea' : 'PlacePort',
+          primaryPlaceId: seaOnly ? undefined : firstLandPlaceId,
+          displayTitle: seaOnly ? (seaRows[0] ? seaDayTitle(seaRows[0].port) : 'Sea day') : firstLandTitle || day.displayTitle,
           additionalPlaceIds: []
         });
-        resolved.push({ row, dayId: day.id, calendarDate: day.calendarDate });
-        if (i < rowsSorted.length - 1) await delay(650);
       }
 
       if (resolved.length === 0) {
@@ -138,8 +290,7 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
       const embarkCal = first.calendarDate;
       const disembarkCal = last.calendarDate;
 
-      const siblings = localEntries.filter((e) => e.dayId === embarkDayId && !e.parentEntryId);
-      const maxSort = siblings.reduce((m, e) => Math.max(m, e.sortOrder), 0);
+      const cruiseSortOrder = (sortCursorByDay.get(embarkDayId) ?? maxSortOnDay(embarkDayId)) + 1;
 
       const firstArrive = resolved.map((r) => r.row.arrive).find(Boolean) ?? '09:00';
       const lastDepart = [...resolved].reverse().map((r) => r.row.depart).find(Boolean) ?? '';
@@ -164,7 +315,7 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
         paymentStatus: 'Not paid',
         amount: 0,
         currency: config.homeCurrency?.trim() || 'NZD',
-        sortOrder: maxSort + 1
+        sortOrder: cruiseSortOrder
       };
 
       updateEntry(cruiseEntry);
@@ -190,7 +341,10 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
     trip.title,
     trip.destination,
     updateEntry,
-    config.homeCurrency
+    config.homeCurrency,
+    seaDayTitle,
+    isSeaOrScenicLine,
+    daysForTrip
   ]);
 
   React.useEffect(() => {
@@ -263,7 +417,8 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
               <ol className={styles.preview}>
                 {parsed.map((r, i) => (
                   <li key={`${r.dayNumber}-${r.port}-${i}`}>
-                    Day {r.dayNumber} — {r.port} (Arrive {r.arrive || '—'}, Depart {r.depart || '—'})
+                    {r.date ? `${r.date} — ` : `Day ${r.dayNumber} — `}
+                    {r.port} (Arrive {r.arrive || '—'}, Depart {r.depart || '—'})
                   </li>
                 ))}
               </ol>
