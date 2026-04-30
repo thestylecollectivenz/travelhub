@@ -145,6 +145,8 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
         mapInstanceRef.current = map;
         markerLayerRef.current = L.layerGroup().addTo(map);
         addResilientTileLayer(map);
+        map.setView([20, 0], 2);
+        window.setTimeout(() => map.invalidateSize(), 0);
         setMapBoot((n) => n + 1);
       } catch (err) {
         mapInitRef.current = false;

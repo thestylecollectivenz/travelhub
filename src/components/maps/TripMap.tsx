@@ -118,6 +118,8 @@ export const TripMap: React.FC = () => {
         mapInstanceRef.current = L.map(el, { zoomControl: true });
         addResilientTileLayer(mapInstanceRef.current);
         layerGroupRef.current = L.layerGroup().addTo(mapInstanceRef.current);
+        mapInstanceRef.current.setView([20, 0], 2);
+        window.setTimeout(() => mapInstanceRef.current?.invalidateSize(), 0);
         setMapBoot((n) => n + 1);
       } catch (err) {
         initStartedRef.current = false;

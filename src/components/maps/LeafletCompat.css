@@ -55,7 +55,6 @@
   -webkit-user-select: none;
   user-select: none;
   -webkit-user-drag: none;
-  visibility: hidden;
 }
 
 .leaflet-container img,
@@ -72,10 +71,6 @@
 
 .leaflet-tile::selection {
   background: transparent;
-}
-
-.leaflet-tile-loaded {
-  visibility: inherit;
 }
 
 .leaflet-pane,
