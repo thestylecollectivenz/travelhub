@@ -349,9 +349,14 @@
 }
 
 .attachmentTitle {
+  border: none;
+  background: transparent;
+  padding: 0;
   color: var(--color-blue-800);
   font-size: var(--font-size-xs);
+  text-align: left;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .attachmentTitle:hover {

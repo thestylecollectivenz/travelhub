@@ -70,11 +70,16 @@
 }
 
 .name {
+  border: none;
+  background: transparent;
+  padding: 0;
   color: var(--color-blue-800);
+  text-align: left;
   text-decoration: none;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .badge {

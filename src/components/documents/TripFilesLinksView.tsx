@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
-import { resolveAbsoluteUrl } from '../../utils/resolveAbsoluteUrl';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import styles from './TripDocumentsView.module.css';
 
@@ -70,18 +69,16 @@ export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeD
           {rows.map((r) => (
             <div key={`${r.kind}-${r.id}`} className={styles.row}>
               <span className={styles.badge}>{r.kind === 'document' ? 'Document' : 'Link'}</span>
-              <a
+              <button
+                type="button"
                 className={styles.name}
-                href={resolveAbsoluteUrl(r.url)}
-                target="_blank"
-                rel="noopener noreferrer"
                 onClick={(ev) => {
                   ev.preventDefault();
                   openDocumentUrl(r.url);
                 }}
               >
                 {r.title}
-              </a>
+              </button>
               <span className={styles.meta}>{r.meta}</span>
               <span className={styles.meta}>{r.dayId ? dayLabel(r.dayId) : 'No day'}</span>
             </div>

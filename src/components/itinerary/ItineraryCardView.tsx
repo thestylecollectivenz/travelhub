@@ -11,7 +11,6 @@ import { getCategorySlug } from '../../utils/categoryUtils';
 import { formatCurrency } from '../../utils/financialUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { SubItemList } from './SubItemList';
-import { resolveAbsoluteUrl } from '../../utils/resolveAbsoluteUrl';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import styles from './ItineraryCardView.module.css';
 
@@ -669,18 +668,16 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                   </>
                 ) : (
                   <>
-                    <a
+                    <button
+                      type="button"
                       className={styles.attachmentTitle}
-                      href={resolveAbsoluteUrl(doc.fileUrl)}
-                      target="_blank"
-                      rel="noopener noreferrer"
                       onClick={(ev) => {
                         ev.preventDefault();
                         openDocumentUrl(doc.fileUrl);
                       }}
                     >
                       {doc.fileName || doc.title}
-                    </a>
+                    </button>
                     <span className={styles.attachmentType}>{doc.documentType}</span>
                     <button
                       type="button"
@@ -738,18 +735,16 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                   </>
                 ) : (
                   <>
-                    <a
+                    <button
+                      type="button"
                       className={styles.attachmentTitle}
-                      href={resolveAbsoluteUrl(link.url)}
-                      target="_blank"
-                      rel="noopener noreferrer"
                       onClick={(ev) => {
                         ev.preventDefault();
                         openDocumentUrl(link.url);
                       }}
                     >
                       {link.linkTitle}
-                    </a>
+                    </button>
                     <span className={styles.attachmentType}>{link.linkType}</span>
                     <button
                       type="button"
