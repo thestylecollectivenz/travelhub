@@ -78,9 +78,7 @@
 }
 
 .journalExportPanel {
-  max-height: min(88vh, 52rem);
-  overflow: auto;
-  padding-right: var(--space-1);
+  border-top: var(--border-default);
 }
 
 .searchRow {

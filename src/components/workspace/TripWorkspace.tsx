@@ -473,6 +473,15 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
           ) : null}
         </div>
       ) : null}
+      {deleteTripError ? <div className={styles.deleteError}>{deleteTripError}</div> : null}
+      <TripHero trip={trip} onEdit={() => setEditOpen(true)} showEditButton={!sharedPreview} />
+      {sharedPreview ? null : <TripStatsStrip />}
+      <RouteStrip />
+      {sharedPreview ? (
+        <ErrorBoundary fallbackTitle="Something went wrong in shared view">
+          <SharedTripView />
+        </ErrorBoundary>
+      ) : <TripContent />}
       {exportOpen ? (
         <div className={`${styles.searchPanel} ${styles.journalExportPanel}`}>
           <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
@@ -494,15 +503,6 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
           </div>
         </div>
       ) : null}
-      {deleteTripError ? <div className={styles.deleteError}>{deleteTripError}</div> : null}
-      <TripHero trip={trip} onEdit={() => setEditOpen(true)} showEditButton={!sharedPreview} />
-      {sharedPreview ? null : <TripStatsStrip />}
-      <RouteStrip />
-      {sharedPreview ? (
-        <ErrorBoundary fallbackTitle="Something went wrong in shared view">
-          <SharedTripView />
-        </ErrorBoundary>
-      ) : <TripContent />}
       <ConfigPanel isOpen={configOpen} onClose={() => setConfigOpen(false)} />
       <EditTripPanel trip={trip} isOpen={editOpen} onClose={() => setEditOpen(false)} onSave={updateTrip} />
     </div>
