@@ -84,7 +84,6 @@ export const ItineraryDayPlannerView: React.FC = () => {
   const [filter, setFilter] = React.useState<PlannerFilter>('entire_trip');
   const [customStart, setCustomStart] = React.useState('');
   const [customEnd, setCustomEnd] = React.useState('');
-  const [inactiveConfirmed, setInactiveConfirmed] = React.useState(false);
   const [mobileDayIndex, setMobileDayIndex] = React.useState(0);
   const [isMobile, setIsMobile] = React.useState(false);
 
@@ -96,8 +95,6 @@ export const ItineraryDayPlannerView: React.FC = () => {
     return () => mq.removeEventListener('change', apply);
   }, []);
 
-  const tripInProgress = trip?.status === 'In Progress';
-
   const orderedDays = React.useMemo(() => {
     if (!trip) return [];
     return tripDays.filter((d) => d.tripId === trip.id).sort((a, b) => a.dayNumber - b.dayNumber);
@@ -108,73 +105,76 @@ export const ItineraryDayPlannerView: React.FC = () => {
     [trip, localEntries]
   );
 
-  const resolveFilterDays = React.useCallback((): TripDay[] => {
-    if (!trip) return [];
+  const resolveSingleDate = React.useCallback((ymd: string): { days: TripDay[]; notice: string } => {
+    if (!orderedDays.length) return { days: [], notice: '' };
+    const tripStart = (orderedDays[0].calendarDate || '').slice(0, 10);
+    const tripEnd = (orderedDays[orderedDays.length - 1].calendarDate || '').slice(0, 10);
+    if (ymd < tripStart) return { days: [orderedDays[0]], notice: 'Before trip start — showing Day 1' };
+    if (ymd > tripEnd) return { days: [orderedDays[orderedDays.length - 1]], notice: 'After trip end — showing last day' };
+    const exact = orderedDays.filter((d) => (d.calendarDate || '').slice(0, 10) === ymd);
+    if (exact.length) return { days: exact, notice: `Trip not started — showing ${dayLabel(exact[0])}` };
+    const fallback = orderedDays.find((d) => (d.calendarDate || '').slice(0, 10) > ymd) ?? orderedDays[orderedDays.length - 1];
+    return { days: [fallback], notice: `Trip not started — showing ${dayLabel(fallback)}` };
+  }, [orderedDays]);
+
+  const resolveFilterDays = React.useCallback((): { days: TripDay[]; notice: string } => {
+    if (!trip) return { days: [], notice: '' };
     const today = new Date();
     const todayYmd = ymdLocal(today);
-    const tripStart = orderedDays[0]?.calendarDate;
-    const tripEnd = orderedDays[orderedDays.length - 1]?.calendarDate;
-    const inTripRange = (ymd: string): boolean => {
-      if (!tripStart || !tripEnd) return false;
-      return ymd >= tripStart.slice(0, 10) && ymd <= tripEnd.slice(0, 10);
-    };
+    const statusNeedsNotice = trip.status !== 'In Progress';
     const matchYmd = (ymd: string): TripDay[] => orderedDays.filter((d) => (d.calendarDate || '').slice(0, 10) === ymd);
 
     switch (filter) {
       case 'today':
-        return inTripRange(todayYmd) ? matchYmd(todayYmd) : [];
+        return statusNeedsNotice ? resolveSingleDate(todayYmd) : { days: matchYmd(todayYmd), notice: '' };
       case 'yesterday': {
         const y = addDays(today, -1);
         const ymd = ymdLocal(y);
-        return inTripRange(ymd) ? matchYmd(ymd) : [];
+        return statusNeedsNotice ? resolveSingleDate(ymd) : { days: matchYmd(ymd), notice: '' };
       }
       case 'tomorrow': {
         const y = addDays(today, 1);
         const ymd = ymdLocal(y);
-        return inTripRange(ymd) ? matchYmd(ymd) : [];
+        return statusNeedsNotice ? resolveSingleDate(ymd) : { days: matchYmd(ymd), notice: '' };
       }
       case 'this_week': {
         const s = startOfWeekMonday(today);
         const e = addDays(s, 6);
-        return orderedDays.filter((d) => {
+        const days = orderedDays.filter((d) => {
           const ymd = (d.calendarDate || '').slice(0, 10);
           return ymd >= ymdLocal(s) && ymd <= ymdLocal(e);
         });
+        return statusNeedsNotice ? { days, notice: `Trip not started — showing ${ymdLocal(s)} to ${ymdLocal(e)}` } : { days, notice: '' };
       }
       case 'next_week': {
         const nextStart = addDays(startOfWeekMonday(today), 7);
         const nextEnd = addDays(nextStart, 6);
-        return orderedDays.filter((d) => {
+        const days = orderedDays.filter((d) => {
           const ymd = (d.calendarDate || '').slice(0, 10);
           return ymd >= ymdLocal(nextStart) && ymd <= ymdLocal(nextEnd);
         });
+        return statusNeedsNotice ? { days, notice: `Trip not started — showing ${ymdLocal(nextStart)} to ${ymdLocal(nextEnd)}` } : { days, notice: '' };
       }
       case 'days_remaining': {
-        return orderedDays.filter((d) => (d.calendarDate || '').slice(0, 10) >= todayYmd);
+        return { days: orderedDays.filter((d) => (d.calendarDate || '').slice(0, 10) >= todayYmd), notice: '' };
       }
       case 'entire_trip':
-        return orderedDays.filter((d) => d.dayType !== 'PreTrip');
+        return { days: orderedDays.filter((d) => d.dayType !== 'PreTrip'), notice: '' };
       case 'custom_range': {
-        if (!customStart || !customEnd) return [];
-        return orderedDays.filter((d) => {
+        if (!customStart || !customEnd) return { days: [], notice: '' };
+        return { days: orderedDays.filter((d) => {
           const ymd = (d.calendarDate || '').slice(0, 10);
           return ymd >= customStart && ymd <= customEnd;
-        });
+        }), notice: '' };
       }
       default:
-        return [];
+        return { days: [], notice: '' };
     }
-  }, [trip, orderedDays, filter, customStart, customEnd]);
+  }, [trip, orderedDays, filter, customStart, customEnd, resolveSingleDate]);
 
-  const visibleDays = React.useMemo(() => {
-    const raw = resolveFilterDays();
-    const blockRelative =
-      !!trip &&
-      !tripInProgress &&
-      (filter === 'today' || filter === 'yesterday' || filter === 'tomorrow') &&
-      !inactiveConfirmed;
-    return blockRelative ? [] : raw;
-  }, [trip, tripInProgress, filter, inactiveConfirmed, resolveFilterDays]);
+  const resolved = React.useMemo(() => resolveFilterDays(), [resolveFilterDays]);
+  const visibleDays = resolved.days;
+  const infoNotice = resolved.notice;
 
   React.useEffect(() => {
     setMobileDayIndex(0);
@@ -195,28 +195,11 @@ export const ItineraryDayPlannerView: React.FC = () => {
     return visibleDays;
   }, [visibleDays, isMobile, mobileDayIndex]);
 
-  const formatLongDate = (d: Date): string =>
-    d.toLocaleDateString('en-NZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-
-  const inactiveResolvedLabel = React.useMemo(() => {
-    const t = new Date();
-    if (filter === 'today') return formatLongDate(t);
-    if (filter === 'yesterday') return formatLongDate(addDays(t, -1));
-    if (filter === 'tomorrow') return formatLongDate(addDays(t, 1));
-    return '';
-  }, [filter]);
-
-  const showInactiveBar =
-    !!trip &&
-    !tripInProgress &&
-    (filter === 'today' || filter === 'yesterday' || filter === 'tomorrow') &&
-    !inactiveConfirmed;
-
   const rangeForDay = React.useCallback((day: TripDay): { start: number; end: number } => {
     const cal = day.calendarDate || '';
     const list = sortEntriesForDay(entriesForTrip, day.id, cal, day.dayType);
-    let minM = 8 * 60;
-    let maxM = 22 * 60;
+    let minM = 24 * 60;
+    let maxM = 0;
     let any = false;
     for (const e of list) {
       const sm = minutesFromTimeStart(e.timeStart);
@@ -226,10 +209,9 @@ export const ItineraryDayPlannerView: React.FC = () => {
       minM = Math.min(minM, sm);
       maxM = Math.max(maxM, sm + dur);
     }
-    if (any) {
-      minM = Math.max(0, minM - 30);
-      maxM = Math.min(24 * 60, maxM + 30);
-    }
+    if (!any) return { start: 8 * 60, end: 22 * 60 };
+    minM = Math.max(0, minM - 30);
+    maxM = Math.min(24 * 60, maxM + 30);
     if (maxM <= minM) maxM = minM + 60;
     return { start: minM, end: maxM };
   }, [entriesForTrip]);
@@ -273,7 +255,6 @@ export const ItineraryDayPlannerView: React.FC = () => {
   ];
 
   const handleFilterClick = (id: PlannerFilter): void => {
-    setInactiveConfirmed(false);
     setFilter(id);
   };
 
@@ -303,27 +284,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
           </label>
         </div>
       ) : null}
-      {showInactiveBar ? (
-        <div className={styles.inactivePrompt} role="status">
-          <span>
-            <strong>{trip.title}</strong> isn&apos;t active yet. Show {inactiveResolvedLabel}?
-          </span>
-          <button type="button" className={styles.toggleBtn} onClick={() => setInactiveConfirmed(true)}>
-            Show anyway
-          </button>
-          <button
-            type="button"
-            className={styles.toggleBtn}
-            onClick={() => {
-              setFilter('entire_trip');
-              setInactiveConfirmed(false);
-            }}
-            aria-label="Dismiss"
-          >
-            ×
-          </button>
-        </div>
-      ) : null}
+      {infoNotice ? <div className={styles.inactivePrompt} role="status">{infoNotice}</div> : null}
       {isMobile && visibleDays.length > 1 ? (
         <div className={styles.mobileNav}>
           <button
@@ -347,7 +308,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
       ) : null}
       {!displayDays.length ? (
         <div className={styles.inactivePrompt} role="status">
-          No days in this range. Adjust filters or confirm &quot;Show anyway&quot; for relative dates.
+          No days in this range. Adjust filters.
         </div>
       ) : (
         <div className={`${styles.multiWrap} ${isMobile ? styles.stackMobile : ''}`}>
@@ -438,6 +399,32 @@ export const ItineraryDayPlannerView: React.FC = () => {
                         </div>
                       );
                     })}
+                    {timed.reduce<React.ReactElement[]>((acc, e) => {
+                      const parentStart = minutesFromTimeStart(e.timeStart);
+                      const parentDur = parseDurationMinutes(e.duration);
+                      const parentEnd = parentStart !== undefined ? parentStart + parentDur : undefined;
+                      (e.subItems ?? []).forEach((s) => {
+                        if (minutesFromTimeStart(s.startTime || '') === undefined) return;
+                        const subStart = minutesFromTimeStart(s.startTime || '')!;
+                        const subEnd = minutesFromTimeStart(s.endTime || '');
+                        const effectiveStart = parentStart !== undefined && subStart < parentStart ? parentStart : subStart;
+                        const effectiveEnd = subEnd !== undefined ? subEnd : effectiveStart + 20;
+                        const clampEnd = parentEnd !== undefined && effectiveEnd > parentEnd ? parentEnd : effectiveEnd;
+                        const subTop = ((effectiveStart - globalRange.start) / (globalRange.end - globalRange.start)) * trackHeight;
+                        const subHeight = Math.max(16, ((clampEnd - effectiveStart) / (globalRange.end - globalRange.start)) * trackHeight);
+                        acc.push(
+                          <div
+                            key={`${e.id}-${s.id}`}
+                            className={styles.subBlock}
+                            style={{ top: `${subTop}px`, height: `${subHeight}px` }}
+                            title={`${s.title}${s.startTime ? ` · ${s.startTime}` : ''}${s.endTime ? `-${s.endTime}` : ''}`}
+                          >
+                            {s.title}
+                          </div>
+                        );
+                      });
+                      return acc;
+                    }, [])}
                   </div>
                   {unsched.length ? (
                     <div className={styles.unscheduled}>
