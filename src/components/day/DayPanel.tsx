@@ -3,6 +3,7 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { ItineraryTimeline } from '../itinerary/ItineraryTimeline';
 import { ItineraryDayPlannerView } from '../itinerary/ItineraryDayPlannerView';
 import { JournalFeed } from '../journal/JournalFeed';
+import { CruiseItineraryImport } from '../cruise/CruiseItineraryImport';
 import { sumForDay } from '../../utils/financialUtils';
 import { BudgetBreakdownTile } from './BudgetBreakdownTile';
 import { DayHeader } from './DayHeader';
@@ -76,7 +77,15 @@ export const DayPanel: React.FC = () => {
           <PlannerGlyph />
           Day Planner
         </button>
+        <button
+          type="button"
+          className={styles.itineraryViewBtn}
+          onClick={() => window.dispatchEvent(new Event('open-cruise-import'))}
+        >
+          Import cruise itinerary
+        </button>
       </div>
+      <CruiseItineraryImport trip={trip} />
       {itineraryView === 'timeline' ? <ItineraryTimeline dayId={day.id} /> : <ItineraryDayPlannerView />}
       <JournalFeed dayId={day.id} openComposerSignal={openJournalSignal} />
     </div>

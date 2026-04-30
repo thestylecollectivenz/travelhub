@@ -6,7 +6,6 @@ import { PlacesProvider } from '../../context/PlacesContext';
 import { useJournal } from '../../context/JournalContext';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { TripHero } from './TripHero';
-import { CruiseItineraryImport } from '../cruise/CruiseItineraryImport';
 import { RouteStrip } from '../maps/RouteStrip';
 import { TripStatsStrip } from './TripStatsStrip';
 import { TripContent } from './TripContent';
@@ -497,7 +496,6 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
       ) : null}
       {deleteTripError ? <div className={styles.deleteError}>{deleteTripError}</div> : null}
       <TripHero trip={trip} onEdit={() => setEditOpen(true)} showEditButton={!sharedPreview} />
-      {trip && !sharedPreview ? <CruiseItineraryImport trip={trip} /> : null}
       {sharedPreview ? null : <TripStatsStrip />}
       <RouteStrip />
       {sharedPreview ? (

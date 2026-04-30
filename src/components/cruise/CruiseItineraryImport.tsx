@@ -359,24 +359,6 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
 
   return (
     <div className={styles.root}>
-      <div className={styles.triggerRow}>
-        <button
-          type="button"
-          className={styles.secondaryBtn}
-          onClick={() => {
-            setOpen((o) => {
-              const next = !o;
-              if (next) setPostApplyNotes([]);
-              return next;
-            });
-          }}
-        >
-          {open ? 'Hide import cruise itinerary' : 'Import cruise itinerary'}
-        </button>
-        {!open ? (
-          <span className={styles.hint}>Paste itinerary text from a Holland America voyage page.</span>
-        ) : null}
-      </div>
       {postApplyNotes.length ? (
         <div className={styles.warnings} role="status">
           Import applied.
@@ -388,9 +370,6 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
       {open ? (
         <div className={styles.panel} role="region" aria-label="Import cruise itinerary">
           <div className={styles.row}>
-            <label className={styles.label} htmlFor="cruise-import-paste">
-              Go to the Holland America voyage page, select all page text (Ctrl+A, Ctrl+C), and paste it here
-            </label>
             <textarea
               id="cruise-import-paste"
               className={styles.textarea}
@@ -402,10 +381,10 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
               <button type="button" className={styles.secondaryBtn} disabled={loading} onClick={handleParsePasted}>
                 Parse itinerary
               </button>
+              <button type="button" className={styles.secondaryBtn} disabled={loading} onClick={() => setOpen(false)}>
+                Cancel
+              </button>
             </div>
-            <p className={styles.hint}>
-              Direct fetch is disabled due to CORS restrictions; paste-only mode is used for reliable import.
-            </p>
           </div>
           {error ? (
             <div className={styles.error} role="alert">
