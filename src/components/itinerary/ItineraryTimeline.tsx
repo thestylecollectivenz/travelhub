@@ -4,58 +4,14 @@ import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
 import { getCategorySlug } from '../../utils/categoryUtils';
-import { formatTimeHHMM, minutesFromTimeStart } from '../../utils/itineraryTimeUtils';
+import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
+import { sortEntriesForDay } from '../../utils/itineraryDayEntries';
 import { ItineraryCard } from './ItineraryCard';
 import { ReminderService } from '../../services/ReminderService';
 import styles from './ItineraryTimeline.module.css';
 
 export interface ItineraryTimelineProps {
   dayId: string;
-}
-
-function isEntryOnCalendarDate(entry: ItineraryEntry, calendarDate: string, dayType?: string): boolean {
-  if (dayType === 'PreTrip') return false;
-  if (!calendarDate) return false;
-  if (entry.category === 'Accommodation' && entry.dateStart && entry.dateEnd) {
-    const day = new Date(`${calendarDate}T00:00:00.000Z`);
-    const start = new Date(`${entry.dateStart}T00:00:00.000Z`);
-    const end = new Date(`${entry.dateEnd}T00:00:00.000Z`);
-    if (Number.isNaN(day.getTime()) || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
-    return day.getTime() >= start.getTime() && day.getTime() < end.getTime();
-  }
-  if (entry.category === 'Cruise' && entry.embarksDate && entry.disembarksDate) {
-    const day = new Date(`${calendarDate}T00:00:00.000Z`);
-    const start = new Date(`${entry.embarksDate}T00:00:00.000Z`);
-    const end = new Date(`${entry.disembarksDate}T00:00:00.000Z`);
-    if (Number.isNaN(day.getTime()) || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
-    return day.getTime() >= start.getTime() && day.getTime() <= end.getTime();
-  }
-  return false;
-}
-
-function sortEntriesForDay(entries: ItineraryEntry[], dayId: string, calendarDate: string, dayType?: string): ItineraryEntry[] {
-  const map = new Map<string, ItineraryEntry>();
-  for (const e of entries) {
-    if (e.parentEntryId) continue;
-    // Pre-trip: only entries explicitly on that day (no multi-day accommodation / cruise span from day 1).
-    if (dayType === 'PreTrip') {
-      if (e.dayId === dayId) {
-        map.set(e.id, e);
-      }
-      continue;
-    }
-    if (e.dayId === dayId || isEntryOnCalendarDate(e, calendarDate, dayType)) {
-      map.set(e.id, e);
-    }
-  }
-  return Array.from(map.values()).sort((a, b) => {
-    const aMin = minutesFromTimeStart(a.timeStart);
-    const bMin = minutesFromTimeStart(b.timeStart);
-    if (aMin !== undefined && bMin !== undefined) return aMin - bMin;
-    if (aMin !== undefined) return -1;
-    if (bMin !== undefined) return 1;
-    return a.sortOrder - b.sortOrder;
-  });
 }
 
 function createBlankEntry(tripId: string, dayId: string, sortOrder: number, id: string): ItineraryEntry {
@@ -85,9 +41,10 @@ interface NewComposerProps {
   dayId: string;
   calendarDate: string;
   nextSortOrder: number;
+  suppressCarryoverUi?: boolean;
 }
 
-const NewComposer: React.FC<NewComposerProps> = ({ tripId, dayId, calendarDate, nextSortOrder }) => {
+const NewComposer: React.FC<NewComposerProps> = ({ tripId, dayId, calendarDate, nextSortOrder, suppressCarryoverUi }) => {
   const composerRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -109,6 +66,7 @@ const NewComposer: React.FC<NewComposerProps> = ({ tripId, dayId, calendarDate, 
       <ItineraryCard
         entry={draftEntry}
         calendarDate={calendarDate}
+        suppressCarryoverUi={suppressCarryoverUi}
         draggable={false}
       />
     </div>
@@ -125,7 +83,11 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
     const d = tripDays.find((x) => x.id === dayId && x.tripId === trip.id);
     return d?.calendarDate ?? '';
   }, [dayId, trip, tripDays]);
-  const dayType = React.useMemo(() => tripDays.find((x) => x.id === dayId)?.dayType, [tripDays, dayId]);
+  const dayType = React.useMemo(
+    () => (trip ? tripDays.find((x) => x.id === dayId && x.tripId === trip.id)?.dayType : undefined),
+    [trip, tripDays, dayId]
+  );
+  const suppressCarryoverUi = dayType === 'PreTrip';
 
   const sorted = React.useMemo(() => sortEntriesForDay(localEntries, dayId, calendarDate, dayType), [localEntries, dayId, calendarDate, dayType]);
 
@@ -190,7 +152,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
             />
           </div>
           <div className={styles.cardCell}>
-            <NewComposer tripId={trip.id} dayId={dayId} calendarDate={calendarDate} nextSortOrder={nextSortOrder} />
+            <NewComposer tripId={trip.id} dayId={dayId} calendarDate={calendarDate} nextSortOrder={nextSortOrder} suppressCarryoverUi={suppressCarryoverUi} />
           </div>
         </div>
       ) : null}
@@ -212,6 +174,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
                 <ItineraryCard
                   entry={entry}
                   calendarDate={calendarDate}
+                  suppressCarryoverUi={suppressCarryoverUi}
                   draggable={entry.dayId === dayId}
                   hasTask={taskEntryIds.has(entry.id)}
                 />

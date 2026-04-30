@@ -121,6 +121,7 @@ Add-ListFieldIfMissing -ListTitle 'TripDays' -InternalName 'DisplayTitle' -Field
 Add-ListFieldIfMissing -ListTitle 'TripDays' -InternalName 'DayType' -FieldType 'Choice' -Choices @(
     'PlacePort', 'Sea', 'TravelTransit'
 )
+# If upgrading an existing site, add the 'PreTrip' value to the TripDays.DayType choice column in list settings.
 
 # --- Places ---
 Ensure-CustomList -Title 'Places'
@@ -128,6 +129,68 @@ Add-ListFieldIfMissing -ListTitle 'Places' -InternalName 'Latitude' -FieldType '
 Add-ListFieldIfMissing -ListTitle 'Places' -InternalName 'Longitude' -FieldType 'Number'
 Add-ListFieldIfMissing -ListTitle 'Places' -InternalName 'Country' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'Places' -InternalName 'PlaceType' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'Places' -InternalName 'BestKnownFor' -FieldType 'Note'
+
+# --- UserConfig (per-user settings; create list if missing) ---
+Ensure-CustomList -Title 'UserConfig'
+Add-ListFieldIfMissing -ListTitle 'UserConfig' -InternalName 'UserId' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'UserConfig' -InternalName 'HomeCurrency' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'UserConfig' -InternalName 'TemperatureUnit' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'UserConfig' -InternalName 'DistanceUnit' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'UserConfig' -InternalName 'ShowTravellerNames' -FieldType 'Boolean'
+Add-ListFieldIfMissing -ListTitle 'UserConfig' -InternalName 'JournalAuthorName' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'UserConfig' -InternalName 'SidebarWidth' -FieldType 'Number'
+Add-ListFieldIfMissing -ListTitle 'UserConfig' -InternalName 'WeatherApiKey' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'UserConfig' -InternalName 'GeminiApiKey' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'UserConfig' -InternalName 'SightseeingPreferences' -FieldType 'Note'
+
+# --- AppConfig (central key/value; not shown in user Settings UI) ---
+Ensure-CustomList -Title 'AppConfig'
+Add-ListFieldIfMissing -ListTitle 'AppConfig' -InternalName 'ConfigKey' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'AppConfig' -InternalName 'ConfigValue' -FieldType 'Note'
+Add-ListFieldIfMissing -ListTitle 'AppConfig' -InternalName 'ConfigDescription' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'AppConfig' -InternalName 'LastUpdated' -FieldType 'DateTime'
+
+function Ensure-AppConfigSeedRow {
+    param(
+        [string] $Key,
+        [string] $Value,
+        [string] $Description
+    )
+    $items = @(Get-PnPListItem -List 'AppConfig' -PageSize 5000 -ErrorAction SilentlyContinue)
+    $found = $false
+    foreach ($it in $items) {
+        $fv = $it.FieldValues
+        if ($null -ne $fv -and [string]$fv['ConfigKey'] -eq $Key) {
+            $found = $true
+            break
+        }
+    }
+    if ($found) {
+        Write-Host "  [AppConfig] seed '$Key' already present — skipping."
+        return
+    }
+    Write-Host "  [AppConfig] seeding row '$Key'..."
+    Add-PnPListItem -List 'AppConfig' -Values @{
+        Title              = $Key
+        ConfigKey          = $Key
+        ConfigValue        = $Value
+        ConfigDescription  = $Description
+        LastUpdated        = (Get-Date)
+    } | Out-Null
+}
+
+Ensure-AppConfigSeedRow -Key 'affiliate_tripadvisor' -Value 'https://www.tripadvisor.com/Search?q={place}' -Description 'TripAdvisor search link'
+Ensure-AppConfigSeedRow -Key 'affiliate_viator' -Value 'https://www.viator.com/searchResults/all?text={place}' -Description 'Viator search link'
+Ensure-AppConfigSeedRow -Key 'affiliate_getyourguide' -Value 'https://www.getyourguide.com/s/?q={place}' -Description 'GetYourGuide search link'
+Ensure-AppConfigSeedRow -Key 'affiliate_expedia' -Value 'https://www.expedia.com/things-to-do/search?location={place}' -Description 'Expedia search link'
+Ensure-AppConfigSeedRow -Key 'affiliate_booking' -Value 'https://www.booking.com/searchresults.html?ss={place}' -Description 'Booking.com search link'
+Ensure-AppConfigSeedRow -Key 'affiliate_airbnb' -Value 'https://www.airbnb.com/s/{place}/homes' -Description 'Airbnb search link'
+Ensure-AppConfigSeedRow -Key 'affiliate_voicemap' -Value 'https://voicemap.me/search?query={place}' -Description 'VoiceMap search link'
+Ensure-AppConfigSeedRow -Key 'remote_config_url' -Value 'https://www.tripleopard.com/travelhub/config/latest.json' -Description 'Remote config pull URL'
+Ensure-AppConfigSeedRow -Key 'gemini_model' -Value 'gemini-1.5-flash' -Description 'Gemini model to use for AI features'
+Ensure-AppConfigSeedRow -Key 'weather_api_key' -Value '' -Description 'Managed centrally — not user-visible'
+Ensure-AppConfigSeedRow -Key 'licence_validation_url' -Value 'https://www.tripleopard.com/travelhub/licence/validate' -Description 'Licence check endpoint'
 
 # --- DayPlaces ---
 Ensure-CustomList -Title 'DayPlaces'

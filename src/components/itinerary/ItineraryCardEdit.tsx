@@ -1,6 +1,6 @@
 import * as React from 'react';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
-import { BUDGET_CATEGORY_ORDER } from '../../utils/financialUtils';
+import { CATEGORY_LIST } from '../../utils/categoryUtils';
 import { combineDayAndTime, formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
@@ -207,7 +207,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           value={draft.category}
           onChange={(e) => patch({ category: e.target.value })}
         >
-          {BUDGET_CATEGORY_ORDER.map((c) => (
+          {CATEGORY_LIST.map((c) => (
             <option key={c} value={c}>
               {c}
             </option>

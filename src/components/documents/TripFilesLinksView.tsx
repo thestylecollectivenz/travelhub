@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { resolveAbsoluteUrl } from '../../utils/resolveAbsoluteUrl';
+import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import styles from './TripDocumentsView.module.css';
 
 type KindFilter = 'all' | 'documents' | 'links';
@@ -76,7 +77,7 @@ export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeD
                 rel="noopener noreferrer"
                 onClick={(ev) => {
                   ev.preventDefault();
-                  window.open(resolveAbsoluteUrl(r.url), '_blank', 'noopener,noreferrer');
+                  openDocumentUrl(r.url);
                 }}
               >
                 {r.title}

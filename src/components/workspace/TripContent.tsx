@@ -6,6 +6,7 @@ import { TripJournalFeed } from '../journal/TripJournalFeed';
 import { TripPhotoAlbum } from '../journal/TripPhotoAlbum';
 import { TripFilesLinksView } from '../documents/TripFilesLinksView';
 import { TripMap } from '../maps/TripMap';
+import { ErrorBoundary } from '../shared/ErrorBoundary';
 import { TripTasksView } from '../tasks/TripTasksView';
 import { PackingListView } from '../packing/PackingListView';
 import { TripSidebar } from '../sidebar/TripSidebar';
@@ -126,7 +127,11 @@ export const TripContent: React.FC = () => {
         {mainWorkspaceTab === 'journal' ? <TripJournalFeed /> : null}
         {mainWorkspaceTab === 'photos' ? <TripPhotoAlbum /> : null}
         {mainWorkspaceTab === 'files' ? <TripFilesLinksView /> : null}
-        {mainWorkspaceTab === 'map' ? <TripMap /> : null}
+        {mainWorkspaceTab === 'map' ? (
+          <ErrorBoundary fallbackTitle="Map could not load">
+            <TripMap />
+          </ErrorBoundary>
+        ) : null}
         {mainWorkspaceTab === 'plan' ? (
           <section style={{ padding: 'var(--space-4)', display: 'grid', gap: 'var(--space-3)' }}>
             <div style={{ display: 'inline-flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>

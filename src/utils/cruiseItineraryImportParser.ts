@@ -54,6 +54,20 @@ function parseHollandAmerica(html: string): ParsedCruiseRow[] {
 const DATE_LINE = /^([A-Za-z]{3})\s+(\d{1,2}),\s+(\d{4})$/;
 const AD_TIME = /^(?:ARRIVES|DEPARTS)\s*(\d{1,2}:\d{2}\s*(?:AM|PM)?)/i;
 const AD_STUCK = /^(?:ARRIVES|DEPARTS)(\d{1,2}:\d{2}\s*(?:AM|PM)?)/i;
+const MONTH_TO_NUM: Record<string, string> = {
+  jan: '01',
+  feb: '02',
+  mar: '03',
+  apr: '04',
+  may: '05',
+  jun: '06',
+  jul: '07',
+  aug: '08',
+  sep: '09',
+  oct: '10',
+  nov: '11',
+  dec: '12'
+};
 
 function isNoiseLine(line: string): boolean {
   const u = line.toUpperCase();
@@ -99,8 +113,15 @@ function parseCruiseBlockPlainText(text: string): ParsedCruiseRow[] {
       const mon = dm[1];
       const dayPart = dm[2];
       const yr = dm[3];
-      const tryIso = Date.parse(`${mon} ${Number(dayPart)}, ${yr}`);
-      curDate = Number.isNaN(tryIso) ? '' : new Date(tryIso).toISOString().split('T')[0];
+      const monNum = MONTH_TO_NUM[mon.toLowerCase()];
+      const dayNum = Number(dayPart);
+      if (!monNum || !Number.isFinite(dayNum) || dayNum < 1 || dayNum > 31) {
+        curDate = '';
+      } else {
+        const dayIso = dayNum < 10 ? `0${dayNum}` : String(dayNum);
+        // Keep the literal itinerary date; avoid Date/UTC conversion shifting by timezone.
+        curDate = `${yr}-${monNum}-${dayIso}`;
+      }
       continue;
     }
     let m = line.match(AD_TIME);

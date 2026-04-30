@@ -48,6 +48,8 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
   const mapRef = React.useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = React.useRef<L.Map | null>(null);
   const markerLayerRef = React.useRef<L.LayerGroup | null>(null);
+  const mapInitRef = React.useRef(false);
+  const [mapBoot, setMapBoot] = React.useState(0);
 
   const loadTrips = React.useCallback(async (): Promise<void> => {
     setLoading(true);
@@ -108,41 +110,81 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
   }, [trips.length, allPlaces.length, allTripDays.length]);
 
   React.useEffect(() => {
-    if (loading || trips.length === 0) return;
-    if (!mapRef.current || mapInstanceRef.current) return;
-    const map = L.map(mapRef.current, { zoomControl: true });
-    mapInstanceRef.current = map;
-    markerLayerRef.current = L.layerGroup().addTo(map);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+    let cancelled = false;
+    let raf = 0;
+    const tryInit = (): void => {
+      if (cancelled || loading || trips.length === 0 || mapInitRef.current) return;
+      const el = mapRef.current;
+      if (!el || el.clientHeight < 4) {
+        raf = window.requestAnimationFrame(tryInit);
+        return;
+      }
+      if (mapInstanceRef.current) return;
+      mapInitRef.current = true;
+      try {
+        const map = L.map(el, { zoomControl: true });
+        mapInstanceRef.current = map;
+        markerLayerRef.current = L.layerGroup().addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+        setMapBoot((n) => n + 1);
+      } catch (err) {
+        mapInitRef.current = false;
+        // eslint-disable-next-line no-console
+        console.error('TripBrowser: map init failed', err);
+      }
+    };
+    raf = window.requestAnimationFrame(tryInit);
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(raf);
+    };
   }, [loading, trips.length]);
 
   React.useEffect(() => {
-    if (!mapInstanceRef.current || !markerLayerRef.current) return;
     const map = mapInstanceRef.current;
     const layer = markerLayerRef.current;
-    layer.clearLayers();
-    const points: L.LatLngExpression[] = [];
-    for (const p of mapPins) {
-      const ll: L.LatLngExpression = [p.lat, p.lon];
-      points.push(ll);
-      L.circleMarker(ll, {
-        radius: 8,
-        fillColor: '#1A6399',
-        color: '#ffffff',
-        weight: 2,
-        opacity: 1,
-        fillOpacity: 1
-      }).bindPopup(`<strong>${p.title}</strong>`).addTo(layer);
-    }
-    if (points.length) {
-      map.fitBounds(L.latLngBounds(points), { padding: [20, 20] });
-    } else {
-      map.setView([20, 0], 2);
-    }
-    window.setTimeout(() => map.invalidateSize(), 0);
-  }, [mapPins]);
+    if (!map || !layer) return;
+    map.whenReady(() => {
+      try {
+        layer.clearLayers();
+        const points: L.LatLngExpression[] = [];
+        for (const p of mapPins) {
+          const lat = Number(p.lat);
+          const lon = Number(p.lon);
+          // eslint-disable-next-line no-console
+          console.log('TripBrowser marker candidate', p.title, { lat, lon });
+          if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+            // eslint-disable-next-line no-console
+            console.warn('TripBrowser: skip marker — invalid coordinates', p.title);
+            continue;
+          }
+          const ll: L.LatLngExpression = [lat, lon];
+          points.push(ll);
+          L.circleMarker(ll, {
+            radius: 8,
+            fillColor: '#1A6399',
+            color: '#ffffff',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 1
+          })
+            .bindPopup(`<strong>${p.title}</strong>`)
+            .addTo(layer);
+        }
+        if (points.length) {
+          map.fitBounds(L.latLngBounds(points), { padding: [20, 20] });
+        } else {
+          map.setView([20, 0], 2);
+        }
+        window.setTimeout(() => map.invalidateSize(), 0);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('TripBrowser: markers failed', err);
+      }
+    });
+  }, [mapPins, mapBoot]);
 
   React.useEffect(() => {
     const el = mapRef.current;
@@ -151,15 +193,19 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
     const ro = new ResizeObserver(() => map.invalidateSize());
     ro.observe(el);
     return () => ro.disconnect();
-  }, [loading, trips.length]);
+  }, [loading, trips.length, mapBoot]);
 
-  React.useEffect(() => () => {
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove();
-      mapInstanceRef.current = null;
-      markerLayerRef.current = null;
-    }
-  }, []);
+  React.useEffect(
+    () => () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+        markerLayerRef.current = null;
+      }
+      mapInitRef.current = false;
+    },
+    []
+  );
 
   // -- Styles -------------------------------------------------------------
   const pageStyle: React.CSSProperties = {

@@ -44,6 +44,8 @@ export const CategoryIcon: React.FC<CategoryIconProps> = ({ category, size = 16,
         </svg>
       );
     case 'Cruise':
+    case 'Cruise port':
+    case 'Cruise at sea':
       return (
         <svg viewBox="0 0 16 16" fill="none" aria-hidden style={style}>
           <path d="M2 10.8h12l-1.1 2H3.1l-1.1-2Z" {...common} />

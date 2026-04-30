@@ -3,6 +3,7 @@ import type { EntryDocumentType } from '../../models';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { resolveAbsoluteUrl } from '../../utils/resolveAbsoluteUrl';
+import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import styles from './TripDocumentsView.module.css';
 
 function DocumentTypeIcon({ type }: { type: EntryDocumentType }): React.ReactElement {
@@ -263,7 +264,7 @@ export const TripDocumentsView: React.FC = () => {
                     rel="noopener noreferrer"
                     onClick={(ev) => {
                       ev.preventDefault();
-                      window.open(resolveAbsoluteUrl(d.fileUrl), '_blank', 'noopener,noreferrer');
+                      openDocumentUrl(d.fileUrl);
                     }}
                   >
                     {d.fileName || d.title}

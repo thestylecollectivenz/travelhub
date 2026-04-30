@@ -12,11 +12,14 @@ import { formatCurrency } from '../../utils/financialUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { SubItemList } from './SubItemList';
 import { resolveAbsoluteUrl } from '../../utils/resolveAbsoluteUrl';
+import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import styles from './ItineraryCardView.module.css';
 
 export interface ItineraryCardViewProps {
   entry: ItineraryEntry;
   calendarDate: string;
+  /** When true (e.g. pre-trip day), hide multi-day accommodation / cruise continuation labels. */
+  suppressCarryoverUi?: boolean;
   hasTask?: boolean;
   onEdit: () => void;
   onDuplicate: () => void;
@@ -124,7 +127,15 @@ function formatYmd(date?: string): string {
   return d.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, calendarDate, hasTask = false, onEdit, onDuplicate, onDelete }) => {
+export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
+  entry,
+  calendarDate,
+  suppressCarryoverUi = false,
+  hasTask = false,
+  onEdit,
+  onDuplicate,
+  onDelete
+}) => {
   const spContext = useSpContext();
   const { addSubItem, convertToHomeCurrency } = useTripWorkspace();
   const { config } = useConfig();
@@ -216,6 +227,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
   }, [isAccommodation, entry.dateStart, entry.dateEnd]);
   const perNightHome = nights > 0 ? displayAmountHome / nights : 0;
   const isContinuation = React.useMemo(() => {
+    if (suppressCarryoverUi) return false;
     if (!isAccommodation || !entry.dateStart || !entry.dateEnd) return false;
     const thisDay = new Date(`${calendarDate}T00:00:00.000Z`);
     const start = new Date(`${entry.dateStart}T00:00:00.000Z`);
@@ -223,7 +235,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
     if (Number.isNaN(thisDay.getTime()) || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
     const inRange = thisDay.getTime() >= start.getTime() && thisDay.getTime() < end.getTime();
     return inRange && calendarDate !== entry.dateStart;
-  }, [calendarDate, entry.dateEnd, entry.dateStart, isAccommodation]);
+  }, [calendarDate, entry.dateEnd, entry.dateStart, isAccommodation, suppressCarryoverUi]);
   const nightNumber = React.useMemo(() => {
     if (!isContinuation || !entry.dateStart) return 0;
     const thisDay = new Date(`${calendarDate}T00:00:00.000Z`);
@@ -231,12 +243,13 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
     return Math.floor((thisDay.getTime() - start.getTime()) / 86400000) + 1;
   }, [calendarDate, entry.dateStart, isContinuation]);
   const isCruiseContinuation = React.useMemo(() => {
+    if (suppressCarryoverUi) return false;
     if (!isCruise || !entry.embarksDate || !entry.disembarksDate) return false;
     const thisDay = new Date(`${calendarDate}T00:00:00.000Z`);
     const start = new Date(`${entry.embarksDate}T00:00:00.000Z`);
     if (Number.isNaN(thisDay.getTime()) || Number.isNaN(start.getTime())) return false;
     return thisDay.getTime() > start.getTime();
-  }, [calendarDate, entry.disembarksDate, entry.embarksDate, isCruise]);
+  }, [calendarDate, entry.disembarksDate, entry.embarksDate, isCruise, suppressCarryoverUi]);
   const cruiseDayNumber = React.useMemo(() => {
     if (!isCruise || !entry.embarksDate || !entry.disembarksDate) return 0;
     const thisDay = new Date(`${calendarDate}T00:00:00.000Z`);
@@ -249,6 +262,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
     const end = new Date(`${entry.disembarksDate}T00:00:00.000Z`);
     return Math.max(1, Math.floor((end.getTime() - start.getTime()) / 86400000) + 1);
   }, [entry.disembarksDate, entry.embarksDate, isCruise]);
+  const perCruiseDayHome = cruiseTotalDays > 0 ? displayAmountHome / cruiseTotalDays : 0;
+  const perCruiseDayTrip = cruiseTotalDays > 0 ? entry.amount / cruiseTotalDays : 0;
+  const showCruiseDailyAmount = isCruise && entry.amount > 0 && cruiseTotalDays > 0;
 
   let unitSuffix = '';
   if (!isAccommodation && entry.unitType && typeof entry.unitAmount === 'number' && !Number.isNaN(entry.unitAmount)) {
@@ -460,12 +476,16 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
       <div className={styles.amountRow}>
         {isAccommodation && nights > 0
           ? `${formatCurrency(displayAmountHome, config.homeCurrency)} total · ${formatCurrency(perNightHome, config.homeCurrency)} /night`
-          : formatCurrency(displayAmountHome, config.homeCurrency)}
+          : showCruiseDailyAmount
+            ? `${formatCurrency(displayAmountHome, config.homeCurrency)} total · ${formatCurrency(perCruiseDayHome, config.homeCurrency)} /day`
+            : formatCurrency(displayAmountHome, config.homeCurrency)}
         {entry.currency && entry.currency.toUpperCase() !== config.homeCurrency.toUpperCase() ? (
           <span className={styles.unitSuffix}>
             {isAccommodation && nights > 0
               ? ` (${entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency} · ${(entry.amount / nights).toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency} /night)`
-              : ` (${entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency})`}
+              : showCruiseDailyAmount
+                ? ` (${entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency} · ${perCruiseDayTrip.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency} /day)`
+                : ` (${entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency})`}
           </span>
         ) : null}
         {unitSuffix ? <span className={styles.unitSuffix}>{unitSuffix}</span> : null}
@@ -656,7 +676,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
                       rel="noopener noreferrer"
                       onClick={(ev) => {
                         ev.preventDefault();
-                        window.open(resolveAbsoluteUrl(doc.fileUrl), '_blank', 'noopener,noreferrer');
+                        openDocumentUrl(doc.fileUrl);
                       }}
                     >
                       {doc.fileName || doc.title}
@@ -725,7 +745,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({ entry, cal
                       rel="noopener noreferrer"
                       onClick={(ev) => {
                         ev.preventDefault();
-                        window.open(resolveAbsoluteUrl(link.url), '_blank', 'noopener,noreferrer');
+                        openDocumentUrl(link.url);
                       }}
                     >
                       {link.linkTitle}

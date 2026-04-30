@@ -194,6 +194,13 @@ function isBudgetCategoryKey(value: string): value is BudgetCategoryKey {
   return BUDGET_CATEGORY_ORDER.some((k) => k === value);
 }
 
+function bucketCategory(category: string): BudgetCategoryKey {
+  if (category === 'Cruise port' || category === 'Cruise at sea') {
+    return 'Cruise';
+  }
+  return isBudgetCategoryKey(category) ? category : 'Other';
+}
+
 /** Whole-trip totals keyed by category (always all six keys). */
 export function sumByCategory(
   entries: ItineraryEntry[],
@@ -205,7 +212,7 @@ export function sumByCategory(
     result[key] = 0;
   }
   for (const line of lines) {
-    const bucket: BudgetCategoryKey = isBudgetCategoryKey(line.category) ? line.category : 'Other';
+    const bucket = bucketCategory(line.category);
     result[bucket] = (result[bucket] ?? 0) + line.amount;
   }
   return result;
@@ -225,10 +232,6 @@ export function sumForDay(
     }
     return sum + line.amount;
   }, 0);
-}
-
-function bucketCategory(category: string): BudgetCategoryKey {
-  return isBudgetCategoryKey(category) ? category : 'Other';
 }
 
 /** Category totals for one day only (all six keys; unused stay 0). */

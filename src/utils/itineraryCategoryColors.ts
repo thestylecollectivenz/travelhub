@@ -7,7 +7,9 @@ function isBudgetCategoryKey(value: string): value is BudgetCategoryKey {
 
 /** Timeline node border / edit fill — CSS color values only (vars). */
 export function categoryNodeColor(category: string): string {
-  const key: BudgetCategoryKey = isBudgetCategoryKey(category) ? category : 'Other';
+  const normalized: string =
+    category === 'Cruise port' || category === 'Cruise at sea' ? 'Cruise' : category;
+  const key: BudgetCategoryKey = isBudgetCategoryKey(normalized) ? normalized : 'Other';
   const map: Record<BudgetCategoryKey, string> = {
     Flights: 'var(--color-blue-400)',
     Accommodation: 'var(--color-teal-400)',

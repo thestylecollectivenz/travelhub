@@ -15,7 +15,8 @@ function mapToPlace(item: any): Place {
     countryCode: (item.CountryCode ?? '').toUpperCase(),
     placeType: (item.PlaceType ?? 'other').toLowerCase(),
     timeZone: item.TimeZone ?? '',
-    nominatimId: item.NominatimId ?? ''
+    nominatimId: item.NominatimId ?? '',
+    bestKnownFor: typeof item.BestKnownFor === 'string' ? item.BestKnownFor : undefined
   } as Place;
 }
 
@@ -29,6 +30,7 @@ function mapToSpItem(place: Partial<Place>): Record<string, unknown> {
   if (place.placeType !== undefined) item.PlaceType = place.placeType;
   if (place.timeZone !== undefined) item.TimeZone = place.timeZone;
   if (place.nominatimId !== undefined) item.NominatimId = place.nominatimId;
+  if (place.bestKnownFor !== undefined) item.BestKnownFor = place.bestKnownFor;
   return item;
 }
 
@@ -70,7 +72,7 @@ export class PlaceService {
   }
 
   async getAll(): Promise<Place[]> {
-    const select = '$select=ID,Title,Latitude,Longitude,Country,CountryCode,PlaceType,TimeZone,NominatimId';
+    const select = '$select=ID,Title,Latitude,Longitude,Country,CountryCode,PlaceType,TimeZone,NominatimId,BestKnownFor';
     const url = `${this.baseUrl}?${select}&$orderby=ID desc&$top=5000`;
     const resp: SPHttpClientResponse = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
     if (!resp.ok) throw new Error(`PlaceService.getAll failed: ${resp.status}`);
@@ -79,7 +81,7 @@ export class PlaceService {
   }
 
   async getById(id: string): Promise<Place> {
-    const select = '$select=ID,Title,Latitude,Longitude,Country,CountryCode,PlaceType,TimeZone,NominatimId';
+    const select = '$select=ID,Title,Latitude,Longitude,Country,CountryCode,PlaceType,TimeZone,NominatimId,BestKnownFor';
     const url = `${this.baseUrl}(${id})?${select}`;
     const resp: SPHttpClientResponse = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
     if (!resp.ok) throw new Error(`PlaceService.getById failed: ${resp.status}`);
@@ -89,7 +91,7 @@ export class PlaceService {
   async create(place: Omit<Place, 'id'>): Promise<Place> {
     if (place.nominatimId) {
       const safe = place.nominatimId.replace(/'/g, "''");
-      const dedupeUrl = `${this.baseUrl}?$select=ID,Title,Latitude,Longitude,Country,CountryCode,PlaceType,TimeZone,NominatimId&$filter=NominatimId eq '${safe}'&$top=1`;
+      const dedupeUrl = `${this.baseUrl}?$select=ID,Title,Latitude,Longitude,Country,CountryCode,PlaceType,TimeZone,NominatimId,BestKnownFor&$filter=NominatimId eq '${safe}'&$top=1`;
       const existingResp: SPHttpClientResponse = await this.ctx.spHttpClient.get(dedupeUrl, SPHttpClient.configurations.v1);
       if (existingResp.ok) {
         const existingData = await existingResp.json();

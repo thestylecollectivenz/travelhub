@@ -27,11 +27,20 @@
   font-family: var(--font-sans);
 }
 
+.print-front-matter {
+  page-break-inside: avoid;
+  page-break-after: always;
+}
+
 .print-cover-page {
-  min-height: 100vh;
+  min-height: auto;
   display: grid;
   grid-template-rows: auto 1fr;
-  page-break-after: always;
+  page-break-after: avoid;
+}
+
+.print-day-block.print-day-first {
+  page-break-before: always;
 }
 
 .print-cover-page.hasHero .print-cover-content {

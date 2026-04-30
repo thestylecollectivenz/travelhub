@@ -161,13 +161,14 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
       localEntries.filter((e) => e.dayId === dayId && !e.parentEntryId).reduce((m, e) => Math.max(m, e.sortOrder), 0);
 
     const makeSegmentEntry = (dayId: string, row: ParsedCruiseRow, sortOrder: number): ItineraryEntry => {
-      const title = isSeaOrScenicLine(row.port) ? seaDayTitle(row.port) : row.port;
+      const atSea = isSeaOrScenicLine(row.port);
+      const title = atSea ? seaDayTitle(row.port) : row.port;
       return {
         id: newTempEntryId(),
         dayId,
         tripId: trip.id,
         title,
-        category: 'Other',
+        category: atSea ? 'Cruise at sea' : 'Cruise port',
         timeStart: row.arrive || '',
         arrivalTime: row.depart?.trim() ? row.depart : undefined,
         duration: '',

@@ -2,6 +2,8 @@ import * as React from 'react';
 import type { EntryLink } from '../../models';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { resolveAbsoluteUrl } from '../../utils/resolveAbsoluteUrl';
+import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import styles from './TripLinksView.module.css';
 
 export const TripLinksView: React.FC = () => {
@@ -232,10 +234,28 @@ export const TripLinksView: React.FC = () => {
                   <>
                     <div className={styles.line1}>
                       <span className={styles.badge}>{link.linkType}</span>
-                      <a className={styles.linkTitle} href={link.url} target="_blank" rel="noopener noreferrer">
+                      <a
+                        className={styles.linkTitle}
+                        href={resolveAbsoluteUrl(link.url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(ev) => {
+                          ev.preventDefault();
+                          openDocumentUrl(link.url);
+                        }}
+                      >
                         {link.linkTitle}
                       </a>
-                      <a className={styles.url} href={link.url} target="_blank" rel="noopener noreferrer">
+                      <a
+                        className={styles.url}
+                        href={resolveAbsoluteUrl(link.url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(ev) => {
+                          ev.preventDefault();
+                          openDocumentUrl(link.url);
+                        }}
+                      >
                         {link.url}
                       </a>
                     </div>

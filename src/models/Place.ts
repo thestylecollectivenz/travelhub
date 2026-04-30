@@ -17,6 +17,8 @@ export interface Place {
   placeType: PlaceType;
   timeZone: string;
   nominatimId: string;
+  /** Optional JSON string from SharePoint BestKnownFor (Phase 8). */
+  bestKnownFor?: string;
 }
 
 export interface PlaceCandidate {

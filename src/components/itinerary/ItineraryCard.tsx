@@ -11,6 +11,7 @@ import styles from './ItineraryCard.module.css';
 export interface ItineraryCardProps {
   entry: ItineraryEntry;
   calendarDate: string;
+  suppressCarryoverUi?: boolean;
   draggable?: boolean;
   hasTask?: boolean;
 }
@@ -28,7 +29,13 @@ function GripIcon(): React.ReactElement {
   );
 }
 
-export const ItineraryCard: React.FC<ItineraryCardProps> = ({ entry, calendarDate, draggable = true, hasTask = false }) => {
+export const ItineraryCard: React.FC<ItineraryCardProps> = ({
+  entry,
+  calendarDate,
+  suppressCarryoverUi,
+  draggable = true,
+  hasTask = false
+}) => {
   const { editingCardId, setEditingCardId, updateEntry, deleteEntry, duplicateEntry } = useTripWorkspace();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: entry.id,
@@ -98,6 +105,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({ entry, calendarDat
         <ItineraryCardView
           entry={entry}
           calendarDate={calendarDate}
+          suppressCarryoverUi={suppressCarryoverUi}
           hasTask={hasTask}
           onEdit={() => setEditingCardId(entry.id)}
           onDuplicate={() => duplicateEntry(entry.id)}
