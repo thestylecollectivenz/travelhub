@@ -109,7 +109,7 @@
 
 .timeAxis {
   flex-shrink: 0;
-  width: 3.25rem;
+  width: 3.5rem;
   border-right: var(--border-default);
   background: var(--color-surface);
   position: relative;
@@ -202,6 +202,23 @@
   color: var(--color-primary);
 }
 
+.subBlock {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--color-blue-300);
+  background: color-mix(in srgb, var(--color-blue-100) 55%, var(--color-surface));
+  color: var(--color-blue-800);
+  font-size: 10px;
+  line-height: 1.2;
+  padding: 1px 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .unscheduled {
   margin-top: var(--space-3);
   padding: var(--space-3);
@@ -212,7 +229,9 @@
 
 .unscheduled h3 {
   margin: 0 0 var(--space-2);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--color-sand-700);
 }
 

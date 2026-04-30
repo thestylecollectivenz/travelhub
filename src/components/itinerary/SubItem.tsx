@@ -73,6 +73,22 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
           placeholder="Sub-item title"
         />
         <div className={styles.editRow}>
+          <input
+            className={styles.field}
+            type="time"
+            value={draft.startTime ?? ''}
+            onChange={(e) => setDraft((prev) => ({ ...prev, startTime: e.target.value || undefined }))}
+            placeholder="Start time"
+          />
+          <input
+            className={styles.field}
+            type="time"
+            value={draft.endTime ?? ''}
+            onChange={(e) => setDraft((prev) => ({ ...prev, endTime: e.target.value || undefined }))}
+            placeholder="End time"
+          />
+        </div>
+        <div className={styles.editRow}>
           <select
             className={styles.field}
             value={draft.decisionStatus}
@@ -165,6 +181,7 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
         <span className={`${styles.paymentBadge} ${paymentBadgeClass(item.paymentStatus)}`}>{item.paymentStatus}</span>
       </div>
       <div className={styles.right}>
+        {item.startTime ? <span className={styles.amount}>{item.startTime}{item.endTime ? `-${item.endTime}` : ''}</span> : null}
         {item.paymentStatus === 'Free' ? (
           <span className={styles.free}>Free</span>
         ) : (

@@ -9,6 +9,10 @@ export type ItineraryUnitType = 'PerPerson' | 'PerNight' | 'PerDay';
 export interface ItinerarySubItem {
   id: string;
   title: string;
+  /** Optional HH:MM start time used by Day Planner plotting. */
+  startTime?: string;
+  /** Optional HH:MM end time used by Day Planner plotting. */
+  endTime?: string;
   decisionStatus: ItineraryDecisionStatus;
   paymentStatus: ItineraryPaymentStatus;
   amount: number;

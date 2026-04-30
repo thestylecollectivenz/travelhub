@@ -159,6 +159,8 @@ function mapToSubItem(item: any): ItinerarySubItem {
   return {
     id: String(item.ID),
     title: item.Title ?? '',
+    startTime: parseTime(item.TimeStart),
+    endTime: parseTime(item.ArrivalTime),
     decisionStatus: (item.DecisionStatus as ItineraryDecisionStatus) ?? 'Planned',
     paymentStatus: (item.PaymentStatus as ItineraryPaymentStatus) ?? 'Not paid',
     amount: item.Amount ?? 0,
@@ -347,6 +349,8 @@ export class ItineraryService {
       DayId: parentEntry.dayId,
       Category: parentEntry.category,
       ParentEntryId: parentEntry.id,
+      TimeStart: serializeTime(subItem.startTime),
+      ArrivalTime: serializeTime(subItem.endTime),
       DecisionStatus: subItem.decisionStatus,
       PaymentStatus: subItem.paymentStatus,
       Amount: subItem.amount,

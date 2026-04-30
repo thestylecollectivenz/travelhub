@@ -370,6 +370,8 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       svc
         .update(updatedSubItem.id, {
           title: updatedSubItem.title,
+          timeStart: updatedSubItem.startTime,
+          arrivalTime: updatedSubItem.endTime,
           decisionStatus: updatedSubItem.decisionStatus,
           paymentStatus: updatedSubItem.paymentStatus,
           amount: updatedSubItem.amount,
