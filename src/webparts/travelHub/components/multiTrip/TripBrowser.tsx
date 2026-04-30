@@ -314,10 +314,6 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
     overflow: 'hidden',
     background: 'var(--color-surface-raised)'
   };
-  const mapStyle: React.CSSProperties = {
-    height: '500px',
-    width: '100%'
-  };
   const statsWrapStyle: React.CSSProperties = {
     marginTop: 'var(--space-6)',
     border: 'var(--border-default)',
@@ -407,7 +403,7 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
                 No primary places on trip days yet — map loads here once days have locations.
               </p>
             ) : null}
-            <div ref={mapRef} style={mapStyle} />
+            <div ref={mapRef} className="th-map-container" />
           </section>
           <section style={statsWrapStyle} aria-label="Travel stats">
             <h2 style={{ margin: '0 0 var(--space-3)', color: 'var(--color-blue-800)', fontSize: 'var(--font-size-lg)' }}>Stats</h2>

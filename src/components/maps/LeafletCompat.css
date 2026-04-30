@@ -52,6 +52,17 @@
 .leaflet-tile {
   max-width: none !important;
   max-height: none !important;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  visibility: hidden;
+}
+
+.leaflet-tile::selection {
+  background: transparent;
+}
+
+.leaflet-tile-loaded {
   visibility: inherit;
 }
 
@@ -76,12 +87,27 @@
 
 .leaflet-marker-icon,
 .leaflet-marker-shadow {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
   display: block;
 }
 
 .leaflet-container .leaflet-overlay-pane svg {
+  display: block;
   max-width: none;
   max-height: none;
+}
+
+.leaflet-zoom-pane > svg {
+  display: block;
+}
+
+.leaflet-zoom-box {
+  width: 0;
+  height: 0;
+  box-sizing: border-box;
+  z-index: 800;
 }
 
 .leaflet-control {
@@ -99,6 +125,14 @@
 
 .leaflet-top {
   top: 0;
+}
+
+.leaflet-bottom {
+  bottom: 0;
+}
+
+.leaflet-left {
+  left: 0;
 }
 
 .leaflet-right {
@@ -137,4 +171,45 @@
 .leaflet-popup-content {
   margin: var(--space-2) var(--space-3);
   color: var(--color-blue-800);
+}
+
+.leaflet-map-pane canvas {
+  z-index: 100;
+}
+
+.leaflet-map-pane svg {
+  z-index: 200;
+}
+
+.leaflet-control {
+  float: left;
+  clear: both;
+  pointer-events: visiblePainted;
+  pointer-events: auto;
+}
+
+.leaflet-right .leaflet-control {
+  float: right;
+}
+
+.leaflet-top .leaflet-control {
+  margin-top: 10px;
+}
+
+.leaflet-bottom .leaflet-control {
+  margin-bottom: 10px;
+}
+
+.leaflet-left .leaflet-control {
+  margin-left: 10px;
+}
+
+.leaflet-right .leaflet-control {
+  margin-right: 10px;
+}
+
+.th-map-container {
+  width: 100%;
+  min-height: 400px;
+  height: 100%;
 }

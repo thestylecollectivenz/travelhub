@@ -233,7 +233,7 @@ export const TripMap: React.FC = () => {
           Add a primary location to each itinerary day to see stops on the map. The map still loads so you can confirm the tab is working.
         </p>
       ) : null}
-      <div className={styles.map} ref={mapRef} style={{ minHeight: 420 }} />
+      <div className={`${styles.map} th-map-container`} ref={mapRef} />
     </section>
   );
 };
