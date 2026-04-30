@@ -26,12 +26,10 @@ export const SharedSidebarDayList: React.FC = () => {
     return tripDays.filter((d) => d.tripId === trip.id && d.dayType !== 'PreTrip').sort((a, b) => a.dayNumber - b.dayNumber);
   }, [trip, tripDays]);
 
-  React.useEffect(() => {
-    if (!days.length) return;
-    if (!days.some((d) => d.id === selectedDayId)) {
-      setSelectedDayId(days[0].id);
-    }
-  }, [days, selectedDayId, setSelectedDayId]);
+  const effectiveSelectedDayId = React.useMemo(() => {
+    if (days.some((d) => d.id === selectedDayId)) return selectedDayId;
+    return days[0]?.id ?? '';
+  }, [days, selectedDayId]);
 
   return (
     <div className={styles.dayListSection}>
@@ -53,7 +51,7 @@ export const SharedSidebarDayList: React.FC = () => {
                 : day.dayType === 'TravelTransit'
                   ? itemStyles.badgeTransit
                   : itemStyles.badgePlacePort;
-          const isSelected = day.id === selectedDayId;
+          const isSelected = day.id === effectiveSelectedDayId;
           return (
             <li key={day.id} className={itemStyles.listItemWrap}>
               <button
