@@ -96,6 +96,27 @@ function WeatherIcon({ iconCode }: { iconCode: string }): React.ReactElement {
   );
 }
 
+function seasonForLatitude(month: number, latitude: number): 'Summer' | 'Autumn' | 'Winter' | 'Spring' {
+  const north = latitude >= 0;
+  if (north) {
+    if (month === 11 || month === 0 || month === 1) return 'Winter';
+    if (month >= 2 && month <= 4) return 'Spring';
+    if (month >= 5 && month <= 7) return 'Summer';
+    return 'Autumn';
+  }
+  if (month === 11 || month === 0 || month === 1) return 'Summer';
+  if (month >= 2 && month <= 4) return 'Autumn';
+  if (month >= 5 && month <= 7) return 'Winter';
+  return 'Spring';
+}
+
+function SeasonIcon({ season }: { season: 'Summer' | 'Autumn' | 'Winter' | 'Spring' }): React.ReactElement {
+  if (season === 'Summer') return <span aria-hidden>☀️</span>;
+  if (season === 'Winter') return <span aria-hidden>❄️</span>;
+  if (season === 'Spring') return <span aria-hidden>🌸</span>;
+  return <span aria-hidden>🍂</span>;
+}
+
 export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry, onWriteJournal, variant = 'default' }) => {
   const { config } = useConfig();
   const { updateDay, trip } = useTripWorkspace();
@@ -233,6 +254,24 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
     if (parts.length < 2) return value;
     return `${parts[0]}:${parts[1]}`;
   }, []);
+  const currentLocalTime = React.useMemo(() => {
+    const tz = infoPlace?.timeZone?.trim();
+    if (!tz) return '';
+    try {
+      return new Intl.DateTimeFormat('en-NZ', {
+        timeZone: tz,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      }).format(new Date());
+    } catch {
+      return '';
+    }
+  }, [infoPlace?.timeZone]);
+  const currentSeason = React.useMemo(() => {
+    if (!infoPlace || !Number.isFinite(infoPlace.latitude)) return '';
+    return seasonForLatitude(new Date().getMonth(), Number(infoPlace.latitude));
+  }, [infoPlace]);
 
   const updateLocations = React.useCallback(
     (primaryId: string, additional: Array<{ placeId: string; returnToPrimary: boolean }>) => {
@@ -527,6 +566,11 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
                         <WeatherIcon iconCode={weather.iconCode} />
                         {Math.round(weather.temp)}°{config.temperatureUnit === 'Fahrenheit' ? 'F' : 'C'} · {weather.description}
                       </div>
+                      {currentLocalTime || currentSeason ? (
+                        <div className={styles.infoSub}>
+                          {currentLocalTime || '—'} {currentSeason ? <>· <SeasonIcon season={currentSeason as 'Summer' | 'Autumn' | 'Winter' | 'Spring'} /> {currentSeason}</> : null}
+                        </div>
+                      ) : null}
                       <div className={styles.infoSub}>Sunrise {formatLocalFromUnix(weather.sunrise, weather.timezoneName)} · Sunset {formatLocalFromUnix(weather.sunset, weather.timezoneName)}</div>
                     </>
                   ) : (
