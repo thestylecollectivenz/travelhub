@@ -3,9 +3,6 @@ import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 
 const LIST = 'UserConfig';
 
-const JSON_ODATA_MINIMAL = 'application/json;odata=minimalmetadata';
-const JSON_ODATA_VERBOSE = 'application/json;odata=verbose';
-
 export interface UserConfig {
   homeCurrency: string;
   temperatureUnit: 'Celsius' | 'Fahrenheit';
@@ -80,30 +77,6 @@ export class ConfigService {
     };
   }
 
-  private async getRequestDigest(): Promise<string> {
-    const url = `${this.ctx.pageContext.web.absoluteUrl}/_api/contextinfo`;
-    const resp = await this.ctx.spHttpClient.post(url, SPHttpClient.configurations.v1, {
-      headers: {
-        Accept: JSON_ODATA_VERBOSE,
-        'Content-Type': JSON_ODATA_VERBOSE
-      },
-      body: JSON.stringify({})
-    });
-    if (!resp.ok) {
-      await logFailedResponse('getRequestDigest', resp);
-      throw new Error(`ConfigService digest failed: ${resp.status}`);
-    }
-    const data = (await resp.json()) as {
-      d?: { GetContextWebInformation?: { FormDigestValue?: string } };
-      FormDigestValue?: string;
-    };
-    const digest = data.d?.GetContextWebInformation?.FormDigestValue ?? (data as { FormDigestValue?: string }).FormDigestValue;
-    if (!digest) {
-      throw new Error('ConfigService digest missing from contextinfo response');
-    }
-    return digest;
-  }
-
   private async getItemsWithFilter(filterExpr: string, includeUserIdField: boolean): Promise<SPHttpClientResponse> {
     const safeFilter = encodeURIComponent(filterExpr);
     const selectFields = includeUserIdField
@@ -111,9 +84,7 @@ export class ConfigService {
       : 'ID,Title,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,WeatherApiKey';
     const select = encodeURIComponent(selectFields);
     const url = `${this.baseUrl}?$select=${select}&$filter=${safeFilter}&$top=1`;
-    return this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1, {
-      headers: { Accept: JSON_ODATA_MINIMAL }
-    });
+    return this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
   }
 
   private async getConfigItem(userId: string): Promise<{ id?: number; config: UserConfig; raw?: Record<string, unknown> }> {
@@ -166,13 +137,11 @@ export class ConfigService {
     const body = JSON.stringify(this.mapToSpItem(userId, config));
 
     if (existing.id) {
-      const digest = await this.getRequestDigest();
       const updateResp = await this.ctx.spHttpClient.fetch(`${this.baseUrl}(${existing.id})`, SPHttpClient.configurations.v1, {
         method: 'PATCH',
         headers: {
-          Accept: JSON_ODATA_MINIMAL,
-          'Content-Type': JSON_ODATA_MINIMAL,
-          'X-RequestDigest': digest,
+          Accept: 'application/json;odata.metadata=minimal',
+          'Content-Type': 'application/json;odata.metadata=minimal',
           'IF-MATCH': '*'
         },
         body
@@ -184,12 +153,10 @@ export class ConfigService {
       return;
     }
 
-    const createDigest = await this.getRequestDigest();
     const createResp = await this.ctx.spHttpClient.post(this.baseUrl, SPHttpClient.configurations.v1, {
       headers: {
-        Accept: JSON_ODATA_MINIMAL,
-        'Content-Type': JSON_ODATA_MINIMAL,
-        'X-RequestDigest': createDigest
+        Accept: 'application/json;odata.metadata=minimal',
+        'Content-Type': 'application/json;odata.metadata=minimal'
       },
       body
     });
