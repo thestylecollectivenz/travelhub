@@ -20,6 +20,25 @@ function isValidLatLng(lat: number, lon: number): boolean {
   return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
 }
 
+function addResilientTileLayer(map: L.Map): void {
+  const primary = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  });
+  let switched = false;
+  let tileErrors = 0;
+  primary.on('tileerror', () => {
+    tileErrors += 1;
+    if (switched || tileErrors < 4) return;
+    switched = true;
+    map.removeLayer(primary);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      subdomains: 'abcd',
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+    }).addTo(map);
+  });
+  primary.addTo(map);
+}
+
 export const TripMap: React.FC = () => {
   const { trip, tripDays } = useTripWorkspace();
   const { placeById } = usePlaces();
@@ -97,9 +116,7 @@ export const TripMap: React.FC = () => {
       initStartedRef.current = true;
       try {
         mapInstanceRef.current = L.map(el, { zoomControl: true });
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(mapInstanceRef.current);
+        addResilientTileLayer(mapInstanceRef.current);
         layerGroupRef.current = L.layerGroup().addTo(mapInstanceRef.current);
         setMapBoot((n) => n + 1);
       } catch (err) {

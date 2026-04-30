@@ -33,6 +33,25 @@ function getStatusBadgeStyles(status: string): React.CSSProperties {
   }
 }
 
+function addResilientTileLayer(map: L.Map): void {
+  const primary = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  });
+  let switched = false;
+  let tileErrors = 0;
+  primary.on('tileerror', () => {
+    tileErrors += 1;
+    if (switched || tileErrors < 4) return;
+    switched = true;
+    map.removeLayer(primary);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      subdomains: 'abcd',
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+    }).addTo(map);
+  });
+  primary.addTo(map);
+}
+
 export interface ITripBrowserProps {
   onSelectTrip: (tripId: string) => void;
   onCreateTrip: () => void;
@@ -125,9 +144,7 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
         const map = L.map(el, { zoomControl: true });
         mapInstanceRef.current = map;
         markerLayerRef.current = L.layerGroup().addTo(map);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
+        addResilientTileLayer(map);
         setMapBoot((n) => n + 1);
       } catch (err) {
         mapInitRef.current = false;

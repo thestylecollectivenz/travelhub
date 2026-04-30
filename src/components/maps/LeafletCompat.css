@@ -58,6 +58,18 @@
   visibility: hidden;
 }
 
+.leaflet-container img,
+.leaflet-container .leaflet-tile,
+.leaflet-container .leaflet-marker-icon,
+.leaflet-container .leaflet-marker-shadow {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.leaflet-zoom-animated {
+  transform-origin: 0 0;
+}
+
 .leaflet-tile::selection {
   background: transparent;
 }
