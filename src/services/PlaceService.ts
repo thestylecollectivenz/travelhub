@@ -43,6 +43,16 @@ export class PlaceService {
     this.baseUrl = `${context.pageContext.web.absoluteUrl}/_api/web/lists/getbytitle('${LIST}')/items`;
   }
 
+  private async getWithBestKnownForFallback(urlWithBestKnownFor: string, urlWithoutBestKnownFor: string): Promise<SPHttpClientResponse> {
+    const first = await this.ctx.spHttpClient.get(urlWithBestKnownFor, SPHttpClient.configurations.v1);
+    if (first.ok || first.status !== 400) {
+      return first;
+    }
+    // eslint-disable-next-line no-console
+    console.warn('PlaceService: BestKnownFor column unavailable, retrying without it');
+    return this.ctx.spHttpClient.get(urlWithoutBestKnownFor, SPHttpClient.configurations.v1);
+  }
+
   async search(query: string): Promise<PlaceCandidate[]> {
     const trimmed = query.trim();
     if (!trimmed) return [];
@@ -72,18 +82,22 @@ export class PlaceService {
   }
 
   async getAll(): Promise<Place[]> {
-    const select = '$select=ID,Title,Latitude,Longitude,Country,CountryCode,PlaceType,TimeZone,NominatimId,BestKnownFor';
-    const url = `${this.baseUrl}?${select}&$orderby=ID desc&$top=5000`;
-    const resp: SPHttpClientResponse = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
+    const selectWithBestKnownFor = '$select=ID,Title,Latitude,Longitude,Country,CountryCode,PlaceType,TimeZone,NominatimId,BestKnownFor';
+    const selectBase = '$select=ID,Title,Latitude,Longitude,Country,CountryCode,PlaceType,TimeZone,NominatimId';
+    const urlWithBestKnownFor = `${this.baseUrl}?${selectWithBestKnownFor}&$orderby=ID desc&$top=5000`;
+    const urlBase = `${this.baseUrl}?${selectBase}&$orderby=ID desc&$top=5000`;
+    const resp: SPHttpClientResponse = await this.getWithBestKnownForFallback(urlWithBestKnownFor, urlBase);
     if (!resp.ok) throw new Error(`PlaceService.getAll failed: ${resp.status}`);
     const data = await resp.json();
     return (data.value ?? []).map(mapToPlace);
   }
 
   async getById(id: string): Promise<Place> {
-    const select = '$select=ID,Title,Latitude,Longitude,Country,CountryCode,PlaceType,TimeZone,NominatimId,BestKnownFor';
-    const url = `${this.baseUrl}(${id})?${select}`;
-    const resp: SPHttpClientResponse = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
+    const selectWithBestKnownFor = '$select=ID,Title,Latitude,Longitude,Country,CountryCode,PlaceType,TimeZone,NominatimId,BestKnownFor';
+    const selectBase = '$select=ID,Title,Latitude,Longitude,Country,CountryCode,PlaceType,TimeZone,NominatimId';
+    const urlWithBestKnownFor = `${this.baseUrl}(${id})?${selectWithBestKnownFor}`;
+    const urlBase = `${this.baseUrl}(${id})?${selectBase}`;
+    const resp: SPHttpClientResponse = await this.getWithBestKnownForFallback(urlWithBestKnownFor, urlBase);
     if (!resp.ok) throw new Error(`PlaceService.getById failed: ${resp.status}`);
     return mapToPlace(await resp.json());
   }
@@ -91,8 +105,9 @@ export class PlaceService {
   async create(place: Omit<Place, 'id'>): Promise<Place> {
     if (place.nominatimId) {
       const safe = place.nominatimId.replace(/'/g, "''");
-      const dedupeUrl = `${this.baseUrl}?$select=ID,Title,Latitude,Longitude,Country,CountryCode,PlaceType,TimeZone,NominatimId,BestKnownFor&$filter=NominatimId eq '${safe}'&$top=1`;
-      const existingResp: SPHttpClientResponse = await this.ctx.spHttpClient.get(dedupeUrl, SPHttpClient.configurations.v1);
+      const dedupeWithBestKnownFor = `${this.baseUrl}?$select=ID,Title,Latitude,Longitude,Country,CountryCode,PlaceType,TimeZone,NominatimId,BestKnownFor&$filter=NominatimId eq '${safe}'&$top=1`;
+      const dedupeBase = `${this.baseUrl}?$select=ID,Title,Latitude,Longitude,Country,CountryCode,PlaceType,TimeZone,NominatimId&$filter=NominatimId eq '${safe}'&$top=1`;
+      const existingResp: SPHttpClientResponse = await this.getWithBestKnownForFallback(dedupeWithBestKnownFor, dedupeBase);
       if (existingResp.ok) {
         const existingData = await existingResp.json();
         const existing = (existingData.value ?? [])[0];
