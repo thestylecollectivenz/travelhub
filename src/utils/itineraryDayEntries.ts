@@ -2,7 +2,7 @@ import type { ItineraryEntry } from '../models/ItineraryEntry';
 import { minutesFromTimeStart } from './itineraryTimeUtils';
 
 export function isEntryOnCalendarDate(entry: ItineraryEntry, calendarDate: string, dayType?: string): boolean {
-  if (dayType === 'PreTrip') return false;
+  if (dayType === 'PreTrip' || dayType === 'Pre-trip') return false;
   if (!calendarDate) return false;
   if (entry.category === 'Accommodation' && entry.dateStart && entry.dateEnd) {
     const day = new Date(`${calendarDate}T00:00:00.000Z`);
@@ -28,9 +28,10 @@ export function sortEntriesForDay(
   dayType?: string
 ): ItineraryEntry[] {
   const map = new Map<string, ItineraryEntry>();
+  const isPreTrip = dayType === 'PreTrip' || dayType === 'Pre-trip';
   for (const e of entries) {
     if (e.parentEntryId) continue;
-    if (dayType === 'PreTrip') {
+    if (isPreTrip) {
       if (e.dayId === dayId) {
         map.set(e.id, e);
       }

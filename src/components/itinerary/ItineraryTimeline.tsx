@@ -87,7 +87,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
     () => (trip ? tripDays.find((x) => x.id === dayId && x.tripId === trip.id)?.dayType : undefined),
     [trip, tripDays, dayId]
   );
-  const suppressCarryoverUi = dayType === 'PreTrip';
+  const suppressCarryoverUi = dayType === 'PreTrip' || String(dayType) === 'Pre-trip';
 
   const sorted = React.useMemo(() => sortEntriesForDay(localEntries, dayId, calendarDate, dayType), [localEntries, dayId, calendarDate, dayType]);
 
