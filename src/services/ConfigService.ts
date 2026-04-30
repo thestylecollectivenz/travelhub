@@ -39,10 +39,38 @@ async function logFailedResponse(label: string, resp: SPHttpClientResponse): Pro
 export class ConfigService {
   private ctx: WebPartContext;
   private baseUrl: string;
+  private localStorageKeyPrefix: string;
 
   constructor(context: WebPartContext) {
     this.ctx = context;
     this.baseUrl = `${context.pageContext.web.absoluteUrl}/_api/web/lists/getbytitle('${LIST}')/items`;
+    this.localStorageKeyPrefix = `travelhub:userconfig:${context.pageContext.web.absoluteUrl}`;
+  }
+
+  private localStorageKey(userId: string): string {
+    return `${this.localStorageKeyPrefix}:${userId}`;
+  }
+
+  private loadFromLocalFallback(userId: string): UserConfig | undefined {
+    try {
+      const raw = window.localStorage.getItem(this.localStorageKey(userId));
+      if (!raw) return undefined;
+      const parsed = JSON.parse(raw) as Partial<UserConfig>;
+      return {
+        ...DEFAULT_USER_CONFIG,
+        ...parsed
+      };
+    } catch {
+      return undefined;
+    }
+  }
+
+  private saveToLocalFallback(userId: string, config: UserConfig): void {
+    try {
+      window.localStorage.setItem(this.localStorageKey(userId), JSON.stringify(config));
+    } catch {
+      // Ignore quota/privacy mode errors.
+    }
   }
 
   private mapFromSpItem(item: Record<string, unknown>): UserConfig {
@@ -109,7 +137,8 @@ export class ConfigService {
     }
     if (!resp.ok) {
       await logFailedResponse('getConfigItem', resp);
-      return { config: { ...DEFAULT_USER_CONFIG } };
+      const local = this.loadFromLocalFallback(userId);
+      return { config: local ?? { ...DEFAULT_USER_CONFIG } };
     }
     let data: { value?: Record<string, unknown>[] };
     try {
@@ -121,7 +150,8 @@ export class ConfigService {
     }
     const item = (data.value ?? [])[0];
     if (!item) {
-      return { config: { ...DEFAULT_USER_CONFIG } };
+      const local = this.loadFromLocalFallback(userId);
+      return { config: local ?? { ...DEFAULT_USER_CONFIG } };
     }
     const resolved = this.mapFromSpItem(item);
     return { id: Number(item.ID), config: resolved, raw: item };
@@ -148,8 +178,10 @@ export class ConfigService {
       });
       if (!updateResp.ok && updateResp.status !== 204) {
         await logFailedResponse('saveConfig PATCH', updateResp);
+        this.saveToLocalFallback(userId, config);
         throw new Error(`ConfigService.saveConfig update failed: ${updateResp.status}`);
       }
+      this.saveToLocalFallback(userId, config);
       return;
     }
 
@@ -162,8 +194,10 @@ export class ConfigService {
     });
     if (!createResp.ok && createResp.status !== 201) {
       await logFailedResponse('saveConfig POST', createResp);
+      this.saveToLocalFallback(userId, config);
       throw new Error(`ConfigService.saveConfig create failed: ${createResp.status}`);
     }
+    this.saveToLocalFallback(userId, config);
   }
 }
 
