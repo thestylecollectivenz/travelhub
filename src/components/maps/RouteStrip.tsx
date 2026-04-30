@@ -10,7 +10,7 @@ type Stop = {
   startDay: number;
   dayId: string;
   additionalTitles: string[];
-  hasThroughStop: boolean;
+  hasReturnVisit: boolean;
   calendarDate: string;
 };
 
@@ -70,7 +70,7 @@ export const RouteStrip: React.FC = () => {
         dayId: day.id,
         calendarDate: day.calendarDate,
         additionalTitles: refs.map((r) => placeById(r.placeId)?.title).filter(Boolean) as string[],
-        hasThroughStop: refs.some((r) => !r.returnToPrimary)
+        hasReturnVisit: refs.some((r) => r.returnToPrimary)
       });
     }
     return out;
@@ -116,7 +116,7 @@ export const RouteStrip: React.FC = () => {
                 <span className={styles.range}>Day {s.startDay}</span>
                 {s.additionalTitles.length ? (
                   <span className={styles.range}>
-                    Also visiting: {s.additionalTitles.join(', ')} {s.hasThroughStop ? '(through-stop)' : '(return)'}
+                    Also visiting: {s.additionalTitles.join(', ')} {s.hasReturnVisit ? '(return)' : ''}
                   </span>
                 ) : null}
               </button>
