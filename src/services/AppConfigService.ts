@@ -3,7 +3,7 @@ import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 
 const LIST = 'AppConfig';
 
-const JSON_ODATA_NO_METADATA = 'application/json;odata=nometadata';
+const JSON_ODATA_MINIMAL = 'application/json;odata=minimalmetadata';
 
 async function logFailedResponse(label: string, resp: SPHttpClientResponse): Promise<void> {
   let body = '';
@@ -32,9 +32,13 @@ export class AppConfigService {
     const url = `${this.baseUrl}?$select=${select}&$top=5000`;
     try {
       const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1, {
-        headers: { Accept: JSON_ODATA_NO_METADATA }
+        headers: { Accept: JSON_ODATA_MINIMAL }
       });
       if (!resp.ok) {
+        if (resp.status === 404) {
+          // AppConfig list is optional until provisioning runs.
+          return out;
+        }
         await logFailedResponse('getAll', resp);
         return out;
       }
@@ -50,3 +54,4 @@ export class AppConfigService {
     return out;
   }
 }
+

@@ -3,7 +3,8 @@ import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 
 const LIST = 'UserConfig';
 
-const JSON_ODATA_NO_METADATA = 'application/json;odata=nometadata';
+const JSON_ODATA_MINIMAL = 'application/json;odata=minimalmetadata';
+const JSON_ODATA_VERBOSE = 'application/json;odata=verbose';
 
 export interface UserConfig {
   homeCurrency: string;
@@ -83,8 +84,8 @@ export class ConfigService {
     const url = `${this.ctx.pageContext.web.absoluteUrl}/_api/contextinfo`;
     const resp = await this.ctx.spHttpClient.post(url, SPHttpClient.configurations.v1, {
       headers: {
-        Accept: JSON_ODATA_NO_METADATA,
-        'Content-Type': JSON_ODATA_NO_METADATA
+        Accept: JSON_ODATA_VERBOSE,
+        'Content-Type': JSON_ODATA_VERBOSE
       },
       body: JSON.stringify({})
     });
@@ -103,14 +104,15 @@ export class ConfigService {
     return digest;
   }
 
-  private async getItemsWithFilter(filterExpr: string): Promise<SPHttpClientResponse> {
+  private async getItemsWithFilter(filterExpr: string, includeUserIdField: boolean): Promise<SPHttpClientResponse> {
     const safeFilter = encodeURIComponent(filterExpr);
-    const select = encodeURIComponent(
-      'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,WeatherApiKey'
-    );
+    const selectFields = includeUserIdField
+      ? 'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,WeatherApiKey'
+      : 'ID,Title,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,WeatherApiKey';
+    const select = encodeURIComponent(selectFields);
     const url = `${this.baseUrl}?$select=${select}&$filter=${safeFilter}&$top=1`;
     return this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1, {
-      headers: { Accept: JSON_ODATA_NO_METADATA }
+      headers: { Accept: JSON_ODATA_MINIMAL }
     });
   }
 
@@ -118,16 +120,16 @@ export class ConfigService {
     const safeUserId = userId.replace(/'/g, "''");
     let resp: SPHttpClientResponse;
     try {
-      resp = await this.getItemsWithFilter(`UserId eq '${safeUserId}'`);
+      resp = await this.getItemsWithFilter(`UserId eq '${safeUserId}'`, true);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('ConfigService.getConfigItem UserId query threw', err);
       return { config: { ...DEFAULT_USER_CONFIG } };
     }
-    if (resp.status === 400) {
-      await logFailedResponse('getConfigItem UserId filter (will try Title)', resp);
+    if (resp.status === 400 || resp.status === 406) {
+      await logFailedResponse('getConfigItem UserId filter (will try Title fallback)', resp);
       try {
-        resp = await this.getItemsWithFilter(`Title eq '${safeUserId}'`);
+        resp = await this.getItemsWithFilter(`Title eq '${safeUserId}'`, false);
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error('ConfigService.getConfigItem Title query threw', err);
@@ -162,14 +164,14 @@ export class ConfigService {
   async saveConfig(userId: string, config: UserConfig): Promise<void> {
     const existing = await this.getConfigItem(userId);
     const body = JSON.stringify(this.mapToSpItem(userId, config));
-    const digest = await this.getRequestDigest();
 
     if (existing.id) {
+      const digest = await this.getRequestDigest();
       const updateResp = await this.ctx.spHttpClient.fetch(`${this.baseUrl}(${existing.id})`, SPHttpClient.configurations.v1, {
         method: 'PATCH',
         headers: {
-          Accept: JSON_ODATA_NO_METADATA,
-          'Content-Type': JSON_ODATA_NO_METADATA,
+          Accept: JSON_ODATA_MINIMAL,
+          'Content-Type': JSON_ODATA_MINIMAL,
           'X-RequestDigest': digest,
           'IF-MATCH': '*'
         },
@@ -185,8 +187,8 @@ export class ConfigService {
     const createDigest = await this.getRequestDigest();
     const createResp = await this.ctx.spHttpClient.post(this.baseUrl, SPHttpClient.configurations.v1, {
       headers: {
-        Accept: JSON_ODATA_NO_METADATA,
-        'Content-Type': JSON_ODATA_NO_METADATA,
+        Accept: JSON_ODATA_MINIMAL,
+        'Content-Type': JSON_ODATA_MINIMAL,
         'X-RequestDigest': createDigest
       },
       body
@@ -197,3 +199,4 @@ export class ConfigService {
     }
   }
 }
+
