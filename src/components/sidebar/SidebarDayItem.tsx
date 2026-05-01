@@ -80,6 +80,7 @@ export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected,
       <button
         ref={setNodeRef}
         type="button"
+        data-sidebar-day-id={day.id}
         className={`${styles.button} ${isSelected ? styles.selected : ''} ${isOver ? styles.dropOver : ''}`}
         onClick={onSelect}
         aria-current={isSelected ? 'true' : undefined}

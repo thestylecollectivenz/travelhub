@@ -40,12 +40,12 @@ export const AppRouter: React.FC = () => {
     <>
       {content}
       <AppFooter onOpenTerms={() => setView('terms')} />
-      {view === 'createTrip' && (
+      {view === 'createTrip' ? (
         <CreateTripPanel
           onCreated={(newTripId) => goToTrip(newTripId)}
           onCancel={() => setView('multiTrip')}
         />
-      )}
+      ) : null}
     </>
   );
 };

@@ -474,32 +474,44 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
         </div>
       ) : null}
       {deleteTripError ? <div className={styles.deleteError}>{deleteTripError}</div> : null}
-      <TripHero trip={trip} onEdit={() => setEditOpen(true)} showEditButton={!sharedPreview} />
-      {sharedPreview ? null : <TripStatsStrip />}
-      <RouteStrip />
-      {sharedPreview ? (
-        <ErrorBoundary fallbackTitle="Something went wrong in shared view">
-          <SharedTripView />
-        </ErrorBoundary>
-      ) : <TripContent />}
+      <div className={styles.workspaceBody}>
+        <TripHero trip={trip} onEdit={() => setEditOpen(true)} showEditButton={!sharedPreview} />
+        {sharedPreview ? null : <TripStatsStrip />}
+        <RouteStrip />
+        {sharedPreview ? (
+          <ErrorBoundary fallbackTitle="Something went wrong in shared view">
+            <SharedTripView />
+          </ErrorBoundary>
+        ) : (
+          <TripContent />
+        )}
+      </div>
       {exportOpen ? (
-        <div className={`${styles.searchPanel} ${styles.journalExportPanel}`}>
-          <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
-            <div className={styles.searchRow}>
-              <button type="button" className={styles.settingsButton} onClick={exportTripToExcel}>
-                Export itinerary to Excel
-              </button>
-              <button type="button" className={styles.settingsButton} onClick={() => setExportOpen(false)}>
-                Close
-              </button>
+        <div
+          className={styles.modalBackdrop}
+          role="presentation"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setExportOpen(false);
+          }}
+        >
+          <div className={styles.modalDialog} role="dialog" aria-modal="true" aria-label="Export trip">
+            <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
+              <div className={styles.searchRow}>
+                <button type="button" className={styles.settingsButton} onClick={exportTripToExcel}>
+                  Export itinerary to Excel
+                </button>
+                <button type="button" className={styles.settingsButton} onClick={() => setExportOpen(false)}>
+                  Close
+                </button>
+              </div>
+              <JournalPdfExport
+                trip={trip}
+                tripDays={tripDays}
+                entries={journalEntries}
+                photos={allTripPhotos}
+                commentsForEntry={commentsForEntry}
+              />
             </div>
-            <JournalPdfExport
-              trip={trip}
-              tripDays={tripDays}
-              entries={journalEntries}
-              photos={allTripPhotos}
-              commentsForEntry={commentsForEntry}
-            />
           </div>
         </div>
       ) : null}

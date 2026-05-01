@@ -172,18 +172,34 @@ export const TripMap: React.FC = () => {
             const ll: L.LatLngExpression = [s.latitude, s.longitude];
             points.push(ll);
             const range = s.startDay === s.endDay ? `Day ${s.startDay}` : `Days ${s.startDay}-${s.endDay}`;
-            L.circleMarker(ll, {
+            const marker = L.circleMarker(ll, {
               radius: s.isPrimary ? 8 : 6,
               fillColor: '#1A6399',
               color: '#ffffff',
               weight: 2,
               opacity: 1,
-              fillOpacity: s.isPrimary ? 1 : 0.8
-            })
-              .bindPopup(
-                `<strong>${s.title}</strong><br/>${range}<br/><a href="https://www.google.com/maps/@${s.latitude},${s.longitude},10z" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>`
-              )
-              .addTo(layerGroup);
+              fillOpacity: s.isPrimary ? 1 : 0.8,
+              interactive: true,
+              bubblingMouseEvents: true
+            });
+            marker.bindTooltip(s.title, {
+              permanent: false,
+              sticky: true,
+              interactive: true,
+              direction: 'top',
+              offset: [0, -10],
+              opacity: 0.98,
+              className: 'th-leaflet-tooltip'
+            });
+            // Native title fallback (some hosts/CSS stacks still suppress Leaflet tooltips).
+            marker.on('add', () => {
+              const el = marker.getElement?.() as SVGElement | null | undefined;
+              if (el) el.setAttribute('title', s.title);
+            });
+            marker.bindPopup(
+              `<strong>${s.title}</strong><br/>${range}<br/><a href="https://www.google.com/maps/@${s.latitude},${s.longitude},10z" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>`
+            );
+            marker.addTo(layerGroup);
           }
           const orderedDays = tripDays
             .filter((d) => (trip ? d.tripId === trip.id : true))

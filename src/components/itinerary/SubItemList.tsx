@@ -1,5 +1,6 @@
 import * as React from 'react';
 import type { ItinerarySubItem } from '../../models/ItineraryEntry';
+import { minutesFromTimeStart } from '../../utils/itineraryTimeUtils';
 import { SubItem } from './SubItem';
 import styles from './SubItemList.module.css';
 
@@ -17,7 +18,16 @@ interface SubItemGroup {
 function groupSubItems(subItems: ItinerarySubItem[]): SubItemGroup[] {
   const groups: SubItemGroup[] = [];
   const indexByKey = new Map<string, number>();
-  for (const item of subItems) {
+  const sorted = [...subItems].sort((a, b) => {
+    const am = minutesFromTimeStart(a.startTime || '');
+    const bm = minutesFromTimeStart(b.startTime || '');
+    if (am === undefined && bm === undefined) return 0;
+    if (am === undefined) return 1;
+    if (bm === undefined) return -1;
+    return am - bm;
+  });
+
+  for (const item of sorted) {
     const label = item.groupLabel?.trim();
     const key = label && label.length > 0 ? `group:${label}` : 'group:ungrouped';
     const idx = indexByKey.get(key);

@@ -12,6 +12,7 @@ import { formatCurrency } from '../../utils/financialUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { SubItemList } from './SubItemList';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
+import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
 import styles from './ItineraryCardView.module.css';
 
 export interface ItineraryCardViewProps {
@@ -136,7 +137,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   onDelete
 }) => {
   const spContext = useSpContext();
-  const { addSubItem, convertToHomeCurrency } = useTripWorkspace();
+  const { addSubItem, convertToHomeCurrency, setSelectedDayId } = useTripWorkspace();
   const { config } = useConfig();
   const { docsForEntry, linksForEntry, addDocument, updateDocument, deleteDocument, addLink, updateLink, deleteLink } = useAttachments();
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -393,6 +394,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                 role="menuitem"
                 onClick={() => {
                   setMenuOpen(false);
+                  setSelectedDayId(entry.dayId);
+                  requestSidebarDayFocus(entry.dayId);
                   onEdit();
                 }}
               >

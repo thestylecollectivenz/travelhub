@@ -38,6 +38,40 @@
   align-items: center;
 }
 
+.rangeBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) 0;
+}
+
+.rangeLabel {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-600);
+}
+
+.rangeInput {
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  background: var(--color-surface);
+}
+
+.rangeReset {
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  font-size: var(--font-size-xs);
+  color: var(--color-blue-800);
+  cursor: pointer;
+}
+
 .filterChip {
   padding: var(--space-1) var(--space-2);
   border: var(--border-default);
@@ -97,14 +131,66 @@
   font-size: var(--font-size-sm);
 }
 
-.multiWrap {
-  display: flex;
-  gap: 0;
+.plannerFrame {
   border: var(--border-default);
   border-radius: var(--radius-lg);
-  overflow: hidden;
   background: var(--color-surface-raised);
-  min-height: 420px;
+  max-height: calc(100vh - 240px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-height: 0;
+}
+
+.plannerGrid {
+  display: grid;
+  grid-template-rows: auto auto minmax(260px, 1fr);
+  align-items: stretch;
+  min-width: 100%;
+  width: max-content;
+}
+
+.cornerCell {
+  border-right: var(--border-default);
+  border-bottom: var(--border-default);
+  background: var(--color-surface);
+}
+
+.trackScroll {
+  grid-column: 1 / -1;
+  overflow-y: auto;
+  overflow-x: visible;
+  min-height: 0;
+  border-top: var(--border-default);
+  background: var(--color-surface-raised);
+}
+
+.trackInner {
+  display: grid;
+  align-items: stretch;
+  min-width: 100%;
+}
+
+.unschedCell {
+  border-right: var(--border-default);
+  border-bottom: var(--border-default);
+  background: var(--color-surface);
+  padding: var(--space-2);
+  vertical-align: top;
+}
+
+.mobileDayStack {
+  border-bottom: var(--border-default);
+  padding-bottom: var(--space-3);
+}
+
+.mobileDayStack:last-child {
+  border-bottom: none;
+}
+
+.mobileTrackRow {
+  display: flex;
+  gap: 0;
+  align-items: stretch;
 }
 
 .timeAxis {
@@ -112,7 +198,9 @@
   width: 3.5rem;
   border-right: var(--border-default);
   background: var(--color-surface);
-  position: relative;
+  position: sticky;
+  left: 0;
+  z-index: 8;
 }
 
 .timeAxisCompact .tick {
@@ -129,32 +217,24 @@
   transform: translateY(-50%);
 }
 
-.dayColumns {
-  display: flex;
-  flex: 1;
-  overflow-x: auto;
-  min-width: 0;
-}
-
-.dayColumn {
-  flex: 1 0 min(11rem, 100%);
-  min-width: 10rem;
-  border-right: var(--border-default);
-  display: flex;
-  flex-direction: column;
-}
-
-.dayColumn:last-child {
-  border-right: none;
-}
-
 .dayHead {
   padding: var(--space-2) var(--space-2);
+  border-right: var(--border-default);
   border-bottom: var(--border-default);
   background: var(--color-surface);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
   color: var(--color-blue-800);
+  min-height: 3.4rem;
+  max-height: 3.4rem;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  line-height: 1.15;
+  position: sticky;
+  top: 0;
+  z-index: 9;
 }
 
 .dayTrack {
@@ -186,6 +266,26 @@
   line-height: 1.25;
 }
 
+.blockTitleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.editPill {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--color-sand-400) 55%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+  color: var(--color-blue-800);
+}
+
 .blockMeta {
   font-size: 10px;
   color: var(--color-sand-700);
@@ -202,52 +302,87 @@
   color: var(--color-primary);
 }
 
-.subBlock {
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  border-radius: var(--radius-sm);
-  border: 1px dashed var(--color-blue-300);
-  background: color-mix(in srgb, var(--color-blue-100) 55%, var(--color-surface));
-  color: var(--color-blue-800);
+.blockOptions {
+  margin-top: 2px;
+  display: grid;
+  gap: 1px;
+}
+
+.blockOptionLine {
   font-size: 10px;
-  line-height: 1.2;
-  padding: 1px 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  pointer-events: none;
+  line-height: 1.25;
+  color: var(--color-blue-800);
+  white-space: normal;
+}
+
+.editOverlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  background: var(--color-surface);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-elevated);
+  max-height: min(420px, 70vh);
+  overflow: auto;
 }
 
 .unscheduled {
-  margin-top: var(--space-3);
-  padding: var(--space-3);
+  padding: var(--space-2);
   border: var(--border-default);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--color-surface);
 }
 
-.unscheduled h3 {
-  margin: 0 0 var(--space-2);
-  font-size: var(--font-size-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--color-sand-700);
-}
-
-.stackMobile .dayColumns {
-  flex-direction: column;
-  overflow-x: hidden;
-}
-
-.stackMobile .dayColumn {
-  flex: none;
+.unschedToggle {
   width: 100%;
-  min-width: 0;
-  border-right: none;
-  border-bottom: var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-800);
+  text-align: left;
 }
 
-.stackMobile .dayColumn:last-child {
-  border-bottom: none;
+.unschedToggle:hover {
+  background: var(--color-sand-100);
+}
+
+.unschedMeta {
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-sand-600);
+}
+
+.unschedBody {
+  margin-top: var(--space-2);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.unschedCard {
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  padding: var(--space-2);
+}
+
+.unschedOpen {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-blue-800);
 }

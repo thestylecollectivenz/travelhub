@@ -125,7 +125,9 @@ export const TripSidebar: React.FC = () => {
             {photosIcon}
           </button>
         </div>
-        {mainWorkspaceTab === 'itinerary' ? <SharedSidebarDayList /> : null}
+        <div className={styles.sidebarBodyScroll}>
+          {mainWorkspaceTab === 'itinerary' ? <SharedSidebarDayList /> : null}
+        </div>
       </div>
     );
   }
@@ -200,7 +202,9 @@ export const TripSidebar: React.FC = () => {
           {planIcon}
         </button>
       </div>
-      {mainWorkspaceTab === 'itinerary' ? <SidebarDayList /> : null}
+      <div className={styles.sidebarBodyScroll}>
+        {mainWorkspaceTab === 'itinerary' ? <SidebarDayList /> : null}
+      </div>
       <div className={styles.divider} role="presentation" />
       <SidebarCategoryBudget />
     </div>

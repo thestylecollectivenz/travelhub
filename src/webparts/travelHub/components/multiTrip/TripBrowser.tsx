@@ -57,9 +57,28 @@ export interface ITripBrowserProps {
   onCreateTrip: () => void;
 }
 
+type MapTripFilter = 'completed' | 'upcoming';
+
+function pad2(n: number): string {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+function ymdLocalNow(): string {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = pad2(d.getMonth() + 1);
+  const dd = pad2(d.getDate());
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function tripEndYmd(trip: Trip): string {
+  return (trip.dateEnd || '').slice(0, 10);
+}
+
 export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreateTrip }) => {
   const spContext = useSpContext();
   const [trips, setTrips] = React.useState<Trip[]>([]);
+  const [mapTripFilter, setMapTripFilter] = React.useState<MapTripFilter>('upcoming');
   const [allPlaces, setAllPlaces] = React.useState<Array<{ id: string; title: string; lat: number; lon: number; countryCode: string; country: string }>>([]);
   const [allTripDays, setAllTripDays] = React.useState<Array<{ tripId: string; primaryPlaceId?: string }>>([]);
   const [loading, setLoading] = React.useState<boolean>(true);
@@ -101,7 +120,15 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
     }
   }, [spContext]);
 
-  const eligibleTripIds = React.useMemo(() => new Set(trips.map((t) => t.id)), [trips]);
+  const filteredTrips = React.useMemo(() => {
+    const todayYmd = ymdLocalNow();
+    return trips.filter((t) => {
+      const end = tripEndYmd(t);
+      if (!end) return mapTripFilter === 'upcoming';
+      return mapTripFilter === 'completed' ? end < todayYmd : end >= todayYmd;
+    });
+  }, [trips, mapTripFilter]);
+  const eligibleTripIds = React.useMemo(() => new Set(filteredTrips.map((t) => t.id)), [filteredTrips]);
   const eligibleDays = React.useMemo(
     () => allTripDays.filter((d) => eligibleTripIds.has(d.tripId)),
     [allTripDays, eligibleTripIds]
@@ -172,25 +199,36 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
         for (const p of mapPins) {
           const lat = Number(p.lat);
           const lon = Number(p.lon);
-          // eslint-disable-next-line no-console
-          console.log('TripBrowser marker candidate', p.title, { lat, lon });
           if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
-            // eslint-disable-next-line no-console
-            console.warn('TripBrowser: skip marker — invalid coordinates', p.title);
             continue;
           }
           const ll: L.LatLngExpression = [lat, lon];
           points.push(ll);
-          L.circleMarker(ll, {
+          const marker = L.circleMarker(ll, {
             radius: 8,
             fillColor: '#1A6399',
             color: '#ffffff',
             weight: 2,
             opacity: 1,
-            fillOpacity: 1
-          })
-            .bindPopup(`<strong>${p.title}</strong>`)
-            .addTo(layer);
+            fillOpacity: 1,
+            interactive: true,
+            bubblingMouseEvents: true
+          });
+          marker.bindTooltip(p.title, {
+            permanent: false,
+            sticky: true,
+            interactive: true,
+            direction: 'top',
+            offset: [0, -10],
+            opacity: 0.98,
+            className: 'th-leaflet-tooltip'
+          });
+          marker.on('add', () => {
+            const el = marker.getElement?.() as SVGElement | null | undefined;
+            if (el) el.setAttribute('title', p.title);
+          });
+          marker.bindPopup(`<strong>${p.title}</strong>`);
+          marker.addTo(layer);
         }
         if (points.length) {
           map.fitBounds(L.latLngBounds(points), { padding: [20, 20] });
@@ -340,6 +378,25 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
     background: 'var(--color-surface-raised)',
     padding: 'var(--space-4)'
   };
+  const mapHeaderStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 'var(--space-2)',
+    padding: 'var(--space-3) var(--space-4)',
+    borderBottom: 'var(--border-default)'
+  };
+  const mapTitleStyle: React.CSSProperties = {
+    margin: 0,
+    fontSize: 'var(--font-size-sm)',
+    fontWeight: 'var(--font-weight-bold)',
+    color: 'var(--color-blue-800)'
+  };
+  const mapTabsStyle: React.CSSProperties = {
+    display: 'inline-flex',
+    gap: 'var(--space-2)',
+    flexWrap: 'wrap'
+  };
   const statsGridStyle: React.CSSProperties = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(12rem, 1fr))',
@@ -417,15 +474,42 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
             ))}
           </div>
           <section style={mapWrapStyle} aria-label="All trips places map">
+            <div style={mapHeaderStyle}>
+              <h2 style={mapTitleStyle}>Map</h2>
+              <div style={mapTabsStyle} role="tablist" aria-label="Trip map filter">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mapTripFilter === 'upcoming'}
+                  style={mapTripFilter === 'upcoming' ? { ...secondaryButtonStyle, borderColor: 'var(--color-primary)', boxShadow: '0 0 0 1px var(--color-primary)' } : secondaryButtonStyle}
+                  onClick={() => setMapTripFilter('upcoming')}
+                >
+                  Upcoming trips
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mapTripFilter === 'completed'}
+                  style={mapTripFilter === 'completed' ? { ...secondaryButtonStyle, borderColor: 'var(--color-primary)', boxShadow: '0 0 0 1px var(--color-primary)' } : secondaryButtonStyle}
+                  onClick={() => setMapTripFilter('completed')}
+                >
+                  Completed trips
+                </button>
+              </div>
+            </div>
             {!mapPins.length ? (
               <p style={{ margin: 0, padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--font-size-sm)', color: 'var(--color-sand-600)' }}>
-                No primary places on trip days yet — map loads here once days have locations.
+                {mapTripFilter === 'completed'
+                  ? 'No completed trips with mapped primary places yet.'
+                  : 'No upcoming trips with mapped primary places yet.'}
               </p>
             ) : null}
             <div ref={mapRef} className="th-map-container" />
           </section>
           <section style={statsWrapStyle} aria-label="Travel stats">
-            <h2 style={{ margin: '0 0 var(--space-3)', color: 'var(--color-blue-800)', fontSize: 'var(--font-size-lg)' }}>Stats</h2>
+            <h2 style={{ margin: '0 0 var(--space-3)', color: 'var(--color-blue-800)', fontSize: 'var(--font-size-lg)' }}>
+              Stats ({mapTripFilter === 'completed' ? 'Completed trips' : 'Upcoming trips'})
+            </h2>
             <div style={statsGridStyle}>
               <div>Total countries visited: <strong>{countriesVisited.length}</strong></div>
               <div>Total cities/places visited: <strong>{totalCitiesVisited}</strong></div>

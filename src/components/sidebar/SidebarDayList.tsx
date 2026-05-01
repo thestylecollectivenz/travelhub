@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { sumForDay } from '../../utils/financialUtils';
+import { TRAVELHUB_SIDEBAR_FOCUS_DAY } from '../../utils/sidebarDayFocus';
 import { SidebarDayItem } from './SidebarDayItem';
 import styles from './TripSidebar.module.css';
 
@@ -18,6 +19,21 @@ export const SidebarDayList: React.FC = () => {
     () => (trip ? localEntries.filter((e) => e.tripId === trip.id) : []),
     [localEntries, trip]
   );
+
+  React.useEffect(() => {
+    const onFocusDay = (ev: Event): void => {
+      const ce = ev as CustomEvent<{ dayId?: string }>;
+      const dayId = (ce.detail?.dayId || '').trim();
+      if (!dayId) return;
+      setSelectedDayId(dayId);
+      window.requestAnimationFrame(() => {
+        const el = document.querySelector<HTMLElement>(`[data-sidebar-day-id="${dayId}"]`);
+        el?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+      });
+    };
+    window.addEventListener(TRAVELHUB_SIDEBAR_FOCUS_DAY, onFocusDay as EventListener);
+    return () => window.removeEventListener(TRAVELHUB_SIDEBAR_FOCUS_DAY, onFocusDay as EventListener);
+  }, [setSelectedDayId]);
 
   return (
     <div className={styles.dayListSection}>

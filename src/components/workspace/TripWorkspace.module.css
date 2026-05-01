@@ -2,14 +2,13 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  min-height: 100vh;
-  min-height: 0;
   margin: 0;
   padding: 0;
   box-sizing: border-box;
   background: var(--color-surface);
   color: var(--color-blue-900);
   font-family: var(--font-sans);
+  /* Let the host page scroll for tall main content; do not clip (sticky sidebar needs visible overflow chain). */
   overflow: visible;
 }
 
@@ -79,6 +78,30 @@
 
 .journalExportPanel {
   border-top: var(--border-default);
+}
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  box-sizing: border-box;
+}
+
+.modalDialog {
+  width: min(920px, 100%);
+  max-height: min(90vh, 900px);
+  overflow: auto;
+  border-radius: var(--radius-lg);
+  border: var(--border-default);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-elevated);
+  padding: var(--space-4);
+  box-sizing: border-box;
 }
 
 .searchRow {
@@ -208,11 +231,16 @@
   border-bottom: var(--border-default);
 }
 
+.workspaceBody {
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+}
+
 .tripContent {
   display: flex;
   flex-direction: row;
-  flex: 1;
-  min-height: 0;
+  align-items: flex-start;
   width: 100%;
   max-width: 100%;
   margin: 0;
@@ -223,20 +251,29 @@
 .sidebarShell {
   display: flex;
   flex-direction: row;
-  height: 100%;
+  align-items: stretch;
   flex-shrink: 0;
   min-width: 180px;
   max-width: 400px;
+  /* Sidebar scrolls inside the column; main column grows with content and uses page scroll. */
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  max-height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .sidebar {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
   box-sizing: border-box;
   align-self: stretch;
   position: static;
-  height: auto;
-  overflow-y: visible;
-  overflow-x: hidden;
+  /* Scroll lives inside TripSidebar (.sidebarBodyScroll) so tabs stay visible. */
+  overflow: hidden;
   border-right: var(--border-default);
   background: var(--color-surface-raised);
   padding: 0;
@@ -255,11 +292,9 @@
 }
 
 .main {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
-  height: auto;
-  overflow-y: visible;
-  overflow-x: hidden;
+  overflow: visible;
   padding: 0;
   box-sizing: border-box;
 }

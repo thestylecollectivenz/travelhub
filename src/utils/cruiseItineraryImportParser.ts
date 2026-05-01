@@ -1,3 +1,5 @@
+import { splitCruiseShipMeta } from './cruisePortSanitize';
+
 export interface ParsedCruiseRow {
   dayNumber: number;
   port: string;
@@ -52,6 +54,7 @@ function parseHollandAmerica(html: string): ParsedCruiseRow[] {
 }
 
 const DATE_LINE = /^([A-Za-z]{3})\s+(\d{1,2}),\s+(\d{4})$/;
+const EMBEDDED_DATE_LINE = /^(?:(?:MON|TUE|WED|THU|FRI|SAT|SUN)\s+)?([A-Za-z]{3})\s+(\d{1,2}),\s*(\d{4})(.*)$/i;
 const AD_TIME = /^(?:ARRIVES|DEPARTS)\s*(\d{1,2}:\d{2}\s*(?:AM|PM)?)/i;
 const AD_STUCK = /^(?:ARRIVES|DEPARTS)(\d{1,2}:\d{2}\s*(?:AM|PM)?)/i;
 const MONTH_TO_NUM: Record<string, string> = {
@@ -77,6 +80,9 @@ function isNoiseLine(line: string): boolean {
   if (u === 'CRUISING ONLY') return true;
   if (u === 'OVERNIGHT') return true;
   if (u.startsWith('TENDER')) return true;
+  if (/\b(FRENCH|VERANDA|BALCONY|SUITE|STATEROOM|CABIN|ROOM)\b/i.test(u) && /\b\d{2,4}\b/.test(u)) return true;
+  if (/^\d+\s*(?:M2|SQM|SQ FT|SQFT)\b/i.test(u)) return true;
+  if (/^DECK\s+\d+/i.test(u)) return true;
   return false;
 }
 
@@ -95,7 +101,7 @@ function parseCruiseBlockPlainText(text: string): ParsedCruiseRow[] {
     dayCounter += 1;
     rows.push({
       dayNumber: dayCounter,
-      port: curPort,
+      port: splitCruiseShipMeta(curPort).clean,
       arrive,
       depart,
       date: curDate || undefined
@@ -124,6 +130,33 @@ function parseCruiseBlockPlainText(text: string): ParsedCruiseRow[] {
       }
       continue;
     }
+    const em = line.match(EMBEDDED_DATE_LINE);
+    if (em) {
+      flush();
+      const mon = em[1];
+      const dayPart = em[2];
+      const yr = em[3];
+      const tail = (em[4] || '').trim();
+      const monNum = MONTH_TO_NUM[mon.toLowerCase()];
+      const dayNum = Number(dayPart);
+      if (!monNum || !Number.isFinite(dayNum) || dayNum < 1 || dayNum > 31) {
+        curDate = '';
+      } else {
+        const dayIso = dayNum < 10 ? `0${dayNum}` : String(dayNum);
+        curDate = `${yr}-${monNum}-${dayIso}`;
+      }
+      if (tail) {
+        // Examples: "Embark in Amsterdam on Viking Tialfi", "Kinderdijk, The Netherlands"
+        curPort = splitCruiseShipMeta(
+          tail
+            .replace(/^[-:\u2013]\s*/, '')
+            .replace(/^Embark(?:\s+in)?\s+/i, '')
+            .replace(/^Disembark(?:\s+in)?\s+/i, '')
+            .trim()
+        ).clean;
+      }
+      continue;
+    }
     let m = line.match(AD_TIME);
     if (!m) m = line.match(AD_STUCK);
     if (m) {
@@ -144,7 +177,7 @@ function parseCruiseBlockPlainText(text: string): ParsedCruiseRow[] {
       continue;
     }
     flush();
-    curPort = line;
+    curPort = splitCruiseShipMeta(line.replace(/^[-:\u2013]\s*/, '').trim()).clean;
   }
   flush();
   return rows;
@@ -163,7 +196,7 @@ function parseGenericText(text: string): ParsedCruiseRow[] {
     if (!m) continue;
     rows.push({
       dayNumber: Number(m[1]),
-      port: m[2].trim(),
+      port: splitCruiseShipMeta(m[2].trim()).clean,
       arrive: normalizeTime(m[3] || ''),
       depart: normalizeTime(m[4] || '')
     });

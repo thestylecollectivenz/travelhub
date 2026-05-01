@@ -4,11 +4,12 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
 import { useConfig } from '../../context/ConfigContext';
 import type { PlaceCandidate } from '../../models/Place';
-import type { ItineraryEntry } from '../../models/ItineraryEntry';
+import type { ItineraryEntry, ItinerarySubItem } from '../../models/ItineraryEntry';
 import {
   parseCruiseItineraryFromText,
   type ParsedCruiseRow
 } from '../../utils/cruiseItineraryImportParser';
+import { splitCruiseShipMeta } from '../../utils/cruisePortSanitize';
 import styles from './CruiseItineraryImport.module.css';
 
 function newTempEntryId(): string {
@@ -74,7 +75,7 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
     (row: ParsedCruiseRow) => {
       const rowDate = (row.date || '').trim();
       if (rowDate) {
-        const byDate = daysForTrip.find((d) => d.dayType !== 'PreTrip' && d.calendarDate === rowDate);
+        const byDate = daysForTrip.find((d) => d.dayType !== 'PreTrip' && (d.calendarDate || '').slice(0, 10) === rowDate.slice(0, 10));
         if (byDate) return byDate;
         if (hasCalendarDates) return undefined;
       }
@@ -160,9 +161,27 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
     const maxSortOnDay = (dayId: string): number =>
       localEntries.filter((e) => e.dayId === dayId && !e.parentEntryId).reduce((m, e) => Math.max(m, e.sortOrder), 0);
 
-    const makeSegmentEntry = (dayId: string, row: ParsedCruiseRow, sortOrder: number): ItineraryEntry => {
+    const makeSegmentEntry = (
+      dayId: string,
+      row: ParsedCruiseRow,
+      sortOrder: number,
+      displayPort: string,
+      shipMeta?: string
+    ): ItineraryEntry => {
       const atSea = isSeaOrScenicLine(row.port);
-      const title = atSea ? seaDayTitle(row.port) : row.port;
+      const title = atSea ? seaDayTitle(row.port) : displayPort;
+      const home = config.homeCurrency?.trim() || 'NZD';
+      const metaSub: ItinerarySubItem | undefined =
+        !atSea && shipMeta
+          ? {
+              id: newTempEntryId(),
+              title: `Ship / operator: ${shipMeta}`,
+              decisionStatus: 'Planned',
+              paymentStatus: 'Not paid',
+              amount: 0,
+              currency: home
+            }
+          : undefined;
       return {
         id: newTempEntryId(),
         dayId,
@@ -173,15 +192,16 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
         arrivalTime: row.depart?.trim() ? row.depart : undefined,
         duration: '',
         supplier: '',
-        location: row.port,
+        location: displayPort,
         notes: row.date ? `Cruise import · ${row.date}` : 'Cruise import',
         decisionStatus: 'Planned',
         bookingRequired: false,
         bookingStatus: 'Not booked',
         paymentStatus: 'Not paid',
         amount: 0,
-        currency: config.homeCurrency?.trim() || 'NZD',
-        sortOrder
+        currency: home,
+        sortOrder,
+        subItems: metaSub ? [metaSub] : undefined
       };
     };
 
@@ -242,18 +262,21 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
         for (const row of ordered) {
           const nextSort = (sortCursorByDay.get(day.id) ?? 0) + 1;
           sortCursorByDay.set(day.id, nextSort);
+          const split = splitCruiseShipMeta(row.port);
+          const displayPort = split.clean || row.port.trim();
+          const shipMeta = split.meta;
 
           if (isSeaOrScenicLine(row.port)) {
-            updateEntry(makeSegmentEntry(day.id, row, nextSort));
+            updateEntry(makeSegmentEntry(day.id, row, nextSort, displayPort));
             resolved.push({ row, dayId: day.id, calendarDate: day.calendarDate });
             await delay(250);
             continue;
           }
 
-          const candidate = await geocodePort(row.port);
+          const candidate = await geocodePort(displayPort);
           if (!candidate) {
-            warnings.push(`No geocode result for “${row.port}” (${day.calendarDate || `day ${day.dayNumber}`}).`);
-            updateEntry(makeSegmentEntry(day.id, row, nextSort));
+            warnings.push(`No geocode result for “${displayPort}” (${day.calendarDate || `day ${day.dayNumber}`}).`);
+            updateEntry(makeSegmentEntry(day.id, row, nextSort, displayPort, shipMeta));
             resolved.push({ row, dayId: day.id, calendarDate: day.calendarDate });
             await delay(250);
             continue;
@@ -262,9 +285,9 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
           const place = await createOrReusePlace({ ...candidate, placeType: 'port' });
           if (!firstLandPlaceId) {
             firstLandPlaceId = place.id;
-            firstLandTitle = row.port;
+            firstLandTitle = displayPort;
           }
-          updateEntry(makeSegmentEntry(day.id, row, nextSort));
+          updateEntry(makeSegmentEntry(day.id, row, nextSort, displayPort, shipMeta));
           resolved.push({ row, dayId: day.id, calendarDate: day.calendarDate });
           await delay(650);
         }
