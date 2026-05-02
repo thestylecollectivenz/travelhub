@@ -251,3 +251,12 @@ a:hover {
 .th-cat-icon {
   color: var(--cat-color);
 }
+
+/* @dnd-kit DragOverlay portals to document.body; suppress any stray overlay in print */
+@media print {
+  [data-dnd-overlay],
+  [data-dnd-kit-drag-overlay] {
+    display: none !important;
+    visibility: hidden !important;
+  }
+}

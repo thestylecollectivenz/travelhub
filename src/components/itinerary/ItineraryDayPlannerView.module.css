@@ -544,4 +544,17 @@
   .trackScroll {
     overflow: visible;
   }
+
+  /* Sticky + fixed layers often print as empty or cover content in Chromium */
+  .dayHead,
+  .timeAxis {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    box-shadow: none !important;
+  }
+
+  .previewBackdrop {
+    display: none !important;
+  }
 }

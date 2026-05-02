@@ -166,7 +166,8 @@ export const TripContent: React.FC = () => {
   return (
     <DndContext collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       {shell}
-      <DragOverlay>
+      {/* Must stay mounted for drop animations; portal wrapper can cover the page and print blank — hide in @media print */}
+      <DragOverlay className={styles.dragOverlayPrintRoot}>
         {activeEntry ? (
           <div className={styles.dragOverlayCard}>
             <div className={styles.dragOverlayTitle}>{activeEntry.title || 'Untitled'}</div>

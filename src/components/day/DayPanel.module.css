@@ -50,6 +50,14 @@
     padding: 0;
     gap: var(--space-3);
     background: #fff;
+    /* Avoid flex + min-height:0 collapsing the printable region inside SharePoint hosts */
+    display: block !important;
+    flex: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }
 

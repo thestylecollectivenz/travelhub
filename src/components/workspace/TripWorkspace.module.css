@@ -321,11 +321,47 @@
     display: none !important;
   }
 
+  .workspace {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .workspaceBody {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
   .main {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    flex: none !important;
+    height: auto !important;
+    min-height: 0 !important;
     padding: 0;
+    overflow: visible !important;
   }
 
   .tripContent {
-    display: block;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* @dnd-kit keeps DragOverlay mounted; its fixed layer can occlude all printed content */
+  .dragOverlayPrintRoot {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    position: absolute !important;
+    inset: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
   }
 }
