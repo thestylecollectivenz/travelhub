@@ -316,6 +316,11 @@
   color: var(--color-blue-800);
 }
 
+/* Screen: no layout effect. Print: see @media print (dnd-kit portal must stay mountable). */
+.dragOverlayPrintRoot {
+  contain: none;
+}
+
 @media print {
   .sidebarShell {
     display: none !important;
