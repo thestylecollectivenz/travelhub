@@ -3,7 +3,7 @@
   "solution": {
     "name": "travel-hub-client-side-solution",
     "id": "d5827c09-26c1-4470-bd6f-ab72881655a4",
-    "version": "1.0.0.0",
+    "version": "1.0.2.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "isDomainIsolated": false,

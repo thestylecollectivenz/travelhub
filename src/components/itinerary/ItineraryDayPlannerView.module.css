@@ -137,14 +137,15 @@
   background: var(--color-surface-raised);
   /* Let the page scroll naturally to full content height. */
   max-height: none;
-  overflow-x: auto;
-  overflow-y: visible;
+  /* Single overflow avoids "visible" coercing to "auto" and odd clipping in nested flex hosts. */
+  overflow: auto;
   min-height: 0;
 }
 
 .plannerGrid {
   display: grid;
-  grid-template-rows: auto auto minmax(260px, 1fr);
+  /* Do not use 1fr for the track row: with an indefinite grid height, some hosts shrink it to zero. */
+  grid-template-rows: auto auto auto;
   align-items: stretch;
   width: 100%;
   min-width: 0;
@@ -159,7 +160,7 @@
 .trackScroll {
   grid-column: 1 / -1;
   overflow: visible;
-  min-height: 0;
+  min-height: 260px;
   border-top: var(--border-default);
   background: var(--color-surface-raised);
 }

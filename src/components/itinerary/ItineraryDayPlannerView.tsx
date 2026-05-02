@@ -311,7 +311,9 @@ export const ItineraryDayPlannerView: React.FC = () => {
   }, [displayDays, rangeForDay, rangeStartOverride, rangeEndOverride]);
 
   const pxPerMin = isMobile ? 1 : 1.15;
-  const trackHeight = Math.max(280, (globalRange.end - globalRange.start) * pxPerMin);
+  const rangeSpanMin = Math.max(1, globalRange.end - globalRange.start);
+  const trackHeightRaw = rangeSpanMin * pxPerMin;
+  const trackHeight = Number.isFinite(trackHeightRaw) ? Math.max(280, trackHeightRaw) : 480;
   const hourBandPx = 60 * pxPerMin;
 
   const hoursTicks = React.useMemo(() => {
@@ -411,7 +413,9 @@ export const ItineraryDayPlannerView: React.FC = () => {
     [focusDay, setEditingCardId]
   );
 
-  const gridColTemplate = `3.5rem repeat(${displayDays.length}, minmax(11rem, min(20rem, 1fr)))`;
+  // Avoid min() inside repeat() — some embedded / older engines reject the track list and drop
+  // grid-template-columns entirely, which collapses the planner to a single column (broken layout).
+  const gridColTemplate = `3.5rem repeat(${displayDays.length}, minmax(11rem, 1fr))`;
 
   return (
     <div className={styles.root}>
