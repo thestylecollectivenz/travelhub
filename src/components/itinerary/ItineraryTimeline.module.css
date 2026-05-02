@@ -4,6 +4,22 @@
   padding-bottom: var(--space-2);
 }
 
+.timeline::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 var(--space-2) 52px;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: var(--radius-md);
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(3.25rem - 1px),
+    color-mix(in srgb, var(--color-sand-300) 55%, transparent) calc(3.25rem - 1px),
+    color-mix(in srgb, var(--color-sand-300) 55%, transparent) 3.25rem
+  );
+}
+
 .rail {
   position: absolute;
   left: calc(52px + var(--space-2) + 11px);

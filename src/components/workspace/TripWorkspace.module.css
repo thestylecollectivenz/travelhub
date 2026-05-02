@@ -315,3 +315,17 @@
   font-weight: var(--font-weight-medium);
   color: var(--color-blue-800);
 }
+
+@media print {
+  .sidebarShell {
+    display: none !important;
+  }
+
+  .main {
+    padding: 0;
+  }
+
+  .tripContent {
+    display: block;
+  }
+}

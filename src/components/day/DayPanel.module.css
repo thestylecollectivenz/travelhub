@@ -37,6 +37,22 @@
   color: var(--color-primary);
 }
 
+.hideOnPrint {
+  /* marker class — rules in @media print below */
+}
+
+@media print {
+  .hideOnPrint {
+    display: none !important;
+  }
+
+  .root {
+    padding: 0;
+    gap: var(--space-3);
+    background: #fff;
+  }
+}
+
 .emptyState {
   display: flex;
   align-items: center;

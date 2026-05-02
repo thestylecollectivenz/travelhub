@@ -8,6 +8,7 @@ import { formatTimeHHMM, minutesFromTimeStart } from '../../utils/itineraryTimeU
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
+import { formatCurrency } from '../../utils/financialUtils';
 import { ItineraryCard } from './ItineraryCard';
 import styles from './ItineraryDayPlannerView.module.css';
 
@@ -88,6 +89,27 @@ function PencilGlyph(): React.ReactElement {
   );
 }
 
+function EyeGlyph(): React.ReactElement {
+  return (
+    <svg width={12} height={12} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M1.5 8s2.5-4.25 6.5-4.25S14.5 8 14.5 8 12 12.25 8 12.25 1.5 8 1.5 8Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+      <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
+function plannerStorageKeys(tripId: string): { rangeStart: string; rangeEnd: string } {
+  return {
+    rangeStart: `travelHub.planner.${tripId}.rangeStart`,
+    rangeEnd: `travelHub.planner.${tripId}.rangeEnd`
+  };
+}
+
 export const ItineraryDayPlannerView: React.FC = () => {
   const { trip, tripDays, localEntries, editingCardId, setEditingCardId, setSelectedDayId } = useTripWorkspace();
   const { docsForEntry, linksForEntry } = useAttachments();
@@ -99,6 +121,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
   const [unschedCollapsed, setUnschedCollapsed] = React.useState<Record<string, boolean>>({});
   const [rangeStartOverride, setRangeStartOverride] = React.useState('');
   const [rangeEndOverride, setRangeEndOverride] = React.useState('');
+  const [previewEntryId, setPreviewEntryId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const mq = window.matchMedia('(max-width: 640px)');
@@ -204,6 +227,32 @@ export const ItineraryDayPlannerView: React.FC = () => {
   const infoNotice = resolved.notice;
 
   React.useEffect(() => {
+    if (!trip?.id) return;
+    try {
+      const { rangeStart, rangeEnd } = plannerStorageKeys(trip.id);
+      const rs = window.localStorage.getItem(rangeStart) || '';
+      const re = window.localStorage.getItem(rangeEnd) || '';
+      setRangeStartOverride(rs);
+      setRangeEndOverride(re);
+    } catch {
+      /* ignore */
+    }
+  }, [trip?.id]);
+
+  React.useEffect(() => {
+    if (!trip?.id) return;
+    try {
+      const { rangeStart, rangeEnd } = plannerStorageKeys(trip.id);
+      if (rangeStartOverride) window.localStorage.setItem(rangeStart, rangeStartOverride);
+      else window.localStorage.removeItem(rangeStart);
+      if (rangeEndOverride) window.localStorage.setItem(rangeEnd, rangeEndOverride);
+      else window.localStorage.removeItem(rangeEnd);
+    } catch {
+      /* ignore */
+    }
+  }, [trip?.id, rangeStartOverride, rangeEndOverride]);
+
+  React.useEffect(() => {
     setMobileDayIndex(0);
   }, [filter, customStart, customEnd, orderedDays.length]);
 
@@ -263,6 +312,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
 
   const pxPerMin = isMobile ? 1 : 1.15;
   const trackHeight = Math.max(280, (globalRange.end - globalRange.start) * pxPerMin);
+  const hourBandPx = 60 * pxPerMin;
 
   const hoursTicks = React.useMemo(() => {
     const out: number[] = [];
@@ -275,6 +325,42 @@ export const ItineraryDayPlannerView: React.FC = () => {
   }, [globalRange]);
 
   if (!trip) return null;
+
+  const anyUnscheduledAcrossFilter = React.useMemo(() => {
+    for (const d of visibleDays) {
+      const cal = d.calendarDate || '';
+      const list = sortEntriesForDay(entriesForTrip, d.id, cal, d.dayType);
+      for (const e of list) {
+        if (minutesFromTimeStart(e.timeStart) === undefined) return true;
+      }
+    }
+    return false;
+  }, [visibleDays, entriesForTrip]);
+
+  const previewEntry = previewEntryId ? localEntries.find((e) => e.id === previewEntryId) : undefined;
+
+  const collapseAllUnscheduled = React.useCallback((): void => {
+    setUnschedCollapsed((prev) => {
+      const next = { ...prev };
+      for (const d of visibleDays) {
+        const cal = d.calendarDate || '';
+        const list = sortEntriesForDay(entriesForTrip, d.id, cal, d.dayType);
+        const has = list.some((e) => minutesFromTimeStart(e.timeStart) === undefined);
+        if (has) next[d.id] = true;
+      }
+      return next;
+    });
+  }, [visibleDays, entriesForTrip]);
+
+  const expandAllUnscheduled = React.useCallback((): void => {
+    setUnschedCollapsed((prev) => {
+      const next = { ...prev };
+      for (const d of visibleDays) {
+        delete next[d.id];
+      }
+      return next;
+    });
+  }, [visibleDays]);
 
   const filters: { id: PlannerFilter; label: string }[] = [
     { id: 'today', label: 'Today' },
@@ -308,6 +394,25 @@ export const ItineraryDayPlannerView: React.FC = () => {
     return title;
   }, []);
 
+  const openPreview = React.useCallback(
+    (dayId: string, entryId: string): void => {
+      focusDay(dayId);
+      setPreviewEntryId(entryId);
+    },
+    [focusDay]
+  );
+
+  const openEdit = React.useCallback(
+    (dayId: string, entryId: string): void => {
+      setPreviewEntryId(null);
+      focusDay(dayId);
+      setEditingCardId(entryId);
+    },
+    [focusDay, setEditingCardId]
+  );
+
+  const gridColTemplate = `3.5rem repeat(${displayDays.length}, minmax(11rem, min(20rem, 1fr)))`;
+
   return (
     <div className={styles.root}>
       <div className={styles.filterBar}>
@@ -337,10 +442,29 @@ export const ItineraryDayPlannerView: React.FC = () => {
           onClick={() => {
             setRangeStartOverride('');
             setRangeEndOverride('');
+            if (trip?.id) {
+              try {
+                const { rangeStart, rangeEnd } = plannerStorageKeys(trip.id);
+                window.localStorage.removeItem(rangeStart);
+                window.localStorage.removeItem(rangeEnd);
+              } catch {
+                /* ignore */
+              }
+            }
           }}
         >
           Reset
         </button>
+        {anyUnscheduledAcrossFilter ? (
+          <>
+            <button type="button" className={styles.rangeReset} onClick={expandAllUnscheduled}>
+              Show all unscheduled
+            </button>
+            <button type="button" className={styles.rangeReset} onClick={collapseAllUnscheduled}>
+              Hide all unscheduled
+            </button>
+          </>
+        ) : null}
       </div>
       {filter === 'custom_range' ? (
         <div className={styles.customRange}>
@@ -412,18 +536,31 @@ export const ItineraryDayPlannerView: React.FC = () => {
                             {editingCardId === e.id ? (
                               <ItineraryCard entry={e} calendarDate={cal} suppressCarryoverUi={day.dayType === 'PreTrip'} draggable={false} />
                             ) : (
-                              <button
-                                type="button"
-                                className={styles.unschedOpen}
-                                onClick={() => {
-                                  focusDay(day.id);
-                                  setEditingCardId(e.id);
-                                }}
-                              >
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                                  <PencilGlyph /> {e.title || 'Untitled'}
-                                </span>
-                              </button>
+                              <div className={styles.unschedRow}>
+                                <button type="button" className={styles.unschedTitleBtn} onClick={() => openPreview(day.id, e.id)}>
+                                  {e.title || 'Untitled'}
+                                </button>
+                                <div className={styles.blockActions}>
+                                  <button
+                                    type="button"
+                                    className={styles.iconBtn}
+                                    aria-label="Preview entry"
+                                    title="Preview"
+                                    onClick={() => openPreview(day.id, e.id)}
+                                  >
+                                    <EyeGlyph />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={styles.iconBtn}
+                                    aria-label="Edit entry"
+                                    title="Edit"
+                                    onClick={() => openEdit(day.id, e.id)}
+                                  >
+                                    <PencilGlyph />
+                                  </button>
+                                </div>
+                              </div>
                             )}
                           </div>
                         ))}
@@ -444,7 +581,10 @@ export const ItineraryDayPlannerView: React.FC = () => {
                       );
                     })}
                   </div>
-                  <div className={styles.dayTrack} style={{ height: `${trackHeight}px` }}>
+                  <div
+                    className={styles.dayTrack}
+                    style={{ height: `${trackHeight}px`, ['--hour-band' as string]: `${hourBandPx}px` }}
+                  >
                     {timed.map((e) => {
                       const sm = minutesFromTimeStart(e.timeStart)!;
                       const dur = parseDurationMinutes(e.duration);
@@ -468,28 +608,29 @@ export const ItineraryDayPlannerView: React.FC = () => {
                               <ItineraryCard entry={e} calendarDate={cal} suppressCarryoverUi={day.dayType === 'PreTrip'} draggable={false} />
                             </div>
                           ) : (
-                            <div
-                              role="button"
-                              tabIndex={0}
-                              className={`${styles.block} th-cat-${cat} th-cat-border`}
-                              style={{ position: 'static', height: '100%' }}
-                              onClick={() => {
-                                focusDay(day.id);
-                                setEditingCardId(e.id);
-                              }}
-                              onKeyDown={(ev) => {
-                                if (ev.key === 'Enter' || ev.key === ' ') {
-                                  ev.preventDefault();
-                                  focusDay(day.id);
-                                  setEditingCardId(e.id);
-                                }
-                              }}
-                            >
+                            <div className={`${styles.block} th-cat-${cat} th-cat-border`} style={{ position: 'static', height: '100%' }}>
                               <div className={styles.blockTitleRow}>
                                 <div className={styles.blockTitle}>{e.title || 'Untitled'}</div>
-                                <span className={styles.editPill} aria-hidden>
-                                  <PencilGlyph />
-                                </span>
+                                <div className={styles.blockActions}>
+                                  <button
+                                    type="button"
+                                    className={styles.iconBtn}
+                                    aria-label="Preview entry"
+                                    title="Preview"
+                                    onClick={() => openPreview(day.id, e.id)}
+                                  >
+                                    <EyeGlyph />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={styles.iconBtn}
+                                    aria-label="Edit entry"
+                                    title="Edit"
+                                    onClick={() => openEdit(day.id, e.id)}
+                                  >
+                                    <PencilGlyph />
+                                  </button>
+                                </div>
                               </div>
                               <div className={styles.blockMeta}>
                                 {formatTimeHHMM(e.timeStart)} · {e.duration?.trim() || '1h'}
@@ -551,7 +692,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
           <div
             className={styles.plannerGrid}
             style={{
-              gridTemplateColumns: `3.5rem repeat(${displayDays.length}, minmax(10rem, 1fr))`
+              gridTemplateColumns: gridColTemplate
             }}
           >
             <div className={styles.cornerCell} aria-hidden />
@@ -591,18 +732,31 @@ export const ItineraryDayPlannerView: React.FC = () => {
                             {editingCardId === e.id ? (
                               <ItineraryCard entry={e} calendarDate={cal} suppressCarryoverUi={day.dayType === 'PreTrip'} draggable={false} />
                             ) : (
-                              <button
-                                type="button"
-                                className={styles.unschedOpen}
-                                onClick={() => {
-                                  focusDay(day.id);
-                                  setEditingCardId(e.id);
-                                }}
-                              >
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                                  <PencilGlyph /> {e.title || 'Untitled'}
-                                </span>
-                              </button>
+                              <div className={styles.unschedRow}>
+                                <button type="button" className={styles.unschedTitleBtn} onClick={() => openPreview(day.id, e.id)}>
+                                  {e.title || 'Untitled'}
+                                </button>
+                                <div className={styles.blockActions}>
+                                  <button
+                                    type="button"
+                                    className={styles.iconBtn}
+                                    aria-label="Preview entry"
+                                    title="Preview"
+                                    onClick={() => openPreview(day.id, e.id)}
+                                  >
+                                    <EyeGlyph />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={styles.iconBtn}
+                                    aria-label="Edit entry"
+                                    title="Edit"
+                                    onClick={() => openEdit(day.id, e.id)}
+                                  >
+                                    <PencilGlyph />
+                                  </button>
+                                </div>
+                              </div>
                             )}
                           </div>
                         ))}
@@ -614,7 +768,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
             })}
 
             <div className={styles.trackScroll}>
-              <div className={styles.trackInner} style={{ gridTemplateColumns: `3.5rem repeat(${displayDays.length}, minmax(10rem, 1fr))` }}>
+              <div className={styles.trackInner} style={{ gridTemplateColumns: gridColTemplate }}>
                 <div className={styles.timeAxis} style={{ height: `${trackHeight}px` }}>
                   {hoursTicks.map((h) => {
                     const m = h * 60;
@@ -633,7 +787,11 @@ export const ItineraryDayPlannerView: React.FC = () => {
                   const timed = list.filter((e) => minutesFromTimeStart(e.timeStart) !== undefined);
                   const slugFor = (e: ItineraryEntry): string => getCategorySlug(e.category);
                   return (
-                    <div key={`t-${day.id}`} className={styles.dayTrack} style={{ height: `${trackHeight}px` }}>
+                    <div
+                      key={`t-${day.id}`}
+                      className={styles.dayTrack}
+                      style={{ height: `${trackHeight}px`, ['--hour-band' as string]: `${hourBandPx}px` }}
+                    >
                       {timed.map((e) => {
                         const sm = minutesFromTimeStart(e.timeStart)!;
                         const dur = parseDurationMinutes(e.duration);
@@ -657,28 +815,29 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                 <ItineraryCard entry={e} calendarDate={cal} suppressCarryoverUi={day.dayType === 'PreTrip'} draggable={false} />
                               </div>
                             ) : (
-                              <div
-                                role="button"
-                                tabIndex={0}
-                                className={`${styles.block} th-cat-${cat} th-cat-border`}
-                                style={{ position: 'static', height: '100%' }}
-                                onClick={() => {
-                                  focusDay(day.id);
-                                  setEditingCardId(e.id);
-                                }}
-                                onKeyDown={(ev) => {
-                                  if (ev.key === 'Enter' || ev.key === ' ') {
-                                    ev.preventDefault();
-                                    focusDay(day.id);
-                                    setEditingCardId(e.id);
-                                  }
-                                }}
-                              >
+                              <div className={`${styles.block} th-cat-${cat} th-cat-border`} style={{ position: 'static', height: '100%' }}>
                                 <div className={styles.blockTitleRow}>
                                   <div className={styles.blockTitle}>{e.title || 'Untitled'}</div>
-                                  <span className={styles.editPill} aria-hidden>
-                                    <PencilGlyph />
-                                  </span>
+                                  <div className={styles.blockActions}>
+                                    <button
+                                      type="button"
+                                      className={styles.iconBtn}
+                                      aria-label="Preview entry"
+                                      title="Preview"
+                                      onClick={() => openPreview(day.id, e.id)}
+                                    >
+                                      <EyeGlyph />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={styles.iconBtn}
+                                      aria-label="Edit entry"
+                                      title="Edit"
+                                      onClick={() => openEdit(day.id, e.id)}
+                                    >
+                                      <PencilGlyph />
+                                    </button>
+                                  </div>
                                 </div>
                                 <div className={styles.blockMeta}>
                                   {formatTimeHHMM(e.timeStart)} · {e.duration?.trim() || '1h'}
@@ -737,6 +896,84 @@ export const ItineraryDayPlannerView: React.FC = () => {
           </div>
         </div>
       )}
+      {previewEntry ? (
+        <div
+          className={styles.previewBackdrop}
+          role="presentation"
+          onMouseDown={(ev) => {
+            if (ev.target === ev.currentTarget) setPreviewEntryId(null);
+          }}
+        >
+          <div className={styles.previewDialog} role="dialog" aria-modal="true" aria-labelledby="th-planner-preview-title">
+            <h2 id="th-planner-preview-title" className={styles.previewTitle}>
+              {previewEntry.title || 'Untitled'}
+            </h2>
+            <div className={styles.previewMeta}>
+              {previewEntry.category ? <span>{previewEntry.category}</span> : null}
+              {previewEntry.category ? <span> · </span> : null}
+              <span>
+                {formatTimeHHMM(previewEntry.timeStart) || 'Unscheduled'}
+                {previewEntry.duration ? ` · ${previewEntry.duration}` : null}
+              </span>
+              {previewEntry.location ? (
+                <>
+                  <span> · </span>
+                  <span>{previewEntry.location}</span>
+                </>
+              ) : null}
+            </div>
+            {previewEntry.supplier ? (
+              <div className={styles.previewSection}>
+                <h3>Supplier</h3>
+                <p className={styles.previewBody}>{previewEntry.supplier}</p>
+              </div>
+            ) : null}
+            {previewEntry.notes ? (
+              <div className={styles.previewSection}>
+                <h3>Notes</h3>
+                <p className={styles.previewBody}>{previewEntry.notes}</p>
+              </div>
+            ) : null}
+            {(previewEntry.amount !== undefined && previewEntry.amount !== 0) || previewEntry.paymentStatus ? (
+              <div className={styles.previewSection}>
+                <h3>Cost</h3>
+                <p className={styles.previewBody}>
+                  {formatCurrency(previewEntry.amount || 0, previewEntry.currency || 'NZD')}
+                  {previewEntry.paymentStatus ? ` · ${previewEntry.paymentStatus}` : null}
+                </p>
+              </div>
+            ) : null}
+            {(previewEntry.subItems ?? []).length ? (
+              <div className={styles.previewSection}>
+                <h3>Sub-items</h3>
+                <ul style={{ margin: 0, paddingLeft: '1.1rem' }}>
+                  {(previewEntry.subItems ?? []).map((s) => (
+                    <li key={s.id} style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-900)' }}>
+                      {subItemLine(s)}
+                      {s.notes ? <div className={styles.previewBody} style={{ marginTop: 4 }}>{s.notes}</div> : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            <div className={styles.previewActions}>
+              <button type="button" className={styles.previewClose} onClick={() => setPreviewEntryId(null)}>
+                Close
+              </button>
+              <button
+                type="button"
+                className={styles.previewEdit}
+                onClick={() => {
+                  const dayId = previewEntry.dayId;
+                  openEdit(dayId, previewEntry.id);
+                }}
+              >
+                Edit
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };
