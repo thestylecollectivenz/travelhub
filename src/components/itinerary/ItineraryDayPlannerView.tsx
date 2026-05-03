@@ -10,6 +10,7 @@ import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
 import { formatCurrency } from '../../utils/financialUtils';
 import { ItineraryCard } from './ItineraryCard';
+import { openDayPlannerPrintWindow } from '../../utils/dayPlannerPrint';
 import styles from './ItineraryDayPlannerView.module.css';
 
 export type PlannerFilter =
@@ -112,8 +113,6 @@ function PrintGlyph(): React.ReactElement {
     </svg>
   );
 }
-
-const TH_PRINT_DAY_PLANNER = 'day-planner';
 
 function plannerStorageKeys(tripId: string): { rangeStart: string; rangeEnd: string } {
   return {
@@ -268,25 +267,9 @@ export const ItineraryDayPlannerView: React.FC = () => {
     setMobileDayIndex(0);
   }, [filter, customStart, customEnd, orderedDays.length]);
 
-  React.useEffect(() => {
-    const clearPrintMode = (): void => {
-      if (document.documentElement.dataset.thPrint === TH_PRINT_DAY_PLANNER) {
-        delete document.documentElement.dataset.thPrint;
-      }
-    };
-    window.addEventListener('afterprint', clearPrintMode);
-    return () => {
-      window.removeEventListener('afterprint', clearPrintMode);
-      clearPrintMode();
-    };
-  }, []);
-
   const printDayPlanner = React.useCallback((): void => {
     setPreviewEntryId(null);
-    document.documentElement.dataset.thPrint = TH_PRINT_DAY_PLANNER;
-    window.requestAnimationFrame(() => {
-      window.print();
-    });
+    openDayPlannerPrintWindow();
   }, []);
 
   React.useEffect(() => {

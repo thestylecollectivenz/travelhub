@@ -50,7 +50,7 @@ export const DayPanel: React.FC = () => {
   const dayTotal = sumForDay(entries, day.id, convertToHomeCurrency, day.calendarDate);
 
   return (
-    <div className={styles.root} data-th-day-panel>
+    <div className={styles.root}>
       <DayHeader
         day={day}
         dayTotal={dayTotal}
