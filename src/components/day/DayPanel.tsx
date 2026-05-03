@@ -27,16 +27,6 @@ function PlannerGlyph(): React.ReactElement {
   );
 }
 
-function PrintGlyph(): React.ReactElement {
-  return (
-    <svg width={14} height={14} viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path d="M4.5 5.5V3h7v2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-      <rect x="3" y="5.5" width="10" height="7.5" rx="1.2" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M5.5 13V10h5v3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 export const DayPanel: React.FC = () => {
   const { trip, tripDays, selectedDayId, setEditingCardId, localEntries, convertToHomeCurrency } = useTripWorkspace();
   const [openJournalSignal, setOpenJournalSignal] = React.useState(0);
@@ -60,7 +50,7 @@ export const DayPanel: React.FC = () => {
   const dayTotal = sumForDay(entries, day.id, convertToHomeCurrency, day.calendarDate);
 
   return (
-    <div className={styles.root}>
+    <div className={styles.root} data-th-day-panel>
       <DayHeader
         day={day}
         dayTotal={dayTotal}
@@ -93,14 +83,6 @@ export const DayPanel: React.FC = () => {
           onClick={() => window.dispatchEvent(new Event('open-cruise-import'))}
         >
           Import cruise itinerary
-        </button>
-        <button
-          type="button"
-          className={`${styles.itineraryViewBtn} ${styles.hideOnPrint}`}
-          onClick={() => window.print()}
-        >
-          <PrintGlyph />
-          Print
         </button>
       </div>
       <CruiseItineraryImport trip={trip} />

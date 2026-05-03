@@ -103,6 +103,18 @@ function EyeGlyph(): React.ReactElement {
   );
 }
 
+function PrintGlyph(): React.ReactElement {
+  return (
+    <svg width={14} height={14} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path d="M4.5 5.5V3h7v2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <rect x="3" y="5.5" width="10" height="7.5" rx="1.2" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M5.5 13V10h5v3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+const TH_PRINT_DAY_PLANNER = 'day-planner';
+
 function plannerStorageKeys(tripId: string): { rangeStart: string; rangeEnd: string } {
   return {
     rangeStart: `travelHub.planner.${tripId}.rangeStart`,
@@ -255,6 +267,27 @@ export const ItineraryDayPlannerView: React.FC = () => {
   React.useEffect(() => {
     setMobileDayIndex(0);
   }, [filter, customStart, customEnd, orderedDays.length]);
+
+  React.useEffect(() => {
+    const clearPrintMode = (): void => {
+      if (document.documentElement.dataset.thPrint === TH_PRINT_DAY_PLANNER) {
+        delete document.documentElement.dataset.thPrint;
+      }
+    };
+    window.addEventListener('afterprint', clearPrintMode);
+    return () => {
+      window.removeEventListener('afterprint', clearPrintMode);
+      clearPrintMode();
+    };
+  }, []);
+
+  const printDayPlanner = React.useCallback((): void => {
+    setPreviewEntryId(null);
+    document.documentElement.dataset.thPrint = TH_PRINT_DAY_PLANNER;
+    window.requestAnimationFrame(() => {
+      window.print();
+    });
+  }, []);
 
   React.useEffect(() => {
     if (mobileDayIndex >= visibleDays.length) {
@@ -418,7 +451,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
   const gridColTemplate = `3.5rem repeat(${displayDays.length}, minmax(11rem, 1fr))`;
 
   return (
-    <div className={styles.root}>
+    <div className={styles.root} id="th-print-root">
       <div className={styles.filterBar}>
         {filters.map((f) => (
           <button
@@ -431,44 +464,50 @@ export const ItineraryDayPlannerView: React.FC = () => {
           </button>
         ))}
       </div>
-      <div className={styles.rangeBar} aria-label="Planner time range">
-        <label className={styles.rangeLabel}>
-          Start{' '}
-          <input className={styles.rangeInput} type="time" value={rangeStartOverride} onChange={(e) => setRangeStartOverride(e.target.value)} />
-        </label>
-        <label className={styles.rangeLabel}>
-          End{' '}
-          <input className={styles.rangeInput} type="time" value={rangeEndOverride} onChange={(e) => setRangeEndOverride(e.target.value)} />
-        </label>
-        <button
-          type="button"
-          className={styles.rangeReset}
-          onClick={() => {
-            setRangeStartOverride('');
-            setRangeEndOverride('');
-            if (trip?.id) {
-              try {
-                const { rangeStart, rangeEnd } = plannerStorageKeys(trip.id);
-                window.localStorage.removeItem(rangeStart);
-                window.localStorage.removeItem(rangeEnd);
-              } catch {
-                /* ignore */
+      <div className={styles.rangeToolbar}>
+        <div className={styles.rangeBar} aria-label="Planner time range">
+          <label className={styles.rangeLabel}>
+            Start{' '}
+            <input className={styles.rangeInput} type="time" value={rangeStartOverride} onChange={(e) => setRangeStartOverride(e.target.value)} />
+          </label>
+          <label className={styles.rangeLabel}>
+            End{' '}
+            <input className={styles.rangeInput} type="time" value={rangeEndOverride} onChange={(e) => setRangeEndOverride(e.target.value)} />
+          </label>
+          <button
+            type="button"
+            className={styles.rangeReset}
+            onClick={() => {
+              setRangeStartOverride('');
+              setRangeEndOverride('');
+              if (trip?.id) {
+                try {
+                  const { rangeStart, rangeEnd } = plannerStorageKeys(trip.id);
+                  window.localStorage.removeItem(rangeStart);
+                  window.localStorage.removeItem(rangeEnd);
+                } catch {
+                  /* ignore */
+                }
               }
-            }
-          }}
-        >
-          Reset
+            }}
+          >
+            Reset
+          </button>
+          {anyUnscheduledAcrossFilter ? (
+            <>
+              <button type="button" className={styles.rangeReset} onClick={expandAllUnscheduled}>
+                Show all unscheduled
+              </button>
+              <button type="button" className={styles.rangeReset} onClick={collapseAllUnscheduled}>
+                Hide all unscheduled
+              </button>
+            </>
+          ) : null}
+        </div>
+        <button type="button" className={styles.printPlannerBtn} onClick={printDayPlanner} aria-label="Print day planner">
+          <PrintGlyph />
+          Print
         </button>
-        {anyUnscheduledAcrossFilter ? (
-          <>
-            <button type="button" className={styles.rangeReset} onClick={expandAllUnscheduled}>
-              Show all unscheduled
-            </button>
-            <button type="button" className={styles.rangeReset} onClick={collapseAllUnscheduled}>
-              Hide all unscheduled
-            </button>
-          </>
-        ) : null}
       </div>
       {filter === 'custom_range' ? (
         <div className={styles.customRange}>

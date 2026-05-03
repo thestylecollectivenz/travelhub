@@ -109,8 +109,8 @@ export const TripContent: React.FC = () => {
   );
 
   const shell = (
-    <div className={styles.tripContent}>
-      <div className={styles.sidebarShell} style={{ width: `${sidebarWidth}px` }}>
+    <div className={styles.tripContent} data-th-trip-content>
+      <div className={styles.sidebarShell} data-th-sidebar-shell style={{ width: `${sidebarWidth}px` }}>
         <aside className={styles.sidebar} aria-label="Trip navigation and budget">
           <TripSidebar />
         </aside>
@@ -122,7 +122,7 @@ export const TripContent: React.FC = () => {
           onMouseDown={startSidebarResize}
         />
       </div>
-      <main className={styles.main}>
+      <main className={styles.main} data-th-main>
         {mainWorkspaceTab === 'itinerary' ? <DayPanel /> : null}
         {mainWorkspaceTab === 'journal' ? <TripJournalFeed /> : null}
         {mainWorkspaceTab === 'photos' ? <TripPhotoAlbum /> : null}

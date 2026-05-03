@@ -38,12 +38,43 @@
   align-items: center;
 }
 
+.rangeToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+
 .rangeBar {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
   align-items: center;
-  padding: var(--space-2) 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+}
+
+.printPlannerBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-blue-800);
+  cursor: pointer;
+}
+
+.printPlannerBtn:hover {
+  border-color: var(--color-sand-400);
+  color: var(--color-blue-900);
 }
 
 .rangeLabel {
@@ -526,8 +557,13 @@
 }
 
 @media print {
+  .root {
+    padding: 0;
+    gap: 0;
+  }
+
   .filterBar,
-  .rangeBar,
+  .rangeToolbar,
   .customRange,
   .inactivePrompt,
   .mobileNav {
@@ -543,6 +579,7 @@
 
   .trackScroll {
     overflow: visible;
+    min-height: 0 !important;
   }
 
   /* Sticky + fixed layers often print as empty or cover content in Chromium */
@@ -556,5 +593,11 @@
 
   .previewBackdrop {
     display: none !important;
+  }
+
+  .editOverlay {
+    position: static !important;
+    max-height: none !important;
+    box-shadow: none !important;
   }
 }

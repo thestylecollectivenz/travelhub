@@ -260,3 +260,51 @@ a:hover {
     visibility: hidden !important;
   }
 }
+
+/*
+ * Day Planner scoped print: set on Print click, cleared in afterprint (ItineraryDayPlannerView).
+ * Hides workspace chrome outside #th-print-root using stable data-th-* hooks (CSS modules hash class names).
+ * Browser print headers/footers remain a user/printer setting; @page margin tightens the sheet.
+ */
+@media print {
+  html[data-th-print='day-planner'] {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  html[data-th-print='day-planner'] [data-trip-id] > *:not([data-th-workspace-body]) {
+    display: none !important;
+  }
+
+  html[data-th-print='day-planner'] [data-trip-id] [data-th-workspace-body] > *:not([data-th-trip-content]) {
+    display: none !important;
+  }
+
+  html[data-th-print='day-planner'] [data-th-sidebar-shell] {
+    display: none !important;
+  }
+
+  html[data-th-print='day-planner'] [data-th-day-panel] > *:not(#th-print-root) {
+    display: none !important;
+  }
+
+  html[data-th-print='day-planner'] [data-trip-id] [data-th-workspace-body],
+  html[data-th-print='day-planner'] [data-trip-id] [data-th-trip-content],
+  html[data-th-print='day-planner'] [data-th-main],
+  html[data-th-print='day-planner'] #th-print-root {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  html[data-th-print='day-planner'] #th-print-root {
+    page-break-inside: auto;
+  }
+
+  @page {
+    margin: 10mm 12mm;
+  }
+}

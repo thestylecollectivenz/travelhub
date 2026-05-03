@@ -474,7 +474,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
         </div>
       ) : null}
       {deleteTripError ? <div className={styles.deleteError}>{deleteTripError}</div> : null}
-      <div className={styles.workspaceBody}>
+      <div className={styles.workspaceBody} data-th-workspace-body>
         <TripHero trip={trip} onEdit={() => setEditOpen(true)} showEditButton={!sharedPreview} />
         {sharedPreview ? null : <TripStatsStrip />}
         <RouteStrip />
