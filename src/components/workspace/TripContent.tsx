@@ -11,12 +11,13 @@ import { TripTasksView } from '../tasks/TripTasksView';
 import { PackingListView } from '../packing/PackingListView';
 import { TripSidebar } from '../sidebar/TripSidebar';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { sortEntriesForDay } from '../../utils/itineraryDayEntries';
 import { useConfig } from '../../context/ConfigContext';
 import dayHeaderStyles from '../day/DayHeader.module.css';
 import styles from './TripWorkspace.module.css';
 
 export const TripContent: React.FC = () => {
-  const { selectedDayId, localEntries, reorderEntries, moveEntryToDay, mainWorkspaceTab } = useTripWorkspace();
+  const { trip, tripDays, selectedDayId, localEntries, reorderEntries, moveEntryToDay, mainWorkspaceTab } = useTripWorkspace();
   const { config, saveConfig } = useConfig();
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [planTab, setPlanTab] = React.useState<'tasks' | 'packing'>('tasks');
@@ -33,11 +34,16 @@ export const TripContent: React.FC = () => {
     sidebarWidthRef.current = sidebarWidth;
   }, [sidebarWidth]);
 
+  const dayPanelDay = React.useMemo(() => {
+    if (!trip || !selectedDayId) return undefined;
+    return tripDays.find((x) => x.id === selectedDayId && x.tripId === trip.id);
+  }, [trip, tripDays, selectedDayId]);
+
   const dayEntries = React.useMemo(() => {
-    return [...localEntries]
-      .filter((entry) => entry.dayId === selectedDayId)
-      .sort((a, b) => a.sortOrder - b.sortOrder);
-  }, [localEntries, selectedDayId]);
+    if (!trip || !selectedDayId || !dayPanelDay) return [];
+    const cal = dayPanelDay.calendarDate ?? '';
+    return sortEntriesForDay(localEntries, selectedDayId, cal, dayPanelDay.dayType);
+  }, [localEntries, selectedDayId, dayPanelDay, trip]);
 
   const activeEntry = React.useMemo(() => {
     if (!activeId) {
@@ -70,7 +76,8 @@ export const TripContent: React.FC = () => {
           return;
         }
         const reordered = arrayMove(dayEntries, oldIndex, newIndex);
-        reorderEntries(selectedDayId, reordered.map((e) => e.id));
+        const homeDayIds = reordered.filter((e) => e.dayId === selectedDayId).map((e) => e.id);
+        reorderEntries(selectedDayId, homeDayIds);
       }
     },
     [dayEntries, moveEntryToDay, reorderEntries, selectedDayId]

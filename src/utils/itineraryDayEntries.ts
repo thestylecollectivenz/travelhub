@@ -21,32 +21,37 @@ export function isEntryOnCalendarDate(entry: ItineraryEntry, calendarDate: strin
   return false;
 }
 
+function compareBySortOrderThenTime(a: ItineraryEntry, b: ItineraryEntry): number {
+  const ao = a.sortOrder ?? 0;
+  const bo = b.sortOrder ?? 0;
+  if (ao !== bo) return ao - bo;
+  const aMin = minutesFromTimeStart(a.timeStart);
+  const bMin = minutesFromTimeStart(b.timeStart);
+  if (aMin !== undefined && bMin !== undefined) return aMin - bMin;
+  if (aMin !== undefined) return -1;
+  if (bMin !== undefined) return 1;
+  return (a.title || '').localeCompare(b.title || '');
+}
+
 export function sortEntriesForDay(
   entries: ItineraryEntry[],
   dayId: string,
   calendarDate: string,
   dayType?: string
 ): ItineraryEntry[] {
-  const map = new Map<string, ItineraryEntry>();
   const isPreTrip = dayType === 'PreTrip' || dayType === 'Pre-trip';
+  if (isPreTrip) {
+    return entries
+      .filter((e) => !e.parentEntryId && e.dayId === dayId)
+      .sort(compareBySortOrderThenTime);
+  }
+
+  const map = new Map<string, ItineraryEntry>();
   for (const e of entries) {
     if (e.parentEntryId) continue;
-    if (isPreTrip) {
-      if (e.dayId === dayId) {
-        map.set(e.id, e);
-      }
-      continue;
-    }
     if (e.dayId === dayId || isEntryOnCalendarDate(e, calendarDate, dayType)) {
       map.set(e.id, e);
     }
   }
-  return Array.from(map.values()).sort((a, b) => {
-    const aMin = minutesFromTimeStart(a.timeStart);
-    const bMin = minutesFromTimeStart(b.timeStart);
-    if (aMin !== undefined && bMin !== undefined) return aMin - bMin;
-    if (aMin !== undefined) return -1;
-    if (bMin !== undefined) return 1;
-    return a.sortOrder - b.sortOrder;
-  });
+  return Array.from(map.values()).sort(compareBySortOrderThenTime);
 }
