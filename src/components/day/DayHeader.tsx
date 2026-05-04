@@ -254,19 +254,31 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
     if (parts.length < 2) return value;
     return `${parts[0]}:${parts[1]}`;
   }, []);
-  const currentLocalTime = React.useMemo(() => {
+  const [currentLocalTime, setCurrentLocalTime] = React.useState('');
+
+  React.useEffect(() => {
     const tz = infoPlace?.timeZone?.trim();
-    if (!tz) return '';
-    try {
-      return new Intl.DateTimeFormat('en-NZ', {
-        timeZone: tz,
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      }).format(new Date());
-    } catch {
-      return '';
+    if (!tz) {
+      setCurrentLocalTime('');
+      return undefined;
     }
+    const tick = (): void => {
+      try {
+        setCurrentLocalTime(
+          new Intl.DateTimeFormat('en-NZ', {
+            timeZone: tz,
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          }).format(new Date())
+        );
+      } catch {
+        setCurrentLocalTime('');
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(id);
   }, [infoPlace?.timeZone]);
   const currentSeason = React.useMemo(() => {
     if (!infoPlace || !Number.isFinite(infoPlace.latitude)) return '';
