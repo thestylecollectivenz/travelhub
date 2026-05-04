@@ -14,9 +14,11 @@ lib-commonjs
 lib-esm
 jest-output
 release
-solution
+# SPFx package: ship catalog .sppkg; ignore extracted debug tree
+sharepoint/solution/debug/
 temp
 *.sppkg
+!sharepoint/solution/travel-hub.sppkg
 .heft
 
 # Coverage directory used by tools like istanbul
@@ -27,6 +29,9 @@ coverage
 
 # Local licence file (do not commit)
 licence.txt
+
+# Local / Dropbox Word specs (not source)
+*.docx
 
 # Visual Studio files
 .ntvs_analysis.dat
