@@ -560,7 +560,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                         {unsched.map((e) => (
                           <div key={e.id} className={styles.unschedCard}>
                             {editingCardId === e.id ? (
-                              <ItineraryCard entry={e} calendarDate={cal} suppressCarryoverUi={day.dayType === 'PreTrip'} draggable={false} />
+                              <ItineraryCard entry={e} calendarDate={cal} suppressCarryoverUi={day.dayType === 'PreTrip'} draggable={false} useEditPortal />
                             ) : (
                               <div className={styles.unschedRow}>
                                 <button type="button" className={styles.unschedTitleBtn} onClick={() => openPreview(day.id, e.id)}>
@@ -631,7 +631,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                         <div key={e.id} style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: editingCardId === e.id ? 50 : undefined }}>
                           {editingCardId === e.id ? (
                             <div className={styles.editOverlay}>
-                              <ItineraryCard entry={e} calendarDate={cal} suppressCarryoverUi={day.dayType === 'PreTrip'} draggable={false} />
+                              <ItineraryCard entry={e} calendarDate={cal} suppressCarryoverUi={day.dayType === 'PreTrip'} draggable={false} useEditPortal />
                             </div>
                           ) : (
                             <div className={`${styles.block} th-cat-${cat} th-cat-border`} style={{ position: 'static', height: '100%' }}>
@@ -756,7 +756,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                         {unsched.map((e) => (
                           <div key={e.id} className={styles.unschedCard}>
                             {editingCardId === e.id ? (
-                              <ItineraryCard entry={e} calendarDate={cal} suppressCarryoverUi={day.dayType === 'PreTrip'} draggable={false} />
+                              <ItineraryCard entry={e} calendarDate={cal} suppressCarryoverUi={day.dayType === 'PreTrip'} draggable={false} useEditPortal />
                             ) : (
                               <div className={styles.unschedRow}>
                                 <button type="button" className={styles.unschedTitleBtn} onClick={() => openPreview(day.id, e.id)}>
@@ -838,7 +838,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                           <div key={e.id} style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: editingCardId === e.id ? 50 : undefined }}>
                             {editingCardId === e.id ? (
                               <div className={styles.editOverlay}>
-                                <ItineraryCard entry={e} calendarDate={cal} suppressCarryoverUi={day.dayType === 'PreTrip'} draggable={false} />
+                                <ItineraryCard entry={e} calendarDate={cal} suppressCarryoverUi={day.dayType === 'PreTrip'} draggable={false} useEditPortal />
                               </div>
                             ) : (
                               <div className={`${styles.block} th-cat-${cat} th-cat-border`} style={{ position: 'static', height: '100%' }}>

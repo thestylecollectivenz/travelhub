@@ -66,3 +66,27 @@
 .card:hover .dragHandle {
   opacity: 1;
 }
+
+/* Day Planner: edit form portaled to body so slide-in is not clipped by column width */
+.portalEditRoot {
+  position: fixed;
+  inset: 0;
+  z-index: 11000;
+  pointer-events: none;
+}
+
+.portalEditInner {
+  pointer-events: auto;
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(28rem, 100vw);
+  max-width: 100%;
+  overflow: auto;
+  box-sizing: border-box;
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-elevated);
+  border-left: var(--border-default);
+  padding: var(--space-4);
+}

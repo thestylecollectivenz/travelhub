@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
@@ -14,6 +15,8 @@ export interface ItineraryCardProps {
   suppressCarryoverUi?: boolean;
   draggable?: boolean;
   hasTask?: boolean;
+  /** Portals the edit form to document.body (Day Planner columns are too narrow). */
+  useEditPortal?: boolean;
 }
 
 function GripIcon(): React.ReactElement {
@@ -34,7 +37,8 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
   calendarDate,
   suppressCarryoverUi,
   draggable = true,
-  hasTask = false
+  hasTask = false,
+  useEditPortal = false
 }) => {
   const { editingCardId, setEditingCardId, updateEntry, deleteEntry, duplicateEntry } = useTripWorkspace();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -64,6 +68,17 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
     setEditingCardId(null);
   }, [deleteEntry, entry.id, setEditingCardId]);
 
+  const editForm = showEdit ? (
+    <ItineraryCardEdit
+      key={entry.id}
+      entry={entry}
+      calendarDate={calendarDate}
+      onSave={handleSave}
+      onCancel={handleCancel}
+      onDelete={handleDelete}
+    />
+  ) : null;
+
   const categorySlug = getCategorySlug(entry.category);
 
   const dragStyle: React.CSSProperties = {
@@ -92,16 +107,11 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
           <GripIcon />
         </button>
       ) : null}
-      {showEdit ? (
-        <ItineraryCardEdit
-          key={entry.id}
-          entry={entry}
-          calendarDate={calendarDate}
-          onSave={handleSave}
-          onCancel={handleCancel}
-          onDelete={handleDelete}
-        />
-      ) : (
+      {showEdit && useEditPortal && typeof document !== 'undefined'
+        ? null
+        : showEdit
+          ? editForm
+          : (
         <ItineraryCardView
           entry={entry}
           calendarDate={calendarDate}
@@ -112,6 +122,14 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
           onDelete={() => deleteEntry(entry.id)}
         />
       )}
+      {showEdit && useEditPortal && typeof document !== 'undefined'
+        ? ReactDOM.createPortal(
+            <div className={styles.portalEditRoot} role="presentation">
+              <div className={styles.portalEditInner}>{editForm}</div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 };
