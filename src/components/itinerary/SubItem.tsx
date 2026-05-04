@@ -1,36 +1,12 @@
 import * as React from 'react';
 import type { ItinerarySubItem } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
-import { useConfig } from '../../context/ConfigContext';
-import { formatCurrency } from '../../utils/financialUtils';
+import { SubItemDetailLines } from './SubItemDetailLines';
 import styles from './SubItem.module.css';
 
 export interface SubItemProps {
   item: ItinerarySubItem;
   parentEntryId: string;
-}
-
-function decisionDotClass(status: ItinerarySubItem['decisionStatus']): string {
-  if (status === 'Planned') {
-    return styles.dotPlanned;
-  }
-  if (status === 'Confirmed') {
-    return styles.dotConfirmed;
-  }
-  return styles.dotIdea;
-}
-
-function paymentBadgeClass(status: ItinerarySubItem['paymentStatus']): string {
-  if (status === 'Free') {
-    return styles.paymentFree;
-  }
-  if (status === 'Fully paid') {
-    return styles.paymentPaid;
-  }
-  if (status === 'Part paid') {
-    return styles.paymentPart;
-  }
-  return styles.paymentUnpaid;
 }
 
 function EditIcon(): React.ReactElement {
@@ -51,8 +27,7 @@ function DeleteIcon(): React.ReactElement {
 }
 
 export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
-  const { config } = useConfig();
-  const { updateSubItem, deleteSubItem, convertToHomeCurrency } = useTripWorkspace();
+  const { updateSubItem, deleteSubItem } = useTripWorkspace();
   const [isEditing, setIsEditing] = React.useState(false);
   const [draft, setDraft] = React.useState<ItinerarySubItem>({ ...item });
 
@@ -175,20 +150,10 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
 
   return (
     <div className={styles.row}>
-      <div className={styles.left}>
-        <span className={`${styles.dot} ${decisionDotClass(item.decisionStatus)}`} aria-hidden />
-        <span className={styles.title}>{item.title}</span>
-        <span className={`${styles.paymentBadge} ${paymentBadgeClass(item.paymentStatus)}`}>{item.paymentStatus}</span>
+      <div className={styles.detailWrap}>
+        <SubItemDetailLines item={item} />
       </div>
-      <div className={styles.right}>
-        {item.startTime ? <span className={styles.amount}>{item.startTime}{item.endTime ? `-${item.endTime}` : ''}</span> : null}
-        {item.paymentStatus === 'Free' ? (
-          <span className={styles.free}>Free</span>
-        ) : (
-          <span className={styles.amount}>
-            {formatCurrency(convertToHomeCurrency(item.amount, item.currency || 'NZD'), config.homeCurrency)}
-          </span>
-        )}
+      <div className={styles.actionCol}>
         <button type="button" className={styles.editButton} onClick={() => setIsEditing(true)} aria-label="Edit sub-item">
           <EditIcon />
         </button>

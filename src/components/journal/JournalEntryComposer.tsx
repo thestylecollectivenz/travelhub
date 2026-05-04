@@ -8,6 +8,8 @@ export interface JournalEntryComposerProps {
   dayId: string;
   onCancel: () => void;
   onSaved: () => void;
+  /** Increment to open the photo file picker (e.g. Photos tab “new entry” flow). */
+  focusPhotoPickerKey?: number;
 }
 
 function isAllowedImage(file: File): boolean {
@@ -17,7 +19,7 @@ function isAllowedImage(file: File): boolean {
   return okExt && okMime;
 }
 
-export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayId, onCancel, onSaved }) => {
+export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayId, onCancel, onSaved, focusPhotoPickerKey }) => {
   const { addEntry, addPhoto } = useJournal();
   const [entryHtml, setEntryHtml] = React.useState('<p><br></p>');
   const [location, setLocation] = React.useState('');
@@ -27,6 +29,18 @@ export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayI
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [progress, setProgress] = React.useState<string | null>(null);
+  const photoInputRef = React.useRef<HTMLInputElement | null>(null);
+  const prevPhotoFocusKey = React.useRef<number | undefined>(undefined);
+
+  React.useEffect(() => {
+    if (focusPhotoPickerKey === undefined) return;
+    if (focusPhotoPickerKey <= 0) return;
+    if (prevPhotoFocusKey.current === focusPhotoPickerKey) return;
+    prevPhotoFocusKey.current = focusPhotoPickerKey;
+    window.requestAnimationFrame(() => {
+      photoInputRef.current?.click();
+    });
+  }, [focusPhotoPickerKey]);
 
   React.useEffect(() => {
     const urls = files.map((f) => URL.createObjectURL(f));
@@ -99,7 +113,13 @@ export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayI
       </label>
       <label className={styles.label}>
         Photos (optional)
-        <input type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple onChange={onPickFiles} />
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+          multiple
+          onChange={onPickFiles}
+        />
       </label>
       {files.map((f, i) => (
         <div key={`${f.name}-${i}`} className={styles.photoRow}>

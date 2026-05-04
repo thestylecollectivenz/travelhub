@@ -10,6 +10,7 @@ import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
 import { formatCurrency } from '../../utils/financialUtils';
 import { ItineraryCard } from './ItineraryCard';
+import { SubItemDetailLines } from './SubItemDetailLines';
 import { openDayPlannerPrintWindow } from '../../utils/dayPlannerPrint';
 import styles from './ItineraryDayPlannerView.module.css';
 
@@ -356,6 +357,18 @@ export const ItineraryDayPlannerView: React.FC = () => {
   }, [visibleDays, entriesForTrip]);
 
   const previewEntry = previewEntryId ? localEntries.find((e) => e.id === previewEntryId) : undefined;
+
+  const previewSubItemsSorted = React.useMemo(() => {
+    if (!previewEntry) return [];
+    return [...(previewEntry.subItems ?? [])].sort((a, b) => {
+      const am = minutesFromTimeStart(a.startTime || '');
+      const bm = minutesFromTimeStart(b.startTime || '');
+      if (am === undefined && bm === undefined) return 0;
+      if (am === undefined) return 1;
+      if (bm === undefined) return -1;
+      return am - bm;
+    });
+  }, [previewEntry]);
 
   const collapseAllUnscheduled = React.useCallback((): void => {
     setUnschedCollapsed((prev) => {
@@ -969,17 +982,16 @@ export const ItineraryDayPlannerView: React.FC = () => {
                 </p>
               </div>
             ) : null}
-            {(previewEntry.subItems ?? []).length ? (
+            {previewSubItemsSorted.length ? (
               <div className={styles.previewSection}>
                 <h3>Sub-items</h3>
-                <ul style={{ margin: 0, paddingLeft: '1.1rem' }}>
-                  {(previewEntry.subItems ?? []).map((s) => (
-                    <li key={s.id} style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-900)' }}>
-                      {subItemLine(s)}
-                      {s.notes ? <div className={styles.previewBody} style={{ marginTop: 4 }}>{s.notes}</div> : null}
-                    </li>
+                <div className={styles.previewSubList}>
+                  {previewSubItemsSorted.map((s) => (
+                    <div key={s.id} className={styles.previewSubBlock}>
+                      <SubItemDetailLines item={s} />
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             ) : null}
             <div className={styles.previewActions}>

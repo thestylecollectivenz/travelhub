@@ -3,6 +3,7 @@ import type { JournalPhoto } from '../../models';
 import { useJournal } from '../../context/JournalContext';
 import { useSpContext } from '../../context/SpContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { JournalEntryComposer } from './JournalEntryComposer';
 import { JournalImageLightbox } from './JournalImageLightbox';
 import styles from './TripPhotoAlbum.module.css';
 
@@ -144,11 +145,15 @@ function isAllowedImage(file: File): boolean {
 
 export const TripPhotoAlbum: React.FC = () => {
   const { allTripPhotos, addAlbumPhoto } = useJournal();
-  const { trip, tripDays } = useTripWorkspace();
+  const { trip, tripDays, selectedDayId, sharedPreview } = useTripWorkspace();
 
   const [layout, setLayout] = React.useState<AlbumLayout>('all');
   const [scopeDayId, setScopeDayId] = React.useState<string>('');
   const [lightboxUrl, setLightboxUrl] = React.useState<string | null>(null);
+
+  const [journalComposerOpen, setJournalComposerOpen] = React.useState(false);
+  const [journalComposerDayId, setJournalComposerDayId] = React.useState('');
+  const [photoPickerFocusKey, setPhotoPickerFocusKey] = React.useState(0);
 
   const [uploadOpen, setUploadOpen] = React.useState(false);
   const [uploadDayId, setUploadDayId] = React.useState<string>('');
@@ -179,6 +184,18 @@ export const TripPhotoAlbum: React.FC = () => {
   }, [pendingFiles]);
 
   const photos = allTripPhotos;
+
+  const defaultJournalDayId = React.useCallback((): string => {
+    if (!days.length) return '';
+    const match = days.find((d) => d.id === selectedDayId);
+    return match?.id ?? days[0].id;
+  }, [days, selectedDayId]);
+
+  const openJournalComposer = React.useCallback(() => {
+    setJournalComposerDayId(defaultJournalDayId());
+    setJournalComposerOpen(true);
+    setPhotoPickerFocusKey((k) => k + 1);
+  }, [defaultJournalDayId]);
 
   const grouped = React.useMemo(() => {
     const map = new Map<string, JournalPhoto[]>();
@@ -313,10 +330,43 @@ export const TripPhotoAlbum: React.FC = () => {
             </select>
           </label>
         ) : null}
-        <button type="button" className={styles.addButton} onClick={() => setUploadOpen((v) => !v)}>
-          {uploadOpen ? 'Close upload' : 'Add photos'}
-        </button>
+        <div className={styles.toolbarEnd}>
+          {!sharedPreview && days.length > 0 ? (
+            <button type="button" className={styles.journalEntryButton} onClick={openJournalComposer}>
+              New journal entry
+            </button>
+          ) : null}
+          <button type="button" className={styles.addButton} onClick={() => setUploadOpen((v) => !v)}>
+            {uploadOpen ? 'Close upload' : 'Add photos'}
+          </button>
+        </div>
       </div>
+
+      {journalComposerOpen && journalComposerDayId && !sharedPreview ? (
+        <div className={styles.journalComposerWrap}>
+          <label className={styles.journalComposerDay}>
+            <span>Day for this entry</span>
+            <select
+              className={styles.select}
+              value={journalComposerDayId}
+              onChange={(e) => setJournalComposerDayId(e.target.value)}
+              aria-label="Journal entry day"
+            >
+              {days.map((d) => (
+                <option key={d.id} value={d.id}>
+                  Day {d.dayNumber} — {d.displayTitle}
+                </option>
+              ))}
+            </select>
+          </label>
+          <JournalEntryComposer
+            dayId={journalComposerDayId}
+            focusPhotoPickerKey={photoPickerFocusKey}
+            onCancel={() => setJournalComposerOpen(false)}
+            onSaved={() => setJournalComposerOpen(false)}
+          />
+        </div>
+      ) : null}
 
       {uploadOpen ? (
         <div className={styles.uploadPanel}>
@@ -371,11 +421,11 @@ export const TripPhotoAlbum: React.FC = () => {
         </div>
       ) : null}
 
-      {totalVisible === 0 ? (
+      {totalVisible === 0 && !journalComposerOpen && !uploadOpen ? (
         <div className={styles.empty} role="status">
           No photos yet. Add some from the journal or use Add photos here.
         </div>
-      ) : (
+      ) : totalVisible > 0 ? (
         visibleSections.map((sec, idx) => (
           <div key={`${sec.title ?? 'all'}-${idx}`} className={styles.section}>
             {sec.title ? <h3 className={styles.sectionTitle}>{sec.title}</h3> : null}
@@ -386,7 +436,7 @@ export const TripPhotoAlbum: React.FC = () => {
             </div>
           </div>
         ))
-      )}
+      ) : null}
 
       {lightboxUrl ? <JournalImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} /> : null}
     </section>

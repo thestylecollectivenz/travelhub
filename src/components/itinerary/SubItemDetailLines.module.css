@@ -1,0 +1,124 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-width: 0;
+  text-align: left;
+}
+
+.groupLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-sand-600);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-800);
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+
+.timeLine {
+  font-size: var(--font-size-xs);
+  color: var(--color-blue-600);
+  font-weight: var(--font-weight-medium);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.badge {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.badgeIdea {
+  color: var(--color-sand-700);
+  background: var(--color-sand-100);
+}
+
+.badgePlanned {
+  color: var(--color-status-planned);
+  background: color-mix(in srgb, var(--color-status-planned) 12%, var(--color-surface-raised));
+}
+
+.badgeConfirmed {
+  color: var(--color-status-confirmed);
+  background: color-mix(in srgb, var(--color-status-confirmed) 12%, var(--color-surface-raised));
+}
+
+.payBadge {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.payPaid {
+  color: var(--color-status-paid);
+  background: var(--color-status-paid-bg);
+}
+
+.payUnpaid {
+  color: var(--color-status-unpaid);
+  background: var(--color-status-unpaid-bg);
+}
+
+.payPart {
+  color: var(--color-amber-600);
+  background: var(--color-amber-50);
+}
+
+.payFree {
+  color: var(--color-green-600);
+  background: var(--color-green-50);
+}
+
+.costBlock {
+  font-size: var(--font-size-sm);
+  color: var(--color-blue-800);
+}
+
+.costMain {
+  font-weight: var(--font-weight-bold);
+}
+
+.costSub {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-sand-600);
+  font-size: var(--font-size-xs);
+}
+
+.partPaid {
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-700);
+}
+
+.freeLine {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-green-600);
+}
+
+.notes {
+  font-size: var(--font-size-xs);
+  color: var(--color-blue-700);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}

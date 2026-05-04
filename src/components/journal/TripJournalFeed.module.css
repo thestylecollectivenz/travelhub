@@ -71,8 +71,56 @@
   min-height: 2.25rem;
 }
 
+.newEntryAction {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  border: var(--border-default);
+  background: var(--color-primary);
+  color: #fff;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  font-family: var(--font-sans);
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 2.25rem;
+}
+
+.newEntryAction:hover {
+  filter: brightness(0.95);
+}
+
 .exportAction:hover {
   border-color: var(--color-sand-400);
+}
+
+.composerSection {
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.composerDayLabel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-sand-700);
+}
+
+.composerDaySelect {
+  max-width: 24rem;
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-blue-800);
+  background: var(--color-surface);
 }
 
 .list {

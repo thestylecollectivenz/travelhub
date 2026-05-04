@@ -3,6 +3,7 @@ import type { JournalEntry } from '../../models';
 import { useJournal } from '../../context/JournalContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { JournalEntryCard } from './JournalEntryCard';
+import { JournalEntryComposer } from './JournalEntryComposer';
 import styles from './TripJournalFeed.module.css';
 
 type SortOrder = 'newest' | 'oldest';
@@ -10,10 +11,12 @@ type ReadFilter = 'all' | 'unread' | 'read';
 
 export const TripJournalFeed: React.FC = () => {
   const { allEntries, photosForEntry } = useJournal();
-  const { trip, tripDays, sharedPreview } = useTripWorkspace();
+  const { trip, tripDays, sharedPreview, selectedDayId } = useTripWorkspace();
   const [sortOrder, setSortOrder] = React.useState<SortOrder>('newest');
   const [readFilter, setReadFilter] = React.useState<ReadFilter>('all');
   const [lastSeenAt, setLastSeenAt] = React.useState<string | null>(null);
+  const [composerOpen, setComposerOpen] = React.useState(false);
+  const [composerDayId, setComposerDayId] = React.useState('');
 
   React.useEffect(() => {
     if (!trip?.id) return;
@@ -24,6 +27,29 @@ export const TripJournalFeed: React.FC = () => {
   }, [trip?.id]);
 
   const hidePreTripJournal = sharedPreview;
+
+  const daysForTrip = React.useMemo(() => {
+    if (!trip) return [];
+    return tripDays.filter((d) => d.tripId === trip.id);
+  }, [trip, tripDays]);
+
+  const selectableComposerDays = React.useMemo(() => {
+    if (!hidePreTripJournal) return daysForTrip;
+    const nonPre = daysForTrip.filter((d) => d.dayType !== 'PreTrip');
+    return nonPre.length > 0 ? nonPre : daysForTrip;
+  }, [daysForTrip, hidePreTripJournal]);
+
+  const resolveDefaultComposerDayId = React.useCallback((): string => {
+    if (!trip || !daysForTrip.length) return '';
+    const sel = daysForTrip.find((d) => d.id === selectedDayId);
+    if (sel) {
+      if (!hidePreTripJournal || sel.dayType !== 'PreTrip') return sel.id;
+      const fallback = daysForTrip.find((d) => d.dayType !== 'PreTrip');
+      return fallback?.id ?? sel.id;
+    }
+    const first = daysForTrip.find((d) => !hidePreTripJournal || d.dayType !== 'PreTrip') ?? daysForTrip[0];
+    return first?.id ?? '';
+  }, [trip, daysForTrip, selectedDayId, hidePreTripJournal]);
 
   const preTripDayIds = React.useMemo(() => {
     if (!trip) return new Set<string>();
@@ -84,11 +110,21 @@ export const TripJournalFeed: React.FC = () => {
     return { order: sectionOrder, map };
   }, [filteredEntries, trip, tripDays, sortOrder, hidePreTripJournal]);
 
+  const openNewEntry = React.useCallback(() => {
+    setComposerDayId(resolveDefaultComposerDayId());
+    setComposerOpen(true);
+  }, [resolveDefaultComposerDayId]);
+
   return (
     <section className={styles.root} aria-label="Trip journal">
       <header className={styles.header}>
         <h2 className={styles.title}>Journal</h2>
         <div className={styles.sortRow} role="group" aria-label="Sort entries">
+          {!sharedPreview ? (
+            <button type="button" className={styles.newEntryAction} onClick={openNewEntry}>
+              New journal entry
+            </button>
+          ) : null}
           <button
             type="button"
             className={styles.exportAction}
@@ -138,11 +174,37 @@ export const TripJournalFeed: React.FC = () => {
         </div>
       </header>
 
-      {filteredEntries.length === 0 ? (
+      {composerOpen && composerDayId && !sharedPreview ? (
+        <div className={styles.composerSection}>
+          <label className={styles.composerDayLabel}>
+            <span>Day</span>
+            <select
+              className={styles.composerDaySelect}
+              value={composerDayId}
+              onChange={(e) => setComposerDayId(e.target.value)}
+              aria-label="Journal entry day"
+            >
+              {selectableComposerDays.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.dayType === 'PreTrip' ? 'Pre-trip' : `Day ${d.dayNumber} — ${d.displayTitle}`}
+                </option>
+              ))}
+            </select>
+          </label>
+          <JournalEntryComposer
+            dayId={composerDayId}
+            onCancel={() => setComposerOpen(false)}
+            onSaved={() => setComposerOpen(false)}
+          />
+        </div>
+      ) : null}
+
+      {filteredEntries.length === 0 && !composerOpen ? (
         <div className={styles.empty} role="status">
           No journal entries for this trip yet.
         </div>
-      ) : (
+      ) : null}
+      {filteredEntries.length > 0 ? (
         <div className={styles.list}>
           {groupedByDay.order.map((dayId) => (
             <section key={dayId} className={styles.daySection} aria-label={dayHeading(dayId)}>
@@ -157,7 +219,7 @@ export const TripJournalFeed: React.FC = () => {
             </section>
           ))}
         </div>
-      )}
+      ) : null}
     </section>
   );
 };
