@@ -41,7 +41,18 @@ const SELECT = [
   'UnitAmount',
   'SortOrder',
   'ParentEntryId',
-  'GroupLabel'
+  'GroupLabel',
+  'BookingReference',
+  'RoomType',
+  'AccCheckInTime',
+  'AccCheckOutTime',
+  'StreetAddress',
+  'FlightNumbers',
+  'CheckInClosesTime',
+  'CabinClass',
+  'JourneyType',
+  'ReturnDate',
+  'ReturnTime'
 ].join(',');
 
 function pad2(n: number): string {
@@ -118,6 +129,23 @@ function serializeDate(date: string | undefined): string | null {
   return null;
 }
 
+function parseCabinClass(v: string | null | undefined): ItineraryEntry['cabinClass'] {
+  const s = String(v ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_');
+  if (s === 'business' || s === 'premium_economy' || s === 'economy') {
+    return s as ItineraryEntry['cabinClass'];
+  }
+  return undefined;
+}
+
+function parseJourneyType(v: string | null | undefined): ItineraryEntry['journeyType'] {
+  const s = String(v ?? '').trim().toLowerCase();
+  if (s === 'return' || s === 'oneway') return s as ItineraryEntry['journeyType'];
+  return undefined;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapToEntry(item: any): ItineraryEntry {
   return {
@@ -150,7 +178,18 @@ function mapToEntry(item: any): ItineraryEntry {
     unitAmount: item.UnitAmount ?? undefined,
     sortOrder: item.SortOrder ?? 0,
     parentEntryId: item.ParentEntryId ?? undefined,
-    subItems: [] // assembled separately
+    subItems: [], // assembled separately
+    bookingReference: item.BookingReference ?? undefined,
+    roomType: item.RoomType ?? undefined,
+    checkInTime: parseTime(item.AccCheckInTime),
+    checkOutTime: parseTime(item.AccCheckOutTime),
+    streetAddress: item.StreetAddress ?? undefined,
+    flightNumbers: item.FlightNumbers ?? undefined,
+    checkInClosesTime: parseTime(item.CheckInClosesTime),
+    cabinClass: parseCabinClass(item.CabinClass),
+    journeyType: parseJourneyType(item.JourneyType),
+    returnDate: parseDate(item.ReturnDate),
+    returnTime: parseTime(item.ReturnTime)
   };
 }
 
@@ -167,7 +206,8 @@ function mapToSubItem(item: any): ItinerarySubItem {
     amountPaid: item.AmountPaid ?? undefined,
     currency: item.Currency ?? 'NZD',
     notes: item.Notes ?? '',
-    groupLabel: item.GroupLabel ?? undefined
+    groupLabel: item.GroupLabel ?? undefined,
+    bookingRequired: item.BookingRequired === true
   };
 }
 
@@ -204,6 +244,17 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   if (entry.sortOrder !== undefined) item.SortOrder = entry.sortOrder;
   if (entry.parentEntryId !== undefined) item.ParentEntryId = entry.parentEntryId;
   if (entry.groupLabel !== undefined) item.GroupLabel = entry.groupLabel;
+  if (entry.bookingReference !== undefined) item.BookingReference = entry.bookingReference || null;
+  if (entry.roomType !== undefined) item.RoomType = entry.roomType || null;
+  if (entry.checkInTime !== undefined) item.AccCheckInTime = serializeTime(entry.checkInTime);
+  if (entry.checkOutTime !== undefined) item.AccCheckOutTime = serializeTime(entry.checkOutTime);
+  if (entry.streetAddress !== undefined) item.StreetAddress = entry.streetAddress || null;
+  if (entry.flightNumbers !== undefined) item.FlightNumbers = entry.flightNumbers || null;
+  if (entry.checkInClosesTime !== undefined) item.CheckInClosesTime = serializeTime(entry.checkInClosesTime);
+  if (entry.cabinClass !== undefined) item.CabinClass = entry.cabinClass ?? null;
+  if (entry.journeyType !== undefined) item.JourneyType = entry.journeyType ?? null;
+  if (entry.returnDate !== undefined) item.ReturnDate = serializeDate(entry.returnDate);
+  if (entry.returnTime !== undefined) item.ReturnTime = serializeTime(entry.returnTime);
   return item;
 }
 
@@ -359,7 +410,7 @@ export class ItineraryService {
       Notes: subItem.notes ?? '',
       GroupLabel: subItem.groupLabel ?? '',
       SortOrder: 0,
-      BookingRequired: false,
+      BookingRequired: subItem.bookingRequired === true,
       BookingStatus: 'Not booked'
     });
     try {

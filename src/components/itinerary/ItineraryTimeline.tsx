@@ -5,7 +5,7 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
-import { sortEntriesForDay } from '../../utils/itineraryDayEntries';
+import { effectivePlannerTimeStart, sortEntriesForDay } from '../../utils/itineraryDayEntries';
 import { ItineraryCard } from './ItineraryCard';
 import { ReminderService } from '../../services/ReminderService';
 import styles from './ItineraryTimeline.module.css';
@@ -160,7 +160,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
         {sorted.map((entry) => {
           const categorySlug = getCategorySlug(entry.category);
           const editing = editingCardId === entry.id;
-          const timeLabel = formatTimeHHMM(entry.timeStart);
+          const timeLabel = formatTimeHHMM(effectivePlannerTimeStart(entry, calendarDate));
           return (
             <div key={entry.id} className={styles.row}>
               <div className={styles.timeCell}>{timeLabel}</div>

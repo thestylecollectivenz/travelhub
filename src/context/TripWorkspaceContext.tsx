@@ -377,7 +377,8 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
           amount: updatedSubItem.amount,
           amountPaid: updatedSubItem.amountPaid,
           currency: updatedSubItem.currency,
-          notes: updatedSubItem.notes
+          notes: updatedSubItem.notes,
+          bookingRequired: updatedSubItem.bookingRequired === true
         } as Partial<ItineraryEntry>)
         .catch((err) => {
           // eslint-disable-next-line no-console

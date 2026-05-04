@@ -3,7 +3,7 @@ import type { TripDay } from '../../models/TripDay';
 import type { ItineraryEntry, ItinerarySubItem } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useAttachments } from '../../context/AttachmentsContext';
-import { sortEntriesForDay } from '../../utils/itineraryDayEntries';
+import { effectivePlannerTimeStart, isTransportReturnOnCalendarDate, sortEntriesForDay } from '../../utils/itineraryDayEntries';
 import { formatTimeHHMM, minutesFromTimeStart } from '../../utils/itineraryTimeUtils';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
@@ -12,6 +12,7 @@ import { formatCurrency } from '../../utils/financialUtils';
 import { ItineraryCard } from './ItineraryCard';
 import { SubItemDetailLines } from './SubItemDetailLines';
 import { openDayPlannerPrintWindow } from '../../utils/dayPlannerPrint';
+import { googleMapsDirectionsUrl } from '../../utils/googleMapsLink';
 import styles from './ItineraryDayPlannerView.module.css';
 
 export type PlannerFilter =
@@ -59,6 +60,13 @@ function parseDurationMinutes(duration: string): number {
   if (mm) m += parseInt(mm[1], 10);
   if (m <= 0 && /^\d+$/.test(t)) m = parseInt(t, 10) * 60;
   return m > 0 ? m : 60;
+}
+
+function formatYmdPreview(d?: string): string {
+  if (!d) return '';
+  const x = new Date(`${d.slice(0, 10)}T00:00:00.000Z`);
+  if (Number.isNaN(x.getTime())) return d;
+  return x.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function dayLabel(day: TripDay): string {
@@ -295,7 +303,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
     let maxM = 0;
     let any = false;
     for (const e of list) {
-      const sm = minutesFromTimeStart(e.timeStart);
+      const sm = minutesFromTimeStart(effectivePlannerTimeStart(e, cal));
       if (sm === undefined) continue;
       any = true;
       const dur = parseDurationMinutes(e.duration);
@@ -350,7 +358,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
       const cal = d.calendarDate || '';
       const list = sortEntriesForDay(entriesForTrip, d.id, cal, d.dayType);
       for (const e of list) {
-        if (minutesFromTimeStart(e.timeStart) === undefined) return true;
+        if (minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) === undefined) return true;
       }
     }
     return false;
@@ -376,7 +384,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
       for (const d of visibleDays) {
         const cal = d.calendarDate || '';
         const list = sortEntriesForDay(entriesForTrip, d.id, cal, d.dayType);
-        const has = list.some((e) => minutesFromTimeStart(e.timeStart) === undefined);
+        const has = list.some((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) === undefined);
         if (has) next[d.id] = true;
       }
       return next;
@@ -548,8 +556,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
           {displayDays.map((day) => {
             const cal = day.calendarDate || '';
             const list = sortEntriesForDay(entriesForTrip, day.id, cal, day.dayType);
-            const timed = list.filter((e) => minutesFromTimeStart(e.timeStart) !== undefined);
-            const unsched = list.filter((e) => minutesFromTimeStart(e.timeStart) === undefined);
+            const timed = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) !== undefined);
+            const unsched = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) === undefined);
             const slugFor = (e: ItineraryEntry): string => getCategorySlug(e.category);
             const collapsed = Boolean(unschedCollapsed[day.id]);
             return (
@@ -625,7 +633,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                     style={{ height: `${trackHeight}px`, ['--hour-band' as string]: `${hourBandPx}px` }}
                   >
                     {timed.map((e) => {
-                      const sm = minutesFromTimeStart(e.timeStart)!;
+                      const sm = minutesFromTimeStart(effectivePlannerTimeStart(e, cal))!;
                       const dur = parseDurationMinutes(e.duration);
                       const top = ((sm - globalRange.start) / (globalRange.end - globalRange.start)) * trackHeight;
                       const h = (dur / (globalRange.end - globalRange.start)) * trackHeight;
@@ -649,7 +657,12 @@ export const ItineraryDayPlannerView: React.FC = () => {
                           ) : (
                             <div className={`${styles.block} th-cat-${cat} th-cat-border`} style={{ position: 'static', height: '100%' }}>
                               <div className={styles.blockTitleRow}>
-                                <div className={styles.blockTitle}>{e.title || 'Untitled'}</div>
+                                <div className={styles.blockTitle}>
+                                  {isTransportReturnOnCalendarDate(e, cal) ? (
+                                    <span className={styles.returnBadge}>Return</span>
+                                  ) : null}{' '}
+                                  {e.title || 'Untitled'}
+                                </div>
                                 <div className={styles.blockActions}>
                                   <button
                                     type="button"
@@ -672,7 +685,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                 </div>
                               </div>
                               <div className={styles.blockMeta}>
-                                {formatTimeHHMM(e.timeStart)} · {e.duration?.trim() || '1h'}
+                                {formatTimeHHMM(effectivePlannerTimeStart(e, cal))} · {e.duration?.trim() || '1h'}
                               </div>
                               {subs.length ? (
                                 <div className={styles.blockOptions}>
@@ -745,7 +758,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
             {displayDays.map((day) => {
               const cal = day.calendarDate || '';
               const list = sortEntriesForDay(entriesForTrip, day.id, cal, day.dayType);
-              const unsched = list.filter((e) => minutesFromTimeStart(e.timeStart) === undefined);
+              const unsched = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) === undefined);
               const collapsed = Boolean(unschedCollapsed[day.id]);
               if (!unsched.length) {
                 return <div key={`u-${day.id}`} className={styles.unschedCell} />;
@@ -823,7 +836,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                 {displayDays.map((day) => {
                   const cal = day.calendarDate || '';
                   const list = sortEntriesForDay(entriesForTrip, day.id, cal, day.dayType);
-                  const timed = list.filter((e) => minutesFromTimeStart(e.timeStart) !== undefined);
+                  const timed = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) !== undefined);
                   const slugFor = (e: ItineraryEntry): string => getCategorySlug(e.category);
                   return (
                     <div
@@ -832,7 +845,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                       style={{ height: `${trackHeight}px`, ['--hour-band' as string]: `${hourBandPx}px` }}
                     >
                       {timed.map((e) => {
-                        const sm = minutesFromTimeStart(e.timeStart)!;
+                        const sm = minutesFromTimeStart(effectivePlannerTimeStart(e, cal))!;
                         const dur = parseDurationMinutes(e.duration);
                         const top = ((sm - globalRange.start) / (globalRange.end - globalRange.start)) * trackHeight;
                         const h = (dur / (globalRange.end - globalRange.start)) * trackHeight;
@@ -856,7 +869,12 @@ export const ItineraryDayPlannerView: React.FC = () => {
                             ) : (
                               <div className={`${styles.block} th-cat-${cat} th-cat-border`} style={{ position: 'static', height: '100%' }}>
                                 <div className={styles.blockTitleRow}>
-                                  <div className={styles.blockTitle}>{e.title || 'Untitled'}</div>
+                                  <div className={styles.blockTitle}>
+                                  {isTransportReturnOnCalendarDate(e, cal) ? (
+                                    <span className={styles.returnBadge}>Return</span>
+                                  ) : null}{' '}
+                                  {e.title || 'Untitled'}
+                                </div>
                                   <div className={styles.blockActions}>
                                     <button
                                       type="button"
@@ -879,7 +897,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                   </div>
                                 </div>
                                 <div className={styles.blockMeta}>
-                                  {formatTimeHHMM(e.timeStart)} · {e.duration?.trim() || '1h'}
+                                  {formatTimeHHMM(effectivePlannerTimeStart(e, cal))} · {e.duration?.trim() || '1h'}
                                 </div>
                                 {subs.length ? (
                                   <div className={styles.blockOptions}>
@@ -982,13 +1000,71 @@ export const ItineraryDayPlannerView: React.FC = () => {
                 </p>
               </div>
             ) : null}
+            {previewEntry.bookingReference?.trim() ? (
+              <div className={styles.previewSection}>
+                <h3>Booking reference</h3>
+                <p className={styles.previewBody}>{previewEntry.bookingReference.trim()}</p>
+              </div>
+            ) : null}
+            {previewEntry.category === 'Accommodation' &&
+            (previewEntry.roomType?.trim() ||
+              previewEntry.checkInTime ||
+              previewEntry.checkOutTime ||
+              previewEntry.streetAddress?.trim()) ? (
+              <div className={styles.previewSection}>
+                <h3>Accommodation details</h3>
+                <p className={styles.previewBody}>
+                  {[previewEntry.roomType?.trim(), previewEntry.checkInTime ? `Check-in ${formatTimeHHMM(previewEntry.checkInTime)}` : '', previewEntry.checkOutTime ? `Check-out ${formatTimeHHMM(previewEntry.checkOutTime)}` : '', previewEntry.streetAddress?.trim()]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
+                {googleMapsDirectionsUrl(previewEntry.streetAddress || '') ? (
+                  <p className={styles.previewBody}>
+                    <a href={googleMapsDirectionsUrl(previewEntry.streetAddress || '')} target="_blank" rel="noopener noreferrer">
+                      Open in Google Maps
+                    </a>
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+            {previewEntry.category === 'Flights' && (previewEntry.flightNumbers?.trim() || previewEntry.checkInClosesTime || previewEntry.cabinClass) ? (
+              <div className={styles.previewSection}>
+                <h3>Flight details</h3>
+                <p className={styles.previewBody}>
+                  {[previewEntry.flightNumbers?.trim(), previewEntry.checkInClosesTime ? `Check-in closes ${formatTimeHHMM(previewEntry.checkInClosesTime)}` : '', previewEntry.cabinClass].filter(Boolean).join(' · ')}
+                </p>
+              </div>
+            ) : null}
+            {previewEntry.category === 'Activities' && previewEntry.streetAddress?.trim() ? (
+              <div className={styles.previewSection}>
+                <h3>Address</h3>
+                <p className={styles.previewBody}>{previewEntry.streetAddress.trim()}</p>
+                {googleMapsDirectionsUrl(previewEntry.streetAddress) ? (
+                  <p className={styles.previewBody}>
+                    <a href={googleMapsDirectionsUrl(previewEntry.streetAddress)} target="_blank" rel="noopener noreferrer">
+                      Open in Google Maps
+                    </a>
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+            {previewEntry.category === 'Transport' && previewEntry.journeyType === 'return' ? (
+              <div className={styles.previewSection}>
+                <h3>Return journey</h3>
+                <p className={styles.previewBody}>
+                  {previewEntry.returnDate ? `Return date ${formatYmdPreview(previewEntry.returnDate)}` : ''}
+                  {previewEntry.returnDate && previewEntry.returnTime ? ' · ' : ''}
+                  {previewEntry.returnTime ? `Departs ${formatTimeHHMM(previewEntry.returnTime)}` : ''}
+                </p>
+              </div>
+            ) : null}
             {previewSubItemsSorted.length ? (
               <div className={styles.previewSection}>
                 <h3>Sub-items</h3>
                 <div className={styles.previewSubList}>
                   {previewSubItemsSorted.map((s) => (
                     <div key={s.id} className={styles.previewSubBlock}>
-                      <SubItemDetailLines item={s} />
+                      <SubItemDetailLines item={s} docCount={docsForEntry(s.id).length} linkCount={linksForEntry(s.id).length} />
                     </div>
                   ))}
                 </div>

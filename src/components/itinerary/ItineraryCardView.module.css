@@ -103,6 +103,41 @@
   color: var(--color-blue-800);
 }
 
+.returnPill {
+  display: inline-block;
+  margin-right: var(--space-2);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-800);
+  background: var(--color-sand-100);
+  border: var(--border-default);
+  vertical-align: middle;
+}
+
+.categorySummary {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-700);
+  font-weight: var(--font-weight-medium);
+}
+
+.detailBlock {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-blue-700);
+  line-height: 1.45;
+}
+
+.mapsLink {
+  display: inline-block;
+  margin-top: var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+}
+
 .metaRow {
   margin-top: var(--space-2);
   font-size: var(--font-size-sm);

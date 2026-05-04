@@ -13,6 +13,8 @@ import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { SubItemList } from './SubItemList';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
+import { effectivePlannerTimeStart, isTransportReturnOnCalendarDate } from '../../utils/itineraryDayEntries';
+import { googleMapsDirectionsUrl } from '../../utils/googleMapsLink';
 import styles from './ItineraryCardView.module.css';
 
 export interface ItineraryCardViewProps {
@@ -32,6 +34,7 @@ function emptySubItem(): ItinerarySubItem {
     title: '',
     decisionStatus: 'Idea',
     paymentStatus: 'Not paid',
+    bookingRequired: false,
     amount: 0,
     currency: 'NZD'
   };
@@ -199,7 +202,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       ? entry.amountPaid
       : convertToHomeCurrency(entry.amountPaid, paidCurrency))
     : undefined;
-  const hhmm = formatTimeHHMM(entry.timeStart);
+  const hhmm = formatTimeHHMM(effectivePlannerTimeStart(entry, calendarDate));
   // Guard: if duration is a bare number (legacy Number column value) hide it
   const durationDisplay = (() => {
     const d = entry.duration?.trim() ?? '';
@@ -218,6 +221,19 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const location = (entry.location ?? '').trim();
   const isAccommodation = entry.category === 'Accommodation' && !!entry.dateStart && !!entry.dateEnd;
   const isCruise = entry.category === 'Cruise' && !!entry.embarksDate && !!entry.disembarksDate;
+  const isFlights = entry.category === 'Flights';
+  const isTransport = entry.category === 'Transport';
+  const isActivities = entry.category === 'Activities';
+  const transportReturnHere = isTransport && isTransportReturnOnCalendarDate(entry, calendarDate);
+  const mapsUrl = googleMapsDirectionsUrl(entry.streetAddress || '');
+  const cabinLabel =
+    entry.cabinClass === 'business'
+      ? 'Business'
+      : entry.cabinClass === 'premium_economy'
+        ? 'Premium Economy'
+        : entry.cabinClass === 'economy'
+          ? 'Economy'
+          : '';
   const nights = React.useMemo(() => {
     if (!isAccommodation) return 0;
     const start = new Date(`${entry.dateStart}T00:00:00.000Z`);
@@ -426,7 +442,30 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         </div>
       </div>
 
-      <h3 className={styles.title}>{entry.title || 'Untitled'}</h3>
+      <h3 className={styles.title}>
+        {transportReturnHere ? <span className={styles.returnPill}>Return</span> : null}
+        {entry.title || 'Untitled'}
+      </h3>
+      {entry.category === 'Accommodation' && (entry.checkInTime || entry.bookingReference?.trim()) ? (
+        <div className={styles.categorySummary}>
+          {entry.checkInTime ? <span>Check-in {formatTimeHHMM(entry.checkInTime)}</span> : null}
+          {entry.checkInTime && entry.bookingReference?.trim() ? <span aria-hidden> · </span> : null}
+          {entry.bookingReference?.trim() ? <span>Ref {entry.bookingReference.trim()}</span> : null}
+        </div>
+      ) : null}
+      {isFlights && (entry.flightNumbers?.trim() || cabinLabel) ? (
+        <div className={styles.categorySummary}>
+          {entry.flightNumbers?.trim() ? <span>{entry.flightNumbers.trim()}</span> : null}
+          {entry.flightNumbers?.trim() && cabinLabel ? <span aria-hidden> · </span> : null}
+          {cabinLabel ? <span>{cabinLabel}</span> : null}
+        </div>
+      ) : null}
+      {isTransport && entry.journeyType === 'return' ? (
+        <div className={styles.categorySummary}>Return journey</div>
+      ) : null}
+      {isActivities && entry.bookingReference?.trim() ? (
+        <div className={styles.categorySummary}>Ref {entry.bookingReference.trim()}</div>
+      ) : null}
       {isContinuation ? <div className={styles.continuationLabel}>Continuing stay — Night {nightNumber} of {nights}</div> : null}
       {isCruise && isCruiseContinuation ? <div className={styles.continuationLabel}>Day {cruiseDayNumber} of cruise</div> : null}
       {isAccommodation ? (
@@ -509,6 +548,41 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
               {subOwing > 0 ? <span className={styles.subOwing}> · {formatCurrency(subOwing, config.homeCurrency)} owing</span> : null}
             </span>
           ) : null}
+        </div>
+      ) : null}
+
+      {isAccommodation && (entry.roomType?.trim() || entry.checkOutTime || entry.streetAddress?.trim()) ? (
+        <div className={styles.detailBlock}>
+          {entry.roomType?.trim() ? <div>Room: {entry.roomType.trim()}</div> : null}
+          {entry.checkOutTime ? <div>Check-out {formatTimeHHMM(entry.checkOutTime)}</div> : null}
+          {entry.streetAddress?.trim() ? <div>{entry.streetAddress.trim()}</div> : null}
+          {mapsUrl ? (
+            <a className={styles.mapsLink} href={mapsUrl} target="_blank" rel="noopener noreferrer">
+              Open in Google Maps
+            </a>
+          ) : null}
+        </div>
+      ) : null}
+      {isFlights && (entry.bookingReference?.trim() || entry.checkInClosesTime) ? (
+        <div className={styles.detailBlock}>
+          {entry.bookingReference?.trim() ? <div>PNR / ref {entry.bookingReference.trim()}</div> : null}
+          {entry.checkInClosesTime ? <div>Check-in closes {formatTimeHHMM(entry.checkInClosesTime)}</div> : null}
+        </div>
+      ) : null}
+      {isActivities && (entry.streetAddress?.trim() || mapsUrl) ? (
+        <div className={styles.detailBlock}>
+          {entry.streetAddress?.trim() ? <div>{entry.streetAddress.trim()}</div> : null}
+          {mapsUrl ? (
+            <a className={styles.mapsLink} href={mapsUrl} target="_blank" rel="noopener noreferrer">
+              Open in Google Maps
+            </a>
+          ) : null}
+        </div>
+      ) : null}
+      {isTransport && entry.journeyType === 'return' && (entry.returnDate || entry.returnTime) ? (
+        <div className={styles.detailBlock}>
+          {entry.returnDate ? <div>Return date {formatYmd(entry.returnDate)}</div> : null}
+          {entry.returnTime ? <div>Return dep. {formatTimeHHMM(entry.returnTime)}</div> : null}
         </div>
       ) : null}
 

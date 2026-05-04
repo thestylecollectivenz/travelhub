@@ -8,6 +8,8 @@ import styles from './SubItemDetailLines.module.css';
 
 export interface SubItemDetailLinesProps {
   item: ItinerarySubItem;
+  docCount?: number;
+  linkCount?: number;
 }
 
 function decisionBadgeClass(status: ItinerarySubItem['decisionStatus']): string {
@@ -32,7 +34,7 @@ function timeRangeLabel(s: ItinerarySubItem): string | undefined {
   return undefined;
 }
 
-export const SubItemDetailLines: React.FC<SubItemDetailLinesProps> = ({ item }) => {
+export const SubItemDetailLines: React.FC<SubItemDetailLinesProps> = ({ item, docCount = 0, linkCount = 0 }) => {
   const { config } = useConfig();
   const { convertToHomeCurrency } = useTripWorkspace();
   const home = config.homeCurrency || 'NZD';
@@ -49,6 +51,17 @@ export const SubItemDetailLines: React.FC<SubItemDetailLinesProps> = ({ item }) 
       <div className={styles.badges}>
         <span className={`${styles.badge} ${decisionBadgeClass(item.decisionStatus)}`}>{item.decisionStatus}</span>
         <span className={`${styles.payBadge} ${paymentBadgeClass(item.paymentStatus)}`}>{item.paymentStatus}</span>
+        {item.bookingRequired ? <span className={styles.bookingFlag}>Booking required</span> : null}
+        {docCount > 0 ? (
+          <span className={styles.countBadge} title="Files attached to this option">
+            {docCount} file{docCount === 1 ? '' : 's'}
+          </span>
+        ) : null}
+        {linkCount > 0 ? (
+          <span className={styles.countBadge} title="Links attached to this option">
+            {linkCount} link{linkCount === 1 ? '' : 's'}
+          </span>
+        ) : null}
       </div>
       {showCost ? (
         <div className={styles.costBlock}>

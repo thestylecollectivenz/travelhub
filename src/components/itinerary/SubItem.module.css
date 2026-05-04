@@ -138,6 +138,66 @@
   opacity: 1;
 }
 
+.row:hover .taskButton,
+.actionCol:hover .taskButton {
+  opacity: 1;
+}
+
+.taskButton {
+  border: none;
+  background: none;
+  color: var(--color-sand-400);
+  cursor: pointer;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+
+.taskButton:hover:not(:disabled) {
+  color: var(--color-primary);
+}
+
+.taskButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-blue-800);
+}
+
+.attachToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.fileHidden {
+  display: none;
+}
+
+.quickLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.miniLink {
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
+  font-size: var(--font-size-xs);
+  background: var(--color-surface-raised);
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
 .deleteButton:hover {
   color: var(--color-status-unpaid);
 }

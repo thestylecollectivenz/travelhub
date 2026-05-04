@@ -227,6 +227,17 @@ Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'SortOrder' -
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'ParentEntryId' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'DateStart' -FieldType 'DateTime'
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'DateEnd' -FieldType 'DateTime'
+Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'BookingReference' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'RoomType' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'AccCheckInTime' -FieldType 'DateTime'
+Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'AccCheckOutTime' -FieldType 'DateTime'
+Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'StreetAddress' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'FlightNumbers' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'CheckInClosesTime' -FieldType 'DateTime'
+Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'CabinClass' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'JourneyType' -FieldType 'Choice' -Choices @('oneway', 'return')
+Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'ReturnDate' -FieldType 'DateTime'
+Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'ReturnTime' -FieldType 'DateTime'
 
 # --- EntryDocuments ---
 Ensure-CustomList -Title 'EntryDocuments'

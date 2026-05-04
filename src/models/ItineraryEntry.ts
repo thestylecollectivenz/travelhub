@@ -6,6 +6,10 @@ export type ItineraryPaymentStatus = 'Not paid' | 'Part paid' | 'Fully paid' | '
 
 export type ItineraryUnitType = 'PerPerson' | 'PerNight' | 'PerDay';
 
+export type CabinClass = 'economy' | 'premium_economy' | 'business';
+
+export type TransportJourneyType = 'oneway' | 'return';
+
 export interface ItinerarySubItem {
   id: string;
   title: string;
@@ -20,6 +24,8 @@ export interface ItinerarySubItem {
   currency: string;
   notes?: string;
   groupLabel?: string;
+  /** When true, surfaced on the option row and in previews (P7-9). */
+  bookingRequired?: boolean;
 }
 
 export interface ItineraryEntry {
@@ -56,4 +62,22 @@ export interface ItineraryEntry {
   sortOrder: number;
   parentEntryId?: string;
   subItems?: ItinerarySubItem[];
+  /** Shared PNR / reference (Accommodation, Flights, Activities). */
+  bookingReference?: string;
+  roomType?: string;
+  /** Accommodation check-in time (HH:MM). */
+  checkInTime?: string;
+  /** Accommodation check-out time (HH:MM). */
+  checkOutTime?: string;
+  /** Street or property address (maps link derived in UI). */
+  streetAddress?: string;
+  flightNumbers?: string;
+  /** Flights: latest time to complete check-in (HH:MM). */
+  checkInClosesTime?: string;
+  cabinClass?: CabinClass;
+  journeyType?: TransportJourneyType;
+  /** Return leg date (YYYY-MM-DD) when journeyType is return. */
+  returnDate?: string;
+  /** Return leg departure time (HH:MM). */
+  returnTime?: string;
 }

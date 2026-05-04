@@ -1,6 +1,10 @@
 import * as React from 'react';
 import type { ItinerarySubItem } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { useSpContext } from '../../context/SpContext';
+import { useAttachments } from '../../context/AttachmentsContext';
+import { ReminderService } from '../../services/ReminderService';
+import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { SubItemDetailLines } from './SubItemDetailLines';
 import styles from './SubItem.module.css';
 
@@ -26,16 +30,57 @@ function DeleteIcon(): React.ReactElement {
   );
 }
 
+function TaskIcon(): React.ReactElement {
+  return (
+    <svg width={12} height={12} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path d="M3.5 3.5h9v9h-9v-9Z" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M5.5 7.5h5M5.5 10h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
-  const { updateSubItem, deleteSubItem } = useTripWorkspace();
+  const spContext = useSpContext();
+  const { trip, localEntries, updateSubItem, deleteSubItem } = useTripWorkspace();
+  const { docsForEntry, linksForEntry, addDocument, addLink } = useAttachments();
   const [isEditing, setIsEditing] = React.useState(false);
   const [draft, setDraft] = React.useState<ItinerarySubItem>({ ...item });
+  const [taskBusy, setTaskBusy] = React.useState(false);
+  const [linkTitle, setLinkTitle] = React.useState('');
+  const [linkUrl, setLinkUrl] = React.useState('');
+  const [uploadBusy, setUploadBusy] = React.useState(false);
+  const fileRef = React.useRef<HTMLInputElement | null>(null);
+
+  const parentEntry = React.useMemo(() => localEntries.find((e) => e.id === parentEntryId), [localEntries, parentEntryId]);
+  const docs = docsForEntry(item.id);
+  const links = linksForEntry(item.id);
 
   React.useEffect(() => {
     if (!isEditing) {
       setDraft({ ...item });
     }
   }, [item, isEditing]);
+
+  const addToTasks = React.useCallback(() => {
+    if (!trip?.id || !parentEntry) return;
+    setTaskBusy(true);
+    const svc = new ReminderService(spContext);
+    void svc
+      .create({
+        title: `Option: ${parentEntry.title || 'Item'} — ${item.title || 'Untitled'}`,
+        tripId: trip.id,
+        dayId: parentEntry.dayId,
+        entryId: item.id,
+        reminderType: 'Option',
+        reminderText: `Follow up option: ${item.title || 'Untitled'}`,
+        isComplete: false
+      })
+      .then(() => {
+        window.dispatchEvent(new Event('trip-reminders-updated'));
+      })
+      .catch(console.error)
+      .then(() => setTaskBusy(false));
+  }, [spContext, trip?.id, parentEntry, item.id, item.title]);
 
   if (isEditing) {
     return (
@@ -62,6 +107,15 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
             onChange={(e) => setDraft((prev) => ({ ...prev, endTime: e.target.value || undefined }))}
             placeholder="End time"
           />
+        </div>
+        <div className={styles.checkboxRow}>
+          <input
+            id={`br-${item.id}`}
+            type="checkbox"
+            checked={draft.bookingRequired === true}
+            onChange={(e) => setDraft((prev) => ({ ...prev, bookingRequired: e.target.checked }))}
+          />
+          <label htmlFor={`br-${item.id}`}>Booking required</label>
         </div>
         <div className={styles.editRow}>
           <select
@@ -122,6 +176,58 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
             />
           </div>
         ) : null}
+        {parentEntry ? (
+          <div className={styles.attachToolbar}>
+            <button type="button" className={styles.actionButton} disabled={uploadBusy} onClick={() => fileRef.current?.click()}>
+              {uploadBusy ? 'Upload…' : 'Add file'}
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              className={styles.fileHidden}
+              onChange={(ev) => {
+                const f = ev.target.files?.[0];
+                if (!f || !parentEntry) return;
+                setUploadBusy(true);
+                void addDocument({ file: f, dayId: parentEntry.dayId, entryId: item.id, documentType: 'Other', notes: '' })
+                  .catch(console.error)
+                  .then(() => {
+                    setUploadBusy(false);
+                    ev.target.value = '';
+                  });
+              }}
+            />
+            <input
+              className={styles.field}
+              placeholder="Link title"
+              value={linkTitle}
+              onChange={(e) => setLinkTitle(e.target.value)}
+            />
+            <input
+              className={styles.field}
+              placeholder="URL"
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+            />
+            <button
+              type="button"
+              className={styles.actionButton}
+              onClick={() => {
+                const t = linkTitle.trim();
+                const u = linkUrl.trim();
+                if (!t || !u || !parentEntry) return;
+                addLink({ dayId: parentEntry.dayId, entryId: item.id, linkType: 'Url', url: u, linkTitle: t })
+                  .then(() => {
+                    setLinkTitle('');
+                    setLinkUrl('');
+                  })
+                  .catch(console.error);
+              }}
+            >
+              Add link
+            </button>
+          </div>
+        ) : null}
         <div className={styles.actions}>
           <button
             type="button"
@@ -151,9 +257,26 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
   return (
     <div className={styles.row}>
       <div className={styles.detailWrap}>
-        <SubItemDetailLines item={item} />
+        <SubItemDetailLines item={item} docCount={docs.length} linkCount={links.length} />
+        {(docs.length > 0 || links.length > 0) ? (
+          <div className={styles.quickLinks}>
+            {docs.map((d) => (
+              <button key={d.id} type="button" className={styles.miniLink} onClick={() => openDocumentUrl(d.fileUrl)} title={d.title}>
+                File
+              </button>
+            ))}
+            {links.map((l) => (
+              <button key={l.id} type="button" className={styles.miniLink} onClick={() => openDocumentUrl(l.url)} title={l.linkTitle}>
+                Link
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
       <div className={styles.actionCol}>
+        <button type="button" className={styles.taskButton} onClick={addToTasks} disabled={taskBusy} aria-label="Add option to tasks" title="Add to tasks">
+          <TaskIcon />
+        </button>
         <button type="button" className={styles.editButton} onClick={() => setIsEditing(true)} aria-label="Edit sub-item">
           <EditIcon />
         </button>

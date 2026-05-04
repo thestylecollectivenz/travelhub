@@ -5,6 +5,8 @@ import { combineDayAndTime, formatTimeHHMM } from '../../utils/itineraryTimeUtil
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
 import { CurrencySelect } from '../shared/CurrencySelect';
+import { useAttachments } from '../../context/AttachmentsContext';
+import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import styles from './ItineraryCardEdit.module.css';
 
 export interface ItineraryCardEditProps {
@@ -36,6 +38,21 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   const isFlights = draft.category === 'Flights';
   const isTransport = draft.category === 'Transport';
   const isCruise = draft.category === 'Cruise';
+  const isActivities = draft.category === 'Activities';
+  const { docsForEntry, linksForEntry, addDocument, deleteDocument, addLink, deleteLink } = useAttachments();
+  const [attachOpen, setAttachOpen] = React.useState(false);
+  const [linkTitle, setLinkTitle] = React.useState('');
+  const [linkUrl, setLinkUrl] = React.useState('');
+  const [docBusy, setDocBusy] = React.useState(false);
+  const fileRef = React.useRef<HTMLInputElement | null>(null);
+
+  const persistableId = !draft.id.startsWith('new-') && !draft.id.startsWith('temp-');
+  const attachDocs = persistableId ? docsForEntry(draft.id) : [];
+  const attachLinks = persistableId ? linksForEntry(draft.id) : [];
+
+  React.useEffect(() => {
+    if (attachDocs.length + attachLinks.length > 0) setAttachOpen(true);
+  }, [draft.id, attachDocs.length, attachLinks.length]);
 
   const nights = React.useMemo(() => {
     if (!draft.dateStart || !draft.dateEnd) return 0;
@@ -92,8 +109,29 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       disembarksDate: draft.disembarksDate,
       dateStart: draft.dateStart,
       dateEnd: draft.dateEnd,
-      paymentCurrency: draft.paymentCurrency || config.homeCurrency
+      paymentCurrency: draft.paymentCurrency || config.homeCurrency,
+      bookingReference: draft.bookingReference?.trim() || undefined,
+      roomType: draft.roomType?.trim() || undefined,
+      checkInTime: draft.checkInTime?.trim() || undefined,
+      checkOutTime: draft.checkOutTime?.trim() || undefined,
+      streetAddress: draft.streetAddress?.trim() || undefined,
+      flightNumbers: draft.flightNumbers?.trim() || undefined,
+      checkInClosesTime: draft.checkInClosesTime?.trim() || undefined,
+      cabinClass: draft.cabinClass,
+      journeyType: draft.journeyType,
+      returnDate: draft.returnDate?.trim() || undefined,
+      returnTime: draft.returnTime?.trim() || undefined
     };
+    if (saved.category === 'Transport') {
+      saved.journeyType = saved.journeyType ?? 'oneway';
+      if (saved.journeyType !== 'return') {
+        saved.returnDate = undefined;
+        saved.returnTime = undefined;
+      }
+    }
+    if (saved.category === 'Flights') {
+      saved.cabinClass = saved.cabinClass ?? 'economy';
+    }
     if (saved.category === 'Accommodation') {
       saved.unitType = 'PerNight';
       saved.unitAmount = nights > 0 ? perNight : saved.unitAmount;
@@ -289,6 +327,170 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           onChange={(e) => patch({ notes: e.target.value })}
         />
 
+        {isTransport ? (
+          <>
+            <label className={styles.label} htmlFor={`jt-${draft.id}`}>
+              Journey type
+            </label>
+            <select
+              id={`jt-${draft.id}`}
+              className={styles.select}
+              value={draft.journeyType ?? 'oneway'}
+              onChange={(e) =>
+                patch({ journeyType: e.target.value as ItineraryEntry['journeyType'] })
+              }
+            >
+              <option value="oneway">One way</option>
+              <option value="return">Return</option>
+            </select>
+            {draft.journeyType === 'return' ? (
+              <>
+                <label className={styles.label} htmlFor={`rd-${draft.id}`}>
+                  Return date
+                </label>
+                <input
+                  id={`rd-${draft.id}`}
+                  className={styles.input}
+                  type="date"
+                  value={draft.returnDate ?? ''}
+                  onChange={(e) => patch({ returnDate: e.target.value })}
+                />
+                <label className={styles.label} htmlFor={`rt-${draft.id}`}>
+                  Return departure time
+                </label>
+                <input
+                  id={`rt-${draft.id}`}
+                  className={styles.input}
+                  type="time"
+                  value={formatTimeHHMM(draft.returnTime ?? '')}
+                  onChange={(e) => patch({ returnTime: combineDayAndTime(calendarDate, e.target.value) })}
+                />
+              </>
+            ) : null}
+          </>
+        ) : null}
+
+        {isAccommodation ? (
+          <>
+            <label className={styles.label} htmlFor={`bref-a-${draft.id}`}>
+              Booking reference
+            </label>
+            <input
+              id={`bref-a-${draft.id}`}
+              className={styles.input}
+              value={draft.bookingReference ?? ''}
+              onChange={(e) => patch({ bookingReference: e.target.value })}
+            />
+            <label className={styles.label} htmlFor={`room-${draft.id}`}>
+              Room type
+            </label>
+            <input
+              id={`room-${draft.id}`}
+              className={styles.input}
+              value={draft.roomType ?? ''}
+              onChange={(e) => patch({ roomType: e.target.value })}
+            />
+            <label className={styles.label} htmlFor={`cit-${draft.id}`}>
+              Check-in time
+            </label>
+            <input
+              id={`cit-${draft.id}`}
+              className={styles.input}
+              type="time"
+              value={formatTimeHHMM(draft.checkInTime ?? '')}
+              onChange={(e) => patch({ checkInTime: combineDayAndTime(calendarDate, e.target.value) })}
+            />
+            <label className={styles.label} htmlFor={`cot-${draft.id}`}>
+              Check-out time
+            </label>
+            <input
+              id={`cot-${draft.id}`}
+              className={styles.input}
+              type="time"
+              value={formatTimeHHMM(draft.checkOutTime ?? '')}
+              onChange={(e) => patch({ checkOutTime: combineDayAndTime(calendarDate, e.target.value) })}
+            />
+            <label className={styles.label} htmlFor={`addr-a-${draft.id}`}>
+              Street address
+            </label>
+            <input
+              id={`addr-a-${draft.id}`}
+              className={styles.input}
+              value={draft.streetAddress ?? ''}
+              onChange={(e) => patch({ streetAddress: e.target.value })}
+            />
+          </>
+        ) : null}
+
+        {isFlights ? (
+          <>
+            <label className={styles.label} htmlFor={`bref-f-${draft.id}`}>
+              Booking reference (PNR)
+            </label>
+            <input
+              id={`bref-f-${draft.id}`}
+              className={styles.input}
+              value={draft.bookingReference ?? ''}
+              onChange={(e) => patch({ bookingReference: e.target.value })}
+            />
+            <label className={styles.label} htmlFor={`fn-${draft.id}`}>
+              Flight number(s)
+            </label>
+            <input
+              id={`fn-${draft.id}`}
+              className={styles.input}
+              value={draft.flightNumbers ?? ''}
+              onChange={(e) => patch({ flightNumbers: e.target.value })}
+            />
+            <label className={styles.label} htmlFor={`cic-${draft.id}`}>
+              Check-in closes
+            </label>
+            <input
+              id={`cic-${draft.id}`}
+              className={styles.input}
+              type="time"
+              value={formatTimeHHMM(draft.checkInClosesTime ?? '')}
+              onChange={(e) => patch({ checkInClosesTime: combineDayAndTime(calendarDate, e.target.value) })}
+            />
+            <label className={styles.label} htmlFor={`cab-${draft.id}`}>
+              Cabin class
+            </label>
+            <select
+              id={`cab-${draft.id}`}
+              className={styles.select}
+              value={draft.cabinClass ?? 'economy'}
+              onChange={(e) => patch({ cabinClass: e.target.value as ItineraryEntry['cabinClass'] })}
+            >
+              <option value="economy">Economy</option>
+              <option value="premium_economy">Premium Economy</option>
+              <option value="business">Business</option>
+            </select>
+          </>
+        ) : null}
+
+        {isActivities ? (
+          <>
+            <label className={styles.label} htmlFor={`bref-act-${draft.id}`}>
+              Booking reference
+            </label>
+            <input
+              id={`bref-act-${draft.id}`}
+              className={styles.input}
+              value={draft.bookingReference ?? ''}
+              onChange={(e) => patch({ bookingReference: e.target.value })}
+            />
+            <label className={styles.label} htmlFor={`addr-act-${draft.id}`}>
+              Address
+            </label>
+            <input
+              id={`addr-act-${draft.id}`}
+              className={styles.input}
+              value={draft.streetAddress ?? ''}
+              onChange={(e) => patch({ streetAddress: e.target.value })}
+            />
+          </>
+        ) : null}
+
         <label className={styles.label} htmlFor={`dec-${draft.id}`}>
           Decision
         </label>
@@ -428,6 +630,96 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           onChange={(code) => patch({ currency: code })}
         />
       </div>
+
+      {persistableId ? (
+        <div className={styles.attachmentsBlock}>
+          <button type="button" className={styles.attachmentsToggle} onClick={() => setAttachOpen((o) => !o)}>
+            {attachOpen ? 'Hide attachments ▴' : 'Attachments ▾'}
+          </button>
+          {attachOpen ? (
+            <div className={styles.attachmentsInner}>
+              <p className={styles.attachmentsHint}>
+                {attachDocs.length} file{attachDocs.length === 1 ? '' : 's'} · {attachLinks.length} link
+                {attachLinks.length === 1 ? '' : 's'}
+              </p>
+              <div className={styles.attachmentsToolbar}>
+                <button type="button" className={styles.btnSecondary} disabled={docBusy} onClick={() => fileRef.current?.click()}>
+                  {docBusy ? 'Uploading…' : 'Upload file'}
+                </button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  className={styles.fileHidden}
+                  onChange={(ev) => {
+                    const f = ev.target.files?.[0];
+                    if (!f) return;
+                    setDocBusy(true);
+                    void addDocument({ file: f, dayId: draft.dayId, entryId: draft.id, documentType: 'Other', notes: '' })
+                      .catch(console.error)
+                      .then(() => {
+                        setDocBusy(false);
+                        ev.target.value = '';
+                      });
+                  }}
+                />
+                <input
+                  className={styles.input}
+                  placeholder="Link title"
+                  value={linkTitle}
+                  onChange={(e) => setLinkTitle(e.target.value)}
+                />
+                <input
+                  className={styles.input}
+                  placeholder="https://…"
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className={styles.btnSecondary}
+                  onClick={() => {
+                    const t = linkTitle.trim();
+                    const u = linkUrl.trim();
+                    if (!t || !u) return;
+                    addLink({ dayId: draft.dayId, entryId: draft.id, linkType: 'Url', url: u, linkTitle: t })
+                      .then(() => {
+                        setLinkTitle('');
+                        setLinkUrl('');
+                      })
+                      .catch(console.error);
+                  }}
+                >
+                  Add link
+                </button>
+              </div>
+              <ul className={styles.attachList}>
+                {attachDocs.map((d) => (
+                  <li key={d.id} className={styles.attachRow}>
+                    <button type="button" className={styles.attachLink} onClick={() => openDocumentUrl(d.fileUrl)}>
+                      {d.title || 'Document'}
+                    </button>
+                    <button type="button" className={styles.attachRemove} onClick={() => deleteDocument(d.id).catch(console.error)}>
+                      Remove
+                    </button>
+                  </li>
+                ))}
+                {attachLinks.map((l) => (
+                  <li key={l.id} className={styles.attachRow}>
+                    <button type="button" className={styles.attachLink} onClick={() => openDocumentUrl(l.url)}>
+                      {l.linkTitle || l.url}
+                    </button>
+                    <button type="button" className={styles.attachRemove} onClick={() => deleteLink(l.id).catch(console.error)}>
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <p className={styles.attachmentsHint}>Save this entry first to add files and links here.</p>
+      )}
 
       <div className={styles.actions}>
         <button type="button" className={styles.deleteBtn} onClick={onDelete}>

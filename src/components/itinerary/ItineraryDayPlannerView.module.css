@@ -543,6 +543,18 @@
   background: var(--color-surface-raised);
 }
 
+.returnBadge {
+  display: inline-block;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-800);
+  background: var(--color-sand-100);
+  border: var(--border-default);
+  vertical-align: middle;
+}
+
 .previewActions {
   margin-top: var(--space-4);
   display: flex;
