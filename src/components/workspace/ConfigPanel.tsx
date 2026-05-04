@@ -1,20 +1,12 @@
 import * as React from 'react';
 import { useConfig } from '../../context/ConfigContext';
 import type { UserConfig } from '../../services/ConfigService';
+import { CurrencySelect } from '../shared/CurrencySelect';
 
 export interface ConfigPanelProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-const CURRENCY_OPTIONS = [
-  'NZD', 'AUD', 'USD', 'EUR', 'GBP', 'JPY', 'CNY', 'SGD', 'HKD', 'THB',
-  'IDR', 'MYR', 'PHP', 'KRW', 'INR', 'AED', 'SAR', 'ZAR', 'CHF', 'SEK',
-  'NOK', 'DKK', 'CAD', 'MXN', 'BRL', 'CZK', 'HUF', 'PLN', 'RON', 'TRY',
-  'ILS', 'EGP', 'VND', 'TWD', 'PKR', 'BDT', 'CLP', 'COP', 'PEN', 'UAH',
-  'NGN', 'KES', 'GHS', 'MAD', 'XOF', 'XAF', 'FJD', 'PGK', 'WST', 'TOP',
-  'SBD', 'VUV'
-] as const;
 
 export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => {
   const { config, saveConfig } = useConfig();
@@ -86,17 +78,11 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
         <div style={{ padding: 'var(--space-5)', display: 'grid', gap: 'var(--space-4)' }}>
           <label style={{ display: 'grid', gap: 'var(--space-1)' }}>
             <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-800)' }}>Home currency</span>
-            <select
+            <CurrencySelect
               value={draft.homeCurrency}
-              onChange={(e) => setDraft((d) => ({ ...d, homeCurrency: e.target.value }))}
+              onChange={(code) => setDraft((d) => ({ ...d, homeCurrency: code }))}
               style={{ border: 'var(--border-default)', borderRadius: 'var(--radius-md)', padding: 'var(--space-2)' }}
-            >
-              {CURRENCY_OPTIONS.map((code) => (
-                <option key={code} value={code}>
-                  {code}
-                </option>
-              ))}
-            </select>
+            />
           </label>
 
           <label style={{ display: 'grid', gap: 'var(--space-1)' }}>
