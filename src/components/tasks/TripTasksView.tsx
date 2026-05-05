@@ -188,8 +188,8 @@ export const TripTasksView: React.FC = () => {
                     {target ? (
                       <div className={styles.meta}>
                         {target.contextLine}
-                        {m.dayId ? <span aria-hidden> · </span> : null}
-                        {m.dayId ? dayName(m.dayId) || 'Day' : null}
+                        <span aria-hidden> · </span>
+                        {dayName(target.openDayId) || 'Itinerary day'}
                       </div>
                     ) : null}
                   </div>
