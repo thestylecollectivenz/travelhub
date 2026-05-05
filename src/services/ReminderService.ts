@@ -97,4 +97,30 @@ export class ReminderService {
     });
     if (!resp.ok && resp.status !== 204) throw new Error(`ReminderService.delete failed: ${resp.status}`);
   }
+
+  /** Remove reminders whose EntryId matches any of the given itinerary entry ids (parent or sub-item rows). */
+  async deleteByEntryIds(tripId: string, entryIds: Set<string> | string[]): Promise<void> {
+    const asList = entryIds instanceof Set ? Array.from(entryIds) : entryIds;
+    const want = new Set(asList.map((id) => id.trim()).filter(Boolean));
+    if (want.size === 0) {
+      return;
+    }
+    let rows: TripReminder[];
+    try {
+      rows = await this.getForTrip(tripId);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('ReminderService.deleteByEntryIds: getForTrip failed', err);
+      throw err;
+    }
+    const toRemove = rows.filter((r) => want.has((r.entryId || '').trim()));
+    for (const r of toRemove) {
+      try {
+        await this.delete(r.id);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('ReminderService.deleteByEntryIds: delete item failed', r.id, err);
+      }
+    }
+  }
 }

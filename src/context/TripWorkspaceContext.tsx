@@ -5,6 +5,7 @@ import type { TripDay } from '../models/TripDay';
 import { TripService } from '../services/TripService';
 import { DayService } from '../services/DayService';
 import { ItineraryService } from '../services/ItineraryService';
+import { ReminderService } from '../services/ReminderService';
 import { syncAccommodationCancellationDeadlineReminder } from '../services/accommodationCancellationReminderSync';
 import { FxService } from '../services/FxService';
 import { useSpContext } from './SpContext';
@@ -292,15 +293,46 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
 
   const deleteEntry = React.useCallback(
     (entryId: string) => {
+      const victim = localEntries.find((e) => e.id === entryId);
+      const tripId = (victim?.tripId ?? '').trim();
+      const childIds = localEntries.filter((e) => e.parentEntryId === entryId).map((e) => e.id);
+      const reminderEntryIds = new Set<string>([entryId, ...childIds]);
+
       setEditingCardId((prev) => (prev === entryId ? null : prev));
       setLocalEntries((prev) => prev.filter((e) => e.id !== entryId && e.parentEntryId !== entryId));
-      const svc = new ItineraryService(spContext);
-      svc.delete(entryId).catch((err) => {
-        // eslint-disable-next-line no-console
-        console.error('deleteEntry: SP persist failed', err);
-      });
+
+      const entrySvc = new ItineraryService(spContext);
+      const reminderSvc = new ReminderService(spContext);
+
+      const run = async (): Promise<void> => {
+        try {
+          for (const cid of childIds) {
+            try {
+              await entrySvc.delete(cid);
+            } catch (childErr) {
+              // eslint-disable-next-line no-console
+              console.warn('deleteEntry: child itinerary delete failed (may already be gone)', cid, childErr);
+            }
+          }
+          await entrySvc.delete(entryId);
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('deleteEntry: SP persist failed', err);
+          return;
+        }
+        if (tripId && reminderEntryIds.size > 0) {
+          try {
+            await reminderSvc.deleteByEntryIds(tripId, reminderEntryIds);
+          } catch (rerr) {
+            // eslint-disable-next-line no-console
+            console.error('deleteEntry: reminder cleanup failed', rerr);
+          }
+        }
+        window.dispatchEvent(new Event('trip-reminders-updated'));
+      };
+      void run();
     },
-    [spContext]
+    [spContext, localEntries]
   );
 
   const duplicateEntry = React.useCallback(
@@ -461,18 +493,28 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
 
   const deleteSubItem = React.useCallback(
     (entryId: string, subItemId: string) => {
+      const parent = localEntries.find((e) => e.id === entryId);
+      const tripId = (parent?.tripId ?? '').trim();
+
       setLocalEntries((prev) =>
         prev.map((entry) =>
           entry.id === entryId ? { ...entry, subItems: entry.subItems?.filter((s) => s.id !== subItemId) } : entry
         )
       );
       const svc = new ItineraryService(spContext);
-      svc.delete(subItemId).catch((err) => {
-        // eslint-disable-next-line no-console
-        console.error('deleteSubItem: SP persist failed', err);
-      });
+      const reminderSvc = new ReminderService(spContext);
+      svc
+        .delete(subItemId)
+        .then(() => (tripId ? reminderSvc.deleteByEntryIds(tripId, new Set([subItemId])) : Promise.resolve()))
+        .then(() => {
+          window.dispatchEvent(new Event('trip-reminders-updated'));
+        })
+        .catch((err) => {
+          // eslint-disable-next-line no-console
+          console.error('deleteSubItem: SP persist or reminder cleanup failed', err);
+        });
     },
-    [spContext]
+    [spContext, localEntries]
   );
 
   const convertToHomeCurrency = React.useCallback((amount: number, currency: string): number => {

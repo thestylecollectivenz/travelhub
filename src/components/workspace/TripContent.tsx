@@ -78,8 +78,19 @@ export const TripContent: React.FC = () => {
           return;
         }
         const reordered = arrayMove(dayEntries, oldIndex, newIndex);
-        const homeDayIds = reordered.filter((e) => e.dayId === selectedDayId).map((e) => e.id);
-        reorderEntries(selectedDayId, homeDayIds);
+        // Persist sort order per home dayId so carryover rows (different dayId) keep correct order after reload (B2).
+        const byDay = new Map<string, string[]>();
+        for (const e of reordered) {
+          if (e.parentEntryId) {
+            continue;
+          }
+          const list = byDay.get(e.dayId) ?? [];
+          list.push(e.id);
+          byDay.set(e.dayId, list);
+        }
+        for (const [dayId, ids] of Array.from(byDay.entries())) {
+          reorderEntries(dayId, ids);
+        }
       }
     },
     [dayEntries, moveEntryToDay, reorderEntries, selectedDayId]

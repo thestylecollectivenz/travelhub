@@ -194,7 +194,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
                   entry={entry}
                   calendarDate={calendarDate}
                   suppressCarryoverUi={suppressCarryoverUi}
-                  draggable={entry.dayId === dayId}
+                  draggable
                   hasTask={taskEntryIds.has(entry.id)}
                   hasCancellationDeadlineReminder={cancellationDeadlineEntryIds.has(entry.id)}
                 />
