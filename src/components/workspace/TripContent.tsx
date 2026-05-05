@@ -12,6 +12,7 @@ import { PackingListView } from '../packing/PackingListView';
 import { TripSidebar } from '../sidebar/TripSidebar';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { resolvePreTripDayId, sortEntriesForDay } from '../../utils/itineraryDayEntries';
+import { orderIdsByHomeDayFromVisualList } from '../../utils/itineraryReorderByDay';
 import { useConfig } from '../../context/ConfigContext';
 import dayHeaderStyles from '../day/DayHeader.module.css';
 import styles from './TripWorkspace.module.css';
@@ -78,22 +79,13 @@ export const TripContent: React.FC = () => {
           return;
         }
         const reordered = arrayMove(dayEntries, oldIndex, newIndex);
-        // Persist sort order per home dayId so carryover rows (different dayId) keep correct order after reload (B2).
-        const byDay = new Map<string, string[]>();
-        for (const e of reordered) {
-          if (e.parentEntryId) {
-            continue;
-          }
-          const list = byDay.get(e.dayId) ?? [];
-          list.push(e.id);
-          byDay.set(e.dayId, list);
-        }
+        const byDay = orderIdsByHomeDayFromVisualList(reordered);
         for (const [dayId, ids] of Array.from(byDay.entries())) {
           reorderEntries(dayId, ids);
         }
       }
     },
-    [dayEntries, moveEntryToDay, reorderEntries, selectedDayId]
+    [dayEntries, moveEntryToDay, reorderEntries]
   );
 
   const startSidebarResize = React.useCallback(

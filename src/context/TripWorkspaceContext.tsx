@@ -402,24 +402,28 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
 
   const moveEntryToDay = React.useCallback(
     (entryId: string, targetDayId: string) => {
-      setLocalEntries((prev) => {
-        const moving = prev.find((e) => e.id === entryId);
-        if (!moving || moving.dayId === targetDayId) return prev;
-        const targetMaxSort = prev
-          .filter((e) => e.dayId === targetDayId && !e.parentEntryId)
-          .reduce((max, e) => Math.max(max, e.sortOrder), -1);
-        return prev.map((entry) => {
-          if (entry.id !== entryId) return entry;
-          return { ...entry, dayId: targetDayId, sortOrder: targetMaxSort + 1 };
-        });
-      });
+      const moving = localEntries.find((e) => e.id === entryId);
+      if (!moving || moving.dayId === targetDayId) {
+        return;
+      }
+      const targetMaxSort = localEntries
+        .filter((e) => e.dayId === targetDayId && !e.parentEntryId)
+        .reduce((max, e) => Math.max(max, e.sortOrder), -1);
+      const nextSort = targetMaxSort + 1;
+
+      setLocalEntries((prev) =>
+        prev.map((entry) =>
+          entry.id === entryId ? { ...entry, dayId: targetDayId, sortOrder: nextSort } : entry
+        )
+      );
+
       const svc = new ItineraryService(spContext);
-      svc.moveToDay(entryId, targetDayId).catch((err) => {
+      svc.moveToDay(entryId, targetDayId, nextSort).catch((err) => {
         // eslint-disable-next-line no-console
         console.error('moveEntryToDay: SP persist failed', err);
       });
     },
-    [spContext]
+    [spContext, localEntries]
   );
 
   const updateSubItem = React.useCallback(

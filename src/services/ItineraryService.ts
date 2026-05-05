@@ -489,9 +489,13 @@ export class ItineraryService {
     await Promise.all(updates.map((u) => this.update(u.id, { sortOrder: u.sortOrder } as Partial<ItineraryEntry>)));
   }
 
-  /** Move an entry to a different day. */
-  async moveToDay(entryId: string, newDayId: string): Promise<void> {
-    await this.update(entryId, { dayId: newDayId } as Partial<ItineraryEntry>);
+  /** Move an entry to a different day; optionally set SortOrder in the same PATCH (sidebar drag). */
+  async moveToDay(entryId: string, newDayId: string, sortOrder?: number): Promise<void> {
+    const partial: Partial<ItineraryEntry> = { dayId: newDayId } as Partial<ItineraryEntry>;
+    if (sortOrder !== undefined) {
+      partial.sortOrder = sortOrder;
+    }
+    await this.update(entryId, partial);
   }
 
   /** Create a sub-item (an ItineraryEntry with parentEntryId set). */
