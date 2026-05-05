@@ -11,7 +11,7 @@ import { TripTasksView } from '../tasks/TripTasksView';
 import { PackingListView } from '../packing/PackingListView';
 import { TripSidebar } from '../sidebar/TripSidebar';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
-import { sortEntriesForDay } from '../../utils/itineraryDayEntries';
+import { resolvePreTripDayId, sortEntriesForDay } from '../../utils/itineraryDayEntries';
 import { useConfig } from '../../context/ConfigContext';
 import dayHeaderStyles from '../day/DayHeader.module.css';
 import styles from './TripWorkspace.module.css';
@@ -39,11 +39,13 @@ export const TripContent: React.FC = () => {
     return tripDays.find((x) => x.id === selectedDayId && x.tripId === trip.id);
   }, [trip, tripDays, selectedDayId]);
 
+  const preTripDayId = React.useMemo(() => resolvePreTripDayId(tripDays, trip?.id ?? ''), [tripDays, trip?.id]);
+
   const dayEntries = React.useMemo(() => {
     if (!trip || !selectedDayId || !dayPanelDay) return [];
     const cal = dayPanelDay.calendarDate ?? '';
-    return sortEntriesForDay(localEntries, selectedDayId, cal, dayPanelDay.dayType);
-  }, [localEntries, selectedDayId, dayPanelDay, trip]);
+    return sortEntriesForDay(localEntries, selectedDayId, cal, dayPanelDay.dayType, preTripDayId);
+  }, [localEntries, selectedDayId, dayPanelDay, trip, preTripDayId]);
 
   const activeEntry = React.useMemo(() => {
     if (!activeId) {

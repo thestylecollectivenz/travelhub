@@ -41,6 +41,7 @@
 
 .dragHandle {
   position: absolute;
+  z-index: 3;
   left: calc(var(--space-4) * -1);
   top: var(--space-4);
   width: 16px;

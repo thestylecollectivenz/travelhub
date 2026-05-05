@@ -1,4 +1,5 @@
 import * as React from 'react';
+import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
 import { ReminderService, TripReminder } from '../../services/ReminderService';
@@ -11,6 +12,34 @@ function entryAmountMissing(amount: number | undefined): boolean {
   if (amount === undefined || amount === null) return true;
   if (typeof amount !== 'number' || Number.isNaN(amount)) return true;
   return amount <= 0;
+}
+
+/** Map reminder EntryId (parent row or sub-item row) to parent entry + day for deep-linking. */
+function resolveReminderItineraryTarget(
+  m: TripReminder,
+  localEntries: ItineraryEntry[]
+): { openEntryId: string; openDayId: string; contextLine: string } | undefined {
+  const eid = (m.entryId || '').trim();
+  if (!eid) return undefined;
+  const parent = localEntries.find((e) => e.id === eid);
+  if (parent) {
+    return {
+      openEntryId: parent.id,
+      openDayId: parent.dayId,
+      contextLine: `${parent.category ? `${parent.category} · ` : ''}${parent.title || 'Untitled'}`
+    };
+  }
+  for (const p of localEntries) {
+    const sub = p.subItems?.find((s) => s.id === eid);
+    if (sub) {
+      return {
+        openEntryId: p.id,
+        openDayId: p.dayId,
+        contextLine: `Option: ${sub.title || 'Untitled'} · under ${p.title || 'Item'}`
+      };
+    }
+  }
+  return undefined;
 }
 
 export const TripTasksView: React.FC = () => {
@@ -113,7 +142,7 @@ export const TripTasksView: React.FC = () => {
       {showStandardSections ? (
         <>
           <div className={styles.group}>
-            <h3 className={styles.title}>Custom reminders</h3>
+            <h3 className={styles.title}>Reminders &amp; tasks</h3>
             <div className={styles.filters}>
               <input className={styles.input} placeholder="Reminder text" value={text} onChange={(e) => setText(e.target.value)} />
               <input className={styles.input} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
@@ -144,26 +173,50 @@ export const TripTasksView: React.FC = () => {
                 Add
               </button>
             </div>
-            {visibleManual.map((m) => (
-              <div key={m.id} className={styles.item}>
-                <div>
-                  <div>{m.title}</div>
-                  <div className={styles.meta}>{m.dueDate ? `Due ${new Date(m.dueDate).toLocaleDateString('en-NZ')}` : 'No due date'}</div>
+            {visibleManual.map((m) => {
+              const target = resolveReminderItineraryTarget(m, localEntries);
+              return (
+                <div key={m.id} className={styles.item}>
+                  <div>
+                    <div>{m.title}</div>
+                    <div className={styles.meta}>
+                      {m.reminderType ? <span>Type: {m.reminderType}</span> : null}
+                      {m.reminderType ? <span aria-hidden> · </span> : null}
+                      {m.dueDate ? `Due ${new Date(m.dueDate).toLocaleDateString('en-NZ')}` : 'No due date'}
+                    </div>
+                    {m.taskNote?.trim() ? <div className={styles.meta}>Note: {m.taskNote.trim()}</div> : null}
+                    {target ? (
+                      <div className={styles.meta}>
+                        {target.contextLine}
+                        {m.dayId ? <span aria-hidden> · </span> : null}
+                        {m.dayId ? dayName(m.dayId) || 'Day' : null}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className={styles.actions}>
+                    {target ? (
+                      <button
+                        className={styles.button}
+                        type="button"
+                        onClick={() => openEntryInItinerary(target.openEntryId, target.openDayId)}
+                      >
+                        Open in itinerary
+                      </button>
+                    ) : null}
+                    <button
+                      className={styles.button}
+                      type="button"
+                      onClick={() => svc.update(m.id, { isComplete: !m.isComplete }).then(refresh).catch(console.error)}
+                    >
+                      {m.isComplete ? 'Mark incomplete' : 'Complete'}
+                    </button>
+                    <button className={styles.button} type="button" onClick={() => svc.delete(m.id).then(refresh).catch(console.error)}>
+                      Delete
+                    </button>
+                  </div>
                 </div>
-                <div className={styles.actions}>
-                  <button
-                    className={styles.button}
-                    type="button"
-                    onClick={() => svc.update(m.id, { isComplete: !m.isComplete }).then(refresh).catch(console.error)}
-                  >
-                    {m.isComplete ? 'Mark incomplete' : 'Complete'}
-                  </button>
-                  <button className={styles.button} type="button" onClick={() => svc.delete(m.id).then(refresh).catch(console.error)}>
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className={styles.group}>

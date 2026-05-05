@@ -14,7 +14,25 @@ import { SubItemList } from './SubItemList';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
 import { effectivePlannerTimeStart, isTransportReturnOnCalendarDate } from '../../utils/itineraryDayEntries';
-import { googleMapsDirectionsUrl } from '../../utils/googleMapsLink';
+
+function deriveTransportDisplayTitle(entry: ItineraryEntry, calendarDate: string): string {
+  const raw = (entry.title || '').trim();
+  const isReturnHere = isTransportReturnOnCalendarDate(entry, calendarDate);
+  if (raw) {
+    return raw;
+  }
+  let from = (entry.transportFrom || '').trim();
+  let to = (entry.transportTo || '').trim();
+  if (entry.journeyType === 'return' && isReturnHere) {
+    const swap = from;
+    from = to;
+    to = swap;
+  }
+  const mode = (entry.transportMode || '').trim();
+  const arrow = from || to ? `${from} → ${to}` : '';
+  return (arrow + (mode ? ` (${mode})` : '')).trim() || 'Transport';
+}
+import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../../utils/googleMapsLink';
 import styles from './ItineraryCardView.module.css';
 
 export interface ItineraryCardViewProps {
@@ -23,6 +41,8 @@ export interface ItineraryCardViewProps {
   /** When true (e.g. pre-trip day), hide multi-day accommodation / cruise continuation labels. */
   suppressCarryoverUi?: boolean;
   hasTask?: boolean;
+  /** True when a Trip Reminders row exists for this entry with ReminderType CancellationDeadline. */
+  hasCancellationDeadlineReminder?: boolean;
   onEdit: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
@@ -135,6 +155,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   calendarDate,
   suppressCarryoverUi = false,
   hasTask = false,
+  hasCancellationDeadlineReminder = false,
   onEdit,
   onDuplicate,
   onDelete
@@ -176,6 +197,10 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const menuRef = React.useRef<HTMLDivElement>(null);
   const [taskPromptOpen, setTaskPromptOpen] = React.useState(false);
   const [taskDueDate, setTaskDueDate] = React.useState('');
+  const [taskDescription, setTaskDescription] = React.useState('');
+  const [manualTaskOpen, setManualTaskOpen] = React.useState(false);
+  const [manualTaskText, setManualTaskText] = React.useState('');
+  const [manualTaskDue, setManualTaskDue] = React.useState('');
 
   React.useEffect(() => {
     if (!menuOpen) {
@@ -194,6 +219,15 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   React.useEffect(() => {
     setNotesOpen(Boolean(entry.notes && entry.notes.trim()));
   }, [entry.notes]);
+
+  React.useEffect(() => {
+    setTaskPromptOpen(false);
+    setManualTaskOpen(false);
+    setTaskDueDate('');
+    setManualTaskDue('');
+    setTaskDescription('');
+    setManualTaskText('');
+  }, [entry.id]);
 
   const displayAmountHome = convertToHomeCurrency(entry.amount, entry.currency || 'NZD');
   const paidCurrency = (entry.paymentCurrency || config.homeCurrency || 'NZD').toUpperCase();
@@ -225,7 +259,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const isTransport = entry.category === 'Transport';
   const isActivities = entry.category === 'Activities';
   const transportReturnHere = isTransport && isTransportReturnOnCalendarDate(entry, calendarDate);
-  const mapsUrl = googleMapsDirectionsUrl(entry.streetAddress || '');
+  const mapsPlaceUrl = googleMapsPlaceUrl(entry.streetAddress || '');
+  const mapsDirectionsUrl = googleMapsDirectionsUrl(entry.streetAddress || '');
   const cabinLabel =
     entry.cabinClass === 'business'
       ? 'Business'
@@ -444,7 +479,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
 
       <h3 className={styles.title}>
         {transportReturnHere ? <span className={styles.returnPill}>Return</span> : null}
-        {entry.title || 'Untitled'}
+        {isTransport ? deriveTransportDisplayTitle(entry, calendarDate) : entry.title || 'Untitled'}
       </h3>
       {entry.category === 'Accommodation' && (entry.checkInTime || entry.bookingReference?.trim()) ? (
         <div className={styles.categorySummary}>
@@ -458,6 +493,13 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           {entry.flightNumbers?.trim() ? <span>{entry.flightNumbers.trim()}</span> : null}
           {entry.flightNumbers?.trim() && cabinLabel ? <span aria-hidden> · </span> : null}
           {cabinLabel ? <span>{cabinLabel}</span> : null}
+        </div>
+      ) : null}
+      {isCruise && (entry.cruiseLineName?.trim() || entry.shipName?.trim()) ? (
+        <div className={styles.categorySummary}>
+          {entry.cruiseLineName?.trim() ? <span>{entry.cruiseLineName.trim()}</span> : null}
+          {entry.cruiseLineName?.trim() && entry.shipName?.trim() ? <span aria-hidden> · </span> : null}
+          {entry.shipName?.trim() ? <span>{entry.shipName.trim()}</span> : null}
         </div>
       ) : null}
       {isTransport && entry.journeyType === 'return' ? (
@@ -515,18 +557,27 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       </div>
 
       <div className={styles.amountRow}>
-        {isAccommodation && nights > 0
-          ? `${formatCurrency(displayAmountHome, config.homeCurrency)} total · ${formatCurrency(perNightHome, config.homeCurrency)} /night`
-          : showCruiseDailyAmount
-            ? `${formatCurrency(displayAmountHome, config.homeCurrency)} total · ${formatCurrency(perCruiseDayHome, config.homeCurrency)} /day`
-            : formatCurrency(displayAmountHome, config.homeCurrency)}
-        {entry.currency && entry.currency.toUpperCase() !== config.homeCurrency.toUpperCase() ? (
+        {isAccommodation && nights > 0 ? (
+          entry.currency && entry.currency.toUpperCase() !== (config.homeCurrency || 'NZD').toUpperCase() ? (
+            <>
+              {`${formatCurrency(entry.amount, entry.currency)} total · ${formatCurrency(entry.amount / nights, entry.currency)} /night`}
+              <span className={styles.unitSuffix}>
+                {` (${formatCurrency(displayAmountHome, config.homeCurrency)} total · ${formatCurrency(perNightHome, config.homeCurrency)} /night)`}
+              </span>
+            </>
+          ) : (
+            `${formatCurrency(displayAmountHome, config.homeCurrency)} total · ${formatCurrency(perNightHome, config.homeCurrency)} /night`
+          )
+        ) : showCruiseDailyAmount ? (
+          `${formatCurrency(displayAmountHome, config.homeCurrency)} total · ${formatCurrency(perCruiseDayHome, config.homeCurrency)} /day`
+        ) : (
+          formatCurrency(displayAmountHome, config.homeCurrency)
+        )}
+        {!isAccommodation && entry.currency && entry.currency.toUpperCase() !== config.homeCurrency.toUpperCase() ? (
           <span className={styles.unitSuffix}>
-            {isAccommodation && nights > 0
-              ? ` (${entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency} · ${(entry.amount / nights).toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency} /night)`
-              : showCruiseDailyAmount
-                ? ` (${entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency} · ${perCruiseDayTrip.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency} /day)`
-                : ` (${entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency})`}
+            {showCruiseDailyAmount
+              ? ` (${entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency} · ${perCruiseDayTrip.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency} /day)`
+              : ` (${entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency})`}
           </span>
         ) : null}
         {unitSuffix ? <span className={styles.unitSuffix}>{unitSuffix}</span> : null}
@@ -551,15 +602,36 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         </div>
       ) : null}
 
-      {isAccommodation && (entry.roomType?.trim() || entry.checkOutTime || entry.streetAddress?.trim()) ? (
+      {isAccommodation &&
+      (entry.roomType?.trim() ||
+        entry.checkOutTime ||
+        entry.streetAddress?.trim() ||
+        entry.perksIncluded?.trim() ||
+        entry.cancellationPolicy?.trim() ||
+        entry.cancellationDeadline) ? (
         <div className={styles.detailBlock}>
           {entry.roomType?.trim() ? <div>Room: {entry.roomType.trim()}</div> : null}
           {entry.checkOutTime ? <div>Check-out {formatTimeHHMM(entry.checkOutTime)}</div> : null}
           {entry.streetAddress?.trim() ? <div>{entry.streetAddress.trim()}</div> : null}
-          {mapsUrl ? (
-            <a className={styles.mapsLink} href={mapsUrl} target="_blank" rel="noopener noreferrer">
-              Open in Google Maps
-            </a>
+          {entry.perksIncluded?.trim() ? <div>Perks: {entry.perksIncluded.trim()}</div> : null}
+          {entry.cancellationPolicy?.trim() ? <div>Cancellation: {entry.cancellationPolicy.trim()}</div> : null}
+          {entry.cancellationDeadline ? (
+            <div>Cancel by {new Date(entry.cancellationDeadline).toLocaleString('en-NZ')}</div>
+          ) : null}
+          {entry.cancellationDeadline && hasCancellationDeadlineReminder ? (
+            <div className={styles.cancellationTaskNote}>Cancellation task created (see Tasks view).</div>
+          ) : null}
+          {mapsPlaceUrl ? (
+            <div className={styles.mapsLinks}>
+              <a className={styles.mapsLink} href={mapsPlaceUrl} target="_blank" rel="noopener noreferrer">
+                View on map
+              </a>
+              {mapsDirectionsUrl ? (
+                <a className={styles.mapsLinkSecondary} href={mapsDirectionsUrl} target="_blank" rel="noopener noreferrer">
+                  Get directions
+                </a>
+              ) : null}
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -569,20 +641,48 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           {entry.checkInClosesTime ? <div>Check-in closes {formatTimeHHMM(entry.checkInClosesTime)}</div> : null}
         </div>
       ) : null}
-      {isActivities && (entry.streetAddress?.trim() || mapsUrl) ? (
+      {isActivities && (entry.streetAddress?.trim() || mapsPlaceUrl) ? (
         <div className={styles.detailBlock}>
           {entry.streetAddress?.trim() ? <div>{entry.streetAddress.trim()}</div> : null}
-          {mapsUrl ? (
-            <a className={styles.mapsLink} href={mapsUrl} target="_blank" rel="noopener noreferrer">
-              Open in Google Maps
-            </a>
+          {mapsPlaceUrl ? (
+            <div className={styles.mapsLinks}>
+              <a className={styles.mapsLink} href={mapsPlaceUrl} target="_blank" rel="noopener noreferrer">
+                View on map
+              </a>
+              {mapsDirectionsUrl ? (
+                <a className={styles.mapsLinkSecondary} href={mapsDirectionsUrl} target="_blank" rel="noopener noreferrer">
+                  Get directions
+                </a>
+              ) : null}
+            </div>
           ) : null}
         </div>
       ) : null}
-      {isTransport && entry.journeyType === 'return' && (entry.returnDate || entry.returnTime) ? (
+      {isTransport &&
+      (entry.transportFrom?.trim() ||
+        entry.transportTo?.trim() ||
+        entry.transportMode?.trim() ||
+        entry.journeyType ||
+        (entry.journeyType === 'return' && (entry.returnDate || entry.returnTime))) ? (
         <div className={styles.detailBlock}>
-          {entry.returnDate ? <div>Return date {formatYmd(entry.returnDate)}</div> : null}
-          {entry.returnTime ? <div>Return dep. {formatTimeHHMM(entry.returnTime)}</div> : null}
+          {entry.transportFrom?.trim() ? <div>From {entry.transportFrom.trim()}</div> : null}
+          {entry.transportTo?.trim() ? <div>To {entry.transportTo.trim()}</div> : null}
+          {entry.transportMode?.trim() ? <div>Mode {entry.transportMode.trim()}</div> : null}
+          {entry.journeyType ? <div>Journey {entry.journeyType === 'return' ? 'Return' : 'One way'}</div> : null}
+          {entry.journeyType === 'return' && entry.returnDate ? <div>Return date {formatYmd(entry.returnDate)}</div> : null}
+          {entry.journeyType === 'return' && entry.returnTime ? <div>Return dep. {formatTimeHHMM(entry.returnTime)}</div> : null}
+        </div>
+      ) : null}
+      {isCruise &&
+      (entry.cruiseReference?.trim() ||
+        entry.cabinTypeAndNumber?.trim() ||
+        entry.packageName?.trim() ||
+        entry.packageInclusions?.trim()) ? (
+        <div className={styles.detailBlock}>
+          {entry.cruiseReference?.trim() ? <div>Ref {entry.cruiseReference.trim()}</div> : null}
+          {entry.cabinTypeAndNumber?.trim() ? <div>Cabin {entry.cabinTypeAndNumber.trim()}</div> : null}
+          {entry.packageName?.trim() ? <div>Package {entry.packageName.trim()}</div> : null}
+          {entry.packageInclusions?.trim() ? <div>Inclusions {entry.packageInclusions.trim()}</div> : null}
         </div>
       ) : null}
 
@@ -853,7 +953,15 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         <button
           type="button"
           className={styles.addSubItemBtn}
-          onClick={() => setTaskPromptOpen((v) => !v)}
+          onClick={() => {
+            setTaskPromptOpen((v) => {
+              const next = !v;
+              if (!v) {
+                setTaskDescription(`Follow up: ${entry.title || 'Itinerary item'}`);
+              }
+              return next;
+            });
+          }}
         >
           {hasTask ? 'Task linked' : '+ Add to tasks'}
         </button>
@@ -868,6 +976,16 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       </div>
       {taskPromptOpen ? (
         <div className={styles.newSubItemForm}>
+          <label className={styles.taskInlineLabel} htmlFor={`task-desc-${entry.id}`}>
+            Task description (optional)
+          </label>
+          <input
+            id={`task-desc-${entry.id}`}
+            className={styles.newSubField}
+            type="text"
+            value={taskDescription}
+            onChange={(e) => setTaskDescription(e.target.value)}
+          />
           <div className={styles.newSubRow}>
             <input className={styles.newSubField} type="date" value={taskDueDate} onChange={(e) => setTaskDueDate(e.target.value)} />
             <button
@@ -875,26 +993,142 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
               className={styles.newSubActionBtn}
               onClick={() => {
                 const svc = new ReminderService(spContext);
-                svc.create({
-                  title: `Task: ${entry.title || 'Itinerary item'}`,
-                  tripId: entry.tripId,
-                  dayId: entry.dayId,
-                  entryId: entry.id,
-                  reminderType: 'Manual',
-                  reminderText: `Follow up: ${entry.title || 'Itinerary item'}`,
-                  dueDate: taskDueDate ? `${taskDueDate}T00:00:00.000Z` : undefined,
-                  isComplete: false
-                }).then(() => {
-                  window.dispatchEvent(new CustomEvent('trip-reminders-updated'));
-                  setTaskPromptOpen(false);
-                  setTaskDueDate('');
-                }).catch(console.error);
+                const note = taskDescription.trim();
+                void svc
+                  .create({
+                    title: `Task: ${entry.title || 'Itinerary item'}`,
+                    tripId: entry.tripId,
+                    dayId: entry.dayId,
+                    entryId: entry.id,
+                    reminderType: 'Manual',
+                    reminderText: note || `Follow up: ${entry.title || 'Itinerary item'}`,
+                    taskNote: note || undefined,
+                    dueDate: taskDueDate ? `${taskDueDate}T00:00:00.000Z` : undefined,
+                    isComplete: false
+                  })
+                  .then(() => {
+                    window.dispatchEvent(new CustomEvent('trip-reminders-updated'));
+                    setTaskPromptOpen(false);
+                    setTaskDueDate('');
+                    setTaskDescription('');
+                  })
+                  .catch(console.error);
               }}
             >
-              Save task
+              Add task
+            </button>
+            <button
+              type="button"
+              className={styles.newSubActionBtn}
+              onClick={() => {
+                setTaskPromptOpen(false);
+                setTaskDueDate('');
+                setTaskDescription('');
+              }}
+            >
+              Cancel
             </button>
           </div>
         </div>
+      ) : null}
+
+      {isAccommodation ? (
+        <>
+          <div className={styles.subItemActionsRow}>
+            <button
+              type="button"
+              className={styles.addSubItemBtn}
+              onClick={() => {
+                setManualTaskOpen((v) => {
+                  const next = !v;
+                  if (!v) {
+                    setManualTaskText('');
+                    setManualTaskDue('');
+                  }
+                  return next;
+                });
+              }}
+            >
+              Create a task
+            </button>
+          </div>
+          {manualTaskOpen ? (
+            <div className={styles.newSubItemForm}>
+              <label className={styles.taskInlineLabel} htmlFor={`manual-task-${entry.id}`}>
+                Task description
+              </label>
+              <input
+                id={`manual-task-${entry.id}`}
+                className={styles.newSubField}
+                type="text"
+                value={manualTaskText}
+                onChange={(e) => setManualTaskText(e.target.value)}
+                placeholder="e.g. Request early check-in"
+              />
+              <label className={styles.taskInlineLabel} htmlFor={`manual-due-${entry.id}`}>
+                Due date (optional)
+              </label>
+              <div className={styles.newSubRow}>
+                <input
+                  id={`manual-due-${entry.id}`}
+                  className={styles.newSubField}
+                  type="date"
+                  value={manualTaskDue}
+                  onChange={(e) => setManualTaskDue(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className={styles.newSubActionBtn}
+                  disabled={!manualTaskText.trim()}
+                  onClick={() => {
+                    const t = manualTaskText.trim();
+                    if (!t) return;
+                    const addr = (entry.streetAddress || '').trim();
+                    const ctxParts = [
+                      entry.title || 'Accommodation',
+                      addr || undefined,
+                      entry.dateStart ? `Check-in ${entry.dateStart}` : undefined,
+                      entry.dateEnd ? `Check-out ${entry.dateEnd}` : undefined
+                    ].filter(Boolean);
+                    const svc = new ReminderService(spContext);
+                    void svc
+                      .create({
+                        title: t,
+                        tripId: entry.tripId,
+                        dayId: entry.dayId,
+                        entryId: entry.id,
+                        reminderType: 'ManualEntryTask',
+                        reminderText: t,
+                        taskNote: ctxParts.join(' · '),
+                        dueDate: manualTaskDue ? `${manualTaskDue}T00:00:00.000Z` : undefined,
+                        isComplete: false
+                      })
+                      .then(() => {
+                        window.dispatchEvent(new CustomEvent('trip-reminders-updated'));
+                        setManualTaskOpen(false);
+                        setManualTaskText('');
+                        setManualTaskDue('');
+                      })
+                      .catch(console.error);
+                  }}
+                >
+                  Save task
+                </button>
+                <button
+                  type="button"
+                  className={styles.newSubActionBtn}
+                  onClick={() => {
+                    setManualTaskOpen(false);
+                    setManualTaskText('');
+                    setManualTaskDue('');
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </>
       ) : null}
 
       {showSubItemContent ? (

@@ -11,7 +11,7 @@ import {
 
 const LIST = 'ItineraryEntries';
 
-const SELECT = [
+const SELECT_BASE = [
   'ID',
   'Title',
   'TripId',
@@ -41,7 +41,10 @@ const SELECT = [
   'UnitAmount',
   'SortOrder',
   'ParentEntryId',
-  'GroupLabel',
+  'GroupLabel'
+];
+
+const SELECT_PHASE7 = [
   'BookingReference',
   'RoomType',
   'AccCheckInTime',
@@ -52,8 +55,23 @@ const SELECT = [
   'CabinClass',
   'JourneyType',
   'ReturnDate',
-  'ReturnTime'
-].join(',');
+  'ReturnTime',
+  'PerksIncluded',
+  'CancellationPolicy',
+  'CancellationDeadline',
+  'CruiseReference',
+  'CruiseLineName',
+  'ShipName',
+  'CabinTypeAndNumber',
+  'PackageName',
+  'PackageInclusions',
+  'TransportFrom',
+  'TransportTo',
+  'TransportMode'
+];
+
+const SELECT = [...SELECT_BASE, ...SELECT_PHASE7].join(',');
+const SELECT_FALLBACK = SELECT_BASE.join(',');
 
 function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n);
@@ -189,7 +207,19 @@ function mapToEntry(item: any): ItineraryEntry {
     cabinClass: parseCabinClass(item.CabinClass),
     journeyType: parseJourneyType(item.JourneyType),
     returnDate: parseDate(item.ReturnDate),
-    returnTime: parseTime(item.ReturnTime)
+    returnTime: parseTime(item.ReturnTime),
+    perksIncluded: item.PerksIncluded ? String(item.PerksIncluded) : undefined,
+    cancellationPolicy: item.CancellationPolicy ? String(item.CancellationPolicy) : undefined,
+    cancellationDeadline: item.CancellationDeadline ? String(item.CancellationDeadline) : undefined,
+    cruiseReference: item.CruiseReference ?? undefined,
+    cruiseLineName: item.CruiseLineName ?? undefined,
+    shipName: item.ShipName ?? undefined,
+    cabinTypeAndNumber: item.CabinTypeAndNumber ?? undefined,
+    packageName: item.PackageName ?? undefined,
+    packageInclusions: item.PackageInclusions ? String(item.PackageInclusions) : undefined,
+    transportFrom: item.TransportFrom ?? undefined,
+    transportTo: item.TransportTo ?? undefined,
+    transportMode: item.TransportMode ?? undefined
   };
 }
 
@@ -255,6 +285,28 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   if (entry.journeyType !== undefined) item.JourneyType = entry.journeyType ?? null;
   if (entry.returnDate !== undefined) item.ReturnDate = serializeDate(entry.returnDate);
   if (entry.returnTime !== undefined) item.ReturnTime = serializeTime(entry.returnTime);
+  if (entry.perksIncluded !== undefined) item.PerksIncluded = entry.perksIncluded || null;
+  if (entry.cancellationPolicy !== undefined) item.CancellationPolicy = entry.cancellationPolicy || null;
+  if (entry.cancellationDeadline !== undefined) {
+    if (!entry.cancellationDeadline) {
+      item.CancellationDeadline = null;
+    } else {
+      try {
+        item.CancellationDeadline = new Date(entry.cancellationDeadline).toISOString();
+      } catch {
+        item.CancellationDeadline = entry.cancellationDeadline;
+      }
+    }
+  }
+  if (entry.cruiseReference !== undefined) item.CruiseReference = entry.cruiseReference || null;
+  if (entry.cruiseLineName !== undefined) item.CruiseLineName = entry.cruiseLineName || null;
+  if (entry.shipName !== undefined) item.ShipName = entry.shipName || null;
+  if (entry.cabinTypeAndNumber !== undefined) item.CabinTypeAndNumber = entry.cabinTypeAndNumber || null;
+  if (entry.packageName !== undefined) item.PackageName = entry.packageName || null;
+  if (entry.packageInclusions !== undefined) item.PackageInclusions = entry.packageInclusions || null;
+  if (entry.transportFrom !== undefined) item.TransportFrom = entry.transportFrom || null;
+  if (entry.transportTo !== undefined) item.TransportTo = entry.transportTo || null;
+  if (entry.transportMode !== undefined) item.TransportMode = entry.transportMode || null;
   return item;
 }
 
@@ -277,7 +329,10 @@ function assembleTree(rows: any[]): ItineraryEntry[] {
 
   return parents
     .map((p) => ({ ...p, subItems: childMap.get(p.id) ?? [] }))
-    .sort((a, b) => a.sortOrder - b.sortOrder);
+    .sort((a, b) => {
+      if (a.dayId !== b.dayId) return a.dayId.localeCompare(b.dayId, undefined, { numeric: true });
+      return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+    });
 }
 
 export class ItineraryService {
@@ -289,18 +344,47 @@ export class ItineraryService {
     this.baseUrl = `${context.pageContext.web.absoluteUrl}/_api/web/lists/getbytitle('${LIST}')/items`;
   }
 
-  /** Fetch all entries (parents + sub-items) for a trip and return assembled tree. */
-  async getAll(tripId: string): Promise<ItineraryEntry[]> {
-    const select = `$select=${SELECT}`;
-    const filter = `$filter=TripId eq '${tripId}'`;
+  private async fetchItemsRaw(tripId: string, selectList: string): Promise<unknown[]> {
+    const safeTripId = tripId.replace(/'/g, "''");
+    const select = `$select=${selectList}`;
+    const filter = `$filter=TripId eq '${safeTripId}'`;
     const orderby = '$orderby=SortOrder asc';
     const url = `${this.baseUrl}?${select}&${filter}&${orderby}&$top=5000`;
+    const resp: SPHttpClientResponse = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
+    if (!resp.ok) {
+      const body = await resp.text();
+      const err = new Error(`ItineraryService fetch failed: ${resp.status} ${body.slice(0, 400)}`);
+      (err as Error & { status?: number }).status = resp.status;
+      throw err;
+    }
+    const data = await resp.json();
+    return data.value ?? [];
+  }
+
+  /** Fetch all entries (parents + sub-items) for a trip and return assembled tree. */
+  async getAll(tripId: string): Promise<ItineraryEntry[]> {
     try {
-      const resp: SPHttpClientResponse = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
-      if (!resp.ok) throw new Error(`ItineraryService.getAll failed: ${resp.status}`);
-      const data = await resp.json();
-      return assembleTree(data.value ?? []);
+      const rows = await this.fetchItemsRaw(tripId, SELECT);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return assembleTree(rows as any[]);
     } catch (err) {
+      const status = (err as Error & { status?: number }).status;
+      if (status === 400) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          'ItineraryService.getAll: OData $select failed (likely missing Phase 7 columns). Retrying without extended fields.',
+          err
+        );
+        try {
+          const rows = await this.fetchItemsRaw(tripId, SELECT_FALLBACK);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return assembleTree(rows as any[]);
+        } catch (err2) {
+          // eslint-disable-next-line no-console
+          console.error('ItineraryService.getAll fallback failed', err2);
+          throw err2;
+        }
+      }
       // eslint-disable-next-line no-console
       console.error('ItineraryService.getAll', err);
       throw err;
@@ -308,13 +392,31 @@ export class ItineraryService {
   }
 
   async getById(id: string): Promise<ItineraryEntry> {
-    const url = `${this.baseUrl}(${id})?$select=${SELECT}`;
-    try {
+    const tryGet = async (selectList: string): Promise<unknown> => {
+      const url = `${this.baseUrl}(${id})?$select=${selectList}`;
       const resp: SPHttpClientResponse = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
-      if (!resp.ok) throw new Error(`ItineraryService.getById failed: ${resp.status}`);
-      const item = await resp.json();
+      if (!resp.ok) {
+        const body = await resp.text();
+        const err = new Error(`ItineraryService.getById failed: ${resp.status} ${body.slice(0, 400)}`);
+        (err as Error & { status?: number }).status = resp.status;
+        throw err;
+      }
+      return resp.json();
+    };
+    try {
+      const item = await tryGet(SELECT);
       return mapToEntry(item);
     } catch (err) {
+      const status = (err as Error & { status?: number }).status;
+      if (status === 400) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          'ItineraryService.getById: OData $select failed (likely missing Phase 7 columns). Retrying without extended fields.',
+          err
+        );
+        const item = await tryGet(SELECT_FALLBACK);
+        return mapToEntry(item);
+      }
       // eslint-disable-next-line no-console
       console.error('ItineraryService.getById', err);
       throw err;

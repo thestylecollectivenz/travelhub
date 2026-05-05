@@ -15,6 +15,7 @@ export interface ItineraryCardProps {
   suppressCarryoverUi?: boolean;
   draggable?: boolean;
   hasTask?: boolean;
+  hasCancellationDeadlineReminder?: boolean;
   /** Portals the edit form to document.body (Day Planner columns are too narrow). */
   useEditPortal?: boolean;
 }
@@ -38,6 +39,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
   suppressCarryoverUi,
   draggable = true,
   hasTask = false,
+  hasCancellationDeadlineReminder = false,
   useEditPortal = false
 }) => {
   const { editingCardId, setEditingCardId, updateEntry, deleteEntry, duplicateEntry } = useTripWorkspace();
@@ -117,6 +119,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
           calendarDate={calendarDate}
           suppressCarryoverUi={suppressCarryoverUi}
           hasTask={hasTask}
+          hasCancellationDeadlineReminder={hasCancellationDeadlineReminder}
           onEdit={() => setEditingCardId(entry.id)}
           onDuplicate={() => duplicateEntry(entry.id)}
           onDelete={() => deleteEntry(entry.id)}

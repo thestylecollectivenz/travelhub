@@ -1,6 +1,7 @@
 import * as React from 'react';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { formatTimeHHMM, minutesFromTimeStart } from '../../utils/itineraryTimeUtils';
+import { effectivePlannerTimeStart, sortEntriesForDay } from '../../utils/itineraryDayEntries';
 import styles from './SharedItinerarySummary.module.css';
 
 export interface SharedItinerarySummaryProps {
@@ -8,46 +9,34 @@ export interface SharedItinerarySummaryProps {
   dayId: string;
   calendarDate: string;
   dayType?: string;
+  /** Pass the trip pre-trip day id so span logic never attaches to the wrong day. */
+  preTripDayId?: string;
 }
 
-function isAccommodationOnDate(entry: ItineraryEntry, calendarDate: string): boolean {
-  if (entry.category !== 'Accommodation' || !entry.dateStart || !entry.dateEnd || !calendarDate) return false;
-  const day = new Date(`${calendarDate}T00:00:00.000Z`);
-  const start = new Date(`${entry.dateStart}T00:00:00.000Z`);
-  const end = new Date(`${entry.dateEnd}T00:00:00.000Z`);
-  if (Number.isNaN(day.getTime()) || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
-  return day.getTime() >= start.getTime() && day.getTime() < end.getTime();
-}
+export const SharedItinerarySummary: React.FC<SharedItinerarySummaryProps> = ({
+  entries,
+  dayId,
+  calendarDate,
+  dayType,
+  preTripDayId
+}) => {
+  const sorted = React.useMemo(
+    () => sortEntriesForDay(entries, dayId, calendarDate, dayType, preTripDayId),
+    [entries, dayId, calendarDate, dayType, preTripDayId]
+  );
 
-function sortEntriesForDay(entries: ItineraryEntry[], dayId: string, calendarDate: string, dayType?: string): ItineraryEntry[] {
-  const map = new Map<string, ItineraryEntry>();
-  for (const e of entries) {
-    if (e.parentEntryId) continue;
-    if (dayType === 'PreTrip') {
-      if (e.dayId === dayId) {
-        map.set(e.id, e);
-      }
-      continue;
-    }
-    if (e.dayId === dayId || isAccommodationOnDate(e, calendarDate)) {
-      map.set(e.id, e);
-    }
-  }
-  const forDay = Array.from(map.values());
-  return [...forDay].sort((a, b) => {
-    const aMin = minutesFromTimeStart(a.timeStart);
-    const bMin = minutesFromTimeStart(b.timeStart);
-    if (aMin !== undefined && bMin !== undefined) return aMin - bMin;
-    if (aMin !== undefined) return -1;
-    if (bMin !== undefined) return 1;
-    return a.sortOrder - b.sortOrder;
-  });
-}
+  const sortedWithTime = React.useMemo(() => {
+    return [...sorted].sort((a, b) => {
+      const aMin = minutesFromTimeStart(effectivePlannerTimeStart(a, calendarDate));
+      const bMin = minutesFromTimeStart(effectivePlannerTimeStart(b, calendarDate));
+      if (aMin !== undefined && bMin !== undefined) return aMin - bMin;
+      if (aMin !== undefined) return -1;
+      if (bMin !== undefined) return 1;
+      return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+    });
+  }, [sorted, calendarDate]);
 
-export const SharedItinerarySummary: React.FC<SharedItinerarySummaryProps> = ({ entries, dayId, calendarDate, dayType }) => {
-  const sorted = React.useMemo(() => sortEntriesForDay(entries, dayId, calendarDate, dayType), [entries, dayId, calendarDate, dayType]);
-
-  if (sorted.length === 0) {
+  if (sortedWithTime.length === 0) {
     return (
       <div className={styles.empty} role="status">
         Nothing planned for this day yet.
@@ -57,9 +46,9 @@ export const SharedItinerarySummary: React.FC<SharedItinerarySummaryProps> = ({ 
 
   return (
     <ol className={styles.list}>
-      {sorted.map((entry) => (
+      {sortedWithTime.map((entry) => (
         <li key={entry.id} className={styles.row}>
-          <span className={styles.time}>{formatTimeHHMM(entry.timeStart)}</span>
+          <span className={styles.time}>{formatTimeHHMM(effectivePlannerTimeStart(entry, calendarDate))}</span>
           <span className={styles.title}>
             {entry.title?.trim() || 'Untitled'}
             {(entry.subItems ?? []).length > 0 ? (

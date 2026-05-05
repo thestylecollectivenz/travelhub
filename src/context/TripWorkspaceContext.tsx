@@ -5,6 +5,7 @@ import type { TripDay } from '../models/TripDay';
 import { TripService } from '../services/TripService';
 import { DayService } from '../services/DayService';
 import { ItineraryService } from '../services/ItineraryService';
+import { syncAccommodationCancellationDeadlineReminder } from '../services/accommodationCancellationReminderSync';
 import { FxService } from '../services/FxService';
 import { useSpContext } from './SpContext';
 import { minutesFromTimeStart } from '../utils/itineraryTimeUtils';
@@ -236,9 +237,25 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       svc
         .create(createPayload)
         .then((created) => {
-          setLocalEntries((prev) =>
-            prev.map((e) => (e.id === tempId ? { ...created, subItems: e.subItems ?? [] } : e))
-          );
+          let mergedForSync: ItineraryEntry | undefined;
+          setLocalEntries((prev) => {
+            const prevEntry = prev.find((e) => e.id === tempId);
+            mergedForSync = { ...created, subItems: prevEntry?.subItems ?? [] };
+            return prev.map((e) => (e.id === tempId ? mergedForSync! : e));
+          });
+          if (mergedForSync) {
+            void syncAccommodationCancellationDeadlineReminder(spContext, mergedForSync)
+              .then(
+                () => undefined,
+                (syncErr) => {
+                  // eslint-disable-next-line no-console
+                  console.error('updateEntry (create): cancellation reminder sync failed', syncErr);
+                }
+              )
+              .then(() => {
+                window.dispatchEvent(new Event('trip-reminders-updated'));
+              });
+          }
         })
         .catch((err) => {
           // eslint-disable-next-line no-console
@@ -260,10 +277,16 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       const svc = new ItineraryService(spContext);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars -- strip nested items before PATCH
       const { subItems: _subItems, ...entryWithoutSubItems } = updated;
-      svc.update(updated.id, entryWithoutSubItems).catch((err) => {
-        // eslint-disable-next-line no-console
-        console.error('updateEntry (update): SP persist failed', err);
-      });
+      svc
+        .update(updated.id, entryWithoutSubItems)
+        .then(async () => {
+          await syncAccommodationCancellationDeadlineReminder(spContext, updated);
+          window.dispatchEvent(new Event('trip-reminders-updated'));
+        })
+        .catch((err) => {
+          // eslint-disable-next-line no-console
+          console.error('updateEntry (update): SP persist or cancellation reminder sync failed', err);
+        });
     }
   }, [spContext]);
 
@@ -300,6 +323,17 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
           .create({ ...createPayload, sortOrder: maxSort + 1 })
           .then((created) => {
             setLocalEntries((current) => current.map((e) => (e.id === tempId ? { ...e, id: created.id } : e)));
+            void syncAccommodationCancellationDeadlineReminder(spContext, created)
+              .then(
+                () => undefined,
+                (syncErr) => {
+                  // eslint-disable-next-line no-console
+                  console.error('duplicateEntry: cancellation reminder sync failed', syncErr);
+                }
+              )
+              .then(() => {
+                window.dispatchEvent(new Event('trip-reminders-updated'));
+              });
           })
           .catch((err) => {
             // eslint-disable-next-line no-console

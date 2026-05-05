@@ -80,4 +80,18 @@ export interface ItineraryEntry {
   returnDate?: string;
   /** Return leg departure time (HH:MM). */
   returnTime?: string;
+  /** Accommodation — multi-line (SharePoint Note). */
+  perksIncluded?: string;
+  cancellationPolicy?: string;
+  /** ISO 8601 local-ish string for datetime-local / SharePoint DateTime. */
+  cancellationDeadline?: string;
+  cruiseReference?: string;
+  cruiseLineName?: string;
+  shipName?: string;
+  cabinTypeAndNumber?: string;
+  packageName?: string;
+  packageInclusions?: string;
+  transportFrom?: string;
+  transportTo?: string;
+  transportMode?: string;
 }

@@ -3,7 +3,12 @@ import type { TripDay } from '../../models/TripDay';
 import type { ItineraryEntry, ItinerarySubItem } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useAttachments } from '../../context/AttachmentsContext';
-import { effectivePlannerTimeStart, isTransportReturnOnCalendarDate, sortEntriesForDay } from '../../utils/itineraryDayEntries';
+import {
+  effectivePlannerTimeStart,
+  isTransportReturnOnCalendarDate,
+  resolvePreTripDayId,
+  sortEntriesForDay
+} from '../../utils/itineraryDayEntries';
 import { formatTimeHHMM, minutesFromTimeStart } from '../../utils/itineraryTimeUtils';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
@@ -12,7 +17,7 @@ import { formatCurrency } from '../../utils/financialUtils';
 import { ItineraryCard } from './ItineraryCard';
 import { SubItemDetailLines } from './SubItemDetailLines';
 import { openDayPlannerPrintWindow } from '../../utils/dayPlannerPrint';
-import { googleMapsDirectionsUrl } from '../../utils/googleMapsLink';
+import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../../utils/googleMapsLink';
 import styles from './ItineraryDayPlannerView.module.css';
 
 export type PlannerFilter =
@@ -156,6 +161,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
     return tripDays.filter((d) => d.tripId === trip.id).sort((a, b) => a.dayNumber - b.dayNumber);
   }, [trip, tripDays]);
 
+  const preTripDayId = React.useMemo(() => (trip ? resolvePreTripDayId(tripDays, trip.id) : undefined), [trip, tripDays]);
+
   const entriesForTrip = React.useMemo(
     () => (trip ? localEntries.filter((e) => e.tripId === trip.id && !e.parentEntryId) : []),
     [trip, localEntries]
@@ -298,7 +305,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
 
   const rangeForDay = React.useCallback((day: TripDay): { start: number; end: number } => {
     const cal = day.calendarDate || '';
-    const list = sortEntriesForDay(entriesForTrip, day.id, cal, day.dayType);
+    const list = sortEntriesForDay(entriesForTrip, day.id, cal, day.dayType, preTripDayId);
     let minM = 24 * 60;
     let maxM = 0;
     let any = false;
@@ -356,7 +363,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
   const anyUnscheduledAcrossFilter = React.useMemo(() => {
     for (const d of visibleDays) {
       const cal = d.calendarDate || '';
-      const list = sortEntriesForDay(entriesForTrip, d.id, cal, d.dayType);
+      const list = sortEntriesForDay(entriesForTrip, d.id, cal, d.dayType, preTripDayId);
       for (const e of list) {
         if (minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) === undefined) return true;
       }
@@ -383,7 +390,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
       const next = { ...prev };
       for (const d of visibleDays) {
         const cal = d.calendarDate || '';
-        const list = sortEntriesForDay(entriesForTrip, d.id, cal, d.dayType);
+        const list = sortEntriesForDay(entriesForTrip, d.id, cal, d.dayType, preTripDayId);
         const has = list.some((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) === undefined);
         if (has) next[d.id] = true;
       }
@@ -555,7 +562,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
         <div className={styles.plannerFrame}>
           {displayDays.map((day) => {
             const cal = day.calendarDate || '';
-            const list = sortEntriesForDay(entriesForTrip, day.id, cal, day.dayType);
+            const list = sortEntriesForDay(entriesForTrip, day.id, cal, day.dayType, preTripDayId);
             const timed = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) !== undefined);
             const unsched = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) === undefined);
             const slugFor = (e: ItineraryEntry): string => getCategorySlug(e.category);
@@ -757,7 +764,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
             <div className={styles.cornerCell} aria-hidden />
             {displayDays.map((day) => {
               const cal = day.calendarDate || '';
-              const list = sortEntriesForDay(entriesForTrip, day.id, cal, day.dayType);
+              const list = sortEntriesForDay(entriesForTrip, day.id, cal, day.dayType, preTripDayId);
               const unsched = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) === undefined);
               const collapsed = Boolean(unschedCollapsed[day.id]);
               if (!unsched.length) {
@@ -835,7 +842,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                 </div>
                 {displayDays.map((day) => {
                   const cal = day.calendarDate || '';
-                  const list = sortEntriesForDay(entriesForTrip, day.id, cal, day.dayType);
+                  const list = sortEntriesForDay(entriesForTrip, day.id, cal, day.dayType, preTripDayId);
                   const timed = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) !== undefined);
                   const slugFor = (e: ItineraryEntry): string => getCategorySlug(e.category);
                   return (
@@ -1018,11 +1025,19 @@ export const ItineraryDayPlannerView: React.FC = () => {
                     .filter(Boolean)
                     .join(' · ')}
                 </p>
-                {googleMapsDirectionsUrl(previewEntry.streetAddress || '') ? (
+                {googleMapsPlaceUrl(previewEntry.streetAddress || '') ? (
                   <p className={styles.previewBody}>
-                    <a href={googleMapsDirectionsUrl(previewEntry.streetAddress || '')} target="_blank" rel="noopener noreferrer">
-                      Open in Google Maps
+                    <a href={googleMapsPlaceUrl(previewEntry.streetAddress || '')} target="_blank" rel="noopener noreferrer">
+                      View on map
                     </a>
+                    {googleMapsDirectionsUrl(previewEntry.streetAddress || '') ? (
+                      <>
+                        {' · '}
+                        <a href={googleMapsDirectionsUrl(previewEntry.streetAddress || '')} target="_blank" rel="noopener noreferrer">
+                          Get directions
+                        </a>
+                      </>
+                    ) : null}
                   </p>
                 ) : null}
               </div>
@@ -1039,11 +1054,19 @@ export const ItineraryDayPlannerView: React.FC = () => {
               <div className={styles.previewSection}>
                 <h3>Address</h3>
                 <p className={styles.previewBody}>{previewEntry.streetAddress.trim()}</p>
-                {googleMapsDirectionsUrl(previewEntry.streetAddress) ? (
+                {googleMapsPlaceUrl(previewEntry.streetAddress || '') ? (
                   <p className={styles.previewBody}>
-                    <a href={googleMapsDirectionsUrl(previewEntry.streetAddress)} target="_blank" rel="noopener noreferrer">
-                      Open in Google Maps
+                    <a href={googleMapsPlaceUrl(previewEntry.streetAddress || '')} target="_blank" rel="noopener noreferrer">
+                      View on map
                     </a>
+                    {googleMapsDirectionsUrl(previewEntry.streetAddress || '') ? (
+                      <>
+                        {' · '}
+                        <a href={googleMapsDirectionsUrl(previewEntry.streetAddress || '')} target="_blank" rel="noopener noreferrer">
+                          Get directions
+                        </a>
+                      </>
+                    ) : null}
                   </p>
                 ) : null}
               </div>

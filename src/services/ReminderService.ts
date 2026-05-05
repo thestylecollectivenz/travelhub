@@ -11,6 +11,8 @@ export interface TripReminder {
   entryId?: string;
   reminderType: string;
   reminderText: string;
+  /** Optional user-facing note (N1). */
+  taskNote?: string;
   dueDate?: string;
   isComplete: boolean;
 }
@@ -24,6 +26,7 @@ function mapToReminder(item: any): TripReminder {
     entryId: item.EntryId ?? '',
     reminderType: item.ReminderType ?? 'Custom',
     reminderText: item.ReminderText ?? '',
+    taskNote: item.TaskNote ?? undefined,
     dueDate: item.DueDate ?? undefined,
     isComplete: item.IsComplete === true
   };
@@ -37,6 +40,7 @@ function mapToSpItem(partial: Partial<TripReminder>): Record<string, unknown> {
   if (partial.entryId !== undefined) out.EntryId = partial.entryId || '';
   if (partial.reminderType !== undefined) out.ReminderType = partial.reminderType;
   if (partial.reminderText !== undefined) out.ReminderText = partial.reminderText;
+  if (partial.taskNote !== undefined) out.TaskNote = partial.taskNote || '';
   if (partial.dueDate !== undefined) out.DueDate = partial.dueDate || null;
   if (partial.isComplete !== undefined) out.IsComplete = partial.isComplete;
   return out;
@@ -50,8 +54,14 @@ export class ReminderService {
 
   async getForTrip(tripId: string): Promise<TripReminder[]> {
     const safeTripId = tripId.replace(/'/g, "''");
-    const url = `${this.baseUrl}?$select=ID,Title,TripId,DayId,EntryId,ReminderType,ReminderText,DueDate,IsComplete&$filter=TripId eq '${safeTripId}'&$orderby=ID desc&$top=5000`;
-    const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
+    const urlFull = `${this.baseUrl}?$select=ID,Title,TripId,DayId,EntryId,ReminderType,ReminderText,TaskNote,DueDate,IsComplete&$filter=TripId eq '${safeTripId}'&$orderby=ID desc&$top=5000`;
+    const urlLegacy = `${this.baseUrl}?$select=ID,Title,TripId,DayId,EntryId,ReminderType,ReminderText,DueDate,IsComplete&$filter=TripId eq '${safeTripId}'&$orderby=ID desc&$top=5000`;
+    let resp = await this.ctx.spHttpClient.get(urlFull, SPHttpClient.configurations.v1);
+    if (!resp.ok && resp.status === 400) {
+      // eslint-disable-next-line no-console
+      console.warn('ReminderService.getForTrip: retrying without TaskNote column (provision TripReminders.TaskNote).', resp.status);
+      resp = await this.ctx.spHttpClient.get(urlLegacy, SPHttpClient.configurations.v1);
+    }
     if (!resp.ok) throw new Error(`ReminderService.getForTrip failed: ${resp.status}`);
     const data = await resp.json();
     return (data.value ?? []).map(mapToReminder);

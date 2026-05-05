@@ -46,6 +46,8 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
   const [isEditing, setIsEditing] = React.useState(false);
   const [draft, setDraft] = React.useState<ItinerarySubItem>({ ...item });
   const [taskBusy, setTaskBusy] = React.useState(false);
+  const [taskPanelOpen, setTaskPanelOpen] = React.useState(false);
+  const [taskDesc, setTaskDesc] = React.useState('');
   const [linkTitle, setLinkTitle] = React.useState('');
   const [linkUrl, setLinkUrl] = React.useState('');
   const [uploadBusy, setUploadBusy] = React.useState(false);
@@ -61,10 +63,11 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
     }
   }, [item, isEditing]);
 
-  const addToTasks = React.useCallback(() => {
+  const submitOptionTask = React.useCallback(() => {
     if (!trip?.id || !parentEntry) return;
     setTaskBusy(true);
     const svc = new ReminderService(spContext);
+    const note = taskDesc.trim();
     void svc
       .create({
         title: `Option: ${parentEntry.title || 'Item'} — ${item.title || 'Untitled'}`,
@@ -72,15 +75,18 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
         dayId: parentEntry.dayId,
         entryId: item.id,
         reminderType: 'Option',
-        reminderText: `Follow up option: ${item.title || 'Untitled'}`,
+        reminderText: note || `Follow up option: ${item.title || 'Untitled'}`,
+        taskNote: note || undefined,
         isComplete: false
       })
       .then(() => {
         window.dispatchEvent(new Event('trip-reminders-updated'));
+        setTaskPanelOpen(false);
+        setTaskDesc('');
       })
       .catch(console.error)
       .then(() => setTaskBusy(false));
-  }, [spContext, trip?.id, parentEntry, item.id, item.title]);
+  }, [spContext, trip?.id, parentEntry, item.id, item.title, taskDesc]);
 
   if (isEditing) {
     return (
@@ -257,6 +263,36 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
   return (
     <div className={styles.row}>
       <div className={styles.detailWrap}>
+        {taskPanelOpen ? (
+          <div className={styles.taskPanel}>
+            <label className={styles.taskLabel} htmlFor={`opt-task-${item.id}`}>
+              Task description (optional)
+            </label>
+            <input
+              id={`opt-task-${item.id}`}
+              className={styles.field}
+              type="text"
+              value={taskDesc}
+              onChange={(e) => setTaskDesc(e.target.value)}
+              placeholder={`Book ${item.title || 'option'}`}
+            />
+            <div className={styles.taskPanelActions}>
+              <button type="button" className={styles.actionButton} disabled={taskBusy} onClick={submitOptionTask}>
+                Add task
+              </button>
+              <button
+                type="button"
+                className={styles.actionButtonMuted}
+                onClick={() => {
+                  setTaskPanelOpen(false);
+                  setTaskDesc('');
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : null}
         <SubItemDetailLines item={item} docCount={docs.length} linkCount={links.length} />
         {(docs.length > 0 || links.length > 0) ? (
           <div className={styles.quickLinks}>
@@ -274,7 +310,22 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
         ) : null}
       </div>
       <div className={styles.actionCol}>
-        <button type="button" className={styles.taskButton} onClick={addToTasks} disabled={taskBusy} aria-label="Add option to tasks" title="Add to tasks">
+        <button
+          type="button"
+          className={styles.taskButton}
+          onClick={() => {
+            setTaskPanelOpen((o) => {
+              const next = !o;
+              if (!o) {
+                setTaskDesc(`Book ${item.title || 'option'}`);
+              }
+              return next;
+            });
+          }}
+          disabled={taskBusy}
+          aria-label="Add option to tasks"
+          title="Add to tasks"
+        >
           <TaskIcon />
         </button>
         <button type="button" className={styles.editButton} onClick={() => setIsEditing(true)} aria-label="Edit sub-item">

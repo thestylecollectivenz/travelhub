@@ -88,7 +88,14 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   }, [isFlights, calendarDate]);
 
   const handleSave = React.useCallback(() => {
-    const title = draft.title.trim();
+    let title = draft.title.trim();
+    if (!title && isTransport) {
+      const tf = (draft.transportFrom ?? '').trim();
+      const tt = (draft.transportTo ?? '').trim();
+      const tm = (draft.transportMode ?? '').trim();
+      const arrow = tf || tt ? `${tf} → ${tt}` : '';
+      title = (arrow + (tm ? ` (${tm})` : '')).trim() || 'Transport';
+    }
     if (!title) {
       return;
     }
@@ -120,7 +127,19 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       cabinClass: draft.cabinClass,
       journeyType: draft.journeyType,
       returnDate: draft.returnDate?.trim() || undefined,
-      returnTime: draft.returnTime?.trim() || undefined
+      returnTime: draft.returnTime?.trim() || undefined,
+      perksIncluded: draft.perksIncluded?.trim() || undefined,
+      cancellationPolicy: draft.cancellationPolicy?.trim() || undefined,
+      cancellationDeadline: draft.cancellationDeadline?.trim() || undefined,
+      cruiseReference: draft.cruiseReference?.trim() || undefined,
+      cruiseLineName: draft.cruiseLineName?.trim() || undefined,
+      shipName: draft.shipName?.trim() || undefined,
+      cabinTypeAndNumber: draft.cabinTypeAndNumber?.trim() || undefined,
+      packageName: draft.packageName?.trim() || undefined,
+      packageInclusions: draft.packageInclusions?.trim() || undefined,
+      transportFrom: draft.transportFrom?.trim() || undefined,
+      transportTo: draft.transportTo?.trim() || undefined,
+      transportMode: draft.transportMode?.trim() || undefined
     };
     if (saved.category === 'Transport') {
       saved.journeyType = saved.journeyType ?? 'oneway';
@@ -143,9 +162,16 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       }
     }
     onSave(saved);
-  }, [calendarDate, draft, timeValue, nights, perNight, trip, tripDays, config.homeCurrency]);
+  }, [calendarDate, draft, timeValue, nights, perNight, trip, tripDays, config.homeCurrency, isTransport]);
 
-  const canSave = draft.title.trim().length > 0;
+  const canSave =
+    draft.title.trim().length > 0 ||
+    (isTransport &&
+      Boolean(
+        (draft.transportFrom ?? '').trim() ||
+          (draft.transportTo ?? '').trim() ||
+          (draft.transportMode ?? '').trim()
+      ));
 
   return (
     <div className={styles.form}>
@@ -232,9 +258,9 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           id={`title-${draft.id}`}
           className={styles.input}
           type="text"
-          required
           value={draft.title}
           onChange={(e) => patch({ title: e.target.value })}
+          placeholder={isTransport ? 'Optional — auto from From / To / Mode if empty' : undefined}
         />
 
         <label className={styles.label} htmlFor={`cat-${draft.id}`}>
@@ -282,22 +308,86 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           </>
         ) : null}
 
-        <label className={styles.label} htmlFor={`sup-${draft.id}`}>
-          Supplier
-        </label>
-        <input
-          id={`sup-${draft.id}`}
-          className={styles.input}
-          type="text"
-          list={`supplier-list-${draft.id}`}
-          value={draft.supplier}
-          onChange={(e) => patch({ supplier: e.target.value })}
-        />
-        <datalist id={`supplier-list-${draft.id}`}>
-          {usedSuppliers.map((value) => (
-            <option key={value} value={value} />
-          ))}
-        </datalist>
+        {!isCruise ? (
+          <>
+            <label className={styles.label} htmlFor={`sup-${draft.id}`}>
+              Supplier
+            </label>
+            <input
+              id={`sup-${draft.id}`}
+              className={styles.input}
+              type="text"
+              list={`supplier-list-${draft.id}`}
+              value={draft.supplier}
+              onChange={(e) => patch({ supplier: e.target.value })}
+            />
+            <datalist id={`supplier-list-${draft.id}`}>
+              {usedSuppliers.map((value) => (
+                <option key={value} value={value} />
+              ))}
+            </datalist>
+          </>
+        ) : null}
+
+        {isCruise ? (
+          <>
+            <label className={styles.label} htmlFor={`cref-${draft.id}`}>
+              Booking reference
+            </label>
+            <input
+              id={`cref-${draft.id}`}
+              className={styles.input}
+              value={draft.cruiseReference ?? ''}
+              onChange={(e) => patch({ cruiseReference: e.target.value })}
+            />
+            <label className={styles.label} htmlFor={`cline-${draft.id}`}>
+              Cruise line
+            </label>
+            <input
+              id={`cline-${draft.id}`}
+              className={styles.input}
+              value={draft.cruiseLineName ?? ''}
+              onChange={(e) => patch({ cruiseLineName: e.target.value })}
+            />
+            <label className={styles.label} htmlFor={`ship-${draft.id}`}>
+              Ship name
+            </label>
+            <input
+              id={`ship-${draft.id}`}
+              className={styles.input}
+              value={draft.shipName ?? ''}
+              onChange={(e) => patch({ shipName: e.target.value })}
+            />
+            <label className={styles.label} htmlFor={`cabin-${draft.id}`}>
+              Cabin type &amp; number
+            </label>
+            <input
+              id={`cabin-${draft.id}`}
+              className={styles.input}
+              value={draft.cabinTypeAndNumber ?? ''}
+              onChange={(e) => patch({ cabinTypeAndNumber: e.target.value })}
+            />
+            <label className={styles.label} htmlFor={`pkg-${draft.id}`}>
+              Package name
+            </label>
+            <input
+              id={`pkg-${draft.id}`}
+              className={styles.input}
+              value={draft.packageName ?? ''}
+              onChange={(e) => patch({ packageName: e.target.value })}
+            />
+            <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`pkginc-${draft.id}`}>
+              Package inclusions
+            </label>
+            <textarea
+              id={`pkginc-${draft.id}`}
+              className={`${styles.textarea} ${styles.fullRow}`}
+              rows={3}
+              value={draft.packageInclusions ?? ''}
+              onChange={(e) => patch({ packageInclusions: e.target.value })}
+            />
+          </>
+        ) : null}
 
         <label className={styles.label} htmlFor={`loc-${draft.id}`}>
           Location
@@ -329,6 +419,44 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
 
         {isTransport ? (
           <>
+            <label className={styles.label} htmlFor={`tf-${draft.id}`}>
+              From
+            </label>
+            <input
+              id={`tf-${draft.id}`}
+              className={styles.input}
+              value={draft.transportFrom ?? ''}
+              onChange={(e) => patch({ transportFrom: e.target.value })}
+            />
+            <label className={styles.label} htmlFor={`tt-${draft.id}`}>
+              To
+            </label>
+            <input
+              id={`tt-${draft.id}`}
+              className={styles.input}
+              value={draft.transportTo ?? ''}
+              onChange={(e) => patch({ transportTo: e.target.value })}
+            />
+            <label className={styles.label} htmlFor={`tm-${draft.id}`}>
+              Mode
+            </label>
+            <select
+              id={`tm-${draft.id}`}
+              className={styles.select}
+              value={draft.transportMode ?? ''}
+              onChange={(e) => patch({ transportMode: e.target.value })}
+            >
+              <option value="">—</option>
+              <option value="Flight">Flight</option>
+              <option value="Train">Train</option>
+              <option value="Bus / Coach">Bus / Coach</option>
+              <option value="Taxi / Rideshare">Taxi / Rideshare</option>
+              <option value="Ferry / Boat">Ferry / Boat</option>
+              <option value="Car (rental or own)">Car (rental or own)</option>
+              <option value="Ship / Cruise transfer">Ship / Cruise transfer</option>
+              <option value="Walking">Walking</option>
+              <option value="Other">Other</option>
+            </select>
             <label className={styles.label} htmlFor={`jt-${draft.id}`}>
               Journey type
             </label>
@@ -418,6 +546,36 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
               className={styles.input}
               value={draft.streetAddress ?? ''}
               onChange={(e) => patch({ streetAddress: e.target.value })}
+            />
+            <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`perks-${draft.id}`}>
+              Perks included
+            </label>
+            <textarea
+              id={`perks-${draft.id}`}
+              className={`${styles.textarea} ${styles.fullRow}`}
+              rows={2}
+              value={draft.perksIncluded ?? ''}
+              onChange={(e) => patch({ perksIncluded: e.target.value })}
+            />
+            <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`cancelpol-${draft.id}`}>
+              Cancellation policy
+            </label>
+            <textarea
+              id={`cancelpol-${draft.id}`}
+              className={`${styles.textarea} ${styles.fullRow}`}
+              rows={2}
+              value={draft.cancellationPolicy ?? ''}
+              onChange={(e) => patch({ cancellationPolicy: e.target.value })}
+            />
+            <label className={styles.label} htmlFor={`canceldead-${draft.id}`}>
+              Cancellation deadline
+            </label>
+            <input
+              id={`canceldead-${draft.id}`}
+              className={styles.input}
+              type="datetime-local"
+              value={draft.cancellationDeadline ? draft.cancellationDeadline.slice(0, 16) : ''}
+              onChange={(e) => patch({ cancellationDeadline: e.target.value || undefined })}
             />
           </>
         ) : null}

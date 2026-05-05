@@ -5,7 +5,7 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
-import { effectivePlannerTimeStart, sortEntriesForDay } from '../../utils/itineraryDayEntries';
+import { effectivePlannerTimeStart, resolvePreTripDayId, sortEntriesForDay } from '../../utils/itineraryDayEntries';
 import { ItineraryCard } from './ItineraryCard';
 import { ReminderService } from '../../services/ReminderService';
 import styles from './ItineraryTimeline.module.css';
@@ -77,6 +77,8 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
   const spContext = useSpContext();
   const { trip, localEntries, editingCardId, tripDays } = useTripWorkspace();
   const [taskEntryIds, setTaskEntryIds] = React.useState<Set<string>>(new Set());
+  const [cancellationDeadlineEntryIds, setCancellationDeadlineEntryIds] = React.useState<Set<string>>(new Set());
+  const preTripDayId = React.useMemo(() => (trip ? resolvePreTripDayId(tripDays, trip.id) : undefined), [trip, tripDays]);
 
   const calendarDate = React.useMemo(() => {
     if (!trip) return '';
@@ -89,21 +91,38 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
   );
   const suppressCarryoverUi = dayType === 'PreTrip' || String(dayType) === 'Pre-trip';
 
-  const sorted = React.useMemo(() => sortEntriesForDay(localEntries, dayId, calendarDate, dayType), [localEntries, dayId, calendarDate, dayType]);
+  const sorted = React.useMemo(
+    () => sortEntriesForDay(localEntries, dayId, calendarDate, dayType, preTripDayId),
+    [localEntries, dayId, calendarDate, dayType, preTripDayId]
+  );
 
   const loadEntryTasks = React.useCallback((): void => {
     if (!trip?.id) {
       setTaskEntryIds(new Set());
+      setCancellationDeadlineEntryIds(new Set());
       return;
     }
     const svc = new ReminderService(spContext);
     svc
       .getForTrip(trip.id)
       .then((rows) => {
-        const ids = new Set(rows.map((r) => (r.entryId || '').trim()).filter(Boolean));
+        const ids = new Set<string>();
+        const cancelIds = new Set<string>();
+        for (const r of rows) {
+          const eid = (r.entryId || '').trim();
+          if (!eid) continue;
+          ids.add(eid);
+          if ((r.reminderType || '').trim() === 'CancellationDeadline') {
+            cancelIds.add(eid);
+          }
+        }
         setTaskEntryIds(ids);
+        setCancellationDeadlineEntryIds(cancelIds);
       })
-      .catch(() => setTaskEntryIds(new Set()));
+      .catch(() => {
+        setTaskEntryIds(new Set());
+        setCancellationDeadlineEntryIds(new Set());
+      });
   }, [spContext, trip?.id]);
 
   React.useEffect(() => {
@@ -177,6 +196,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
                   suppressCarryoverUi={suppressCarryoverUi}
                   draggable={entry.dayId === dayId}
                   hasTask={taskEntryIds.has(entry.id)}
+                  hasCancellationDeadlineReminder={cancellationDeadlineEntryIds.has(entry.id)}
                 />
               </div>
             </div>
