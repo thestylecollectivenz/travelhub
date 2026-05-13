@@ -6,6 +6,7 @@ import { useAttachments } from '../../context/AttachmentsContext';
 import {
   effectivePlannerTimeStart,
   isTransportReturnOnCalendarDate,
+  isPreTripDayRow,
   resolvePreTripDayId,
   sortEntriesForDay
 } from '../../utils/itineraryDayEntries';
@@ -305,7 +306,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
 
   const rangeForDay = React.useCallback((day: TripDay): { start: number; end: number } => {
     const cal = day.calendarDate || '';
-    const list = sortEntriesForDay(entriesForTrip, day.id, cal, day.dayType, preTripDayId);
+    const list = sortEntriesForDay(entriesForTrip, day.id, cal, day.dayType, preTripDayId, isPreTripDayRow(day));
     let minM = 24 * 60;
     let maxM = 0;
     let any = false;
@@ -363,7 +364,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
   const anyUnscheduledAcrossFilter = React.useMemo(() => {
     for (const d of visibleDays) {
       const cal = d.calendarDate || '';
-      const list = sortEntriesForDay(entriesForTrip, d.id, cal, d.dayType, preTripDayId);
+      const list = sortEntriesForDay(entriesForTrip, d.id, cal, d.dayType, preTripDayId, isPreTripDayRow(d));
       for (const e of list) {
         if (minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) === undefined) return true;
       }
@@ -390,7 +391,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
       const next = { ...prev };
       for (const d of visibleDays) {
         const cal = d.calendarDate || '';
-        const list = sortEntriesForDay(entriesForTrip, d.id, cal, d.dayType, preTripDayId);
+        const list = sortEntriesForDay(entriesForTrip, d.id, cal, d.dayType, preTripDayId, isPreTripDayRow(d));
         const has = list.some((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) === undefined);
         if (has) next[d.id] = true;
       }
@@ -562,7 +563,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
         <div className={styles.plannerFrame}>
           {displayDays.map((day) => {
             const cal = day.calendarDate || '';
-            const list = sortEntriesForDay(entriesForTrip, day.id, cal, day.dayType, preTripDayId);
+            const list = sortEntriesForDay(entriesForTrip, day.id, cal, day.dayType, preTripDayId, isPreTripDayRow(day));
             const timed = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) !== undefined);
             const unsched = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) === undefined);
             const slugFor = (e: ItineraryEntry): string => getCategorySlug(e.category);
@@ -764,7 +765,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
             <div className={styles.cornerCell} aria-hidden />
             {displayDays.map((day) => {
               const cal = day.calendarDate || '';
-              const list = sortEntriesForDay(entriesForTrip, day.id, cal, day.dayType, preTripDayId);
+              const list = sortEntriesForDay(entriesForTrip, day.id, cal, day.dayType, preTripDayId, isPreTripDayRow(day));
               const unsched = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) === undefined);
               const collapsed = Boolean(unschedCollapsed[day.id]);
               if (!unsched.length) {
@@ -842,7 +843,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                 </div>
                 {displayDays.map((day) => {
                   const cal = day.calendarDate || '';
-                  const list = sortEntriesForDay(entriesForTrip, day.id, cal, day.dayType, preTripDayId);
+                  const list = sortEntriesForDay(entriesForTrip, day.id, cal, day.dayType, preTripDayId, isPreTripDayRow(day));
                   const timed = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) !== undefined);
                   const slugFor = (e: ItineraryEntry): string => getCategorySlug(e.category);
                   return (

@@ -5,7 +5,12 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
-import { effectivePlannerTimeStart, resolvePreTripDayId, sortEntriesForDay } from '../../utils/itineraryDayEntries';
+import {
+  effectivePlannerTimeStart,
+  isPreTripDayRow,
+  resolvePreTripDayId,
+  sortEntriesForDay
+} from '../../utils/itineraryDayEntries';
 import { ItineraryCard } from './ItineraryCard';
 import { ReminderService } from '../../services/ReminderService';
 import styles from './ItineraryTimeline.module.css';
@@ -85,15 +90,24 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
     const d = tripDays.find((x) => x.id === dayId && x.tripId === trip.id);
     return d?.calendarDate ?? '';
   }, [dayId, trip, tripDays]);
-  const dayType = React.useMemo(
-    () => (trip ? tripDays.find((x) => x.id === dayId && x.tripId === trip.id)?.dayType : undefined),
+  const dayMeta = React.useMemo(
+    () => (trip ? tripDays.find((x) => x.id === dayId && x.tripId === trip.id) : undefined),
     [trip, tripDays, dayId]
   );
-  const suppressCarryoverUi = dayType === 'PreTrip' || String(dayType) === 'Pre-trip';
+  const dayType = dayMeta?.dayType;
+  const suppressCarryoverUi = Boolean(dayMeta && isPreTripDayRow(dayMeta));
 
   const sorted = React.useMemo(
-    () => sortEntriesForDay(localEntries, dayId, calendarDate, dayType, preTripDayId),
-    [localEntries, dayId, calendarDate, dayType, preTripDayId]
+    () =>
+      sortEntriesForDay(
+        localEntries,
+        dayId,
+        calendarDate,
+        dayType,
+        preTripDayId,
+        dayMeta ? isPreTripDayRow(dayMeta) : false
+      ),
+    [localEntries, dayId, calendarDate, dayType, preTripDayId, dayMeta]
   );
 
   const loadEntryTasks = React.useCallback((): void => {

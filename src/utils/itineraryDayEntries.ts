@@ -2,9 +2,24 @@ import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { TripDay } from '../models/TripDay';
 import { minutesFromTimeStart } from './itineraryTimeUtils';
 
+export function isPreTripDayType(dayType?: string): boolean {
+  const normalized = String(dayType || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '');
+  return normalized === 'pretrip';
+}
+
+/** Pre-trip row: explicit type or legacy Day 0 row (some tenants omit / alter DayType). */
+export function isPreTripDayRow(day: Pick<TripDay, 'dayNumber' | 'dayType'>): boolean {
+  return day.dayNumber === 0 || isPreTripDayType(day.dayType);
+}
+
 /** Stable id of the trip's pre-trip day row, if present. */
 export function resolvePreTripDayId(tripDays: TripDay[], tripId: string): string | undefined {
-  return tripDays.find((d) => d.tripId === tripId && (d.dayType === 'PreTrip' || String(d.dayType) === 'Pre-trip'))?.id;
+  const byType = tripDays.find((d) => d.tripId === tripId && isPreTripDayType(d.dayType));
+  if (byType) return byType.id;
+  return tripDays.find((d) => d.tripId === tripId && d.dayNumber === 0)?.id;
 }
 
 function ymdSlice(d?: string): string {
@@ -41,7 +56,7 @@ export function isEntryOnCalendarDate(
   dayType?: string,
   ctx?: EntryCalendarMatchContext
 ): boolean {
-  if (dayType === 'PreTrip' || dayType === 'Pre-trip') return false;
+  if (isPreTripDayType(dayType)) return false;
   if (ctx?.preTripDayId && ctx?.viewingDayId && ctx.viewingDayId === ctx.preTripDayId) {
     return false;
   }
@@ -85,7 +100,9 @@ export function sortEntriesForDay(
   dayId: string,
   calendarDate: string,
   dayType?: string,
-  preTripDayId?: string | null
+  preTripDayId?: string | null,
+  /** When DayType is wrong/empty in SharePoint but this row is still the pre-trip day (e.g. DayNumber 0). */
+  preTripRowStrict?: boolean
 ): ItineraryEntry[] {
   const hasPreTripId = typeof preTripDayId === 'string' && preTripDayId !== '';
   const spanCtx: EntryCalendarMatchContext | undefined = hasPreTripId
@@ -93,7 +110,7 @@ export function sortEntriesForDay(
     : { viewingDayId: dayId };
 
   const isStrictDayOnly =
-    dayType === 'PreTrip' || dayType === 'Pre-trip' || (hasPreTripId && dayId === preTripDayId);
+    isPreTripDayType(dayType) || (hasPreTripId && dayId === preTripDayId) || preTripRowStrict === true;
 
   if (isStrictDayOnly) {
     return entries

@@ -11,7 +11,7 @@ import { TripTasksView } from '../tasks/TripTasksView';
 import { PackingListView } from '../packing/PackingListView';
 import { TripSidebar } from '../sidebar/TripSidebar';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
-import { resolvePreTripDayId, sortEntriesForDay } from '../../utils/itineraryDayEntries';
+import { isPreTripDayRow, resolvePreTripDayId, sortEntriesForDay } from '../../utils/itineraryDayEntries';
 import { orderIdsByHomeDayFromVisualList } from '../../utils/itineraryReorderByDay';
 import { useConfig } from '../../context/ConfigContext';
 import dayHeaderStyles from '../day/DayHeader.module.css';
@@ -45,7 +45,14 @@ export const TripContent: React.FC = () => {
   const dayEntries = React.useMemo(() => {
     if (!trip || !selectedDayId || !dayPanelDay) return [];
     const cal = dayPanelDay.calendarDate ?? '';
-    return sortEntriesForDay(localEntries, selectedDayId, cal, dayPanelDay.dayType, preTripDayId);
+    return sortEntriesForDay(
+      localEntries,
+      selectedDayId,
+      cal,
+      dayPanelDay.dayType,
+      preTripDayId,
+      isPreTripDayRow(dayPanelDay)
+    );
   }, [localEntries, selectedDayId, dayPanelDay, trip, preTripDayId]);
 
   const activeEntry = React.useMemo(() => {
@@ -78,14 +85,26 @@ export const TripContent: React.FC = () => {
         if (oldIndex < 0 || newIndex < 0) {
           return;
         }
-        const reordered = arrayMove(dayEntries, oldIndex, newIndex);
+        let reordered = arrayMove(dayEntries, oldIndex, newIndex);
+        const movingEntry = localEntries.find((e) => e.id === String(active.id));
+        if (
+          movingEntry &&
+          movingEntry.category === 'Accommodation' &&
+          selectedDayId &&
+          movingEntry.dayId !== selectedDayId
+        ) {
+          moveEntryToDay(movingEntry.id, selectedDayId);
+          reordered = reordered.map((entry) =>
+            entry.id === movingEntry.id ? { ...entry, dayId: selectedDayId } : entry
+          );
+        }
         const byDay = orderIdsByHomeDayFromVisualList(reordered);
         for (const [dayId, ids] of Array.from(byDay.entries())) {
           reorderEntries(dayId, ids);
         }
       }
     },
-    [dayEntries, moveEntryToDay, reorderEntries]
+    [dayEntries, localEntries, moveEntryToDay, reorderEntries, selectedDayId]
   );
 
   const startSidebarResize = React.useCallback(

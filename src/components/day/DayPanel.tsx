@@ -5,6 +5,7 @@ import { ItineraryDayPlannerView } from '../itinerary/ItineraryDayPlannerView';
 import { JournalFeed } from '../journal/JournalFeed';
 import { CruiseItineraryImport } from '../cruise/CruiseItineraryImport';
 import { sumForDay } from '../../utils/financialUtils';
+import { isPreTripDayRow } from '../../utils/itineraryDayEntries';
 import { BudgetBreakdownTile } from './BudgetBreakdownTile';
 import { DayHeader } from './DayHeader';
 import styles from './DayPanel.module.css';
@@ -47,7 +48,13 @@ export const DayPanel: React.FC = () => {
 
   const entries = React.useMemo(() => localEntries.filter((e) => e.tripId === trip.id), [localEntries, trip.id]);
 
-  const dayTotal = sumForDay(entries, day.id, convertToHomeCurrency, day.calendarDate);
+  const dayTotal = sumForDay(
+    entries,
+    day.id,
+    convertToHomeCurrency,
+    day.calendarDate,
+    isPreTripDayRow(day)
+  );
 
   return (
     <div className={styles.root}>

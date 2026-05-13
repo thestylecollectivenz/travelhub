@@ -43,7 +43,15 @@ function isCruiseOnDate(entry: ItineraryEntry, dayCalendarDate?: string): boolea
   return day.getTime() >= start.getTime() && day.getTime() <= end.getTime();
 }
 
-function appliesToDay(entry: ItineraryEntry, dayId: string, dayCalendarDate?: string): boolean {
+function appliesToDay(
+  entry: ItineraryEntry,
+  dayId: string,
+  dayCalendarDate?: string,
+  homeDayEntriesOnly?: boolean
+): boolean {
+  if (homeDayEntriesOnly) {
+    return entry.dayId === dayId;
+  }
   if (entry.dayId === dayId) return true;
   return isAccommodationOnDate(entry, dayCalendarDate) || isCruiseOnDate(entry, dayCalendarDate);
 }
@@ -64,11 +72,12 @@ function getFinancialLines(
   entries: ItineraryEntry[],
   converter: CurrencyConverter = identityConverter,
   dayId?: string,
-  dayCalendarDate?: string
+  dayCalendarDate?: string,
+  homeDayEntriesOnly?: boolean
 ): FinancialLine[] {
   const lines: FinancialLine[] = [];
   for (const entry of entries) {
-    if (dayId && !appliesToDay(entry, dayId, dayCalendarDate)) {
+    if (dayId && !appliesToDay(entry, dayId, dayCalendarDate, homeDayEntriesOnly)) {
       continue;
     }
     const currency = entry.currency || 'NZD';
@@ -223,9 +232,10 @@ export function sumForDay(
   entries: ItineraryEntry[],
   dayId: string,
   converter: CurrencyConverter = identityConverter,
-  dayCalendarDate?: string
+  dayCalendarDate?: string,
+  homeDayEntriesOnly?: boolean
 ): number {
-  const lines = getFinancialLines(entries, converter, dayId, dayCalendarDate);
+  const lines = getFinancialLines(entries, converter, dayId, dayCalendarDate, homeDayEntriesOnly);
   return lines.reduce((sum, line) => {
     if (line.dayId !== dayId) {
       return sum;
@@ -239,9 +249,10 @@ export function sumForDayByCategory(
   entries: ItineraryEntry[],
   dayId: string,
   converter: CurrencyConverter = identityConverter,
-  dayCalendarDate?: string
+  dayCalendarDate?: string,
+  homeDayEntriesOnly?: boolean
 ): Record<string, number> {
-  const lines = getFinancialLines(entries, converter, dayId, dayCalendarDate);
+  const lines = getFinancialLines(entries, converter, dayId, dayCalendarDate, homeDayEntriesOnly);
   const result: Record<string, number> = {};
   for (const key of BUDGET_CATEGORY_ORDER) {
     result[key] = 0;
@@ -271,9 +282,10 @@ export function getPaymentSummaryForDayCategory(
   dayId: string,
   category: string,
   converter: CurrencyConverter = identityConverter,
-  dayCalendarDate?: string
+  dayCalendarDate?: string,
+  homeDayEntriesOnly?: boolean
 ): DayCategoryPaymentSummary {
-  const lines = getFinancialLines(entries, converter, dayId, dayCalendarDate);
+  const lines = getFinancialLines(entries, converter, dayId, dayCalendarDate, homeDayEntriesOnly);
   const bucket = bucketCategory(category);
   let paid = 0;
   let unpaid = 0;

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { sumForDay } from '../../utils/financialUtils';
+import { isPreTripDayRow } from '../../utils/itineraryDayEntries';
 import { TRAVELHUB_SIDEBAR_FOCUS_DAY } from '../../utils/sidebarDayFocus';
 import { SidebarDayItem } from './SidebarDayItem';
 import styles from './TripSidebar.module.css';
@@ -45,7 +46,13 @@ export const SidebarDayList: React.FC = () => {
             day={day}
             isSelected={day.id === selectedDayId}
             onSelect={() => setSelectedDayId(day.id)}
-            dayTotal={sumForDay(entries, day.id, convertToHomeCurrency, day.calendarDate)}
+            dayTotal={sumForDay(
+              entries,
+              day.id,
+              convertToHomeCurrency,
+              day.calendarDate,
+              isPreTripDayRow(day)
+            )}
           />
         ))}
       </ul>
