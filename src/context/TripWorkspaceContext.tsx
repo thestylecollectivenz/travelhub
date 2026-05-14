@@ -10,6 +10,7 @@ import { syncAccommodationCancellationDeadlineReminder } from '../services/accom
 import { FxService } from '../services/FxService';
 import { useSpContext } from './SpContext';
 import { minutesFromTimeStart } from '../utils/itineraryTimeUtils';
+import { repairPreTripCalendarIfCollidingWithFirstDay } from '../utils/tripPreTripCalendarAnchor';
 import { useConfig } from './ConfigContext';
 
 export type MainWorkspaceTab = 'itinerary' | 'journal' | 'photos' | 'files' | 'map' | 'plan';
@@ -107,7 +108,8 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       ]);
 
       setTrip(loadedTrip);
-      setTripDays(loadedDays);
+      const anchoredDays = await repairPreTripCalendarIfCollidingWithFirstDay(daySvc, loadedTrip, loadedDays);
+      setTripDays(anchoredDays);
       setLocalEntries(loadedEntries);
       // Initialise FX rates
       try {

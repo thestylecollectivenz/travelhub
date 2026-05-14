@@ -1,7 +1,7 @@
 /**
- * Opens a document containing a clone of #th-print-root plus inlined CSS from the host
- * (same-origin stylesheets only), then triggers print(). External <link> styles often fail
- * to load in a blank popup on SharePoint, which produced empty print previews.
+ * Prints #th-print-root using a hidden same-origin iframe. A separate about:blank window
+ * often shows a blank Chrome print preview because linked SPFx stylesheets do not paint
+ * reliably there; an iframe inherits the page origin and loads the same CSS URLs.
  */
 export function openDayPlannerPrintWindow(): void {
   const root = document.getElementById('th-print-root');
@@ -11,85 +11,98 @@ export function openDayPlannerPrintWindow(): void {
     return;
   }
 
-  const previewWindow = window.open('', '_blank', 'width=1200,height=900,scrollbars=yes');
-  if (!previewWindow) {
-    // eslint-disable-next-line no-console
-    console.warn('Day planner print: popup blocked');
-    return;
-  }
-
   const escapeAttr = (s: string): string => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const escapeText = (s: string): string =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-  function collectSameOriginStylesheetCss(): string {
-    let out = '';
-    for (const sheet of Array.from(document.styleSheets)) {
-      let rules: CSSRuleList | undefined;
-      try {
-        rules = sheet.cssRules;
-      } catch {
-        continue;
-      }
-      if (!rules) continue;
-      for (const rule of Array.from(rules)) {
-        try {
-          out += `${rule.cssText}\n`;
-        } catch {
-          /* ignore */
-        }
-      }
-    }
-    return out;
-  }
-
-  const inlinedHostCss = collectSameOriginStylesheetCss();
-
-  let headMarkup = '<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Day planner</title>';
-
-  if (inlinedHostCss.trim()) {
-    headMarkup += `<style id="th-dayplanner-inlined-host">${inlinedHostCss}</style>`;
-  }
+  const parts: string[] = [];
+  parts.push('<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>');
+  parts.push(`<title>${escapeText('Day planner')}</title>`);
 
   for (const node of Array.from(document.querySelectorAll('link[rel="stylesheet"]'))) {
     const link = node as HTMLLinkElement;
     const href = link.href?.trim();
     if (!href) continue;
-    headMarkup += `<link rel="stylesheet" href="${escapeAttr(href)}"/>`;
+    parts.push(`<link rel="stylesheet" href="${escapeAttr(href)}"/>`);
   }
 
   for (const node of Array.from(document.querySelectorAll('style'))) {
     const text = node.textContent ?? '';
     if (!text.trim()) continue;
-    headMarkup += `<style>${text}</style>`;
+    parts.push(`<style>${text}</style>`);
   }
 
-  headMarkup += `<style>
+  parts.push(`<style>
     body { margin: 0; padding: 12px; background: var(--color-surface-raised, #fff); box-sizing: border-box; }
-    #th-print-root { display: block !important; visibility: visible !important; min-height: 0 !important; }
     @media print {
       body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       @page { margin: 10mm; }
     }
-  </style>`;
+  </style>`);
+  parts.push('</head><body>');
+  parts.push(root.outerHTML);
+  parts.push('</body></html>');
+  const html = parts.join('');
 
-  previewWindow.document.open();
-  previewWindow.document.write(`<!DOCTYPE html><html><head>${headMarkup}</head><body></body></html>`);
-  previewWindow.document.close();
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('title', 'Day planner print');
+  iframe.setAttribute('aria-hidden', 'true');
+  Object.assign(iframe.style, {
+    position: 'fixed',
+    right: '0',
+    bottom: '0',
+    width: '1px',
+    height: '1px',
+    border: '0',
+    opacity: '0',
+    pointerEvents: 'none',
+    zIndex: '-1'
+  });
 
-  const clone = root.cloneNode(true) as HTMLElement;
-  previewWindow.document.body.appendChild(clone);
+  document.body.appendChild(iframe);
 
-  const schedulePrint = (): void => {
-    previewWindow.focus();
-    previewWindow.print();
+  const doc = iframe.contentDocument;
+  const win = iframe.contentWindow;
+  if (!doc || !win) {
+    iframe.remove();
+    // eslint-disable-next-line no-console
+    console.warn('Day planner print: iframe document unavailable');
+    return;
+  }
+
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  const cleanup = (): void => {
+    window.removeEventListener('afterprint', onHostAfterPrint);
+    iframe.remove();
   };
 
-  const run = (): void => {
-    window.setTimeout(schedulePrint, 500);
+  /** Some browsers fire afterprint on the opener; use as backup to remove iframe. */
+  const onHostAfterPrint = (): void => {
+    window.setTimeout(cleanup, 500);
+  };
+  window.addEventListener('afterprint', onHostAfterPrint, { once: true });
+
+  const trigger = (): void => {
+    try {
+      win.focus();
+      win.print();
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('Day planner print: print() failed', e);
+      cleanup();
+      return;
+    }
+    window.setTimeout(() => {
+      if (iframe.isConnected) cleanup();
+    }, 120_000);
   };
 
-  if (previewWindow.document.readyState === 'complete') {
-    run();
+  if (doc.readyState === 'complete') {
+    window.setTimeout(trigger, 250);
   } else {
-    previewWindow.addEventListener('load', run, { once: true });
+    win.addEventListener('load', () => window.setTimeout(trigger, 250), { once: true });
   }
 }
