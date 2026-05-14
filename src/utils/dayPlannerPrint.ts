@@ -74,15 +74,18 @@ export function openDayPlannerPrintWindow(): void {
   doc.write(html);
   doc.close();
 
-  const cleanup = (): void => {
-    window.removeEventListener('afterprint', onHostAfterPrint);
-    iframe.remove();
-  };
-
   /** Some browsers fire afterprint on the opener; use as backup to remove iframe. */
   const onHostAfterPrint = (): void => {
-    window.setTimeout(cleanup, 500);
+    window.setTimeout(() => {
+      if (iframe.isConnected) iframe.remove();
+    }, 500);
   };
+
+  const cleanup = (): void => {
+    window.removeEventListener('afterprint', onHostAfterPrint);
+    if (iframe.isConnected) iframe.remove();
+  };
+
   window.addEventListener('afterprint', onHostAfterPrint, { once: true });
 
   const trigger = (): void => {
