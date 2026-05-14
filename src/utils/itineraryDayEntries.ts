@@ -35,10 +35,19 @@ export function isTransportReturnOnCalendarDate(entry: ItineraryEntry, calendarD
   return ymdSlice(entry.returnDate) === ymdSlice(calendarDate);
 }
 
+/** Overnight (or late) flight: show the row on the arrival calendar day as well as the departure day. */
+export function isFlightArrivalOnCalendarDate(entry: ItineraryEntry, calendarDate: string): boolean {
+  if (entry.category !== 'Flights' || !entry.arrivalDate || !calendarDate) return false;
+  return ymdSlice(entry.arrivalDate) === ymdSlice(calendarDate);
+}
+
 /** Time string used for planner column / timeline when showing the return leg. */
 export function effectivePlannerTimeStart(entry: ItineraryEntry, dayCalendarDate: string): string {
   if (isTransportReturnOnCalendarDate(entry, dayCalendarDate) && entry.returnTime?.trim()) {
     return entry.returnTime.trim();
+  }
+  if (isFlightArrivalOnCalendarDate(entry, dayCalendarDate) && entry.arrivalTime?.trim()) {
+    return entry.arrivalTime.trim();
   }
   return entry.timeStart || '';
 }
@@ -75,7 +84,15 @@ export function isEntryOnCalendarDate(
     if (Number.isNaN(day.getTime()) || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
     return day.getTime() >= start.getTime() && day.getTime() <= end.getTime();
   }
+  if (isFlightArrivalOnCalendarDate(entry, calendarDate)) {
+    return true;
+  }
   return false;
+}
+
+/** Sort for a single calendar column: saved order first, then time, then title. */
+export function compareItineraryEntriesForDisplay(calendarDate: string): (a: ItineraryEntry, b: ItineraryEntry) => number {
+  return compareBySortOrderThenTimeForDay(calendarDate);
 }
 
 function compareBySortOrderThenTimeForDay(calendarDate: string): (a: ItineraryEntry, b: ItineraryEntry) => number {

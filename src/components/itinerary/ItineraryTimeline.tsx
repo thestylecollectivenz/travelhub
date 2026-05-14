@@ -11,6 +11,7 @@ import {
   resolvePreTripDayId,
   sortEntriesForDay
 } from '../../utils/itineraryDayEntries';
+import { applyDayViewEntryOrder } from '../../utils/dayViewEntryOrder';
 import { ItineraryCard } from './ItineraryCard';
 import { ReminderService } from '../../services/ReminderService';
 import styles from './ItineraryTimeline.module.css';
@@ -97,18 +98,17 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
   const dayType = dayMeta?.dayType;
   const suppressCarryoverUi = Boolean(dayMeta && isPreTripDayRow(dayMeta));
 
-  const sorted = React.useMemo(
-    () =>
-      sortEntriesForDay(
-        localEntries,
-        dayId,
-        calendarDate,
-        dayType,
-        preTripDayId,
-        dayMeta ? isPreTripDayRow(dayMeta) : false
-      ),
-    [localEntries, dayId, calendarDate, dayType, preTripDayId, dayMeta]
-  );
+  const sorted = React.useMemo(() => {
+    const raw = sortEntriesForDay(
+      localEntries,
+      dayId,
+      calendarDate,
+      dayType,
+      preTripDayId,
+      dayMeta ? isPreTripDayRow(dayMeta) : false
+    );
+    return trip ? applyDayViewEntryOrder(trip.id, dayId, raw, calendarDate) : raw;
+  }, [localEntries, dayId, calendarDate, dayType, preTripDayId, dayMeta, trip]);
 
   const loadEntryTasks = React.useCallback((): void => {
     if (!trip?.id) {

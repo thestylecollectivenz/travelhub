@@ -257,7 +257,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
   const [currentLocalTime, setCurrentLocalTime] = React.useState('');
 
   React.useEffect(() => {
-    const tz = infoPlace?.timeZone?.trim();
+    const tz = (infoPlace?.timeZone?.trim() || weather?.timezoneName?.trim() || '').trim();
     if (!tz) {
       setCurrentLocalTime('');
       return undefined;
@@ -279,7 +279,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
     tick();
     const id = window.setInterval(tick, 60_000);
     return () => window.clearInterval(id);
-  }, [infoPlace?.timeZone]);
+  }, [infoPlace?.timeZone, weather?.timezoneName]);
   const currentSeason = React.useMemo(() => {
     if (!infoPlace || !Number.isFinite(infoPlace.latitude)) return '';
     return seasonForLatitude(new Date().getMonth(), Number(infoPlace.latitude));

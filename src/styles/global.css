@@ -260,3 +260,36 @@ a:hover {
     visibility: hidden !important;
   }
 }
+
+/* Day planner print: clone host is appended as a direct child of body */
+.th-print-clone-host {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 100%;
+  max-width: 210mm;
+  pointer-events: none;
+  z-index: 2147483000;
+  box-sizing: border-box;
+}
+
+@media print {
+  body > *:not(.th-print-clone-host) {
+    display: none !important;
+  }
+
+  .th-print-clone-host {
+    position: static !important;
+    left: auto !important;
+    pointer-events: auto !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  @page {
+    margin: 10mm;
+  }
+}

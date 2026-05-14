@@ -1,4 +1,5 @@
 import type { ItineraryEntry, ItineraryPaymentStatus } from '../models/ItineraryEntry';
+import { isFlightArrivalOnCalendarDate } from './itineraryDayEntries';
 
 function entryAmount(entry: ItineraryEntry): number {
   const n = entry.amount;
@@ -53,6 +54,7 @@ function appliesToDay(
     return entry.dayId === dayId;
   }
   if (entry.dayId === dayId) return true;
+  if (dayCalendarDate && isFlightArrivalOnCalendarDate(entry, dayCalendarDate)) return true;
   return isAccommodationOnDate(entry, dayCalendarDate) || isCruiseOnDate(entry, dayCalendarDate);
 }
 

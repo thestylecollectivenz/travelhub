@@ -12,6 +12,7 @@ import { PackingListView } from '../packing/PackingListView';
 import { TripSidebar } from '../sidebar/TripSidebar';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { isPreTripDayRow, resolvePreTripDayId, sortEntriesForDay } from '../../utils/itineraryDayEntries';
+import { applyDayViewEntryOrder, saveDayViewEntryOrder } from '../../utils/dayViewEntryOrder';
 import { orderIdsByHomeDayFromVisualList } from '../../utils/itineraryReorderByDay';
 import { useConfig } from '../../context/ConfigContext';
 import dayHeaderStyles from '../day/DayHeader.module.css';
@@ -45,7 +46,7 @@ export const TripContent: React.FC = () => {
   const dayEntries = React.useMemo(() => {
     if (!trip || !selectedDayId || !dayPanelDay) return [];
     const cal = dayPanelDay.calendarDate ?? '';
-    return sortEntriesForDay(
+    const raw = sortEntriesForDay(
       localEntries,
       selectedDayId,
       cal,
@@ -53,6 +54,7 @@ export const TripContent: React.FC = () => {
       preTripDayId,
       isPreTripDayRow(dayPanelDay)
     );
+    return applyDayViewEntryOrder(trip.id, selectedDayId, raw, cal);
   }, [localEntries, selectedDayId, dayPanelDay, trip, preTripDayId]);
 
   const activeEntry = React.useMemo(() => {
@@ -85,6 +87,9 @@ export const TripContent: React.FC = () => {
         if (oldIndex < 0 || newIndex < 0) {
           return;
         }
+        if (!trip || !selectedDayId) {
+          return;
+        }
         let reordered = arrayMove(dayEntries, oldIndex, newIndex);
         const movingEntry = localEntries.find((e) => e.id === String(active.id));
         if (
@@ -98,13 +103,14 @@ export const TripContent: React.FC = () => {
             entry.id === movingEntry.id ? { ...entry, dayId: selectedDayId } : entry
           );
         }
+        saveDayViewEntryOrder(trip.id, selectedDayId, reordered.map((e) => e.id));
         const byDay = orderIdsByHomeDayFromVisualList(reordered);
         for (const [dayId, ids] of Array.from(byDay.entries())) {
           reorderEntries(dayId, ids);
         }
       }
     },
-    [dayEntries, localEntries, moveEntryToDay, reorderEntries, selectedDayId]
+    [dayEntries, localEntries, moveEntryToDay, reorderEntries, selectedDayId, trip]
   );
 
   const startSidebarResize = React.useCallback(

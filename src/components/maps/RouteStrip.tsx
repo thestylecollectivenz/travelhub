@@ -48,6 +48,17 @@ function TransportIcon({ kind }: { kind: 'flight' | 'ground' | 'cruise' | 'arrow
 
 type IconKind = 'flight' | 'ground' | 'cruise' | 'arrow';
 
+function compactPlaceLabel(rawTitle: string): string {
+  const title = (rawTitle || '').trim();
+  if (!title) return '';
+  const parts = title.split(',').map((p) => p.trim()).filter(Boolean);
+  if (parts.length <= 1) return title;
+  const place = parts[0];
+  const country = parts[parts.length - 1];
+  if (!country || place.toLowerCase() === country.toLowerCase()) return place;
+  return `${place}, ${country}`;
+}
+
 export const RouteStrip: React.FC = () => {
   const { trip, tripDays, selectedDayId, setSelectedDayId, localEntries } = useTripWorkspace();
   const { placeById } = usePlaces();
@@ -112,13 +123,8 @@ export const RouteStrip: React.FC = () => {
                 className={`${styles.stopBtn} ${isActive ? styles.stopBtnActive : ''}`}
                 onClick={() => setSelectedDayId(s.dayId)}
               >
-                <span className={styles.placeName}>📍 {s.title}</span>
+                <span className={styles.placeName}>📍 {compactPlaceLabel(s.title)}</span>
                 <span className={styles.range}>Day {s.startDay}</span>
-                {s.additionalTitles.length ? (
-                  <span className={styles.range}>
-                    Also visiting: {s.additionalTitles.join(', ')} {s.hasReturnVisit ? '(return)' : ''}
-                  </span>
-                ) : null}
               </button>
               {next ? (
                 <span className={styles.connector}>

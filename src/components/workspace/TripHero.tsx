@@ -1,5 +1,7 @@
 import * as React from 'react';
 import type { Trip, TripLifecycleStatus } from '../../models/Trip';
+import type { TripDay } from '../../models/TripDay';
+import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { formatDateRange } from '../../utils/dateUtils';
 import { resolveSharePointMediaSrc } from '../../utils/sharePointUrl';
 import { haversineKm, kmToMiles, formatDistance } from '../../utils/distanceUtils';
@@ -36,6 +38,20 @@ function statusDotClass(status: TripLifecycleStatus): string {
     default:
       return styles.dotArchived;
   }
+}
+
+function ymdFromTripDay(day: TripDay): string {
+  return (day.calendarDate || '').slice(0, 10);
+}
+
+function sliceYmd(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  return value.slice(0, 10);
+}
+
+function departureCalendarDate(entry: ItineraryEntry, days: TripDay[]): string | undefined {
+  const row = days.find((d) => d.id === entry.dayId);
+  return row ? ymdFromTripDay(row) : undefined;
 }
 
 function countdownLabel(trip: Trip): string | null {
@@ -88,7 +104,7 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit, showEditButton
   const countdownClass = trip.status === 'In Progress' ? styles.countdownInProgress : styles.countdownUpcoming;
   const distanceLine = React.useMemo(() => {
     const days = tripDays.filter((d) => d.tripId === trip.id).sort((a, b) => a.dayNumber - b.dayNumber);
-    const stops: Array<{ dayId: string; lat: number; lon: number }> = [];
+    const stops: Array<{ day: TripDay; lat: number; lon: number }> = [];
     for (const day of days) {
       const place = placeById(day.primaryPlaceId);
       if (!place) continue;
@@ -96,26 +112,51 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit, showEditButton
       if (prev && Math.abs(prev.lat - place.latitude) < 0.00001 && Math.abs(prev.lon - place.longitude) < 0.00001) {
         continue;
       }
-      stops.push({ dayId: day.id, lat: place.latitude, lon: place.longitude });
+      stops.push({ day, lat: place.latitude, lon: place.longitude });
     }
     if (stops.length < 2) return '';
-    const entries = localEntries.filter((e) => e.tripId === trip.id);
+    const entries = localEntries.filter((e) => e.tripId === trip.id && !e.parentEntryId);
     let airKm = 0;
     let groundKm = 0;
+    let waterKm = 0;
     for (let i = 0; i < stops.length - 1; i++) {
+      const dayA = stops[i].day;
+      const dayB = stops[i + 1].day;
+      const aCal = ymdFromTripDay(dayA);
+      const bCal = ymdFromTripDay(dayB);
       const a = stops[i];
       const b = stops[i + 1];
       const km = haversineKm(a.lat, a.lon, b.lat, b.lon);
-      const transitionDayEntries = entries.filter((e) => e.dayId === b.dayId);
-      const hasFlight = transitionDayEntries.some((e) => e.category === 'Flights');
-      // Air only when a flight exists on the arrival day; surface (Transport, Cruise, etc.) counts as ground.
-      if (hasFlight) airKm += km;
+
+      const overnightFlightConnectsDays = entries.some((e) => {
+        if (e.category !== 'Flights') return false;
+        const dep = departureCalendarDate(e, days);
+        const arr = sliceYmd(e.arrivalDate) ?? dep;
+        if (!dep || !arr) return false;
+        return dep === aCal && arr === bCal;
+      });
+
+      const cruiseSpanCoversBoth = entries.some((e) => {
+        if (e.category !== 'Cruise') return false;
+        const es = sliceYmd(e.embarksDate);
+        const ed = sliceYmd(e.disembarksDate);
+        if (!es || !ed) return false;
+        return aCal >= es && aCal <= ed && bCal >= es && bCal <= ed;
+      });
+
+      if (overnightFlightConnectsDays) airKm += km;
+      else if (cruiseSpanCoversBoth) waterKm += km;
       else groundKm += km;
     }
     const unit = config.distanceUnit;
     const air = unit === 'Miles' ? kmToMiles(airKm) : airKm;
     const ground = unit === 'Miles' ? kmToMiles(groundKm) : groundKm;
-    return `~${formatDistance(air, unit)} by air · ~${formatDistance(ground, unit)} by ground`;
+    const water = unit === 'Miles' ? kmToMiles(waterKm) : waterKm;
+    const parts: string[] = [];
+    if (air > 0.5) parts.push(`~${formatDistance(air, unit)} by air`);
+    if (ground > 0.5) parts.push(`~${formatDistance(ground, unit)} by ground`);
+    if (water > 0.5) parts.push(`~${formatDistance(water, unit)} by water`);
+    return parts.length ? parts.join(' · ') : '';
   }, [tripDays, trip.id, placeById, localEntries, config.distanceUnit]);
 
   return (
