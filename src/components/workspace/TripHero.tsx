@@ -5,6 +5,7 @@ import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { formatDateRange } from '../../utils/dateUtils';
 import { resolveSharePointMediaSrc } from '../../utils/sharePointUrl';
 import { haversineKm, kmToMiles, formatDistance } from '../../utils/distanceUtils';
+import { sumTransportGroundKm } from '../../utils/tripTransportGroundKm';
 import { useSpContext } from '../../context/SpContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
@@ -80,7 +81,7 @@ function countdownLabel(trip: Trip): string | null {
 export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit, showEditButton = true }) => {
   const spContext = useSpContext();
   const { tripDays, localEntries } = useTripWorkspace();
-  const { placeById } = usePlaces();
+  const { placeById, places } = usePlaces();
   const { config } = useConfig();
   const webAbsoluteUrl = spContext.pageContext.web.absoluteUrl.replace(/\/$/, '');
   const webServerRelativeUrl = spContext.pageContext.web.serverRelativeUrl.replace(/\/$/, '');
@@ -104,6 +105,9 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit, showEditButton
   const countdownClass = trip.status === 'In Progress' ? styles.countdownInProgress : styles.countdownUpcoming;
   const distanceLine = React.useMemo(() => {
     const days = tripDays.filter((d) => d.tripId === trip.id).sort((a, b) => a.dayNumber - b.dayNumber);
+    const entries = localEntries.filter((e) => e.tripId === trip.id && !e.parentEntryId);
+    const groundKm = sumTransportGroundKm(entries, trip.id, days, placeById, places);
+
     const stops: Array<{ day: TripDay; lat: number; lon: number }> = [];
     for (const day of days) {
       const place = placeById(day.primaryPlaceId);
@@ -114,40 +118,40 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit, showEditButton
       }
       stops.push({ day, lat: place.latitude, lon: place.longitude });
     }
-    if (stops.length < 2) return '';
-    const entries = localEntries.filter((e) => e.tripId === trip.id && !e.parentEntryId);
+
     let airKm = 0;
-    let groundKm = 0;
     let waterKm = 0;
-    for (let i = 0; i < stops.length - 1; i++) {
-      const dayA = stops[i].day;
-      const dayB = stops[i + 1].day;
-      const aCal = ymdFromTripDay(dayA);
-      const bCal = ymdFromTripDay(dayB);
-      const a = stops[i];
-      const b = stops[i + 1];
-      const km = haversineKm(a.lat, a.lon, b.lat, b.lon);
+    if (stops.length >= 2) {
+      for (let i = 0; i < stops.length - 1; i++) {
+        const dayA = stops[i].day;
+        const dayB = stops[i + 1].day;
+        const aCal = ymdFromTripDay(dayA);
+        const bCal = ymdFromTripDay(dayB);
+        const a = stops[i];
+        const b = stops[i + 1];
+        const km = haversineKm(a.lat, a.lon, b.lat, b.lon);
 
-      const overnightFlightConnectsDays = entries.some((e) => {
-        if (e.category !== 'Flights') return false;
-        const dep = departureCalendarDate(e, days);
-        const arr = sliceYmd(e.arrivalDate) ?? dep;
-        if (!dep || !arr) return false;
-        return dep === aCal && arr === bCal;
-      });
+        const overnightFlightConnectsDays = entries.some((e) => {
+          if (e.category !== 'Flights') return false;
+          const dep = departureCalendarDate(e, days);
+          const arr = sliceYmd(e.arrivalDate) ?? dep;
+          if (!dep || !arr) return false;
+          return dep === aCal && arr === bCal;
+        });
 
-      const cruiseSpanCoversBoth = entries.some((e) => {
-        if (e.category !== 'Cruise') return false;
-        const es = sliceYmd(e.embarksDate);
-        const ed = sliceYmd(e.disembarksDate);
-        if (!es || !ed) return false;
-        return aCal >= es && aCal <= ed && bCal >= es && bCal <= ed;
-      });
+        const cruiseSpanCoversBoth = entries.some((e) => {
+          if (e.category !== 'Cruise') return false;
+          const es = sliceYmd(e.embarksDate);
+          const ed = sliceYmd(e.disembarksDate);
+          if (!es || !ed) return false;
+          return aCal >= es && aCal <= ed && bCal >= es && bCal <= ed;
+        });
 
-      if (overnightFlightConnectsDays) airKm += km;
-      else if (cruiseSpanCoversBoth) waterKm += km;
-      else groundKm += km;
+        if (overnightFlightConnectsDays) airKm += km;
+        else if (cruiseSpanCoversBoth) waterKm += km;
+      }
     }
+
     const unit = config.distanceUnit;
     const air = unit === 'Miles' ? kmToMiles(airKm) : airKm;
     const ground = unit === 'Miles' ? kmToMiles(groundKm) : groundKm;
@@ -157,7 +161,7 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit, showEditButton
     if (ground > 0.5) parts.push(`~${formatDistance(ground, unit)} by ground`);
     if (water > 0.5) parts.push(`~${formatDistance(water, unit)} by water`);
     return parts.length ? parts.join(' · ') : '';
-  }, [tripDays, trip.id, placeById, localEntries, config.distanceUnit]);
+  }, [tripDays, trip.id, placeById, places, localEntries, config.distanceUnit]);
 
   return (
     <section className={`${styles.hero} ${hasHeroImage ? styles.heroWithImage : styles.heroNoImage}`} aria-label="Trip hero">
