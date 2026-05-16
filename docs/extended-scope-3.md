@@ -330,6 +330,11 @@ When editing an itinerary entry from within the Day Planner column view, the edi
 - The Day Planner single-day pager (already implemented) is the correct mobile pattern — confirm it meets the workflow requirements above
 - No new separate mobile app — this is the responsive web experience within SharePoint (SPFx) and later the web app wrapper
 
+**Standing rule for all future work:**
+- Every new feature, bug fix, and UI change must explicitly consider mobile phone, tablet, and desktop behaviour, even when the individual task brief does not mention responsive design.
+- Mobile support is not a separate optional follow-up. If a change affects a user workflow, navigation, editing surface, card/tile display, upload/download action, map/link action, or task/list view, the implementation must include an appropriate mobile treatment at the same time.
+- Testing notes for future tasks should state either how the change was verified on mobile/tablet/desktop layouts or why the change has no responsive impact.
+
 **Phase:** Mobile audit and fixes to be done as part of Phase 8 prerequisite sprint (alongside P7-10 through P7-13). Add as task P7-14.
 
 ---
@@ -409,6 +414,7 @@ All constraints from Extended Scope v1.0 §6 and Architecture and Deployment Str
 - No external icon libraries — inline SVG only
 - No modal dialogs except the permitted Day Planner preview exception (§3 above)
 - All SharePoint writes through `ITravelHubDataService` — no inline REST calls in components
+- New functionality and bug fixes must cater for mobile phone, tablet, and desktop layouts by default, even when responsive behaviour is not called out in the task brief
 - `npm run build` must pass clean after every task
 - Git commit and push after every task
 - All new SharePoint columns added with append-only provisioning — check before create, never delete
