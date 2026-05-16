@@ -211,3 +211,52 @@
   cursor: pointer;
   color: var(--color-blue-800);
 }
+
+@media (max-width: 768px) {
+  .form {
+    gap: var(--space-4);
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+
+  .input,
+  .select,
+  .btnSecondary,
+  .btnPrimary,
+  .deleteBtn,
+  .attachmentsToggle,
+  .attachLink,
+  .attachRemove {
+    min-height: 44px;
+  }
+
+  .label {
+    margin-top: var(--space-1);
+  }
+
+  .actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .actionsRight,
+  .attachmentsToolbar,
+  .attachRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .btnSecondary,
+  .btnPrimary,
+  .deleteBtn {
+    width: 100%;
+  }
+
+  .attachList {
+    padding-left: 0;
+    list-style: none;
+  }
+}

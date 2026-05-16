@@ -91,3 +91,23 @@
   border-left: var(--border-default);
   padding: var(--space-4);
 }
+
+@media (max-width: 768px) {
+  .card {
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+  }
+
+  .dragHandle {
+    display: none;
+  }
+
+  .portalEditInner {
+    inset: 0;
+    width: 100vw;
+    max-width: 100vw;
+    height: 100%;
+    border-left: none;
+    padding: var(--space-3);
+  }
+}

@@ -482,3 +482,52 @@
   padding: var(--space-1) var(--space-2);
   cursor: pointer;
 }
+
+@media (max-width: 768px) {
+  .header {
+    gap: var(--space-2);
+  }
+
+  .menuButton {
+    width: 44px;
+    height: 44px;
+  }
+
+  .dropdown {
+    min-width: 10rem;
+  }
+
+  .dropdown button {
+    min-height: 44px;
+  }
+
+  .title {
+    font-size: var(--font-size-sm);
+    overflow-wrap: anywhere;
+  }
+
+  .mapsLink,
+  .mapsLinkSecondary,
+  .attachmentTitle {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .attachmentsActions,
+  .subItemActionsRow,
+  .newSubActions {
+    align-items: stretch;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .newSubRow {
+    grid-template-columns: 1fr;
+  }
+
+  .newSubField,
+  .newSubActionBtn {
+    min-height: 44px;
+  }
+}

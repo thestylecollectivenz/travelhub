@@ -172,3 +172,51 @@
   border: var(--border-default);
   background: color-mix(in srgb, var(--color-sand-50) 55%, var(--color-surface-raised));
 }
+
+@media (max-width: 768px) {
+  .root {
+    padding: var(--space-4) var(--space-3);
+    max-width: none;
+  }
+
+  .header {
+    align-items: stretch;
+    margin-bottom: var(--space-4);
+  }
+
+  .sortRow,
+  .filterRow {
+    width: 100%;
+  }
+
+  .sortBtn,
+  .exportAction,
+  .newEntryAction {
+    min-height: 44px;
+  }
+
+  .newEntryAction,
+  .exportAction {
+    display: inline-flex;
+    align-items: center;
+    flex: 1 1 10rem;
+    justify-content: center;
+  }
+
+  .composerSection {
+    padding: var(--space-3);
+  }
+
+  .composerDaySelect {
+    max-width: none;
+    min-height: 44px;
+  }
+
+  .list {
+    gap: var(--space-5);
+  }
+
+  .empty {
+    padding: var(--space-4);
+  }
+}

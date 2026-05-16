@@ -107,3 +107,41 @@
   padding: var(--space-4);
 }
 
+@media (max-width: 768px) {
+  .root {
+    padding: var(--space-4) var(--space-3);
+  }
+
+  .filters {
+    align-items: stretch;
+  }
+
+  .input,
+  .select,
+  .button {
+    width: 100%;
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+
+  .row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: var(--space-1);
+  }
+
+  .name {
+    min-height: 44px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .badge {
+    justify-self: start;
+  }
+
+  .meta {
+    white-space: normal;
+  }
+}
+

@@ -299,6 +299,14 @@
   box-sizing: border-box;
 }
 
+.mobileDayPicker {
+  display: none;
+}
+
+.mobileBottomNav {
+  display: none;
+}
+
 .dragOverlayCard {
   min-width: 280px;
   max-width: 420px;
@@ -319,6 +327,225 @@
 /* Screen: no layout effect. Print: see @media print (dnd-kit portal must stay mountable). */
 .dragOverlayPrintRoot {
   contain: none;
+}
+
+@media (max-width: 768px) {
+  .workspace {
+    padding-bottom: calc(4.75rem + env(safe-area-inset-bottom));
+  }
+
+  .toolbar {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .backButton,
+  .settingsButton,
+  .deleteButton,
+  .deleteConfirmButton,
+  .deleteCancelButton {
+    min-height: 44px;
+  }
+
+  .toolbarActions {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .deleteConfirm {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .searchPanel {
+    padding: var(--space-3);
+  }
+
+  .searchRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .modalBackdrop {
+    align-items: stretch;
+    padding: var(--space-2);
+  }
+
+  .modalDialog {
+    width: 100%;
+    max-height: calc(100vh - var(--space-4));
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+  }
+
+  .tripContent {
+    display: block;
+  }
+
+  .sidebarShell {
+    display: none;
+  }
+
+  .main {
+    width: 100%;
+  }
+
+  .mobileDayPicker {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-bottom: var(--border-default);
+    background: color-mix(in srgb, var(--color-surface-raised) 94%, transparent);
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(8px);
+  }
+
+  .mobileDayPickerHeader {
+    display: grid;
+    grid-template-columns: minmax(4.5rem, auto) 1fr minmax(4.5rem, auto);
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .mobileDayStep {
+    min-height: 44px;
+    border: var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-blue-800);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    cursor: pointer;
+  }
+
+  .mobileDayStep:disabled {
+    cursor: default;
+    color: var(--color-sand-400);
+    background: var(--color-sand-50);
+  }
+
+  .mobileDayPickerTitle {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    text-align: center;
+    color: var(--color-blue-800);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .mobileDayPickerTitle small {
+    color: var(--color-sand-600);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .mobileDayScroller {
+    display: flex;
+    gap: var(--space-2);
+    overflow-x: auto;
+    padding-bottom: var(--space-1);
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobileDayChip,
+  .mobileTodayChip {
+    flex: 0 0 auto;
+    min-width: 6.5rem;
+    min-height: 44px;
+    display: grid;
+    align-content: center;
+    gap: 2px;
+    padding: var(--space-2) var(--space-3);
+    border: var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-blue-800);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .mobileTodayChip {
+    min-width: 4.75rem;
+    place-content: center;
+    text-align: center;
+    font-weight: var(--font-weight-bold);
+  }
+
+  .mobileDayChip span {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .mobileDayChip small {
+    max-width: 8.5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-sand-600);
+    font-size: var(--font-size-xs);
+  }
+
+  .mobileDayChipActive {
+    border-color: var(--color-primary);
+    background: var(--color-blue-50);
+    box-shadow: 0 0 0 1px var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  .mobileBottomNav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9000;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0;
+    padding: var(--space-1) var(--space-1) calc(var(--space-1) + env(safe-area-inset-bottom));
+    border-top: var(--border-default);
+    background: color-mix(in srgb, var(--color-surface-raised) 96%, transparent);
+    box-shadow: var(--shadow-elevated);
+    backdrop-filter: blur(10px);
+  }
+
+  .mobileBottomNavButton {
+    min-width: 0;
+    min-height: 52px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-sand-600);
+    display: grid;
+    place-items: center;
+    gap: 2px;
+    padding: var(--space-1);
+    font-size: 0.68rem;
+    font-weight: var(--font-weight-bold);
+    cursor: pointer;
+  }
+
+  .mobileBottomNavButtonActive {
+    background: var(--color-blue-50);
+    color: var(--color-primary);
+  }
+
+  .mobileBottomNavIcon {
+    display: inline-grid;
+    place-items: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: var(--radius-full);
+    background: color-mix(in srgb, currentColor 12%, transparent);
+    font-size: var(--font-size-xs);
+    line-height: 1;
+  }
 }
 
 @media print {
@@ -355,6 +582,11 @@
     width: 100% !important;
     height: auto !important;
     overflow: visible !important;
+  }
+
+  .mobileDayPicker,
+  .mobileBottomNav {
+    display: none !important;
   }
 
   /* @dnd-kit keeps DragOverlay mounted; its fixed layer can occlude all printed content */

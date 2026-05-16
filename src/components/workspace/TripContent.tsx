@@ -10,7 +10,7 @@ import { ErrorBoundary } from '../shared/ErrorBoundary';
 import { TripTasksView } from '../tasks/TripTasksView';
 import { PackingListView } from '../packing/PackingListView';
 import { TripSidebar } from '../sidebar/TripSidebar';
-import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { type MainWorkspaceTab, useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { isPreTripDayRow, resolvePreTripDayId, sortEntriesForDay } from '../../utils/itineraryDayEntries';
 import { applyDayViewEntryOrder, saveDayViewEntryOrder } from '../../utils/dayViewEntryOrder';
 import { orderIdsByHomeDayFromVisualList } from '../../utils/itineraryReorderByDay';
@@ -18,8 +18,17 @@ import { useConfig } from '../../context/ConfigContext';
 import dayHeaderStyles from '../day/DayHeader.module.css';
 import styles from './TripWorkspace.module.css';
 
+function formatMobileDayDate(value: string): string {
+  if (!value) return '';
+  return new Date(`${value}T12:00:00`).toLocaleDateString('en-NZ', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short'
+  });
+}
+
 export const TripContent: React.FC = () => {
-  const { trip, tripDays, selectedDayId, localEntries, reorderEntries, moveEntryToDay, mainWorkspaceTab } = useTripWorkspace();
+  const { trip, tripDays, selectedDayId, setSelectedDayId, localEntries, reorderEntries, moveEntryToDay, mainWorkspaceTab, setMainWorkspaceTab } = useTripWorkspace();
   const { config, saveConfig } = useConfig();
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [planTab, setPlanTab] = React.useState<'tasks' | 'packing'>('tasks');
@@ -40,6 +49,33 @@ export const TripContent: React.FC = () => {
     if (!trip || !selectedDayId) return undefined;
     return tripDays.find((x) => x.id === selectedDayId && x.tripId === trip.id);
   }, [trip, tripDays, selectedDayId]);
+
+  const mobileDays = React.useMemo(() => {
+    if (!trip) return [];
+    return tripDays
+      .filter((day) => day.tripId === trip.id)
+      .sort((a, b) => a.dayNumber - b.dayNumber);
+  }, [trip, tripDays]);
+
+  const selectedDayIndex = React.useMemo(
+    () => mobileDays.findIndex((day) => day.id === selectedDayId),
+    [mobileDays, selectedDayId]
+  );
+
+  const todayDay = React.useMemo(() => {
+    const todayIso = new Date().toISOString().slice(0, 10);
+    return mobileDays.find((day) => day.calendarDate === todayIso);
+  }, [mobileDays]);
+
+  const selectRelativeMobileDay = React.useCallback(
+    (delta: number): void => {
+      if (!mobileDays.length) return;
+      const fallbackIndex = selectedDayIndex >= 0 ? selectedDayIndex : 0;
+      const nextIndex = Math.max(0, Math.min(mobileDays.length - 1, fallbackIndex + delta));
+      setSelectedDayId(mobileDays[nextIndex].id);
+    },
+    [mobileDays, selectedDayIndex, setSelectedDayId]
+  );
 
   const preTripDayId = React.useMemo(() => resolvePreTripDayId(tripDays, trip?.id ?? ''), [tripDays, trip?.id]);
 
@@ -160,6 +196,58 @@ export const TripContent: React.FC = () => {
           onMouseDown={startSidebarResize}
         />
       </div>
+      {mainWorkspaceTab === 'itinerary' && mobileDays.length ? (
+        <nav className={styles.mobileDayPicker} aria-label="Mobile day navigation">
+          <div className={styles.mobileDayPickerHeader}>
+            <button
+              type="button"
+              className={styles.mobileDayStep}
+              onClick={() => selectRelativeMobileDay(-1)}
+              disabled={selectedDayIndex <= 0}
+              aria-label="Previous day"
+            >
+              Prev
+            </button>
+            <div className={styles.mobileDayPickerTitle}>
+              <span>{selectedDayIndex >= 0 ? `Day ${mobileDays[selectedDayIndex].dayNumber}` : 'Select day'}</span>
+              {selectedDayIndex >= 0 ? <small>{formatMobileDayDate(mobileDays[selectedDayIndex].calendarDate)}</small> : null}
+            </div>
+            <button
+              type="button"
+              className={styles.mobileDayStep}
+              onClick={() => selectRelativeMobileDay(1)}
+              disabled={selectedDayIndex < 0 || selectedDayIndex >= mobileDays.length - 1}
+              aria-label="Next day"
+            >
+              Next
+            </button>
+          </div>
+          <div className={styles.mobileDayScroller} role="tablist" aria-label="Trip days">
+            {todayDay ? (
+              <button
+                type="button"
+                className={`${styles.mobileTodayChip} ${todayDay.id === selectedDayId ? styles.mobileDayChipActive : ''}`}
+                onClick={() => setSelectedDayId(todayDay.id)}
+              >
+                Today
+              </button>
+            ) : null}
+            {mobileDays.map((day) => (
+              <button
+                key={day.id}
+                type="button"
+                role="tab"
+                aria-selected={day.id === selectedDayId}
+                className={`${styles.mobileDayChip} ${day.id === selectedDayId ? styles.mobileDayChipActive : ''}`}
+                onClick={() => setSelectedDayId(day.id)}
+              >
+                <span>Day {day.dayNumber}</span>
+                <small>{day.displayTitle}</small>
+              </button>
+            ))}
+          </div>
+        </nav>
+      ) : null}
       <main className={styles.main}>
         {mainWorkspaceTab === 'itinerary' ? <DayPanel /> : null}
         {mainWorkspaceTab === 'journal' ? <TripJournalFeed /> : null}
@@ -194,6 +282,29 @@ export const TripContent: React.FC = () => {
           </section>
         ) : null}
       </main>
+      <nav className={styles.mobileBottomNav} aria-label="Mobile workspace navigation">
+        {([
+          ['itinerary', 'Today'],
+          ['map', 'Map'],
+          ['journal', 'Journal'],
+          ['photos', 'Photos'],
+          ['files', 'Files'],
+          ['plan', 'More']
+        ] as Array<[MainWorkspaceTab, string]>).map(([tab, label]) => (
+          <button
+            key={tab}
+            type="button"
+            className={`${styles.mobileBottomNavButton} ${mainWorkspaceTab === tab ? styles.mobileBottomNavButtonActive : ''}`}
+            aria-current={mainWorkspaceTab === tab ? 'page' : undefined}
+            onClick={() => setMainWorkspaceTab(tab)}
+          >
+            <span className={styles.mobileBottomNavIcon} aria-hidden>
+              {tab === 'itinerary' ? 'T' : tab === 'map' ? 'M' : tab === 'journal' ? 'J' : tab === 'photos' ? 'P' : tab === 'files' ? 'F' : '+'}
+            </span>
+            <span>{label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 
