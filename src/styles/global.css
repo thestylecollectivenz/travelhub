@@ -261,30 +261,64 @@ a:hover {
   }
 }
 
-/* Day planner print: clone host is appended as a direct child of body */
-.th-print-clone-host {
+/* Day planner: on-screen print preview, then visibility isolation for window.print() */
+.th-day-planner-print-backdrop {
   position: fixed;
-  left: -10000px;
-  top: 0;
-  width: 100%;
-  max-width: 210mm;
-  pointer-events: none;
-  z-index: 2147483000;
+  inset: 0;
+  z-index: 12000;
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4);
   box-sizing: border-box;
 }
 
+.th-day-planner-print-chrome {
+  flex: 0 0 auto;
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  margin-bottom: var(--space-2);
+}
+
+.th-day-planner-print-surface {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--color-surface-raised);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+  box-shadow: var(--shadow-elevated);
+}
+
 @media print {
-  body > *:not(.th-print-clone-host) {
+  .th-print-ui-only {
     display: none !important;
   }
 
-  .th-print-clone-host {
-    position: static !important;
-    left: auto !important;
-    pointer-events: auto !important;
-    display: block !important;
-    width: 100% !important;
-    max-width: none !important;
+  html.th-day-planner-print-active body * {
+    visibility: hidden;
+  }
+
+  html.th-day-planner-print-active .th-day-planner-print-surface,
+  html.th-day-planner-print-active .th-day-planner-print-surface * {
+    visibility: visible;
+  }
+
+  html.th-day-planner-print-active .th-day-planner-print-surface {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: none;
+    overflow: visible;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+    background: #fff;
+    min-height: 0;
+    flex: none;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

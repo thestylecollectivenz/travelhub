@@ -52,10 +52,11 @@ export const TripContent: React.FC = () => {
       cal,
       dayPanelDay.dayType,
       preTripDayId,
-      isPreTripDayRow(dayPanelDay)
+      isPreTripDayRow(dayPanelDay),
+      tripDays
     );
-    return applyDayViewEntryOrder(trip.id, selectedDayId, raw, cal);
-  }, [localEntries, selectedDayId, dayPanelDay, trip, preTripDayId]);
+    return applyDayViewEntryOrder(trip.id, selectedDayId, raw, cal, tripDays);
+  }, [localEntries, selectedDayId, dayPanelDay, trip, preTripDayId, tripDays]);
 
   const activeEntry = React.useMemo(() => {
     if (!activeId) {

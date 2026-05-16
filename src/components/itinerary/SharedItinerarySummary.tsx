@@ -1,5 +1,6 @@
 import * as React from 'react';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
+import type { TripDay } from '../../models/TripDay';
 import { formatTimeHHMM, minutesFromTimeStart } from '../../utils/itineraryTimeUtils';
 import { effectivePlannerTimeStart, sortEntriesForDay } from '../../utils/itineraryDayEntries';
 import styles from './SharedItinerarySummary.module.css';
@@ -11,6 +12,7 @@ export interface SharedItinerarySummaryProps {
   dayType?: string;
   /** Pass the trip pre-trip day id so span logic never attaches to the wrong day. */
   preTripDayId?: string;
+  tripDays?: TripDay[];
 }
 
 export const SharedItinerarySummary: React.FC<SharedItinerarySummaryProps> = ({
@@ -18,23 +20,24 @@ export const SharedItinerarySummary: React.FC<SharedItinerarySummaryProps> = ({
   dayId,
   calendarDate,
   dayType,
-  preTripDayId
+  preTripDayId,
+  tripDays
 }) => {
   const sorted = React.useMemo(
-    () => sortEntriesForDay(entries, dayId, calendarDate, dayType, preTripDayId),
-    [entries, dayId, calendarDate, dayType, preTripDayId]
+    () => sortEntriesForDay(entries, dayId, calendarDate, dayType, preTripDayId, undefined, tripDays),
+    [entries, dayId, calendarDate, dayType, preTripDayId, tripDays]
   );
 
   const sortedWithTime = React.useMemo(() => {
     return [...sorted].sort((a, b) => {
-      const aMin = minutesFromTimeStart(effectivePlannerTimeStart(a, calendarDate));
-      const bMin = minutesFromTimeStart(effectivePlannerTimeStart(b, calendarDate));
+      const aMin = minutesFromTimeStart(effectivePlannerTimeStart(a, calendarDate, tripDays));
+      const bMin = minutesFromTimeStart(effectivePlannerTimeStart(b, calendarDate, tripDays));
       if (aMin !== undefined && bMin !== undefined) return aMin - bMin;
       if (aMin !== undefined) return -1;
       if (bMin !== undefined) return 1;
       return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
     });
-  }, [sorted, calendarDate]);
+  }, [sorted, calendarDate, tripDays]);
 
   if (sortedWithTime.length === 0) {
     return (
@@ -48,7 +51,7 @@ export const SharedItinerarySummary: React.FC<SharedItinerarySummaryProps> = ({
     <ol className={styles.list}>
       {sortedWithTime.map((entry) => (
         <li key={entry.id} className={styles.row}>
-          <span className={styles.time}>{formatTimeHHMM(effectivePlannerTimeStart(entry, calendarDate))}</span>
+          <span className={styles.time}>{formatTimeHHMM(effectivePlannerTimeStart(entry, calendarDate, tripDays))}</span>
           <span className={styles.title}>
             {entry.title?.trim() || 'Untitled'}
             {(entry.subItems ?? []).length > 0 ? (

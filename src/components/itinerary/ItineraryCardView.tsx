@@ -161,7 +161,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   onDelete
 }) => {
   const spContext = useSpContext();
-  const { addSubItem, convertToHomeCurrency, setSelectedDayId } = useTripWorkspace();
+  const { addSubItem, convertToHomeCurrency, setSelectedDayId, tripDays } = useTripWorkspace();
   const { config } = useConfig();
   const { docsForEntry, linksForEntry, addDocument, updateDocument, deleteDocument, addLink, updateLink, deleteLink } = useAttachments();
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -236,7 +236,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       ? entry.amountPaid
       : convertToHomeCurrency(entry.amountPaid, paidCurrency))
     : undefined;
-  const hhmm = formatTimeHHMM(effectivePlannerTimeStart(entry, calendarDate));
+  const hhmm = formatTimeHHMM(effectivePlannerTimeStart(entry, calendarDate, tripDays));
   // Guard: if duration is a bare number (legacy Number column value) hide it
   const durationDisplay = (() => {
     const d = entry.duration?.trim() ?? '';

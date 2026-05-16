@@ -1,4 +1,5 @@
 import type { ItineraryEntry } from '../models/ItineraryEntry';
+import type { TripDay } from '../models/TripDay';
 import { compareItineraryEntriesForDisplay } from './itineraryDayEntries';
 
 function storageKey(tripId: string, viewDayId: string): string {
@@ -22,7 +23,8 @@ export function applyDayViewEntryOrder(
   tripId: string,
   viewDayId: string,
   entries: ItineraryEntry[],
-  calendarDate: string
+  calendarDate: string,
+  tripDays?: TripDay[]
 ): ItineraryEntry[] {
   let rawIds: string[] = [];
   try {
@@ -45,6 +47,6 @@ export function applyDayViewEntryOrder(
       used.add(e.id);
     }
   }
-  const rest = entries.filter((e) => !used.has(e.id)).sort(compareItineraryEntriesForDisplay(calendarDate));
+  const rest = entries.filter((e) => !used.has(e.id)).sort(compareItineraryEntriesForDisplay(calendarDate, tripDays));
   return [...out, ...rest];
 }

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import type { TripDay } from '../../models/TripDay';
 import type { ItineraryEntry, ItinerarySubItem } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
@@ -17,7 +18,6 @@ import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
 import { formatCurrency } from '../../utils/financialUtils';
 import { ItineraryCard } from './ItineraryCard';
 import { SubItemDetailLines } from './SubItemDetailLines';
-import { openDayPlannerPrintWindow } from '../../utils/dayPlannerPrint';
 import { applyDayViewEntryOrder } from '../../utils/dayViewEntryOrder';
 import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../../utils/googleMapsLink';
 import styles from './ItineraryDayPlannerView.module.css';
@@ -149,6 +149,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
   const [rangeStartOverride, setRangeStartOverride] = React.useState('');
   const [rangeEndOverride, setRangeEndOverride] = React.useState('');
   const [previewEntryId, setPreviewEntryId] = React.useState<string | null>(null);
+  const [printPreviewOpen, setPrintPreviewOpen] = React.useState(false);
+  const printSurfaceRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     const mq = window.matchMedia('(max-width: 640px)');
@@ -174,10 +176,18 @@ export const ItineraryDayPlannerView: React.FC = () => {
     (day: TripDay): ItineraryEntry[] => {
       if (!trip) return [];
       const cal = day.calendarDate || '';
-      const raw = sortEntriesForDay(entriesForTrip, day.id, cal, day.dayType, preTripDayId, isPreTripDayRow(day));
-      return applyDayViewEntryOrder(trip.id, day.id, raw, cal);
+      const raw = sortEntriesForDay(
+        entriesForTrip,
+        day.id,
+        cal,
+        day.dayType,
+        preTripDayId,
+        isPreTripDayRow(day),
+        tripDays
+      );
+      return applyDayViewEntryOrder(trip.id, day.id, raw, cal, tripDays);
     },
-    [trip, entriesForTrip, preTripDayId]
+    [trip, entriesForTrip, preTripDayId, tripDays]
   );
 
   const resolveSingleDate = React.useCallback((ymd: string): { days: TripDay[]; notice: string } => {
@@ -295,10 +305,55 @@ export const ItineraryDayPlannerView: React.FC = () => {
     setMobileDayIndex(0);
   }, [filter, customStart, customEnd, orderedDays.length]);
 
+  const syncPlannerPrintClone = React.useCallback((): void => {
+    const root = document.getElementById('th-print-root');
+    const host = printSurfaceRef.current;
+    if (!root || !host) return;
+    host.innerHTML = '';
+    const clone = root.cloneNode(true) as HTMLElement;
+    clone.removeAttribute('id');
+    host.appendChild(clone);
+  }, []);
+
+  React.useLayoutEffect(() => {
+    if (!printPreviewOpen) return;
+    syncPlannerPrintClone();
+  }, [printPreviewOpen, syncPlannerPrintClone]);
+
+  React.useEffect(() => {
+    if (!printPreviewOpen) return undefined;
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setPrintPreviewOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [printPreviewOpen]);
+
   const printDayPlanner = React.useCallback((): void => {
     setPreviewEntryId(null);
-    openDayPlannerPrintWindow();
+    setPrintPreviewOpen(true);
   }, []);
+
+  const runPlannerPrint = React.useCallback((): void => {
+    syncPlannerPrintClone();
+    const onAfter = (): void => {
+      document.documentElement.classList.remove('th-day-planner-print-active');
+      window.removeEventListener('afterprint', onAfter);
+      setPrintPreviewOpen(false);
+    };
+    window.addEventListener('afterprint', onAfter, { once: true });
+    window.requestAnimationFrame(() => {
+      document.documentElement.classList.add('th-day-planner-print-active');
+      try {
+        window.print();
+      } catch (e) {
+        document.documentElement.classList.remove('th-day-planner-print-active');
+        window.removeEventListener('afterprint', onAfter);
+        // eslint-disable-next-line no-console
+        console.warn('Day planner print failed', e);
+      }
+    });
+  }, [syncPlannerPrintClone]);
 
   React.useEffect(() => {
     if (mobileDayIndex >= visibleDays.length) {
@@ -322,7 +377,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
     let maxM = 0;
     let any = false;
     for (const e of list) {
-      const sm = minutesFromTimeStart(effectivePlannerTimeStart(e, cal));
+      const sm = minutesFromTimeStart(effectivePlannerTimeStart(e, cal, tripDays));
       if (sm === undefined) continue;
       any = true;
       const dur = parseDurationMinutes(e.duration);
@@ -335,7 +390,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
     maxM = Math.min(25 * 60, maxM + 45);
     if (maxM <= minM) maxM = minM + 60;
     return { start: minM, end: maxM };
-  }, [entriesForPlannerColumn]);
+  }, [entriesForPlannerColumn, tripDays]);
 
   const globalRange = React.useMemo(() => {
     if (!displayDays.length) return { start: 8 * 60, end: 22 * 60 };
@@ -375,11 +430,11 @@ export const ItineraryDayPlannerView: React.FC = () => {
       const cal = d.calendarDate || '';
       const list = entriesForPlannerColumn(d);
       for (const e of list) {
-        if (minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) === undefined) return true;
+        if (minutesFromTimeStart(effectivePlannerTimeStart(e, cal, tripDays)) === undefined) return true;
       }
     }
     return false;
-  }, [visibleDays, entriesForPlannerColumn]);
+  }, [visibleDays, entriesForPlannerColumn, tripDays]);
 
   const previewEntry = previewEntryId ? localEntries.find((e) => e.id === previewEntryId) : undefined;
 
@@ -401,12 +456,12 @@ export const ItineraryDayPlannerView: React.FC = () => {
       for (const d of visibleDays) {
         const cal = d.calendarDate || '';
         const list = entriesForPlannerColumn(d);
-        const has = list.some((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) === undefined);
+        const has = list.some((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal, tripDays)) === undefined);
         if (has) next[d.id] = true;
       }
       return next;
     });
-  }, [visibleDays, entriesForPlannerColumn]);
+  }, [visibleDays, entriesForPlannerColumn, tripDays]);
 
   const expandAllUnscheduled = React.useCallback((): void => {
     setUnschedCollapsed((prev) => {
@@ -417,23 +472,6 @@ export const ItineraryDayPlannerView: React.FC = () => {
       return next;
     });
   }, [visibleDays]);
-
-  if (!trip) return null;
-
-  const filters: { id: PlannerFilter; label: string }[] = [
-    { id: 'today', label: 'Today' },
-    { id: 'yesterday', label: 'Yesterday' },
-    { id: 'tomorrow', label: 'Tomorrow' },
-    { id: 'this_week', label: 'This Week' },
-    { id: 'next_week', label: 'Next Week' },
-    { id: 'days_remaining', label: 'Days Remaining' },
-    { id: 'entire_trip', label: 'Entire Trip' },
-    { id: 'custom_range', label: 'Custom Date Range' }
-  ];
-
-  const handleFilterClick = (id: PlannerFilter): void => {
-    setFilter(id);
-  };
 
   const focusDay = React.useCallback(
     (dayId: string): void => {
@@ -473,7 +511,25 @@ export const ItineraryDayPlannerView: React.FC = () => {
   // grid-template-columns entirely, which collapses the planner to a single column (broken layout).
   const gridColTemplate = `3.5rem repeat(${displayDays.length}, minmax(11rem, 1fr))`;
 
+  if (!trip) return null;
+
+  const filters: { id: PlannerFilter; label: string }[] = [
+    { id: 'today', label: 'Today' },
+    { id: 'yesterday', label: 'Yesterday' },
+    { id: 'tomorrow', label: 'Tomorrow' },
+    { id: 'this_week', label: 'This Week' },
+    { id: 'next_week', label: 'Next Week' },
+    { id: 'days_remaining', label: 'Days Remaining' },
+    { id: 'entire_trip', label: 'Entire Trip' },
+    { id: 'custom_range', label: 'Custom Date Range' }
+  ];
+
+  const handleFilterClick = (id: PlannerFilter): void => {
+    setFilter(id);
+  };
+
   return (
+    <>
     <div className={styles.root} id="th-print-root">
       <div className={styles.filterBar}>
         {filters.map((f) => (
@@ -575,8 +631,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
           {displayDays.map((day) => {
             const cal = day.calendarDate || '';
             const list = entriesForPlannerColumn(day);
-            const timed = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) !== undefined);
-            const unsched = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) === undefined);
+            const timed = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal, tripDays)) !== undefined);
+            const unsched = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal, tripDays)) === undefined);
             const slugFor = (e: ItineraryEntry): string => getCategorySlug(e.category);
             const collapsed = Boolean(unschedCollapsed[day.id]);
             return (
@@ -652,7 +708,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                     style={{ height: `${trackHeight}px`, ['--hour-band' as string]: `${hourBandPx}px` }}
                   >
                     {timed.map((e) => {
-                      const sm = minutesFromTimeStart(effectivePlannerTimeStart(e, cal))!;
+                      const sm = minutesFromTimeStart(effectivePlannerTimeStart(e, cal, tripDays))!;
                       const dur = parseDurationMinutes(e.duration);
                       const top = ((sm - globalRange.start) / (globalRange.end - globalRange.start)) * trackHeight;
                       const h = (dur / (globalRange.end - globalRange.start)) * trackHeight;
@@ -704,7 +760,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                 </div>
                               </div>
                               <div className={styles.blockMeta}>
-                                {formatTimeHHMM(effectivePlannerTimeStart(e, cal))} · {e.duration?.trim() || '1h'}
+                                {formatTimeHHMM(effectivePlannerTimeStart(e, cal, tripDays))} · {e.duration?.trim() || '1h'}
                               </div>
                               {subs.length ? (
                                 <div className={styles.blockOptions}>
@@ -777,7 +833,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
             {displayDays.map((day) => {
               const cal = day.calendarDate || '';
               const list = entriesForPlannerColumn(day);
-              const unsched = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) === undefined);
+              const unsched = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal, tripDays)) === undefined);
               const collapsed = Boolean(unschedCollapsed[day.id]);
               if (!unsched.length) {
                 return <div key={`u-${day.id}`} className={styles.unschedCell} />;
@@ -855,7 +911,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                 {displayDays.map((day) => {
                   const cal = day.calendarDate || '';
                   const list = entriesForPlannerColumn(day);
-                  const timed = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal)) !== undefined);
+                  const timed = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal, tripDays)) !== undefined);
                   const slugFor = (e: ItineraryEntry): string => getCategorySlug(e.category);
                   return (
                     <div
@@ -864,7 +920,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                       style={{ height: `${trackHeight}px`, ['--hour-band' as string]: `${hourBandPx}px` }}
                     >
                       {timed.map((e) => {
-                        const sm = minutesFromTimeStart(effectivePlannerTimeStart(e, cal))!;
+                        const sm = minutesFromTimeStart(effectivePlannerTimeStart(e, cal, tripDays))!;
                         const dur = parseDurationMinutes(e.duration);
                         const top = ((sm - globalRange.start) / (globalRange.end - globalRange.start)) * trackHeight;
                         const h = (dur / (globalRange.end - globalRange.start)) * trackHeight;
@@ -916,7 +972,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                   </div>
                                 </div>
                                 <div className={styles.blockMeta}>
-                                  {formatTimeHHMM(effectivePlannerTimeStart(e, cal))} · {e.duration?.trim() || '1h'}
+                                  {formatTimeHHMM(effectivePlannerTimeStart(e, cal, tripDays))} · {e.duration?.trim() || '1h'}
                                 </div>
                                 {subs.length ? (
                                   <div className={styles.blockOptions}>
@@ -1124,5 +1180,22 @@ export const ItineraryDayPlannerView: React.FC = () => {
         </div>
       ) : null}
     </div>
+      {typeof document !== 'undefined' && printPreviewOpen
+        ? ReactDOM.createPortal(
+            <div className="th-day-planner-print-backdrop" role="dialog" aria-modal="true" aria-label="Day planner print preview">
+              <div className="th-print-ui-only th-day-planner-print-chrome">
+                <button type="button" className={styles.rangeReset} onClick={() => setPrintPreviewOpen(false)}>
+                  Close
+                </button>
+                <button type="button" className={styles.printPlannerBtn} onClick={runPlannerPrint}>
+                  Print
+                </button>
+              </div>
+              <div ref={printSurfaceRef} className="th-day-planner-print-surface" />
+            </div>,
+            document.body
+          )
+        : null}
+    </>
   );
 };

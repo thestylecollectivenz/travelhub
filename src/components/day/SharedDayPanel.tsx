@@ -40,6 +40,7 @@ export const SharedDayPanel: React.FC = () => {
         calendarDate={day.calendarDate}
         dayType={day.dayType}
         preTripDayId={preTripDayId}
+        tripDays={tripDays}
       />
       <JournalFeed dayId={day.id} canModerate={false} />
     </div>

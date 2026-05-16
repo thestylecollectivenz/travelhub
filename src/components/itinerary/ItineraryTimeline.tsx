@@ -105,10 +105,11 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
       calendarDate,
       dayType,
       preTripDayId,
-      dayMeta ? isPreTripDayRow(dayMeta) : false
+      dayMeta ? isPreTripDayRow(dayMeta) : false,
+      tripDays
     );
-    return trip ? applyDayViewEntryOrder(trip.id, dayId, raw, calendarDate) : raw;
-  }, [localEntries, dayId, calendarDate, dayType, preTripDayId, dayMeta, trip]);
+    return trip ? applyDayViewEntryOrder(trip.id, dayId, raw, calendarDate, tripDays) : raw;
+  }, [localEntries, dayId, calendarDate, dayType, preTripDayId, dayMeta, trip, tripDays]);
 
   const loadEntryTasks = React.useCallback((): void => {
     if (!trip?.id) {
@@ -193,7 +194,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
         {sorted.map((entry) => {
           const categorySlug = getCategorySlug(entry.category);
           const editing = editingCardId === entry.id;
-          const timeLabel = formatTimeHHMM(effectivePlannerTimeStart(entry, calendarDate));
+          const timeLabel = formatTimeHHMM(effectivePlannerTimeStart(entry, calendarDate, tripDays));
           return (
             <div key={entry.id} className={styles.row}>
               <div className={styles.timeCell}>{timeLabel}</div>

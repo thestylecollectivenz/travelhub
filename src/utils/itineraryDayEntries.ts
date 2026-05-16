@@ -41,13 +41,36 @@ export function isFlightArrivalOnCalendarDate(entry: ItineraryEntry, calendarDat
   return ymdSlice(entry.arrivalDate) === ymdSlice(calendarDate);
 }
 
-/** Time string used for planner column / timeline when showing the return leg. */
-export function effectivePlannerTimeStart(entry: ItineraryEntry, dayCalendarDate: string): string {
+function entryHomeCalendarYmd(entry: ItineraryEntry, tripDays: TripDay[] | undefined): string | undefined {
+  if (!tripDays?.length) return undefined;
+  const row = tripDays.find((d) => d.id === entry.dayId);
+  return row?.calendarDate ? ymdSlice(row.calendarDate) : undefined;
+}
+
+/**
+ * Time string for planner blocks / timeline.
+ * Same-calendar-day flights use departure time (`timeStart`); arrival time is used only when the
+ * entry's home day differs from the viewed day (overnight leg on the arrival column).
+ */
+export function effectivePlannerTimeStart(
+  entry: ItineraryEntry,
+  dayCalendarDate: string,
+  tripDays?: TripDay[]
+): string {
   if (isTransportReturnOnCalendarDate(entry, dayCalendarDate) && entry.returnTime?.trim()) {
     return entry.returnTime.trim();
   }
-  if (isFlightArrivalOnCalendarDate(entry, dayCalendarDate) && entry.arrivalTime?.trim()) {
-    return entry.arrivalTime.trim();
+  if (
+    entry.category === 'Flights' &&
+    entry.arrivalTime?.trim() &&
+    isFlightArrivalOnCalendarDate(entry, dayCalendarDate)
+  ) {
+    const viewYmd = ymdSlice(dayCalendarDate);
+    const arrYmd = ymdSlice(entry.arrivalDate);
+    const homeYmd = entryHomeCalendarYmd(entry, tripDays);
+    if (arrYmd === viewYmd && homeYmd && homeYmd !== viewYmd) {
+      return entry.arrivalTime.trim();
+    }
   }
   return entry.timeStart || '';
 }
@@ -91,17 +114,23 @@ export function isEntryOnCalendarDate(
 }
 
 /** Sort for a single calendar column: saved order first, then time, then title. */
-export function compareItineraryEntriesForDisplay(calendarDate: string): (a: ItineraryEntry, b: ItineraryEntry) => number {
-  return compareBySortOrderThenTimeForDay(calendarDate);
+export function compareItineraryEntriesForDisplay(
+  calendarDate: string,
+  tripDays?: TripDay[]
+): (a: ItineraryEntry, b: ItineraryEntry) => number {
+  return compareBySortOrderThenTimeForDay(calendarDate, tripDays);
 }
 
-function compareBySortOrderThenTimeForDay(calendarDate: string): (a: ItineraryEntry, b: ItineraryEntry) => number {
+function compareBySortOrderThenTimeForDay(
+  calendarDate: string,
+  tripDays?: TripDay[]
+): (a: ItineraryEntry, b: ItineraryEntry) => number {
   return (a, b): number => {
     const ao = a.sortOrder ?? 0;
     const bo = b.sortOrder ?? 0;
     if (ao !== bo) return ao - bo;
-    const aMin = minutesFromTimeStart(effectivePlannerTimeStart(a, calendarDate));
-    const bMin = minutesFromTimeStart(effectivePlannerTimeStart(b, calendarDate));
+    const aMin = minutesFromTimeStart(effectivePlannerTimeStart(a, calendarDate, tripDays));
+    const bMin = minutesFromTimeStart(effectivePlannerTimeStart(b, calendarDate, tripDays));
     if (aMin !== undefined && bMin !== undefined) return aMin - bMin;
     if (aMin !== undefined) return -1;
     if (bMin !== undefined) return 1;
@@ -119,7 +148,9 @@ export function sortEntriesForDay(
   dayType?: string,
   preTripDayId?: string | null,
   /** When DayType is wrong/empty in SharePoint but this row is still the pre-trip day (e.g. DayNumber 0). */
-  preTripRowStrict?: boolean
+  preTripRowStrict?: boolean,
+  /** Resolves each entry's home day calendar date so same-day flights use departure time, not arrival. */
+  tripDays?: TripDay[]
 ): ItineraryEntry[] {
   const hasPreTripId = typeof preTripDayId === 'string' && preTripDayId !== '';
   const spanCtx: EntryCalendarMatchContext | undefined = hasPreTripId
@@ -132,7 +163,7 @@ export function sortEntriesForDay(
   if (isStrictDayOnly) {
     return entries
       .filter((e) => !e.parentEntryId && e.dayId === dayId)
-      .sort(compareBySortOrderThenTimeForDay(calendarDate));
+      .sort(compareBySortOrderThenTimeForDay(calendarDate, tripDays));
   }
 
   const map = new Map<string, ItineraryEntry>();
@@ -149,5 +180,5 @@ export function sortEntriesForDay(
       map.set(e.id, e);
     }
   }
-  return Array.from(map.values()).sort(compareBySortOrderThenTimeForDay(calendarDate));
+  return Array.from(map.values()).sort(compareBySortOrderThenTimeForDay(calendarDate, tripDays));
 }
