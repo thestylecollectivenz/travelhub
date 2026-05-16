@@ -72,3 +72,31 @@
   color: var(--color-sand-400);
   text-align: center;
 }
+
+@media (max-width: 768px) {
+  .root {
+    gap: var(--space-4);
+    padding: var(--space-4) var(--space-3);
+  }
+
+  .itineraryToolbar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+
+  .itineraryViewBtn {
+    min-height: 44px;
+    justify-content: center;
+    padding: var(--space-2);
+  }
+
+  .itineraryViewBtn:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .emptyState {
+    min-height: 10rem;
+    padding: var(--space-4);
+  }
+}

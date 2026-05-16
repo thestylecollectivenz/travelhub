@@ -363,3 +363,66 @@
 .addButton:hover {
   background: var(--color-primary-hover);
 }
+
+@media (max-width: 768px) {
+  .bar {
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .left,
+  .right,
+  .placeSection {
+    width: 100%;
+  }
+
+  .right {
+    flex-shrink: 1;
+  }
+
+  .rightActions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+    width: 100%;
+  }
+
+  .totalChip {
+    display: block;
+    text-align: center;
+  }
+
+  .addButton,
+  .journalButton {
+    display: inline-flex;
+    align-items: center;
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .title,
+  .titleButton,
+  .titleReadonly {
+    margin-left: 0;
+    font-size: var(--font-size-lg);
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
+  .titleInput,
+  .placeInput {
+    width: 100%;
+    min-width: 0;
+    margin-left: 0;
+    min-height: 44px;
+  }
+
+  .placeInfoGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .searchDropdown {
+    width: min(100%, 92vw);
+  }
+}

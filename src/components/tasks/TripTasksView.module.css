@@ -22,3 +22,30 @@
   font-weight: var(--font-weight-bold);
   color: var(--color-blue-800);
 }
+
+@media (max-width: 768px) {
+  .filters,
+  .actions {
+    align-items: stretch;
+  }
+
+  .item {
+    grid-template-columns: 1fr;
+  }
+
+  .input,
+  .select,
+  .button {
+    min-height: 44px;
+  }
+
+  .input,
+  .select {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .button {
+    padding: var(--space-2) var(--space-3);
+  }
+}
