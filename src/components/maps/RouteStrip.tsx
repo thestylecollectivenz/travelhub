@@ -87,25 +87,32 @@ export const RouteStrip: React.FC = () => {
     return out;
   }, [orderedDays, placeById]);
 
-  if (!stops.length) return null;
+  const entries = React.useMemo(
+    () => (trip ? localEntries.filter((e) => e.tripId === trip.id) : []),
+    [trip, localEntries]
+  );
 
-  const entries = trip ? localEntries.filter((e) => e.tripId === trip.id) : [];
-  const iconsForLeg = React.useCallback((leaving: Stop, arriving?: Stop): IconKind[] => {
-    if (!arriving) return [];
-    const dayEntries = entries.filter((e) => e.dayId === leaving.dayId);
-    const out: IconKind[] = [];
-    const hasFlight = dayEntries.some((e) => (e.category || '').toLowerCase() === 'flights');
-    const hasGround = dayEntries.some((e) => (e.category || '').toLowerCase() === 'transport');
-    const hasCruiseActive = entries.some((e) => {
-      if ((e.category || '').toLowerCase() !== 'cruise' || !e.embarksDate || !e.disembarksDate) return false;
-      return leaving.calendarDate >= e.embarksDate && leaving.calendarDate <= e.disembarksDate;
-    });
-    const nextDayGap = arriving.startDay >= leaving.startDay + 1;
-    if (hasFlight && nextDayGap) out.push('flight');
-    if (hasGround && nextDayGap) out.push('ground');
-    if (hasCruiseActive) out.push('cruise');
-    return out.length ? out : ['arrow'];
-  }, [entries]);
+  const iconsForLeg = React.useCallback(
+    (leaving: Stop, arriving?: Stop): IconKind[] => {
+      if (!arriving) return [];
+      const dayEntries = entries.filter((e) => e.dayId === leaving.dayId);
+      const out: IconKind[] = [];
+      const hasFlight = dayEntries.some((e) => (e.category || '').toLowerCase() === 'flights');
+      const hasGround = dayEntries.some((e) => (e.category || '').toLowerCase() === 'transport');
+      const hasCruiseActive = entries.some((e) => {
+        if ((e.category || '').toLowerCase() !== 'cruise' || !e.embarksDate || !e.disembarksDate) return false;
+        return leaving.calendarDate >= e.embarksDate && leaving.calendarDate <= e.disembarksDate;
+      });
+      const nextDayGap = arriving.startDay >= leaving.startDay + 1;
+      if (hasFlight && nextDayGap) out.push('flight');
+      if (hasGround && nextDayGap) out.push('ground');
+      if (hasCruiseActive) out.push('cruise');
+      return out.length ? out : ['arrow'];
+    },
+    [entries]
+  );
+
+  if (!stops.length) return null;
 
   return (
     <section className={styles.root} aria-label="Trip route strip">

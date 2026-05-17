@@ -47,8 +47,25 @@ export const TripMap: React.FC = () => {
   const layerGroupRef = React.useRef<L.LayerGroup | null>(null);
   const polylineRef = React.useRef<L.Polyline | null>(null);
   const initStartedRef = React.useRef(false);
+  const layerRunRef = React.useRef(0);
   const [mapBoot, setMapBoot] = React.useState(0);
   const [lastStops, setLastStops] = React.useState<Stop[]>([]);
+
+  const fitMapToPoints = React.useCallback((map: L.Map, points: L.LatLngExpression[]): void => {
+    if (!points.length) {
+      map.setView([20, 0], 2);
+      return;
+    }
+    if (points.length === 1) {
+      map.setView(points[0], 10);
+      return;
+    }
+    try {
+      map.fitBounds(L.latLngBounds(points), { padding: [20, 20] });
+    } catch {
+      map.setView(points[0], 6);
+    }
+  }, []);
 
   const stops = React.useMemo((): Stop[] => {
     if (!trip) return [];
@@ -148,105 +165,110 @@ export const TripMap: React.FC = () => {
 
   React.useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map) return;
-    try {
-      const layerGroup = layerGroupRef.current ?? L.layerGroup().addTo(map);
-      layerGroupRef.current = layerGroup;
-      layerGroup.clearLayers();
-      if (polylineRef.current) {
-        map.removeLayer(polylineRef.current);
-        polylineRef.current = null;
-      }
+    if (!map) return undefined;
 
-      if (!renderedStops.length) {
-        map.setView([20, 0], 2);
-        window.setTimeout(() => map.invalidateSize(), 0);
-        return;
-      }
+    const runId = layerRunRef.current + 1;
+    layerRunRef.current = runId;
+    let cancelled = false;
 
-      const points: L.LatLngExpression[] = [];
-      map.whenReady(() => {
-        try {
-          for (const s of renderedStops) {
-            if (!isValidLatLng(s.latitude, s.longitude)) continue;
-            const ll: L.LatLngExpression = [s.latitude, s.longitude];
-            points.push(ll);
-            const range = s.startDay === s.endDay ? `Day ${s.startDay}` : `Days ${s.startDay}-${s.endDay}`;
-            const marker = L.circleMarker(ll, {
-              radius: s.isPrimary ? 8 : 6,
-              fillColor: '#1A6399',
-              color: '#ffffff',
-              weight: 2,
-              opacity: 1,
-              fillOpacity: s.isPrimary ? 1 : 0.8,
-              interactive: true,
-              bubblingMouseEvents: true
-            });
-            marker.bindTooltip(s.title, {
-              permanent: false,
-              sticky: true,
-              interactive: true,
-              direction: 'top',
-              offset: [0, -10],
-              opacity: 0.98,
-              className: 'th-leaflet-tooltip'
-            });
-            // Native title fallback (some hosts/CSS stacks still suppress Leaflet tooltips).
-            marker.on('add', () => {
-              const el = marker.getElement?.() as SVGElement | null | undefined;
-              if (el) el.setAttribute('title', s.title);
-            });
-            marker.bindPopup(
-              `<strong>${s.title}</strong><br/>${range}<br/><a href="https://www.google.com/maps/@${s.latitude},${s.longitude},10z" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>`
-            );
-            marker.addTo(layerGroup);
-          }
-          const orderedDays = tripDays
-            .filter((d) => (trip ? d.tripId === trip.id : true))
-            .sort((a, b) => a.dayNumber - b.dayNumber);
-          const polylinePoints: L.LatLngExpression[] = [];
-          for (const day of orderedDays) {
-            const primary = placeById(day.primaryPlaceId);
-            if (!primary) continue;
-            const plat = Number(primary.latitude);
-            const plon = Number(primary.longitude);
-            if (!isValidLatLng(plat, plon)) continue;
-            const primaryPoint: L.LatLngExpression = [plat, plon];
-            polylinePoints.push(primaryPoint);
-            const additional = parseAdditionalPlaceRefs(day.additionalPlaceIds);
-            for (const ref of additional) {
-              const add = placeById(ref.placeId);
-              if (!add) continue;
-              const alat = Number(add.latitude);
-              const alon = Number(add.longitude);
-              if (!isValidLatLng(alat, alon)) continue;
-              polylinePoints.push([alat, alon]);
-              if (!ref.returnToPrimary) break;
-            }
-            if (additional.some((x) => x.returnToPrimary)) {
-              polylinePoints.push(primaryPoint);
-            }
-          }
-          if (polylinePoints.length >= 2) {
-            polylineRef.current = L.polyline(polylinePoints, { color: '#1A6399', weight: 2 });
-            polylineRef.current.addTo(map);
-          }
-          if (points.length) {
-            map.fitBounds(L.latLngBounds(points), { padding: [20, 20] });
-          } else {
-            map.setView([0, 0], 4);
-          }
-          window.setTimeout(() => map.invalidateSize(), 0);
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.error('TripMap: markers / route failed', err);
+    const applyLayers = (): void => {
+      if (cancelled || runId !== layerRunRef.current) return;
+      try {
+        const layerGroup = layerGroupRef.current ?? L.layerGroup().addTo(map);
+        layerGroupRef.current = layerGroup;
+        layerGroup.clearLayers();
+        if (polylineRef.current) {
+          map.removeLayer(polylineRef.current);
+          polylineRef.current = null;
         }
-      });
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('TripMap: layer update failed', err);
-    }
-  }, [renderedStops, trip, tripDays, placeById, mapBoot]);
+
+        if (!renderedStops.length) {
+          map.setView([20, 0], 2);
+          window.setTimeout(() => map.invalidateSize(), 0);
+          return;
+        }
+
+        const points: L.LatLngExpression[] = [];
+        for (const s of renderedStops) {
+          if (!isValidLatLng(s.latitude, s.longitude)) continue;
+          const ll: L.LatLngExpression = [s.latitude, s.longitude];
+          points.push(ll);
+          const range = s.startDay === s.endDay ? `Day ${s.startDay}` : `Days ${s.startDay}-${s.endDay}`;
+          const marker = L.circleMarker(ll, {
+            radius: s.isPrimary ? 8 : 6,
+            fillColor: '#1A6399',
+            color: '#ffffff',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: s.isPrimary ? 1 : 0.8,
+            interactive: true,
+            bubblingMouseEvents: true
+          });
+          marker.bindTooltip(s.title, {
+            permanent: false,
+            sticky: true,
+            interactive: true,
+            direction: 'top',
+            offset: [0, -10],
+            opacity: 0.98,
+            className: 'th-leaflet-tooltip'
+          });
+          marker.on('add', () => {
+            const el = marker.getElement?.() as SVGElement | null | undefined;
+            if (el) el.setAttribute('title', s.title);
+          });
+          marker.bindPopup(
+            `<strong>${s.title}</strong><br/>${range}<br/><a href="https://www.google.com/maps/@${s.latitude},${s.longitude},10z" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>`
+          );
+          marker.addTo(layerGroup);
+        }
+
+        const orderedDays = tripDays
+          .filter((d) => (trip ? d.tripId === trip.id : true))
+          .sort((a, b) => a.dayNumber - b.dayNumber);
+        const polylinePoints: L.LatLngExpression[] = [];
+        for (const day of orderedDays) {
+          const primary = placeById(day.primaryPlaceId);
+          if (!primary) continue;
+          const plat = Number(primary.latitude);
+          const plon = Number(primary.longitude);
+          if (!isValidLatLng(plat, plon)) continue;
+          const primaryPoint: L.LatLngExpression = [plat, plon];
+          polylinePoints.push(primaryPoint);
+          const additional = parseAdditionalPlaceRefs(day.additionalPlaceIds);
+          for (const ref of additional) {
+            const add = placeById(ref.placeId);
+            if (!add) continue;
+            const alat = Number(add.latitude);
+            const alon = Number(add.longitude);
+            if (!isValidLatLng(alat, alon)) continue;
+            polylinePoints.push([alat, alon]);
+            if (!ref.returnToPrimary) break;
+          }
+          if (additional.some((x) => x.returnToPrimary)) {
+            polylinePoints.push(primaryPoint);
+          }
+        }
+        if (polylinePoints.length >= 2) {
+          polylineRef.current = L.polyline(polylinePoints, { color: '#1A6399', weight: 2 });
+          polylineRef.current.addTo(map);
+        }
+        fitMapToPoints(map, points);
+        window.setTimeout(() => map.invalidateSize(), 0);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('TripMap: markers / route failed', err);
+      }
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((map as any)._loaded) applyLayers();
+    else map.whenReady(applyLayers);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [renderedStops, trip, tripDays, placeById, mapBoot, fitMapToPoints]);
 
   React.useEffect(
     () => () => {

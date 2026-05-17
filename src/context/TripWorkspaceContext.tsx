@@ -11,6 +11,8 @@ import { FxService } from '../services/FxService';
 import { useSpContext } from './SpContext';
 import { minutesFromTimeStart } from '../utils/itineraryTimeUtils';
 import { repairPreTripCalendarIfCollidingWithFirstDay } from '../utils/tripPreTripCalendarAnchor';
+import { calendarDayBefore, ymdSlice } from '../utils/tripDateRangeSync';
+import { isPreTripDayRow } from '../utils/itineraryDayEntries';
 import { useConfig } from './ConfigContext';
 
 export type MainWorkspaceTab = 'itinerary' | 'journal' | 'photos' | 'files' | 'map' | 'plan';
@@ -44,6 +46,9 @@ export interface TripWorkspaceContextValue {
   duplicateEntry: (entryId: string) => void;
   reorderEntries: (dayId: string, orderedIds: string[]) => void;
   moveEntryToDay: (entryId: string, targetDayId: string) => void;
+  /** Add missing TripDay rows for a date range and refresh pre-trip anchor. Returns newly created days. */
+  syncTripCalendarDaysForRange: (dateStart: string, dateEnd: string) => Promise<TripDay[]>;
+  moveAllItineraryEntriesBetweenDays: (fromDayId: string, toDayId: string) => Promise<void>;
   updateSubItem: (entryId: string, updatedSubItem: ItinerarySubItem) => void;
   addSubItem: (entryId: string, subItem: ItinerarySubItem) => void;
   deleteSubItem: (entryId: string, subItemId: string) => void;
@@ -428,6 +433,61 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
     [spContext, localEntries]
   );
 
+  const syncTripCalendarDaysForRange = React.useCallback(
+    async (dateStart: string, dateEnd: string): Promise<TripDay[]> => {
+      if (!trip?.id) return [];
+      const daySvc = new DayService(spContext);
+      const created = await daySvc.appendMissingCalendarDays(trip.id, dateStart, dateEnd, tripDays);
+      await daySvc.ensurePreTripAnchorForStart(trip.id, dateStart, tripDays);
+
+      let nextDays = [...tripDays, ...created];
+      const pre = nextDays.find((d) => d.tripId === trip.id && isPreTripDayRow(d));
+      if (pre) {
+        const anchor = calendarDayBefore(dateStart);
+        if (anchor && ymdSlice(pre.calendarDate) !== anchor) {
+          nextDays = nextDays.map((d) => (d.id === pre.id ? { ...d, calendarDate: anchor } : d));
+        }
+      }
+
+      nextDays = await repairPreTripCalendarIfCollidingWithFirstDay(daySvc, trip, nextDays);
+      setTripDays(nextDays);
+      return created;
+    },
+    [spContext, trip, tripDays]
+  );
+
+  const moveAllItineraryEntriesBetweenDays = React.useCallback(
+    async (fromDayId: string, toDayId: string): Promise<void> => {
+      if (!fromDayId || !toDayId || fromDayId === toDayId) return;
+      const toMove = localEntries.filter((e) => e.dayId === fromDayId && !e.parentEntryId);
+      if (!toMove.length) return;
+
+      const svc = new ItineraryService(spContext);
+      let sortCursor = localEntries
+        .filter((e) => e.dayId === toDayId && !e.parentEntryId)
+        .reduce((max, e) => Math.max(max, e.sortOrder), -1);
+
+      const updates: Array<{ id: string; sortOrder: number }> = [];
+      for (const entry of toMove) {
+        sortCursor += 1;
+        updates.push({ id: entry.id, sortOrder: sortCursor });
+      }
+
+      setLocalEntries((prev) =>
+        prev.map((entry) => {
+          const hit = updates.find((u) => u.id === entry.id);
+          if (!hit) return entry;
+          return { ...entry, dayId: toDayId, sortOrder: hit.sortOrder };
+        })
+      );
+
+      await runBatched(updates, 5, async ({ id, sortOrder }) => {
+        await svc.moveToDay(id, toDayId, sortOrder);
+      });
+    },
+    [localEntries, spContext]
+  );
+
   const updateSubItem = React.useCallback(
     (entryId: string, updatedSubItem: ItinerarySubItem) => {
       setLocalEntries((prev) =>
@@ -565,6 +625,8 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       duplicateEntry,
       reorderEntries,
       moveEntryToDay,
+      syncTripCalendarDaysForRange,
+      moveAllItineraryEntriesBetweenDays,
       updateSubItem,
       addSubItem,
       deleteSubItem,
@@ -596,6 +658,8 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       duplicateEntry,
       reorderEntries,
       moveEntryToDay,
+      syncTripCalendarDaysForRange,
+      moveAllItineraryEntriesBetweenDays,
       updateSubItem,
       addSubItem,
       deleteSubItem,

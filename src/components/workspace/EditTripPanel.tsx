@@ -8,7 +8,8 @@ export interface EditTripPanelProps {
   trip: Trip;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (partial: Partial<Trip>) => void;
+  /** Return false to keep the panel open (e.g. date reassignment dialog shown). */
+  onSave: (partial: Partial<Trip>) => void | boolean | Promise<void | boolean>;
 }
 
 const STATUSES: TripLifecycleStatus[] = ['Planning', 'Upcoming', 'In Progress', 'Completed', 'Archived'];
@@ -146,7 +147,8 @@ export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onCl
               </span>
             ) : null}
             <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-sand-600)' }}>
-              Changing dates does not add or remove days. Use day management to adjust the itinerary structure.
+              Extending the range adds new days automatically. Existing itinerary and journal on unchanged dates are kept.
+              If the new range leaves content outside the trip dates, you will be asked where to move it.
             </span>
           </div>
 
@@ -227,17 +229,20 @@ export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onCl
                   setIsUploading(true);
                   heroImageUrl = await uploadHeroImage(selectedFile);
                 }
-                onSave({
-                  title: draft.title.trim(),
-                  destination: draft.destination.trim(),
-                  dateStart: draft.dateStart,
-                  dateEnd: draft.dateEnd,
-                  status: draft.status,
-                  description: (draft.description ?? '').trim(),
-                  showAuthorName: draft.showAuthorName !== false,
-                  heroImageUrl
-                });
-                onClose();
+                const keepOpen =
+                  (await Promise.resolve(
+                    onSave({
+                      title: draft.title.trim(),
+                      destination: draft.destination.trim(),
+                      dateStart: draft.dateStart,
+                      dateEnd: draft.dateEnd,
+                      status: draft.status,
+                      description: (draft.description ?? '').trim(),
+                      showAuthorName: draft.showAuthorName !== false,
+                      heroImageUrl
+                    })
+                  )) === false;
+                if (!keepOpen) onClose();
               } catch (err) {
                 setUploadError(err instanceof Error ? err.message : 'Image upload failed');
               } finally {

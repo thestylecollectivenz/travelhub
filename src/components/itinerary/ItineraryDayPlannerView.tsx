@@ -19,6 +19,7 @@ import { formatCurrency } from '../../utils/financialUtils';
 import { ItineraryCard } from './ItineraryCard';
 import { SubItemDetailLines } from './SubItemDetailLines';
 import { applyDayViewEntryOrder } from '../../utils/dayViewEntryOrder';
+import { printHtmlElement } from '../../utils/dayPlannerPrint';
 import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../../utils/googleMapsLink';
 import styles from './ItineraryDayPlannerView.module.css';
 
@@ -315,11 +316,6 @@ export const ItineraryDayPlannerView: React.FC = () => {
     host.appendChild(clone);
   }, []);
 
-  React.useLayoutEffect(() => {
-    if (!printPreviewOpen) return;
-    syncPlannerPrintClone();
-  }, [printPreviewOpen, syncPlannerPrintClone]);
-
   React.useEffect(() => {
     if (!printPreviewOpen) return undefined;
     const onKey = (e: KeyboardEvent): void => {
@@ -336,23 +332,14 @@ export const ItineraryDayPlannerView: React.FC = () => {
 
   const runPlannerPrint = React.useCallback((): void => {
     syncPlannerPrintClone();
-    const onAfter = (): void => {
-      document.documentElement.classList.remove('th-day-planner-print-active');
-      window.removeEventListener('afterprint', onAfter);
-      setPrintPreviewOpen(false);
-    };
-    window.addEventListener('afterprint', onAfter, { once: true });
-    window.requestAnimationFrame(() => {
-      document.documentElement.classList.add('th-day-planner-print-active');
-      try {
-        window.print();
-      } catch (e) {
-        document.documentElement.classList.remove('th-day-planner-print-active');
-        window.removeEventListener('afterprint', onAfter);
-        // eslint-disable-next-line no-console
-        console.warn('Day planner print failed', e);
-      }
-    });
+    const surface = printSurfaceRef.current;
+    const root = surface?.firstElementChild as HTMLElement | null;
+    if (!root?.innerHTML.trim()) {
+      // eslint-disable-next-line no-console
+      console.warn('Day planner print: nothing to print yet');
+      return;
+    }
+    printHtmlElement(root, { onAfter: () => setPrintPreviewOpen(false) });
   }, [syncPlannerPrintClone]);
 
   React.useEffect(() => {
@@ -369,6 +356,22 @@ export const ItineraryDayPlannerView: React.FC = () => {
     }
     return visibleDays;
   }, [visibleDays, isMobile, mobileDayIndex]);
+
+  React.useLayoutEffect(() => {
+    if (!printPreviewOpen) return;
+    syncPlannerPrintClone();
+  }, [
+    printPreviewOpen,
+    syncPlannerPrintClone,
+    filter,
+    customStart,
+    customEnd,
+    visibleDays.length,
+    displayDays.length,
+    localEntries.length,
+    isMobile,
+    mobileDayIndex
+  ]);
 
   const rangeForDay = React.useCallback((day: TripDay): { start: number; end: number } => {
     const cal = day.calendarDate || '';
@@ -583,9 +586,15 @@ export const ItineraryDayPlannerView: React.FC = () => {
             </>
           ) : null}
         </div>
-        <button type="button" className={styles.printPlannerBtn} onClick={printDayPlanner} aria-label="Print day planner">
+        <button
+          type="button"
+          className={styles.printPlannerBtn}
+          onClick={printDayPlanner}
+          aria-label="Open full-screen print preview, then print from there"
+          title="Opens a full-screen preview you can check before printing"
+        >
           <PrintGlyph />
-          Print
+          Preview &amp; print
         </button>
       </div>
       {filter === 'custom_range' ? (
@@ -1187,8 +1196,13 @@ export const ItineraryDayPlannerView: React.FC = () => {
                 <button type="button" className={styles.rangeReset} onClick={() => setPrintPreviewOpen(false)}>
                   Close
                 </button>
-                <button type="button" className={styles.printPlannerBtn} onClick={runPlannerPrint}>
-                  Print
+                <button
+                  type="button"
+                  className={styles.printPlannerBtn}
+                  onClick={runPlannerPrint}
+                  aria-label="Print this preview"
+                >
+                  Print now
                 </button>
               </div>
               <div ref={printSurfaceRef} className="th-day-planner-print-surface" />

@@ -2,20 +2,9 @@ import type { Trip } from '../models/Trip';
 import type { TripDay } from '../models/TripDay';
 import { DayService } from '../services/DayService';
 import { isPreTripDayType } from './itineraryDayEntries';
+import { calendarDayBefore, ymdSlice } from './tripDateRangeSync';
 
-function ymdSlice(d?: string): string {
-  return (d || '').trim().slice(0, 10);
-}
-
-/** Calendar day immediately before `ymd` (UTC date math). */
-export function calendarDayBefore(ymd: string): string {
-  const core = ymdSlice(ymd);
-  if (!core) return '';
-  const d = new Date(`${core}T12:00:00.000Z`);
-  if (Number.isNaN(d.getTime())) return core;
-  d.setUTCDate(d.getUTCDate() - 1);
-  return d.toISOString().slice(0, 10);
-}
+export { calendarDayBefore } from './tripDateRangeSync';
 
 /**
  * If the pre-trip TripDay row shares the same calendar date as the first real trip day,

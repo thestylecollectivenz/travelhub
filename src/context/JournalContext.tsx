@@ -25,6 +25,7 @@ export interface JournalContextValue {
   addComment: (journalEntryId: string, text: string) => Promise<void>;
   deleteComment: (journalEntryId: string, commentId: string) => Promise<void>;
   ensureShareableLink: (entryId: string) => Promise<string>;
+  reassignDayContent: (fromDayId: string, toDayId: string) => Promise<void>;
 }
 
 const JournalContext = React.createContext<JournalContextValue | undefined>(undefined);
@@ -426,6 +427,29 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     [spContext]
   );
 
+  const reassignDayContent = React.useCallback(
+    async (fromDayId: string, toDayId: string): Promise<void> => {
+      if (!fromDayId || !toDayId || fromDayId === toDayId) return;
+      const moveEntries = entries.filter((e) => e.dayId === fromDayId);
+      const movePhotos = photos.filter((p) => p.dayId === fromDayId);
+      if (!moveEntries.length && !movePhotos.length) return;
+
+      const svc = new JournalService(spContext);
+      for (const entry of moveEntries) {
+        // eslint-disable-next-line no-await-in-loop
+        await svc.update(entry.id, { dayId: toDayId });
+      }
+      for (const photo of movePhotos) {
+        // eslint-disable-next-line no-await-in-loop
+        await svc.updatePhoto(photo.id, { dayId: toDayId });
+      }
+
+      setEntries((prev) => prev.map((e) => (e.dayId === fromDayId ? { ...e, dayId: toDayId } : e)));
+      setPhotos((prev) => prev.map((p) => (p.dayId === fromDayId ? { ...p, dayId: toDayId } : p)));
+    },
+    [entries, photos, spContext]
+  );
+
   const ensureShareableLink = React.useCallback(
     async (entryId: string): Promise<string> => {
       const entry = entries.find((e) => e.id === entryId);
@@ -459,7 +483,8 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       toggleLike,
       addComment,
       deleteComment,
-      ensureShareableLink
+      ensureShareableLink,
+      reassignDayContent
     }),
     [
       entries,
@@ -480,7 +505,8 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       toggleLike,
       addComment,
       deleteComment,
-      ensureShareableLink
+      ensureShareableLink,
+      reassignDayContent
     ]
   );
 

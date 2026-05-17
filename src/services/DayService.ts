@@ -1,6 +1,8 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 import { TripDay, TripDayType } from '../models';
+import { isPreTripDayRow } from '../utils/itineraryDayEntries';
+import { calendarDayBefore, eachCalendarDayYmd, ymdSlice } from '../utils/tripDateRangeSync';
 import { parseAdditionalPlaceRef, serializeAdditionalPlaceRef } from '../utils/tripDayPlaces';
 
 const LIST = 'TripDays';
@@ -150,6 +152,53 @@ export class DayService {
       current.setDate(current.getDate() + 1);
     }
     return created;
+  }
+
+  /**
+   * Creates TripDay rows for calendar dates in [dateStart, dateEnd] that do not yet exist.
+   * Does not modify or remove existing days.
+   */
+  async appendMissingCalendarDays(
+    tripId: string,
+    dateStart: string,
+    dateEnd: string,
+    existingDays: TripDay[]
+  ): Promise<TripDay[]> {
+    const existingDates = new Set(
+      existingDays.filter((d) => !isPreTripDayRow(d)).map((d) => ymdSlice(d.calendarDate)).filter(Boolean)
+    );
+    const missing = eachCalendarDayYmd(dateStart, dateEnd).filter((ymd) => !existingDates.has(ymd));
+    if (!missing.length) return [];
+
+    const maxDayNumber = existingDays
+      .filter((d) => d.dayNumber > 0)
+      .reduce((max, d) => Math.max(max, d.dayNumber), 0);
+
+    const created: TripDay[] = [];
+    let dayNumber = maxDayNumber;
+    for (const calendarDate of missing) {
+      dayNumber += 1;
+      // eslint-disable-next-line no-await-in-loop
+      const row = await this.create({
+        tripId,
+        dayNumber,
+        calendarDate,
+        displayTitle: `Day ${dayNumber}`,
+        dayType: 'PlacePort',
+        additionalPlaceIds: []
+      });
+      created.push(row);
+    }
+    return created;
+  }
+
+  /** Moves pre-trip anchor to the calendar day before trip start when start date changes. */
+  async ensurePreTripAnchorForStart(tripId: string, dateStart: string, existingDays: TripDay[]): Promise<void> {
+    const pre = existingDays.find((d) => d.tripId === tripId && isPreTripDayRow(d));
+    if (!pre) return;
+    const anchor = calendarDayBefore(dateStart);
+    if (!anchor || ymdSlice(pre.calendarDate) === anchor) return;
+    await this.update(pre.id, { calendarDate: anchor });
   }
 
   async update(id: string, day: Partial<TripDay>): Promise<void> {

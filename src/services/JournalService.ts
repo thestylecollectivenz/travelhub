@@ -322,13 +322,17 @@ export class JournalService {
     });
   }
 
-  async updatePhoto(id: string, partial: Partial<Pick<JournalPhoto, 'caption' | 'title' | 'fileUrl' | 'likeCount' | 'likedByUsers'>>): Promise<void> {
+  async updatePhoto(
+    id: string,
+    partial: Partial<Pick<JournalPhoto, 'caption' | 'title' | 'fileUrl' | 'likeCount' | 'likedByUsers' | 'dayId'>>
+  ): Promise<void> {
     const url = `${this.photosUrl}(${id})`;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const item: Record<string, any> = {};
     if (partial.title !== undefined) item.Title = partial.title;
     if (partial.caption !== undefined) item.Caption = partial.caption;
     if (partial.fileUrl !== undefined) item.FileUrl = partial.fileUrl;
+    if (partial.dayId !== undefined) item.DayId = partial.dayId;
     if (partial.likeCount !== undefined) item.LikeCount = partial.likeCount;
     if (partial.likedByUsers !== undefined) item.LikedByUsers = partial.likedByUsers;
     const body = JSON.stringify(item);
