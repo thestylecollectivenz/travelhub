@@ -48,6 +48,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
   const [locationResults, setLocationResults] = React.useState<PlaceCandidate[]>([]);
   const [placeInfoOpen, setPlaceInfoOpen] = React.useState(true);
   const [activePlaceInfoId, setActivePlaceInfoId] = React.useState('');
+  const [copyDaysCount, setCopyDaysCount] = React.useState(1);
   const [locationMessage, setLocationMessage] = React.useState('');
   const [tipOpen, setTipOpen] = React.useState(false);
 
@@ -100,6 +101,12 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
     for (let n = 1; n <= Math.min(count, 14); n++) opts.push(n);
     return opts;
   }, [trip, tripDays, day.id, dayLocations.primary]);
+
+  React.useEffect(() => {
+    if (followingDayOptions.length && followingDayOptions.indexOf(copyDaysCount) < 0) {
+      setCopyDaysCount(followingDayOptions[0]);
+    }
+  }, [followingDayOptions, copyDaysCount]);
 
   React.useEffect(() => {
     setTitleDraft(day.displayTitle);
@@ -310,12 +317,29 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
           <div className={styles.additionalList}>
             {(dayLocations.primary ? [{ place: dayLocations.primary, primary: true, returnToPrimary: true }] : [])
               .concat(dayLocations.additional.map((a) => ({ place: a.place, primary: false, returnToPrimary: a.returnToPrimary })))
-              .map((row, idx) => (
-              <span key={row.place.id} className={styles.additionalRow}>
-                <span className={styles.placePill}>
-                  <span aria-hidden>📍</span> {row.place.title}
-                  {row.primary ? <span className={styles.placeMeta}>Primary</span> : null}
-                  {isShared ? null : (
+              .map((row, idx) => {
+              const isInfoTarget = activePlaceInfoId === row.place.id;
+              return (
+              <div
+                key={row.place.id}
+                className={`${styles.locationRow} ${isInfoTarget ? styles.locationRowActive : ''}`}
+              >
+                <button
+                  type="button"
+                  className={styles.locationSelectBtn}
+                  onClick={() => setActivePlaceInfoId(row.place.id)}
+                  aria-pressed={isInfoTarget}
+                >
+                  <span className={styles.placePill}>
+                    <span aria-hidden>📍</span> {row.place.title}
+                    {row.primary ? <span className={styles.placeMeta}>Primary</span> : null}
+                  </span>
+                  {isInfoTarget && placeInfoOpen ? (
+                    <span className={styles.locationInfoHint}>Place info</span>
+                  ) : null}
+                </button>
+                {!isShared ? (
+                  <div className={styles.additionalRow}>
                     <>
                       {!row.primary ? (
                         <button
@@ -413,13 +437,14 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
                         ↓
                       </button>
                     </>
-                  )}
-                </span>
+                  </div>
+                ) : null}
                 <a className={styles.mapLink} href={`https://www.google.com/maps/@${row.place.latitude},${row.place.longitude},10z`} target="_blank" rel="noopener noreferrer">
                   Open in Google Maps
                 </a>
-              </span>
-            ))}
+              </div>
+              );
+            })}
           </div>
           {locationMessage ? <div className={styles.infoSub}>{locationMessage}</div> : null}
         </div>
@@ -434,38 +459,36 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
               <>
                 {!isShared && followingDayOptions.length ? (
                   <div className={styles.copyLocationRow}>
-                    <span className={styles.infoSub}>Same primary location on next:</span>
-                    {followingDayOptions.map((n) => (
-                      <button
-                        key={n}
-                        type="button"
-                        className={styles.clearPlaceBtn}
-                        onClick={() => applyPrimaryToFollowingDays(n)}
-                      >
-                        {n} day{n === 1 ? '' : 's'}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-                {allPlacesForInfo.length > 1 ? (
-                  <div className={styles.placeInfoTabs} role="tablist" aria-label="Place information">
-                    {allPlacesForInfo.map((row) => (
-                      <button
-                        key={row.id}
-                        type="button"
-                        role="tab"
-                        aria-selected={activePlaceInfoId === row.id}
-                        className={`${styles.placeInfoTab} ${activePlaceInfoId === row.id ? styles.placeInfoTabActive : ''}`}
-                        onClick={() => setActivePlaceInfoId(row.id)}
-                      >
-                        {row.place.title}
-                        {row.isPrimary ? ' (Primary)' : ''}
-                      </button>
-                    ))}
+                    <span className={styles.infoSub}>Same primary location for next</span>
+                    <select
+                      className={styles.copyLocationSelect}
+                      value={copyDaysCount}
+                      onChange={(e) => setCopyDaysCount(Number(e.target.value))}
+                      aria-label="Number of following days"
+                    >
+                      {followingDayOptions.map((n) => (
+                        <option key={n} value={n}>
+                          {n} day{n === 1 ? '' : 's'}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      className={styles.clearPlaceBtn}
+                      onClick={() => applyPrimaryToFollowingDays(copyDaysCount)}
+                    >
+                      Apply
+                    </button>
                   </div>
                 ) : null}
                 {activePlaceInfo ? (
-                  <PlaceInfoPanel place={activePlaceInfo.place} weatherAnchorDate={weatherAnchorDate} />
+                  <>
+                    <div className={styles.placeInfoHeader}>
+                      <span className={styles.placeInfoHeaderLabel}>Place info</span>
+                      <span className={styles.placeInfoHeaderTitle}>{activePlaceInfo.place.title}</span>
+                    </div>
+                    <PlaceInfoPanel place={activePlaceInfo.place} weatherAnchorDate={weatherAnchorDate} />
+                  </>
                 ) : null}
               </>
             ) : (

@@ -267,35 +267,87 @@
   font-size: var(--font-size-xs);
 }
 
-.placeInfoTabs {
+.locationRow {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.locationRowActive {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+  background: var(--color-blue-50);
+}
+
+.locationSelectBtn {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-1);
-  margin-bottom: var(--space-2);
-}
-
-.placeInfoTab {
-  border: var(--border-default);
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
-  color: var(--color-blue-800);
-  font-size: var(--font-size-xs);
-  padding: 2px var(--space-2);
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
   cursor: pointer;
+  color: inherit;
+  font: inherit;
 }
 
-.placeInfoTabActive {
-  border-color: var(--color-primary);
-  background: var(--color-blue-50);
+.locationSelectBtn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.locationInfoHint {
+  font-size: var(--font-size-xs);
   color: var(--color-primary);
   font-weight: var(--font-weight-medium);
+}
+
+.placeInfoHeader {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 2px solid var(--color-primary);
+}
+
+.placeInfoHeaderLabel {
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-sand-600);
+}
+
+.placeInfoHeaderTitle {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-800);
 }
 
 .copyLocationRow {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1);
+  align-items: center;
+  gap: var(--space-2);
   margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
+}
+
+.copyLocationSelect {
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
+  font-size: var(--font-size-xs);
+  background: var(--color-surface-raised);
+  color: var(--color-blue-800);
 }
 
 .placeInfoGrid {

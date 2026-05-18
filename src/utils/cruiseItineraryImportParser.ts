@@ -6,6 +6,8 @@ export interface ParsedCruiseRow {
   arrive: string;
   depart: string;
   date?: string;
+  /** Advisory lines (visa, tender, weather, etc.) for this port/day segment. */
+  importNotes?: string;
 }
 
 function normalizeTime(value: string): string {
@@ -72,18 +74,30 @@ const MONTH_TO_NUM: Record<string, string> = {
   dec: '12'
 };
 
-function isNoiseLine(line: string): boolean {
+/** Cabin/deck marketing lines — skip entirely. */
+function isSkipLine(line: string): boolean {
   const u = line.toUpperCase();
   if (!line.trim()) return true;
-  if (u.startsWith('VISA')) return true;
   if (u.includes('WHEELCHAIR')) return true;
-  if (u === 'CRUISING ONLY') return true;
   if (u === 'OVERNIGHT') return true;
-  if (u.startsWith('TENDER')) return true;
   if (/\b(FRENCH|VERANDA|BALCONY|SUITE|STATEROOM|CABIN|ROOM)\b/i.test(u) && /\b\d{2,4}\b/.test(u)) return true;
   if (/^\d+\s*(?:M2|SQM|SQ FT|SQFT)\b/i.test(u)) return true;
   if (/^DECK\s+\d+/i.test(u)) return true;
   return false;
+}
+
+/** Advisory lines to store on the itinerary entry notes. */
+function extractImportNote(line: string): string | null {
+  const t = line.trim();
+  if (!t) return null;
+  const u = t.toUpperCase();
+  if (u.startsWith('VISA')) return t;
+  if (u.startsWith('TENDER')) return t;
+  if (u.includes('SUBJECT TO')) return t;
+  if (u === 'CRUISING ONLY') return t;
+  if (u.includes('ROUTE TIME')) return t;
+  if (u.includes('TIMES SUBJECT')) return t;
+  return null;
 }
 
 /** Holland America / similar: date line, port line, ARRIVES/DEPARTS (with or without space before time). */
@@ -94,21 +108,25 @@ function parseCruiseBlockPlainText(text: string): ParsedCruiseRow[] {
   let curPort = '';
   let arrive = '';
   let depart = '';
+  let curNotes: string[] = [];
   let dayCounter = 0;
 
   const flush = (): void => {
     if (!curPort) return;
     dayCounter += 1;
+    const notes = curNotes.map((n) => n.trim()).filter(Boolean);
     rows.push({
       dayNumber: dayCounter,
       port: splitCruiseShipMeta(curPort).clean,
       arrive,
       depart,
-      date: curDate || undefined
+      date: curDate || undefined,
+      importNotes: notes.length ? notes.join('\n') : undefined
     });
     curPort = '';
     arrive = '';
     depart = '';
+    curNotes = [];
   };
 
   for (const line of raw) {
@@ -165,7 +183,12 @@ function parseCruiseBlockPlainText(text: string): ParsedCruiseRow[] {
       else arrive = t || arrive;
       continue;
     }
-    if (isNoiseLine(line)) continue;
+    const importNote = extractImportNote(line);
+    if (importNote) {
+      curNotes.push(importNote);
+      continue;
+    }
+    if (isSkipLine(line)) continue;
     if (/^DAYS?\s+AT\s+SEA/i.test(line) || /^DAY\s+AT\s+SEA/i.test(line)) {
       flush();
       curPort = line.replace(/\s+/g, ' ');

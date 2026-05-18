@@ -19,7 +19,7 @@ import { formatCurrency } from '../../utils/financialUtils';
 import { ItineraryCard } from './ItineraryCard';
 import { SubItemDetailLines } from './SubItemDetailLines';
 import { applyDayViewEntryOrder } from '../../utils/dayViewEntryOrder';
-import { printDayPlannerElement, printDayPlannerFromPage } from '../../utils/dayPlannerPrint';
+import { printDayPlannerData, type DayPlannerPrintDay } from '../../utils/dayPlannerPrint';
 import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../../utils/googleMapsLink';
 import styles from './ItineraryDayPlannerView.module.css';
 
@@ -330,18 +330,6 @@ export const ItineraryDayPlannerView: React.FC = () => {
     setPrintPreviewOpen(true);
   }, []);
 
-  const runPlannerPrint = React.useCallback((): void => {
-    const surface = printSurfaceRef.current;
-    const fromFullscreen = printPreviewOpen && surface && surface.firstElementChild;
-    const ok = fromFullscreen
-      ? printDayPlannerElement(surface)
-      : printDayPlannerFromPage();
-    if (!ok) {
-      // eslint-disable-next-line no-alert
-      window.alert('Could not start printing. Allow pop-ups for this site or try again from full screen.');
-    }
-  }, [printPreviewOpen]);
-
   React.useEffect(() => {
     if (mobileDayIndex >= visibleDays.length) {
       setMobileDayIndex(Math.max(0, visibleDays.length - 1));
@@ -356,6 +344,67 @@ export const ItineraryDayPlannerView: React.FC = () => {
     }
     return visibleDays;
   }, [visibleDays, isMobile, mobileDayIndex]);
+
+  const buildPlannerPrintDays = React.useCallback((): DayPlannerPrintDay[] => {
+    const daysSource = printPreviewOpen ? visibleDays : displayDays;
+    return daysSource.map((day) => {
+      const cal = day.calendarDate || '';
+      const list = entriesForPlannerColumn(day);
+      const timedRows: Array<{ sortMin: number; entry: DayPlannerPrintDay['timed'][0] }> = [];
+      const unscheduled: DayPlannerPrintDay['unscheduled'] = [];
+      for (const e of list) {
+        const start = effectivePlannerTimeStart(e, cal, tripDays);
+        const sm = minutesFromTimeStart(start);
+        const subs = [...(e.subItems ?? [])]
+          .sort((a, b) => {
+            const am = minutesFromTimeStart(a.startTime || '');
+            const bm = minutesFromTimeStart(b.startTime || '');
+            if (am === undefined && bm === undefined) return 0;
+            if (am === undefined) return 1;
+            if (bm === undefined) return -1;
+            return am - bm;
+          })
+          .map((s) => {
+            const t0 = formatTimeHHMM(s.startTime || '');
+            const t1 = formatTimeHHMM(s.endTime || '');
+            const title = s.title || '';
+            if (t0 && t1) return `${t0}–${t1} ${title}`.trim();
+            if (t0) return `${t0} ${title}`.trim();
+            return title;
+          })
+          .filter(Boolean);
+        const item = {
+          title: e.title || 'Untitled',
+          timeLabel: sm !== undefined ? formatTimeHHMM(start) : '—',
+          duration: e.duration?.trim() || '1h',
+          category: e.category,
+          subItems: subs.length ? subs : undefined
+        };
+        if (sm === undefined) unscheduled.push(item);
+        else timedRows.push({ sortMin: sm, entry: item });
+      }
+      timedRows.sort((a, b) => a.sortMin - b.sortMin);
+      return {
+        dayLabel: dayLabel(day),
+        timed: timedRows.map((r) => r.entry),
+        unscheduled
+      };
+    });
+  }, [printPreviewOpen, visibleDays, displayDays, entriesForPlannerColumn, tripDays]);
+
+  const runPlannerPrint = React.useCallback((): void => {
+    const days = buildPlannerPrintDays();
+    if (!days.length) {
+      // eslint-disable-next-line no-alert
+      window.alert('No days to print for the current filter.');
+      return;
+    }
+    const ok = printDayPlannerData(trip?.title ? `${trip.title} — Day planner` : 'Day planner', days);
+    if (!ok) {
+      // eslint-disable-next-line no-alert
+      window.alert('Could not open print preview. Allow pop-ups for this site and try again.');
+    }
+  }, [buildPlannerPrintDays, trip?.title]);
 
   React.useLayoutEffect(() => {
     if (!printPreviewOpen) return;
@@ -585,25 +634,29 @@ export const ItineraryDayPlannerView: React.FC = () => {
               </button>
             </>
           ) : null}
+          {!printPreviewOpen ? (
+            <button
+              type="button"
+              className={styles.rangeReset}
+              onClick={openPlannerFullScreen}
+              aria-label="Open day planner full screen"
+            >
+              Full screen
+            </button>
+          ) : null}
         </div>
-        <button
-          type="button"
-          className={styles.rangeReset}
-          onClick={openPlannerFullScreen}
-          aria-label="Open day planner full screen"
-        >
-          Full screen
-        </button>
-        <button
-          type="button"
-          className={styles.printPlannerBtn}
-          onClick={runPlannerPrint}
-          aria-label="Print day planner"
-          title="Opens a print preview in a new tab"
-        >
-          <PrintGlyph />
-          Print
-        </button>
+        {!printPreviewOpen ? (
+          <button
+            type="button"
+            className={styles.printPlannerBtn}
+            onClick={runPlannerPrint}
+            aria-label="Print day planner"
+            title="Opens a print preview in a new tab"
+          >
+            <PrintGlyph />
+            Print
+          </button>
+        ) : null}
       </div>
       {filter === 'custom_range' ? (
         <div className={styles.customRange}>
