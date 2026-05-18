@@ -4,6 +4,13 @@ import { TripService } from '../../../../services/TripService';
 import { DayService } from '../../../../services/DayService';
 import { PlaceService } from '../../../../services/PlaceService';
 import { Trip } from '../../../../models';
+import {
+  orderTripsForList,
+  todayYmdLocal,
+  type CompletedSort,
+  type TripListFilter,
+  type UpcomingSort
+} from '../../../../utils/tripListSort';
 import L from 'leaflet';
 import '../../../../components/maps/LeafletCompat.css';
 
@@ -59,18 +66,6 @@ export interface ITripBrowserProps {
 
 type MapTripFilter = 'completed' | 'upcoming';
 
-function pad2(n: number): string {
-  return n < 10 ? `0${n}` : String(n);
-}
-
-function ymdLocalNow(): string {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = pad2(d.getMonth() + 1);
-  const dd = pad2(d.getDate());
-  return `${yyyy}-${mm}-${dd}`;
-}
-
 function tripEndYmd(trip: Trip): string {
   return (trip.dateEnd || '').slice(0, 10);
 }
@@ -83,6 +78,9 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
   const [allTripDays, setAllTripDays] = React.useState<Array<{ tripId: string; primaryPlaceId?: string }>>([]);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [listFilter, setListFilter] = React.useState<TripListFilter>('all');
+  const [upcomingSort, setUpcomingSort] = React.useState<UpcomingSort>('nearest');
+  const [completedSort, setCompletedSort] = React.useState<CompletedSort>('newest');
   const mapRef = React.useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = React.useRef<L.Map | null>(null);
   const markerLayerRef = React.useRef<L.LayerGroup | null>(null);
@@ -120,14 +118,20 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
     }
   }, [spContext]);
 
+  const todayYmd = React.useMemo(() => todayYmdLocal(), []);
+
+  const { ordered: listTrips, nextUpId } = React.useMemo(
+    () => orderTripsForList(trips, listFilter, upcomingSort, completedSort, todayYmd),
+    [trips, listFilter, upcomingSort, completedSort, todayYmd]
+  );
+
   const filteredTrips = React.useMemo(() => {
-    const todayYmd = ymdLocalNow();
     return trips.filter((t) => {
       const end = tripEndYmd(t);
       if (!end) return mapTripFilter === 'upcoming';
       return mapTripFilter === 'completed' ? end < todayYmd : end >= todayYmd;
     });
-  }, [trips, mapTripFilter]);
+  }, [trips, mapTripFilter, todayYmd]);
   const eligibleTripIds = React.useMemo(() => new Set(filteredTrips.map((t) => t.id)), [filteredTrips]);
   const eligibleDays = React.useMemo(
     () => allTripDays.filter((d) => eligibleTripIds.has(d.tripId)),
@@ -397,6 +401,28 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
     gap: 'var(--space-2)',
     flexWrap: 'wrap'
   };
+  const listToolbarStyle: React.CSSProperties = {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 'var(--space-2)',
+    marginBottom: 'var(--space-4)'
+  };
+  const featuredCardStyle: React.CSSProperties = {
+    ...cardStyle,
+    border: '2px solid var(--color-primary)',
+    boxShadow: 'var(--shadow-elevated)',
+    gridColumn: '1 / -1'
+  };
+  const nextUpBadgeStyle: React.CSSProperties = {
+    alignSelf: 'flex-start',
+    fontSize: 'var(--font-size-xs)',
+    fontWeight: 'var(--font-weight-bold)',
+    padding: 'var(--space-1) var(--space-3)',
+    borderRadius: 'var(--radius-full)',
+    background: 'var(--color-primary)',
+    color: 'var(--color-surface-raised)'
+  };
   const statsGridStyle: React.CSSProperties = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(12rem, 1fr))',
@@ -460,18 +486,60 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
 
       {!loading && !error && trips.length > 0 && (
         <>
-          <div style={gridStyle}>
-            {trips.map((trip) => (
-              <article key={trip.id} style={cardStyle}>
-                <h2 style={cardTitleStyle}>{trip.title}</h2>
-                {trip.destination && <p style={destinationStyle}>{trip.destination}</p>}
-                <p style={dateStyle}>{formatDateRange(trip.dateStart, trip.dateEnd)}</p>
-                <span style={{ ...badgeStyleBase, ...getStatusBadgeStyles(trip.status) }}>{trip.status}</span>
-                <button type="button" style={primaryButtonStyle} onClick={() => onSelectTrip(trip.id)}>
-                  Open Trip
+          <div style={listToolbarStyle} role="toolbar" aria-label="Trip list filters">
+            <div style={mapTabsStyle} role="tablist" aria-label="Show trips">
+              {(['all', 'upcoming', 'completed'] as const).map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={listFilter === id}
+                  style={
+                    listFilter === id
+                      ? { ...secondaryButtonStyle, borderColor: 'var(--color-primary)', boxShadow: '0 0 0 1px var(--color-primary)' }
+                      : secondaryButtonStyle
+                  }
+                  onClick={() => setListFilter(id)}
+                >
+                  {id === 'all' ? 'All' : id === 'upcoming' ? 'Upcoming' : 'Completed'}
                 </button>
-              </article>
-            ))}
+              ))}
+            </div>
+            {listFilter === 'upcoming' || listFilter === 'all' ? (
+              <button
+                type="button"
+                style={secondaryButtonStyle}
+                onClick={() => setUpcomingSort((s) => (s === 'nearest' ? 'furthest' : 'nearest'))}
+              >
+                Upcoming: {upcomingSort === 'nearest' ? 'Nearest first' : 'Furthest first'}
+              </button>
+            ) : null}
+            {listFilter === 'completed' || listFilter === 'all' ? (
+              <button
+                type="button"
+                style={secondaryButtonStyle}
+                onClick={() => setCompletedSort((s) => (s === 'newest' ? 'oldest' : 'newest'))}
+              >
+                Completed: {completedSort === 'newest' ? 'Newest first' : 'Oldest first'}
+              </button>
+            ) : null}
+          </div>
+          <div style={gridStyle}>
+            {listTrips.map((trip) => {
+              const isNextUp = trip.id === nextUpId;
+              return (
+                <article key={trip.id} style={isNextUp ? featuredCardStyle : cardStyle}>
+                  {isNextUp ? <span style={nextUpBadgeStyle}>Next up</span> : null}
+                  <h2 style={cardTitleStyle}>{trip.title}</h2>
+                  {trip.destination ? <p style={destinationStyle}>{trip.destination}</p> : null}
+                  <p style={dateStyle}>{formatDateRange(trip.dateStart, trip.dateEnd)}</p>
+                  <span style={{ ...badgeStyleBase, ...getStatusBadgeStyles(trip.status) }}>{trip.status}</span>
+                  <button type="button" style={primaryButtonStyle} onClick={() => onSelectTrip(trip.id)}>
+                    Open Trip
+                  </button>
+                </article>
+              );
+            })}
           </div>
           <section style={mapWrapStyle} aria-label="All trips places map">
             <div style={mapHeaderStyle}>

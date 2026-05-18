@@ -25,11 +25,8 @@ const PRINT_EXTRA_CSS = `
     min-height: 0 !important;
     height: auto !important;
   }
-  .trackInner {
-    min-height: 0 !important;
-  }
-  .dayHead,
-  .timeAxis {
+  .trackInner { min-height: 0 !important; }
+  .dayHead, .timeAxis {
     position: static !important;
     top: auto !important;
     left: auto !important;
@@ -38,51 +35,13 @@ const PRINT_EXTRA_CSS = `
 `;
 
 const PRINT_STYLE_PROPS = [
-  'display',
-  'position',
-  'top',
-  'left',
-  'right',
-  'bottom',
-  'width',
-  'height',
-  'min-width',
-  'min-height',
-  'max-width',
-  'max-height',
-  'margin',
-  'padding',
-  'border',
-  'border-radius',
-  'box-sizing',
-  'overflow',
-  'visibility',
-  'opacity',
-  'flex',
-  'flex-direction',
-  'flex-wrap',
-  'flex-shrink',
-  'flex-grow',
-  'align-items',
-  'align-self',
-  'justify-content',
-  'gap',
-  'grid',
-  'grid-template-columns',
-  'grid-template-rows',
-  'grid-column',
-  'grid-row',
-  'grid-area',
-  'font-size',
-  'font-weight',
-  'line-height',
-  'color',
-  'background',
-  'background-color',
-  'text-align',
-  'white-space',
-  'z-index',
-  'transform'
+  'display', 'position', 'top', 'left', 'right', 'bottom', 'width', 'height',
+  'min-width', 'min-height', 'max-width', 'max-height', 'margin', 'padding', 'border',
+  'border-radius', 'box-sizing', 'overflow', 'visibility', 'opacity', 'flex',
+  'flex-direction', 'flex-wrap', 'flex-shrink', 'flex-grow', 'align-items', 'align-self',
+  'justify-content', 'gap', 'grid', 'grid-template-columns', 'grid-template-rows',
+  'grid-column', 'grid-row', 'grid-area', 'font-size', 'font-weight', 'line-height',
+  'color', 'background', 'background-color', 'text-align', 'white-space', 'z-index', 'transform'
 ];
 
 function applyComputedStyles(source: Element, target: Element): void {
@@ -105,96 +64,137 @@ function applyComputedStyles(source: Element, target: Element): void {
   }
 }
 
-/** Deep-clone a subtree with computed layout styles inlined (needed for SPFx / CSS modules print). */
 export function cloneForPrint(source: HTMLElement): HTMLElement {
   const clone = source.cloneNode(true) as HTMLElement;
   applyComputedStyles(source, clone);
   return clone;
 }
 
+/** Inline accessible stylesheet rules (SPFx often blocks linked CSS in pop-ups). */
 function collectDocumentStyles(): string {
   const chunks: string[] = [];
-  for (const link of Array.from(document.querySelectorAll('link[rel="stylesheet"]'))) {
-    const href = (link as HTMLLinkElement).href;
-    if (href) chunks.push(`<link rel="stylesheet" href="${href}" />`);
-  }
   for (const style of Array.from(document.querySelectorAll('style'))) {
     const text = style.textContent;
     if (text?.trim()) chunks.push(`<style>${text}</style>`);
   }
+  for (const sheet of Array.from(document.styleSheets)) {
+    try {
+      const rules = sheet.cssRules;
+      if (!rules?.length) continue;
+      let text = '';
+      for (let i = 0; i < rules.length; i++) {
+        text += rules[i].cssText;
+      }
+      if (text.trim()) chunks.push(`<style>${text}</style>`);
+    } catch {
+      const href = sheet.href;
+      if (href) chunks.push(`<link rel="stylesheet" href="${href}" />`);
+    }
+  }
   return chunks.join('\n');
 }
 
-function waitForPrintDocument(doc: Document, win: Window, onReady: () => void): void {
-  const links = Array.from(doc.querySelectorAll('link[rel="stylesheet"]'));
-  if (!links.length) {
-    window.setTimeout(onReady, 80);
-    return;
-  }
-  let pending = links.length;
-  const done = (): void => {
-    pending -= 1;
-    if (pending <= 0) window.setTimeout(onReady, 120);
-  };
-  for (let i = 0; i < links.length; i++) {
-    const link = links[i] as HTMLLinkElement;
-    if (link.sheet) {
-      done();
-    } else {
-      link.addEventListener('load', done);
-      link.addEventListener('error', done);
-    }
-  }
-  win.addEventListener(
-    'load',
-    () => {
-      window.setTimeout(onReady, 120);
-    },
-    { once: true }
-  );
+function buildPrintHtml(bodyHtml: string): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8" /><base href="${document.baseURI}" /><title>Day planner</title>${collectDocumentStyles()}<style>${PRINT_EXTRA_CSS}</style></head><body>${bodyHtml}</body></html>`;
 }
 
-/** Print a DOM subtree in a hidden iframe (works in SPFx / Chromium hosts). */
-export function printHtmlElement(root: HTMLElement, options?: { onAfter?: () => void }): void {
-  const iframe = document.createElement('iframe');
-  iframe.setAttribute('title', 'Day planner print');
-  iframe.style.cssText =
-    'position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none;';
-  document.body.appendChild(iframe);
+let printHostEl: HTMLElement | null = null;
 
-  const win = iframe.contentWindow;
-  const doc = iframe.contentDocument;
-  if (!win || !doc) {
-    iframe.remove();
-    if (options?.onAfter) options.onAfter();
-    return;
+function teardownPrintHost(): void {
+  document.documentElement.classList.remove('th-day-planner-print-active');
+  if (printHostEl) {
+    printHostEl.remove();
+    printHostEl = null;
   }
+}
 
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><base href="${document.baseURI}" />${collectDocumentStyles()}<style>${PRINT_EXTRA_CSS}</style></head><body>${root.outerHTML}</body></html>`;
+/**
+ * Print using a temporary on-page surface (inherits live SPFx styles).
+ * More reliable in SharePoint than a blank pop-up window.
+ */
+export function printPlannerInPlace(source: HTMLElement): boolean {
+  teardownPrintHost();
 
-  let cleaned = false;
-  const cleanup = (): void => {
-    if (cleaned) return;
-    cleaned = true;
-    iframe.remove();
-    if (options?.onAfter) options.onAfter();
-  };
+  const clone = cloneForPrint(source);
+  clone.removeAttribute('id');
 
-  const doPrint = (): void => {
+  const host = document.createElement('div');
+  host.id = 'th-print-host-temp';
+  host.className = 'th-day-planner-print-backdrop';
+  host.style.pointerEvents = 'none';
+
+  const surface = document.createElement('div');
+  surface.className = 'th-day-planner-print-surface';
+  surface.appendChild(clone);
+  host.appendChild(surface);
+  document.body.appendChild(host);
+  printHostEl = host;
+
+  document.documentElement.classList.add('th-day-planner-print-active');
+
+  const cleanup = (): void => teardownPrintHost();
+  window.addEventListener('afterprint', cleanup, { once: true });
+
+  window.setTimeout(() => {
     try {
-      win.focus();
-      win.print();
+      window.focus();
+      window.print();
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('dayPlannerPrint: in-place print failed', e);
+      cleanup();
+    }
+    window.setTimeout(() => {
+      if (printHostEl) cleanup();
+    }, 2000);
+  }, 150);
+
+  return true;
+}
+
+/**
+ * Opens the planner in a new browser tab/window and triggers print (fallback).
+ */
+export function printPlannerInNewWindow(source: HTMLElement): boolean {
+  const popup = window.open('', '_blank');
+  if (!popup) return false;
+
+  const clone = cloneForPrint(source);
+  clone.removeAttribute('id');
+  const html = buildPrintHtml(clone.outerHTML);
+
+  popup.document.open();
+  popup.document.write(html);
+  popup.document.close();
+
+  const trigger = (): void => {
+    try {
+      popup.focus();
+      popup.print();
     } catch (e) {
       // eslint-disable-next-line no-console
       console.warn('dayPlannerPrint: print failed', e);
-      cleanup();
     }
   };
 
-  win.addEventListener('afterprint', cleanup, { once: true });
-  doc.open();
-  doc.write(html);
-  doc.close();
+  if (popup.document.readyState === 'complete') {
+    window.setTimeout(trigger, 400);
+  } else {
+    popup.addEventListener('load', () => window.setTimeout(trigger, 400), { once: true });
+  }
+  return true;
+}
 
-  waitForPrintDocument(doc, win, doPrint);
+/** Print from the live planner root element (#th-print-root). */
+export function printDayPlannerFromPage(): boolean {
+  const src = document.getElementById('th-print-root');
+  if (!src) return false;
+  if (printPlannerInPlace(src)) return true;
+  return printPlannerInNewWindow(src);
+}
+
+/** Print a specific planner subtree (e.g. full-screen clone). */
+export function printDayPlannerElement(source: HTMLElement): boolean {
+  if (printPlannerInPlace(source)) return true;
+  return printPlannerInNewWindow(source);
 }

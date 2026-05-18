@@ -19,7 +19,7 @@ import { formatCurrency } from '../../utils/financialUtils';
 import { ItineraryCard } from './ItineraryCard';
 import { SubItemDetailLines } from './SubItemDetailLines';
 import { applyDayViewEntryOrder } from '../../utils/dayViewEntryOrder';
-import { cloneForPrint, printHtmlElement } from '../../utils/dayPlannerPrint';
+import { printDayPlannerElement, printDayPlannerFromPage } from '../../utils/dayPlannerPrint';
 import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../../utils/googleMapsLink';
 import styles from './ItineraryDayPlannerView.module.css';
 
@@ -151,7 +151,6 @@ export const ItineraryDayPlannerView: React.FC = () => {
   const [rangeEndOverride, setRangeEndOverride] = React.useState('');
   const [previewEntryId, setPreviewEntryId] = React.useState<string | null>(null);
   const [printPreviewOpen, setPrintPreviewOpen] = React.useState(false);
-  const [pendingPrintOnPreview, setPendingPrintOnPreview] = React.useState(false);
   const printSurfaceRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -326,23 +325,22 @@ export const ItineraryDayPlannerView: React.FC = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, [printPreviewOpen]);
 
-  const runPlannerPrintFromDom = React.useCallback((): void => {
-    const src = document.getElementById('th-print-root');
-    if (!src) {
-      // eslint-disable-next-line no-console
-      console.warn('Day planner print: print root not found');
-      return;
-    }
-    const clone = cloneForPrint(src);
-    clone.removeAttribute('id');
-    printHtmlElement(clone);
-  }, []);
-
-  const fullScreenAndPrint = React.useCallback((): void => {
+  const openPlannerFullScreen = React.useCallback((): void => {
     setPreviewEntryId(null);
-    setPendingPrintOnPreview(true);
     setPrintPreviewOpen(true);
   }, []);
+
+  const runPlannerPrint = React.useCallback((): void => {
+    const surface = printSurfaceRef.current;
+    const fromFullscreen = printPreviewOpen && surface && surface.firstElementChild;
+    const ok = fromFullscreen
+      ? printDayPlannerElement(surface)
+      : printDayPlannerFromPage();
+    if (!ok) {
+      // eslint-disable-next-line no-alert
+      window.alert('Could not start printing. Allow pop-ups for this site or try again from full screen.');
+    }
+  }, [printPreviewOpen]);
 
   React.useEffect(() => {
     if (mobileDayIndex >= visibleDays.length) {
@@ -373,25 +371,6 @@ export const ItineraryDayPlannerView: React.FC = () => {
     localEntries.length,
     isMobile,
     mobileDayIndex
-  ]);
-
-  React.useEffect(() => {
-    if (!printPreviewOpen || !pendingPrintOnPreview) return undefined;
-    const t = window.setTimeout(() => {
-      setPendingPrintOnPreview(false);
-      runPlannerPrintFromDom();
-    }, 500);
-    return () => window.clearTimeout(t);
-  }, [
-    printPreviewOpen,
-    pendingPrintOnPreview,
-    runPlannerPrintFromDom,
-    filter,
-    customStart,
-    customEnd,
-    visibleDays.length,
-    displayDays.length,
-    localEntries.length
   ]);
 
   const rangeForDay = React.useCallback((day: TripDay): { start: number; end: number } => {
@@ -609,13 +588,21 @@ export const ItineraryDayPlannerView: React.FC = () => {
         </div>
         <button
           type="button"
+          className={styles.rangeReset}
+          onClick={openPlannerFullScreen}
+          aria-label="Open day planner full screen"
+        >
+          Full screen
+        </button>
+        <button
+          type="button"
           className={styles.printPlannerBtn}
-          onClick={fullScreenAndPrint}
-          aria-label="Open full-screen preview and print"
-          title="Opens a full-screen preview and sends the planner to your printer"
+          onClick={runPlannerPrint}
+          aria-label="Print day planner"
+          title="Opens a print preview in a new tab"
         >
           <PrintGlyph />
-          Full screen &amp; Print
+          Print
         </button>
       </div>
       {filter === 'custom_range' ? (
@@ -1216,6 +1203,10 @@ export const ItineraryDayPlannerView: React.FC = () => {
               <div className="th-print-ui-only th-day-planner-print-chrome">
                 <button type="button" className={styles.rangeReset} onClick={() => setPrintPreviewOpen(false)}>
                   Close
+                </button>
+                <button type="button" className={styles.printPlannerBtn} onClick={runPlannerPrint}>
+                  <PrintGlyph />
+                  Print
                 </button>
               </div>
               <div ref={printSurfaceRef} className="th-day-planner-print-surface" />

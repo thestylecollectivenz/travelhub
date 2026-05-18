@@ -267,6 +267,37 @@
   font-size: var(--font-size-xs);
 }
 
+.placeInfoTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.placeInfoTab {
+  border: var(--border-default);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-blue-800);
+  font-size: var(--font-size-xs);
+  padding: 2px var(--space-2);
+  cursor: pointer;
+}
+
+.placeInfoTabActive {
+  border-color: var(--color-primary);
+  background: var(--color-blue-50);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.copyLocationRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
 .placeInfoGrid {
   display: grid;
   gap: var(--space-2);

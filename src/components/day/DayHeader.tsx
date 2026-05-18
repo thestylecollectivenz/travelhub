@@ -5,11 +5,12 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
 import type { PlaceCandidate } from '../../models/Place';
 import { COUNTRY_DATA } from '../../data/countryData';
-import { SEASONAL_BY_REGION } from '../../data/seasonalWeather';
 import { formatDayDate } from '../../utils/dateUtils';
+import { compareTripDaysChronological } from '../../utils/tripDateRangeSync';
 import { formatCurrency } from '../../utils/financialUtils';
 import { parseAdditionalPlaceRefs, serializeAdditionalPlaceRef } from '../../utils/tripDayPlaces';
 import { TipCalculator } from '../utilities/TipCalculator';
+import { PlaceInfoPanel } from './PlaceInfoPanel';
 import styles from './DayHeader.module.css';
 
 export interface DayHeaderProps {
@@ -35,91 +36,9 @@ function dayTypeLabel(dayType: TripDay['dayType']): string {
   }
 }
 
-function WeatherIcon({ iconCode }: { iconCode: string }): React.ReactElement {
-  const code = (iconCode || '').toLowerCase();
-  if (code.includes('clear-night')) {
-    return (
-      <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden>
-        <path d="M10.8 2.2a5.2 5.2 0 1 0 3 8.7 5 5 0 1 1-3-8.7Z" fill="var(--color-blue-400)" />
-      </svg>
-    );
-  }
-  if (code.includes('clear-day')) {
-    return (
-      <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden>
-        <circle cx="8" cy="8" r="3.2" fill="var(--color-amber-400)" />
-        <path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3 3l1.4 1.4M11.6 11.6 13 13M3 13l1.4-1.4M11.6 4.4 13 3" stroke="var(--color-amber-400)" strokeWidth="1.2" />
-      </svg>
-    );
-  }
-  if (code.includes('partly-cloudy')) {
-    return (
-      <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden>
-        <circle cx="6" cy="6" r="2.4" fill="var(--color-amber-400)" />
-        <path d="M6.2 12.5h5.1a2 2 0 0 0 0-4 2.8 2.8 0 0 0-5.2-.8A2 2 0 0 0 6.2 12.5Z" fill="var(--color-blue-200)" />
-      </svg>
-    );
-  }
-  if (code.includes('cloud')) {
-    return (
-      <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden>
-        <path d="M4.3 12h7.2a2.4 2.4 0 0 0 0-4.8A3.3 3.3 0 0 0 5 6 2.8 2.8 0 0 0 4.3 12Z" fill="var(--color-blue-200)" />
-      </svg>
-    );
-  }
-  if (code.includes('rain')) {
-    return (
-      <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden>
-        <path d="M4.3 9h7.2a2.4 2.4 0 0 0 0-4.8A3.3 3.3 0 0 0 5 3 2.8 2.8 0 0 0 4.3 9Z" fill="var(--color-blue-200)" />
-        <path d="M6 10.5 5.4 12M8.2 10.5 7.6 12M10.4 10.5 9.8 12" stroke="var(--color-blue-400)" strokeWidth="1.2" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (code.includes('snow')) {
-    return (
-      <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden>
-        <path d="M8 3.5v9M4.5 5.5l7 5M11.5 5.5l-7 5" stroke="var(--color-blue-200)" strokeWidth="1.2" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (code.includes('thunder')) {
-    return (
-      <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden>
-        <path d="M7.2 2.5 4.8 8h2.4L5.7 13.5 11.2 7.2H8.7L10.2 2.5Z" fill="var(--color-amber-400)" />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden>
-      <path d="M3.5 5.5h9M2.8 8h10.4M3.5 10.5h9" stroke="var(--color-sand-400)" strokeWidth="1.2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function seasonForLatitude(month: number, latitude: number): 'Summer' | 'Autumn' | 'Winter' | 'Spring' {
-  const north = latitude >= 0;
-  if (north) {
-    if (month === 11 || month === 0 || month === 1) return 'Winter';
-    if (month >= 2 && month <= 4) return 'Spring';
-    if (month >= 5 && month <= 7) return 'Summer';
-    return 'Autumn';
-  }
-  if (month === 11 || month === 0 || month === 1) return 'Summer';
-  if (month >= 2 && month <= 4) return 'Autumn';
-  if (month >= 5 && month <= 7) return 'Winter';
-  return 'Spring';
-}
-
-function SeasonIcon({ season }: { season: 'Summer' | 'Autumn' | 'Winter' | 'Spring' }): React.ReactElement {
-  if (season === 'Summer') return <span aria-hidden>☀️</span>;
-  if (season === 'Winter') return <span aria-hidden>❄️</span>;
-  if (season === 'Spring') return <span aria-hidden>🌸</span>;
-  return <span aria-hidden>🍂</span>;
-}
-
 export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry, onWriteJournal, variant = 'default' }) => {
   const { config } = useConfig();
-  const { updateDay, trip } = useTripWorkspace();
+  const { updateDay, trip, tripDays } = useTripWorkspace();
   const { searchPlaces, createOrReusePlace, placeById } = usePlaces();
   const isShared = variant === 'shared';
   const [isEditingTitle, setIsEditingTitle] = React.useState(false);
@@ -128,20 +47,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
   const [locationSearch, setLocationSearch] = React.useState('');
   const [locationResults, setLocationResults] = React.useState<PlaceCandidate[]>([]);
   const [placeInfoOpen, setPlaceInfoOpen] = React.useState(true);
-  const [weather, setWeather] = React.useState<{
-    temp: number;
-    description: string;
-    iconCode: string;
-    sunrise: number;
-    sunset: number;
-    timezoneName: string;
-  } | null>(null);
-  const [typicalWeather, setTypicalWeather] = React.useState<{
-    tempRange: string;
-    conditions: string;
-    sunrise: string;
-    sunset: string;
-  } | null>(null);
+  const [activePlaceInfoId, setActivePlaceInfoId] = React.useState('');
   const [locationMessage, setLocationMessage] = React.useState('');
   const [tipOpen, setTipOpen] = React.useState(false);
 
@@ -162,14 +68,38 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
   const weatherAnchorDate =
     day.dayType === 'PreTrip' && trip?.dateStart ? trip.dateStart.split('T')[0] : day.calendarDate;
 
-  const monthIndex = React.useMemo(() => {
-    const d = new Date(`${weatherAnchorDate}T00:00:00.000Z`);
-    return Number.isNaN(d.getTime()) ? 0 : d.getUTCMonth();
-  }, [weatherAnchorDate]);
-  const seasonal = React.useMemo(() => {
-    if (!countryData) return undefined;
-    return SEASONAL_BY_REGION[countryData.region]?.[monthIndex];
-  }, [countryData, monthIndex]);
+  const allPlacesForInfo = React.useMemo(() => {
+    const rows: Array<{ id: string; place: NonNullable<typeof dayLocations.primary>; isPrimary: boolean }> = [];
+    if (dayLocations.primary) {
+      rows.push({ id: dayLocations.primary.id, place: dayLocations.primary, isPrimary: true });
+    }
+    for (const a of dayLocations.additional) {
+      rows.push({ id: a.place.id, place: a.place, isPrimary: false });
+    }
+    return rows;
+  }, [dayLocations]);
+
+  React.useEffect(() => {
+    setActivePlaceInfoId(dayLocations.primary?.id || allPlacesForInfo[0]?.id || '');
+  }, [day.id, dayLocations.primary?.id, allPlacesForInfo]);
+
+  const activePlaceInfo = allPlacesForInfo.find((p) => p.id === activePlaceInfoId) ?? allPlacesForInfo[0];
+  const tipCountryData = activePlaceInfo ? COUNTRY_DATA[activePlaceInfo.place.countryCode] : countryData;
+
+  const followingDayOptions = React.useMemo(() => {
+    if (!trip || !dayLocations.primary) return [];
+    const sorted = tripDays.filter((d) => d.tripId === trip.id).sort(compareTripDaysChronological);
+    const idx = sorted.findIndex((d) => d.id === day.id);
+    if (idx < 0) return [];
+    let count = 0;
+    for (let i = idx + 1; i < sorted.length; i++) {
+      if (sorted[i].dayType === 'PreTrip') continue;
+      count++;
+    }
+    const opts: number[] = [];
+    for (let n = 1; n <= Math.min(count, 14); n++) opts.push(n);
+    return opts;
+  }, [trip, tripDays, day.id, dayLocations.primary]);
 
   React.useEffect(() => {
     setTitleDraft(day.displayTitle);
@@ -189,101 +119,34 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
   }, [locationSearch, searchPlaces]);
 
   React.useEffect(() => {
-    if (!placeInfoOpen || !infoPlace || !config.weatherApiKey.trim()) {
-      setWeather(null);
-      return;
-    }
-    const units = config.temperatureUnit === 'Fahrenheit' ? 'us' : 'metric';
-    const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${infoPlace.latitude},${infoPlace.longitude}?key=${encodeURIComponent(config.weatherApiKey.trim())}&unitGroup=${units}&include=current,days&contentType=json`;
-    fetch(url)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Weather ${r.status}`))))
-      .then((data) => {
-        const current = data.currentConditions ?? {};
-        setWeather({
-          temp: Number(current.temp ?? 0),
-          description: String(current.conditions ?? ''),
-          iconCode: String(current.icon ?? ''),
-          sunrise: Number(current.sunriseEpoch ?? 0),
-          sunset: Number(current.sunsetEpoch ?? 0),
-          timezoneName: String(data.timezone ?? '')
-        });
-      })
-      .catch(() => {
-        setWeather(null);
-      });
-  }, [placeInfoOpen, infoPlace, config.temperatureUnit, config.weatherApiKey]);
-  React.useEffect(() => {
-    if (!placeInfoOpen || !infoPlace) {
-      setTypicalWeather(null);
-      return;
-    }
-    if (!config.weatherApiKey.trim()) {
-      setTypicalWeather(null);
-      return;
-    }
-    const units = config.temperatureUnit === 'Fahrenheit' ? 'us' : 'metric';
-    const date = weatherAnchorDate;
-    const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${infoPlace.latitude},${infoPlace.longitude}/${date}?key=${encodeURIComponent(config.weatherApiKey.trim())}&include=days&elements=tempmax,tempmin,sunrise,sunset,conditions&unitGroup=${units}&contentType=json`;
-    fetch(url)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Weather ${r.status}`))))
-      .then((data) => {
-        const d = (data.days ?? [])[0] ?? {};
-        setTypicalWeather({
-          tempRange: `${Math.round(Number(d.tempmin ?? 0))}° to ${Math.round(Number(d.tempmax ?? 0))}°${config.temperatureUnit === 'Fahrenheit' ? 'F' : 'C'}`,
-          conditions: String(d.conditions ?? 'Typical conditions unavailable'),
-          sunrise: String(d.sunrise ?? '—'),
-          sunset: String(d.sunset ?? '—')
-        });
-      })
-      .catch(() => setTypicalWeather(null));
-  }, [placeInfoOpen, infoPlace, config.weatherApiKey, config.temperatureUnit, weatherAnchorDate]);
-  React.useEffect(() => {
     if (!locationMessage) return undefined;
     const t = window.setTimeout(() => setLocationMessage(''), 1400);
     return () => window.clearTimeout(t);
   }, [locationMessage]);
 
-  const formatLocalFromUnix = React.useCallback((unix: number, tzName: string): string => {
-    if (!unix) return '—';
-    const d = new Date(unix * 1000);
-    return d.toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tzName || undefined });
-  }, []);
-  const hhmmOnly = React.useCallback((value: string): string => {
-    if (!value) return '—';
-    const parts = value.split(':');
-    if (parts.length < 2) return value;
-    return `${parts[0]}:${parts[1]}`;
-  }, []);
-  const [currentLocalTime, setCurrentLocalTime] = React.useState('');
-
-  React.useEffect(() => {
-    const tz = (infoPlace?.timeZone?.trim() || weather?.timezoneName?.trim() || '').trim();
-    if (!tz) {
-      setCurrentLocalTime('');
-      return undefined;
-    }
-    const tick = (): void => {
-      try {
-        setCurrentLocalTime(
-          new Intl.DateTimeFormat('en-NZ', {
-            timeZone: tz,
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-          }).format(new Date())
-        );
-      } catch {
-        setCurrentLocalTime('');
+  const applyPrimaryToFollowingDays = React.useCallback(
+    (dayCount: number) => {
+      if (!dayLocations.primary || !trip || dayCount < 1) return;
+      const sorted = tripDays.filter((d) => d.tripId === trip.id).sort(compareTripDaysChronological);
+      const idx = sorted.findIndex((d) => d.id === day.id);
+      if (idx < 0) return;
+      const additionalSerialized = dayLocations.additional.map((x) =>
+        serializeAdditionalPlaceRef({ placeId: x.placeId, returnToPrimary: x.returnToPrimary })
+      );
+      let applied = 0;
+      for (let i = idx + 1; i < sorted.length && applied < dayCount; i++) {
+        const next = sorted[i];
+        if (next.dayType === 'PreTrip') continue;
+        updateDay(next.id, {
+          primaryPlaceId: dayLocations.primary!.id,
+          additionalPlaceIds: [...additionalSerialized]
+        });
+        applied++;
       }
-    };
-    tick();
-    const id = window.setInterval(tick, 60_000);
-    return () => window.clearInterval(id);
-  }, [infoPlace?.timeZone, weather?.timezoneName]);
-  const currentSeason = React.useMemo(() => {
-    if (!infoPlace || !Number.isFinite(infoPlace.latitude)) return '';
-    return seasonForLatitude(new Date().getMonth(), Number(infoPlace.latitude));
-  }, [infoPlace]);
+      setLocationMessage(applied ? `Location copied to ${applied} following day${applied === 1 ? '' : 's'}` : 'No following days to update');
+    },
+    [day.id, dayLocations, trip, tripDays, updateDay]
+  );
 
   const updateLocations = React.useCallback(
     (primaryId: string, additional: Array<{ placeId: string; returnToPrimary: boolean }>) => {
@@ -567,61 +430,44 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
         </button>
         {placeInfoOpen ? (
           <div className={styles.placeInfoCard}>
-            {infoPlace ? (
-              <div className={styles.placeInfoGrid}>
-                {dayLocations.additional.length ? <div className={styles.infoSub}>Place info for {infoPlace.title}</div> : null}
-                <div className={styles.infoTile}>
-                  <div className={styles.infoTitle}>Current weather</div>
-                  {config.weatherApiKey.trim() && weather ? (
-                    <>
-                      <div className={styles.infoLine}>
-                        <WeatherIcon iconCode={weather.iconCode} />
-                        {Math.round(weather.temp)}°{config.temperatureUnit === 'Fahrenheit' ? 'F' : 'C'} · {weather.description}
-                      </div>
-                      {currentLocalTime || currentSeason ? (
-                        <div className={styles.infoSub}>
-                          {currentLocalTime || '—'} {currentSeason ? <>· <SeasonIcon season={currentSeason as 'Summer' | 'Autumn' | 'Winter' | 'Spring'} /> {currentSeason}</> : null}
-                        </div>
-                      ) : null}
-                      <div className={styles.infoSub}>Sunrise {formatLocalFromUnix(weather.sunrise, weather.timezoneName)} · Sunset {formatLocalFromUnix(weather.sunset, weather.timezoneName)}</div>
-                    </>
-                  ) : (
-                    <div className={styles.infoSub}>Set Visual Crossing API key in Settings</div>
-                  )}
-                </div>
-                <div className={styles.infoTile}>
-                  <div className={styles.infoTitle}>Typical for {(() => {
-                    const d = new Date(`${weatherAnchorDate}T00:00:00.000Z`);
-                    const dayOfMonth = d.getUTCDate();
-                    const part = dayOfMonth <= 10 ? 'early' : dayOfMonth <= 20 ? 'mid' : 'late';
-                    return `${part} ${d.toLocaleString('en-NZ', { month: 'long' })}`;
-                  })()}</div>
-                  {typicalWeather ? (
-                    <>
-                      <div className={styles.infoLine}>{typicalWeather.tempRange} · {typicalWeather.conditions}</div>
-                      <div className={styles.infoSub}>Sunrise {hhmmOnly(typicalWeather.sunrise)} · Sunset {hhmmOnly(typicalWeather.sunset)}</div>
-                    </>
-                  ) : countryData && seasonal ? (
-                    <>
-                      <div className={styles.infoLine}>{seasonal.tempRange} · {seasonal.conditions}</div>
-                      <div className={styles.infoSub}>Daylight: {seasonal.daylight}</div>
-                    </>
-                  ) : (
-                    <div className={styles.infoSub}>Typical weather unavailable.</div>
-                  )}
-                </div>
-                <div className={styles.infoTile}>
-                  <div className={styles.infoTitle}>Currency and tipping</div>
-                  {countryData ? (
-                    <>
-                      <div className={styles.infoLine}>{countryData.currency} ({countryData.currencyCode})</div>
-                      <div className={styles.infoSub}>{countryData.tipping}</div>
-                    </>
-                  ) : (
-                  <div className={styles.infoSub}>Currency/tipping guidance unavailable.</div>
-                  )}
-                </div>
-              </div>
+            {allPlacesForInfo.length ? (
+              <>
+                {!isShared && followingDayOptions.length ? (
+                  <div className={styles.copyLocationRow}>
+                    <span className={styles.infoSub}>Same primary location on next:</span>
+                    {followingDayOptions.map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        className={styles.clearPlaceBtn}
+                        onClick={() => applyPrimaryToFollowingDays(n)}
+                      >
+                        {n} day{n === 1 ? '' : 's'}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                {allPlacesForInfo.length > 1 ? (
+                  <div className={styles.placeInfoTabs} role="tablist" aria-label="Place information">
+                    {allPlacesForInfo.map((row) => (
+                      <button
+                        key={row.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={activePlaceInfoId === row.id}
+                        className={`${styles.placeInfoTab} ${activePlaceInfoId === row.id ? styles.placeInfoTabActive : ''}`}
+                        onClick={() => setActivePlaceInfoId(row.id)}
+                      >
+                        {row.place.title}
+                        {row.isPrimary ? ' (Primary)' : ''}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                {activePlaceInfo ? (
+                  <PlaceInfoPanel place={activePlaceInfo.place} weatherAnchorDate={weatherAnchorDate} />
+                ) : null}
+              </>
             ) : (
               <div className={styles.infoSub}>Set a primary location to view place intelligence.</div>
             )}
@@ -658,14 +504,14 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
         )}
         {tipOpen ? (
           <TipCalculator
-            currency={countryData?.currencyCode || config.homeCurrency}
+            currency={tipCountryData?.currencyCode || config.homeCurrency}
             defaultPercent={(() => {
-              const t = (countryData?.tipping || '').toLowerCase();
+              const t = (tipCountryData?.tipping || '').toLowerCase();
               if (t.indexOf('not expected') >= 0 || t.indexOf('not customary') >= 0) return 0;
-              const m = (countryData?.tipping || '').match(/(\d{1,2})\s?%/);
+              const m = (tipCountryData?.tipping || '').match(/(\d{1,2})\s?%/);
               return m ? Number(m[1]) : 10;
             })()}
-            note={countryData?.tipping || 'No tipping guidance available for this location.'}
+            note={tipCountryData?.tipping || 'No tipping guidance available for this location.'}
             onClose={() => setTipOpen(false)}
           />
         ) : null}
