@@ -2,7 +2,12 @@ import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 import { TripDay, TripDayType } from '../models';
 import { isPreTripDayRow } from '../utils/itineraryDayEntries';
-import { calendarDayBefore, eachCalendarDayYmd, ymdSlice } from '../utils/tripDateRangeSync';
+import {
+  calendarDayBefore,
+  eachCalendarDayYmd,
+  planChronologicalRenumber,
+  ymdSlice
+} from '../utils/tripDateRangeSync';
 import { parseAdditionalPlaceRef, serializeAdditionalPlaceRef } from '../utils/tripDayPlaces';
 
 const LIST = 'TripDays';
@@ -190,6 +195,25 @@ export class DayService {
       created.push(row);
     }
     return created;
+  }
+
+  /**
+   * Renumbers non–pre-trip days 1..N by calendar date so sidebar order matches real dates.
+   * Only auto-updates display titles that are blank or match "Day N".
+   */
+  async renumberDaysChronologically(tripId: string, allDays: TripDay[]): Promise<TripDay[]> {
+    const patches = planChronologicalRenumber(allDays.filter((d) => d.tripId === tripId));
+    if (!patches.length) return allDays;
+
+    let next = [...allDays];
+    for (const patch of patches) {
+      // eslint-disable-next-line no-await-in-loop
+      await this.update(patch.id, { dayNumber: patch.dayNumber, displayTitle: patch.displayTitle });
+      next = next.map((d) =>
+        d.id === patch.id ? { ...d, dayNumber: patch.dayNumber, displayTitle: patch.displayTitle } : d
+      );
+    }
+    return next;
   }
 
   /** Moves pre-trip anchor to the calendar day before trip start when start date changes. */

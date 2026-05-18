@@ -9,6 +9,7 @@ const PRINT_EXTRA_CSS = `
   .mobileNav,
   .previewBackdrop,
   .th-print-ui-only,
+  .th-day-planner-print-backdrop,
   [class*="previewBackdrop"],
   [class*="editOverlay"] {
     display: none !important;
@@ -22,6 +23,10 @@ const PRINT_EXTRA_CSS = `
   .trackScroll {
     overflow: visible !important;
     min-height: 0 !important;
+    height: auto !important;
+  }
+  .trackInner {
+    min-height: 0 !important;
   }
   .dayHead,
   .timeAxis {
@@ -31,6 +36,81 @@ const PRINT_EXTRA_CSS = `
     box-shadow: none !important;
   }
 `;
+
+const PRINT_STYLE_PROPS = [
+  'display',
+  'position',
+  'top',
+  'left',
+  'right',
+  'bottom',
+  'width',
+  'height',
+  'min-width',
+  'min-height',
+  'max-width',
+  'max-height',
+  'margin',
+  'padding',
+  'border',
+  'border-radius',
+  'box-sizing',
+  'overflow',
+  'visibility',
+  'opacity',
+  'flex',
+  'flex-direction',
+  'flex-wrap',
+  'flex-shrink',
+  'flex-grow',
+  'align-items',
+  'align-self',
+  'justify-content',
+  'gap',
+  'grid',
+  'grid-template-columns',
+  'grid-template-rows',
+  'grid-column',
+  'grid-row',
+  'grid-area',
+  'font-size',
+  'font-weight',
+  'line-height',
+  'color',
+  'background',
+  'background-color',
+  'text-align',
+  'white-space',
+  'z-index',
+  'transform'
+];
+
+function applyComputedStyles(source: Element, target: Element): void {
+  if (!(source instanceof HTMLElement) || !(target instanceof HTMLElement)) return;
+  const computed = window.getComputedStyle(source);
+  const parts: string[] = [];
+  for (let i = 0; i < PRINT_STYLE_PROPS.length; i++) {
+    const prop = PRINT_STYLE_PROPS[i];
+    const val = computed.getPropertyValue(prop);
+    if (val) parts.push(`${prop}:${val}`);
+  }
+  if (parts.length) {
+    const prev = target.getAttribute('style') || '';
+    target.setAttribute('style', `${prev}${parts.join(';')}`);
+  }
+  const srcChildren = source.children;
+  const tgtChildren = target.children;
+  for (let i = 0; i < srcChildren.length; i++) {
+    if (tgtChildren[i]) applyComputedStyles(srcChildren[i], tgtChildren[i]);
+  }
+}
+
+/** Deep-clone a subtree with computed layout styles inlined (needed for SPFx / CSS modules print). */
+export function cloneForPrint(source: HTMLElement): HTMLElement {
+  const clone = source.cloneNode(true) as HTMLElement;
+  applyComputedStyles(source, clone);
+  return clone;
+}
 
 function collectDocumentStyles(): string {
   const chunks: string[] = [];
@@ -45,7 +125,36 @@ function collectDocumentStyles(): string {
   return chunks.join('\n');
 }
 
-/** Print a cloned DOM subtree in a hidden iframe (works in SPFx / Chromium hosts). */
+function waitForPrintDocument(doc: Document, win: Window, onReady: () => void): void {
+  const links = Array.from(doc.querySelectorAll('link[rel="stylesheet"]'));
+  if (!links.length) {
+    window.setTimeout(onReady, 80);
+    return;
+  }
+  let pending = links.length;
+  const done = (): void => {
+    pending -= 1;
+    if (pending <= 0) window.setTimeout(onReady, 120);
+  };
+  for (let i = 0; i < links.length; i++) {
+    const link = links[i] as HTMLLinkElement;
+    if (link.sheet) {
+      done();
+    } else {
+      link.addEventListener('load', done);
+      link.addEventListener('error', done);
+    }
+  }
+  win.addEventListener(
+    'load',
+    () => {
+      window.setTimeout(onReady, 120);
+    },
+    { once: true }
+  );
+}
+
+/** Print a DOM subtree in a hidden iframe (works in SPFx / Chromium hosts). */
 export function printHtmlElement(root: HTMLElement, options?: { onAfter?: () => void }): void {
   const iframe = document.createElement('iframe');
   iframe.setAttribute('title', 'Day planner print');
@@ -57,18 +166,18 @@ export function printHtmlElement(root: HTMLElement, options?: { onAfter?: () => 
   const doc = iframe.contentDocument;
   if (!win || !doc) {
     iframe.remove();
-    options?.onAfter?.();
+    if (options?.onAfter) options.onAfter();
     return;
   }
 
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><base href="${document.baseURI}" />${collectDocumentStyles()}<style>${PRINT_EXTRA_CSS}</style></head><body>${root.innerHTML}</body></html>`;
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><base href="${document.baseURI}" />${collectDocumentStyles()}<style>${PRINT_EXTRA_CSS}</style></head><body>${root.outerHTML}</body></html>`;
 
   let cleaned = false;
   const cleanup = (): void => {
     if (cleaned) return;
     cleaned = true;
     iframe.remove();
-    options?.onAfter?.();
+    if (options?.onAfter) options.onAfter();
   };
 
   const doPrint = (): void => {
@@ -87,9 +196,5 @@ export function printHtmlElement(root: HTMLElement, options?: { onAfter?: () => 
   doc.write(html);
   doc.close();
 
-  const schedule = (): void => {
-    window.setTimeout(doPrint, 320);
-  };
-  if (doc.readyState === 'complete') schedule();
-  else win.addEventListener('load', schedule, { once: true });
+  waitForPrintDocument(doc, win, doPrint);
 }

@@ -3,6 +3,7 @@ import {
   analyzeTripDateRangeChange,
   eachCalendarDayYmd,
   listMissingCalendarDates,
+  planChronologicalRenumber,
   suggestReassignmentTargetDayId
 } from './tripDateRangeSync';
 
@@ -63,6 +64,15 @@ describe('tripDateRangeSync', () => {
     });
     expect(plan.requiresReassignment).toBe(false);
     expect(plan.datesToCreate).toEqual(['2026-05-03', '2026-05-04']);
+  });
+
+  it('renumbers days by calendar order when start date moves earlier', () => {
+    const days = [preTrip, day('d1', 1, '2026-04-01'), day('d2', 2, '2026-04-02'), day('d5', 5, '2026-03-31')];
+    const patches = planChronologicalRenumber(days);
+    const byId = new Map(patches.map((p) => [p.id, p]));
+    expect(byId.get('d5')?.dayNumber).toBe(1);
+    expect(byId.get('d1')?.dayNumber).toBe(2);
+    expect(byId.get('d2')?.dayNumber).toBe(3);
   });
 
   it('suggests nearest in-range target day', () => {

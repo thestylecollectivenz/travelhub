@@ -11,7 +11,7 @@ import { FxService } from '../services/FxService';
 import { useSpContext } from './SpContext';
 import { minutesFromTimeStart } from '../utils/itineraryTimeUtils';
 import { repairPreTripCalendarIfCollidingWithFirstDay } from '../utils/tripPreTripCalendarAnchor';
-import { calendarDayBefore, ymdSlice } from '../utils/tripDateRangeSync';
+import { calendarDayBefore, planChronologicalRenumber, ymdSlice } from '../utils/tripDateRangeSync';
 import { isPreTripDayRow } from '../utils/itineraryDayEntries';
 import { useConfig } from './ConfigContext';
 
@@ -113,7 +113,10 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       ]);
 
       setTrip(loadedTrip);
-      const anchoredDays = await repairPreTripCalendarIfCollidingWithFirstDay(daySvc, loadedTrip, loadedDays);
+      let anchoredDays = await repairPreTripCalendarIfCollidingWithFirstDay(daySvc, loadedTrip, loadedDays);
+      if (planChronologicalRenumber(anchoredDays).length) {
+        anchoredDays = await daySvc.renumberDaysChronologically(tripId, anchoredDays);
+      }
       setTripDays(anchoredDays);
       setLocalEntries(loadedEntries);
       // Initialise FX rates
@@ -449,6 +452,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
         }
       }
 
+      nextDays = await daySvc.renumberDaysChronologically(trip.id, nextDays);
       nextDays = await repairPreTripCalendarIfCollidingWithFirstDay(daySvc, trip, nextDays);
       setTripDays(nextDays);
       return created;

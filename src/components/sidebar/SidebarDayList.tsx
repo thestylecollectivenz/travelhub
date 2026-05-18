@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { sumForDay } from '../../utils/financialUtils';
 import { isPreTripDayRow } from '../../utils/itineraryDayEntries';
+import { compareTripDaysChronological } from '../../utils/tripDateRangeSync';
 import { TRAVELHUB_SIDEBAR_FOCUS_DAY } from '../../utils/sidebarDayFocus';
 import { SidebarDayItem } from './SidebarDayItem';
 import styles from './TripSidebar.module.css';
@@ -11,9 +12,7 @@ export const SidebarDayList: React.FC = () => {
 
   const days = React.useMemo(() => {
     if (!trip) return [];
-    return tripDays
-      .filter((d) => d.tripId === trip.id)
-      .sort((a, b) => a.dayNumber - b.dayNumber);
+    return tripDays.filter((d) => d.tripId === trip.id).sort(compareTripDaysChronological);
   }, [trip, tripDays]);
 
   const entries = React.useMemo(

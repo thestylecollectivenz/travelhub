@@ -33,6 +33,49 @@ export function eachCalendarDayYmd(dateStart: string, dateEnd: string): string[]
   return out;
 }
 
+/** Sort trip days for sidebar / lists: pre-trip first, then by calendar date. */
+export function compareTripDaysChronological(a: TripDay, b: TripDay): number {
+  const aPre = isPreTripDayRow(a);
+  const bPre = isPreTripDayRow(b);
+  if (aPre !== bPre) return aPre ? -1 : 1;
+  const ca = ymdSlice(a.calendarDate);
+  const cb = ymdSlice(b.calendarDate);
+  if (ca !== cb) return ca.localeCompare(cb);
+  return a.dayNumber - b.dayNumber;
+}
+
+export function shouldAutoUpdateDayTitle(displayTitle: string, dayNumber: number): boolean {
+  const t = (displayTitle || '').trim();
+  if (!t) return true;
+  if (t === `Day ${dayNumber}`) return true;
+  return /^Day \d+$/.test(t);
+}
+
+export interface TripDayRenumberPatch {
+  id: string;
+  dayNumber: number;
+  displayTitle: string;
+}
+
+/** Assign day numbers 1..N by calendar order (pre-trip unchanged). */
+export function planChronologicalRenumber(tripDays: TripDay[]): TripDayRenumberPatch[] {
+  const patches: TripDayRenumberPatch[] = [];
+  const main = tripDays
+    .filter((d) => !isPreTripDayRow(d))
+    .slice()
+    .sort((a, b) => ymdSlice(a.calendarDate).localeCompare(ymdSlice(b.calendarDate)));
+
+  main.forEach((day, idx) => {
+    const newNum = idx + 1;
+    const autoTitle = shouldAutoUpdateDayTitle(day.displayTitle, day.dayNumber);
+    const nextTitle = autoTitle ? `Day ${newNum}` : day.displayTitle;
+    if (day.dayNumber !== newNum || (autoTitle && day.displayTitle !== nextTitle)) {
+      patches.push({ id: day.id, dayNumber: newNum, displayTitle: nextTitle });
+    }
+  });
+  return patches;
+}
+
 export function isCalendarDateInRange(ymd: string, rangeStart: string, rangeEnd: string): boolean {
   const d = ymdSlice(ymd);
   const s = ymdSlice(rangeStart);
