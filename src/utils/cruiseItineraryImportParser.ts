@@ -181,9 +181,6 @@ function parseCruiseBlockPlainText(text: string): ParsedCruiseRow[] {
     if (!line) continue;
     const dm = line.match(DATE_LINE);
     if (dm) {
-      if (!curPort && lastPortName) {
-        curPort = lastPortName;
-      }
       const mon = dm[1];
       const dayPart = dm[2];
       const yr = dm[3];
@@ -199,9 +196,6 @@ function parseCruiseBlockPlainText(text: string): ParsedCruiseRow[] {
     }
     const em = line.match(EMBEDDED_DATE_LINE);
     if (em) {
-      if (!curPort && lastPortName) {
-        curPort = lastPortName;
-      }
       const mon = em[1];
       const dayPart = em[2];
       const yr = em[3];

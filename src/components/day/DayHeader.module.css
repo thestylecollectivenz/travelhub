@@ -1,19 +1,46 @@
 .bar {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-4);
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: 1fr min(22rem, 40%);
+  gap: var(--space-4) var(--space-5);
+  align-items: start;
 }
 
-.left {
+.titleBlock {
+  grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-1);
   min-width: 0;
-  flex: 1;
+}
+
+.locationsColumn {
+  grid-column: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.placeInfoColumn {
+  grid-column: 2;
+  min-width: 0;
+  align-self: start;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-800);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .line1 {

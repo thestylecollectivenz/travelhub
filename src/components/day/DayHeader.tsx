@@ -3,10 +3,10 @@ import type { TripDay } from '../../models/TripDay';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
 import type { PlaceCandidate } from '../../models/Place';
-import { COUNTRY_DATA } from '../../data/countryData';
 import { formatDayDate } from '../../utils/dateUtils';
 import { compareTripDaysChronological } from '../../utils/tripDateRangeSync';
 import { parseAdditionalPlaceRefs, serializeAdditionalPlaceRef } from '../../utils/tripDayPlaces';
+import { PanelCollapseToggle } from '../shared/PanelCollapseToggle';
 import { PlaceInfoPanel } from './PlaceInfoPanel';
 import styles from './DayHeader.module.css';
 
@@ -180,7 +180,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default' }
 
   return (
     <header className={styles.bar}>
-      <div className={styles.left}>
+      <div className={styles.titleBlock}>
         <div className={styles.line1}>
           <span className={styles.dayNumber}>Day {day.dayNumber}</span>
           {isShared ? (
@@ -242,9 +242,19 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default' }
         <div className={styles.date}>
           {day.dayType === 'PreTrip' ? 'Before trip starts' : formatDayDate(day.calendarDate)}
         </div>
+      </div>
+      <div className={styles.locationsColumn}>
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionTitle}>Locations</h2>
+          <PanelCollapseToggle
+            expanded={locationsExpanded}
+            onToggle={() => setLocationsExpanded((v) => !v)}
+            expandTitle="Show locations and place info"
+            collapseTitle="Hide locations and place info"
+          />
+        </div>
         {locationsExpanded ? (
         <div className={styles.placeSection}>
-          <div className={styles.alsoVisiting}>Locations</div>
           {!isShared ? (
             <div className={styles.searchWrap}>
               <input
@@ -474,10 +484,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default' }
         </div>
         ) : null}
       </div>
-      <div className={styles.right}>
-        <button type="button" className={styles.linkButton} onClick={() => setLocationsExpanded((v) => !v)}>
-          {locationsExpanded ? 'Hide locations' : 'Show locations'}
-        </button>
+      <div className={styles.placeInfoColumn}>
         {locationsExpanded ? (
           <div className={styles.placeInfoCard}>
             {allPlacesForInfo.length ? (
@@ -497,8 +504,6 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default' }
             )}
           </div>
         ) : null}
-
-
       </div>
     </header>
   );

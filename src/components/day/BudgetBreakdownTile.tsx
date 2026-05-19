@@ -3,6 +3,7 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { CategoryIcon } from '../shared/CategoryIcon';
+import { PanelCollapseToggle } from '../shared/PanelCollapseToggle';
 import {
   BUDGET_CATEGORY_ORDER,
   formatCurrency,
@@ -63,6 +64,17 @@ export const BudgetBreakdownTile: React.FC<BudgetBreakdownTileProps> = ({ tripId
   if (categoriesToShow.length === 0) {
     return (
       <section className={styles.tile} aria-label="Day budget breakdown">
+        <div className={styles.tileHeader}>
+          <h2 className={styles.tileTitle}>Day breakdown</h2>
+          {onHide ? (
+            <PanelCollapseToggle
+              expanded
+              onToggle={onHide}
+              expandTitle="Show day breakdown"
+              collapseTitle="Hide day breakdown"
+            />
+          ) : null}
+        </div>
         <div className={styles.empty}>No items for this day yet</div>
       </section>
     );
@@ -71,12 +83,14 @@ export const BudgetBreakdownTile: React.FC<BudgetBreakdownTileProps> = ({ tripId
   return (
     <section className={styles.tile} aria-label="Day budget breakdown">
       <div className={styles.tileHeader}>
-        <h2 className={styles.tileTitle}>Day Breakdown</h2>
-        <span className={styles.tileTotal}>{formatCurrency(dayTotalAll, config.homeCurrency)}</span>
+        <h2 className={styles.tileTitle}>Day breakdown</h2>
         {onHide ? (
-          <button type="button" className={styles.hideBtn} onClick={onHide}>
-            Hide
-          </button>
+          <PanelCollapseToggle
+            expanded
+            onToggle={onHide}
+            expandTitle="Show day breakdown"
+            collapseTitle="Hide day breakdown"
+          />
         ) : null}
       </div>
       {categoriesToShow.map((category) => {
@@ -110,6 +124,11 @@ export const BudgetBreakdownTile: React.FC<BudgetBreakdownTileProps> = ({ tripId
           </div>
         );
       })}
+      <div className={styles.totalRow}>
+        <span className={styles.totalLabel}>Day total</span>
+        <div className={styles.spacer} />
+        <span className={styles.totalAmount}>{formatCurrency(dayTotalAll, config.homeCurrency)}</span>
+      </div>
     </section>
   );
 };

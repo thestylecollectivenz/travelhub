@@ -11,8 +11,7 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-2);
   margin-bottom: var(--space-3);
 }
 
@@ -25,25 +24,31 @@
   letter-spacing: 0.06em;
 }
 
-.tileTotal {
+.totalRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  margin-top: var(--space-1);
+  border-top: 2px solid var(--color-blue-100);
+}
+
+.totalLabel {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-bold);
-  color: var(--color-blue-600);
-  margin-left: auto;
+  color: var(--color-blue-800);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-.hideBtn {
-  border: none;
-  background: transparent;
-  color: var(--color-primary);
-  font-size: var(--font-size-xs);
-  cursor: pointer;
-  padding: 0;
-  white-space: nowrap;
-}
-
-.hideBtn:hover {
-  text-decoration: underline;
+.totalAmount {
+  flex-shrink: 0;
+  width: 6.5rem;
+  text-align: right;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-700);
 }
 
 .empty {

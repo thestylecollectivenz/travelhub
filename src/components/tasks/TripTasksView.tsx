@@ -15,6 +15,15 @@ function entryAmountMissing(amount: number | undefined): boolean {
 }
 
 /** Map reminder EntryId (parent row or sub-item row) to parent entry + day for deep-linking. */
+function reminderDisplayTitle(m: TripReminder): string {
+  if (m.reminderType === 'Manual' || m.reminderType === 'ManualEntryTask') {
+    const raw = (m.reminderText || m.taskNote || m.title || '').trim();
+    if (!raw) return m.title;
+    return raw.startsWith('Task:') ? raw : `Task: ${raw}`;
+  }
+  return m.title;
+}
+
 function resolveReminderItineraryTarget(
   m: TripReminder,
   localEntries: ItineraryEntry[]
@@ -178,7 +187,7 @@ export const TripTasksView: React.FC = () => {
               return (
                 <div key={m.id} className={styles.item}>
                   <div>
-                    <div>{m.title}</div>
+                    <div>{reminderDisplayTitle(m)}</div>
                     <div className={styles.meta}>
                       {m.reminderType ? <span>Type: {m.reminderType}</span> : null}
                       {m.reminderType ? <span aria-hidden> · </span> : null}

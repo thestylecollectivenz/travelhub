@@ -118,6 +118,21 @@ export const TripMap: React.FC = () => {
 
   const renderedStops = stops.length ? stops : lastStops;
 
+  const mapStats = React.useMemo(() => {
+    if (!trip) return { primaryStops: 0, tripDays: 0, countries: 0 };
+    const primary = renderedStops.filter((s) => s.isPrimary);
+    const countries = new Set<string>();
+    for (const s of primary) {
+      const parts = (s.title || '').split(',').map((p) => p.trim()).filter(Boolean);
+      if (parts.length > 1) countries.add(parts[parts.length - 1]);
+    }
+    return {
+      primaryStops: primary.length,
+      tripDays: tripDays.filter((d) => d.tripId === trip.id).length,
+      countries: countries.size
+    };
+  }, [trip, tripDays, renderedStops]);
+
   React.useEffect(() => {
     let cancelled = false;
     let raf = 0;
@@ -291,6 +306,17 @@ export const TripMap: React.FC = () => {
         </p>
       ) : null}
       <div className={`${styles.map} th-map-container`} ref={mapRef} />
+      <div className={styles.stats} aria-label="Route summary">
+        <span>{mapStats.primaryStops} map stop{mapStats.primaryStops === 1 ? '' : 's'}</span>
+        <span aria-hidden>·</span>
+        <span>{mapStats.tripDays} trip day{mapStats.tripDays === 1 ? '' : 's'}</span>
+        {mapStats.countries > 0 ? (
+          <>
+            <span aria-hidden>·</span>
+            <span>{mapStats.countries} countr{mapStats.countries === 1 ? 'y' : 'ies'}</span>
+          </>
+        ) : null}
+      </div>
     </section>
   );
 };

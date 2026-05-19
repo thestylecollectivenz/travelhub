@@ -60,7 +60,7 @@ function compactPlaceLabel(rawTitle: string): string {
 }
 
 export const RouteStrip: React.FC = () => {
-  const { trip, tripDays, selectedDayId, setSelectedDayId, localEntries } = useTripWorkspace();
+  const { trip, tripDays, selectedDayId, setSelectedDayId, setMainWorkspaceTab, localEntries } = useTripWorkspace();
   const { placeById } = usePlaces();
 
   const orderedDays = React.useMemo(() => {
@@ -128,7 +128,10 @@ export const RouteStrip: React.FC = () => {
               <button
                 type="button"
                 className={`${styles.stopBtn} ${isActive ? styles.stopBtnActive : ''}`}
-                onClick={() => setSelectedDayId(s.dayId)}
+                onClick={() => {
+                  setMainWorkspaceTab('itinerary');
+                  setSelectedDayId(s.dayId);
+                }}
               >
                 <span className={styles.placeName}>📍 {compactPlaceLabel(s.title)}</span>
                 <span className={styles.range}>Day {s.startDay}</span>

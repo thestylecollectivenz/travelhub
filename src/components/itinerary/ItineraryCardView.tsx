@@ -994,15 +994,16 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
               onClick={() => {
                 const svc = new ReminderService(spContext);
                 const note = taskDescription.trim();
+                const taskTitle = note || `Follow up: ${entry.title || 'Itinerary item'}`;
                 void svc
                   .create({
-                    title: `Task: ${entry.title || 'Itinerary item'}`,
+                    title: `Task: ${taskTitle}`,
                     tripId: entry.tripId,
                     dayId: entry.dayId,
                     entryId: entry.id,
                     reminderType: 'Manual',
-                    reminderText: note || `Follow up: ${entry.title || 'Itinerary item'}`,
-                    taskNote: note || undefined,
+                    reminderText: taskTitle,
+                    taskNote: entry.title ? `Related: ${entry.title}` : undefined,
                     dueDate: taskDueDate ? `${taskDueDate}T00:00:00.000Z` : undefined,
                     isComplete: false
                   })
@@ -1085,7 +1086,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                     if (!t) return;
                     const addr = (entry.streetAddress || '').trim();
                     const ctxParts = [
-                      entry.title || 'Accommodation',
+                      entry.title || 'Itinerary item',
                       addr || undefined,
                       entry.dateStart ? `Check-in ${entry.dateStart}` : undefined,
                       entry.dateEnd ? `Check-out ${entry.dateEnd}` : undefined
@@ -1093,13 +1094,13 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                     const svc = new ReminderService(spContext);
                     void svc
                       .create({
-                        title: t,
+                        title: `Task: ${t}`,
                         tripId: entry.tripId,
                         dayId: entry.dayId,
                         entryId: entry.id,
                         reminderType: 'ManualEntryTask',
                         reminderText: t,
-                        taskNote: ctxParts.join(' · '),
+                        taskNote: ctxParts.length ? ctxParts.join(' · ') : undefined,
                         dueDate: manualTaskDue ? `${manualTaskDue}T00:00:00.000Z` : undefined,
                         isComplete: false
                       })

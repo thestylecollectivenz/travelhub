@@ -331,14 +331,14 @@ export const TripPhotoAlbum: React.FC = () => {
           </label>
         ) : null}
         <div className={styles.toolbarEnd}>
-          {!sharedPreview && days.length > 0 ? (
-            <button type="button" className={styles.journalEntryButton} onClick={openJournalComposer}>
-              New journal entry
-            </button>
-          ) : null}
           <button type="button" className={styles.addButton} onClick={() => setUploadOpen((v) => !v)}>
             {uploadOpen ? 'Close upload' : 'Add photos'}
           </button>
+          {!sharedPreview && days.length > 0 ? (
+            <button type="button" className={styles.secondaryButton} onClick={openJournalComposer}>
+              New journal entry
+            </button>
+          ) : null}
         </div>
       </div>
 

@@ -122,15 +122,30 @@
 .addButton {
   padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-md);
-  border: var(--border-default);
-  background: var(--color-surface-raised);
+  border: none;
+  background: var(--color-primary);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-bold);
-  color: var(--color-blue-800);
+  color: #fff;
   cursor: pointer;
 }
 
 .addButton:hover {
+  filter: brightness(0.95);
+}
+
+.secondaryButton {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  border: var(--border-default);
+  background: var(--color-surface-raised);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-blue-800);
+  cursor: pointer;
+}
+
+.secondaryButton:hover {
   border-color: var(--color-sand-400);
 }
 

@@ -7,10 +7,8 @@ import { JournalFeed } from '../journal/JournalFeed';
 import { CruiseItineraryImport } from '../cruise/CruiseItineraryImport';
 import { TipCalculator } from '../utilities/TipCalculator';
 import { COUNTRY_DATA } from '../../data/countryData';
-import { sumForDay } from '../../utils/financialUtils';
-import { formatCurrency } from '../../utils/financialUtils';
-import { isPreTripDayRow } from '../../utils/itineraryDayEntries';
 import { usePlaces } from '../../context/PlacesContext';
+import { PanelCollapseToggle } from '../shared/PanelCollapseToggle';
 import { BudgetBreakdownTile } from './BudgetBreakdownTile';
 import { DayHeader } from './DayHeader';
 import styles from './DayPanel.module.css';
@@ -34,7 +32,7 @@ function PlannerGlyph(): React.ReactElement {
 }
 
 export const DayPanel: React.FC = () => {
-  const { trip, tripDays, selectedDayId, setEditingCardId, localEntries, convertToHomeCurrency } = useTripWorkspace();
+  const { trip, tripDays, selectedDayId, setEditingCardId } = useTripWorkspace();
   const { config } = useConfig();
   const { placeById } = usePlaces();
   const [openJournalSignal, setOpenJournalSignal] = React.useState(0);
@@ -59,29 +57,8 @@ export const DayPanel: React.FC = () => {
     );
   }
 
-  const entries = React.useMemo(() => localEntries.filter((e) => e.tripId === trip.id), [localEntries, trip.id]);
-
-  const dayTotal = sumForDay(
-    entries,
-    day.id,
-    convertToHomeCurrency,
-    day.calendarDate,
-    isPreTripDayRow(day)
-  );
-
   const tipPlace = day.primaryPlaceId ? placeById(day.primaryPlaceId) : undefined;
   const tipCountryData = tipPlace ? COUNTRY_DATA[tipPlace.countryCode] : undefined;
-
-  const scrollToBreakdown = (): void => {
-    if (!breakdownVisible) {
-      setBreakdownVisible(true);
-      window.setTimeout(() => {
-        document.getElementById('day-breakdown-tile')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 50);
-      return;
-    }
-    document.getElementById('day-breakdown-tile')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  };
 
   return (
     <div className={styles.root}>
@@ -124,20 +101,15 @@ export const DayPanel: React.FC = () => {
         >
           Export to Excel
         </button>
-        <span className={styles.toolbarDivider} aria-hidden />
-        <button
-          type="button"
-          className={`${styles.itineraryViewBtn} ${styles.dayCostBtn}`}
-          onClick={scrollToBreakdown}
-          title="View day budget breakdown"
-        >
-          {formatCurrency(dayTotal, config.homeCurrency)}
-        </button>
         {!breakdownVisible ? (
-          <button type="button" className={styles.itineraryViewBtn} onClick={() => setBreakdownVisible(true)}>
-            Show breakdown
-          </button>
+          <PanelCollapseToggle
+            expanded={false}
+            onToggle={() => setBreakdownVisible(true)}
+            expandTitle="Show day breakdown"
+            collapseTitle="Hide day breakdown"
+          />
         ) : null}
+        <span className={styles.toolbarDivider} aria-hidden />
         <button type="button" className={styles.itineraryViewBtn} onClick={() => setTipOpen((v) => !v)}>
           Tip calc
         </button>
