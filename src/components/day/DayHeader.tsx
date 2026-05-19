@@ -324,23 +324,55 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
                 key={row.place.id}
                 className={`${styles.locationRow} ${isInfoTarget ? styles.locationRowActive : ''}`}
               >
-                <button
-                  type="button"
-                  className={styles.locationSelectBtn}
-                  onClick={() => setActivePlaceInfoId(row.place.id)}
-                  aria-pressed={isInfoTarget}
-                >
-                  <span className={styles.placePill}>
-                    <span aria-hidden>📍</span> {row.place.title}
-                    {row.primary ? <span className={styles.placeMeta}>Primary</span> : null}
-                  </span>
-                  {isInfoTarget && placeInfoOpen ? (
-                    <span className={styles.locationInfoHint}>Place info</span>
-                  ) : null}
-                </button>
+                <div className={styles.locationRowHead}>
+                  <button
+                    type="button"
+                    className={styles.locationSelectBtn}
+                    onClick={() => setActivePlaceInfoId(row.place.id)}
+                    aria-pressed={isInfoTarget}
+                  >
+                    <span className={styles.placePill}>
+                      <span aria-hidden>📍</span> {row.place.title}
+                      {row.primary ? <span className={styles.placeMeta}>Primary</span> : null}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.locationInfoLink} ${isInfoTarget ? styles.locationInfoLinkActive : ''}`}
+                    onClick={() => {
+                      setActivePlaceInfoId(row.place.id);
+                      setPlaceInfoOpen(true);
+                    }}
+                  >
+                    Place info
+                  </button>
+                </div>
+                {!isShared && row.primary && followingDayOptions.length ? (
+                  <div className={styles.locationCopyRow}>
+                    <span className={styles.infoSub}>Same location for next</span>
+                    <select
+                      className={styles.copyLocationSelect}
+                      value={copyDaysCount}
+                      onChange={(e) => setCopyDaysCount(Number(e.target.value))}
+                      aria-label="Number of following days"
+                    >
+                      {followingDayOptions.map((n) => (
+                        <option key={n} value={n}>
+                          {n} day{n === 1 ? '' : 's'}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      className={styles.clearPlaceBtn}
+                      onClick={() => applyPrimaryToFollowingDays(copyDaysCount)}
+                    >
+                      Apply
+                    </button>
+                  </div>
+                ) : null}
                 {!isShared ? (
-                  <div className={styles.additionalRow}>
-                    <>
+                  <div className={styles.locationActions}>
                       {!row.primary ? (
                         <button
                           type="button"
@@ -436,7 +468,6 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
                       >
                         ↓
                       </button>
-                    </>
                   </div>
                 ) : null}
                 <a className={styles.mapLink} href={`https://www.google.com/maps/@${row.place.latitude},${row.place.longitude},10z`} target="_blank" rel="noopener noreferrer">
@@ -457,30 +488,6 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, dayTotal, onAddEntry,
           <div className={styles.placeInfoCard}>
             {allPlacesForInfo.length ? (
               <>
-                {!isShared && followingDayOptions.length ? (
-                  <div className={styles.copyLocationRow}>
-                    <span className={styles.infoSub}>Same primary location for next</span>
-                    <select
-                      className={styles.copyLocationSelect}
-                      value={copyDaysCount}
-                      onChange={(e) => setCopyDaysCount(Number(e.target.value))}
-                      aria-label="Number of following days"
-                    >
-                      {followingDayOptions.map((n) => (
-                        <option key={n} value={n}>
-                          {n} day{n === 1 ? '' : 's'}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      className={styles.clearPlaceBtn}
-                      onClick={() => applyPrimaryToFollowingDays(copyDaysCount)}
-                    >
-                      Apply
-                    </button>
-                  </div>
-                ) : null}
                 {activePlaceInfo ? (
                   <>
                     <div className={styles.placeInfoHeader}>

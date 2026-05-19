@@ -4,6 +4,7 @@ export interface DayPlannerPrintEntry {
   duration: string;
   category?: string;
   subItems?: string[];
+  details?: string[];
 }
 
 export interface DayPlannerPrintDay {
@@ -35,6 +36,8 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-
 .print-time { font-weight: 600; color: #1a6399; }
 .print-title { font-weight: 600; }
 .print-meta { grid-column: 2; font-size: 0.8rem; color: #5c4f3a; }
+.print-details { grid-column: 2; margin: 2px 0 0; font-size: 0.8rem; color: #5c4f3a; line-height: 1.35; }
+.print-details div { margin-top: 2px; }
 .print-subs { grid-column: 2; margin: 2px 0 0; padding-left: 1rem; font-size: 0.8rem; color: #3a3025; }
 @media print {
   .toolbar { display: none !important; }
@@ -49,6 +52,9 @@ function renderEntryBlock(e: DayPlannerPrintEntry): string {
     + '    <div class="print-title">' + esc(e.title) + '</div>';
   if (meta) {
     html += '<div class="print-meta">' + esc(meta) + '</div>';
+  }
+  if (e.details?.length) {
+    html += '<div class="print-details">' + e.details.map((d) => '<div>' + esc(d) + '</div>').join('') + '</div>';
   }
   if (e.subItems?.length) {
     html += '<ul class="print-subs">' + e.subItems.map((s) => '<li>' + esc(s) + '</li>').join('') + '</ul>';
@@ -74,11 +80,9 @@ function renderDay(day: DayPlannerPrintDay): string {
 export function buildDayPlannerPrintDocument(title: string, days: DayPlannerPrintDay[]): string {
   const body = days.map(renderDay).join('');
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${esc(title)} — Day planner</title><style>${PLANNER_PRINT_STYLES}</style></head><body>
-<div class="toolbar"><button type="button" id="th-print-btn">Print / Save PDF</button></div>
+<div class="toolbar"><button type="button" onclick="window.print();return false;">Print / Save PDF</button></div>
 <div class="th-planner-print"><h1>${esc(title)}</h1>${body}</div>
-<script>
-document.getElementById('th-print-btn').addEventListener('click', function () { window.focus(); window.print(); });
-</script></body></html>`;
+</body></html>`;
 }
 
 export function openDayPlannerPrintPreview(title: string, days: DayPlannerPrintDay[], autoPrint = true): boolean {

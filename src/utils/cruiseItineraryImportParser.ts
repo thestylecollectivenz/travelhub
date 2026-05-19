@@ -109,20 +109,23 @@ function parseCruiseBlockPlainText(text: string): ParsedCruiseRow[] {
   let arrive = '';
   let depart = '';
   let curNotes: string[] = [];
+  let lastPortName = '';
   let dayCounter = 0;
 
   const flush = (): void => {
     if (!curPort) return;
     dayCounter += 1;
     const notes = curNotes.map((n) => n.trim()).filter(Boolean);
+    const cleanPort = splitCruiseShipMeta(curPort).clean;
     rows.push({
       dayNumber: dayCounter,
-      port: splitCruiseShipMeta(curPort).clean,
+      port: cleanPort,
       arrive,
       depart,
       date: curDate || undefined,
       importNotes: notes.length ? notes.join('\n') : undefined
     });
+    lastPortName = cleanPort;
     curPort = '';
     arrive = '';
     depart = '';
@@ -133,6 +136,9 @@ function parseCruiseBlockPlainText(text: string): ParsedCruiseRow[] {
     if (!line) continue;
     const dm = line.match(DATE_LINE);
     if (dm) {
+      if (!curPort && lastPortName) {
+        curPort = lastPortName;
+      }
       flush();
       const mon = dm[1];
       const dayPart = dm[2];
@@ -150,6 +156,9 @@ function parseCruiseBlockPlainText(text: string): ParsedCruiseRow[] {
     }
     const em = line.match(EMBEDDED_DATE_LINE);
     if (em) {
+      if (!curPort && lastPortName) {
+        curPort = lastPortName;
+      }
       flush();
       const mon = em[1];
       const dayPart = em[2];
@@ -178,6 +187,9 @@ function parseCruiseBlockPlainText(text: string): ParsedCruiseRow[] {
     let m = line.match(AD_TIME);
     if (!m) m = line.match(AD_STUCK);
     if (m) {
+      if (!curPort && lastPortName) {
+        curPort = lastPortName;
+      }
       const t = normalizeTime(m[1] || '');
       if (/^DEPARTS/i.test(line)) depart = t || depart;
       else arrive = t || arrive;

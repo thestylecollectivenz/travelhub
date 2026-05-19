@@ -421,9 +421,10 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
               <div className={styles.label}>Review before applying</div>
               <ol className={styles.preview}>
                 {parsed.map((r, i) => (
-                  <li key={`${r.dayNumber}-${r.port}-${i}`}>
+                  <li key={`${r.date || 'd' + r.dayNumber}-${r.port}-${i}`}>
                     {r.date ? `${r.date} — ` : `Day ${r.dayNumber} — `}
                     {r.port} (Arrive {r.arrive || '—'}, Depart {r.depart || '—'})
+                    {r.importNotes ? <div className={styles.previewNote}>{r.importNotes}</div> : null}
                   </li>
                 ))}
               </ol>

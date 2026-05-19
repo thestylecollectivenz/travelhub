@@ -151,7 +151,6 @@ export const ItineraryDayPlannerView: React.FC = () => {
   const [rangeEndOverride, setRangeEndOverride] = React.useState('');
   const [previewEntryId, setPreviewEntryId] = React.useState<string | null>(null);
   const [printPreviewOpen, setPrintPreviewOpen] = React.useState(false);
-  const printSurfaceRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     const mq = window.matchMedia('(max-width: 640px)');
@@ -306,16 +305,6 @@ export const ItineraryDayPlannerView: React.FC = () => {
     setMobileDayIndex(0);
   }, [filter, customStart, customEnd, orderedDays.length]);
 
-  const syncPlannerPrintClone = React.useCallback((): void => {
-    const root = document.getElementById('th-print-root');
-    const host = printSurfaceRef.current;
-    if (!root || !host) return;
-    host.innerHTML = '';
-    const clone = root.cloneNode(true) as HTMLElement;
-    clone.removeAttribute('id');
-    host.appendChild(clone);
-  }, []);
-
   React.useEffect(() => {
     if (!printPreviewOpen) return undefined;
     const onKey = (e: KeyboardEvent): void => {
@@ -373,12 +362,17 @@ export const ItineraryDayPlannerView: React.FC = () => {
             return title;
           })
           .filter(Boolean);
+        const details: string[] = [];
+        if (e.bookingReference?.trim()) details.push(`Ref: ${e.bookingReference.trim()}`);
+        if (e.location?.trim()) details.push(e.location.trim());
+        if (e.streetAddress?.trim()) details.push(e.streetAddress.trim());
         const item = {
           title: e.title || 'Untitled',
           timeLabel: sm !== undefined ? formatTimeHHMM(start) : '—',
           duration: e.duration?.trim() || '1h',
           category: e.category,
-          subItems: subs.length ? subs : undefined
+          subItems: subs.length ? subs : undefined,
+          details: details.length ? details : undefined
         };
         if (sm === undefined) unscheduled.push(item);
         else timedRows.push({ sortMin: sm, entry: item });
@@ -406,21 +400,14 @@ export const ItineraryDayPlannerView: React.FC = () => {
     }
   }, [buildPlannerPrintDays, trip?.title]);
 
-  React.useLayoutEffect(() => {
-    if (!printPreviewOpen) return;
-    syncPlannerPrintClone();
-  }, [
-    printPreviewOpen,
-    syncPlannerPrintClone,
-    filter,
-    customStart,
-    customEnd,
-    visibleDays.length,
-    displayDays.length,
-    localEntries.length,
-    isMobile,
-    mobileDayIndex
-  ]);
+  React.useEffect(() => {
+    if (!printPreviewOpen) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [printPreviewOpen]);
 
   const rangeForDay = React.useCallback((day: TripDay): { start: number; end: number } => {
     const cal = day.calendarDate || '';
@@ -582,7 +569,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
 
   return (
     <>
-    <div className={styles.root} id="th-print-root">
+    <div className={`${styles.root} ${printPreviewOpen ? styles.rootFullscreen : ''}`} id="th-print-root">
       <div className={styles.filterBar}>
         {filters.map((f) => (
           <button
@@ -1252,17 +1239,14 @@ export const ItineraryDayPlannerView: React.FC = () => {
     </div>
       {typeof document !== 'undefined' && printPreviewOpen
         ? ReactDOM.createPortal(
-            <div className="th-day-planner-print-backdrop" role="dialog" aria-modal="true" aria-label="Day planner full-screen preview">
-              <div className="th-print-ui-only th-day-planner-print-chrome">
-                <button type="button" className={styles.rangeReset} onClick={() => setPrintPreviewOpen(false)}>
-                  Close
-                </button>
-                <button type="button" className={styles.printPlannerBtn} onClick={runPlannerPrint}>
-                  <PrintGlyph />
-                  Print
-                </button>
-              </div>
-              <div ref={printSurfaceRef} className="th-day-planner-print-surface" />
+            <div className={styles.fullscreenChrome} role="toolbar" aria-label="Full screen controls">
+              <button type="button" className={styles.rangeReset} onClick={() => setPrintPreviewOpen(false)}>
+                Close
+              </button>
+              <button type="button" className={styles.printPlannerBtn} onClick={runPlannerPrint}>
+                <PrintGlyph />
+                Print
+              </button>
             </div>,
             document.body
           )

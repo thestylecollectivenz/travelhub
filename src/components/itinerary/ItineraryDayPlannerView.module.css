@@ -4,6 +4,26 @@
   padding: 0 var(--space-4) var(--space-4);
 }
 
+.rootFullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  background: var(--color-surface);
+  overflow: auto;
+  padding: var(--space-4);
+  box-sizing: border-box;
+}
+
+.fullscreenChrome {
+  position: fixed;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 12001;
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;
