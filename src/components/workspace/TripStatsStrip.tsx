@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
 import { avgPerDay, formatCurrency, sumByPaymentStatus } from '../../utils/financialUtils';
+import { isPreTripDayRow } from '../../utils/itineraryDayEntries';
 import styles from './TripStatsStrip.module.css';
 
 function IconWallet({ className }: { className?: string }): React.ReactElement {
@@ -62,7 +63,7 @@ export const TripStatsStrip: React.FC = () => {
   const totalBudget = sumByPaymentStatus(entries, 'all', convertToHomeCurrency);
   const spentSoFar = sumByPaymentStatus(entries, 'paid', convertToHomeCurrency);
   const remaining = sumByPaymentStatus(entries, 'unpaid', convertToHomeCurrency);
-  const dayCount = tripDays.filter((d) => trip && d.tripId === trip.id).length;
+  const dayCount = tripDays.filter((d) => trip && d.tripId === trip.id && !isPreTripDayRow(d)).length;
   const averagePerDay = avgPerDay(totalBudget, dayCount);
 
   return (

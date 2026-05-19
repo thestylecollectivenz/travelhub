@@ -957,7 +957,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             setTaskPromptOpen((v) => {
               const next = !v;
               if (!v) {
-                setTaskDescription(`Follow up: ${entry.title || 'Itinerary item'}`);
+                setTaskDescription(entry.title || 'Itinerary item');
               }
               return next;
             });
@@ -994,7 +994,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
               onClick={() => {
                 const svc = new ReminderService(spContext);
                 const note = taskDescription.trim();
-                const taskTitle = note || `Follow up: ${entry.title || 'Itinerary item'}`;
+                const taskTitle = note || entry.title || 'Itinerary item';
                 void svc
                   .create({
                     title: `Task: ${taskTitle}`,
@@ -1003,7 +1003,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                     entryId: entry.id,
                     reminderType: 'Manual',
                     reminderText: taskTitle,
-                    taskNote: entry.title ? `Related: ${entry.title}` : undefined,
+                    taskNote: undefined,
                     dueDate: taskDueDate ? `${taskDueDate}T00:00:00.000Z` : undefined,
                     isComplete: false
                   })

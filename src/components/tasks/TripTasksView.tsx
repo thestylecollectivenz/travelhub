@@ -14,14 +14,30 @@ function entryAmountMissing(amount: number | undefined): boolean {
   return amount <= 0;
 }
 
+function stripFollowUpPrefix(text: string): string {
+  return text.replace(/^Follow\s*up:\s*/i, '').trim();
+}
+
 /** Map reminder EntryId (parent row or sub-item row) to parent entry + day for deep-linking. */
 function reminderDisplayTitle(m: TripReminder): string {
   if (m.reminderType === 'Manual' || m.reminderType === 'ManualEntryTask') {
-    const raw = (m.reminderText || m.taskNote || m.title || '').trim();
-    if (!raw) return m.title;
+    let raw = stripFollowUpPrefix((m.reminderText || m.title || '').trim());
+    if (!raw && m.taskNote) raw = stripFollowUpPrefix(m.taskNote.trim());
+    if (!raw) return 'Task';
     return raw.startsWith('Task:') ? raw : `Task: ${raw}`;
   }
   return m.title;
+}
+
+function shouldShowTaskNote(m: TripReminder): boolean {
+  const note = (m.taskNote || '').trim();
+  if (!note) return false;
+  const display = reminderDisplayTitle(m);
+  const core = display.replace(/^Task:\s*/i, '').trim().toLowerCase();
+  const noteLower = note.toLowerCase();
+  if (noteLower === core) return false;
+  if (noteLower === `related: ${core}`) return false;
+  return true;
 }
 
 function resolveReminderItineraryTarget(
@@ -193,7 +209,7 @@ export const TripTasksView: React.FC = () => {
                       {m.reminderType ? <span aria-hidden> · </span> : null}
                       {m.dueDate ? `Due ${new Date(m.dueDate).toLocaleDateString('en-NZ')}` : 'No due date'}
                     </div>
-                    {m.taskNote?.trim() ? <div className={styles.meta}>Note: {m.taskNote.trim()}</div> : null}
+                    {shouldShowTaskNote(m) ? <div className={styles.meta}>Note: {m.taskNote!.trim()}</div> : null}
                     {target ? (
                       <div className={styles.meta}>
                         {target.contextLine}

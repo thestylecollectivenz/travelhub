@@ -4,6 +4,7 @@ import './LeafletCompat.css';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
 import { parseAdditionalPlaceRefs } from '../../utils/tripDayPlaces';
+import { isPreTripDayRow } from '../../utils/itineraryDayEntries';
 import styles from './TripMap.module.css';
 
 type Stop = {
@@ -69,7 +70,9 @@ export const TripMap: React.FC = () => {
 
   const stops = React.useMemo((): Stop[] => {
     if (!trip) return [];
-    const orderedDays = tripDays.filter((d) => d.tripId === trip.id).sort((a, b) => a.dayNumber - b.dayNumber);
+    const orderedDays = tripDays
+      .filter((d) => d.tripId === trip.id && !isPreTripDayRow(d))
+      .sort((a, b) => a.dayNumber - b.dayNumber);
     const out: Stop[] = [];
     for (const day of orderedDays) {
       const place = placeById(day.primaryPlaceId);
@@ -239,7 +242,7 @@ export const TripMap: React.FC = () => {
         }
 
         const orderedDays = tripDays
-          .filter((d) => (trip ? d.tripId === trip.id : true))
+          .filter((d) => (trip ? d.tripId === trip.id && !isPreTripDayRow(d) : !isPreTripDayRow(d)))
           .sort((a, b) => a.dayNumber - b.dayNumber);
         const polylinePoints: L.LatLngExpression[] = [];
         for (const day of orderedDays) {
@@ -307,14 +310,19 @@ export const TripMap: React.FC = () => {
       ) : null}
       <div className={`${styles.map} th-map-container`} ref={mapRef} />
       <div className={styles.stats} aria-label="Route summary">
-        <span>{mapStats.primaryStops} map stop{mapStats.primaryStops === 1 ? '' : 's'}</span>
-        <span aria-hidden>·</span>
-        <span>{mapStats.tripDays} trip day{mapStats.tripDays === 1 ? '' : 's'}</span>
+        <div className={styles.statChip}>
+          <span className={styles.statValue}>{mapStats.primaryStops}</span>
+          <span className={styles.statLabel}>Map stops</span>
+        </div>
+        <div className={styles.statChip}>
+          <span className={styles.statValue}>{mapStats.tripDays}</span>
+          <span className={styles.statLabel}>Trip days</span>
+        </div>
         {mapStats.countries > 0 ? (
-          <>
-            <span aria-hidden>·</span>
-            <span>{mapStats.countries} countr{mapStats.countries === 1 ? 'y' : 'ies'}</span>
-          </>
+          <div className={styles.statChip}>
+            <span className={styles.statValue}>{mapStats.countries}</span>
+            <span className={styles.statLabel}>Countries</span>
+          </div>
         ) : null}
       </div>
     </section>

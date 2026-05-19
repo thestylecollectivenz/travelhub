@@ -7,12 +7,10 @@
   box-sizing: border-box;
 }
 
-.tileHeader {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: var(--space-2);
+.summaryBar {
   margin-bottom: var(--space-3);
+  border-bottom: var(--border-default);
+  padding-bottom: var(--space-2);
 }
 
 .tileTitle {

@@ -8,7 +8,6 @@ import { CruiseItineraryImport } from '../cruise/CruiseItineraryImport';
 import { TipCalculator } from '../utilities/TipCalculator';
 import { COUNTRY_DATA } from '../../data/countryData';
 import { usePlaces } from '../../context/PlacesContext';
-import { PanelCollapseToggle } from '../shared/PanelCollapseToggle';
 import { BudgetBreakdownTile } from './BudgetBreakdownTile';
 import { DayHeader } from './DayHeader';
 import styles from './DayPanel.module.css';
@@ -37,17 +36,12 @@ export const DayPanel: React.FC = () => {
   const { placeById } = usePlaces();
   const [openJournalSignal, setOpenJournalSignal] = React.useState(0);
   const [itineraryView, setItineraryView] = React.useState<'timeline' | 'dayPlanner'>('timeline');
-  const [breakdownVisible, setBreakdownVisible] = React.useState(config.dayBreakdownVisibleByDefault);
   const [tipOpen, setTipOpen] = React.useState(false);
 
   const day = React.useMemo(() => {
     if (!trip) return undefined;
     return tripDays.find((d) => d.tripId === trip.id && d.id === selectedDayId);
   }, [trip, tripDays, selectedDayId]);
-
-  React.useEffect(() => {
-    setBreakdownVisible(config.dayBreakdownVisibleByDefault);
-  }, [day?.id, config.dayBreakdownVisibleByDefault]);
 
   if (!day || !trip) {
     return (
@@ -63,11 +57,13 @@ export const DayPanel: React.FC = () => {
   return (
     <div className={styles.root}>
       <DayHeader day={day} />
-      {breakdownVisible ? (
-        <div id="day-breakdown-tile">
-          <BudgetBreakdownTile tripId={trip.id} dayId={day.id} onHide={() => setBreakdownVisible(false)} />
-        </div>
-      ) : null}
+      <div id="day-breakdown-tile">
+        <BudgetBreakdownTile
+          tripId={trip.id}
+          dayId={day.id}
+          defaultExpanded={config.dayBreakdownVisibleByDefault}
+        />
+      </div>
       <div className={styles.itineraryToolbar} role="group" aria-label="Itinerary view and actions">
         <button
           type="button"
@@ -101,14 +97,6 @@ export const DayPanel: React.FC = () => {
         >
           Export to Excel
         </button>
-        {!breakdownVisible ? (
-          <PanelCollapseToggle
-            expanded={false}
-            onToggle={() => setBreakdownVisible(true)}
-            expandTitle="Show day breakdown"
-            collapseTitle="Hide day breakdown"
-          />
-        ) : null}
         <span className={styles.toolbarDivider} aria-hidden />
         <button type="button" className={styles.itineraryViewBtn} onClick={() => setTipOpen((v) => !v)}>
           Tip calc

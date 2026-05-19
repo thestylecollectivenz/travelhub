@@ -6,7 +6,7 @@ import type { PlaceCandidate } from '../../models/Place';
 import { formatDayDate } from '../../utils/dateUtils';
 import { compareTripDaysChronological } from '../../utils/tripDateRangeSync';
 import { parseAdditionalPlaceRefs, serializeAdditionalPlaceRef } from '../../utils/tripDayPlaces';
-import { PanelCollapseToggle } from '../shared/PanelCollapseToggle';
+import { CollapsibleSummaryBar } from '../shared/CollapsibleSummaryBar';
 import { PlaceInfoPanel } from './PlaceInfoPanel';
 import styles from './DayHeader.module.css';
 
@@ -74,6 +74,18 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default' }
   }, [day.id, dayLocations.primary?.id, allPlacesForInfo]);
 
   const activePlaceInfo = allPlacesForInfo.find((p) => p.id === activePlaceInfoId) ?? allPlacesForInfo[0];
+
+  const locationsSummary = React.useMemo(() => {
+    const count = (dayLocations.primary ? 1 : 0) + dayLocations.additional.length;
+    if (!count) return 'No locations set';
+    const primaryTitle = dayLocations.primary?.title?.trim();
+    if (count === 1 && primaryTitle) return primaryTitle;
+    if (primaryTitle) {
+      const extra = count - 1;
+      return extra > 0 ? `${primaryTitle} · +${extra} more` : primaryTitle;
+    }
+    return `${count} location${count === 1 ? '' : 's'}`;
+  }, [dayLocations]);
 
   const followingDayOptions = React.useMemo(() => {
     if (!trip || !dayLocations.primary) return [];
@@ -243,17 +255,18 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default' }
           {day.dayType === 'PreTrip' ? 'Before trip starts' : formatDayDate(day.calendarDate)}
         </div>
       </div>
-      <div className={styles.locationsColumn}>
-        <div className={styles.sectionHead}>
-          <h2 className={styles.sectionTitle}>Locations</h2>
-          <PanelCollapseToggle
+      <section className={styles.locationsColumn}>
+        <div className={styles.locationsTile}>
+          <CollapsibleSummaryBar
             expanded={locationsExpanded}
             onToggle={() => setLocationsExpanded((v) => !v)}
-            expandTitle="Show locations and place info"
-            collapseTitle="Hide locations and place info"
-          />
-        </div>
-        {locationsExpanded ? (
+            collapsedSummary={locationsSummary}
+            ariaLabel="Locations"
+            className={styles.locationsSummaryBar}
+          >
+            <h2 className={styles.sectionTitle}>Locations</h2>
+          </CollapsibleSummaryBar>
+          {locationsExpanded ? (
         <div className={styles.placeSection}>
           {!isShared ? (
             <div className={styles.searchWrap}>
@@ -482,8 +495,9 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default' }
           </div>
           {locationMessage ? <div className={styles.infoSub}>{locationMessage}</div> : null}
         </div>
-        ) : null}
-      </div>
+          ) : null}
+        </div>
+      </section>
       <div className={styles.placeInfoColumn}>
         {locationsExpanded ? (
           <div className={styles.placeInfoCard}>
