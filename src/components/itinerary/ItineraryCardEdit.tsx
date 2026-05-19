@@ -694,6 +694,16 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
               <option value="Not booked">Not booked</option>
               <option value="Booked">Booked</option>
             </select>
+            <label className={styles.label} htmlFor={`bookdue-${draft.id}`}>
+              Book by
+            </label>
+            <input
+              id={`bookdue-${draft.id}`}
+              className={styles.input}
+              type="date"
+              value={draft.bookingDueDate?.slice(0, 10) || ''}
+              onChange={(e) => patch({ bookingDueDate: e.target.value || undefined })}
+            />
           </>
         ) : null}
 
@@ -718,6 +728,21 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           <option value="Fully paid">Fully paid</option>
           <option value="Free">Free</option>
         </select>
+
+        {draft.paymentStatus === 'Not paid' || draft.paymentStatus === 'Part paid' ? (
+          <>
+            <label className={styles.label} htmlFor={`paydue-${draft.id}`}>
+              Pay by
+            </label>
+            <input
+              id={`paydue-${draft.id}`}
+              className={styles.input}
+              type="date"
+              value={draft.paymentDueDate?.slice(0, 10) || ''}
+              onChange={(e) => patch({ paymentDueDate: e.target.value || undefined })}
+            />
+          </>
+        ) : null}
 
         {draft.paymentStatus === 'Part paid' ? (
           <>

@@ -10,6 +10,9 @@ import {
   type ParsedCruiseRow
 } from '../../utils/cruiseItineraryImportParser';
 import { splitCruiseShipMeta } from '../../utils/cruisePortSanitize';
+import { buildCruiseImportReport } from '../../utils/cruiseImportReport';
+import { CopyableReportModal } from '../shared/CopyableReportModal';
+import type { Place } from '../../models/Place';
 import styles from './CruiseItineraryImport.module.css';
 
 function newTempEntryId(): string {
@@ -29,7 +32,7 @@ export interface CruiseItineraryImportProps {
 
 export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ trip }) => {
   const { tripDays, localEntries, updateDay, updateEntry } = useTripWorkspace();
-  const { searchPlaces, createOrReusePlace } = usePlaces();
+  const { searchPlaces, createOrReusePlace, places } = usePlaces();
   const { config } = useConfig();
 
   const [open, setOpen] = React.useState(false);
@@ -38,7 +41,7 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
   const [loading, setLoading] = React.useState(false);
   const [parsed, setParsed] = React.useState<ParsedCruiseRow[]>([]);
   const [applyWarnings, setApplyWarnings] = React.useState<string[]>([]);
-  const [postApplyNotes, setPostApplyNotes] = React.useState<string[]>([]);
+  const [importReport, setImportReport] = React.useState<string | null>(null);
 
   const daysForTrip = React.useMemo(
     () => tripDays.filter((d) => d.tripId === trip.id).sort((a, b) => a.dayNumber - b.dayNumber),
@@ -94,7 +97,49 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
     if (p.includes('scenic')) return true;
     if (p.includes('crossing the arctic')) return true;
     if (p.includes('cruising only')) return true;
+    if (p.includes('antarctic experience')) return true;
+    if (p.includes('drake passage')) return true;
+    if (p.includes('glacier alley')) return true;
+    if (p.includes('beagle channel')) return true;
+    if (p.includes('strait of magellan')) return true;
+    if (p.includes('chilean fjords')) return true;
+    if (p.includes('daylight cruising')) return true;
     return false;
+  }, []);
+
+  const matchExistingPlace = React.useCallback((portName: string, knownPlaces: Place[]): PlaceCandidate | null => {
+    const normalize = (v: string): string =>
+      (v || '')
+        .toLowerCase()
+        .replace(/^the\s+/, '')
+        .replace(/[^\w\s,]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    const city = normalize(portName.split(',')[0] || portName);
+    if (!city) return null;
+    let best: Place | undefined;
+    let bestScore = 0;
+    for (const p of knownPlaces) {
+      const title = normalize(p.title);
+      let score = 0;
+      if (title.includes(city)) score += 6;
+      if (title.startsWith(city)) score += 3;
+      if (score > bestScore) {
+        bestScore = score;
+        best = p;
+      }
+    }
+    if (!best || bestScore < 6) return null;
+    return {
+      title: best.title,
+      latitude: best.latitude,
+      longitude: best.longitude,
+      country: best.country,
+      countryCode: best.countryCode,
+      placeType: best.placeType,
+      timeZone: best.timeZone,
+      nominatimId: best.nominatimId
+    };
   }, []);
 
   const seaDayTitle = React.useCallback((port: string): string => {
@@ -137,13 +182,11 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
   }, []);
 
   const geocodePort = React.useCallback(
-    async (portName: string): Promise<PlaceCandidate | null> => {
+    async (portName: string, knownPlaces: Place[]): Promise<PlaceCandidate | null> => {
+      const existing = matchExistingPlace(portName, knownPlaces);
+      if (existing) return existing;
       try {
-        const q1 = `${portName} cruise port`;
-        let results = await searchPlaces(q1);
-        if (!results.length) {
-          results = await searchPlaces(portName);
-        }
+        const results = await searchPlaces(`${portName} cruise port`);
         if (!results.length) return null;
         const ranked = [...results]
           .map((c) => ({ c, score: scoreCandidate(c, portName) }))
@@ -153,14 +196,16 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
         return null;
       }
     },
-    [scoreCandidate, searchPlaces]
+    [matchExistingPlace, scoreCandidate, searchPlaces]
   );
 
   const handleApply = React.useCallback(async () => {
     if (!parsed.length) return;
     setLoading(true);
     setApplyWarnings([]);
-    const warnings: string[] = [];
+    const otherNotes: string[] = [];
+    let skippedCount = 0;
+    const mapPinMisses: Array<{ port: string; date: string }> = [];
     const rowsSorted = [...parsed].sort((a, b) => {
       const ad = (a.date || '').trim();
       const bd = (b.date || '').trim();
@@ -226,25 +271,33 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
       for (const row of rowsSorted) {
         const day = resolveDay(row);
         if (!day) {
-          if (row.date) {
-            warnings.push(`No trip day matched date ${row.date} (${row.port}).`);
-          } else {
-            warnings.push(`No trip day matched “Day ${row.dayNumber}” (${row.port}).`);
-          }
+          skippedCount += 1;
+          otherNotes.push(`Could not match “${row.port}” to a trip day${row.date ? ` (${row.date})` : ''}.`);
           continue;
         }
         if (day.dayType === 'PreTrip') {
-          warnings.push(`Skipped pre-trip day ${row.dayNumber} for ${row.port}.`);
+          skippedCount += 1;
           continue;
         }
         hits.push({ row, day });
       }
 
       if (!hits.length) {
-        setApplyWarnings(warnings);
+        setApplyWarnings(otherNotes);
         setError('Nothing was applied. Check day numbers match your trip days, or add days manually.');
         setLoading(false);
         return;
+      }
+
+      const geocodeCache = new Map<string, PlaceCandidate | null>();
+      const uniqueLandPorts = new Set<string>();
+      for (const { row } of hits) {
+        if (isSeaOrScenicLine(row.port)) continue;
+        const split = splitCruiseShipMeta(row.port);
+        uniqueLandPorts.add(split.clean || row.port.trim());
+      }
+      for (const port of Array.from(uniqueLandPorts)) {
+        geocodeCache.set(port, await geocodePort(port, places));
       }
 
       const byDayId = new Map<string, ParsedCruiseRow[]>();
@@ -292,12 +345,14 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
             firstLandTitle = displayTitleForRow(row);
           }
 
-          const candidate = await geocodePort(displayPort);
+          const candidate = geocodeCache.get(displayPort) ?? null;
           if (!candidate) {
-            warnings.push(`No geocode result for “${displayPort}” (${day.calendarDate || `day ${day.dayNumber}`}).`);
+            const dateKey = (day.calendarDate || row.date || '').slice(0, 10);
+            if (!mapPinMisses.some((m) => m.port === displayPort && m.date === dateKey)) {
+              mapPinMisses.push({ port: displayPort, date: dateKey });
+            }
             updateEntry(makeSegmentEntry(day.id, row, nextSort, displayPort, shipMeta));
             resolved.push({ row, dayId: day.id, calendarDate: day.calendarDate });
-            await delay(250);
             continue;
           }
 
@@ -305,10 +360,9 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
           try {
             place = await createOrReusePlace({ ...candidate, placeType: 'port' });
           } catch {
-            warnings.push(`Could not save place for “${displayPort}” (${day.calendarDate || `day ${day.dayNumber}`}).`);
+            otherNotes.push(`Could not save the map location for “${displayPort}”.`);
             updateEntry(makeSegmentEntry(day.id, row, nextSort, displayPort, shipMeta));
             resolved.push({ row, dayId: day.id, calendarDate: day.calendarDate });
-            await delay(250);
             continue;
           }
           if (!firstLandPlaceId) {
@@ -316,7 +370,7 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
           }
           updateEntry(makeSegmentEntry(day.id, row, nextSort, displayPort, shipMeta));
           resolved.push({ row, dayId: day.id, calendarDate: day.calendarDate });
-          await delay(650);
+          await delay(200);
         }
 
         const seaOnly = landRows.length === 0;
@@ -335,7 +389,7 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
       }
 
       if (resolved.length === 0) {
-        setApplyWarnings(warnings);
+        setApplyWarnings(otherNotes);
         setError('Nothing was applied. Check day numbers match your trip days, or add days manually.');
         setLoading(false);
         return;
@@ -376,7 +430,14 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
       };
 
       updateEntry(cruiseEntry);
-      setPostApplyNotes(warnings);
+      setImportReport(
+        buildCruiseImportReport({
+          appliedCount: resolved.length,
+          skippedCount,
+          mapPinMisses,
+          otherNotes
+        })
+      );
       setApplyWarnings([]);
       setOpen(false);
       setPasteText('');
@@ -402,7 +463,8 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
     seaDayTitle,
     isSeaOrScenicLine,
     itineraryDays,
-    displayTitleForRow
+    displayTitleForRow,
+    places
   ]);
 
   React.useEffect(() => {
@@ -416,13 +478,12 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
 
   return (
     <div className={styles.root}>
-      {postApplyNotes.length ? (
-        <div className={styles.warnings} role="status">
-          Import applied.
-          {postApplyNotes.map((w, i) => (
-            <div key={i}>{w}</div>
-          ))}
-        </div>
+      {importReport ? (
+        <CopyableReportModal
+          title="Cruise import summary"
+          body={importReport}
+          onClose={() => setImportReport(null)}
+        />
       ) : null}
       {open ? (
         <div className={styles.panel} role="region" aria-label="Import cruise itinerary">

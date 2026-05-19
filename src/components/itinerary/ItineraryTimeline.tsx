@@ -81,7 +81,17 @@ const NewComposer: React.FC<NewComposerProps> = ({ tripId, dayId, calendarDate, 
 
 export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) => {
   const spContext = useSpContext();
-  const { trip, localEntries, editingCardId, tripDays } = useTripWorkspace();
+  const { trip, localEntries, editingCardId, focusedEntryId, setFocusedEntryId, tripDays } = useTripWorkspace();
+
+  React.useEffect(() => {
+    if (!focusedEntryId) return undefined;
+    const el = document.getElementById(`itinerary-entry-${focusedEntryId}`);
+    if (el) {
+      window.setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+    }
+    const t = window.setTimeout(() => setFocusedEntryId(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [focusedEntryId, setFocusedEntryId]);
   const [taskEntryIds, setTaskEntryIds] = React.useState<Set<string>>(new Set());
   const [cancellationDeadlineEntryIds, setCancellationDeadlineEntryIds] = React.useState<Set<string>>(new Set());
   const preTripDayId = React.useMemo(() => (trip ? resolvePreTripDayId(tripDays, trip.id) : undefined), [trip, tripDays]);

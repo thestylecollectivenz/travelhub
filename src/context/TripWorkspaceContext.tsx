@@ -15,7 +15,7 @@ import { calendarDayBefore, planChronologicalRenumber, ymdSlice } from '../utils
 import { isPreTripDayRow } from '../utils/itineraryDayEntries';
 import { useConfig } from './ConfigContext';
 
-export type MainWorkspaceTab = 'itinerary' | 'journal' | 'photos' | 'files' | 'map' | 'plan';
+export type MainWorkspaceTab = 'itinerary' | 'journal' | 'photos' | 'files' | 'map' | 'plan' | 'budget';
 
 function newTempId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -31,6 +31,9 @@ export interface TripWorkspaceContextValue {
   setSelectedDayId: (id: string) => void;
   editingCardId: string | null;
   setEditingCardId: (id: string | null) => void;
+  /** Scroll/highlight an itinerary card in read mode (not edit). */
+  focusedEntryId: string | null;
+  setFocusedEntryId: (id: string | null) => void;
   localEntries: ItineraryEntry[];
   loading: boolean;
   error: string | null;
@@ -85,6 +88,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
   const [localEntries, setLocalEntries] = React.useState<ItineraryEntry[]>([]);
   const [selectedDayId, setSelectedDayId] = React.useState<string>('');
   const [editingCardId, setEditingCardId] = React.useState<string | null>(null);
+  const [focusedEntryId, setFocusedEntryId] = React.useState<string | null>(null);
   const [mainWorkspaceTab, setMainWorkspaceTab] = React.useState<MainWorkspaceTab>('itinerary');
   const [sharedPreview, setSharedPreview] = React.useState(false);
   const [loading, setLoading] = React.useState<boolean>(true);
@@ -612,6 +616,8 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       setSelectedDayId,
       editingCardId,
       setEditingCardId,
+      focusedEntryId,
+      setFocusedEntryId,
       localEntries,
       loading,
       error,
@@ -647,6 +653,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       tripDays,
       selectedDayId,
       editingCardId,
+      focusedEntryId,
       localEntries,
       loading,
       error,

@@ -8,6 +8,7 @@ import { TripFilesLinksView } from '../documents/TripFilesLinksView';
 import { TripMap } from '../maps/TripMap';
 import { ErrorBoundary } from '../shared/ErrorBoundary';
 import { TripTasksView } from '../tasks/TripTasksView';
+import { TripBudgetDetailView } from '../budget/TripBudgetDetailView';
 import { PackingListView } from '../packing/PackingListView';
 import { TripSidebar } from '../sidebar/TripSidebar';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
@@ -162,6 +163,7 @@ export const TripContent: React.FC = () => {
       </div>
       <main className={styles.main}>
         {mainWorkspaceTab === 'itinerary' ? <DayPanel /> : null}
+        {mainWorkspaceTab === 'budget' ? <TripBudgetDetailView /> : null}
         {mainWorkspaceTab === 'journal' ? <TripJournalFeed /> : null}
         {mainWorkspaceTab === 'photos' ? <TripPhotoAlbum /> : null}
         {mainWorkspaceTab === 'files' ? <TripFilesLinksView /> : null}

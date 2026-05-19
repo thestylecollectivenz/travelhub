@@ -42,7 +42,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
   hasCancellationDeadlineReminder = false,
   useEditPortal = true
 }) => {
-  const { editingCardId, setEditingCardId, updateEntry, deleteEntry, duplicateEntry } = useTripWorkspace();
+  const { editingCardId, setEditingCardId, focusedEntryId, updateEntry, deleteEntry, duplicateEntry } = useTripWorkspace();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: entry.id,
     disabled: !draggable
@@ -52,6 +52,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
   const isDraftNew = entry.id.startsWith('new-') && editingCardId === 'new';
 
   const showEdit = isEditing || isDraftNew;
+  const isFocused = focusedEntryId === entry.id && !showEdit;
 
   const handleSave = React.useCallback(
     (saved: ItineraryEntry) => {
@@ -93,7 +94,8 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
   return (
     <div
       ref={setNodeRef}
-      className={`${styles.card} ${showEdit ? styles.cardEditing : ''}`}
+      id={`itinerary-entry-${entry.id}`}
+      className={`${styles.card} ${showEdit ? styles.cardEditing : ''} ${isFocused ? styles.cardFocused : ''}`}
       data-category={categorySlug}
       data-entry-id={entry.id}
       style={dragStyle}

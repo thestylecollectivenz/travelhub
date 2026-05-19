@@ -1,6 +1,7 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 import type { Place, PlaceCandidate } from '../models/Place';
+import { nominatimFetch } from '../utils/nominatimThrottle';
 
 const LIST = 'Places';
 
@@ -57,16 +58,13 @@ export class PlaceService {
     const trimmed = query.trim();
     if (!trimmed) return [];
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(trimmed)}&format=json&limit=5&addressdetails=1`;
-    const resp = await fetch(url, {
+    const resp = await nominatimFetch(url, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
-        'User-Agent': 'TravelHub/1.0'
+        'User-Agent': 'TravelHub/1.0 (contact: travelhub@thestylecollective.co.nz)'
       }
     });
-    if (!resp.ok) {
-      throw new Error(`PlaceService.search failed: ${resp.status}`);
-    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rows = (await resp.json()) as any[];
     return rows.map((r) => ({

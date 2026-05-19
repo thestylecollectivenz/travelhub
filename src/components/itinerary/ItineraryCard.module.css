@@ -9,6 +9,10 @@
   transition: box-shadow 150ms ease, border-color 150ms ease;
 }
 
+.cardFocused {
+  box-shadow: 0 0 0 2px var(--color-primary);
+}
+
 .card[data-category="flights"] {
   border-left: 3px solid var(--color-cat-flights);
 }

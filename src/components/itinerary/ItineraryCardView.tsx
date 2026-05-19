@@ -547,10 +547,16 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
 
       <div className={styles.badges}>
         <span className={`${styles.statusPill} ${styles.decisionPill} ${decisionClass}`}>{entry.decisionStatus}</span>
-        <span className={`${styles.statusPill} ${styles.paymentPill} ${paymentClass}`}>{entry.paymentStatus}</span>
+        <span className={`${styles.statusPill} ${styles.paymentPill} ${paymentClass}`}>
+          {entry.paymentStatus}
+          {(entry.paymentStatus === 'Not paid' || entry.paymentStatus === 'Part paid') && entry.paymentDueDate
+            ? ` · by ${entry.paymentDueDate.slice(0, 10)}`
+            : ''}
+        </span>
         {entry.bookingRequired ? (
           <span className={`${styles.statusPill} ${styles.bookingPill} ${styles.booking}`}>
             {entry.bookingStatus}
+            {entry.bookingDueDate ? ` · by ${entry.bookingDueDate.slice(0, 10)}` : ''}
           </span>
         ) : null}
         {hasTask ? <span className={`${styles.statusPill} ${styles.taskPill}`}>Task added</span> : null}

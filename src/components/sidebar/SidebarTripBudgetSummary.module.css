@@ -1,0 +1,41 @@
+.root {
+  padding: var(--space-3) var(--space-2);
+}
+
+.heading {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-800);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-sand-200);
+}
+
+.label {
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-600);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.value {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-800);
+  text-align: right;
+}
+
+.hint {
+  margin: var(--space-3) 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-600);
+  line-height: 1.4;
+}

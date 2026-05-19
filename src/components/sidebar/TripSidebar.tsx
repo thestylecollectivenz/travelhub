@@ -2,8 +2,8 @@ import * as React from 'react';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
 import { ReminderService } from '../../services/ReminderService';
-import { SidebarCategoryBudget } from './SidebarCategoryBudget';
 import { SidebarDayList } from './SidebarDayList';
+import { SidebarTripBudgetSummary } from './SidebarTripBudgetSummary';
 import { SharedSidebarDayList } from './SharedSidebarDayList';
 import styles from './TripSidebar.module.css';
 
@@ -55,6 +55,16 @@ export const TripSidebar: React.FC = () => {
   const filesIcon = (
     <svg viewBox="0 0 16 16" width={18} height={18} fill="none" aria-hidden>
       <path d="M6.2 8.2 9.8 4.6a2 2 0 1 1 2.8 2.8L8.2 11.8a3 3 0 0 1-4.2-4.2L8 3.6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+  const budgetIcon = (
+    <svg viewBox="0 0 16 16" width={18} height={18} fill="none" aria-hidden>
+      <path
+        d="M2.5 4.5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2v-7Z"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+      <path d="M2.5 7h11" stroke="currentColor" strokeWidth="1.2" />
     </svg>
   );
   const planIcon = (
@@ -149,6 +159,17 @@ export const TripSidebar: React.FC = () => {
         <button
           type="button"
           role="tab"
+          aria-selected={mainWorkspaceTab === 'budget'}
+          className={`${styles.tab} ${mainWorkspaceTab === 'budget' ? styles.tabActive : ''}`}
+          onClick={() => setMainWorkspaceTab('budget')}
+          title="Budget"
+          aria-label="Budget"
+        >
+          {budgetIcon}
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={mainWorkspaceTab === 'map'}
           className={`${styles.tab} ${mainWorkspaceTab === 'map' ? styles.tabActive : ''}`}
           onClick={() => setMainWorkspaceTab('map')}
@@ -203,10 +224,8 @@ export const TripSidebar: React.FC = () => {
         </button>
       </div>
       <div className={styles.sidebarBodyScroll}>
-        {mainWorkspaceTab === 'itinerary' ? <SidebarDayList /> : null}
+        {mainWorkspaceTab === 'budget' ? <SidebarTripBudgetSummary /> : <SidebarDayList />}
       </div>
-      <div className={styles.divider} role="presentation" />
-      <SidebarCategoryBudget />
     </div>
   );
 };

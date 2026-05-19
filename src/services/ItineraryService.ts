@@ -59,6 +59,8 @@ const SELECT_PHASE7 = [
   'PerksIncluded',
   'CancellationPolicy',
   'CancellationDeadline',
+  'BookingDueDate',
+  'PaymentDueDate',
   'CruiseReference',
   'CruiseLineName',
   'ShipName',
@@ -211,6 +213,8 @@ function mapToEntry(item: any): ItineraryEntry {
     perksIncluded: item.PerksIncluded ? String(item.PerksIncluded) : undefined,
     cancellationPolicy: item.CancellationPolicy ? String(item.CancellationPolicy) : undefined,
     cancellationDeadline: item.CancellationDeadline ? String(item.CancellationDeadline) : undefined,
+    bookingDueDate: parseDate(item.BookingDueDate),
+    paymentDueDate: parseDate(item.PaymentDueDate),
     cruiseReference: item.CruiseReference ?? undefined,
     cruiseLineName: item.CruiseLineName ?? undefined,
     shipName: item.ShipName ?? undefined,
@@ -298,6 +302,8 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
       }
     }
   }
+  if (entry.bookingDueDate !== undefined) item.BookingDueDate = serializeDate(entry.bookingDueDate);
+  if (entry.paymentDueDate !== undefined) item.PaymentDueDate = serializeDate(entry.paymentDueDate);
   if (entry.cruiseReference !== undefined) item.CruiseReference = entry.cruiseReference || null;
   if (entry.cruiseLineName !== undefined) item.CruiseLineName = entry.cruiseLineName || null;
   if (entry.shipName !== undefined) item.ShipName = entry.shipName || null;

@@ -85,6 +85,10 @@ export interface ItineraryEntry {
   cancellationPolicy?: string;
   /** ISO 8601 local-ish string for datetime-local / SharePoint DateTime. */
   cancellationDeadline?: string;
+  /** YYYY-MM-DD — when booking should be completed by. */
+  bookingDueDate?: string;
+  /** YYYY-MM-DD — when payment should be made by. */
+  paymentDueDate?: string;
   cruiseReference?: string;
   cruiseLineName?: string;
   shipName?: string;
