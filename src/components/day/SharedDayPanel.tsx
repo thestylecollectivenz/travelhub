@@ -33,7 +33,7 @@ export const SharedDayPanel: React.FC = () => {
 
   return (
     <div className={styles.root}>
-      <DayHeader variant="shared" day={day} dayTotal={0} onAddEntry={() => undefined} />
+      <DayHeader variant="shared" day={day} />
       <SharedItinerarySummary
         entries={entries}
         dayId={day.id}

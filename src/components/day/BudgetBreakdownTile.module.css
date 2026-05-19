@@ -29,6 +29,21 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-bold);
   color: var(--color-blue-600);
+  margin-left: auto;
+}
+
+.hideBtn {
+  border: none;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.hideBtn:hover {
+  text-decoration: underline;
 }
 
 .empty {

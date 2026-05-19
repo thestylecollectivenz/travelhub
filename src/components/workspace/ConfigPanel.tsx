@@ -142,6 +142,17 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
             />
             <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-800)' }}>Show traveller names on trips</span>
           </label>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <input
+              type="checkbox"
+              checked={draft.dayBreakdownVisibleByDefault}
+              onChange={(e) => setDraft((d) => ({ ...d, dayBreakdownVisibleByDefault: e.target.checked }))}
+            />
+            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-800)' }}>
+              Show day budget breakdown by default
+            </span>
+          </label>
         </div>
 
         <div

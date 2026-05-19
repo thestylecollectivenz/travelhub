@@ -79,7 +79,6 @@ function isSkipLine(line: string): boolean {
   const u = line.toUpperCase();
   if (!line.trim()) return true;
   if (u.includes('WHEELCHAIR')) return true;
-  if (u === 'OVERNIGHT') return true;
   if (/\b(FRENCH|VERANDA|BALCONY|SUITE|STATEROOM|CABIN|ROOM)\b/i.test(u) && /\b\d{2,4}\b/.test(u)) return true;
   if (/^\d+\s*(?:M2|SQM|SQ FT|SQFT)\b/i.test(u)) return true;
   if (/^DECK\s+\d+/i.test(u)) return true;
@@ -97,6 +96,7 @@ function extractImportNote(line: string): string | null {
   if (u === 'CRUISING ONLY') return t;
   if (u.includes('ROUTE TIME')) return t;
   if (u.includes('TIMES SUBJECT')) return t;
+  if (u === 'OVERNIGHT') return 'OVERNIGHT';
   return null;
 }
 
@@ -111,25 +111,70 @@ function parseCruiseBlockPlainText(text: string): ParsedCruiseRow[] {
   let curNotes: string[] = [];
   let lastPortName = '';
   let dayCounter = 0;
+  let pendingDates: string[] = [];
 
   const flush = (): void => {
     if (!curPort) return;
-    dayCounter += 1;
     const notes = curNotes.map((n) => n.trim()).filter(Boolean);
     const cleanPort = splitCruiseShipMeta(curPort).clean;
-    rows.push({
-      dayNumber: dayCounter,
-      port: cleanPort,
-      arrive,
-      depart,
-      date: curDate || undefined,
-      importNotes: notes.length ? notes.join('\n') : undefined
-    });
+    const dates =
+      pendingDates.length
+        ? [...pendingDates, ...(curDate && pendingDates.indexOf(curDate) < 0 ? [curDate] : [])]
+        : curDate
+          ? [curDate]
+          : [];
+    if (!dates.length) {
+      dayCounter += 1;
+      rows.push({
+        dayNumber: dayCounter,
+        port: cleanPort,
+        arrive,
+        depart,
+        importNotes: notes.length ? notes.join('\n') : undefined
+      });
+    } else if (dates.length === 1) {
+      dayCounter += 1;
+      rows.push({
+        dayNumber: dayCounter,
+        port: cleanPort,
+        arrive,
+        depart,
+        date: dates[0],
+        importNotes: notes.length ? notes.join('\n') : undefined
+      });
+    } else {
+      for (let i = 0; i < dates.length; i++) {
+        dayCounter += 1;
+        const isFirst = i === 0;
+        const isLast = i === dates.length - 1;
+        rows.push({
+          dayNumber: dayCounter,
+          port: cleanPort,
+          arrive: isFirst ? arrive : '',
+          depart: isLast ? depart : '',
+          date: dates[i],
+          importNotes: isFirst && notes.length ? notes.join('\n') : undefined
+        });
+      }
+    }
     lastPortName = cleanPort;
     curPort = '';
     arrive = '';
     depart = '';
     curNotes = [];
+    pendingDates = [];
+  };
+
+  const applyDate = (iso: string): void => {
+    if (curPort) {
+      flush();
+      curDate = iso;
+      return;
+    }
+    if (curDate && curDate !== iso) {
+      pendingDates.push(curDate);
+    }
+    curDate = iso;
   };
 
   for (const line of raw) {
@@ -139,18 +184,16 @@ function parseCruiseBlockPlainText(text: string): ParsedCruiseRow[] {
       if (!curPort && lastPortName) {
         curPort = lastPortName;
       }
-      flush();
       const mon = dm[1];
       const dayPart = dm[2];
       const yr = dm[3];
       const monNum = MONTH_TO_NUM[mon.toLowerCase()];
       const dayNum = Number(dayPart);
       if (!monNum || !Number.isFinite(dayNum) || dayNum < 1 || dayNum > 31) {
-        curDate = '';
+        applyDate('');
       } else {
         const dayIso = dayNum < 10 ? `0${dayNum}` : String(dayNum);
-        // Keep the literal itinerary date; avoid Date/UTC conversion shifting by timezone.
-        curDate = `${yr}-${monNum}-${dayIso}`;
+        applyDate(`${yr}-${monNum}-${dayIso}`);
       }
       continue;
     }
@@ -159,7 +202,6 @@ function parseCruiseBlockPlainText(text: string): ParsedCruiseRow[] {
       if (!curPort && lastPortName) {
         curPort = lastPortName;
       }
-      flush();
       const mon = em[1];
       const dayPart = em[2];
       const yr = em[3];
@@ -167,10 +209,10 @@ function parseCruiseBlockPlainText(text: string): ParsedCruiseRow[] {
       const monNum = MONTH_TO_NUM[mon.toLowerCase()];
       const dayNum = Number(dayPart);
       if (!monNum || !Number.isFinite(dayNum) || dayNum < 1 || dayNum > 31) {
-        curDate = '';
+        applyDate('');
       } else {
         const dayIso = dayNum < 10 ? `0${dayNum}` : String(dayNum);
-        curDate = `${yr}-${monNum}-${dayIso}`;
+        applyDate(`${yr}-${monNum}-${dayIso}`);
       }
       if (tail) {
         // Examples: "Embark in Amsterdam on Viking Tialfi", "Kinderdijk, The Netherlands"

@@ -288,6 +288,49 @@
   flex-wrap: wrap;
 }
 
+.locationPillRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.locationInlineActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.iconActionBtn {
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-sand-600);
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  line-height: 1;
+  padding: 2px 5px;
+  min-width: 1.4rem;
+}
+
+.iconActionBtn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.iconActionBtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.locationSelectBtn {
+  flex: 0 1 auto;
+  width: auto;
+}
+
 .locationInfoLink {
   border: none;
   background: transparent;

@@ -328,6 +328,12 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
     XLSX.writeFile(workbook, `${trip.title.replace(/[^\w-]+/g, '_') || 'trip'}-itinerary.xlsx`);
   }, [trip, tripDays, localEntries, convertToHomeCurrency, config.homeCurrency]);
 
+  React.useEffect(() => {
+    const onExportExcel = (): void => exportTripToExcel();
+    window.addEventListener('export-trip-excel', onExportExcel);
+    return () => window.removeEventListener('export-trip-excel', onExportExcel);
+  }, [exportTripToExcel]);
+
   const scrollToResult = React.useCallback((selector: string): void => {
     let attempts = 0;
     const run = (): void => {
@@ -574,9 +580,6 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
           <div className={styles.modalDialog} role="dialog" aria-modal="true" aria-label="Export trip">
             <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
               <div className={styles.searchRow}>
-                <button type="button" className={styles.settingsButton} onClick={exportTripToExcel}>
-                  Export itinerary to Excel
-                </button>
                 <button type="button" className={styles.settingsButton} onClick={() => setExportOpen(false)}>
                   Close
                 </button>

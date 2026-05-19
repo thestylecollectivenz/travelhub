@@ -13,6 +13,8 @@ export interface UserConfig {
   /** Persisted workspace sidebar width (px). */
   sidebarWidth: number;
   weatherApiKey: string;
+  /** When false, day budget breakdown starts collapsed on each day. */
+  dayBreakdownVisibleByDefault: boolean;
 }
 
 export const DEFAULT_USER_CONFIG: UserConfig = {
@@ -22,7 +24,8 @@ export const DEFAULT_USER_CONFIG: UserConfig = {
   showTravellerNames: true,
   journalAuthorName: '',
   sidebarWidth: 260,
-  weatherApiKey: ''
+  weatherApiKey: '',
+  dayBreakdownVisibleByDefault: true
 };
 
 async function logFailedResponse(label: string, resp: SPHttpClientResponse): Promise<void> {
@@ -59,7 +62,11 @@ export class ConfigService {
         typeof item.SidebarWidth === 'number'
           ? item.SidebarWidth
           : Number(item.SidebarWidth ?? DEFAULT_USER_CONFIG.sidebarWidth) || DEFAULT_USER_CONFIG.sidebarWidth,
-      weatherApiKey: typeof item.WeatherApiKey === 'string' ? item.WeatherApiKey : ''
+      weatherApiKey: typeof item.WeatherApiKey === 'string' ? item.WeatherApiKey : '',
+      dayBreakdownVisibleByDefault:
+        typeof item.DayBreakdownVisibleByDefault === 'boolean'
+          ? item.DayBreakdownVisibleByDefault
+          : DEFAULT_USER_CONFIG.dayBreakdownVisibleByDefault
     };
   }
 
@@ -73,7 +80,8 @@ export class ConfigService {
       ShowTravellerNames: config.showTravellerNames,
       JournalAuthorName: config.journalAuthorName ?? '',
       SidebarWidth: typeof config.sidebarWidth === 'number' ? config.sidebarWidth : DEFAULT_USER_CONFIG.sidebarWidth,
-      WeatherApiKey: config.weatherApiKey ?? ''
+      WeatherApiKey: config.weatherApiKey ?? '',
+      DayBreakdownVisibleByDefault: config.dayBreakdownVisibleByDefault
     };
   }
 

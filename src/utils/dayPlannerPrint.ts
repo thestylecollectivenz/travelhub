@@ -4,7 +4,7 @@ export type { DayPlannerPrintDay, DayPlannerPrintEntry } from './dayPlannerPrint
 
 /** Print day planner using self-contained HTML (reliable in SharePoint). */
 export function printDayPlannerData(title: string, days: DayPlannerPrintDay[]): boolean {
-  return openDayPlannerPrintPreview(title, days, true);
+  return openDayPlannerPrintPreview(title, days, false);
 }
 
 /** @deprecated DOM clone print — use printDayPlannerData instead. */

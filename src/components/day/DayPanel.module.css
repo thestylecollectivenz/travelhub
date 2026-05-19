@@ -11,10 +11,39 @@
 }
 
 .itineraryToolbar {
-  display: inline-flex;
+  display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
   align-items: center;
+}
+
+.toolbarDivider {
+  width: 1px;
+  height: 1.5rem;
+  background: var(--color-sand-200);
+  margin: 0 var(--space-1);
+}
+
+.dayCostBtn {
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-700);
+}
+
+.addButton {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: var(--color-surface-raised);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.addButton:hover {
+  filter: brightness(1.05);
 }
 
 .itineraryViewBtn {

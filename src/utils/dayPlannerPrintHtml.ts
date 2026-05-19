@@ -80,9 +80,11 @@ function renderDay(day: DayPlannerPrintDay): string {
 export function buildDayPlannerPrintDocument(title: string, days: DayPlannerPrintDay[]): string {
   const body = days.map(renderDay).join('');
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${esc(title)} — Day planner</title><style>${PLANNER_PRINT_STYLES}</style></head><body>
-<div class="toolbar"><button type="button" onclick="window.print();return false;">Print / Save PDF</button></div>
+<div class="toolbar"><button type="button" id="th-print-btn">Print / Save PDF</button></div>
 <div class="th-planner-print"><h1>${esc(title)}</h1>${body}</div>
-</body></html>`;
+<script>
+document.getElementById('th-print-btn').addEventListener('click', function () { window.focus(); window.print(); });
+</script></body></html>`;
 }
 
 export function openDayPlannerPrintPreview(title: string, days: DayPlannerPrintDay[], autoPrint = true): boolean {

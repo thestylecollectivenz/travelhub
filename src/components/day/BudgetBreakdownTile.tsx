@@ -16,9 +16,10 @@ import styles from './BudgetBreakdownTile.module.css';
 export interface BudgetBreakdownTileProps {
   tripId: string;
   dayId: string;
+  onHide?: () => void;
 }
 
-export const BudgetBreakdownTile: React.FC<BudgetBreakdownTileProps> = ({ tripId, dayId }) => {
+export const BudgetBreakdownTile: React.FC<BudgetBreakdownTileProps> = ({ tripId, dayId, onHide }) => {
   const { localEntries, convertToHomeCurrency, tripDays, trip } = useTripWorkspace();
   const { config } = useConfig();
 
@@ -72,6 +73,11 @@ export const BudgetBreakdownTile: React.FC<BudgetBreakdownTileProps> = ({ tripId
       <div className={styles.tileHeader}>
         <h2 className={styles.tileTitle}>Day Breakdown</h2>
         <span className={styles.tileTotal}>{formatCurrency(dayTotalAll, config.homeCurrency)}</span>
+        {onHide ? (
+          <button type="button" className={styles.hideBtn} onClick={onHide}>
+            Hide
+          </button>
+        ) : null}
       </div>
       {categoriesToShow.map((category) => {
         const summary = getPaymentSummaryForDayCategory(

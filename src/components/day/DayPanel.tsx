@@ -1,11 +1,16 @@
 import * as React from 'react';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { useConfig } from '../../context/ConfigContext';
 import { ItineraryTimeline } from '../itinerary/ItineraryTimeline';
 import { ItineraryDayPlannerView } from '../itinerary/ItineraryDayPlannerView';
 import { JournalFeed } from '../journal/JournalFeed';
 import { CruiseItineraryImport } from '../cruise/CruiseItineraryImport';
+import { TipCalculator } from '../utilities/TipCalculator';
+import { COUNTRY_DATA } from '../../data/countryData';
 import { sumForDay } from '../../utils/financialUtils';
+import { formatCurrency } from '../../utils/financialUtils';
 import { isPreTripDayRow } from '../../utils/itineraryDayEntries';
+import { usePlaces } from '../../context/PlacesContext';
 import { BudgetBreakdownTile } from './BudgetBreakdownTile';
 import { DayHeader } from './DayHeader';
 import styles from './DayPanel.module.css';
@@ -30,13 +35,21 @@ function PlannerGlyph(): React.ReactElement {
 
 export const DayPanel: React.FC = () => {
   const { trip, tripDays, selectedDayId, setEditingCardId, localEntries, convertToHomeCurrency } = useTripWorkspace();
+  const { config } = useConfig();
+  const { placeById } = usePlaces();
   const [openJournalSignal, setOpenJournalSignal] = React.useState(0);
   const [itineraryView, setItineraryView] = React.useState<'timeline' | 'dayPlanner'>('timeline');
+  const [breakdownVisible, setBreakdownVisible] = React.useState(config.dayBreakdownVisibleByDefault);
+  const [tipOpen, setTipOpen] = React.useState(false);
 
   const day = React.useMemo(() => {
     if (!trip) return undefined;
     return tripDays.find((d) => d.tripId === trip.id && d.id === selectedDayId);
   }, [trip, tripDays, selectedDayId]);
+
+  React.useEffect(() => {
+    setBreakdownVisible(config.dayBreakdownVisibleByDefault);
+  }, [day?.id, config.dayBreakdownVisibleByDefault]);
 
   if (!day || !trip) {
     return (
@@ -56,16 +69,29 @@ export const DayPanel: React.FC = () => {
     isPreTripDayRow(day)
   );
 
+  const tipPlace = day.primaryPlaceId ? placeById(day.primaryPlaceId) : undefined;
+  const tipCountryData = tipPlace ? COUNTRY_DATA[tipPlace.countryCode] : undefined;
+
+  const scrollToBreakdown = (): void => {
+    if (!breakdownVisible) {
+      setBreakdownVisible(true);
+      window.setTimeout(() => {
+        document.getElementById('day-breakdown-tile')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 50);
+      return;
+    }
+    document.getElementById('day-breakdown-tile')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
+
   return (
     <div className={styles.root}>
-      <DayHeader
-        day={day}
-        dayTotal={dayTotal}
-        onAddEntry={() => setEditingCardId('new')}
-        onWriteJournal={() => setOpenJournalSignal((n) => n + 1)}
-      />
-      <BudgetBreakdownTile tripId={trip.id} dayId={day.id} />
-      <div className={styles.itineraryToolbar} role="group" aria-label="Itinerary view">
+      <DayHeader day={day} />
+      {breakdownVisible ? (
+        <div id="day-breakdown-tile">
+          <BudgetBreakdownTile tripId={trip.id} dayId={day.id} onHide={() => setBreakdownVisible(false)} />
+        </div>
+      ) : null}
+      <div className={styles.itineraryToolbar} role="group" aria-label="Itinerary view and actions">
         <button
           type="button"
           className={styles.itineraryViewBtn}
@@ -91,7 +117,50 @@ export const DayPanel: React.FC = () => {
         >
           Import cruise itinerary
         </button>
+        <button
+          type="button"
+          className={styles.itineraryViewBtn}
+          onClick={() => window.dispatchEvent(new Event('export-trip-excel'))}
+        >
+          Export to Excel
+        </button>
+        <span className={styles.toolbarDivider} aria-hidden />
+        <button
+          type="button"
+          className={`${styles.itineraryViewBtn} ${styles.dayCostBtn}`}
+          onClick={scrollToBreakdown}
+          title="View day budget breakdown"
+        >
+          {formatCurrency(dayTotal, config.homeCurrency)}
+        </button>
+        {!breakdownVisible ? (
+          <button type="button" className={styles.itineraryViewBtn} onClick={() => setBreakdownVisible(true)}>
+            Show breakdown
+          </button>
+        ) : null}
+        <button type="button" className={styles.itineraryViewBtn} onClick={() => setTipOpen((v) => !v)}>
+          Tip calc
+        </button>
+        <button type="button" className={styles.itineraryViewBtn} onClick={() => setOpenJournalSignal((n) => n + 1)}>
+          Journal entry
+        </button>
+        <button type="button" className={styles.addButton} onClick={() => setEditingCardId('new')}>
+          + Add
+        </button>
       </div>
+      {tipOpen ? (
+        <TipCalculator
+          currency={tipCountryData?.currencyCode || config.homeCurrency}
+          defaultPercent={(() => {
+            const t = (tipCountryData?.tipping || '').toLowerCase();
+            if (t.indexOf('not expected') >= 0 || t.indexOf('not customary') >= 0) return 0;
+            const m = (tipCountryData?.tipping || '').match(/(\d{1,2})\s?%/);
+            return m ? Number(m[1]) : 10;
+          })()}
+          note={tipCountryData?.tipping || 'No tipping guidance available for this location.'}
+          onClose={() => setTipOpen(false)}
+        />
+      ) : null}
       <CruiseItineraryImport trip={trip} />
       {itineraryView === 'timeline' ? <ItineraryTimeline dayId={day.id} /> : <ItineraryDayPlannerView />}
       <div className={styles.hideOnPrint}>
