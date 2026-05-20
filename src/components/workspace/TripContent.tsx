@@ -21,14 +21,15 @@ import {
   PRIVATE_WORKSPACE_TAB_COUNT,
   resolveSidebarWidthPx
 } from '../../utils/sidebarWidth';
+import { PlanViewProvider, usePlanView } from '../../context/PlanViewContext';
 import dayHeaderStyles from '../day/DayHeader.module.css';
 import styles from './TripWorkspace.module.css';
 
-export const TripContent: React.FC = () => {
+const TripContentInner: React.FC = () => {
   const { trip, tripDays, selectedDayId, localEntries, reorderEntries, moveEntryToDay, mainWorkspaceTab } = useTripWorkspace();
   const { config, saveConfig } = useConfig();
   const [activeId, setActiveId] = React.useState<string | null>(null);
-  const [planTab, setPlanTab] = React.useState<'tasks' | 'packing'>('tasks');
+  const planView = usePlanView();
   const [sidebarWidth, setSidebarWidth] = React.useState<number>(() =>
     resolveSidebarWidthPx(config, PRIVATE_WORKSPACE_TAB_COUNT)
   );
@@ -186,21 +187,33 @@ export const TripContent: React.FC = () => {
               <button
                 type="button"
                 className={dayHeaderStyles.journalButton}
-                style={planTab === 'tasks' ? { borderColor: 'var(--color-primary)', boxShadow: '0 0 0 1px var(--color-primary)' } : undefined}
-                onClick={() => setPlanTab('tasks')}
+                style={planView?.planTab === 'tasks' ? { borderColor: 'var(--color-primary)', boxShadow: '0 0 0 1px var(--color-primary)' } : undefined}
+                onClick={() => planView?.setPlanTab('tasks')}
               >
                 Tasks
               </button>
               <button
                 type="button"
                 className={dayHeaderStyles.journalButton}
-                style={planTab === 'packing' ? { borderColor: 'var(--color-primary)', boxShadow: '0 0 0 1px var(--color-primary)' } : undefined}
-                onClick={() => setPlanTab('packing')}
+                style={planView?.planTab === 'missing_costs' ? { borderColor: 'var(--color-primary)', boxShadow: '0 0 0 1px var(--color-primary)' } : undefined}
+                onClick={() => planView?.setPlanTab('missing_costs')}
+              >
+                Missing costs
+              </button>
+              <button
+                type="button"
+                className={dayHeaderStyles.journalButton}
+                style={planView?.planTab === 'packing' ? { borderColor: 'var(--color-primary)', boxShadow: '0 0 0 1px var(--color-primary)' } : undefined}
+                onClick={() => planView?.setPlanTab('packing')}
               >
                 Packing
               </button>
             </div>
-            {planTab === 'tasks' ? <TripTasksView /> : <PackingListView />}
+            {planView?.planTab === 'packing' ? (
+              <PackingListView />
+            ) : (
+              <TripTasksView variant={planView?.planTab === 'missing_costs' ? 'missing_costs' : 'tasks'} />
+            )}
           </section>
         ) : null}
       </main>
@@ -225,3 +238,9 @@ export const TripContent: React.FC = () => {
     </DndContext>
   );
 };
+
+export const TripContent: React.FC = () => (
+  <PlanViewProvider>
+    <TripContentInner />
+  </PlanViewProvider>
+);

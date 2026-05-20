@@ -5,7 +5,21 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
 import { parseAdditionalPlaceRefs } from '../../utils/tripDayPlaces';
 import { isPreTripDayRow } from '../../utils/itineraryDayEntries';
+import { TRAVELHUB_MAP_FOCUS, type MapFocusDetail } from '../../utils/mapFocus';
 import styles from './TripMap.module.css';
+
+function escapeHtml(s: string): string {
+  return (s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function shortMapLabel(title: string): string {
+  const t = (title || '').split(',')[0].trim();
+  return t.length > 24 ? `${t.slice(0, 22)}…` : t;
+}
 
 type Stop = {
   placeId: string;
@@ -184,6 +198,22 @@ export const TripMap: React.FC = () => {
   React.useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return undefined;
+    const onFocus = (ev: Event): void => {
+      const detail = (ev as CustomEvent<MapFocusDetail>).detail;
+      if (!detail || !isValidLatLng(detail.latitude, detail.longitude)) return;
+      try {
+        map.flyTo([detail.latitude, detail.longitude], 8, { duration: 0.5 });
+      } catch {
+        map.setView([detail.latitude, detail.longitude], 8);
+      }
+    };
+    window.addEventListener(TRAVELHUB_MAP_FOCUS, onFocus as EventListener);
+    return () => window.removeEventListener(TRAVELHUB_MAP_FOCUS, onFocus as EventListener);
+  }, [mapBoot]);
+
+  React.useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return undefined;
 
     const runId = layerRunRef.current + 1;
     layerRunRef.current = runId;
@@ -207,33 +237,28 @@ export const TripMap: React.FC = () => {
         }
 
         const points: L.LatLngExpression[] = [];
+        const seenLabels = new Set<string>();
         for (const s of renderedStops) {
           if (!isValidLatLng(s.latitude, s.longitude)) continue;
           const ll: L.LatLngExpression = [s.latitude, s.longitude];
           points.push(ll);
           const range = s.startDay === s.endDay ? `Day ${s.startDay}` : `Days ${s.startDay}-${s.endDay}`;
-          const marker = L.circleMarker(ll, {
-            radius: s.isPrimary ? 8 : 6,
-            fillColor: '#1A6399',
-            color: '#ffffff',
-            weight: 2,
-            opacity: 1,
-            fillOpacity: s.isPrimary ? 1 : 0.8,
-            interactive: true,
-            bubblingMouseEvents: true
+          const label = shortMapLabel(s.title);
+          const showLabel = !seenLabels.has(label.toLowerCase());
+          if (showLabel) seenLabels.add(label.toLowerCase());
+          const icon = L.divIcon({
+            className: 'th-map-labeled-pin-wrap',
+            html: `<div class="th-map-labeled-pin"><span class="th-map-labeled-pin-dot"></span>${showLabel ? `<span class="th-map-labeled-pin-label">${escapeHtml(label)}</span>` : ''}</div>`,
+            iconSize: [1, 1],
+            iconAnchor: [12, 20]
           });
+          const marker = L.marker(ll, { icon, interactive: true });
           marker.bindTooltip(s.title, {
             permanent: false,
             sticky: true,
-            interactive: true,
             direction: 'top',
-            offset: [0, -10],
-            opacity: 0.98,
+            offset: [0, -8],
             className: 'th-leaflet-tooltip'
-          });
-          marker.on('add', () => {
-            const el = marker.getElement?.() as SVGElement | null | undefined;
-            if (el) el.setAttribute('title', s.title);
           });
           marker.bindPopup(
             `<strong>${s.title}</strong><br/>${range}<br/><a href="https://www.google.com/maps/@${s.latitude},${s.longitude},10z" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>`

@@ -4,6 +4,7 @@ import { useJournal } from '../../context/JournalContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { JournalEntryCard } from './JournalEntryCard';
 import { JournalEntryComposer } from './JournalEntryComposer';
+import { TRAVELHUB_SCROLL_JOURNAL_DAY } from '../../utils/contentScroll';
 import styles from './TripJournalFeed.module.css';
 
 type SortOrder = 'newest' | 'oldest';
@@ -25,6 +26,23 @@ export const TripJournalFeed: React.FC = () => {
     setLastSeenAt(prev);
     window.localStorage.setItem(key, new Date().toISOString());
   }, [trip?.id]);
+
+  React.useEffect(() => {
+    const onScrollDay = (ev: Event): void => {
+      const dayId = (ev as CustomEvent<{ dayId?: string }>).detail?.dayId;
+      if (!dayId) return;
+      window.requestAnimationFrame(() => {
+        document.getElementById(`journal-day-${dayId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    };
+    window.addEventListener(TRAVELHUB_SCROLL_JOURNAL_DAY, onScrollDay as EventListener);
+    return () => window.removeEventListener(TRAVELHUB_SCROLL_JOURNAL_DAY, onScrollDay as EventListener);
+  }, []);
+
+  React.useEffect(() => {
+    if (!selectedDayId) return;
+    document.getElementById(`journal-day-${selectedDayId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [selectedDayId]);
 
   const hidePreTripJournal = sharedPreview;
 
@@ -109,6 +127,11 @@ export const TripJournalFeed: React.FC = () => {
         : Array.from(map.keys());
     return { order: sectionOrder, map };
   }, [filteredEntries, trip, tripDays, sortOrder, hidePreTripJournal]);
+
+  const selectedDayEntryCount = React.useMemo(
+    () => (selectedDayId ? (groupedByDay.map.get(selectedDayId) ?? []).length : 0),
+    [groupedByDay.map, selectedDayId]
+  );
 
   const openNewEntry = React.useCallback(() => {
     setComposerDayId(resolveDefaultComposerDayId());
@@ -206,8 +229,13 @@ export const TripJournalFeed: React.FC = () => {
       ) : null}
       {filteredEntries.length > 0 ? (
         <div className={styles.list}>
+          {selectedDayId && selectedDayEntryCount === 0 ? (
+            <div className={styles.empty} role="status">
+              No journal entries for the selected day yet.
+            </div>
+          ) : null}
           {groupedByDay.order.map((dayId) => (
-            <section key={dayId} className={styles.daySection} aria-label={dayHeading(dayId)}>
+            <section key={dayId} id={`journal-day-${dayId}`} className={styles.daySection} aria-label={dayHeading(dayId)}>
               <h3 className={styles.dayTag}>{dayHeading(dayId)}</h3>
               <div className={styles.dayEntries}>
                 {(groupedByDay.map.get(dayId) ?? []).map((e) => (

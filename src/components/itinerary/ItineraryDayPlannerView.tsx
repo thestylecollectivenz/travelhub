@@ -19,7 +19,8 @@ import { formatCurrency } from '../../utils/financialUtils';
 import { ItineraryCard } from './ItineraryCard';
 import { SubItemDetailLines } from './SubItemDetailLines';
 import { applyDayViewEntryOrder } from '../../utils/dayViewEntryOrder';
-import { printDayPlannerData, type DayPlannerPrintDay } from '../../utils/dayPlannerPrint';
+import type { DayPlannerPrintDay } from '../../utils/dayPlannerPrint';
+import { DayPlannerPrintSheet, buildPlannerPrintHtml } from './DayPlannerPrintSheet';
 import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../../utils/googleMapsLink';
 import styles from './ItineraryDayPlannerView.module.css';
 
@@ -151,6 +152,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
   const [rangeEndOverride, setRangeEndOverride] = React.useState('');
   const [previewEntryId, setPreviewEntryId] = React.useState<string | null>(null);
   const [printPreviewOpen, setPrintPreviewOpen] = React.useState(false);
+  const [plannerPrintHtml, setPlannerPrintHtml] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const mq = window.matchMedia('(max-width: 640px)');
@@ -386,18 +388,15 @@ export const ItineraryDayPlannerView: React.FC = () => {
     });
   }, [printPreviewOpen, visibleDays, displayDays, entriesForPlannerColumn, tripDays]);
 
-  const runPlannerPrint = React.useCallback((): void => {
+  const openPlannerPrintSheet = React.useCallback((): void => {
     const days = buildPlannerPrintDays();
     if (!days.length) {
       // eslint-disable-next-line no-alert
       window.alert('No days to print for the current filter.');
       return;
     }
-    const ok = printDayPlannerData(trip?.title ? `${trip.title} — Day planner` : 'Day planner', days);
-    if (!ok) {
-      // eslint-disable-next-line no-alert
-      window.alert('Could not open print preview. Allow pop-ups for this site and try again.');
-    }
+    const title = trip?.title ? `${trip.title} — Day planner` : 'Day planner';
+    setPlannerPrintHtml(buildPlannerPrintHtml(title, days));
   }, [buildPlannerPrintDays, trip?.title]);
 
   React.useEffect(() => {
@@ -636,9 +635,9 @@ export const ItineraryDayPlannerView: React.FC = () => {
           <button
             type="button"
             className={styles.printPlannerBtn}
-            onClick={runPlannerPrint}
+            onClick={openPlannerPrintSheet}
             aria-label="Print day planner"
-            title="Opens a print preview in a new tab"
+            title="Opens print preview"
           >
             <PrintGlyph />
             Print
@@ -1243,14 +1242,17 @@ export const ItineraryDayPlannerView: React.FC = () => {
               <button type="button" className={styles.rangeReset} onClick={() => setPrintPreviewOpen(false)}>
                 Close
               </button>
-              <button type="button" className={styles.printPlannerBtn} onClick={runPlannerPrint}>
-                <PrintGlyph />
-                Print
-              </button>
             </div>,
             document.body
           )
         : null}
+      {plannerPrintHtml ? (
+        <DayPlannerPrintSheet
+          title={trip?.title ? `${trip.title} — Day planner` : 'Day planner'}
+          html={plannerPrintHtml}
+          onClose={() => setPlannerPrintHtml(null)}
+        />
+      ) : null}
     </>
   );
 };

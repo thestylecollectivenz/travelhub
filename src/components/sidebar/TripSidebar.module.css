@@ -76,6 +76,49 @@
   border-bottom: none;
 }
 
+.dayListHint {
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-600);
+}
+
+.mapStopBtn,
+.packingCatBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  border-bottom: var(--border-default);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: var(--color-blue-800);
+}
+
+.mapStopBtn:hover,
+.packingCatBtn:hover {
+  background: var(--color-blue-50);
+}
+
+.packingCatBtnActive {
+  background: var(--color-blue-50);
+  font-weight: var(--font-weight-semibold);
+}
+
+.mapStopTitle {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.mapStopMeta {
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-600);
+}
+
 .dayList {
   list-style: none;
   margin: 0;

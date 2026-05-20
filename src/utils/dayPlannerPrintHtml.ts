@@ -23,8 +23,6 @@ function esc(s: string): string {
 
 const PLANNER_PRINT_STYLES = `
 body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color: #0e3d5e; background: #fff; }
-.toolbar { position: sticky; top: 0; z-index: 2; padding: 12px 16px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
-.toolbar button { border: none; border-radius: 8px; padding: 8px 16px; background: #1a6399; color: #fff; font-weight: 600; cursor: pointer; }
 .th-planner-print { padding: 16px 20px 40px; max-width: 72rem; margin: 0 auto; }
 .th-planner-print h1 { font-size: 1.35rem; margin: 0 0 1rem; }
 .print-day { margin-bottom: 1.5rem; page-break-inside: avoid; }
@@ -40,7 +38,6 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-
 .print-details div { margin-top: 2px; }
 .print-subs { grid-column: 2; margin: 2px 0 0; padding-left: 1rem; font-size: 0.8rem; color: #3a3025; }
 @media print {
-  .toolbar { display: none !important; }
   .th-planner-print { padding: 0; max-width: none; }
 }
 `;
@@ -80,11 +77,8 @@ function renderDay(day: DayPlannerPrintDay): string {
 export function buildDayPlannerPrintDocument(title: string, days: DayPlannerPrintDay[]): string {
   const body = days.map(renderDay).join('');
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${esc(title)} — Day planner</title><style>${PLANNER_PRINT_STYLES}</style></head><body>
-<div class="toolbar"><button type="button" id="th-print-btn">Print / Save PDF</button></div>
 <div class="th-planner-print"><h1>${esc(title)}</h1>${body}</div>
-<script>
-document.getElementById('th-print-btn').addEventListener('click', function () { window.focus(); window.print(); });
-</script></body></html>`;
+</body></html>`;
 }
 
 export function openDayPlannerPrintPreview(title: string, days: DayPlannerPrintDay[], autoPrint = true): boolean {

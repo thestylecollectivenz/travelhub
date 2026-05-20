@@ -21,16 +21,8 @@ export const CopyableReportModal: React.FC<CopyableReportModalProps> = ({ title,
     );
   }, [body]);
 
-  React.useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
   return (
-    <div className={styles.backdrop} role="presentation" onClick={onClose}>
+    <div className={styles.backdrop} role="presentation" aria-label={title}>
       <div
         className={styles.dialog}
         role="dialog"

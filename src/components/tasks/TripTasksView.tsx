@@ -4,8 +4,8 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
 import { ReminderService, TripReminder } from '../../services/ReminderService';
 import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
-import { itineraryNotesPreview } from '../../utils/taskNotePreview';
-import { TasksCalendarView, type CalendarEvent, type CalendarRangeFilter } from './TasksCalendarView';
+import { TasksCalendarView, type CalendarEvent } from './TasksCalendarView';
+import type { CalendarRangeFilter } from '../../utils/tasksCalendarRange';
 import { TasksMonthCalendar } from './TasksMonthCalendar';
 import {
   dismissMissingAmountEntry,
@@ -14,7 +14,11 @@ import {
 } from '../../utils/missingAmountDismissed';
 import styles from './TripTasksView.module.css';
 
-type TaskFilter = 'incomplete' | 'all' | 'missing_amounts';
+type TaskFilter = 'incomplete' | 'all';
+
+export interface TripTasksViewProps {
+  variant?: 'tasks' | 'missing_costs';
+}
 type CreateKind = 'task' | 'reminder';
 type ViewMode = 'list' | 'calendar';
 type CalendarLayout = 'grid' | 'list';
@@ -34,7 +38,7 @@ function reminderDisplayTitle(m: TripReminder): string {
   const isManual = m.reminderType === 'Manual' || m.reminderType === 'ManualEntryTask';
   const isReminder = m.reminderType === 'Custom' || m.reminderType === 'CancellationDeadline';
   if (isManual) {
-    let raw = stripFollowUpPrefix((m.reminderText || m.title || '').trim());
+    const raw = stripFollowUpPrefix((m.reminderText || m.title || '').trim());
     if (!raw) return 'Task';
     return raw.startsWith('Task:') ? raw : `Task: ${raw}`;
   }
@@ -79,15 +83,25 @@ function ymdFromIso(iso?: string): string {
   return (iso || '').slice(0, 10);
 }
 
-export const TripTasksView: React.FC = () => {
+export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' }) => {
   const spContext = useSpContext();
-  const { trip, localEntries, tripDays, updateEntry, setSelectedDayId, setEditingCardId, setFocusedEntryId, setMainWorkspaceTab } =
-    useTripWorkspace();
+  const {
+    trip,
+    localEntries,
+    tripDays,
+    updateEntry,
+    setSelectedDayId,
+    setEditingCardId,
+    setFocusedEntryId,
+    setMainWorkspaceTab
+  } = useTripWorkspace();
   const [manual, setManual] = React.useState<TripReminder[]>([]);
   const [filter, setFilter] = React.useState<TaskFilter>('incomplete');
   const [viewMode, setViewMode] = React.useState<ViewMode>('list');
   const [calendarLayout, setCalendarLayout] = React.useState<CalendarLayout>('grid');
-  const [calendarRange, setCalendarRange] = React.useState<CalendarRangeFilter>('this_month');
+  const [calendarRange, setCalendarRange] = React.useState<CalendarRangeFilter>('all');
+  const [customRangeStart, setCustomRangeStart] = React.useState('');
+  const [customRangeEnd, setCustomRangeEnd] = React.useState('');
   const [createKind, setCreateKind] = React.useState<CreateKind>('task');
   const [text, setText] = React.useState('');
   const [dueDate, setDueDate] = React.useState('');
@@ -195,7 +209,12 @@ export const TripTasksView: React.FC = () => {
     return out;
   }, [manual, bookingTasks, paymentTasks]);
 
-  const showStandardSections = filter !== 'missing_amounts';
+  const showMissingCosts = variant === 'missing_costs';
+  const showStandardSections = !showMissingCosts;
+  const customRange = React.useMemo(
+    () => ({ start: customRangeStart, end: customRangeEnd }),
+    [customRangeStart, customRangeEnd]
+  );
 
   const startEditReminder = React.useCallback((m: TripReminder): void => {
     setEditingReminderId(m.id);
@@ -233,46 +252,22 @@ export const TripTasksView: React.FC = () => {
     [editDueDate, editNote, editTitle, refresh, svc]
   );
 
-  const renderManualNote = (note?: string): React.ReactNode => {
-    const n = (note || '').trim();
+  const renderManualNote = (m: TripReminder): React.ReactNode => {
+    const n = (m.taskNote || '').trim();
     if (!n) return null;
-    return (
-      <div className={styles.noteCallout}>
-        <span className={styles.noteCalloutLabel}>Note</span>
-        <p className={styles.noteCalloutText}>{n}</p>
-      </div>
-    );
-  };
-
-  const renderItineraryNote = (entry: ItineraryEntry | undefined): React.ReactNode => {
-    if (!entry?.notes?.trim()) return null;
-    const { preview, truncated } = itineraryNotesPreview(entry.notes);
-    if (!preview) return null;
-    return (
-      <div className={styles.noteBlock}>
-        <span className={styles.noteLabel}>Note: </span>
-        <span className={styles.noteText}>{preview}</span>
-        {truncated ? (
-          <>
-            <span> … </span>
-            <button type="button" className={styles.noteExpand} onClick={() => openEntryInItineraryRead(entry.id, entry.dayId)}>
-              more
-            </button>
-          </>
-        ) : null}
-      </div>
-    );
+    return <p className={styles.taskNoteLine}>{n}</p>;
   };
 
   return (
     <section className={styles.root}>
       <div className={styles.filters}>
         <h2 className={styles.title}>Tasks &amp; reminders</h2>
-        <select className={styles.select} value={filter} onChange={(e) => setFilter(e.target.value as TaskFilter)}>
-          <option value="incomplete">Incomplete only</option>
-          <option value="all">All</option>
-          <option value="missing_amounts">Missing amounts (itinerary)</option>
-        </select>
+        {showStandardSections ? (
+          <select className={styles.select} value={filter} onChange={(e) => setFilter(e.target.value as TaskFilter)}>
+            <option value="incomplete">Incomplete only</option>
+            <option value="all">All</option>
+          </select>
+        ) : null}
         <select className={styles.select} value={viewMode} onChange={(e) => setViewMode(e.target.value as ViewMode)}>
           <option value="list">List</option>
           <option value="calendar">Calendar</option>
@@ -290,19 +285,43 @@ export const TripTasksView: React.FC = () => {
             <option value="next_week">Next week</option>
             <option value="next_month">Next month</option>
             <option value="all">All dates</option>
+            <option value="custom">Custom range</option>
           </select>
+        ) : null}
+        {viewMode === 'calendar' && calendarRange === 'custom' ? (
+          <div className={styles.customRange}>
+            <label>
+              From{' '}
+              <input className={styles.input} type="date" value={customRangeStart} onChange={(e) => setCustomRangeStart(e.target.value)} />
+            </label>
+            <label>
+              To{' '}
+              <input className={styles.input} type="date" value={customRangeEnd} onChange={(e) => setCustomRangeEnd(e.target.value)} />
+            </label>
+          </div>
         ) : null}
       </div>
 
       {viewMode === 'calendar' && showStandardSections ? (
         calendarLayout === 'grid' ? (
-          <TasksMonthCalendar events={calendarEvents} rangeFilter={calendarRange} onOpenEntry={openEntryInItineraryRead} />
+          <TasksMonthCalendar
+            events={calendarEvents}
+            rangeFilter={calendarRange}
+            customRange={calendarRange === 'custom' ? customRange : undefined}
+            tripStartYmd={trip?.dateStart?.slice(0, 10)}
+            onOpenEntry={openEntryInItineraryRead}
+          />
         ) : (
-          <TasksCalendarView events={calendarEvents} rangeFilter={calendarRange} onOpenEntry={openEntryInItineraryRead} />
+          <TasksCalendarView
+            events={calendarEvents}
+            rangeFilter={calendarRange}
+            customRange={calendarRange === 'custom' ? customRange : undefined}
+            onOpenEntry={openEntryInItineraryRead}
+          />
         )
       ) : null}
 
-      {filter === 'missing_amounts' ? (
+      {showMissingCosts ? (
         <div className={styles.group}>
           <h3 className={styles.title}>Itinerary items with no cost entered</h3>
           <p className={styles.hint}>
@@ -315,7 +334,7 @@ export const TripTasksView: React.FC = () => {
             onChange={(e) => setMissingAmountFilter(e.target.value as MissingAmountFilter)}
           >
             <option value="unchecked">Needs review only</option>
-            <option value="all">All (including marked OK)</option>
+            <option value="all">All (including marked costs not required)</option>
           </select>
           {missingAmountEntries.length === 0 ? (
             <div className={styles.meta} role="status">
@@ -452,8 +471,7 @@ export const TripTasksView: React.FC = () => {
                         <div className={styles.meta}>
                           {m.dueDate ? `Due ${new Date(m.dueDate).toLocaleDateString('en-NZ')}` : 'No due date'}
                         </div>
-                        {renderManualNote(m.taskNote)}
-                        {renderItineraryNote(target?.entry)}
+                        {renderManualNote(m)}
                         {target ? (
                           <div className={styles.meta}>
                             {target.contextLine}

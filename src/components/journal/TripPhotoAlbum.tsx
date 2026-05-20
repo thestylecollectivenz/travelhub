@@ -5,6 +5,7 @@ import { useSpContext } from '../../context/SpContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { JournalEntryComposer } from './JournalEntryComposer';
 import { JournalImageLightbox } from './JournalImageLightbox';
+import { TRAVELHUB_SCROLL_PHOTOS_DAY } from '../../utils/contentScroll';
 import styles from './TripPhotoAlbum.module.css';
 
 function AlbumPhotoCell({
@@ -176,6 +177,29 @@ export const TripPhotoAlbum: React.FC = () => {
   }, [days, uploadDayId]);
 
   React.useEffect(() => {
+    const onScrollDay = (ev: Event): void => {
+      const dayId = (ev as CustomEvent<{ dayId?: string }>).detail?.dayId;
+      if (!dayId) return;
+      setLayout('by-day');
+      setScopeDayId(dayId);
+      window.requestAnimationFrame(() => {
+        document.getElementById(`photos-day-${dayId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    };
+    window.addEventListener(TRAVELHUB_SCROLL_PHOTOS_DAY, onScrollDay as EventListener);
+    return () => window.removeEventListener(TRAVELHUB_SCROLL_PHOTOS_DAY, onScrollDay as EventListener);
+  }, []);
+
+  React.useEffect(() => {
+    if (!selectedDayId) return;
+    setLayout('by-day');
+    setScopeDayId(selectedDayId);
+    window.requestAnimationFrame(() => {
+      document.getElementById(`photos-day-${selectedDayId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, [selectedDayId]);
+
+  React.useEffect(() => {
     const urls = pendingFiles.map((f) => URL.createObjectURL(f));
     setPendingPreviews(urls);
     return () => {
@@ -218,13 +242,14 @@ export const TripPhotoAlbum: React.FC = () => {
       const items = photos.filter((p) => p.dayId === scopeDayId);
       return [{ title: d ? `Day ${d.dayNumber} — ${d.displayTitle}` : 'Photos', items }];
     }
-    const sections: { title: string; items: JournalPhoto[] }[] = [];
+    const sections: { title: string; dayId?: string; items: JournalPhoto[] }[] = [];
     for (const dayId of orderedDayIds) {
       const items = grouped.get(dayId) ?? [];
       if (!items.length) continue;
       const d = days.find((x) => x.id === dayId);
       sections.push({
         title: d ? `Day ${d.dayNumber} — ${d.displayTitle}` : 'Photos',
+        dayId,
         items
       });
     }
@@ -281,6 +306,10 @@ export const TripPhotoAlbum: React.FC = () => {
   };
 
   const totalVisible = visibleSections.reduce((n, s) => n + s.items.length, 0);
+  const selectedDayPhotosCount = React.useMemo(
+    () => (selectedDayId ? photos.filter((p) => p.dayId === selectedDayId).length : 0),
+    [photos, selectedDayId]
+  );
 
   return (
     <section className={styles.root} aria-label="Trip photo album">
@@ -421,13 +450,21 @@ export const TripPhotoAlbum: React.FC = () => {
         </div>
       ) : null}
 
-      {totalVisible === 0 && !journalComposerOpen && !uploadOpen ? (
+      {selectedDayId && layout === 'by-day' && scopeDayId === selectedDayId && selectedDayPhotosCount === 0 && !journalComposerOpen && !uploadOpen ? (
+        <div className={styles.empty} role="status">
+          No photos for the selected day yet.
+        </div>
+      ) : totalVisible === 0 && !journalComposerOpen && !uploadOpen ? (
         <div className={styles.empty} role="status">
           No photos yet. Add some from the journal or use Add photos here.
         </div>
       ) : totalVisible > 0 ? (
         visibleSections.map((sec, idx) => (
-          <div key={`${sec.title ?? 'all'}-${idx}`} className={styles.section}>
+          <div
+            key={`${sec.title ?? 'all'}-${idx}`}
+            id={'dayId' in sec && sec.dayId ? `photos-day-${sec.dayId}` : undefined}
+            className={styles.section}
+          >
             {sec.title ? <h3 className={styles.sectionTitle}>{sec.title}</h3> : null}
             <div className={styles.grid}>
               {sec.items.map((p) => (

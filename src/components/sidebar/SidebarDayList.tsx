@@ -4,11 +4,13 @@ import { sumForDay } from '../../utils/financialUtils';
 import { isPreTripDayRow } from '../../utils/itineraryDayEntries';
 import { compareTripDaysChronological } from '../../utils/tripDateRangeSync';
 import { TRAVELHUB_SIDEBAR_FOCUS_DAY } from '../../utils/sidebarDayFocus';
+import { requestJournalDayScroll, requestPhotosDayScroll } from '../../utils/contentScroll';
 import { SidebarDayItem } from './SidebarDayItem';
 import styles from './TripSidebar.module.css';
 
 export const SidebarDayList: React.FC = () => {
-  const { trip, tripDays, selectedDayId, setSelectedDayId, localEntries, convertToHomeCurrency } = useTripWorkspace();
+  const { trip, tripDays, selectedDayId, setSelectedDayId, localEntries, convertToHomeCurrency, mainWorkspaceTab } =
+    useTripWorkspace();
 
   const days = React.useMemo(() => {
     if (!trip) return [];
@@ -44,7 +46,11 @@ export const SidebarDayList: React.FC = () => {
             key={day.id}
             day={day}
             isSelected={day.id === selectedDayId}
-            onSelect={() => setSelectedDayId(day.id)}
+            onSelect={() => {
+              setSelectedDayId(day.id);
+              if (mainWorkspaceTab === 'journal') requestJournalDayScroll(day.id);
+              if (mainWorkspaceTab === 'photos') requestPhotosDayScroll(day.id);
+            }}
             dayTotal={sumForDay(
               entries,
               day.id,

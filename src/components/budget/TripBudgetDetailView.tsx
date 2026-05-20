@@ -11,13 +11,12 @@ import {
   type BudgetCategoryKey
 } from '../../utils/financialUtils';
 import { isPreTripDayRow } from '../../utils/itineraryDayEntries';
+import { formatYmdDisplay, inclusiveDaysBetween, nightsBetween } from '../../utils/localDate';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import styles from './TripBudgetDetailView.module.css';
 
 function bucketCategory(category: string): BudgetCategoryKey {
-  if (category === 'Cruise port' || category === 'Cruise at sea') {
-    return 'Cruise';
-  }
+  if (category === 'Cruise port' || category === 'Cruise at sea') return 'Cruise';
   return BUDGET_CATEGORY_ORDER.some((k) => k === category) ? (category as BudgetCategoryKey) : 'Other';
 }
 
@@ -25,9 +24,47 @@ interface DetailLine {
   id: string;
   title: string;
   dayLabel: string;
-  amount: number;
-  paymentStatus: string;
+  dateLabel: string;
+  spanLabel?: string;
+  avgPerDay?: number;
+  total: number;
+  spent: number;
+  remaining: number;
   isSubItem?: boolean;
+}
+
+function dateRangeLabel(entry: ItineraryEntry): string | undefined {
+  if (entry.dateStart && entry.dateEnd) {
+    const a = formatYmdDisplay(entry.dateStart);
+    const b = formatYmdDisplay(entry.dateEnd);
+    if (a && b) return a === b ? a : `${a} - ${b}`;
+  }
+  if (entry.embarksDate && entry.disembarksDate) {
+    const a = formatYmdDisplay(entry.embarksDate);
+    const b = formatYmdDisplay(entry.disembarksDate);
+    if (a && b) return `${a} - ${b}`;
+  }
+  if (entry.dateStart) return formatYmdDisplay(entry.dateStart);
+  if (entry.embarksDate) return formatYmdDisplay(entry.embarksDate);
+  return undefined;
+}
+
+function spanAndAvg(entry: ItineraryEntry, amount: number): { spanLabel?: string; avgPerDay?: number } {
+  if (entry.category === 'Accommodation' && entry.dateStart && entry.dateEnd) {
+    const nights = nightsBetween(entry.dateStart, entry.dateEnd);
+    if (nights > 0) return { spanLabel: `${nights} night${nights === 1 ? '' : 's'}`, avgPerDay: amount / nights };
+  }
+  if (entry.category === 'Cruise' && entry.embarksDate && entry.disembarksDate) {
+    const days = inclusiveDaysBetween(entry.embarksDate, entry.disembarksDate);
+    if (days > 0) return { spanLabel: `${days} day${days === 1 ? '' : 's'}`, avgPerDay: amount / days };
+  }
+  return {};
+}
+
+function settledAmount(total: number, paid: number | undefined, status: string): number {
+  if (status === 'Fully paid') return total;
+  if (status === 'Part paid') return Math.max(0, Math.min(total, paid ?? 0));
+  return 0;
 }
 
 function buildCategoryLines(
@@ -39,25 +76,38 @@ function buildCategoryLines(
   const lines: DetailLine[] = [];
   for (const entry of entries) {
     if (bucketCategory(entry.category) !== category) continue;
-    const amt = convertToHomeCurrency(entry.amount ?? 0, entry.currency || 'NZD');
-    if (amt > 0 || (entry.amount ?? 0) > 0) {
+    const total = convertToHomeCurrency(entry.amount ?? 0, entry.currency || 'NZD');
+    if (total > 0 || (entry.amount ?? 0) > 0) {
+      const span = spanAndAvg(entry, total);
+      const paid = entry.amountPaid !== undefined
+        ? convertToHomeCurrency(entry.amountPaid, entry.paymentCurrency || entry.currency || 'NZD')
+        : undefined;
+      const spent = settledAmount(total, paid, entry.paymentStatus);
       lines.push({
         id: entry.id,
         title: entry.title || 'Untitled',
         dayLabel: dayLabelFor(entry.dayId),
-        amount: amt,
-        paymentStatus: entry.paymentStatus
+        dateLabel: dateRangeLabel(entry) || dayLabelFor(entry.dayId),
+        spanLabel: span.spanLabel,
+        avgPerDay: span.avgPerDay,
+        total,
+        spent,
+        remaining: Math.max(0, total - spent)
       });
     }
     for (const sub of entry.subItems ?? []) {
-      const subAmt = convertToHomeCurrency(sub.amount ?? 0, sub.currency || 'NZD');
-      if (subAmt > 0 || (sub.amount ?? 0) > 0) {
+      const subTotal = convertToHomeCurrency(sub.amount ?? 0, sub.currency || 'NZD');
+      if (subTotal > 0 || (sub.amount ?? 0) > 0) {
+        const subPaid = sub.amountPaid !== undefined ? convertToHomeCurrency(sub.amountPaid, sub.currency || 'NZD') : undefined;
+        const subSpent = settledAmount(subTotal, subPaid, sub.paymentStatus);
         lines.push({
           id: `${entry.id}-${sub.id}`,
           title: sub.title || 'Option',
           dayLabel: dayLabelFor(entry.dayId),
-          amount: subAmt,
-          paymentStatus: sub.paymentStatus,
+          dateLabel: dateRangeLabel(entry) || dayLabelFor(entry.dayId),
+          total: subTotal,
+          spent: subSpent,
+          remaining: Math.max(0, subTotal - subSpent),
           isSubItem: true
         });
       }
@@ -82,11 +132,11 @@ export const TripBudgetDetailView: React.FC = () => {
   const averagePerDay = avgPerDay(totalBudget, tripDayCount);
 
   const dayLabelFor = React.useCallback(
-    (dayId: string) => {
+    (dayId: string): string => {
       const d = tripDays.find((x) => x.id === dayId);
       if (!d) return 'Day';
-      const date = (d.calendarDate || '').slice(0, 10);
-      return d.displayTitle || date || `Day ${d.dayNumber}`;
+      if (d.dayType === 'PreTrip') return 'Pre-trip';
+      return formatYmdDisplay(d.calendarDate) || `Day ${d.dayNumber}`;
     },
     [tripDays]
   );
@@ -97,7 +147,7 @@ export const TripBudgetDetailView: React.FC = () => {
     [entries, category, convertToHomeCurrency, dayLabelFor]
   );
   const categorySlug = getCategorySlug(category);
-  const categoryTotal = detailLines.reduce((s, l) => s + l.amount, 0);
+  const categoryTotal = detailLines.reduce((s, l) => s + l.total, 0);
 
   return (
     <section className={styles.root} aria-label="Trip budget detail">
@@ -108,7 +158,7 @@ export const TripBudgetDetailView: React.FC = () => {
         </p>
       </header>
 
-      <div className={styles.summaryStrip}>
+      <div className={styles.summaryStrip} role="group" aria-label="Budget totals">
         <div className={styles.summaryChip}>
           <span className={styles.chipValue}>{formatCurrency(totalBudget, config.homeCurrency)}</span>
           <span className={styles.chipLabel}>Total budget</span>
@@ -139,17 +189,27 @@ export const TripBudgetDetailView: React.FC = () => {
         <p className={styles.emptyHint}>No line items with amounts in this category yet.</p>
       ) : (
         <div className={styles.lineList}>
+          <div className={styles.lineHeader}>
+            <span>Details</span>
+            <span>Total budget</span>
+            <span>Spent so far</span>
+            <span>Remaining</span>
+          </div>
           {detailLines.map((line) => (
             <div key={line.id} className={styles.lineRow}>
               <div className={styles.lineMain}>
-                <span className={styles.lineTitle}>
-                  {line.isSubItem ? `↳ ${line.title}` : line.title}
-                </span>
+                <span className={styles.lineTitle}>{line.isSubItem ? `-> ${line.title}` : line.title}</span>
                 <span className={styles.lineMeta}>{line.dayLabel}</span>
+                <span className={styles.lineMeta}>{line.dateLabel}</span>
+                {line.spanLabel ? <span className={styles.lineMeta}>{line.spanLabel}</span> : null}
+                {line.avgPerDay !== undefined && line.avgPerDay > 0 ? (
+                  <span className={styles.lineMeta}>Avg {formatCurrency(line.avgPerDay, config.homeCurrency)} / day</span>
+                ) : null}
               </div>
-              <div className={styles.lineRight}>
-                <span className={styles.lineAmount}>{formatCurrency(line.amount, config.homeCurrency)}</span>
-                <span className={styles.lineStatus}>{line.paymentStatus}</span>
+              <div className={styles.lineCols}>
+                <span className={styles.lineAmount}>{formatCurrency(line.total, config.homeCurrency)}</span>
+                <span className={styles.lineAmount}>{formatCurrency(line.spent, config.homeCurrency)}</span>
+                <span className={styles.lineAmount}>{formatCurrency(line.remaining, config.homeCurrency)}</span>
               </div>
             </div>
           ))}

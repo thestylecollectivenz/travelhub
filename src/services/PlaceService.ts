@@ -58,13 +58,19 @@ export class PlaceService {
     const trimmed = query.trim();
     if (!trimmed) return [];
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(trimmed)}&format=json&limit=5&addressdetails=1`;
-    const resp = await nominatimFetch(url, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        'User-Agent': 'TravelHub/1.0 (contact: travelhub@thestylecollective.co.nz)'
-      }
-    });
+    let resp: Response;
+    try {
+      resp = await nominatimFetch(url, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          'User-Agent': 'TravelHub/1.0 (contact: travelhub@thestylecollective.co.nz)'
+        }
+      });
+    } catch {
+      return [];
+    }
+    if (!resp.ok) return [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rows = (await resp.json()) as any[];
     return rows.map((r) => ({

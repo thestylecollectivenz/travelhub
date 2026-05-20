@@ -130,16 +130,50 @@
 
 
 
+:global(.th-map-labeled-pin-wrap) {
+  background: transparent;
+  border: none;
+}
+
+:global(.th-map-labeled-pin) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+}
+
+:global(.th-map-labeled-pin-dot) {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #1a6399;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+:global(.th-map-labeled-pin-label) {
+  max-width: 9rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #c5d4e0;
+  font-size: 10px;
+  font-weight: 600;
+  color: #0e3d5e;
+  text-align: center;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @media print {
-
   .stats {
-
     -webkit-print-color-adjust: exact;
-
     print-color-adjust: exact;
-
   }
-
 }
 
 

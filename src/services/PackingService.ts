@@ -13,6 +13,7 @@ export interface PackingItem {
   isPacked: boolean;
   isTemplate: boolean;
   templateId?: string;
+  itemNotes?: string;
 }
 
 export interface PackingTemplate {
@@ -30,7 +31,8 @@ function mapToItem(item: any): PackingItem {
     quantity: Number(item.Quantity ?? 1),
     isPacked: item.IsPacked === true,
     isTemplate: item.IsTemplate === true,
-    templateId: item.TemplateId ?? ''
+    templateId: item.TemplateId ?? '',
+    itemNotes: item.ItemNotes ?? undefined
   };
 }
 
@@ -51,6 +53,7 @@ function toSpItem(partial: Partial<PackingItem>): Record<string, unknown> {
   if (partial.isPacked !== undefined) out.IsPacked = partial.isPacked;
   if (partial.isTemplate !== undefined) out.IsTemplate = partial.isTemplate;
   if (partial.templateId !== undefined) out.TemplateId = partial.templateId || '';
+  if (partial.itemNotes !== undefined) out.ItemNotes = partial.itemNotes || '';
   if (partial.itemName !== undefined) out.Title = partial.itemName;
   return out;
 }

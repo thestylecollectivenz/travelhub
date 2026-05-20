@@ -10,6 +10,7 @@ import {
   type ParsedCruiseRow
 } from '../../utils/cruiseItineraryImportParser';
 import { splitCruiseShipMeta } from '../../utils/cruisePortSanitize';
+import { cruisePortSearchQueries, pickBestGeocodeCandidate } from '../../utils/cruisePortGeocode';
 import { buildCruiseImportReport } from '../../utils/cruiseImportReport';
 import { CopyableReportModal } from '../shared/CopyableReportModal';
 import {
@@ -201,16 +202,25 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
     async (portName: string, knownPlaces: Place[]): Promise<PlaceCandidate | null> => {
       const existing = matchExistingPlace(portName, knownPlaces);
       if (existing) return existing;
-      try {
-        const results = await searchPlaces(`${portName} cruise port`);
-        if (!results.length) return null;
-        const ranked = [...results]
-          .map((c) => ({ c, score: scoreCandidate(c, portName) }))
-          .sort((a, b) => b.score - a.score);
-        return ranked[0]?.c ?? null;
-      } catch {
-        return null;
+      const queries = cruisePortSearchQueries(portName);
+      let best: PlaceCandidate | null = null;
+      let bestScore = -1;
+      for (const q of queries) {
+        try {
+          const results = await searchPlaces(q);
+          const pick = pickBestGeocodeCandidate(results, portName, scoreCandidate);
+          if (!pick) continue;
+          const score = scoreCandidate(pick, portName);
+          if (score > bestScore) {
+            bestScore = score;
+            best = pick;
+          }
+          if (score >= 10) break;
+        } catch {
+          /* try next query variant */
+        }
       }
+      return best;
     },
     [matchExistingPlace, scoreCandidate, searchPlaces]
   );
@@ -389,6 +399,10 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
             place = await createOrReusePlace({ ...candidate, placeType: 'port' });
           } catch {
             otherNotes.push(`Could not save the map location for “${displayPort}”.`);
+            const dateKey = (day.calendarDate || row.date || '').slice(0, 10);
+            if (!mapPinMisses.some((m) => m.port === displayPort && m.date === dateKey)) {
+              mapPinMisses.push({ port: displayPort, date: dateKey });
+            }
             updateEntry(makeSegmentEntry(day.id, row, nextSort, displayPort, shipMeta));
             resolved.push({ row, dayId: day.id, calendarDate: day.calendarDate });
             continue;

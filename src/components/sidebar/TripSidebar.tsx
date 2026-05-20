@@ -4,12 +4,16 @@ import { useSpContext } from '../../context/SpContext';
 import { ReminderService } from '../../services/ReminderService';
 import { SidebarDayList } from './SidebarDayList';
 import { SidebarCategoryBudget } from './SidebarCategoryBudget';
+import { SidebarMapStops } from './SidebarMapStops';
+import { SidebarPackingCategories } from './SidebarPackingCategories';
 import { SharedSidebarDayList } from './SharedSidebarDayList';
+import { usePlanView } from '../../context/PlanViewContext';
 import styles from './TripSidebar.module.css';
 
 export const TripSidebar: React.FC = () => {
   const spContext = useSpContext();
   const { sharedPreview, mainWorkspaceTab, setMainWorkspaceTab, trip, localEntries } = useTripWorkspace();
+  const planView = usePlanView();
   const [manualIncomplete, setManualIncomplete] = React.useState(0);
   React.useEffect(() => {
     if (!trip?.id) {
@@ -60,11 +64,11 @@ export const TripSidebar: React.FC = () => {
   const budgetIcon = (
     <svg viewBox="0 0 16 16" width={18} height={18} fill="none" aria-hidden>
       <path
-        d="M2.5 4.5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2v-7Z"
+        d="M8.2 1.8v12.4M10.8 3.6c0-1.1-.9-1.9-2.3-1.9-1.2 0-2.1.7-2.1 1.6 0 .9.8 1.4 2.2 1.7 1.7.4 2.9 1.1 2.9 2.6 0 1.6-1.4 2.7-3.2 2.7-1.9 0-3.3-1-3.5-2.4"
         stroke="currentColor"
-        strokeWidth="1.2"
+        strokeWidth="1.25"
+        strokeLinecap="round"
       />
-      <path d="M2.5 7h11" stroke="currentColor" strokeWidth="1.2" />
     </svg>
   );
   const planIcon = (
@@ -224,7 +228,15 @@ export const TripSidebar: React.FC = () => {
         </button>
       </div>
       <div className={styles.sidebarBodyScroll}>
-        {mainWorkspaceTab === 'budget' ? <SidebarCategoryBudget /> : <SidebarDayList />}
+        {mainWorkspaceTab === 'budget' ? (
+          <SidebarCategoryBudget />
+        ) : mainWorkspaceTab === 'map' ? (
+          <SidebarMapStops />
+        ) : mainWorkspaceTab === 'plan' && planView?.planTab === 'packing' ? (
+          <SidebarPackingCategories />
+        ) : (
+          <SidebarDayList />
+        )}
       </div>
     </div>
   );

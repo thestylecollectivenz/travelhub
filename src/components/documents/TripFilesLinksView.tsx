@@ -11,9 +11,15 @@ export interface TripFilesLinksViewProps {
 
 export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeDocuments = true }) => {
   const { documents, links } = useAttachments();
-  const { tripDays } = useTripWorkspace();
+  const { tripDays, selectedDayId, mainWorkspaceTab } = useTripWorkspace();
   const [kind, setKind] = React.useState<KindFilter>('all');
   const [dayFilter, setDayFilter] = React.useState('all');
+
+  React.useEffect(() => {
+    if (mainWorkspaceTab === 'files' && selectedDayId) {
+      setDayFilter(selectedDayId);
+    }
+  }, [mainWorkspaceTab, selectedDayId]);
   const [search, setSearch] = React.useState('');
 
   const dayLabel = React.useCallback((dayId: string): string => {
@@ -56,7 +62,7 @@ export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeD
           <option value="links">Links</option>
         </select>
         <select className={styles.select} value={dayFilter} onChange={(e) => setDayFilter(e.target.value)}>
-          <option value="all">All days</option>
+          <option value="all">All days (entire trip)</option>
           {tripDays.map((d) => (
             <option key={d.id} value={d.id}>
               {d.dayType === 'PreTrip' ? 'Pre-trip' : `Day ${d.dayNumber} — ${d.displayTitle}`}
