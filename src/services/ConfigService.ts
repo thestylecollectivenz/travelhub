@@ -12,6 +12,8 @@ export interface UserConfig {
   journalAuthorName: string;
   /** Persisted workspace sidebar width (px). */
   sidebarWidth: number;
+  /** When true, use `sidebarWidth`; otherwise auto-fit to icon tab strip. */
+  sidebarWidthCustomized?: boolean;
   weatherApiKey: string;
   /** When false, day budget breakdown starts collapsed on each day. */
   dayBreakdownVisibleByDefault: boolean;
@@ -80,6 +82,7 @@ export class ConfigService {
       ShowTravellerNames: config.showTravellerNames,
       JournalAuthorName: config.journalAuthorName ?? '',
       SidebarWidth: typeof config.sidebarWidth === 'number' ? config.sidebarWidth : DEFAULT_USER_CONFIG.sidebarWidth,
+      SidebarWidthCustomized: config.sidebarWidthCustomized === true,
       WeatherApiKey: config.weatherApiKey ?? '',
       DayBreakdownVisibleByDefault: config.dayBreakdownVisibleByDefault
     };

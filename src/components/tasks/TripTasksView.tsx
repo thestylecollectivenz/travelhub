@@ -6,11 +6,19 @@ import { ReminderService, TripReminder } from '../../services/ReminderService';
 import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
 import { itineraryNotesPreview } from '../../utils/taskNotePreview';
 import { TasksCalendarView, type CalendarEvent, type CalendarRangeFilter } from './TasksCalendarView';
+import { TasksMonthCalendar } from './TasksMonthCalendar';
+import {
+  dismissMissingAmountEntry,
+  loadDismissedMissingAmountIds,
+  restoreMissingAmountEntry
+} from '../../utils/missingAmountDismissed';
 import styles from './TripTasksView.module.css';
 
 type TaskFilter = 'incomplete' | 'all' | 'missing_amounts';
 type CreateKind = 'task' | 'reminder';
 type ViewMode = 'list' | 'calendar';
+type CalendarLayout = 'grid' | 'list';
+type MissingAmountFilter = 'unchecked' | 'all';
 
 function entryAmountMissing(amount: number | undefined): boolean {
   if (amount === undefined || amount === null) return true;
@@ -78,10 +86,17 @@ export const TripTasksView: React.FC = () => {
   const [manual, setManual] = React.useState<TripReminder[]>([]);
   const [filter, setFilter] = React.useState<TaskFilter>('incomplete');
   const [viewMode, setViewMode] = React.useState<ViewMode>('list');
+  const [calendarLayout, setCalendarLayout] = React.useState<CalendarLayout>('grid');
   const [calendarRange, setCalendarRange] = React.useState<CalendarRangeFilter>('this_month');
   const [createKind, setCreateKind] = React.useState<CreateKind>('task');
   const [text, setText] = React.useState('');
   const [dueDate, setDueDate] = React.useState('');
+  const [missingAmountFilter, setMissingAmountFilter] = React.useState<MissingAmountFilter>('unchecked');
+  const [dismissedMissing, setDismissedMissing] = React.useState<Set<string>>(() => new Set());
+  const [editingReminderId, setEditingReminderId] = React.useState<string | null>(null);
+  const [editTitle, setEditTitle] = React.useState('');
+  const [editDueDate, setEditDueDate] = React.useState('');
+  const [editNote, setEditNote] = React.useState('');
 
   const svc = React.useMemo(() => new ReminderService(spContext), [spContext]);
 
@@ -93,6 +108,12 @@ export const TripTasksView: React.FC = () => {
   React.useEffect(() => {
     refresh();
   }, [refresh]);
+
+  React.useEffect(() => {
+    if (trip?.id) {
+      setDismissedMissing(loadDismissedMissingAmountIds(trip.id));
+    }
+  }, [trip?.id]);
 
   const bookingTasks = React.useMemo(
     () => localEntries.filter((e) => e.bookingRequired && e.bookingStatus === 'Not booked'),
@@ -111,13 +132,14 @@ export const TripTasksView: React.FC = () => {
   const missingAmountEntries = React.useMemo(() => {
     return localEntries
       .filter((e) => entryAmountMissing(e.amount))
+      .filter((e) => missingAmountFilter === 'all' || !dismissedMissing.has(e.id))
       .sort((a, b) => {
         const da = tripDays.find((d) => d.id === a.dayId)?.dayNumber ?? 0;
         const db = tripDays.find((d) => d.id === b.dayId)?.dayNumber ?? 0;
         if (da !== db) return da - db;
         return (a.title || '').localeCompare(b.title || '');
       });
-  }, [localEntries, tripDays]);
+  }, [localEntries, tripDays, missingAmountFilter, dismissedMissing]);
 
   const dayName = React.useCallback((dayId?: string) => tripDays.find((d) => d.id === dayId)?.displayTitle || '', [tripDays]);
 
@@ -175,6 +197,53 @@ export const TripTasksView: React.FC = () => {
 
   const showStandardSections = filter !== 'missing_amounts';
 
+  const startEditReminder = React.useCallback((m: TripReminder): void => {
+    setEditingReminderId(m.id);
+    const raw = (m.reminderText || m.title || '').trim();
+    setEditTitle(raw.replace(/^(Task|Reminder):\s*/i, ''));
+    setEditDueDate(m.dueDate ? m.dueDate.slice(0, 10) : '');
+    setEditNote((m.taskNote || '').trim());
+  }, []);
+
+  const saveEditReminder = React.useCallback(
+    (m: TripReminder): void => {
+      const trimmed = editTitle.trim();
+      if (!trimmed) return;
+      const isReminder = m.reminderType === 'Custom' || m.reminderType === 'CancellationDeadline';
+      const title = isReminder
+        ? trimmed.startsWith('Reminder:')
+          ? trimmed
+          : `Reminder: ${trimmed}`
+        : trimmed.startsWith('Task:')
+          ? trimmed
+          : `Task: ${trimmed}`;
+      svc
+        .update(m.id, {
+          title,
+          reminderText: trimmed,
+          taskNote: editNote.trim() || undefined,
+          dueDate: editDueDate ? `${editDueDate}T00:00:00.000Z` : undefined
+        })
+        .then(() => {
+          setEditingReminderId(null);
+          refresh();
+        })
+        .catch(console.error);
+    },
+    [editDueDate, editNote, editTitle, refresh, svc]
+  );
+
+  const renderManualNote = (note?: string): React.ReactNode => {
+    const n = (note || '').trim();
+    if (!n) return null;
+    return (
+      <div className={styles.noteCallout}>
+        <span className={styles.noteCalloutLabel}>Note</span>
+        <p className={styles.noteCalloutText}>{n}</p>
+      </div>
+    );
+  };
+
   const renderItineraryNote = (entry: ItineraryEntry | undefined): React.ReactNode => {
     if (!entry?.notes?.trim()) return null;
     const { preview, truncated } = itineraryNotesPreview(entry.notes);
@@ -209,6 +278,12 @@ export const TripTasksView: React.FC = () => {
           <option value="calendar">Calendar</option>
         </select>
         {viewMode === 'calendar' ? (
+          <select className={styles.select} value={calendarLayout} onChange={(e) => setCalendarLayout(e.target.value as CalendarLayout)}>
+            <option value="grid">Month grid</option>
+            <option value="list">By date list</option>
+          </select>
+        ) : null}
+        {viewMode === 'calendar' ? (
           <select className={styles.select} value={calendarRange} onChange={(e) => setCalendarRange(e.target.value as CalendarRangeFilter)}>
             <option value="this_week">This week</option>
             <option value="this_month">This month</option>
@@ -220,13 +295,28 @@ export const TripTasksView: React.FC = () => {
       </div>
 
       {viewMode === 'calendar' && showStandardSections ? (
-        <TasksCalendarView events={calendarEvents} rangeFilter={calendarRange} onOpenEntry={openEntryInItineraryRead} />
+        calendarLayout === 'grid' ? (
+          <TasksMonthCalendar events={calendarEvents} rangeFilter={calendarRange} onOpenEntry={openEntryInItineraryRead} />
+        ) : (
+          <TasksCalendarView events={calendarEvents} rangeFilter={calendarRange} onOpenEntry={openEntryInItineraryRead} />
+        )
       ) : null}
 
       {filter === 'missing_amounts' ? (
         <div className={styles.group}>
           <h3 className={styles.title}>Itinerary items with no cost entered</h3>
-          <p className={styles.hint}>Items where the main amount is zero or blank. Open an item in the itinerary to add a cost.</p>
+          <p className={styles.hint}>
+            Items where the main amount is zero or blank. Mark as cost not required when no amount is needed, or open the item to
+            add a cost.
+          </p>
+          <select
+            className={styles.select}
+            value={missingAmountFilter}
+            onChange={(e) => setMissingAmountFilter(e.target.value as MissingAmountFilter)}
+          >
+            <option value="unchecked">Needs review only</option>
+            <option value="all">All (including marked OK)</option>
+          </select>
           {missingAmountEntries.length === 0 ? (
             <div className={styles.meta} role="status">
               No items missing amounts.
@@ -245,6 +335,29 @@ export const TripTasksView: React.FC = () => {
                   <button className={styles.button} type="button" onClick={() => openEntryInItineraryRead(entry.id, entry.dayId)}>
                     Open in itinerary
                   </button>
+                  {dismissedMissing.has(entry.id) ? (
+                    <button
+                      className={styles.button}
+                      type="button"
+                      onClick={() => {
+                        if (!trip?.id) return;
+                        setDismissedMissing(restoreMissingAmountEntry(trip.id, entry.id, dismissedMissing));
+                      }}
+                    >
+                      Needs review
+                    </button>
+                  ) : (
+                    <button
+                      className={styles.button}
+                      type="button"
+                      onClick={() => {
+                        if (!trip?.id) return;
+                        setDismissedMissing(dismissMissingAmountEntry(trip.id, entry.id, dismissedMissing));
+                      }}
+                    >
+                      Cost not required
+                    </button>
+                  )}
                 </div>
               </div>
             ))
@@ -306,34 +419,89 @@ export const TripTasksView: React.FC = () => {
             </div>
             {visibleManual.map((m) => {
               const target = resolveReminderItineraryTarget(m, localEntries);
+              const isEditing = editingReminderId === m.id;
               return (
                 <div key={m.id} className={styles.item}>
                   <div className={styles.itemBody}>
-                    <div>{reminderDisplayTitle(m)}</div>
-                    <div className={styles.meta}>
-                      {m.dueDate ? `Due ${new Date(m.dueDate).toLocaleDateString('en-NZ')}` : 'No due date'}
-                    </div>
-                    {renderItineraryNote(target?.entry)}
-                    {target ? (
-                      <div className={styles.meta}>
-                        {target.contextLine}
-                        <span aria-hidden> · </span>
-                        {dayName(target.openDayId) || 'Itinerary day'}
+                    {isEditing ? (
+                      <div className={styles.editForm}>
+                        <input
+                          className={styles.input}
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          aria-label="Task or reminder text"
+                        />
+                        <input
+                          className={styles.input}
+                          type="date"
+                          value={editDueDate}
+                          onChange={(e) => setEditDueDate(e.target.value)}
+                          aria-label="Due date"
+                        />
+                        <textarea
+                          className={styles.textarea}
+                          value={editNote}
+                          onChange={(e) => setEditNote(e.target.value)}
+                          placeholder="Note (optional)"
+                          rows={2}
+                        />
                       </div>
-                    ) : null}
+                    ) : (
+                      <>
+                        <div>{reminderDisplayTitle(m)}</div>
+                        <div className={styles.meta}>
+                          {m.dueDate ? `Due ${new Date(m.dueDate).toLocaleDateString('en-NZ')}` : 'No due date'}
+                        </div>
+                        {renderManualNote(m.taskNote)}
+                        {renderItineraryNote(target?.entry)}
+                        {target ? (
+                          <div className={styles.meta}>
+                            {target.contextLine}
+                            <span aria-hidden> · </span>
+                            {dayName(target.openDayId) || 'Itinerary day'}
+                          </div>
+                        ) : null}
+                      </>
+                    )}
                   </div>
                   <div className={styles.actions}>
-                    {target ? (
-                      <button className={styles.button} type="button" onClick={() => openEntryInItineraryRead(target.openEntryId, target.openDayId)}>
-                        Open in itinerary
-                      </button>
-                    ) : null}
-                    <button className={styles.button} type="button" onClick={() => svc.update(m.id, { isComplete: !m.isComplete }).then(refresh).catch(console.error)}>
-                      {m.isComplete ? 'Mark incomplete' : 'Complete'}
-                    </button>
-                    <button className={styles.button} type="button" onClick={() => svc.delete(m.id).then(refresh).catch(console.error)}>
-                      Delete
-                    </button>
+                    {isEditing ? (
+                      <>
+                        <button className={styles.button} type="button" onClick={() => saveEditReminder(m)}>
+                          Save
+                        </button>
+                        <button className={styles.button} type="button" onClick={() => setEditingReminderId(null)}>
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {!target ? (
+                          <button className={styles.button} type="button" onClick={() => startEditReminder(m)}>
+                            Edit
+                          </button>
+                        ) : null}
+                        {target ? (
+                          <button
+                            className={styles.button}
+                            type="button"
+                            onClick={() => openEntryInItineraryRead(target.openEntryId, target.openDayId)}
+                          >
+                            Open in itinerary
+                          </button>
+                        ) : null}
+                        <button
+                          className={styles.button}
+                          type="button"
+                          onClick={() => svc.update(m.id, { isComplete: !m.isComplete }).then(refresh).catch(console.error)}
+                        >
+                          {m.isComplete ? 'Mark incomplete' : 'Complete'}
+                        </button>
+                        <button className={styles.button} type="button" onClick={() => svc.delete(m.id).then(refresh).catch(console.error)}>
+                          Delete
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               );

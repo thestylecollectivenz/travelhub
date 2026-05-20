@@ -3,11 +3,17 @@ import { CategoryIcon } from '../shared/CategoryIcon';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
 import { getCategorySlug } from '../../utils/categoryUtils';
-import { BUDGET_CATEGORY_ORDER, formatCurrency, sumByCategory } from '../../utils/financialUtils';
+import {
+  BUDGET_CATEGORY_ORDER,
+  formatCurrency,
+  sumByCategory,
+  type BudgetCategoryKey
+} from '../../utils/financialUtils';
 import styles from './SidebarCategoryBudget.module.css';
 
 export const SidebarCategoryBudget: React.FC = () => {
-  const { trip, localEntries, convertToHomeCurrency } = useTripWorkspace();
+  const { trip, localEntries, convertToHomeCurrency, selectedBudgetCategory, setSelectedBudgetCategory } =
+    useTripWorkspace();
   const { config } = useConfig();
 
   const entries = React.useMemo(
@@ -17,16 +23,36 @@ export const SidebarCategoryBudget: React.FC = () => {
 
   const totals = React.useMemo(() => sumByCategory(entries, convertToHomeCurrency), [entries, convertToHomeCurrency]);
 
+  React.useEffect(() => {
+    if (!selectedBudgetCategory) {
+      const firstWithAmount = BUDGET_CATEGORY_ORDER.find((key) => (totals[key] ?? 0) > 0);
+      if (firstWithAmount) {
+        setSelectedBudgetCategory(firstWithAmount);
+      }
+    }
+  }, [selectedBudgetCategory, setSelectedBudgetCategory, totals]);
+
+  const selectCategory = (key: BudgetCategoryKey): void => {
+    setSelectedBudgetCategory(key);
+  };
+
   return (
     <section className={styles.section} aria-label="Trip budget by category">
-      <h2 className={styles.heading}>Trip budget</h2>
+      <h2 className={styles.heading}>By category</h2>
       <div className={styles.body}>
         {BUDGET_CATEGORY_ORDER.map((key) => {
           const amount = totals[key] ?? 0;
           const isZero = amount === 0;
           const categorySlug = getCategorySlug(key);
+          const active = selectedBudgetCategory === key;
           return (
-            <div key={key} className={styles.row}>
+            <button
+              key={key}
+              type="button"
+              className={`${styles.row} ${active ? styles.rowActive : ''}`}
+              onClick={() => selectCategory(key)}
+              aria-pressed={active}
+            >
               <div className={styles.rowLeft}>
                 <span className={isZero ? undefined : `th-cat-${categorySlug} th-cat-icon`}>
                   <CategoryIcon category={key} size={14} color={isZero ? 'var(--color-sand-400)' : 'currentColor'} />
@@ -36,7 +62,7 @@ export const SidebarCategoryBudget: React.FC = () => {
               <span className={`${styles.total} ${isZero ? styles.totalZero : ''}`}>
                 {isZero ? '—' : formatCurrency(amount, config.homeCurrency)}
               </span>
-            </div>
+            </button>
           );
         })}
       </div>

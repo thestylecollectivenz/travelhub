@@ -12,7 +12,7 @@
 .dayBlock {
   border: var(--border-default);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: #fff;
   padding: var(--space-3);
 }
 

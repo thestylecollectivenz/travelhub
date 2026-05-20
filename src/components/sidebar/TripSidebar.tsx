@@ -3,7 +3,7 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
 import { ReminderService } from '../../services/ReminderService';
 import { SidebarDayList } from './SidebarDayList';
-import { SidebarTripBudgetSummary } from './SidebarTripBudgetSummary';
+import { SidebarCategoryBudget } from './SidebarCategoryBudget';
 import { SharedSidebarDayList } from './SharedSidebarDayList';
 import styles from './TripSidebar.module.css';
 
@@ -159,17 +159,6 @@ export const TripSidebar: React.FC = () => {
         <button
           type="button"
           role="tab"
-          aria-selected={mainWorkspaceTab === 'budget'}
-          className={`${styles.tab} ${mainWorkspaceTab === 'budget' ? styles.tabActive : ''}`}
-          onClick={() => setMainWorkspaceTab('budget')}
-          title="Budget"
-          aria-label="Budget"
-        >
-          {budgetIcon}
-        </button>
-        <button
-          type="button"
-          role="tab"
           aria-selected={mainWorkspaceTab === 'map'}
           className={`${styles.tab} ${mainWorkspaceTab === 'map' ? styles.tabActive : ''}`}
           onClick={() => setMainWorkspaceTab('map')}
@@ -177,6 +166,17 @@ export const TripSidebar: React.FC = () => {
           aria-label="Map"
         >
           {mapIcon}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mainWorkspaceTab === 'budget'}
+          className={`${styles.tab} ${mainWorkspaceTab === 'budget' ? styles.tabActive : ''}`}
+          onClick={() => setMainWorkspaceTab('budget')}
+          title="Budget"
+          aria-label="Budget"
+        >
+          {budgetIcon}
         </button>
         <button
           type="button"
@@ -224,7 +224,7 @@ export const TripSidebar: React.FC = () => {
         </button>
       </div>
       <div className={styles.sidebarBodyScroll}>
-        {mainWorkspaceTab === 'budget' ? <SidebarTripBudgetSummary /> : <SidebarDayList />}
+        {mainWorkspaceTab === 'budget' ? <SidebarCategoryBudget /> : <SidebarDayList />}
       </div>
     </div>
   );

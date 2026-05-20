@@ -16,6 +16,11 @@ import { isPreTripDayRow, resolvePreTripDayId, sortEntriesForDay } from '../../u
 import { applyDayViewEntryOrder, saveDayViewEntryOrder } from '../../utils/dayViewEntryOrder';
 import { orderIdsByHomeDayFromVisualList } from '../../utils/itineraryReorderByDay';
 import { useConfig } from '../../context/ConfigContext';
+import {
+  markSidebarWidthCustomized,
+  PRIVATE_WORKSPACE_TAB_COUNT,
+  resolveSidebarWidthPx
+} from '../../utils/sidebarWidth';
 import dayHeaderStyles from '../day/DayHeader.module.css';
 import styles from './TripWorkspace.module.css';
 
@@ -24,15 +29,17 @@ export const TripContent: React.FC = () => {
   const { config, saveConfig } = useConfig();
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [planTab, setPlanTab] = React.useState<'tasks' | 'packing'>('tasks');
-  const [sidebarWidth, setSidebarWidth] = React.useState<number>(config.sidebarWidth || 260);
+  const [sidebarWidth, setSidebarWidth] = React.useState<number>(() =>
+    resolveSidebarWidthPx(config, PRIVATE_WORKSPACE_TAB_COUNT)
+  );
   const sidebarWidthRef = React.useRef(sidebarWidth);
   const saveTimerRef = React.useRef<number | null>(null);
   const isDraggingRef = React.useRef(false);
 
   React.useEffect(() => {
     if (isDraggingRef.current) return;
-    setSidebarWidth(config.sidebarWidth || 260);
-  }, [config.sidebarWidth]);
+    setSidebarWidth(resolveSidebarWidthPx(config, PRIVATE_WORKSPACE_TAB_COUNT));
+  }, [config.sidebarWidth, config.sidebarWidthCustomized]);
   React.useEffect(() => {
     sidebarWidthRef.current = sidebarWidth;
   }, [sidebarWidth]);
@@ -136,7 +143,8 @@ export const TripContent: React.FC = () => {
         }
         const finalWidth = Math.max(180, Math.min(400, sidebarWidthRef.current));
         saveTimerRef.current = window.setTimeout(() => {
-          saveConfig({ ...config, sidebarWidth: finalWidth }).catch(console.error);
+          markSidebarWidthCustomized();
+          saveConfig({ ...config, sidebarWidth: finalWidth, sidebarWidthCustomized: true }).catch(console.error);
         }, 300);
       };
 

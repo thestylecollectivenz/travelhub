@@ -12,7 +12,21 @@ import {
 import { splitCruiseShipMeta } from '../../utils/cruisePortSanitize';
 import { buildCruiseImportReport } from '../../utils/cruiseImportReport';
 import { CopyableReportModal } from '../shared/CopyableReportModal';
+import {
+  detectCruiseImportConflict,
+  entriesToRemoveForCruiseOverwrite
+} from '../../utils/cruiseImportDetect';
+import {
+  snapshotTripDateRange,
+  snapshotTripDayIds,
+  tripDateRangeChanged,
+  tripDaysMissingFromSnapshot
+} from '../../utils/cruiseImportGuards';
 import type { Place } from '../../models/Place';
+import {
+  CruiseImportConflictDialog,
+  type CruiseImportApplyMode
+} from './CruiseImportConflictDialog';
 import styles from './CruiseItineraryImport.module.css';
 
 function newTempEntryId(): string {
@@ -31,7 +45,7 @@ export interface CruiseItineraryImportProps {
 }
 
 export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ trip }) => {
-  const { tripDays, localEntries, updateDay, updateEntry } = useTripWorkspace();
+  const { tripDays, localEntries, updateDay, updateEntry, deleteEntry, retryLoad } = useTripWorkspace();
   const { searchPlaces, createOrReusePlace, places } = usePlaces();
   const { config } = useConfig();
 
@@ -42,6 +56,11 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
   const [parsed, setParsed] = React.useState<ParsedCruiseRow[]>([]);
   const [applyWarnings, setApplyWarnings] = React.useState<string[]>([]);
   const [importReport, setImportReport] = React.useState<string | null>(null);
+  const [conflictDialog, setConflictDialog] = React.useState<{
+    affectedDayCount: number;
+    existingCount: number;
+    targetDayIds: Set<string>;
+  } | null>(null);
 
   const daysForTrip = React.useMemo(
     () => tripDays.filter((d) => d.tripId === trip.id).sort((a, b) => a.dayNumber - b.dayNumber),
@@ -81,11 +100,8 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
         const byDate = itineraryDays.find((d) => (d.calendarDate || '').slice(0, 10) === rowDate.slice(0, 10));
         if (byDate) return byDate;
       }
-      const byNum = itineraryDays.find((d) => d.dayNumber === row.dayNumber);
-      if (byNum) return byNum;
-      const idx = row.dayNumber - 1;
-      if (idx >= 0 && idx < itineraryDays.length) return itineraryDays[idx];
-      return undefined;
+      // Match by trip day number only — never by list position (avoids mapping cruise "day N" onto the wrong calendar day).
+      return itineraryDays.find((d) => d.dayNumber === row.dayNumber);
     },
     [itineraryDays]
   );
@@ -199,8 +215,10 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
     [matchExistingPlace, scoreCandidate, searchPlaces]
   );
 
-  const handleApply = React.useCallback(async () => {
-    if (!parsed.length) return;
+  const runApply = React.useCallback(async (applyMode: CruiseImportApplyMode, overwriteDayIds?: Set<string>) => {
+    if (!parsed.length || applyMode === 'cancel') return;
+    const dayIdsBefore = snapshotTripDayIds(tripDays, trip.id);
+    const dateRangeBefore = snapshotTripDateRange(trip);
     setLoading(true);
     setApplyWarnings([]);
     const otherNotes: string[] = [];
@@ -266,6 +284,16 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
     };
 
     try {
+      if (applyMode === 'overwrite' && overwriteDayIds?.size) {
+        const toRemove = entriesToRemoveForCruiseOverwrite(localEntries, trip.id, overwriteDayIds);
+        for (const id of toRemove) {
+          deleteEntry(id);
+        }
+        if (toRemove.length) {
+          await delay(350);
+        }
+      }
+
       type Hit = { row: ParsedCruiseRow; day: (typeof daysForTrip)[0] };
       const hits: Hit[] = [];
       for (const row of rowsSorted) {
@@ -430,6 +458,19 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
       };
 
       updateEntry(cruiseEntry);
+
+      const missingDays = tripDaysMissingFromSnapshot(dayIdsBefore, tripDays, trip.id);
+      if (missingDays.length || tripDateRangeChanged(dateRangeBefore, trip)) {
+        setError(
+          missingDays.length
+            ? 'Import stopped: trip days must never be removed. Reloading your trip from SharePoint.'
+            : 'Import stopped: trip start/end dates must not change during cruise import. Reloading from SharePoint.'
+        );
+        await retryLoad();
+        setLoading(false);
+        return;
+      }
+
       setImportReport(
         buildCruiseImportReport({
           appliedCount: resolved.length,
@@ -464,8 +505,44 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
     isSeaOrScenicLine,
     itineraryDays,
     displayTitleForRow,
-    places
+    places,
+    deleteEntry,
+    daysForTrip,
+    tripDays,
+    retryLoad,
+    trip
   ]);
+
+  const handleApplyClick = React.useCallback(() => {
+    if (!parsed.length) return;
+    const targetDayIds = new Set<string>();
+    for (const row of parsed) {
+      const day = resolveDay(row);
+      if (day && day.dayType !== 'PreTrip') {
+        targetDayIds.add(day.id);
+      }
+    }
+    const conflict = detectCruiseImportConflict(localEntries, trip.id, daysForTrip, targetDayIds);
+    if (conflict.affectedDayCount > 0 && conflict.existingCount > 0) {
+      setConflictDialog({
+        affectedDayCount: conflict.affectedDayCount,
+        existingCount: conflict.existingCount,
+        targetDayIds: conflict.affectedDayIds
+      });
+      return;
+    }
+    runApply('duplicate').catch(() => undefined);
+  }, [parsed, resolveDay, localEntries, trip.id, daysForTrip, runApply]);
+
+  const handleConflictChoice = React.useCallback(
+    (mode: CruiseImportApplyMode) => {
+      const overwriteDayIds = conflictDialog?.targetDayIds;
+      setConflictDialog(null);
+      if (mode === 'cancel') return;
+      runApply(mode, mode === 'overwrite' ? overwriteDayIds : undefined).catch(() => undefined);
+    },
+    [conflictDialog, runApply]
+  );
 
   React.useEffect(() => {
     const onOpen = (): void => {
@@ -483,6 +560,13 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
           title="Cruise import summary"
           body={importReport}
           onClose={() => setImportReport(null)}
+        />
+      ) : null}
+      {conflictDialog ? (
+        <CruiseImportConflictDialog
+          affectedDayCount={conflictDialog.affectedDayCount}
+          existingCount={conflictDialog.existingCount}
+          onChoose={handleConflictChoice}
         />
       ) : null}
       {open ? (
@@ -526,9 +610,7 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
                   type="button"
                   className={styles.primaryBtn}
                   disabled={loading}
-                  onClick={() => {
-                    handleApply().catch(() => undefined);
-                  }}
+                  onClick={handleApplyClick}
                 >
                   {loading ? 'Applying…' : 'Apply to trip'}
                 </button>

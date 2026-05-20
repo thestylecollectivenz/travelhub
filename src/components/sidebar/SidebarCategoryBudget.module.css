@@ -24,6 +24,20 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-2) var(--space-4);
+  width: 100%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.row:hover {
+  background: var(--color-sand-100);
+}
+
+.rowActive {
+  background: var(--color-blue-50);
 }
 
 .rowLeft {

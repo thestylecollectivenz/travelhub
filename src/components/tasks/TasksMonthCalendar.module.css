@@ -1,0 +1,115 @@
+.root {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+}
+
+.navBtn {
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  width: 2rem;
+  height: 2rem;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.monthLabel {
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-800);
+  min-width: 10rem;
+  text-align: center;
+}
+
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.weekday {
+  text-align: center;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-sand-600);
+  padding: var(--space-1);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.cell {
+  min-height: 5.5rem;
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  padding: var(--space-1);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cellOutside {
+  opacity: 0.45;
+  background: var(--color-sand-50);
+}
+
+.cellToday {
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+
+.cellDay {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-800);
+}
+
+.cellEvents {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.eventBtn,
+.eventText {
+  display: block;
+  width: 100%;
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.eventBtn {
+  border: none;
+  background: var(--color-blue-50);
+  color: var(--color-primary);
+  text-align: left;
+  padding: 2px 4px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.eventText {
+  padding: 2px 4px;
+  color: var(--color-sand-700);
+}
+
+.more {
+  font-size: 10px;
+  color: var(--color-sand-600);
+}

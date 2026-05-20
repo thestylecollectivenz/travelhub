@@ -14,6 +14,7 @@ import { repairPreTripCalendarIfCollidingWithFirstDay } from '../utils/tripPreTr
 import { calendarDayBefore, planChronologicalRenumber, ymdSlice } from '../utils/tripDateRangeSync';
 import { isPreTripDayRow } from '../utils/itineraryDayEntries';
 import { useConfig } from './ConfigContext';
+import type { BudgetCategoryKey } from '../utils/financialUtils';
 
 export type MainWorkspaceTab = 'itinerary' | 'journal' | 'photos' | 'files' | 'map' | 'plan' | 'budget';
 
@@ -58,6 +59,8 @@ export interface TripWorkspaceContextValue {
   convertToHomeCurrency: (amount: number, currency: string) => number;
   mainWorkspaceTab: MainWorkspaceTab;
   setMainWorkspaceTab: (tab: MainWorkspaceTab) => void;
+  selectedBudgetCategory: BudgetCategoryKey | null;
+  setSelectedBudgetCategory: (category: BudgetCategoryKey | null) => void;
   sharedPreview: boolean;
   setSharedPreview: (value: boolean) => void;
   usedSuppliers: string[];
@@ -90,6 +93,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
   const [editingCardId, setEditingCardId] = React.useState<string | null>(null);
   const [focusedEntryId, setFocusedEntryId] = React.useState<string | null>(null);
   const [mainWorkspaceTab, setMainWorkspaceTab] = React.useState<MainWorkspaceTab>('itinerary');
+  const [selectedBudgetCategory, setSelectedBudgetCategory] = React.useState<BudgetCategoryKey | null>(null);
   const [sharedPreview, setSharedPreview] = React.useState(false);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -643,6 +647,8 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       convertToHomeCurrency,
       mainWorkspaceTab,
       setMainWorkspaceTab,
+      selectedBudgetCategory,
+      setSelectedBudgetCategory,
       sharedPreview,
       setSharedPreview,
       usedSuppliers: Array.from(new Set(localEntries.map((e) => (e.supplier || '').trim()).filter(Boolean))).sort(),
@@ -676,6 +682,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       deleteSubItem,
       convertToHomeCurrency,
       mainWorkspaceTab,
+      selectedBudgetCategory,
       sharedPreview
     ]
   );

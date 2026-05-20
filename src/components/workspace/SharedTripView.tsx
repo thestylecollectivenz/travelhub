@@ -7,12 +7,19 @@ import { TripMap } from '../maps/TripMap';
 import { TripFilesLinksView } from '../documents/TripFilesLinksView';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
+import {
+  markSidebarWidthCustomized,
+  resolveSidebarWidthPx,
+  SHARED_WORKSPACE_TAB_COUNT
+} from '../../utils/sidebarWidth';
 import styles from './TripWorkspace.module.css';
 
 export const SharedTripView: React.FC = () => {
   const { mainWorkspaceTab } = useTripWorkspace();
   const { config, saveConfig } = useConfig();
-  const [sidebarWidth, setSidebarWidth] = React.useState<number>(config.sidebarWidth || 260);
+  const [sidebarWidth, setSidebarWidth] = React.useState<number>(() =>
+    resolveSidebarWidthPx(config, SHARED_WORKSPACE_TAB_COUNT)
+  );
   const sidebarWidthRef = React.useRef(sidebarWidth);
   const saveTimerRef = React.useRef<number | null>(null);
   const isDraggingRef = React.useRef(false);
@@ -46,7 +53,8 @@ export const SharedTripView: React.FC = () => {
         }
         const finalWidth = Math.max(180, Math.min(400, sidebarWidthRef.current));
         saveTimerRef.current = window.setTimeout(() => {
-          saveConfig({ ...config, sidebarWidth: finalWidth }).catch(console.error);
+          markSidebarWidthCustomized();
+          saveConfig({ ...config, sidebarWidth: finalWidth, sidebarWidthCustomized: true }).catch(console.error);
         }, 300);
       };
 
