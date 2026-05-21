@@ -93,7 +93,8 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
     setSelectedDayId,
     setEditingCardId,
     setFocusedEntryId,
-    setMainWorkspaceTab
+    setMainWorkspaceTab,
+    setWorkspaceReturn
   } = useTripWorkspace();
   const [manual, setManual] = React.useState<TripReminder[]>([]);
   const [filter, setFilter] = React.useState<TaskFilter>('incomplete');
@@ -159,13 +160,33 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
 
   const openEntryInItineraryRead = React.useCallback(
     (entryId: string, dayId: string): void => {
+      const returnLabel =
+        variant === 'missing_costs'
+          ? 'missing costs'
+          : viewMode === 'calendar'
+            ? 'calendar'
+            : 'tasks list';
+      setWorkspaceReturn({
+        tab: 'plan',
+        planMode: variant === 'missing_costs' ? 'missing_costs' : 'tasks',
+        tasksViewMode: viewMode,
+        label: returnLabel
+      });
       setMainWorkspaceTab('itinerary');
       setSelectedDayId(dayId);
       setEditingCardId(null);
       setFocusedEntryId(entryId);
       requestSidebarDayFocus(dayId);
     },
-    [setEditingCardId, setFocusedEntryId, setMainWorkspaceTab, setSelectedDayId]
+    [
+      setEditingCardId,
+      setFocusedEntryId,
+      setMainWorkspaceTab,
+      setSelectedDayId,
+      setWorkspaceReturn,
+      variant,
+      viewMode
+    ]
   );
 
   const calendarEvents = React.useMemo((): CalendarEvent[] => {
@@ -252,10 +273,28 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
     [editDueDate, editNote, editTitle, refresh, svc]
   );
 
-  const renderManualNote = (m: TripReminder): React.ReactNode => {
-    const n = (m.taskNote || '').trim();
+  const renderTaskNote = (note: string | undefined, titleForDedup: string): React.ReactNode => {
+    const n = stripFollowUpPrefix((note || '').trim());
     if (!n) return null;
-    return <p className={styles.taskNoteLine}>{n}</p>;
+    const titleNorm = stripFollowUpPrefix(titleForDedup.replace(/^(Task|Reminder):\s*/i, '')).toLowerCase();
+    if (n.toLowerCase() === titleNorm) return null;
+    return (
+      <div className={styles.noteCallout}>
+        <span className={styles.noteCalloutLabel}>Notes</span>
+        <p className={styles.noteCalloutText}>{n}</p>
+      </div>
+    );
+  };
+
+  const renderEntryNotes = (entry: ItineraryEntry): React.ReactNode => {
+    const n = (entry.notes || '').trim();
+    if (!n) return null;
+    return (
+      <div className={styles.noteCallout}>
+        <span className={styles.noteCalloutLabel}>Notes</span>
+        <p className={styles.noteCalloutText}>{n}</p>
+      </div>
+    );
   };
 
   return (
@@ -388,7 +427,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
         <>
           <div className={styles.group}>
             <h3 className={styles.title}>Add new</h3>
-            <div className={styles.filters}>
+            <div className={`${styles.filters} ${styles.addRow}`}>
               <select className={styles.select} value={createKind} onChange={(e) => setCreateKind(e.target.value as CreateKind)}>
                 <option value="task">Task</option>
                 <option value="reminder">Reminder</option>
@@ -401,7 +440,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
               />
               <input className={styles.input} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
               <button
-                className={styles.button}
+                className={`${styles.button} ${styles.addBtn}`}
                 type="button"
                 onClick={() => {
                   if (!trip?.id || !text.trim()) return;
@@ -471,7 +510,8 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                         <div className={styles.meta}>
                           {m.dueDate ? `Due ${new Date(m.dueDate).toLocaleDateString('en-NZ')}` : 'No due date'}
                         </div>
-                        {renderManualNote(m)}
+                        {renderTaskNote(m.taskNote, reminderDisplayTitle(m))}
+                        {target?.entry ? renderEntryNotes(target.entry) : null}
                         {target ? (
                           <div className={styles.meta}>
                             {target.contextLine}
@@ -542,6 +582,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                       onChange={(e) => updateEntry({ ...entry, bookingDueDate: e.target.value || undefined })}
                     />
                   </label>
+                  {renderEntryNotes(entry)}
                 </div>
                 <div className={styles.actions}>
                   <button className={styles.button} type="button" onClick={() => openEntryInItineraryRead(entry.id, entry.dayId)}>
@@ -574,6 +615,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                       onChange={(e) => updateEntry({ ...entry, paymentDueDate: e.target.value || undefined })}
                     />
                   </label>
+                  {renderEntryNotes(entry)}
                 </div>
                 <div className={styles.actions}>
                   <button className={styles.button} type="button" onClick={() => openEntryInItineraryRead(entry.id, entry.dayId)}>

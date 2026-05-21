@@ -1009,7 +1009,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                     entryId: entry.id,
                     reminderType: 'Manual',
                     reminderText: taskTitle,
-                    taskNote: undefined,
+                    taskNote: (entry.notes || '').trim() || note || undefined,
                     dueDate: taskDueDate ? `${taskDueDate}T00:00:00.000Z` : undefined,
                     isComplete: false
                   })

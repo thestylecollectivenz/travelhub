@@ -793,6 +793,20 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
               value={Number.isNaN(draft.amount) ? '' : draft.amount}
               onChange={(e) => patch({ amount: e.target.value === '' ? 0 : Number(e.target.value) })}
             />
+            <label className={styles.label} htmlFor={`cost-certainty-${draft.id}`}>
+              Cost type
+            </label>
+            <select
+              id={`cost-certainty-${draft.id}`}
+              className={styles.select}
+              value={draft.costCertainty || 'Confirmed'}
+              onChange={(e) =>
+                patch({ costCertainty: e.target.value as ItineraryEntry['costCertainty'] })
+              }
+            >
+              <option value="Confirmed">Confirmed</option>
+              <option value="Estimated">Estimated</option>
+            </select>
           </>
         ) : null}
 

@@ -1,3 +1,22 @@
+.returnBar {
+  margin: calc(-1 * var(--space-2)) 0 0;
+}
+
+.returnBtn {
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-blue-50);
+  color: var(--color-blue-800);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.returnBtn:hover {
+  background: var(--color-blue-100);
+}
+
 .root {
   display: flex;
   flex-direction: column;

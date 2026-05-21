@@ -10,10 +10,12 @@ import styles from './TripPhotoAlbum.module.css';
 
 function AlbumPhotoCell({
   photo,
-  onOpenLightbox
+  onOpenLightbox,
+  isUnread
 }: {
   photo: JournalPhoto;
   onOpenLightbox: (url: string) => void;
+  isUnread?: boolean;
 }): React.ReactElement {
   const { updatePhotoCaption, togglePhotoLike } = useJournal();
   const spContext = useSpContext();
@@ -34,7 +36,8 @@ function AlbumPhotoCell({
   }, [photo.likedByUsers, spContext.pageContext.user.loginName]);
 
   return (
-    <div className={styles.cell} data-photo-id={photo.id}>
+    <div className={`${styles.cell} ${isUnread ? styles.cellUnread : ''}`} data-photo-id={photo.id}>
+      {isUnread ? <span className={styles.unreadDot} aria-label="Unread">New</span> : null}
       <figure className={styles.figure}>
         <button type="button" className={styles.thumbBtn} onClick={() => onOpenLightbox(photo.fileUrl)} aria-label="View full size">
           <img src={photo.fileUrl} alt="" className={styles.thumb} loading="lazy" />
@@ -150,6 +153,8 @@ export const TripPhotoAlbum: React.FC = () => {
 
   const [layout, setLayout] = React.useState<AlbumLayout>('all');
   const [scopeDayId, setScopeDayId] = React.useState<string>('');
+  const [readFilter, setReadFilter] = React.useState<'all' | 'unread' | 'read'>('all');
+  const [photosLastSeenMaxId, setPhotosLastSeenMaxId] = React.useState<number>(0);
   const [lightboxUrl, setLightboxUrl] = React.useState<string | null>(null);
 
   const [journalComposerOpen, setJournalComposerOpen] = React.useState(false);
@@ -164,6 +169,23 @@ export const TripPhotoAlbum: React.FC = () => {
   const [uploading, setUploading] = React.useState(false);
   const [progress, setProgress] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!trip?.id) return;
+    const key = `travelhub-photos-last-seen-id-${trip.id}`;
+    const prev = Number(window.localStorage.getItem(key) || '0');
+    setPhotosLastSeenMaxId(prev);
+    const maxId = allTripPhotos.reduce((m, p) => Math.max(m, Number(p.id) || 0), 0);
+    if (maxId > 0) window.localStorage.setItem(key, String(maxId));
+  }, [trip?.id, allTripPhotos]);
+
+  const isPhotoUnread = React.useCallback(
+    (photo: JournalPhoto): boolean => {
+      if (!photosLastSeenMaxId) return true;
+      return (Number(photo.id) || 0) > photosLastSeenMaxId;
+    },
+    [photosLastSeenMaxId]
+  );
 
   const days = React.useMemo(() => {
     if (!trip) return [];
@@ -233,18 +255,27 @@ export const TripPhotoAlbum: React.FC = () => {
 
   const orderedDayIds = React.useMemo(() => days.map((d) => d.id), [days]);
 
+  const filterPhotos = React.useCallback(
+    (items: JournalPhoto[]): JournalPhoto[] => {
+      if (readFilter === 'all') return items;
+      return items.filter((p) => (readFilter === 'unread' ? isPhotoUnread(p) : !isPhotoUnread(p)));
+    },
+    [readFilter, isPhotoUnread]
+  );
+
   const visibleSections = React.useMemo(() => {
     if (layout === 'all') {
-      return [{ title: null as string | null, items: photos }];
+      const items = filterPhotos(photos);
+      return [{ title: null as string | null, items }];
     }
     if (scopeDayId) {
       const d = days.find((x) => x.id === scopeDayId);
-      const items = photos.filter((p) => p.dayId === scopeDayId);
+      const items = filterPhotos(photos.filter((p) => p.dayId === scopeDayId));
       return [{ title: d ? `Day ${d.dayNumber} — ${d.displayTitle}` : 'Photos', items }];
     }
     const sections: { title: string; dayId?: string; items: JournalPhoto[] }[] = [];
     for (const dayId of orderedDayIds) {
-      const items = grouped.get(dayId) ?? [];
+      const items = filterPhotos(grouped.get(dayId) ?? []);
       if (!items.length) continue;
       const d = days.find((x) => x.id === dayId);
       sections.push({
@@ -254,7 +285,7 @@ export const TripPhotoAlbum: React.FC = () => {
       });
     }
     return sections;
-  }, [layout, scopeDayId, photos, grouped, orderedDayIds, days]);
+  }, [layout, scopeDayId, photos, grouped, orderedDayIds, days, filterPhotos]);
 
   const onPickFiles = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const picked = Array.from(e.target.files ?? []);
@@ -359,6 +390,29 @@ export const TripPhotoAlbum: React.FC = () => {
             </select>
           </label>
         ) : null}
+        <div className={styles.readFilter} role="group" aria-label="Photo read status">
+          <button
+            type="button"
+            className={`${styles.segmentButton} ${readFilter === 'all' ? styles.segmentActive : ''}`}
+            onClick={() => setReadFilter('all')}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            className={`${styles.segmentButton} ${readFilter === 'unread' ? styles.segmentActive : ''}`}
+            onClick={() => setReadFilter('unread')}
+          >
+            Unread
+          </button>
+          <button
+            type="button"
+            className={`${styles.segmentButton} ${readFilter === 'read' ? styles.segmentActive : ''}`}
+            onClick={() => setReadFilter('read')}
+          >
+            Read
+          </button>
+        </div>
         <div className={styles.toolbarEnd}>
           <button type="button" className={styles.addButton} onClick={() => setUploadOpen((v) => !v)}>
             {uploadOpen ? 'Close upload' : 'Add photos'}
@@ -468,7 +522,12 @@ export const TripPhotoAlbum: React.FC = () => {
             {sec.title ? <h3 className={styles.sectionTitle}>{sec.title}</h3> : null}
             <div className={styles.grid}>
               {sec.items.map((p) => (
-                <AlbumPhotoCell key={p.id} photo={p} onOpenLightbox={(url) => setLightboxUrl(url)} />
+                <AlbumPhotoCell
+                  key={p.id}
+                  photo={p}
+                  isUnread={isPhotoUnread(p)}
+                  onOpenLightbox={(url) => setLightboxUrl(url)}
+                />
               ))}
             </div>
           </div>

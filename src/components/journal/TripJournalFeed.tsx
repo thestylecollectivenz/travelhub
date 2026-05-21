@@ -9,12 +9,15 @@ import styles from './TripJournalFeed.module.css';
 
 type SortOrder = 'newest' | 'oldest';
 type ReadFilter = 'all' | 'unread' | 'read';
+type JournalLayout = 'all' | 'by-day';
 
 export const TripJournalFeed: React.FC = () => {
   const { allEntries, photosForEntry } = useJournal();
   const { trip, tripDays, sharedPreview, selectedDayId } = useTripWorkspace();
   const [sortOrder, setSortOrder] = React.useState<SortOrder>('newest');
   const [readFilter, setReadFilter] = React.useState<ReadFilter>('all');
+  const [layout, setLayout] = React.useState<JournalLayout>('all');
+  const [scopeDayId, setScopeDayId] = React.useState('');
   const [lastSeenAt, setLastSeenAt] = React.useState<string | null>(null);
   const [composerOpen, setComposerOpen] = React.useState(false);
   const [composerDayId, setComposerDayId] = React.useState('');
@@ -41,10 +44,19 @@ export const TripJournalFeed: React.FC = () => {
 
   React.useEffect(() => {
     if (!selectedDayId) return;
+    setLayout('by-day');
+    setScopeDayId(selectedDayId);
     document.getElementById(`journal-day-${selectedDayId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [selectedDayId]);
 
   const hidePreTripJournal = sharedPreview;
+
+  const journalDays = React.useMemo(() => {
+    if (!trip) return [];
+    return tripDays
+      .filter((d) => d.tripId === trip.id && (!hidePreTripJournal || d.dayType !== 'PreTrip'))
+      .sort((a, b) => a.dayNumber - b.dayNumber);
+  }, [trip, tripDays, hidePreTripJournal]);
 
   const daysForTrip = React.useMemo(() => {
     if (!trip) return [];
@@ -125,8 +137,12 @@ export const TripJournalFeed: React.FC = () => {
             .map((d) => d.id)
             .filter((id) => (map.get(id) ?? []).length > 0)
         : Array.from(map.keys());
-    return { order: sectionOrder, map };
-  }, [filteredEntries, trip, tripDays, sortOrder, hidePreTripJournal]);
+    const order =
+      layout === 'by-day' && scopeDayId
+        ? sectionOrder.filter((id) => id === scopeDayId)
+        : sectionOrder;
+    return { order, map };
+  }, [filteredEntries, trip, tripDays, sortOrder, hidePreTripJournal, layout, scopeDayId]);
 
   const selectedDayEntryCount = React.useMemo(
     () => (selectedDayId ? (groupedByDay.map.get(selectedDayId) ?? []).length : 0),
@@ -142,6 +158,52 @@ export const TripJournalFeed: React.FC = () => {
     <section className={styles.root} aria-label="Trip journal">
       <header className={styles.header}>
         <h2 className={styles.title}>Journal</h2>
+      </header>
+
+      <div className={styles.toolbar}>
+        <div className={styles.segment} role="group" aria-label="Journal layout">
+          <button
+            type="button"
+            className={`${styles.segmentBtn} ${layout === 'all' ? styles.segmentActive : ''}`}
+            onClick={() => {
+              setLayout('all');
+              setScopeDayId('');
+            }}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            className={`${styles.segmentBtn} ${layout === 'by-day' ? styles.segmentActive : ''}`}
+            onClick={() => {
+              setLayout('by-day');
+              setScopeDayId('');
+            }}
+          >
+            By day
+          </button>
+        </div>
+        {layout === 'by-day' ? (
+          <label className={styles.dayFilter}>
+            <span className={styles.dayFilterLabel}>Day</span>
+            <select
+              className={styles.daySelect}
+              value={scopeDayId}
+              onChange={(e) => setScopeDayId(e.target.value)}
+              aria-label="Filter journal by day"
+            >
+              <option value="">Every day</option>
+              {journalDays.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.dayType === 'PreTrip' ? 'Pre-trip' : `Day ${d.dayNumber} — ${d.displayTitle}`}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
+
+      <div className={styles.controls}>
         <div className={styles.sortRow} role="group" aria-label="Sort entries">
           {!sharedPreview ? (
             <button type="button" className={styles.newEntryAction} onClick={openNewEntry}>
@@ -195,7 +257,7 @@ export const TripJournalFeed: React.FC = () => {
             Read
           </button>
         </div>
-      </header>
+      </div>
 
       {composerOpen && composerDayId && !sharedPreview ? (
         <div className={styles.composerSection}>
@@ -240,7 +302,12 @@ export const TripJournalFeed: React.FC = () => {
               <div className={styles.dayEntries}>
                 {(groupedByDay.map.get(dayId) ?? []).map((e) => (
                   <div key={e.id} className={styles.block}>
-                    <JournalEntryCard entry={e} photos={photosForEntry(e.id)} canModerate={!sharedPreview} />
+                    <JournalEntryCard
+                      entry={e}
+                      photos={photosForEntry(e.id)}
+                      canModerate={!sharedPreview}
+                      isUnread={isUnread(e)}
+                    />
                   </div>
                 ))}
               </div>

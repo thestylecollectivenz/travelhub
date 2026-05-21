@@ -31,6 +31,7 @@ const SELECT_BASE = [
   'BookingStatus',
   'PaymentStatus',
   'Amount',
+  'CostCertainty',
   'AmountPaid',
   'PaymentCurrency',
   'AmountPaidConverted',
@@ -188,6 +189,10 @@ function mapToEntry(item: any): ItineraryEntry {
     bookingStatus: (item.BookingStatus as ItineraryBookingStatus) ?? 'Not booked',
     paymentStatus: (item.PaymentStatus as ItineraryPaymentStatus) ?? 'Not paid',
     amount: item.Amount ?? 0,
+    costCertainty:
+      item.CostCertainty === 'Estimated' || item.CostCertainty === 'Confirmed'
+        ? item.CostCertainty
+        : undefined,
     amountPaid: item.AmountPaid ?? undefined,
     paymentCurrency: item.PaymentCurrency ?? undefined,
     amountPaidConverted: item.AmountPaidConverted ?? undefined,
@@ -239,6 +244,10 @@ function mapToSubItem(item: any): ItinerarySubItem {
     amount: item.Amount ?? 0,
     amountPaid: item.AmountPaid ?? undefined,
     currency: item.Currency ?? 'NZD',
+    costCertainty:
+      item.CostCertainty === 'Estimated' || item.CostCertainty === 'Confirmed'
+        ? item.CostCertainty
+        : undefined,
     notes: item.Notes ?? '',
     groupLabel: item.GroupLabel ?? undefined,
     bookingRequired: item.BookingRequired === true
@@ -267,6 +276,7 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   if (entry.bookingStatus !== undefined) item.BookingStatus = entry.bookingStatus;
   if (entry.paymentStatus !== undefined) item.PaymentStatus = entry.paymentStatus;
   if (entry.amount !== undefined) item.Amount = entry.amount;
+  if (entry.costCertainty !== undefined) item.CostCertainty = entry.costCertainty;
   if (entry.amountPaid !== undefined) item.AmountPaid = entry.amountPaid;
   if (entry.paymentCurrency !== undefined) item.PaymentCurrency = entry.paymentCurrency;
   if (entry.amountPaidConverted !== undefined) item.AmountPaidConverted = entry.amountPaidConverted;
@@ -517,6 +527,7 @@ export class ItineraryService {
       DecisionStatus: subItem.decisionStatus,
       PaymentStatus: subItem.paymentStatus,
       Amount: subItem.amount,
+      CostCertainty: subItem.costCertainty ?? 'Confirmed',
       AmountPaid: subItem.amountPaid ?? null,
       Currency: subItem.currency,
       Notes: subItem.notes ?? '',

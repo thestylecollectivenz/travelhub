@@ -6,6 +6,24 @@
   box-shadow: var(--shadow-card);
 }
 
+.cardUnread {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 25%, transparent);
+}
+
+.unreadBadge {
+  display: inline-block;
+  margin-bottom: var(--space-1);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: var(--color-surface-raised);
+  font-size: 10px;
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .metaRow {
   display: flex;
   align-items: flex-start;

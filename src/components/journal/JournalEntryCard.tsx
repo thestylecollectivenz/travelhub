@@ -14,6 +14,7 @@ export interface JournalEntryCardProps {
   photos: JournalPhoto[];
   /** Temporary: treat all workspace viewers as authorised editors for journal moderation. */
   canModerate?: boolean;
+  isUnread?: boolean;
 }
 
 function formatTimestamp(iso: string): string {
@@ -157,7 +158,7 @@ function JournalPhotoSlot({
   );
 }
 
-export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photos, canModerate = true }) => {
+export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photos, canModerate = true, isUnread }) => {
   const spContext = useSpContext();
   const { trip } = useTripWorkspace();
   const { journalAuthorName } = useConfig();
@@ -273,9 +274,10 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
   }, [entry.likedByUsers, spContext.pageContext.user.loginName]);
 
   return (
-    <article className={styles.card} data-journal-id={entry.id}>
+    <article className={`${styles.card} ${isUnread ? styles.cardUnread : ''}`} data-journal-id={entry.id}>
       <div className={styles.metaRow}>
         <div>
+          {isUnread ? <span className={styles.unreadBadge}>Unread</span> : null}
           {showAuthorLine ? (
             <>
               <div className={styles.author}>{entry.authorName || 'Traveller'}</div>

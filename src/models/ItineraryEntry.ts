@@ -4,6 +4,9 @@ export type ItineraryBookingStatus = 'Not booked' | 'Booked';
 
 export type ItineraryPaymentStatus = 'Not paid' | 'Part paid' | 'Fully paid' | 'Free';
 
+/** Whether the entered cost is an estimate or confirmed figure. */
+export type CostCertainty = 'Estimated' | 'Confirmed';
+
 export type ItineraryUnitType = 'PerPerson' | 'PerNight' | 'PerDay';
 
 export type CabinClass = 'economy' | 'premium_economy' | 'business';
@@ -22,6 +25,7 @@ export interface ItinerarySubItem {
   amount: number;
   amountPaid?: number;
   currency: string;
+  costCertainty?: CostCertainty;
   notes?: string;
   groupLabel?: string;
   /** When true, surfaced on the option row and in previews (P7-9). */
@@ -53,6 +57,7 @@ export interface ItineraryEntry {
   paymentCurrency?: string;
   amountPaidConverted?: number;
   currency: string;
+  costCertainty?: CostCertainty;
   /** Check-in/start date in YYYY-MM-DD form (persisted as ISO date in SharePoint). */
   dateStart?: string;
   /** Check-out/end date in YYYY-MM-DD form (persisted as ISO date in SharePoint). */

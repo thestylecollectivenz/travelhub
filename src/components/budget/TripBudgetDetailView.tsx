@@ -7,118 +7,92 @@ import {
   avgPerDay,
   BUDGET_CATEGORY_ORDER,
   formatCurrency,
-  sumByPaymentStatus,
-  type BudgetCategoryKey
+  sumByPaymentStatus
 } from '../../utils/financialUtils';
 import { isPreTripDayRow } from '../../utils/itineraryDayEntries';
-import { formatYmdDisplay, inclusiveDaysBetween, nightsBetween } from '../../utils/localDate';
-import type { ItineraryEntry } from '../../models/ItineraryEntry';
+import { formatYmdDisplay } from '../../utils/localDate';
+import {
+  buildBudgetDetailLines,
+  sumBudgetLines,
+  type BudgetDetailLine
+} from '../../utils/budgetDetailLines';
+import { buildBudgetPrintHtml, exportFullBudgetToExcel } from '../../utils/exportBudgetExcel';
 import styles from './TripBudgetDetailView.module.css';
 
-function bucketCategory(category: string): BudgetCategoryKey {
-  if (category === 'Cruise port' || category === 'Cruise at sea') return 'Cruise';
-  return BUDGET_CATEGORY_ORDER.some((k) => k === category) ? (category as BudgetCategoryKey) : 'Other';
-}
+type BudgetViewMode = 'category' | 'all';
 
-interface DetailLine {
-  id: string;
-  title: string;
-  dayLabel: string;
-  dateLabel: string;
-  spanLabel?: string;
-  avgPerDay?: number;
-  total: number;
-  spent: number;
-  remaining: number;
-  isSubItem?: boolean;
-}
-
-function dateRangeLabel(entry: ItineraryEntry): string | undefined {
-  if (entry.dateStart && entry.dateEnd) {
-    const a = formatYmdDisplay(entry.dateStart);
-    const b = formatYmdDisplay(entry.dateEnd);
-    if (a && b) return a === b ? a : `${a} - ${b}`;
+function BudgetLineTable({
+  lines,
+  homeCurrency,
+  onEditEntry
+}: {
+  lines: BudgetDetailLine[];
+  homeCurrency: string;
+  onEditEntry: (entryId: string) => void;
+}): React.ReactElement {
+  const totals = sumBudgetLines(lines);
+  if (!lines.length) {
+    return <p className={styles.emptyHint}>No line items with amounts in this category yet.</p>;
   }
-  if (entry.embarksDate && entry.disembarksDate) {
-    const a = formatYmdDisplay(entry.embarksDate);
-    const b = formatYmdDisplay(entry.disembarksDate);
-    if (a && b) return `${a} - ${b}`;
-  }
-  if (entry.dateStart) return formatYmdDisplay(entry.dateStart);
-  if (entry.embarksDate) return formatYmdDisplay(entry.embarksDate);
-  return undefined;
-}
-
-function spanAndAvg(entry: ItineraryEntry, amount: number): { spanLabel?: string; avgPerDay?: number } {
-  if (entry.category === 'Accommodation' && entry.dateStart && entry.dateEnd) {
-    const nights = nightsBetween(entry.dateStart, entry.dateEnd);
-    if (nights > 0) return { spanLabel: `${nights} night${nights === 1 ? '' : 's'}`, avgPerDay: amount / nights };
-  }
-  if (entry.category === 'Cruise' && entry.embarksDate && entry.disembarksDate) {
-    const days = inclusiveDaysBetween(entry.embarksDate, entry.disembarksDate);
-    if (days > 0) return { spanLabel: `${days} day${days === 1 ? '' : 's'}`, avgPerDay: amount / days };
-  }
-  return {};
-}
-
-function settledAmount(total: number, paid: number | undefined, status: string): number {
-  if (status === 'Fully paid') return total;
-  if (status === 'Part paid') return Math.max(0, Math.min(total, paid ?? 0));
-  return 0;
-}
-
-function buildCategoryLines(
-  entries: ItineraryEntry[],
-  category: BudgetCategoryKey,
-  convertToHomeCurrency: (amount: number, currency: string) => number,
-  dayLabelFor: (dayId: string) => string
-): DetailLine[] {
-  const lines: DetailLine[] = [];
-  for (const entry of entries) {
-    if (bucketCategory(entry.category) !== category) continue;
-    const total = convertToHomeCurrency(entry.amount ?? 0, entry.currency || 'NZD');
-    if (total > 0 || (entry.amount ?? 0) > 0) {
-      const span = spanAndAvg(entry, total);
-      const paid = entry.amountPaid !== undefined
-        ? convertToHomeCurrency(entry.amountPaid, entry.paymentCurrency || entry.currency || 'NZD')
-        : undefined;
-      const spent = settledAmount(total, paid, entry.paymentStatus);
-      lines.push({
-        id: entry.id,
-        title: entry.title || 'Untitled',
-        dayLabel: dayLabelFor(entry.dayId),
-        dateLabel: dateRangeLabel(entry) || dayLabelFor(entry.dayId),
-        spanLabel: span.spanLabel,
-        avgPerDay: span.avgPerDay,
-        total,
-        spent,
-        remaining: Math.max(0, total - spent)
-      });
-    }
-    for (const sub of entry.subItems ?? []) {
-      const subTotal = convertToHomeCurrency(sub.amount ?? 0, sub.currency || 'NZD');
-      if (subTotal > 0 || (sub.amount ?? 0) > 0) {
-        const subPaid = sub.amountPaid !== undefined ? convertToHomeCurrency(sub.amountPaid, sub.currency || 'NZD') : undefined;
-        const subSpent = settledAmount(subTotal, subPaid, sub.paymentStatus);
-        lines.push({
-          id: `${entry.id}-${sub.id}`,
-          title: sub.title || 'Option',
-          dayLabel: dayLabelFor(entry.dayId),
-          dateLabel: dateRangeLabel(entry) || dayLabelFor(entry.dayId),
-          total: subTotal,
-          spent: subSpent,
-          remaining: Math.max(0, subTotal - subSpent),
-          isSubItem: true
-        });
-      }
-    }
-  }
-  return lines.sort((a, b) => a.dayLabel.localeCompare(b.dayLabel) || a.title.localeCompare(b.title));
+  return (
+    <div className={styles.lineList}>
+      <div className={styles.lineHeader}>
+        <span>Details</span>
+        <span className={styles.colMoney}>Total budget</span>
+        <span className={styles.colMoney}>Spent so far</span>
+        <span className={styles.colMoney}>Remaining</span>
+      </div>
+      <div className={`${styles.lineRow} ${styles.lineTotalsRow}`}>
+        <span className={styles.totalsLabel}>Totals</span>
+        <span className={`${styles.lineAmount} ${styles.colMoney}`}>{formatCurrency(totals.total, homeCurrency)}</span>
+        <span className={`${styles.lineAmount} ${styles.colMoney}`}>{formatCurrency(totals.spent, homeCurrency)}</span>
+        <span className={`${styles.lineAmount} ${styles.colMoney}`}>{formatCurrency(totals.remaining, homeCurrency)}</span>
+      </div>
+      {lines.map((line) => (
+        <div
+          key={line.id}
+          className={`${styles.lineRow} ${line.costCertainty === 'Estimated' ? styles.lineEstimated : styles.lineConfirmed}`}
+        >
+          <div className={styles.lineMain}>
+            <span className={styles.lineTitle}>
+              {line.isSubItem ? `→ ${line.title}` : line.title}
+              <button type="button" className={styles.editLink} onClick={() => onEditEntry(line.entryId)}>
+                Edit
+              </button>
+            </span>
+            {line.dateLines.map((d) => (
+              <span key={d} className={styles.lineMeta}>
+                {d}
+              </span>
+            ))}
+            {line.spanLabel ? <span className={styles.lineMeta}>{line.spanLabel}</span> : null}
+            {line.avgPerDay !== undefined && line.avgPerDay > 0 ? (
+              <span className={styles.lineMeta}>Avg {formatCurrency(line.avgPerDay, homeCurrency)} / day</span>
+            ) : null}
+          </div>
+          <span className={`${styles.lineAmount} ${styles.colMoney}`}>{formatCurrency(line.total, homeCurrency)}</span>
+          <span className={`${styles.lineAmount} ${styles.colMoney}`}>{formatCurrency(line.spent, homeCurrency)}</span>
+          <span className={`${styles.lineAmount} ${styles.colMoney}`}>{formatCurrency(line.remaining, homeCurrency)}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export const TripBudgetDetailView: React.FC = () => {
-  const { trip, localEntries, tripDays, convertToHomeCurrency, selectedBudgetCategory } = useTripWorkspace();
+  const {
+    trip,
+    localEntries,
+    tripDays,
+    convertToHomeCurrency,
+    selectedBudgetCategory,
+    setSelectedDayId,
+    setEditingCardId,
+    setFocusedEntryId,
+    setMainWorkspaceTab
+  } = useTripWorkspace();
   const { config } = useConfig();
+  const [viewMode, setViewMode] = React.useState<BudgetViewMode>('category');
 
   const entries = React.useMemo(
     () => (trip ? localEntries.filter((e) => e.tripId === trip.id) : []),
@@ -141,13 +115,70 @@ export const TripBudgetDetailView: React.FC = () => {
     [tripDays]
   );
 
+  const openEntryForEdit = React.useCallback(
+    (entryId: string): void => {
+      const entry = localEntries.find((e) => e.id === entryId);
+      if (!entry) return;
+      setMainWorkspaceTab('itinerary');
+      setSelectedDayId(entry.dayId);
+      setFocusedEntryId(null);
+      setEditingCardId(entryId);
+    },
+    [localEntries, setEditingCardId, setFocusedEntryId, setMainWorkspaceTab, setSelectedDayId]
+  );
+
   const category = selectedBudgetCategory ?? BUDGET_CATEGORY_ORDER[0];
-  const detailLines = React.useMemo(
-    () => buildCategoryLines(entries, category, convertToHomeCurrency, dayLabelFor),
-    [entries, category, convertToHomeCurrency, dayLabelFor]
+  const categoryLines = React.useMemo(
+    () => buildBudgetDetailLines(entries, category, convertToHomeCurrency, dayLabelFor, tripDays),
+    [entries, category, convertToHomeCurrency, dayLabelFor, tripDays]
   );
   const categorySlug = getCategorySlug(category);
-  const categoryTotal = detailLines.reduce((s, l) => s + l.total, 0);
+
+  const printBudget = React.useCallback((): void => {
+    if (!trip) return;
+    const html = buildBudgetPrintHtml({
+      tripTitle: trip.title,
+      homeCurrency: config.homeCurrency,
+      tripDayCount,
+      totalBudget,
+      spentSoFar,
+      remaining,
+      averagePerDay,
+      entries,
+      tripDays,
+      convertToHomeCurrency,
+      dayLabelFor
+    });
+    const w = window.open('', '_blank');
+    if (w) {
+      w.document.write(html);
+      w.document.close();
+    }
+  }, [
+    trip,
+    config.homeCurrency,
+    tripDayCount,
+    totalBudget,
+    spentSoFar,
+    remaining,
+    averagePerDay,
+    entries,
+    tripDays,
+    convertToHomeCurrency,
+    dayLabelFor
+  ]);
+
+  const exportExcel = React.useCallback((): void => {
+    if (!trip) return;
+    exportFullBudgetToExcel({
+      trip,
+      entries,
+      tripDays,
+      homeCurrency: config.homeCurrency,
+      convertToHomeCurrency,
+      dayLabelFor
+    });
+  }, [trip, entries, tripDays, config.homeCurrency, convertToHomeCurrency, dayLabelFor]);
 
   return (
     <section className={styles.root} aria-label="Trip budget detail">
@@ -177,42 +208,72 @@ export const TripBudgetDetailView: React.FC = () => {
         </div>
       </div>
 
-      <header className={styles.categoryHeader}>
-        <span className={`th-cat-${categorySlug} th-cat-icon`}>
-          <CategoryIcon category={category} size={20} />
-        </span>
-        <h2 className={styles.sectionTitle}>{category}</h2>
-        <span className={styles.categoryTotal}>{formatCurrency(categoryTotal, config.homeCurrency)}</span>
-      </header>
+      <div className={styles.toolbar}>
+        <div className={styles.segment} role="group" aria-label="Budget view">
+          <button
+            type="button"
+            className={`${styles.segmentBtn} ${viewMode === 'category' ? styles.segmentActive : ''}`}
+            onClick={() => setViewMode('category')}
+          >
+            By category
+          </button>
+          <button
+            type="button"
+            className={`${styles.segmentBtn} ${viewMode === 'all' ? styles.segmentActive : ''}`}
+            onClick={() => setViewMode('all')}
+          >
+            All categories
+          </button>
+        </div>
+        <div className={styles.toolbarActions}>
+          <button type="button" className={styles.actionBtn} onClick={exportExcel}>
+            Export Excel
+          </button>
+          <button type="button" className={styles.actionBtn} onClick={printBudget}>
+            Print
+          </button>
+        </div>
+      </div>
 
-      {detailLines.length === 0 ? (
-        <p className={styles.emptyHint}>No line items with amounts in this category yet.</p>
+      <div className={styles.legend} aria-label="Cost certainty legend">
+        <span className={styles.legendItem}>
+          <span className={`${styles.legendSwatch} ${styles.legendEstimated}`} aria-hidden />
+          Estimated cost
+        </span>
+        <span className={styles.legendItem}>
+          <span className={`${styles.legendSwatch} ${styles.legendConfirmed}`} aria-hidden />
+          Confirmed cost
+        </span>
+      </div>
+
+      {viewMode === 'category' ? (
+        <>
+          <header className={styles.categoryHeader}>
+            <span className={`th-cat-${categorySlug} th-cat-icon`}>
+              <CategoryIcon category={category} size={20} />
+            </span>
+            <h2 className={styles.sectionTitle}>{category}</h2>
+          </header>
+          <BudgetLineTable lines={categoryLines} homeCurrency={config.homeCurrency} onEditEntry={openEntryForEdit} />
+        </>
       ) : (
-        <div className={styles.lineList}>
-          <div className={styles.lineHeader}>
-            <span>Details</span>
-            <span>Total budget</span>
-            <span>Spent so far</span>
-            <span>Remaining</span>
-          </div>
-          {detailLines.map((line) => (
-            <div key={line.id} className={styles.lineRow}>
-              <div className={styles.lineMain}>
-                <span className={styles.lineTitle}>{line.isSubItem ? `-> ${line.title}` : line.title}</span>
-                <span className={styles.lineMeta}>{line.dayLabel}</span>
-                <span className={styles.lineMeta}>{line.dateLabel}</span>
-                {line.spanLabel ? <span className={styles.lineMeta}>{line.spanLabel}</span> : null}
-                {line.avgPerDay !== undefined && line.avgPerDay > 0 ? (
-                  <span className={styles.lineMeta}>Avg {formatCurrency(line.avgPerDay, config.homeCurrency)} / day</span>
-                ) : null}
-              </div>
-              <div className={styles.lineCols}>
-                <span className={styles.lineAmount}>{formatCurrency(line.total, config.homeCurrency)}</span>
-                <span className={styles.lineAmount}>{formatCurrency(line.spent, config.homeCurrency)}</span>
-                <span className={styles.lineAmount}>{formatCurrency(line.remaining, config.homeCurrency)}</span>
-              </div>
-            </div>
-          ))}
+        <div className={styles.allCategories}>
+          {BUDGET_CATEGORY_ORDER.map((cat) => {
+            const lines = buildBudgetDetailLines(entries, cat, convertToHomeCurrency, dayLabelFor, tripDays);
+            if (!lines.length) return null;
+            const slug = getCategorySlug(cat);
+            return (
+              <section key={cat} className={styles.categoryBlock}>
+                <header className={styles.categoryHeader}>
+                  <span className={`th-cat-${slug} th-cat-icon`}>
+                    <CategoryIcon category={cat} size={20} />
+                  </span>
+                  <h2 className={styles.sectionTitle}>{cat}</h2>
+                </header>
+                <BudgetLineTable lines={lines} homeCurrency={config.homeCurrency} onEditEntry={openEntryForEdit} />
+              </section>
+            );
+          })}
         </div>
       )}
     </section>

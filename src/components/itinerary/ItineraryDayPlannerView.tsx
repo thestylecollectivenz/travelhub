@@ -640,7 +640,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
             title="Opens print preview"
           >
             <PrintGlyph />
-            Print
+            Print / Save
           </button>
         ) : null}
       </div>
@@ -1239,6 +1239,9 @@ export const ItineraryDayPlannerView: React.FC = () => {
       {typeof document !== 'undefined' && printPreviewOpen
         ? ReactDOM.createPortal(
             <div className={styles.fullscreenChrome} role="toolbar" aria-label="Full screen controls">
+              <button type="button" className={styles.printPlannerBtn} onClick={openPlannerPrintSheet}>
+                Print / Save
+              </button>
               <button type="button" className={styles.rangeReset} onClick={() => setPrintPreviewOpen(false)}>
                 Close
               </button>

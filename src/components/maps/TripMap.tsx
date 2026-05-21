@@ -21,13 +21,13 @@ function shortMapLabel(title: string): string {
   return t.length > 24 ? `${t.slice(0, 22)}…` : t;
 }
 
-type Stop = {
+type RouteMarker = {
+  id: string;
   placeId: string;
   title: string;
   latitude: number;
   longitude: number;
-  startDay: number;
-  endDay: number;
+  dayNumber: number;
   isPrimary: boolean;
 };
 
@@ -60,11 +60,11 @@ export const TripMap: React.FC = () => {
   const mapRef = React.useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = React.useRef<L.Map | null>(null);
   const layerGroupRef = React.useRef<L.LayerGroup | null>(null);
-  const polylineRef = React.useRef<L.Polyline | null>(null);
+  const polylineGroupRef = React.useRef<L.LayerGroup | null>(null);
   const initStartedRef = React.useRef(false);
   const layerRunRef = React.useRef(0);
   const [mapBoot, setMapBoot] = React.useState(0);
-  const [lastStops, setLastStops] = React.useState<Stop[]>([]);
+  const [lastMarkers, setLastMarkers] = React.useState<RouteMarker[]>([]);
 
   const fitMapToPoints = React.useCallback((map: L.Map, points: L.LatLngExpression[]): void => {
     if (!points.length) {
@@ -82,31 +82,28 @@ export const TripMap: React.FC = () => {
     }
   }, []);
 
-  const stops = React.useMemo((): Stop[] => {
+  const routeMarkers = React.useMemo((): RouteMarker[] => {
     if (!trip) return [];
     const orderedDays = tripDays
       .filter((d) => d.tripId === trip.id && !isPreTripDayRow(d))
       .sort((a, b) => a.dayNumber - b.dayNumber);
-    const out: Stop[] = [];
+    const out: RouteMarker[] = [];
     for (const day of orderedDays) {
       const place = placeById(day.primaryPlaceId);
-      if (!place) continue;
-      const lat = Number(place.latitude);
-      const lon = Number(place.longitude);
-      if (!isValidLatLng(lat, lon)) continue;
-      const prev = out[out.length - 1];
-      if (prev && prev.placeId === place.id) {
-        prev.endDay = day.dayNumber;
-      } else {
-        out.push({
-          placeId: place.id,
-          title: place.title,
-          latitude: lat,
-          longitude: lon,
-          startDay: day.dayNumber,
-          endDay: day.dayNumber,
-          isPrimary: true
-        });
+      if (place) {
+        const lat = Number(place.latitude);
+        const lon = Number(place.longitude);
+        if (isValidLatLng(lat, lon)) {
+          out.push({
+            id: `primary-${day.id}`,
+            placeId: place.id,
+            title: place.title,
+            latitude: lat,
+            longitude: lon,
+            dayNumber: day.dayNumber,
+            isPrimary: true
+          });
+        }
       }
       const additional = parseAdditionalPlaceRefs(day.additionalPlaceIds);
       for (const ref of additional) {
@@ -116,12 +113,12 @@ export const TripMap: React.FC = () => {
         const alon = Number(add.longitude);
         if (!isValidLatLng(alat, alon)) continue;
         out.push({
-          placeId: `${add.id}-${day.id}`,
-          title: `${add.title} (Day ${day.dayNumber})`,
+          id: `add-${day.id}-${add.id}`,
+          placeId: add.id,
+          title: add.title,
           latitude: alat,
           longitude: alon,
-          startDay: day.dayNumber,
-          endDay: day.dayNumber,
+          dayNumber: day.dayNumber,
           isPrimary: false
         });
       }
@@ -130,14 +127,14 @@ export const TripMap: React.FC = () => {
   }, [trip, tripDays, placeById]);
 
   React.useEffect(() => {
-    if (stops.length) setLastStops(stops);
-  }, [stops]);
+    if (routeMarkers.length) setLastMarkers(routeMarkers);
+  }, [routeMarkers]);
 
-  const renderedStops = stops.length ? stops : lastStops;
+  const renderedMarkers = routeMarkers.length ? routeMarkers : lastMarkers;
 
   const mapStats = React.useMemo(() => {
     if (!trip) return { primaryStops: 0, tripDays: 0, countries: 0 };
-    const primary = renderedStops.filter((s) => s.isPrimary);
+    const primary = renderedMarkers.filter((s) => s.isPrimary);
     const countries = new Set<string>();
     for (const s of primary) {
       const parts = (s.title || '').split(',').map((p) => p.trim()).filter(Boolean);
@@ -148,7 +145,7 @@ export const TripMap: React.FC = () => {
       tripDays: tripDays.filter((d) => d.tripId === trip.id).length,
       countries: countries.size
     };
-  }, [trip, tripDays, renderedStops]);
+  }, [trip, tripDays, renderedMarkers]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -225,27 +222,33 @@ export const TripMap: React.FC = () => {
         const layerGroup = layerGroupRef.current ?? L.layerGroup().addTo(map);
         layerGroupRef.current = layerGroup;
         layerGroup.clearLayers();
-        if (polylineRef.current) {
-          map.removeLayer(polylineRef.current);
-          polylineRef.current = null;
+        if (polylineGroupRef.current) {
+          map.removeLayer(polylineGroupRef.current);
+          polylineGroupRef.current = null;
         }
 
-        if (!renderedStops.length) {
+        if (!renderedMarkers.length) {
           map.setView([20, 0], 2);
           window.setTimeout(() => map.invalidateSize(), 0);
           return;
         }
 
         const points: L.LatLngExpression[] = [];
-        const seenLabels = new Set<string>();
-        for (const s of renderedStops) {
+        const seenLabelCoords = new Set<string>();
+        const coordVisitCount = new Map<string, number>();
+        for (const s of renderedMarkers) {
           if (!isValidLatLng(s.latitude, s.longitude)) continue;
-          const ll: L.LatLngExpression = [s.latitude, s.longitude];
+          const coordKey = `${s.latitude.toFixed(4)}|${s.longitude.toFixed(4)}`;
+          const visit = coordVisitCount.get(coordKey) ?? 0;
+          coordVisitCount.set(coordKey, visit + 1);
+          const lat = s.latitude + visit * 0.012;
+          const lon = s.longitude + visit * 0.008;
+          const ll: L.LatLngExpression = [lat, lon];
           points.push(ll);
-          const range = s.startDay === s.endDay ? `Day ${s.startDay}` : `Days ${s.startDay}-${s.endDay}`;
           const label = shortMapLabel(s.title);
-          const showLabel = !seenLabels.has(label.toLowerCase());
-          if (showLabel) seenLabels.add(label.toLowerCase());
+          const labelKey = `${label.toLowerCase()}|${s.latitude.toFixed(3)}|${s.longitude.toFixed(3)}`;
+          const showLabel = !seenLabelCoords.has(labelKey);
+          if (showLabel) seenLabelCoords.add(labelKey);
           const icon = L.divIcon({
             className: 'th-map-labeled-pin-wrap',
             html: `<div class="th-map-labeled-pin"><span class="th-map-labeled-pin-dot"></span>${showLabel ? `<span class="th-map-labeled-pin-label">${escapeHtml(label)}</span>` : ''}</div>`,
@@ -253,7 +256,7 @@ export const TripMap: React.FC = () => {
             iconAnchor: [12, 20]
           });
           const marker = L.marker(ll, { icon, interactive: true });
-          marker.bindTooltip(s.title, {
+          marker.bindTooltip(`${s.title} (Day ${s.dayNumber})`, {
             permanent: false,
             sticky: true,
             direction: 'top',
@@ -261,7 +264,7 @@ export const TripMap: React.FC = () => {
             className: 'th-leaflet-tooltip'
           });
           marker.bindPopup(
-            `<strong>${s.title}</strong><br/>${range}<br/><a href="https://www.google.com/maps/@${s.latitude},${s.longitude},10z" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>`
+            `<strong>${s.title}</strong><br/>Day ${s.dayNumber}<br/><a href="https://www.google.com/maps/@${s.latitude},${s.longitude},10z" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>`
           );
           marker.addTo(layerGroup);
         }
@@ -269,7 +272,10 @@ export const TripMap: React.FC = () => {
         const orderedDays = tripDays
           .filter((d) => (trip ? d.tripId === trip.id && !isPreTripDayRow(d) : !isPreTripDayRow(d)))
           .sort((a, b) => a.dayNumber - b.dayNumber);
-        const polylinePoints: L.LatLngExpression[] = [];
+        const lineGroup = L.layerGroup().addTo(map);
+        polylineGroupRef.current = lineGroup;
+
+        const primaryPoints: L.LatLngExpression[] = [];
         for (const day of orderedDays) {
           const primary = placeById(day.primaryPlaceId);
           if (!primary) continue;
@@ -277,24 +283,28 @@ export const TripMap: React.FC = () => {
           const plon = Number(primary.longitude);
           if (!isValidLatLng(plat, plon)) continue;
           const primaryPoint: L.LatLngExpression = [plat, plon];
-          polylinePoints.push(primaryPoint);
+          if (primaryPoints.length >= 1) {
+            L.polyline([primaryPoints[primaryPoints.length - 1], primaryPoint], { color: '#1A6399', weight: 2 }).addTo(
+              lineGroup
+            );
+          }
+          primaryPoints.push(primaryPoint);
+
           const additional = parseAdditionalPlaceRefs(day.additionalPlaceIds);
+          let legStart = primaryPoint;
           for (const ref of additional) {
             const add = placeById(ref.placeId);
             if (!add) continue;
             const alat = Number(add.latitude);
             const alon = Number(add.longitude);
             if (!isValidLatLng(alat, alon)) continue;
-            polylinePoints.push([alat, alon]);
-            if (!ref.returnToPrimary) break;
+            const addPoint: L.LatLngExpression = [alat, alon];
+            L.polyline([legStart, addPoint], { color: '#1A6399', weight: 2, dashArray: '4 6' }).addTo(lineGroup);
+            legStart = ref.returnToPrimary ? primaryPoint : addPoint;
+            if (ref.returnToPrimary) {
+              L.polyline([addPoint, primaryPoint], { color: '#1A6399', weight: 2, dashArray: '4 6' }).addTo(lineGroup);
+            }
           }
-          if (additional.some((x) => x.returnToPrimary)) {
-            polylinePoints.push(primaryPoint);
-          }
-        }
-        if (polylinePoints.length >= 2) {
-          polylineRef.current = L.polyline(polylinePoints, { color: '#1A6399', weight: 2 });
-          polylineRef.current.addTo(map);
         }
         fitMapToPoints(map, points);
         window.setTimeout(() => map.invalidateSize(), 0);
@@ -311,7 +321,7 @@ export const TripMap: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [renderedStops, trip, tripDays, placeById, mapBoot, fitMapToPoints]);
+  }, [renderedMarkers, trip, tripDays, placeById, mapBoot, fitMapToPoints]);
 
   React.useEffect(
     () => () => {
@@ -319,7 +329,7 @@ export const TripMap: React.FC = () => {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
         layerGroupRef.current = null;
-        polylineRef.current = null;
+        polylineGroupRef.current = null;
       }
       initStartedRef.current = false;
     },
@@ -328,7 +338,7 @@ export const TripMap: React.FC = () => {
 
   return (
     <section className={styles.root} aria-label="Trip map">
-      {!stops.length ? (
+      {!routeMarkers.length ? (
         <p className={styles.emptyHint}>
           Add a primary location to each itinerary day to see stops on the map. The map still loads so you can confirm the tab is working.
         </p>

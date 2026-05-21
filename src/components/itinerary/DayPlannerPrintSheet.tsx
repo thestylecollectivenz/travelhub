@@ -28,7 +28,7 @@ export const DayPlannerPrintSheet: React.FC<DayPlannerPrintSheetProps> = ({ titl
       <div className={styles.sheet} role="dialog" aria-modal="true" aria-label={title}>
         <div className={styles.toolbar}>
           <button type="button" className={styles.printBtn} onClick={handlePrint}>
-            Print / Save PDF
+            Print / Save
           </button>
           <button type="button" className={styles.closeBtn} onClick={onClose}>
             Close

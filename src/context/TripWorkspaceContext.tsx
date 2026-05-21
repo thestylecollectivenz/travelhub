@@ -15,6 +15,7 @@ import { calendarDayBefore, planChronologicalRenumber, ymdSlice } from '../utils
 import { isPreTripDayRow } from '../utils/itineraryDayEntries';
 import { useConfig } from './ConfigContext';
 import type { BudgetCategoryKey } from '../utils/financialUtils';
+import type { WorkspaceReturnState } from '../types/workspaceReturn';
 
 export type MainWorkspaceTab = 'itinerary' | 'journal' | 'photos' | 'files' | 'map' | 'plan' | 'budget';
 
@@ -63,6 +64,9 @@ export interface TripWorkspaceContextValue {
   setSelectedBudgetCategory: (category: BudgetCategoryKey | null) => void;
   sharedPreview: boolean;
   setSharedPreview: (value: boolean) => void;
+  /** When set, itinerary shows a control to return to the prior tab/view (tasks, missing costs, etc.). */
+  workspaceReturn: WorkspaceReturnState | null;
+  setWorkspaceReturn: (state: WorkspaceReturnState | null) => void;
   usedSuppliers: string[];
   usedLocations: string[];
 }
@@ -95,6 +99,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
   const [mainWorkspaceTab, setMainWorkspaceTab] = React.useState<MainWorkspaceTab>('itinerary');
   const [selectedBudgetCategory, setSelectedBudgetCategory] = React.useState<BudgetCategoryKey | null>(null);
   const [sharedPreview, setSharedPreview] = React.useState(false);
+  const [workspaceReturn, setWorkspaceReturn] = React.useState<WorkspaceReturnState | null>(null);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
   const [deletingTrip, setDeletingTrip] = React.useState<boolean>(false);
@@ -651,6 +656,8 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       setSelectedBudgetCategory,
       sharedPreview,
       setSharedPreview,
+      workspaceReturn,
+      setWorkspaceReturn,
       usedSuppliers: Array.from(new Set(localEntries.map((e) => (e.supplier || '').trim()).filter(Boolean))).sort(),
       usedLocations: Array.from(new Set(localEntries.map((e) => (e.location || '').trim()).filter(Boolean))).sort()
     }),
@@ -683,7 +690,8 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       convertToHomeCurrency,
       mainWorkspaceTab,
       selectedBudgetCategory,
-      sharedPreview
+      sharedPreview,
+      workspaceReturn
     ]
   );
 

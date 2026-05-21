@@ -28,17 +28,24 @@ export function buildCruiseImportReport(options: {
   if (options.skippedCount > 0) {
     lines.push(`${options.skippedCount} line${options.skippedCount === 1 ? '' : 's'} could not be matched to a trip day.`);
   }
+  lines.push('');
   if (options.mapPinMisses.length) {
-    lines.push('');
-    lines.push('Locations without a map pin (day titles and cruise stops were still added):');
-    for (const m of options.mapPinMisses) {
-      const when = m.date ? formatCruiseImportDate(m.date) : 'unmatched date';
-      lines.push(`• ${m.port} — ${when}`);
+    const uniquePorts = Array.from(new Set(options.mapPinMisses.map((m) => m.port))).sort();
+    lines.push(
+      `${options.mapPinMisses.length} port stop${options.mapPinMisses.length === 1 ? '' : 's'} could not be geocoded (${uniquePorts.length} unique location${uniquePorts.length === 1 ? '' : 's'}):`
+    );
+    for (const port of uniquePorts) {
+      const dates = options.mapPinMisses
+        .filter((m) => m.port === port)
+        .map((m) => (m.date ? formatCruiseImportDate(m.date) : 'date unknown'));
+      lines.push(`• ${port}${dates.length ? ` — ${dates.join('; ')}` : ''}`);
     }
     lines.push('');
     lines.push(
-      'You can set these manually from each day’s Locations panel. Scenic sailing days (e.g. Antarctic Experience) often have no real-world pin.'
+      'Day titles and cruise itinerary stops were still added. Set map pins manually from each day’s Locations panel where needed.'
     );
+  } else {
+    lines.push('All port locations were matched to map coordinates.');
   }
   if (options.otherNotes.length) {
     lines.push('');

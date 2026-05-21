@@ -114,6 +114,13 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
             placeholder="End time"
           />
         </div>
+        <textarea
+          className={styles.field}
+          rows={2}
+          placeholder="Notes for this option"
+          value={draft.notes ?? ''}
+          onChange={(e) => setDraft((prev) => ({ ...prev, notes: e.target.value }))}
+        />
         <div className={styles.checkboxRow}>
           <input
             id={`br-${item.id}`}

@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { usePlanView } from '../../context/PlanViewContext';
 import { useConfig } from '../../context/ConfigContext';
 import { ItineraryTimeline } from '../itinerary/ItineraryTimeline';
 import { ItineraryDayPlannerView } from '../itinerary/ItineraryDayPlannerView';
@@ -31,7 +32,16 @@ function PlannerGlyph(): React.ReactElement {
 }
 
 export const DayPanel: React.FC = () => {
-  const { trip, tripDays, selectedDayId, setEditingCardId } = useTripWorkspace();
+  const {
+    trip,
+    tripDays,
+    selectedDayId,
+    setEditingCardId,
+    workspaceReturn,
+    setWorkspaceReturn,
+    setMainWorkspaceTab
+  } = useTripWorkspace();
+  const planView = usePlanView();
   const { config } = useConfig();
   const { placeById } = usePlaces();
   const [openJournalSignal, setOpenJournalSignal] = React.useState(0);
@@ -56,6 +66,23 @@ export const DayPanel: React.FC = () => {
 
   return (
     <div className={styles.root}>
+      {workspaceReturn ? (
+        <div className={styles.returnBar} role="navigation">
+          <button
+            type="button"
+            className={styles.returnBtn}
+            onClick={() => {
+              setMainWorkspaceTab(workspaceReturn.tab);
+              if (workspaceReturn.planMode && planView) {
+                planView.setPlanTab(workspaceReturn.planMode);
+              }
+              setWorkspaceReturn(null);
+            }}
+          >
+            ← Back to {workspaceReturn.label}
+          </button>
+        </div>
+      ) : null}
       <DayHeader day={day} />
       <div id="day-breakdown-tile">
         <BudgetBreakdownTile
