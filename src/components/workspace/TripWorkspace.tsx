@@ -25,6 +25,7 @@ import * as XLSX from 'xlsx';
 import { formatCurrency, sumByCategory, sumByPaymentStatus } from '../../utils/financialUtils';
 import { useConfig } from '../../context/ConfigContext';
 import { JournalPdfExport } from '../export/JournalPdfExport';
+import { SOLUTION_VERSION } from '../../appVersion';
 import styles from './TripWorkspace.module.css';
 
 export interface ITripWorkspaceProps {
@@ -410,6 +411,9 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
         <button type="button" className={styles.backButton} onClick={onBack} disabled={deletingTrip}>
           ← All Trips
         </button>
+        <span className={styles.buildTag} title="App package version — use this to confirm SharePoint loaded the latest deploy">
+          v{SOLUTION_VERSION}
+        </span>
         <div className={styles.toolbarActions}>
           {sharedPreview ? (
             <button type="button" className={styles.settingsButton} onClick={() => setSharedPreview(false)}>
