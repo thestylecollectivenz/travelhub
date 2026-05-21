@@ -3,10 +3,9 @@ import L from 'leaflet';
 import './LeafletCompat.css';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
-import { parseAdditionalPlaceRefs } from '../../utils/tripDayPlaces';
-import { isPreTripDayRow } from '../../utils/itineraryDayEntries';
 import { TRAVELHUB_MAP_FOCUS, type MapFocusDetail } from '../../utils/mapFocus';
 import { nextDisplayLatLng } from '../../utils/mapMarkerCoords';
+import { buildMapTransportStops } from '../../utils/mapTransportStops';
 import styles from './TripMap.module.css';
 
 function escapeHtml(s: string): string {
@@ -16,21 +15,6 @@ function escapeHtml(s: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
-
-function shortMapLabel(title: string): string {
-  const t = (title || '').split(',')[0].trim();
-  return t.length > 24 ? `${t.slice(0, 22)}…` : t;
-}
-
-type RouteMarker = {
-  id: string;
-  placeId: string;
-  title: string;
-  latitude: number;
-  longitude: number;
-  dayNumber: number;
-  isPrimary: boolean;
-};
 
 function isValidLatLng(lat: number, lon: number): boolean {
   return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
@@ -56,7 +40,7 @@ function addResilientTileLayer(map: L.Map): void {
 }
 
 export const TripMap: React.FC = () => {
-  const { trip, tripDays } = useTripWorkspace();
+  const { trip, tripDays, localEntries } = useTripWorkspace();
   const { placeById } = usePlaces();
   const mapRef = React.useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = React.useRef<L.Map | null>(null);
@@ -65,7 +49,7 @@ export const TripMap: React.FC = () => {
   const initStartedRef = React.useRef(false);
   const layerRunRef = React.useRef(0);
   const [mapBoot, setMapBoot] = React.useState(0);
-  const [lastMarkers, setLastMarkers] = React.useState<RouteMarker[]>([]);
+  const [lastMarkers, setLastMarkers] = React.useState<ReturnType<typeof buildMapTransportStops>>([]);
 
   const fitMapToPoints = React.useCallback((map: L.Map, points: L.LatLngExpression[]): void => {
     if (!points.length) {
@@ -83,49 +67,15 @@ export const TripMap: React.FC = () => {
     }
   }, []);
 
-  const routeMarkers = React.useMemo((): RouteMarker[] => {
+  const routeMarkers = React.useMemo(() => {
     if (!trip) return [];
-    const orderedDays = tripDays
-      .filter((d) => d.tripId === trip.id && !isPreTripDayRow(d))
-      .sort((a, b) => a.dayNumber - b.dayNumber);
-    const out: RouteMarker[] = [];
-    for (const day of orderedDays) {
-      const place = placeById(day.primaryPlaceId);
-      if (place) {
-        const lat = Number(place.latitude);
-        const lon = Number(place.longitude);
-        if (isValidLatLng(lat, lon)) {
-          out.push({
-            id: `primary-${day.id}`,
-            placeId: place.id,
-            title: place.title,
-            latitude: lat,
-            longitude: lon,
-            dayNumber: day.dayNumber,
-            isPrimary: true
-          });
-        }
-      }
-      const additional = parseAdditionalPlaceRefs(day.additionalPlaceIds);
-      for (const ref of additional) {
-        const add = placeById(ref.placeId);
-        if (!add) continue;
-        const alat = Number(add.latitude);
-        const alon = Number(add.longitude);
-        if (!isValidLatLng(alat, alon)) continue;
-        out.push({
-          id: `add-${day.id}-${add.id}`,
-          placeId: add.id,
-          title: add.title,
-          latitude: alat,
-          longitude: alon,
-          dayNumber: day.dayNumber,
-          isPrimary: false
-        });
-      }
-    }
-    return out;
-  }, [trip, tripDays, placeById]);
+    return buildMapTransportStops({
+      tripId: trip.id,
+      tripDays,
+      entries: localEntries,
+      placeById
+    });
+  }, [trip, tripDays, localEntries, placeById]);
 
   React.useEffect(() => {
     if (routeMarkers.length) setLastMarkers(routeMarkers);
@@ -135,14 +85,13 @@ export const TripMap: React.FC = () => {
 
   const mapStats = React.useMemo(() => {
     if (!trip) return { primaryStops: 0, tripDays: 0, countries: 0 };
-    const primary = renderedMarkers.filter((s) => s.isPrimary);
     const countries = new Set<string>();
-    for (const s of primary) {
+    for (const s of renderedMarkers) {
       const parts = (s.title || '').split(',').map((p) => p.trim()).filter(Boolean);
       if (parts.length > 1) countries.add(parts[parts.length - 1]);
     }
     return {
-      primaryStops: primary.length,
+      primaryStops: renderedMarkers.length,
       tripDays: tripDays.filter((d) => d.tripId === trip.id).length,
       countries: countries.size
     };
@@ -234,25 +183,21 @@ export const TripMap: React.FC = () => {
           return;
         }
 
-        const points: L.LatLngExpression[] = [];
-        const seenLabelCoords = new Set<string>();
         const coordVisitCount = new Map<string, number>();
+        const displayPoints: L.LatLngExpression[] = [];
+
         for (const s of renderedMarkers) {
           if (!isValidLatLng(s.latitude, s.longitude)) continue;
           const ll: L.LatLngExpression = nextDisplayLatLng(s.latitude, s.longitude, coordVisitCount);
-          points.push(ll);
-          const label = shortMapLabel(s.title);
-          const labelKey = `${label.toLowerCase()}|${s.latitude.toFixed(3)}|${s.longitude.toFixed(3)}`;
-          const showLabel = !seenLabelCoords.has(labelKey);
-          if (showLabel) seenLabelCoords.add(labelKey);
+          displayPoints.push(ll);
           const icon = L.divIcon({
             className: 'th-map-labeled-pin-wrap',
-            html: `<div class="th-map-labeled-pin"><span class="th-map-labeled-pin-dot"></span>${showLabel ? `<span class="th-map-labeled-pin-label">${escapeHtml(label)}</span>` : ''}</div>`,
+            html: `<div class="th-map-labeled-pin"><span class="th-map-labeled-pin-dot"></span><span class="th-map-labeled-pin-label">${escapeHtml(s.label)}</span></div>`,
             iconSize: [1, 1],
             iconAnchor: [12, 20]
           });
           const marker = L.marker(ll, { icon, interactive: true });
-          marker.bindTooltip(`${s.title} (Day ${s.dayNumber})`, {
+          marker.bindTooltip(s.label, {
             permanent: false,
             sticky: true,
             direction: 'top',
@@ -260,49 +205,18 @@ export const TripMap: React.FC = () => {
             className: 'th-leaflet-tooltip'
           });
           marker.bindPopup(
-            `<strong>${s.title}</strong><br/>Day ${s.dayNumber}<br/><a href="https://www.google.com/maps/@${s.latitude},${s.longitude},10z" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>`
+            `<strong>${escapeHtml(s.title)}</strong><br/>${escapeHtml(s.label)}<br/><a href="https://www.google.com/maps/@${s.latitude},${s.longitude},10z" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>`
           );
           marker.addTo(layerGroup);
         }
 
-        const orderedDays = tripDays
-          .filter((d) => (trip ? d.tripId === trip.id && !isPreTripDayRow(d) : !isPreTripDayRow(d)))
-          .sort((a, b) => a.dayNumber - b.dayNumber);
-        const lineGroup = L.layerGroup().addTo(map);
-        polylineGroupRef.current = lineGroup;
-
-        const primaryPoints: L.LatLngExpression[] = [];
-        for (const day of orderedDays) {
-          const primary = placeById(day.primaryPlaceId);
-          if (!primary) continue;
-          const plat = Number(primary.latitude);
-          const plon = Number(primary.longitude);
-          if (!isValidLatLng(plat, plon)) continue;
-          const primaryPoint: L.LatLngExpression = nextDisplayLatLng(plat, plon, coordVisitCount);
-          if (primaryPoints.length >= 1) {
-            L.polyline([primaryPoints[primaryPoints.length - 1], primaryPoint], { color: '#1A6399', weight: 2 }).addTo(
-              lineGroup
-            );
-          }
-          primaryPoints.push(primaryPoint);
-
-          const additional = parseAdditionalPlaceRefs(day.additionalPlaceIds);
-          let legStart = primaryPoint;
-          for (const ref of additional) {
-            const add = placeById(ref.placeId);
-            if (!add) continue;
-            const alat = Number(add.latitude);
-            const alon = Number(add.longitude);
-            if (!isValidLatLng(alat, alon)) continue;
-            const addPoint: L.LatLngExpression = nextDisplayLatLng(alat, alon, coordVisitCount);
-            L.polyline([legStart, addPoint], { color: '#1A6399', weight: 2, dashArray: '4 6' }).addTo(lineGroup);
-            legStart = ref.returnToPrimary ? primaryPoint : addPoint;
-            if (ref.returnToPrimary) {
-              L.polyline([addPoint, primaryPoint], { color: '#1A6399', weight: 2, dashArray: '4 6' }).addTo(lineGroup);
-            }
-          }
+        if (displayPoints.length >= 2) {
+          const lineGroup = L.layerGroup().addTo(map);
+          polylineGroupRef.current = lineGroup;
+          L.polyline(displayPoints, { color: '#1A6399', weight: 2 }).addTo(lineGroup);
         }
-        fitMapToPoints(map, points);
+
+        fitMapToPoints(map, displayPoints);
         window.setTimeout(() => map.invalidateSize(), 0);
       } catch (err) {
         // eslint-disable-next-line no-console
@@ -317,7 +231,7 @@ export const TripMap: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [renderedMarkers, trip, tripDays, placeById, mapBoot, fitMapToPoints]);
+  }, [renderedMarkers, mapBoot, fitMapToPoints]);
 
   React.useEffect(
     () => () => {
@@ -336,14 +250,14 @@ export const TripMap: React.FC = () => {
     <section className={styles.root} aria-label="Trip map">
       {!routeMarkers.length ? (
         <p className={styles.emptyHint}>
-          Add a primary location to each itinerary day to see stops on the map. The map still loads so you can confirm the tab is working.
+          Transport stops (flights, cruise, and transport items) with a mapped day location appear here.
         </p>
       ) : null}
       <div className={`${styles.map} th-map-container`} ref={mapRef} />
       <div className={styles.stats} aria-label="Route summary">
         <div className={styles.statChip}>
           <span className={styles.statValue}>{mapStats.primaryStops}</span>
-          <span className={styles.statLabel}>Map stops</span>
+          <span className={styles.statLabel}>Transport stops</span>
         </div>
         <div className={styles.statChip}>
           <span className={styles.statValue}>{mapStats.tripDays}</span>

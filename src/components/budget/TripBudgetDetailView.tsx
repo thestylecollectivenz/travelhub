@@ -97,6 +97,12 @@ export const TripBudgetDetailView: React.FC = () => {
   const [viewMode, setViewMode] = React.useState<BudgetViewMode>('category');
   const [printHtml, setPrintHtml] = React.useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (selectedBudgetCategory) {
+      setViewMode('category');
+    }
+  }, [selectedBudgetCategory]);
+
   const entries = React.useMemo(
     () => (trip ? localEntries.filter((e) => e.tripId === trip.id) : []),
     [localEntries, trip]

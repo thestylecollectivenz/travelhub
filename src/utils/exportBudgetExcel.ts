@@ -99,7 +99,7 @@ export function buildBudgetPrintHtml(options: {
 .th-details,.td-details{text-align:left;vertical-align:top;word-wrap:break-word}
 .th-money,.td-money{text-align:right;vertical-align:top;white-space:nowrap}
 .totals-row{font-weight:bold;background:#f5f0e8}
-.row-estimated{background:#ebe4d8}</style></head><body>
+.row-estimated{background:#fff8e1}</style></head><body>
 <h1>${options.tripTitle} — Trip budget</h1>
 <p>${options.tripDayCount} trip days · All figures in ${options.homeCurrency}</p>
 <div class="summary">

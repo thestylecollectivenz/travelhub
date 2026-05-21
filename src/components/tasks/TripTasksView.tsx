@@ -8,6 +8,7 @@ import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
 import { TasksCalendarView, type CalendarEvent } from './TasksCalendarView';
 import type { CalendarRangeFilter } from '../../utils/tasksCalendarRange';
 import { TasksMonthCalendar } from './TasksMonthCalendar';
+import { TRAVELHUB_VIEW_TASK } from '../../utils/viewTaskFocus';
 import {
   dismissMissingAmountEntry,
   loadDismissedMissingAmountIds,
@@ -114,6 +115,8 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
   const [editTitle, setEditTitle] = React.useState('');
   const [editDueDate, setEditDueDate] = React.useState('');
   const [editNote, setEditNote] = React.useState('');
+  const [editAssignedTo, setEditAssignedTo] = React.useState('');
+  const [createAssignedTo, setCreateAssignedTo] = React.useState('');
 
   const taskCategoryFilter = planView?.taskCategoryFilter ?? null;
 
@@ -147,18 +150,40 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
   }, [refresh]);
 
   React.useEffect(() => {
+    const onView = (ev: Event): void => {
+      const id = (ev as CustomEvent<{ reminderId?: string }>).detail?.reminderId;
+      if (!id) return;
+      planView?.setFocusedReminderId(id);
+      setViewMode('list');
+      window.requestAnimationFrame(() => {
+        document.querySelector(`[data-reminder-id="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    };
+    window.addEventListener(TRAVELHUB_VIEW_TASK, onView as EventListener);
+    return () => window.removeEventListener(TRAVELHUB_VIEW_TASK, onView as EventListener);
+  }, [planView]);
+
+  React.useEffect(() => {
     if (trip?.id) {
       setDismissedMissing(loadDismissedMissingAmountIds(trip.id));
     }
   }, [trip?.id]);
 
   const bookingTasks = React.useMemo(
-    () => localEntries.filter((e) => e.bookingRequired && e.bookingStatus === 'Not booked'),
-    [localEntries]
+    () =>
+      localEntries.filter(
+        (e) => e.bookingRequired && e.bookingStatus === 'Not booked' && matchesCategoryFilter(e)
+      ),
+    [localEntries, matchesCategoryFilter]
   );
   const paymentTasks = React.useMemo(
-    () => localEntries.filter((e) => (e.paymentStatus === 'Not paid' && e.amount > 0) || e.paymentStatus === 'Part paid'),
-    [localEntries]
+    () =>
+      localEntries.filter(
+        (e) =>
+          ((e.paymentStatus === 'Not paid' && e.amount > 0) || e.paymentStatus === 'Part paid') &&
+          matchesCategoryFilter(e)
+      ),
+    [localEntries, matchesCategoryFilter]
   );
   const visibleManual = React.useMemo(() => {
     let rows = manual;
@@ -270,6 +295,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
     setEditTitle(raw.replace(/^(Task|Reminder):\s*/i, ''));
     setEditDueDate(m.dueDate ? m.dueDate.slice(0, 10) : '');
     setEditNote((m.taskNote || '').trim());
+    setEditAssignedTo((m.assignedTo || '').trim());
   }, []);
 
   const saveEditReminder = React.useCallback(
@@ -289,6 +315,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
           title,
           reminderText: trimmed,
           taskNote: editNote.trim() || undefined,
+          assignedTo: editAssignedTo.trim() || undefined,
           dueDate: editDueDate ? `${editDueDate}T00:00:00.000Z` : undefined
         })
         .then(() => {
@@ -466,6 +493,12 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                 onChange={(e) => setText(e.target.value)}
               />
               <input className={styles.input} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              <input
+                className={styles.input}
+                placeholder="Assigned to (optional)"
+                value={createAssignedTo}
+                onChange={(e) => setCreateAssignedTo(e.target.value)}
+              />
               <button
                 className={`${styles.button} ${styles.addBtn}`}
                 type="button"
@@ -486,6 +519,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                       tripId: trip.id,
                       reminderType: createKind === 'task' ? 'Manual' : 'Custom',
                       reminderText: trimmed,
+                      assignedTo: createAssignedTo.trim() || undefined,
                       isComplete: false,
                       dueDate: dueDate ? `${dueDate}T00:00:00.000Z` : undefined,
                       dayId: '',
@@ -494,6 +528,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                     .then(() => {
                       setText('');
                       setDueDate('');
+                      setCreateAssignedTo('');
                       refresh();
                     })
                     .catch(console.error);
@@ -506,7 +541,11 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
               const target = resolveReminderItineraryTarget(m, localEntries);
               const isEditing = editingReminderId === m.id;
               return (
-                <div key={m.id} className={styles.item}>
+                <div
+                  key={m.id}
+                  data-reminder-id={m.id}
+                  className={`${styles.item} ${planView?.focusedReminderId === m.id ? styles.itemFocused : ''}`}
+                >
                   <div className={styles.itemBody}>
                     {isEditing ? (
                       <div className={styles.editForm}>
@@ -536,6 +575,12 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                         <div>{reminderDisplayTitle(m)}</div>
                         <div className={styles.meta}>
                           {m.dueDate ? `Due ${new Date(m.dueDate).toLocaleDateString('en-NZ')}` : 'No due date'}
+                          {m.assignedTo?.trim() ? (
+                            <>
+                              <span aria-hidden> · </span>
+                              Assigned to {m.assignedTo.trim()}
+                            </>
+                          ) : null}
                         </div>
                         {renderTaskNote(m.taskNote, reminderDisplayTitle(m))}
                         {target?.entry ? renderEntryNotes(target.entry) : null}

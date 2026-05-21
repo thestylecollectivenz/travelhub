@@ -3,6 +3,7 @@ import { usePlanView } from '../../context/PlanViewContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
 import { PackingItem, PackingService } from '../../services/PackingService';
+import { loadTripTravellers, saveTripTravellers } from '../../utils/tripTravellers';
 import styles from './PackingListView.module.css';
 
 const CATEGORIES = ['Clothing', 'Toiletries', 'Electronics', 'Documents', 'Medications', 'Other'];
@@ -12,6 +13,8 @@ export const PackingListView: React.FC = () => {
   const { trip } = useTripWorkspace();
   const planView = usePlanView();
   const activeCategory = planView?.packingCategory ?? 'Other';
+  const activeTraveller = planView?.packingTraveller ?? null;
+  const travellers = React.useMemo(() => (trip?.id ? loadTripTravellers(trip.id) : ['Traveller 1']), [trip?.id]);
   const service = React.useMemo(() => new PackingService(spContext), [spContext]);
   const [items, setItems] = React.useState<PackingItem[]>([]);
   const [collapsed, setCollapsed] = React.useState<Record<string, boolean>>({});
@@ -43,10 +46,20 @@ export const PackingListView: React.FC = () => {
   }, [items]);
 
   const packedCount = items.filter((i) => i.isPacked).length;
-  const categoryRows = React.useMemo(
-    () => items.filter((i) => (CATEGORIES.indexOf(i.category) >= 0 ? i.category : 'Other') === activeCategory),
-    [items, activeCategory]
-  );
+  const filteredItems = React.useMemo(() => {
+    let rows = items;
+    if (activeTraveller) {
+      rows = rows.filter((i) => (i.traveller || travellers[0] || '').trim() === activeTraveller);
+    }
+    return rows;
+  }, [items, activeTraveller, travellers]);
+
+  const categoryRows = React.useMemo(() => {
+    if (activeCategory === '__all__') return filteredItems;
+    return filteredItems.filter(
+      (i) => (CATEGORIES.indexOf(i.category) >= 0 ? i.category : 'Other') === activeCategory
+    );
+  }, [filteredItems, activeCategory]);
 
   React.useEffect(() => {
     const next: Record<string, string> = {};
@@ -59,8 +72,13 @@ export const PackingListView: React.FC = () => {
   return (
     <section className={styles.root}>
       <div className={styles.row}>
-        <h2 className={styles.heading}>Packing — {activeCategory}</h2>
-        <span className={styles.muted}>{packedCount} of {items.length} items packed</span>
+        <h2 className={styles.heading}>
+          Packing — {activeTraveller ? activeTraveller : 'All travellers'}
+          {activeCategory === '__all__' ? ' · All items' : ` · ${activeCategory}`}
+        </h2>
+        <span className={styles.muted}>
+          {categoryRows.filter((i) => i.isPacked).length} of {categoryRows.length} items packed
+        </span>
         <button className={styles.button} type="button" onClick={() => {
           Promise.all(items.filter((i) => i.isPacked).map((i) => service.update(i.id, { isPacked: false }))).then(refresh).catch(console.error);
         }}>Clear all packed</button>
@@ -76,7 +94,8 @@ export const PackingListView: React.FC = () => {
           if (!trip?.id || !name.trim()) return;
           service.create({
             tripId: trip.id,
-            category: activeCategory,
+            category: activeCategory === '__all__' ? 'Other' : activeCategory,
+            traveller: activeTraveller || travellers[0] || 'Traveller 1',
             itemName: name.trim(),
             quantity: qty,
             isPacked: false,

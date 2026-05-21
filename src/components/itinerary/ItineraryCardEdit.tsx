@@ -3,6 +3,9 @@ import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { CATEGORY_LIST } from '../../utils/categoryUtils';
 import { combineDayAndTime, formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { usePlaces } from '../../context/PlacesContext';
+import { parseAdditionalPlaceRefs } from '../../utils/tripDayPlaces';
+import { durationFromDateTimes } from '../../utils/durationFromTimes';
 import { useConfig } from '../../context/ConfigContext';
 import { CurrencySelect } from '../shared/CurrencySelect';
 import { useAttachments } from '../../context/AttachmentsContext';
@@ -25,6 +28,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   onDelete
 }) => {
   const { trip, tripDays, usedSuppliers, usedLocations } = useTripWorkspace();
+  const { placeById } = usePlaces();
   const { config } = useConfig();
   const [draft, setDraft] = React.useState<ItineraryEntry>(() => ({ ...entry }));
 
@@ -67,6 +71,40 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
     if (!isAccommodation || nights <= 0) return 0;
     return draft.amount / nights;
   }, [draft.amount, isAccommodation, nights]);
+
+  const dayPlaceOptions = React.useMemo(() => {
+    const day = tripDays.find((d) => d.id === draft.dayId);
+    if (!day) return [];
+    const names = new Set<string>();
+    const primary = day.primaryPlaceId ? placeById(day.primaryPlaceId) : undefined;
+    if (primary?.title?.trim()) names.add(primary.title.trim());
+    for (const ref of parseAdditionalPlaceRefs(day.additionalPlaceIds)) {
+      const p = placeById(ref.placeId);
+      if (p?.title?.trim()) names.add(p.title.trim());
+    }
+    return Array.from(names);
+  }, [draft.dayId, tripDays, placeById]);
+
+  React.useEffect(() => {
+    const auto = durationFromDateTimes({
+      startDate: draft.dateStart || calendarDate,
+      startTime: draft.timeStart,
+      endDate: isFlights ? draft.arrivalDate || draft.dateStart : draft.dateEnd || draft.dateStart,
+      endTime: isFlights || isTransport ? draft.arrivalTime : draft.checkOutTime
+    });
+    if (!auto) return;
+    setDraft((d) => (d.duration?.trim() ? d : { ...d, duration: auto }));
+  }, [
+    draft.dateStart,
+    draft.dateEnd,
+    draft.timeStart,
+    draft.arrivalDate,
+    draft.arrivalTime,
+    draft.checkOutTime,
+    calendarDate,
+    isFlights,
+    isTransport
+  ]);
 
   React.useEffect(() => {
     if (!isAccommodation) return;
@@ -176,6 +214,22 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   return (
     <div className={styles.form}>
       <div className={styles.grid}>
+        <label className={styles.label} htmlFor={`cat-${draft.id}`}>
+          Category
+        </label>
+        <select
+          id={`cat-${draft.id}`}
+          className={styles.select}
+          value={draft.category}
+          onChange={(e) => patch({ category: e.target.value })}
+        >
+          {CATEGORY_LIST.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+
         <label className={styles.label} htmlFor={`time-${draft.id}`}>
           Time
         </label>
@@ -262,22 +316,6 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           onChange={(e) => patch({ title: e.target.value })}
           placeholder={isTransport ? 'Optional — auto from From / To / Mode if empty' : undefined}
         />
-
-        <label className={styles.label} htmlFor={`cat-${draft.id}`}>
-          Category
-        </label>
-        <select
-          id={`cat-${draft.id}`}
-          className={styles.select}
-          value={draft.category}
-          onChange={(e) => patch({ category: e.target.value })}
-        >
-          {CATEGORY_LIST.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
 
         {isAccommodation ? (
           <>
@@ -401,21 +439,13 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           onChange={(e) => patch({ location: e.target.value })}
         />
         <datalist id={`location-list-${draft.id}`}>
+          {dayPlaceOptions.map((value) => (
+            <option key={`day-${value}`} value={value} />
+          ))}
           {usedLocations.map((value) => (
             <option key={value} value={value} />
           ))}
         </datalist>
-
-        <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`notes-${draft.id}`}>
-          Notes
-        </label>
-        <textarea
-          id={`notes-${draft.id}`}
-          className={`${styles.textarea} ${styles.fullRow}`}
-          rows={3}
-          value={draft.notes}
-          onChange={(e) => patch({ notes: e.target.value })}
-        />
 
         {isTransport ? (
           <>
@@ -780,6 +810,17 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
             ) : null}
           </>
         ) : null}
+
+        <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`notes-${draft.id}`}>
+          Notes
+        </label>
+        <textarea
+          id={`notes-${draft.id}`}
+          className={`${styles.textarea} ${styles.fullRow}`}
+          rows={3}
+          value={draft.notes}
+          onChange={(e) => patch({ notes: e.target.value })}
+        />
 
         {draft.paymentStatus !== 'Free' ? (
           <>

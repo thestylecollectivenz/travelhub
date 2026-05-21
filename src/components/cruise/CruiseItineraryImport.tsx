@@ -125,6 +125,9 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
     if (p.includes('strait of magellan')) return true;
     if (p.includes('chilean fjords')) return true;
     if (p.includes('daylight cruising')) return true;
+    if (/\bcruising\b/.test(p) && /\b(channel|fjord|passage|strait|sound|gulf)\b/.test(p)) return true;
+    if (/\bchannel\b/.test(p) && !/\benglish\b/.test(p)) return true;
+    if (/\bsarmiento\b/.test(p)) return true;
     return false;
   }, []);
 
@@ -399,6 +402,15 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
           const shipMeta = split.meta;
 
           if (isSeaOrScenicLine(row.port)) {
+            const seaCandidate = geocodeCache.get(`sea:${row.port.trim()}`) ?? null;
+            if (seaCandidate) {
+              try {
+                const scenicPlace = await createOrReusePlace({ ...seaCandidate, placeType: 'region' });
+                if (!firstLandPlaceId) firstLandPlaceId = scenicPlace.id;
+              } catch {
+                otherNotes.push(`Could not save the map location for scenic day “${displayPort}”.`);
+              }
+            }
             updateEntry(makeSegmentEntry(day.id, row, nextSort, displayPort));
             resolved.push({ row, dayId: day.id, calendarDate: day.calendarDate });
             await delay(250);
@@ -450,7 +462,7 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
             : day.displayTitle;
         updateDay(day.id, {
           dayType: seaOnly ? 'Sea' : 'PlacePort',
-          primaryPlaceId: seaOnly ? undefined : firstLandPlaceId,
+          primaryPlaceId: firstLandPlaceId,
           displayTitle,
           additionalPlaceIds: []
         });

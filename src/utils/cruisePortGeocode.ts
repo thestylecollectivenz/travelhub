@@ -70,6 +70,11 @@ export function cruiseSeaDaySearchQueries(portName: string): string[] {
     if (/\bchannel\b/i.test(cleaned)) {
       variants.add(`${cleaned}, Chile`);
       variants.add(`${cleaned}, Argentina`);
+      variants.add(`${cleaned}, Patagonia`);
+    }
+    if (/\bsarmiento\b/i.test(cleaned)) {
+      variants.add(`${cleaned}, Chile`);
+      variants.add('Sarmiento Channel, Chile');
     }
     if (/\barctic\b/i.test(cleaned)) variants.add(`${cleaned}, Norway`);
     if (/\bdrake\b/i.test(cleaned)) variants.add(`${cleaned}, Antarctica`);

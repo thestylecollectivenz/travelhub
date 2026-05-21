@@ -19,6 +19,14 @@
   padding-top: var(--space-2);
   margin-top: var(--space-2);
 }
+
+.itemFocused {
+  background: var(--color-blue-50);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  margin-left: calc(-1 * var(--space-2));
+  margin-right: calc(-1 * var(--space-2));
+}
 .itemBody {
   flex: 1;
   min-width: 0;

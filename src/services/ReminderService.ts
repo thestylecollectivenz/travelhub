@@ -13,6 +13,7 @@ export interface TripReminder {
   reminderText: string;
   /** Optional user-facing note (N1). */
   taskNote?: string;
+  assignedTo?: string;
   dueDate?: string;
   isComplete: boolean;
 }
@@ -27,6 +28,7 @@ function mapToReminder(item: any): TripReminder {
     reminderType: item.ReminderType ?? 'Custom',
     reminderText: item.ReminderText ?? '',
     taskNote: item.TaskNote ?? undefined,
+    assignedTo: item.AssignedTo ?? undefined,
     dueDate: item.DueDate ?? undefined,
     isComplete: item.IsComplete === true
   };
@@ -41,6 +43,7 @@ function mapToSpItem(partial: Partial<TripReminder>): Record<string, unknown> {
   if (partial.reminderType !== undefined) out.ReminderType = partial.reminderType;
   if (partial.reminderText !== undefined) out.ReminderText = partial.reminderText;
   if (partial.taskNote !== undefined) out.TaskNote = partial.taskNote || '';
+  if (partial.assignedTo !== undefined) out.AssignedTo = partial.assignedTo || '';
   if (partial.dueDate !== undefined) out.DueDate = partial.dueDate || null;
   if (partial.isComplete !== undefined) out.IsComplete = partial.isComplete;
   return out;
@@ -54,8 +57,8 @@ export class ReminderService {
 
   async getForTrip(tripId: string): Promise<TripReminder[]> {
     const safeTripId = tripId.replace(/'/g, "''");
-    const urlFull = `${this.baseUrl}?$select=ID,Title,TripId,DayId,EntryId,ReminderType,ReminderText,TaskNote,DueDate,IsComplete&$filter=TripId eq '${safeTripId}'&$orderby=ID desc&$top=5000`;
-    const urlLegacy = `${this.baseUrl}?$select=ID,Title,TripId,DayId,EntryId,ReminderType,ReminderText,DueDate,IsComplete&$filter=TripId eq '${safeTripId}'&$orderby=ID desc&$top=5000`;
+    const urlFull = `${this.baseUrl}?$select=ID,Title,TripId,DayId,EntryId,ReminderType,ReminderText,TaskNote,AssignedTo,DueDate,IsComplete&$filter=TripId eq '${safeTripId}'&$orderby=ID desc&$top=5000`;
+    const urlLegacy = `${this.baseUrl}?$select=ID,Title,TripId,DayId,EntryId,ReminderType,ReminderText,TaskNote,DueDate,IsComplete&$filter=TripId eq '${safeTripId}'&$orderby=ID desc&$top=5000`;
     let resp = await this.ctx.spHttpClient.get(urlFull, SPHttpClient.configurations.v1);
     if (!resp.ok && resp.status === 400) {
       // eslint-disable-next-line no-console

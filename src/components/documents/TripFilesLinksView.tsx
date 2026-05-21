@@ -11,7 +11,7 @@ export interface TripFilesLinksViewProps {
 
 export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeDocuments = true }) => {
   const { documents, links } = useAttachments();
-  const { tripDays, selectedDayId, mainWorkspaceTab } = useTripWorkspace();
+  const { tripDays, selectedDayId, setSelectedDayId, mainWorkspaceTab } = useTripWorkspace();
   const [kind, setKind] = React.useState<KindFilter>('all');
   const [dayFilter, setDayFilter] = React.useState('all');
 
@@ -61,7 +61,16 @@ export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeD
           {includeDocuments ? <option value="documents">Documents</option> : null}
           <option value="links">Links</option>
         </select>
-        <select className={styles.select} value={dayFilter} onChange={(e) => setDayFilter(e.target.value)}>
+        <select
+          className={styles.select}
+          value={dayFilter}
+          onChange={(e) => {
+            const v = e.target.value;
+            setDayFilter(v);
+            if (v === 'all') setSelectedDayId('');
+            else setSelectedDayId(v);
+          }}
+        >
           <option value="all">All days (entire trip)</option>
           {tripDays.map((d) => (
             <option key={d.id} value={d.id}>

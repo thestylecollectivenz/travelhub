@@ -29,6 +29,16 @@
   background: var(--color-surface);
 }
 
+.stickyChrome {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  background: var(--color-surface);
+  padding-bottom: var(--space-2);
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0;
+  box-shadow: 0 1px 0 var(--color-sand-200);
+}
+
 .itineraryToolbar {
   display: flex;
   flex-wrap: wrap;

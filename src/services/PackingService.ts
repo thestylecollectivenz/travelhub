@@ -14,6 +14,8 @@ export interface PackingItem {
   isTemplate: boolean;
   templateId?: string;
   itemNotes?: string;
+  /** Traveller name for per-person lists (optional SharePoint Traveller column). */
+  traveller?: string;
 }
 
 export interface PackingTemplate {
@@ -32,7 +34,8 @@ function mapToItem(item: any): PackingItem {
     isPacked: item.IsPacked === true,
     isTemplate: item.IsTemplate === true,
     templateId: item.TemplateId ?? '',
-    itemNotes: item.ItemNotes ?? undefined
+    itemNotes: item.ItemNotes ?? undefined,
+    traveller: item.Traveller ?? undefined
   };
 }
 
@@ -54,6 +57,7 @@ function toSpItem(partial: Partial<PackingItem>): Record<string, unknown> {
   if (partial.isTemplate !== undefined) out.IsTemplate = partial.isTemplate;
   if (partial.templateId !== undefined) out.TemplateId = partial.templateId || '';
   if (partial.itemNotes !== undefined) out.ItemNotes = partial.itemNotes || '';
+  if (partial.traveller !== undefined) out.Traveller = partial.traveller || '';
   if (partial.itemName !== undefined) out.Title = partial.itemName;
   return out;
 }

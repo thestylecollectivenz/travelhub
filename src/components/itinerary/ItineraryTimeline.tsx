@@ -93,6 +93,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
     return () => window.clearTimeout(t);
   }, [focusedEntryId, setFocusedEntryId]);
   const [taskEntryIds, setTaskEntryIds] = React.useState<Set<string>>(new Set());
+  const [entryTaskReminderId, setEntryTaskReminderId] = React.useState<Map<string, string>>(new Map());
   const [cancellationDeadlineEntryIds, setCancellationDeadlineEntryIds] = React.useState<Set<string>>(new Set());
   const preTripDayId = React.useMemo(() => (trip ? resolvePreTripDayId(tripDays, trip.id) : undefined), [trip, tripDays]);
 
@@ -124,6 +125,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
   const loadEntryTasks = React.useCallback((): void => {
     if (!trip?.id) {
       setTaskEntryIds(new Set());
+      setEntryTaskReminderId(new Map());
       setCancellationDeadlineEntryIds(new Set());
       return;
     }
@@ -132,20 +134,27 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
       .getForTrip(trip.id)
       .then((rows) => {
         const ids = new Set<string>();
+        const reminderByEntry = new Map<string, string>();
         const cancelIds = new Set<string>();
         for (const r of rows) {
           const eid = (r.entryId || '').trim();
           if (!eid) continue;
-          ids.add(eid);
-          if ((r.reminderType || '').trim() === 'CancellationDeadline') {
+          const rt = (r.reminderType || '').trim();
+          if (rt === 'Manual' || rt === 'ManualEntryTask') {
+            ids.add(eid);
+            if (!reminderByEntry.has(eid)) reminderByEntry.set(eid, r.id);
+          }
+          if (rt === 'CancellationDeadline') {
             cancelIds.add(eid);
           }
         }
         setTaskEntryIds(ids);
+        setEntryTaskReminderId(reminderByEntry);
         setCancellationDeadlineEntryIds(cancelIds);
       })
       .catch(() => {
         setTaskEntryIds(new Set());
+        setEntryTaskReminderId(new Map());
         setCancellationDeadlineEntryIds(new Set());
       });
   }, [spContext, trip?.id]);
@@ -221,6 +230,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
                   suppressCarryoverUi={suppressCarryoverUi}
                   draggable
                   hasTask={taskEntryIds.has(entry.id)}
+                  linkedTaskReminderId={entryTaskReminderId.get(entry.id)}
                   hasCancellationDeadlineReminder={cancellationDeadlineEntryIds.has(entry.id)}
                 />
               </div>

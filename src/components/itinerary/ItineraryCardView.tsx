@@ -13,6 +13,8 @@ import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { SubItemList } from './SubItemList';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
+import { requestViewTask } from '../../utils/viewTaskFocus';
+import { usePlanView } from '../../context/PlanViewContext';
 import { effectivePlannerTimeStart, isTransportReturnOnCalendarDate } from '../../utils/itineraryDayEntries';
 
 function deriveTransportDisplayTitle(entry: ItineraryEntry, calendarDate: string): string {
@@ -41,6 +43,7 @@ export interface ItineraryCardViewProps {
   /** When true (e.g. pre-trip day), hide multi-day accommodation / cruise continuation labels. */
   suppressCarryoverUi?: boolean;
   hasTask?: boolean;
+  linkedTaskReminderId?: string;
   /** True when a Trip Reminders row exists for this entry with ReminderType CancellationDeadline. */
   hasCancellationDeadlineReminder?: boolean;
   onEdit: () => void;
@@ -155,13 +158,16 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   calendarDate,
   suppressCarryoverUi = false,
   hasTask = false,
+  linkedTaskReminderId,
   hasCancellationDeadlineReminder = false,
   onEdit,
   onDuplicate,
   onDelete
 }) => {
   const spContext = useSpContext();
-  const { addSubItem, convertToHomeCurrency, setSelectedDayId, tripDays } = useTripWorkspace();
+  const { addSubItem, convertToHomeCurrency, setSelectedDayId, setMainWorkspaceTab, setWorkspaceReturn, tripDays } =
+    useTripWorkspace();
+  const planView = usePlanView();
   const { config } = useConfig();
   const { docsForEntry, linksForEntry, addDocument, updateDocument, deleteDocument, addLink, updateLink, deleteLink } = useAttachments();
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -173,7 +179,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const [docType, setDocType] = React.useState<EntryDocumentType>('Other');
   const [docNotes, setDocNotes] = React.useState('');
   const [docBusy, setDocBusy] = React.useState(false);
-  const [linkOpen, setLinkOpen] = React.useState(false);
+  const [attachAddMode, setAttachAddMode] = React.useState<'none' | 'document' | 'link'>('none');
   const [linkBusy, setLinkBusy] = React.useState(false);
   const [editingDocId, setEditingDocId] = React.useState<string | null>(null);
   const [editingLinkId, setEditingLinkId] = React.useState<string | null>(null);
@@ -708,113 +714,6 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       </button>
       {attachmentsOpen ? (
         <div className={styles.attachmentsPanel}>
-          <div className={styles.attachmentsSummary}>
-            {docs.length} document{docs.length === 1 ? '' : 's'} · {links.length} link{links.length === 1 ? '' : 's'}
-          </div>
-          <div className={styles.attachmentsActions}>
-            <select className={styles.newSubField} value={docType} onChange={(e) => setDocType(e.target.value as EntryDocumentType)}>
-              <option value="Ticket">Ticket</option>
-              <option value="Confirmation">Confirmation</option>
-              <option value="Image">Image</option>
-              <option value="PDF">PDF</option>
-              <option value="Other">Other</option>
-            </select>
-            <input
-              className={styles.newSubField}
-              value={docNotes}
-              onChange={(e) => setDocNotes(e.target.value)}
-              placeholder="Document notes (optional)"
-            />
-            <button type="button" className={styles.newSubActionBtn} disabled={docBusy} onClick={() => fileInputRef.current?.click()}>
-              {docBusy ? 'Uploading…' : 'Add document'}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              style={{ display: 'none' }}
-              onChange={(e) => {
-                handleDocumentPick(e).catch(console.error);
-              }}
-            />
-            <button
-              type="button"
-              className={styles.newSubActionBtn}
-              onClick={() =>
-                setLinkOpen((v) => {
-                  const next = !v;
-                  if (next) resetLinkDraft();
-                  return next;
-                })
-              }
-            >
-              {linkOpen ? 'Close link form' : 'Add link'}
-            </button>
-          </div>
-          {linkOpen ? (
-            <div className={styles.newSubItemForm}>
-              <input
-                className={styles.newSubField}
-                placeholder="Title"
-                value={linkDraft.linkTitle}
-                onChange={(e) => setLinkDraft((prev) => ({ ...prev, linkTitle: e.target.value }))}
-              />
-              <input
-                className={styles.newSubField}
-                placeholder="URL"
-                value={linkDraft.url}
-                onChange={(e) => setLinkDraft((prev) => ({ ...prev, url: e.target.value }))}
-              />
-              <div className={styles.newSubRow}>
-                <select
-                  className={styles.newSubField}
-                  value={linkDraft.linkType}
-                  onChange={(e) => setLinkDraft((prev) => ({ ...prev, linkType: e.target.value as EntryLinkType }))}
-                >
-                  <option value="Url">Url</option>
-                  <option value="Supplier">Supplier</option>
-                  <option value="Booking">Booking</option>
-                  <option value="Email">Email</option>
-                  <option value="Other">Other</option>
-                </select>
-                <input
-                  className={styles.newSubField}
-                  placeholder="Notes (optional)"
-                  value={linkDraft.notes}
-                  onChange={(e) => setLinkDraft((prev) => ({ ...prev, notes: e.target.value }))}
-                />
-              </div>
-              <div className={styles.newSubActions}>
-                <button
-                  type="button"
-                  className={styles.newSubActionBtn}
-                  disabled={linkBusy || linkDraft.linkTitle.trim() === '' || linkDraft.url.trim() === ''}
-                  onClick={() => {
-                    setLinkBusy(true);
-                    addLink({
-                      dayId: entry.dayId,
-                      entryId: entry.id,
-                      linkTitle: linkDraft.linkTitle.trim(),
-                      url: linkDraft.url.trim(),
-                      linkType: linkDraft.linkType,
-                      notes: linkDraft.notes.trim()
-                    })
-                      .then(() => {
-                        resetLinkDraft();
-                        setLinkOpen(false);
-                        setLinkBusy(false);
-                      })
-                      .catch((err) => {
-                        setLinkBusy(false);
-                        // eslint-disable-next-line no-console
-                        console.error(err);
-                      });
-                  }}
-                >
-                  {linkBusy ? 'Saving…' : 'Save link'}
-                </button>
-              </div>
-            </div>
-          ) : null}
           <div className={styles.attachmentsList}>
             {docs.map((doc) => (
               <div key={doc.id} className={styles.attachmentRow}>
@@ -951,26 +850,154 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                 )}
               </div>
             ))}
+            {!docs.length && !links.length ? (
+              <p className={styles.attachmentsEmpty}>No files or links yet.</p>
+            ) : null}
           </div>
+          <div className={styles.attachmentsAddBar} role="group" aria-label="Add attachment">
+            <button
+              type="button"
+              className={`${styles.attachModeBtn} ${attachAddMode === 'document' ? styles.attachModeBtnActive : ''}`}
+              onClick={() => setAttachAddMode((m) => (m === 'document' ? 'none' : 'document'))}
+            >
+              Add document
+            </button>
+            <button
+              type="button"
+              className={`${styles.attachModeBtn} ${attachAddMode === 'link' ? styles.attachModeBtnActive : ''}`}
+              onClick={() => {
+                setAttachAddMode((m) => {
+                  if (m === 'link') return 'none';
+                  resetLinkDraft();
+                  return 'link';
+                });
+              }}
+            >
+              Add link
+            </button>
+          </div>
+          {attachAddMode === 'document' ? (
+            <div className={styles.attachAddForm}>
+              <select className={styles.newSubField} value={docType} onChange={(e) => setDocType(e.target.value as EntryDocumentType)}>
+                <option value="Ticket">Ticket</option>
+                <option value="Confirmation">Confirmation</option>
+                <option value="Image">Image</option>
+                <option value="PDF">PDF</option>
+                <option value="Other">Other</option>
+              </select>
+              <input
+                className={styles.newSubField}
+                value={docNotes}
+                onChange={(e) => setDocNotes(e.target.value)}
+                placeholder="Document notes (optional)"
+              />
+              <button type="button" className={styles.newSubActionBtn} disabled={docBusy} onClick={() => fileInputRef.current?.click()}>
+                {docBusy ? 'Uploading…' : 'Choose file'}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  handleDocumentPick(e).catch(console.error);
+                }}
+              />
+            </div>
+          ) : null}
+          {attachAddMode === 'link' ? (
+            <div className={styles.attachAddForm}>
+              <input
+                className={styles.newSubField}
+                placeholder="Link title"
+                value={linkDraft.linkTitle}
+                onChange={(e) => setLinkDraft((prev) => ({ ...prev, linkTitle: e.target.value }))}
+              />
+              <input
+                className={styles.newSubField}
+                placeholder="URL"
+                value={linkDraft.url}
+                onChange={(e) => setLinkDraft((prev) => ({ ...prev, url: e.target.value }))}
+              />
+              <select
+                className={styles.newSubField}
+                value={linkDraft.linkType}
+                onChange={(e) => setLinkDraft((prev) => ({ ...prev, linkType: e.target.value as EntryLinkType }))}
+              >
+                <option value="Url">Url</option>
+                <option value="Supplier">Supplier</option>
+                <option value="Booking">Booking</option>
+                <option value="Email">Email</option>
+                <option value="Other">Other</option>
+              </select>
+              <input
+                className={styles.newSubField}
+                placeholder="Notes (optional)"
+                value={linkDraft.notes}
+                onChange={(e) => setLinkDraft((prev) => ({ ...prev, notes: e.target.value }))}
+              />
+              <button
+                type="button"
+                className={styles.newSubActionBtn}
+                disabled={linkBusy || linkDraft.linkTitle.trim() === '' || linkDraft.url.trim() === ''}
+                onClick={() => {
+                  setLinkBusy(true);
+                  addLink({
+                    dayId: entry.dayId,
+                    entryId: entry.id,
+                    linkTitle: linkDraft.linkTitle.trim(),
+                    url: linkDraft.url.trim(),
+                    linkType: linkDraft.linkType,
+                    notes: linkDraft.notes.trim()
+                  })
+                    .then(() => {
+                      resetLinkDraft();
+                      setAttachAddMode('none');
+                      setLinkBusy(false);
+                    })
+                    .catch((err) => {
+                      setLinkBusy(false);
+                      console.error(err);
+                    });
+                }}
+              >
+                {linkBusy ? 'Saving…' : 'Save link'}
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
       <div className={styles.subItemActionsRow}>
-        <button
-          type="button"
-          className={styles.addSubItemBtn}
-          onClick={() => {
-            setTaskPromptOpen((v) => {
-              const next = !v;
-              if (!v) {
-                setTaskDescription(entry.title || 'Itinerary item');
-              }
-              return next;
-            });
-          }}
-        >
-          {hasTask ? 'Task linked' : '+ Add to tasks'}
-        </button>
+        {hasTask && linkedTaskReminderId ? (
+          <button
+            type="button"
+            className={styles.addSubItemBtn}
+            onClick={() => {
+              setWorkspaceReturn({ tab: 'itinerary', label: 'itinerary' });
+              setMainWorkspaceTab('plan');
+              planView?.setPlanTab('tasks');
+              requestViewTask({ reminderId: linkedTaskReminderId, entryId: entry.id, dayId: entry.dayId });
+            }}
+          >
+            View task
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={styles.addSubItemBtn}
+            onClick={() => {
+              setTaskPromptOpen((v) => {
+                const next = !v;
+                if (!v) {
+                  setTaskDescription(entry.title || 'Itinerary item');
+                }
+                return next;
+              });
+            }}
+          >
+            {hasTask ? 'Task linked' : '+ Add to tasks'}
+          </button>
+        )}
         <button type="button" className={styles.addSubItemBtn} onClick={handleStartAddSubItem}>
           + Add option
         </button>

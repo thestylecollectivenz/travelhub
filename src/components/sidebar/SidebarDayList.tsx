@@ -56,7 +56,10 @@ export const SidebarDayList: React.FC = () => {
             key={day.id}
             day={day}
             isSelected={
-              mainWorkspaceTab === 'journal' && journalLayout === 'all' ? false : day.id === selectedDayId
+              (mainWorkspaceTab === 'journal' && journalLayout === 'all') ||
+              (mainWorkspaceTab === 'files' && !selectedDayId)
+                ? false
+                : day.id === selectedDayId
             }
             onSelect={() => {
               setSelectedDayId(day.id);
