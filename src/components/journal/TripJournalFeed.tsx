@@ -5,6 +5,7 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { JournalEntryCard } from './JournalEntryCard';
 import { JournalEntryComposer } from './JournalEntryComposer';
 import { TRAVELHUB_SCROLL_JOURNAL_DAY } from '../../utils/contentScroll';
+import { loadJournalViewPrefs, saveJournalViewPrefs } from '../../utils/journalViewPrefs';
 import styles from './TripJournalFeed.module.css';
 
 type SortOrder = 'newest' | 'oldest';
@@ -13,7 +14,7 @@ type JournalLayout = 'all' | 'by-day';
 
 export const TripJournalFeed: React.FC = () => {
   const { allEntries, photosForEntry } = useJournal();
-  const { trip, tripDays, sharedPreview, selectedDayId } = useTripWorkspace();
+  const { trip, tripDays, sharedPreview, selectedDayId, setSelectedDayId } = useTripWorkspace();
   const [sortOrder, setSortOrder] = React.useState<SortOrder>('newest');
   const [readFilter, setReadFilter] = React.useState<ReadFilter>('all');
   const [layout, setLayout] = React.useState<JournalLayout>('all');
@@ -31,6 +32,40 @@ export const TripJournalFeed: React.FC = () => {
   }, [trip?.id]);
 
   React.useEffect(() => {
+    if (!trip?.id) return;
+    const saved = loadJournalViewPrefs(trip.id);
+    if (saved) {
+      setLayout(saved.layout);
+      setScopeDayId(saved.scopeDayId);
+      setSortOrder(saved.sortOrder);
+      setReadFilter(saved.readFilter);
+      if (saved.layout === 'all') {
+        setSelectedDayId('');
+      }
+    } else {
+      setLayout('all');
+      setScopeDayId('');
+      setReadFilter('all');
+      setSelectedDayId('');
+    }
+  }, [trip?.id, setSelectedDayId]);
+
+  React.useEffect(() => {
+    if (!trip?.id) return;
+    saveJournalViewPrefs(trip.id, { layout, scopeDayId, sortOrder, readFilter });
+    window.dispatchEvent(new CustomEvent('travelhub-journal-layout', { detail: { layout } }));
+  }, [trip?.id, layout, scopeDayId, sortOrder, readFilter]);
+
+  React.useEffect(() => {
+    const onLayout = (ev: Event): void => {
+      const next = (ev as CustomEvent<{ layout?: JournalLayout }>).detail?.layout;
+      if (next === 'all' || next === 'by-day') setLayout(next);
+    };
+    window.addEventListener('travelhub-journal-layout', onLayout as EventListener);
+    return () => window.removeEventListener('travelhub-journal-layout', onLayout as EventListener);
+  }, []);
+
+  React.useEffect(() => {
     const onScrollDay = (ev: Event): void => {
       const dayId = (ev as CustomEvent<{ dayId?: string }>).detail?.dayId;
       if (!dayId) return;
@@ -43,11 +78,10 @@ export const TripJournalFeed: React.FC = () => {
   }, []);
 
   React.useEffect(() => {
-    if (!selectedDayId) return;
-    setLayout('by-day');
+    if (!selectedDayId || layout !== 'by-day') return;
     setScopeDayId(selectedDayId);
     document.getElementById(`journal-day-${selectedDayId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [selectedDayId]);
+  }, [selectedDayId, layout]);
 
   const hidePreTripJournal = sharedPreview;
 
@@ -168,6 +202,7 @@ export const TripJournalFeed: React.FC = () => {
             onClick={() => {
               setLayout('all');
               setScopeDayId('');
+              setSelectedDayId('');
             }}
           >
             All
@@ -177,7 +212,7 @@ export const TripJournalFeed: React.FC = () => {
             className={`${styles.segmentBtn} ${layout === 'by-day' ? styles.segmentActive : ''}`}
             onClick={() => {
               setLayout('by-day');
-              setScopeDayId('');
+              setScopeDayId(selectedDayId || '');
             }}
           >
             By day

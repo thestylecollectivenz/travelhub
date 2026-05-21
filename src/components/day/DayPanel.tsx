@@ -76,6 +76,9 @@ export const DayPanel: React.FC = () => {
               if (workspaceReturn.planMode && planView) {
                 planView.setPlanTab(workspaceReturn.planMode);
               }
+              if (workspaceReturn.tasksViewMode && planView) {
+                planView.setTasksViewMode(workspaceReturn.tasksViewMode);
+              }
               setWorkspaceReturn(null);
             }}
           >

@@ -58,7 +58,8 @@
 
 .noteCalloutText {
   margin: 0;
-  font-size: var(--font-size-sm);
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
   color: var(--color-blue-900);
   white-space: pre-wrap;
   line-height: 1.45;
@@ -129,4 +130,9 @@
   width: 100%;
   box-sizing: border-box;
   white-space: nowrap;
+}
+
+.addRow .button.addBtn {
+  width: auto;
+  flex: 0 0 auto;
 }

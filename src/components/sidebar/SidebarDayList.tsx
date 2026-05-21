@@ -11,6 +11,16 @@ import styles from './TripSidebar.module.css';
 export const SidebarDayList: React.FC = () => {
   const { trip, tripDays, selectedDayId, setSelectedDayId, localEntries, convertToHomeCurrency, mainWorkspaceTab } =
     useTripWorkspace();
+  const [journalLayout, setJournalLayout] = React.useState<'all' | 'by-day'>('all');
+
+  React.useEffect(() => {
+    const onLayout = (ev: Event): void => {
+      const layout = (ev as CustomEvent<{ layout?: 'all' | 'by-day' }>).detail?.layout;
+      if (layout === 'all' || layout === 'by-day') setJournalLayout(layout);
+    };
+    window.addEventListener('travelhub-journal-layout', onLayout as EventListener);
+    return () => window.removeEventListener('travelhub-journal-layout', onLayout as EventListener);
+  }, []);
 
   const days = React.useMemo(() => {
     if (!trip) return [];
@@ -45,10 +55,17 @@ export const SidebarDayList: React.FC = () => {
           <SidebarDayItem
             key={day.id}
             day={day}
-            isSelected={day.id === selectedDayId}
+            isSelected={
+              mainWorkspaceTab === 'journal' && journalLayout === 'all' ? false : day.id === selectedDayId
+            }
             onSelect={() => {
               setSelectedDayId(day.id);
-              if (mainWorkspaceTab === 'journal') requestJournalDayScroll(day.id);
+              if (mainWorkspaceTab === 'journal') {
+                window.dispatchEvent(
+                  new CustomEvent('travelhub-journal-layout', { detail: { layout: 'by-day' as const } })
+                );
+                requestJournalDayScroll(day.id);
+              }
               if (mainWorkspaceTab === 'photos') requestPhotosDayScroll(day.id);
             }}
             dayTotal={sumForDay(

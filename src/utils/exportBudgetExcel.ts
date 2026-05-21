@@ -78,20 +78,28 @@ export function buildBudgetPrintHtml(options: {
     );
     if (!lines.length) continue;
     const totals = sumBudgetLines(lines);
-    body += `<h2>${category}</h2><table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;margin-bottom:1.5em;font-size:13px">`;
-    body += `<thead><tr><th align="left">Details</th><th align="right">Total budget</th><th align="right">Spent so far</th><th align="right">Remaining</th></tr>`;
-    body += `<tr style="font-weight:bold;background:#f5f0e8"><td>Totals</td><td align="right">${fmt(totals.total)}</td><td align="right">${fmt(totals.spent)}</td><td align="right">${fmt(totals.remaining)}</td></tr></thead><tbody>`;
+    body += `<h2>${category}</h2><table class="budget-table" border="1" cellpadding="6" cellspacing="0">`;
+    body += `<colgroup><col class="col-details"/><col class="col-money"/><col class="col-money"/><col class="col-money"/></colgroup>`;
+    body += `<thead><tr><th class="th-details">Details</th><th class="th-money">Total budget</th><th class="th-money">Spent so far</th><th class="th-money">Remaining</th></tr>`;
+    body += `<tr class="totals-row"><td>Totals</td><td class="td-money">${fmt(totals.total)}</td><td class="td-money">${fmt(totals.spent)}</td><td class="td-money">${fmt(totals.remaining)}</td></tr></thead><tbody>`;
     for (const line of lines) {
       const certainty = line.costCertainty === 'Estimated' ? ' (est.)' : '';
-      body += `<tr><td><strong>${line.isSubItem ? '→ ' : ''}${line.title}</strong>${certainty}<br/><small>${line.dateLines.join(' · ')}${line.spanLabel ? ` · ${line.spanLabel}` : ''}</small></td>`;
-      body += `<td align="right">${fmt(line.total)}</td><td align="right">${fmt(line.spent)}</td><td align="right">${fmt(line.remaining)}</td></tr>`;
+      const rowClass = line.costCertainty === 'Estimated' ? 'row-estimated' : '';
+      body += `<tr class="${rowClass}"><td class="td-details"><strong>${line.isSubItem ? '→ ' : ''}${line.title}</strong>${certainty}<br/><small>${line.dateLines.join(' · ')}${line.spanLabel ? ` · ${line.spanLabel}` : ''}</small></td>`;
+      body += `<td class="td-money">${fmt(line.total)}</td><td class="td-money">${fmt(line.spent)}</td><td class="td-money">${fmt(line.remaining)}</td></tr>`;
     }
     body += '</tbody></table>';
   }
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${options.tripTitle} — Budget</title>
 <style>body{font-family:Segoe UI,sans-serif;padding:24px;color:#1a3a5c}h1{font-size:22px}h2{font-size:16px;margin-top:1.5em}
 .summary{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0}.chip{border:1px solid #d4c4a8;padding:10px 16px;border-radius:8px;text-align:center}
-.chip strong{display:block;font-size:18px}.chip span{font-size:11px;text-transform:uppercase;color:#666}</style></head><body>
+.chip strong{display:block;font-size:18px}.chip span{font-size:11px;text-transform:uppercase;color:#666}
+.budget-table{width:100%;border-collapse:collapse;margin-bottom:1.5em;font-size:13px;table-layout:fixed}
+.col-details{width:52%}.col-money{width:16%}
+.th-details,.td-details{text-align:left;vertical-align:top;word-wrap:break-word}
+.th-money,.td-money{text-align:right;vertical-align:top;white-space:nowrap}
+.totals-row{font-weight:bold;background:#f5f0e8}
+.row-estimated{background:#ebe4d8}</style></head><body>
 <h1>${options.tripTitle} — Trip budget</h1>
 <p>${options.tripDayCount} trip days · All figures in ${options.homeCurrency}</p>
 <div class="summary">
@@ -103,5 +111,5 @@ export function buildBudgetPrintHtml(options: {
 <p><span style="display:inline-block;width:12px;height:12px;background:#e8dfd0;border:1px solid #999;margin-right:6px"></span> Estimated &nbsp;
 <span style="display:inline-block;width:12px;height:12px;background:#fff;border:1px solid #999;margin-right:6px"></span> Confirmed</p>
 ${body}
-<script>window.onload=function(){window.print()}</script></body></html>`;
+</body></html>`;
 }

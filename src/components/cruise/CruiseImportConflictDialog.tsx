@@ -38,6 +38,10 @@ export const CruiseImportConflictDialog: React.FC<CruiseImportConflictDialogProp
           {affectedDayCount} day{affectedDayCount === 1 ? '' : 's'} in this import already have cruise stops (
           {existingCount} existing item{existingCount === 1 ? '' : 's'}). What would you like to do?
         </p>
+        <p className={styles.reminder}>
+          Automatic location matching may be approximate — especially scenic days, fjords, and passages.
+          Please double-check each day&apos;s title and map pin after import.
+        </p>
         <ul className={styles.options}>
           <li>
             <strong>Overwrite</strong> — remove existing cruise stops on those days only, then apply the new import.

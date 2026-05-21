@@ -135,7 +135,12 @@
 }
 
 .legendEstimated {
-  background: color-mix(in srgb, var(--color-sand-300) 35%, var(--color-surface-raised));
+  background: color-mix(in srgb, var(--color-sand-400) 55%, var(--color-surface-raised));
+  border-color: var(--color-sand-500);
+}
+
+.legendItemEstimated {
+  color: var(--color-blue-800);
 }
 
 .legendConfirmed {
@@ -225,7 +230,11 @@
 }
 
 .lineEstimated {
-  background: color-mix(in srgb, var(--color-sand-200) 22%, var(--color-surface-raised));
+  background: color-mix(in srgb, var(--color-sand-300) 40%, var(--color-surface-raised));
+}
+
+.lineEstimated .lineAmount {
+  color: var(--color-blue-800);
 }
 
 .lineConfirmed {

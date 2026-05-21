@@ -1242,7 +1242,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
               <button type="button" className={styles.printPlannerBtn} onClick={openPlannerPrintSheet}>
                 Print / Save
               </button>
-              <button type="button" className={styles.rangeReset} onClick={() => setPrintPreviewOpen(false)}>
+              <button type="button" className={styles.printPlannerBtn} onClick={() => setPrintPreviewOpen(false)}>
                 Close
               </button>
             </div>,

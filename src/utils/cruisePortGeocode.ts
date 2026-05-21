@@ -35,6 +35,50 @@ export function cruisePortSearchQueries(portName: string): string[] {
   return Array.from(variants).filter(Boolean);
 }
 
+const SEA_ROUTE_CLUE =
+  /\b(fjord|fjords|strait|channel|passage|sound|gulf|bay|sea|ocean|arctic|antarctic|glacier|drake|magellan|beagle|scenic|cruising|experience)\b/i;
+
+/** Search variants for scenic / at-sea cruise lines (fjords, passages, etc.). */
+export function cruiseSeaDaySearchQueries(portName: string): string[] {
+  const raw = (portName || '').replace(/\s+/g, ' ').trim();
+  if (!raw) return [];
+
+  const variants = new Set<string>();
+  const lower = raw.toLowerCase();
+  if (lower.includes('at sea') || lower.includes('days at sea') || lower.includes('day at sea')) {
+    return [];
+  }
+
+  if (!SEA_ROUTE_CLUE.test(raw)) {
+    variants.add(raw);
+  }
+
+  const segments = raw
+    .split(/[,;–—]|(?:\s+and\s+)|(?:\s+via\s+)/i)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 2 && SEA_ROUTE_CLUE.test(s));
+
+  for (const seg of segments.length ? segments : [raw]) {
+    const cleaned = seg.replace(/\b(scenic|experience|daylight|cruising|only)\b/gi, ' ').replace(/\s+/g, ' ').trim();
+    if (!cleaned) continue;
+    variants.add(cleaned);
+    if (/\bfjord/i.test(cleaned)) {
+      variants.add(`${cleaned}, Norway`);
+      variants.add(`${cleaned}, Chile`);
+    }
+    if (/\bpassage\b/i.test(cleaned)) variants.add(cleaned);
+    if (/\bchannel\b/i.test(cleaned)) {
+      variants.add(`${cleaned}, Chile`);
+      variants.add(`${cleaned}, Argentina`);
+    }
+    if (/\barctic\b/i.test(cleaned)) variants.add(`${cleaned}, Norway`);
+    if (/\bdrake\b/i.test(cleaned)) variants.add(`${cleaned}, Antarctica`);
+    if (/\bglacier\b/i.test(cleaned)) variants.add(`${cleaned}, Alaska`);
+  }
+
+  return Array.from(variants).filter(Boolean);
+}
+
 export function pickBestGeocodeCandidate(
   results: PlaceCandidate[],
   portName: string,

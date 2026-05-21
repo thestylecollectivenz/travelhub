@@ -23,15 +23,6 @@ export const SidebarCategoryBudget: React.FC = () => {
 
   const totals = React.useMemo(() => sumByCategory(entries, convertToHomeCurrency), [entries, convertToHomeCurrency]);
 
-  React.useEffect(() => {
-    if (!selectedBudgetCategory) {
-      const firstWithAmount = BUDGET_CATEGORY_ORDER.find((key) => (totals[key] ?? 0) > 0);
-      if (firstWithAmount) {
-        setSelectedBudgetCategory(firstWithAmount);
-      }
-    }
-  }, [selectedBudgetCategory, setSelectedBudgetCategory, totals]);
-
   const selectCategory = (key: BudgetCategoryKey): void => {
     setSelectedBudgetCategory(key);
   };

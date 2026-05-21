@@ -774,7 +774,9 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
               onChange={(code) => patch({ paymentCurrency: code })}
             />
             {(draft.paymentCurrency || config.homeCurrency) !== draft.currency ? (
-              <div className={styles.readOnlyValue}>Will be converted to {config.homeCurrency} at current FX rate</div>
+              <div className={`${styles.readOnlyValue} ${styles.fullRow}`}>
+                Will be converted to {config.homeCurrency} at current FX rate
+              </div>
             ) : null}
           </>
         ) : null}
@@ -794,7 +796,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
               onChange={(e) => patch({ amount: e.target.value === '' ? 0 : Number(e.target.value) })}
             />
             <label className={styles.label} htmlFor={`cost-certainty-${draft.id}`}>
-              Cost type
+              Cost certainty
             </label>
             <select
               id={`cost-certainty-${draft.id}`}

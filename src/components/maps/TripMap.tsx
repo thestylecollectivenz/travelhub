@@ -6,6 +6,7 @@ import { usePlaces } from '../../context/PlacesContext';
 import { parseAdditionalPlaceRefs } from '../../utils/tripDayPlaces';
 import { isPreTripDayRow } from '../../utils/itineraryDayEntries';
 import { TRAVELHUB_MAP_FOCUS, type MapFocusDetail } from '../../utils/mapFocus';
+import { nextDisplayLatLng } from '../../utils/mapMarkerCoords';
 import styles from './TripMap.module.css';
 
 function escapeHtml(s: string): string {
@@ -238,12 +239,7 @@ export const TripMap: React.FC = () => {
         const coordVisitCount = new Map<string, number>();
         for (const s of renderedMarkers) {
           if (!isValidLatLng(s.latitude, s.longitude)) continue;
-          const coordKey = `${s.latitude.toFixed(4)}|${s.longitude.toFixed(4)}`;
-          const visit = coordVisitCount.get(coordKey) ?? 0;
-          coordVisitCount.set(coordKey, visit + 1);
-          const lat = s.latitude + visit * 0.012;
-          const lon = s.longitude + visit * 0.008;
-          const ll: L.LatLngExpression = [lat, lon];
+          const ll: L.LatLngExpression = nextDisplayLatLng(s.latitude, s.longitude, coordVisitCount);
           points.push(ll);
           const label = shortMapLabel(s.title);
           const labelKey = `${label.toLowerCase()}|${s.latitude.toFixed(3)}|${s.longitude.toFixed(3)}`;
@@ -282,7 +278,7 @@ export const TripMap: React.FC = () => {
           const plat = Number(primary.latitude);
           const plon = Number(primary.longitude);
           if (!isValidLatLng(plat, plon)) continue;
-          const primaryPoint: L.LatLngExpression = [plat, plon];
+          const primaryPoint: L.LatLngExpression = nextDisplayLatLng(plat, plon, coordVisitCount);
           if (primaryPoints.length >= 1) {
             L.polyline([primaryPoints[primaryPoints.length - 1], primaryPoint], { color: '#1A6399', weight: 2 }).addTo(
               lineGroup
@@ -298,7 +294,7 @@ export const TripMap: React.FC = () => {
             const alat = Number(add.latitude);
             const alon = Number(add.longitude);
             if (!isValidLatLng(alat, alon)) continue;
-            const addPoint: L.LatLngExpression = [alat, alon];
+            const addPoint: L.LatLngExpression = nextDisplayLatLng(alat, alon, coordVisitCount);
             L.polyline([legStart, addPoint], { color: '#1A6399', weight: 2, dashArray: '4 6' }).addTo(lineGroup);
             legStart = ref.returnToPrimary ? primaryPoint : addPoint;
             if (ref.returnToPrimary) {

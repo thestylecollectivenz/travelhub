@@ -23,6 +23,10 @@ export function buildCruiseImportReport(options: {
   lines.push('Cruise itinerary import finished.');
   lines.push('');
   lines.push(
+    'Please double-check day titles and map locations that were set automatically — especially scenic, fjord, and at-sea days.'
+  );
+  lines.push('');
+  lines.push(
     `Added or updated ${options.appliedCount} stop${options.appliedCount === 1 ? '' : 's'} on your trip.`
   );
   if (options.skippedCount > 0) {

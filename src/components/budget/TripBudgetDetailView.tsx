@@ -17,6 +17,7 @@ import {
   type BudgetDetailLine
 } from '../../utils/budgetDetailLines';
 import { buildBudgetPrintHtml, exportFullBudgetToExcel } from '../../utils/exportBudgetExcel';
+import { BudgetPrintSheet } from './BudgetPrintSheet';
 import styles from './TripBudgetDetailView.module.css';
 
 type BudgetViewMode = 'category' | 'all';
@@ -86,6 +87,7 @@ export const TripBudgetDetailView: React.FC = () => {
     tripDays,
     convertToHomeCurrency,
     selectedBudgetCategory,
+    setSelectedBudgetCategory,
     setSelectedDayId,
     setEditingCardId,
     setFocusedEntryId,
@@ -93,6 +95,7 @@ export const TripBudgetDetailView: React.FC = () => {
   } = useTripWorkspace();
   const { config } = useConfig();
   const [viewMode, setViewMode] = React.useState<BudgetViewMode>('category');
+  const [printHtml, setPrintHtml] = React.useState<string | null>(null);
 
   const entries = React.useMemo(
     () => (trip ? localEntries.filter((e) => e.tripId === trip.id) : []),
@@ -149,11 +152,7 @@ export const TripBudgetDetailView: React.FC = () => {
       convertToHomeCurrency,
       dayLabelFor
     });
-    const w = window.open('', '_blank');
-    if (w) {
-      w.document.write(html);
-      w.document.close();
-    }
+    setPrintHtml(html);
   }, [
     trip,
     config.homeCurrency,
@@ -220,7 +219,10 @@ export const TripBudgetDetailView: React.FC = () => {
           <button
             type="button"
             className={`${styles.segmentBtn} ${viewMode === 'all' ? styles.segmentActive : ''}`}
-            onClick={() => setViewMode('all')}
+            onClick={() => {
+              setViewMode('all');
+              setSelectedBudgetCategory(null);
+            }}
           >
             All categories
           </button>
@@ -236,7 +238,7 @@ export const TripBudgetDetailView: React.FC = () => {
       </div>
 
       <div className={styles.legend} aria-label="Cost certainty legend">
-        <span className={styles.legendItem}>
+        <span className={`${styles.legendItem} ${styles.legendItemEstimated}`}>
           <span className={`${styles.legendSwatch} ${styles.legendEstimated}`} aria-hidden />
           Estimated cost
         </span>
@@ -276,6 +278,13 @@ export const TripBudgetDetailView: React.FC = () => {
           })}
         </div>
       )}
+      {printHtml ? (
+        <BudgetPrintSheet
+          title={`${trip?.title ?? 'Trip'} — Budget`}
+          html={printHtml}
+          onClose={() => setPrintHtml(null)}
+        />
+      ) : null}
     </section>
   );
 };

@@ -10,7 +10,11 @@ import {
   type ParsedCruiseRow
 } from '../../utils/cruiseItineraryImportParser';
 import { splitCruiseShipMeta } from '../../utils/cruisePortSanitize';
-import { cruisePortSearchQueries, pickBestGeocodeCandidate } from '../../utils/cruisePortGeocode';
+import {
+  cruisePortSearchQueries,
+  cruiseSeaDaySearchQueries,
+  pickBestGeocodeCandidate
+} from '../../utils/cruisePortGeocode';
 import { buildCruiseImportReport } from '../../utils/cruiseImportReport';
 import { CopyableReportModal } from '../shared/CopyableReportModal';
 import {
@@ -198,11 +202,10 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
     return score;
   }, []);
 
-  const geocodePort = React.useCallback(
-    async (portName: string, knownPlaces: Place[]): Promise<PlaceCandidate | null> => {
+  const geocodeWithQueries = React.useCallback(
+    async (portName: string, queries: string[], knownPlaces: Place[]): Promise<PlaceCandidate | null> => {
       const existing = matchExistingPlace(portName, knownPlaces);
       if (existing) return existing;
-      const queries = cruisePortSearchQueries(portName);
       let best: PlaceCandidate | null = null;
       let bestScore = -1;
       for (const q of queries) {
@@ -223,6 +226,21 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
       return best;
     },
     [matchExistingPlace, scoreCandidate, searchPlaces]
+  );
+
+  const geocodePort = React.useCallback(
+    async (portName: string, knownPlaces: Place[]): Promise<PlaceCandidate | null> =>
+      geocodeWithQueries(portName, cruisePortSearchQueries(portName), knownPlaces),
+    [geocodeWithQueries]
+  );
+
+  const geocodeSeaLine = React.useCallback(
+    async (portName: string, knownPlaces: Place[]): Promise<PlaceCandidate | null> => {
+      const queries = cruiseSeaDaySearchQueries(portName);
+      if (!queries.length) return null;
+      return geocodeWithQueries(portName, queries, knownPlaces);
+    },
+    [geocodeWithQueries]
   );
 
   const runApply = React.useCallback(async (applyMode: CruiseImportApplyMode, overwriteDayIds?: Set<string>) => {
@@ -329,13 +347,21 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
 
       const geocodeCache = new Map<string, PlaceCandidate | null>();
       const uniqueLandPorts = new Set<string>();
+      const uniqueSeaLines = new Set<string>();
       for (const { row } of hits) {
-        if (isSeaOrScenicLine(row.port)) continue;
         const split = splitCruiseShipMeta(row.port);
-        uniqueLandPorts.add(split.clean || row.port.trim());
+        const key = split.clean || row.port.trim();
+        if (isSeaOrScenicLine(row.port)) {
+          uniqueSeaLines.add(row.port.trim());
+        } else {
+          uniqueLandPorts.add(key);
+        }
       }
       for (const port of Array.from(uniqueLandPorts)) {
         geocodeCache.set(port, await geocodePort(port, places));
+      }
+      for (const seaLine of Array.from(uniqueSeaLines)) {
+        geocodeCache.set(`sea:${seaLine}`, await geocodeSeaLine(seaLine, places));
       }
 
       const byDayId = new Map<string, ParsedCruiseRow[]>();
@@ -507,6 +533,7 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
     parsed,
     resolveDay,
     geocodePort,
+    geocodeSeaLine,
     createOrReusePlace,
     updateDay,
     localEntries,

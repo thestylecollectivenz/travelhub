@@ -277,7 +277,7 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
     <article className={`${styles.card} ${isUnread ? styles.cardUnread : ''}`} data-journal-id={entry.id}>
       <div className={styles.metaRow}>
         <div>
-          {isUnread ? <span className={styles.unreadBadge}>Unread</span> : null}
+          {isUnread ? <span className={styles.unreadBadge}>New</span> : null}
           {showAuthorLine ? (
             <>
               <div className={styles.author}>{entry.authorName || 'Traveller'}</div>

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { usePlanView } from '../../context/PlanViewContext';
 import { useSpContext } from '../../context/SpContext';
 import { ReminderService, TripReminder } from '../../services/ReminderService';
 import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
@@ -96,9 +97,10 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
     setMainWorkspaceTab,
     setWorkspaceReturn
   } = useTripWorkspace();
+  const planView = usePlanView();
   const [manual, setManual] = React.useState<TripReminder[]>([]);
   const [filter, setFilter] = React.useState<TaskFilter>('incomplete');
-  const [viewMode, setViewMode] = React.useState<ViewMode>('list');
+  const [viewMode, setViewMode] = React.useState<ViewMode>(planView?.tasksViewMode ?? 'list');
   const [calendarLayout, setCalendarLayout] = React.useState<CalendarLayout>('grid');
   const [calendarRange, setCalendarRange] = React.useState<CalendarRangeFilter>('all');
   const [customRangeStart, setCustomRangeStart] = React.useState('');
@@ -113,7 +115,27 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
   const [editDueDate, setEditDueDate] = React.useState('');
   const [editNote, setEditNote] = React.useState('');
 
+  const taskCategoryFilter = planView?.taskCategoryFilter ?? null;
+
+  React.useEffect(() => {
+    if (!planView) return;
+    planView.setTasksViewMode(viewMode);
+  }, [planView, viewMode]);
+
+  React.useEffect(() => {
+    if (planView?.tasksViewMode && planView.tasksViewMode !== viewMode) {
+      setViewMode(planView.tasksViewMode);
+    }
+  }, [planView?.tasksViewMode]);
   const svc = React.useMemo(() => new ReminderService(spContext), [spContext]);
+
+  const matchesCategoryFilter = React.useCallback(
+    (entry: ItineraryEntry): boolean => {
+      if (!taskCategoryFilter) return true;
+      return (entry.category || 'Other').trim() === taskCategoryFilter;
+    },
+    [taskCategoryFilter]
+  );
 
   const refresh = React.useCallback(() => {
     if (!trip?.id) return;
@@ -139,14 +161,19 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
     [localEntries]
   );
   const visibleManual = React.useMemo(() => {
-    if (filter === 'all') return manual;
-    if (filter === 'incomplete') return manual.filter((m) => !m.isComplete);
-    return manual;
-  }, [manual, filter]);
+    let rows = manual;
+    if (filter === 'incomplete') rows = rows.filter((m) => !m.isComplete);
+    if (!taskCategoryFilter) return rows;
+    return rows.filter((m) => {
+      const target = resolveReminderItineraryTarget(m, localEntries);
+      return target?.entry ? matchesCategoryFilter(target.entry) : true;
+    });
+  }, [manual, filter, taskCategoryFilter, localEntries, matchesCategoryFilter]);
 
   const missingAmountEntries = React.useMemo(() => {
     return localEntries
       .filter((e) => entryAmountMissing(e.amount))
+      .filter((e) => matchesCategoryFilter(e))
       .filter((e) => missingAmountFilter === 'all' || !dismissedMissing.has(e.id))
       .sort((a, b) => {
         const da = tripDays.find((d) => d.id === a.dayId)?.dayNumber ?? 0;
@@ -154,7 +181,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
         if (da !== db) return da - db;
         return (a.title || '').localeCompare(b.title || '');
       });
-  }, [localEntries, tripDays, missingAmountFilter, dismissedMissing]);
+  }, [localEntries, tripDays, missingAmountFilter, dismissedMissing, matchesCategoryFilter]);
 
   const dayName = React.useCallback((dayId?: string) => tripDays.find((d) => d.id === dayId)?.displayTitle || '', [tripDays]);
 
