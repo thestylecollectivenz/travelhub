@@ -4,6 +4,7 @@ import { useAttachments } from '../../context/AttachmentsContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { resolveAbsoluteUrl } from '../../utils/resolveAbsoluteUrl';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
+import { confirmUserAction } from '../../utils/confirmAction';
 import styles from './TripDocumentsView.module.css';
 
 function DocumentTypeIcon({ type }: { type: EntryDocumentType }): React.ReactElement {
@@ -275,7 +276,14 @@ export const TripDocumentsView: React.FC = () => {
                   <button type="button" className={styles.button} onClick={() => startEdit(d)}>
                     Edit
                   </button>
-                  <button type="button" className={styles.button} onClick={() => deleteDocument(d.id).catch(console.error)}>
+                  <button
+                    type="button"
+                    className={styles.button}
+                    onClick={() => {
+                      if (!confirmUserAction('Delete this document?')) return;
+                      deleteDocument(d.id).catch(console.error);
+                    }}
+                  >
                     Delete
                   </button>
                   {d.notes?.trim() ? <div className={styles.meta} style={{ gridColumn: '1 / -1', whiteSpace: 'normal' }}>{d.notes}</div> : null}

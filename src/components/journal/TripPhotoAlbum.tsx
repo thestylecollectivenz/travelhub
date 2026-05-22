@@ -6,6 +6,7 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { JournalEntryComposer } from './JournalEntryComposer';
 import { JournalImageLightbox } from './JournalImageLightbox';
 import { TRAVELHUB_SCROLL_PHOTOS_DAY } from '../../utils/contentScroll';
+import { confirmUserAction } from '../../utils/confirmAction';
 import styles from './TripPhotoAlbum.module.css';
 
 function AlbumPhotoCell({
@@ -97,6 +98,7 @@ function AlbumPhotoCell({
                   type="button"
                   className={styles.captionActionBtn}
                   onClick={() => {
+                    if (!confirmUserAction('Clear this photo caption?')) return;
                     updatePhotoCaption(photo.id, '')
                       .then(() => {
                         setCapDraft('');
@@ -105,7 +107,7 @@ function AlbumPhotoCell({
                       .catch(console.error);
                   }}
                 >
-                  Delete
+                  Clear caption
                 </button>
                 <button
                   type="button"

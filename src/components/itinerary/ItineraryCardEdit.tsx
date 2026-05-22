@@ -953,7 +953,14 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
                     <button type="button" className={styles.attachLink} onClick={() => openDocumentUrl(d.fileUrl)}>
                       {d.title || 'Document'}
                     </button>
-                    <button type="button" className={styles.attachRemove} onClick={() => deleteDocument(d.id).catch(console.error)}>
+                    <button
+                      type="button"
+                      className={styles.attachRemove}
+                      onClick={() => {
+                        if (!confirmUserAction('Remove this document?')) return;
+                        deleteDocument(d.id).catch(console.error);
+                      }}
+                    >
                       Remove
                     </button>
                   </li>
@@ -963,7 +970,14 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
                     <button type="button" className={styles.attachLink} onClick={() => openDocumentUrl(l.url)}>
                       {l.linkTitle || l.url}
                     </button>
-                    <button type="button" className={styles.attachRemove} onClick={() => deleteLink(l.id).catch(console.error)}>
+                    <button
+                      type="button"
+                      className={styles.attachRemove}
+                      onClick={() => {
+                        if (!confirmUserAction('Remove this link?')) return;
+                        deleteLink(l.id).catch(console.error);
+                      }}
+                    >
                       Remove
                     </button>
                   </li>

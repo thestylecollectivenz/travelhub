@@ -1,6 +1,7 @@
 import * as React from 'react';
 import type { JournalComment, JournalEntry, JournalPhoto } from '../../models';
 import { useJournal } from '../../context/JournalContext';
+import { confirmUserAction } from '../../utils/confirmAction';
 import { useSpContext } from '../../context/SpContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
@@ -117,6 +118,7 @@ function JournalPhotoSlot({
                   type="button"
                   className={styles.iconButton}
                   onClick={() => {
+                    if (!confirmUserAction('Clear this photo caption?')) return;
                     updatePhotoCaption(photo.id, '')
                       .then(() => {
                         setCapDraft('');
@@ -125,7 +127,7 @@ function JournalPhotoSlot({
                       .catch(console.error);
                   }}
                 >
-                  Delete
+                  Clear caption
                 </button>
                 <button
                   type="button"
@@ -311,6 +313,7 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
                   role="menuitem"
                   onClick={() => {
                     setMenuOpen(false);
+                    if (!confirmUserAction('Delete this journal entry? Photos and comments will be removed.')) return;
                     deleteEntry(entry.id).catch(console.error);
                   }}
                 >
@@ -490,7 +493,14 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
               </div>
               <div className={styles.commentText}>{c.commentText}</div>
               {c.authorName === displayName ? (
-                <button type="button" className={styles.iconButton} onClick={() => deleteComment(entry.id, c.id).catch(console.error)}>
+                <button
+                  type="button"
+                  className={styles.iconButton}
+                  onClick={() => {
+                    if (!confirmUserAction('Delete this comment?')) return;
+                    deleteComment(entry.id, c.id).catch(console.error);
+                  }}
+                >
                   Delete
                 </button>
               ) : null}

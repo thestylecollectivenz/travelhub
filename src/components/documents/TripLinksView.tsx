@@ -4,6 +4,7 @@ import { useAttachments } from '../../context/AttachmentsContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { resolveAbsoluteUrl } from '../../utils/resolveAbsoluteUrl';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
+import { confirmUserAction } from '../../utils/confirmAction';
 import styles from './TripLinksView.module.css';
 
 export const TripLinksView: React.FC = () => {
@@ -268,7 +269,14 @@ export const TripLinksView: React.FC = () => {
                       <button type="button" className={styles.button} onClick={() => startEdit(link)}>
                         Edit
                       </button>
-                      <button type="button" className={styles.button} onClick={() => deleteLink(link.id).catch(console.error)}>
+                      <button
+                        type="button"
+                        className={styles.button}
+                        onClick={() => {
+                          if (!confirmUserAction('Delete this link?')) return;
+                          deleteLink(link.id).catch(console.error);
+                        }}
+                      >
                         Delete
                       </button>
                     </div>
