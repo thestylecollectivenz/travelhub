@@ -7,6 +7,7 @@ import { SidebarCategoryBudget } from './SidebarCategoryBudget';
 import { SidebarMapStops } from './SidebarMapStops';
 import { SidebarPackingCategories } from './SidebarPackingCategories';
 import { SidebarTaskCategories } from './SidebarTaskCategories';
+import { SidebarTaskAssignees } from './SidebarTaskAssignees';
 import { SharedSidebarDayList } from './SharedSidebarDayList';
 import { usePlanView } from '../../context/PlanViewContext';
 import styles from './TripSidebar.module.css';
@@ -237,7 +238,10 @@ export const TripSidebar: React.FC = () => {
           <SidebarPackingCategories />
         ) : mainWorkspaceTab === 'plan' &&
           (planView?.planTab === 'tasks' || planView?.planTab === 'missing_costs') ? (
-          <SidebarTaskCategories />
+          <>
+            <SidebarTaskCategories />
+            <SidebarTaskAssignees />
+          </>
         ) : (
           <SidebarDayList />
         )}

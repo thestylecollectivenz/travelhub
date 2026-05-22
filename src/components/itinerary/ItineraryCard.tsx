@@ -7,6 +7,7 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { ItineraryCardEdit } from './ItineraryCardEdit';
 import { ItineraryCardView } from './ItineraryCardView';
+import { confirmUserAction } from '../../utils/confirmAction';
 import styles from './ItineraryCard.module.css';
 
 export interface ItineraryCardProps {
@@ -15,7 +16,7 @@ export interface ItineraryCardProps {
   suppressCarryoverUi?: boolean;
   draggable?: boolean;
   hasTask?: boolean;
-  linkedTaskReminderId?: string;
+  linkedEntryTask?: import('../../utils/linkedEntryTask').LinkedEntryTask;
   hasCancellationDeadlineReminder?: boolean;
   /** Portals the edit form to document.body (Day Planner columns are too narrow). */
   useEditPortal?: boolean;
@@ -40,7 +41,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
   suppressCarryoverUi,
   draggable = true,
   hasTask = false,
-  linkedTaskReminderId,
+  linkedEntryTask,
   hasCancellationDeadlineReminder = false,
   useEditPortal = true
 }) => {
@@ -69,6 +70,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
   }, [setEditingCardId]);
 
   const handleDelete = React.useCallback(() => {
+    if (!confirmUserAction('Delete this itinerary item?')) return;
     deleteEntry(entry.id);
     setEditingCardId(null);
   }, [deleteEntry, entry.id, setEditingCardId]);
@@ -123,11 +125,14 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
           calendarDate={calendarDate}
           suppressCarryoverUi={suppressCarryoverUi}
           hasTask={hasTask}
-          linkedTaskReminderId={linkedTaskReminderId}
+          linkedEntryTask={linkedEntryTask}
           hasCancellationDeadlineReminder={hasCancellationDeadlineReminder}
           onEdit={() => setEditingCardId(entry.id)}
           onDuplicate={() => duplicateEntry(entry.id)}
-          onDelete={() => deleteEntry(entry.id)}
+          onDelete={() => {
+            if (!confirmUserAction('Delete this itinerary item?')) return;
+            deleteEntry(entry.id);
+          }}
         />
       )}
       {showEdit && useEditPortal && typeof document !== 'undefined'

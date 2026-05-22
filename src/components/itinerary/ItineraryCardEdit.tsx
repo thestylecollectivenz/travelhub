@@ -10,6 +10,8 @@ import { useConfig } from '../../context/ConfigContext';
 import { CurrencySelect } from '../shared/CurrencySelect';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
+import { confirmUserAction } from '../../utils/confirmAction';
+import { AccommodationEditLayout, FlightEditLayout } from './ItineraryCardEditCategoryLayouts';
 import styles from './ItineraryCardEdit.module.css';
 
 export interface ItineraryCardEditProps {
@@ -27,7 +29,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   onCancel,
   onDelete
 }) => {
-  const { trip, tripDays, usedSuppliers, usedLocations } = useTripWorkspace();
+  const { trip, tripDays, usedSuppliers } = useTripWorkspace();
   const { placeById } = usePlaces();
   const { config } = useConfig();
   const [draft, setDraft] = React.useState<ItineraryEntry>(() => ({ ...entry }));
@@ -211,8 +213,23 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           (draft.transportMode ?? '').trim()
       ));
 
+  const layoutProps = {
+    draft,
+    calendarDate,
+    dayPlaceOptions,
+    patch,
+    nights,
+    perNight,
+    homeCurrency: config.homeCurrency
+  };
+
   return (
     <div className={styles.form}>
+      {isFlights ? (
+        <FlightEditLayout {...layoutProps} />
+      ) : isAccommodation ? (
+        <AccommodationEditLayout {...layoutProps} />
+      ) : (
       <div className={styles.grid}>
         <label className={styles.label} htmlFor={`cat-${draft.id}`}>
           Category
@@ -441,9 +458,6 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
         <datalist id={`location-list-${draft.id}`}>
           {dayPlaceOptions.map((value) => (
             <option key={`day-${value}`} value={value} />
-          ))}
-          {usedLocations.map((value) => (
-            <option key={value} value={value} />
           ))}
         </datalist>
 
@@ -870,6 +884,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           onChange={(code) => patch({ currency: code })}
         />
       </div>
+      )}
 
       {persistableId ? (
         <div className={styles.attachmentsBlock}>
@@ -962,7 +977,14 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       )}
 
       <div className={styles.actions}>
-        <button type="button" className={styles.deleteBtn} onClick={onDelete}>
+        <button
+          type="button"
+          className={styles.deleteBtn}
+          onClick={() => {
+            if (!confirmUserAction('Delete this itinerary item?')) return;
+            onDelete();
+          }}
+        >
           Delete
         </button>
         <div className={styles.actionsRight}>

@@ -14,6 +14,16 @@
   min-width: 0;
 }
 
+.titleBlockSticky {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  background: var(--color-surface);
+  padding: var(--space-2) 0 var(--space-3);
+  margin: calc(-1 * var(--space-2)) 0 0;
+  box-shadow: 0 1px 0 var(--color-sand-200);
+}
+
 .locationsColumn {
   grid-column: 1;
   min-width: 0;

@@ -14,6 +14,8 @@ export interface DayHeaderProps {
   day: TripDay;
   /** Shared / read-only: no inline edits. */
   variant?: 'default' | 'shared';
+  /** When true, only the day title row stays sticky while scrolling (not locations or place info). */
+  stickyTitleOnly?: boolean;
 }
 
 function dayTypeLabel(dayType: TripDay['dayType']): string {
@@ -30,7 +32,7 @@ function dayTypeLabel(dayType: TripDay['dayType']): string {
   }
 }
 
-export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default' }) => {
+export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', stickyTitleOnly = false }) => {
   const { updateDay, trip, tripDays } = useTripWorkspace();
   const { searchPlaces, createOrReusePlace, placeById } = usePlaces();
   const isShared = variant === 'shared';
@@ -192,7 +194,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default' }
 
   return (
     <header className={styles.bar}>
-      <div className={styles.titleBlock}>
+      <div className={`${styles.titleBlock} ${stickyTitleOnly ? styles.titleBlockSticky : ''}`}>
         <div className={styles.line1}>
           <span className={styles.dayNumber}>Day {day.dayNumber}</span>
           {isShared ? (

@@ -10,6 +10,9 @@ export interface PlanViewContextValue {
   /** When set, tasks view shows only items in this itinerary category. */
   taskCategoryFilter: string | null;
   setTaskCategoryFilter: (category: string | null) => void;
+  /** When set, tasks view shows only items assigned to this person. */
+  taskAssigneeFilter: string | null;
+  setTaskAssigneeFilter: (name: string | null) => void;
   tasksViewMode: 'list' | 'calendar';
   setTasksViewMode: (mode: 'list' | 'calendar') => void;
   /** null = all packing items for the trip */
@@ -25,6 +28,7 @@ export const PlanViewProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [planTab, setPlanTab] = React.useState<PlanTab>('tasks');
   const [packingCategory, setPackingCategory] = React.useState('Clothing');
   const [taskCategoryFilter, setTaskCategoryFilter] = React.useState<string | null>(null);
+  const [taskAssigneeFilter, setTaskAssigneeFilter] = React.useState<string | null>(null);
   const [tasksViewMode, setTasksViewMode] = React.useState<'list' | 'calendar'>('list');
   const [packingTraveller, setPackingTraveller] = React.useState<string | null>(null);
   const [focusedReminderId, setFocusedReminderId] = React.useState<string | null>(null);
@@ -37,6 +41,8 @@ export const PlanViewProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setPackingCategory,
       taskCategoryFilter,
       setTaskCategoryFilter,
+      taskAssigneeFilter,
+      setTaskAssigneeFilter,
       tasksViewMode,
       setTasksViewMode,
       packingTraveller,
@@ -44,7 +50,7 @@ export const PlanViewProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       focusedReminderId,
       setFocusedReminderId
     }),
-    [planTab, packingCategory, taskCategoryFilter, tasksViewMode, packingTraveller, focusedReminderId]
+    [planTab, packingCategory, taskCategoryFilter, taskAssigneeFilter, tasksViewMode, packingTraveller, focusedReminderId]
   );
 
   return <PlanViewContext.Provider value={value}>{children}</PlanViewContext.Provider>;

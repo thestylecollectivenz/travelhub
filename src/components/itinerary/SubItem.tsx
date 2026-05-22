@@ -1,6 +1,7 @@
 import * as React from 'react';
 import type { ItinerarySubItem } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { confirmUserAction } from '../../utils/confirmAction';
 import { useSpContext } from '../../context/SpContext';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { ReminderService } from '../../services/ReminderService';
@@ -341,7 +342,10 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
         <button
           type="button"
           className={styles.deleteButton}
-          onClick={() => deleteSubItem(parentEntryId, item.id)}
+          onClick={() => {
+            if (!confirmUserAction('Delete this related option?')) return;
+            deleteSubItem(parentEntryId, item.id);
+          }}
           aria-label="Delete sub-item"
         >
           <DeleteIcon />

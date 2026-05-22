@@ -14,6 +14,10 @@ import {
   loadDismissedMissingAmountIds,
   restoreMissingAmountEntry
 } from '../../utils/missingAmountDismissed';
+import { CATEGORY_LIST } from '../../utils/categoryUtils';
+import { confirmUserAction } from '../../utils/confirmAction';
+import { loadTripAssignees, rememberTripAssignee } from '../../utils/tripAssignees';
+import { reminderTaskCategory, TASK_FILTER_UNCATEGORISED } from '../../utils/taskFilters';
 import styles from './TripTasksView.module.css';
 
 type TaskFilter = 'incomplete' | 'all';
@@ -117,8 +121,14 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
   const [editNote, setEditNote] = React.useState('');
   const [editAssignedTo, setEditAssignedTo] = React.useState('');
   const [createAssignedTo, setCreateAssignedTo] = React.useState('');
+  const [createTaskCategory, setCreateTaskCategory] = React.useState('Other');
 
   const taskCategoryFilter = planView?.taskCategoryFilter ?? null;
+  const taskAssigneeFilter = planView?.taskAssigneeFilter ?? null;
+  const knownAssignees = React.useMemo(
+    () => (trip?.id ? loadTripAssignees(trip.id) : []),
+    [trip?.id, manual]
+  );
 
   React.useEffect(() => {
     if (!planView) return;
@@ -134,10 +144,30 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
 
   const matchesCategoryFilter = React.useCallback(
     (entry: ItineraryEntry): boolean => {
-      if (!taskCategoryFilter) return true;
+      if (!taskCategoryFilter || taskCategoryFilter === TASK_FILTER_UNCATEGORISED) return true;
       return (entry.category || 'Other').trim() === taskCategoryFilter;
     },
     [taskCategoryFilter]
+  );
+
+  const matchesAssigneeFilter = React.useCallback(
+    (assignedTo?: string): boolean => {
+      if (!taskAssigneeFilter) return true;
+      return (assignedTo || '').trim() === taskAssigneeFilter;
+    },
+    [taskAssigneeFilter]
+  );
+
+  const matchesReminderFilters = React.useCallback(
+    (m: TripReminder): boolean => {
+      if (!matchesAssigneeFilter(m.assignedTo)) return false;
+      if (!taskCategoryFilter) return true;
+      const target = resolveReminderItineraryTarget(m, localEntries);
+      const cat = reminderTaskCategory(m, target?.entry?.category);
+      if (taskCategoryFilter === TASK_FILTER_UNCATEGORISED) return !cat;
+      return cat === taskCategoryFilter;
+    },
+    [taskCategoryFilter, taskAssigneeFilter, localEntries, matchesAssigneeFilter]
   );
 
   const refresh = React.useCallback(() => {
@@ -188,12 +218,8 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
   const visibleManual = React.useMemo(() => {
     let rows = manual;
     if (filter === 'incomplete') rows = rows.filter((m) => !m.isComplete);
-    if (!taskCategoryFilter) return rows;
-    return rows.filter((m) => {
-      const target = resolveReminderItineraryTarget(m, localEntries);
-      return target?.entry ? matchesCategoryFilter(target.entry) : true;
-    });
-  }, [manual, filter, taskCategoryFilter, localEntries, matchesCategoryFilter]);
+    return rows.filter(matchesReminderFilters);
+  }, [manual, filter, matchesReminderFilters]);
 
   const missingAmountEntries = React.useMemo(() => {
     return localEntries
@@ -319,6 +345,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
           dueDate: editDueDate ? `${editDueDate}T00:00:00.000Z` : undefined
         })
         .then(() => {
+          if (trip?.id && editAssignedTo.trim()) rememberTripAssignee(trip.id, editAssignedTo);
           setEditingReminderId(null);
           refresh();
         })
@@ -493,12 +520,32 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                 onChange={(e) => setText(e.target.value)}
               />
               <input className={styles.input} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              {createKind === 'task' ? (
+                <select
+                  className={styles.select}
+                  value={createTaskCategory}
+                  onChange={(e) => setCreateTaskCategory(e.target.value)}
+                  aria-label="Task category"
+                >
+                  {CATEGORY_LIST.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
               <input
                 className={styles.input}
                 placeholder="Assigned to (optional)"
                 value={createAssignedTo}
                 onChange={(e) => setCreateAssignedTo(e.target.value)}
+                list="trip-task-assignees"
               />
+              <datalist id="trip-task-assignees">
+                {knownAssignees.map((n) => (
+                  <option key={n} value={n} />
+                ))}
+              </datalist>
               <button
                 className={`${styles.button} ${styles.addBtn}`}
                 type="button"
@@ -519,6 +566,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                       tripId: trip.id,
                       reminderType: createKind === 'task' ? 'Manual' : 'Custom',
                       reminderText: trimmed,
+                      taskCategory: createKind === 'task' ? createTaskCategory : undefined,
                       assignedTo: createAssignedTo.trim() || undefined,
                       isComplete: false,
                       dueDate: dueDate ? `${dueDate}T00:00:00.000Z` : undefined,
@@ -526,6 +574,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                       entryId: ''
                     })
                     .then(() => {
+                      if (createAssignedTo.trim()) rememberTripAssignee(trip.id, createAssignedTo);
                       setText('');
                       setDueDate('');
                       setCreateAssignedTo('');
@@ -627,7 +676,14 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                         >
                           {m.isComplete ? 'Mark incomplete' : 'Complete'}
                         </button>
-                        <button className={styles.button} type="button" onClick={() => svc.delete(m.id).then(refresh).catch(console.error)}>
+                        <button
+                          className={styles.button}
+                          type="button"
+                          onClick={() => {
+                            if (!confirmUserAction('Delete this task?')) return;
+                            svc.delete(m.id).then(refresh).catch(console.error);
+                          }}
+                        >
                           Delete
                         </button>
                       </>

@@ -3,7 +3,8 @@ import { usePlanView } from '../../context/PlanViewContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
 import { PackingItem, PackingService } from '../../services/PackingService';
-import { loadTripTravellers, saveTripTravellers } from '../../utils/tripTravellers';
+import { loadTripTravellers } from '../../utils/tripTravellers';
+import { confirmUserAction } from '../../utils/confirmAction';
 import styles from './PackingListView.module.css';
 
 const CATEGORIES = ['Clothing', 'Toiletries', 'Electronics', 'Documents', 'Medications', 'Other'];
@@ -183,7 +184,14 @@ export const PackingListView: React.FC = () => {
                 }}
               />
             </div>
-            <button className={styles.button} type="button" onClick={() => service.delete(item.id).then(refresh).catch(console.error)}>
+            <button
+              className={styles.button}
+              type="button"
+              onClick={() => {
+                if (!confirmUserAction('Delete this packing item?')) return;
+                service.delete(item.id).then(refresh).catch(console.error);
+              }}
+            >
               Delete
             </button>
           </div>

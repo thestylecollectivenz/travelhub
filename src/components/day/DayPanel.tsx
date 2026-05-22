@@ -66,7 +66,6 @@ export const DayPanel: React.FC = () => {
 
   return (
     <div className={styles.root}>
-      <div className={styles.stickyChrome}>
       {workspaceReturn ? (
         <div className={styles.returnBar} role="navigation">
           <button
@@ -87,7 +86,7 @@ export const DayPanel: React.FC = () => {
           </button>
         </div>
       ) : null}
-      <DayHeader day={day} />
+      <DayHeader day={day} stickyTitleOnly />
       <div id="day-breakdown-tile">
         <BudgetBreakdownTile
           tripId={trip.id}
@@ -138,7 +137,6 @@ export const DayPanel: React.FC = () => {
         <button type="button" className={styles.addButton} onClick={() => setEditingCardId('new')}>
           + Add
         </button>
-      </div>
       </div>
       {tipOpen ? (
         <TipCalculator

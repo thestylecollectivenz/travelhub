@@ -13,8 +13,39 @@ export type MapTransportStop = {
   latitude: number;
   longitude: number;
   dayNumber: number;
+  dayNumberEnd?: number;
   label: string;
 };
+
+function formatDayRangeLabel(dayStart: number, dayEnd: number, placeShort: string): string {
+  if (dayEnd > dayStart) {
+    return `Days ${dayStart} to ${dayEnd}: ${placeShort}`;
+  }
+  return `Day ${dayStart}: ${placeShort}`;
+}
+
+/** Merge consecutive stops at the same place into a single marker with a day range label. */
+export function mergeConsecutiveMapStops(stops: MapTransportStop[]): MapTransportStop[] {
+  if (stops.length <= 1) return stops;
+  const out: MapTransportStop[] = [];
+  let run = { ...stops[0], dayNumberEnd: stops[0].dayNumber };
+
+  for (let i = 1; i < stops.length; i++) {
+    const cur = stops[i];
+    const samePlace = cur.placeId === run.placeId;
+    const consecutive = cur.dayNumber === (run.dayNumberEnd ?? run.dayNumber) + 1;
+    if (samePlace && consecutive) {
+      run = { ...run, dayNumberEnd: cur.dayNumber };
+      const shortTitle = (run.title || 'Stop').split(',')[0].trim();
+      run.label = formatDayRangeLabel(run.dayNumber, cur.dayNumber, shortTitle);
+    } else {
+      out.push(run);
+      run = { ...cur, dayNumberEnd: cur.dayNumber };
+    }
+  }
+  out.push(run);
+  return out;
+}
 
 function isValidLatLng(lat: number, lon: number): boolean {
   return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
@@ -75,5 +106,5 @@ export function buildMapTransportStops(options: {
     }
   }
 
-  return out;
+  return mergeConsecutiveMapStops(out);
 }
