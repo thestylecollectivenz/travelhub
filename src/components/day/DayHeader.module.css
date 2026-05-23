@@ -318,11 +318,13 @@
 }
 
 .locationRow {
-  display: grid;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border: var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: var(--color-surface-raised);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   width: 100%;
@@ -332,9 +334,9 @@
 .locationRowHead {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  flex-wrap: wrap;
+  gap: var(--space-1);
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .locationPillRow {
@@ -381,13 +383,13 @@
 }
 
 .locationInfoLink {
-  border: none;
-  background: transparent;
-  color: var(--color-primary);
+  display: none;
+}
+
+.locationRowMapLink {
   font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  padding: 0;
+  color: var(--color-primary);
+  text-decoration: none;
   white-space: nowrap;
 }
 
@@ -403,10 +405,10 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
-  padding-top: var(--space-1);
-  border-top: 1px dashed var(--color-sand-200);
+  gap: var(--space-1);
+  width: 100%;
   font-size: var(--font-size-xs);
+  color: var(--color-sand-600);
 }
 
 .locationActions {
@@ -487,6 +489,35 @@
   font-size: var(--font-size-xs);
   background: var(--color-surface-raised);
   color: var(--color-blue-800);
+}
+
+.forecastStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.forecastDay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 3.25rem;
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-sand-50);
+  font-size: var(--font-size-xs);
+}
+
+.forecastDayLabel {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-blue-800);
+}
+
+.forecastDayTemp {
+  color: var(--color-sand-600);
 }
 
 .placeInfoGrid {

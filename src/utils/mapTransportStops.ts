@@ -27,75 +27,78 @@ function placeShortTitle(title: string): string {
   return (title || 'Stop').split(',')[0].trim();
 }
 
-/** Merge consecutive days at the same location (by city/short name), not only identical placeId. */
-export function mergeConsecutiveMapStops(stops: MapTransportStop[]): MapTransportStop[] {
-  if (stops.length <= 1) return stops;
-  const out: MapTransportStop[] = [];
-  let run = { ...stops[0], dayNumberEnd: stops[0].dayNumber };
-
-  const runKey = placeShortTitle(run.title).toLowerCase();
-
-  for (let i = 1; i < stops.length; i++) {
-    const cur = stops[i];
-    const curKey = placeShortTitle(cur.title).toLowerCase();
-    const sameLocation = curKey === runKey;
-    const consecutive = cur.dayNumber === (run.dayNumberEnd ?? run.dayNumber) + 1;
-    if (sameLocation && consecutive) {
-      run = { ...run, dayNumberEnd: cur.dayNumber };
-      const shortTitle = placeShortTitle(run.title);
-      run.label = formatDayRangeLabel(run.dayNumber, cur.dayNumber, shortTitle);
-    } else {
-      out.push(run);
-      run = { ...cur, dayNumberEnd: cur.dayNumber };
-    }
-  }
-  out.push(run);
-  return out;
+function locationKeyFromTitle(title: string): string {
+  return placeShortTitle(title).toLowerCase();
 }
 
 function isValidLatLng(lat: number, lon: number): boolean {
   return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
 }
 
-/** Map markers and route lines only for transport-related overnight / movement stops. */
+/** Group consecutive trip days that share the same primary place (by city short name). */
 export function buildMapTransportStops(options: {
   tripId: string;
   tripDays: TripDay[];
   entries: ItineraryEntry[];
   placeById: (id: string) => Place | undefined;
 }): MapTransportStop[] {
-  const { tripId, tripDays, entries, placeById } = options;
-  const tripEntries = entries.filter((e) => e.tripId === tripId);
+  const { tripId, tripDays, placeById } = options;
   const orderedDays = tripDays
     .filter((d) => d.tripId === tripId && !isPreTripDayRow(d))
     .sort((a, b) => a.dayNumber - b.dayNumber);
 
-  const out: MapTransportStop[] = [];
+  type Run = {
+    placeId: string;
+    title: string;
+    latitude: number;
+    longitude: number;
+    dayStart: number;
+    dayEnd: number;
+    locationKey: string;
+  };
+
+  const runs: Run[] = [];
 
   for (const day of orderedDays) {
-    const dayEntries = tripEntries.filter((e) => e.dayId === day.id);
-    const hasTransport = dayEntries.some((e) => MAP_TRANSPORT_CATEGORIES.has(e.category));
-    const transportDay =
-      hasTransport || day.dayType === 'Sea' || day.dayType === 'TravelTransit' || day.dayType === 'PlacePort';
-    if (!transportDay || !day.primaryPlaceId) continue;
-
+    if (!day.primaryPlaceId) continue;
     const place = placeById(day.primaryPlaceId);
     if (!place) continue;
     const lat = Number(place.latitude);
     const lon = Number(place.longitude);
     if (!isValidLatLng(lat, lon)) continue;
 
-    const shortTitle = placeShortTitle(place.title);
-    out.push({
-      id: `stop-${day.id}-${place.id}`,
-      placeId: place.id,
-      title: place.title,
-      latitude: lat,
-      longitude: lon,
-      dayNumber: day.dayNumber,
-      label: `Day ${day.dayNumber}: ${shortTitle}`
-    });
+    const locationKey = locationKeyFromTitle(place.title);
+    const last = runs[runs.length - 1];
+    if (last && last.locationKey === locationKey && day.dayNumber === last.dayEnd + 1) {
+      last.dayEnd = day.dayNumber;
+      last.placeId = place.id;
+      last.title = place.title;
+      last.latitude = lat;
+      last.longitude = lon;
+    } else {
+      runs.push({
+        placeId: place.id,
+        title: place.title,
+        latitude: lat,
+        longitude: lon,
+        dayStart: day.dayNumber,
+        dayEnd: day.dayNumber,
+        locationKey
+      });
+    }
   }
 
-  return mergeConsecutiveMapStops(out);
+  return runs.map((run) => {
+    const shortTitle = placeShortTitle(run.title);
+    return {
+      id: `stop-${run.dayStart}-${run.dayEnd}-${run.placeId}`,
+      placeId: run.placeId,
+      title: run.title,
+      latitude: run.latitude,
+      longitude: run.longitude,
+      dayNumber: run.dayStart,
+      dayNumberEnd: run.dayEnd > run.dayStart ? run.dayEnd : undefined,
+      label: formatDayRangeLabel(run.dayStart, run.dayEnd, shortTitle)
+    };
+  });
 }

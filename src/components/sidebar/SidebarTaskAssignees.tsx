@@ -6,7 +6,7 @@ import { ReminderService } from '../../services/ReminderService';
 import { loadTripAssignees } from '../../utils/tripAssignees';
 import styles from './TripSidebar.module.css';
 
-export const SidebarTaskAssignees: React.FC = () => {
+export const SidebarTaskAssignees: React.FC<{ hideHeading?: boolean }> = ({ hideHeading = false }) => {
   const { trip } = useTripWorkspace();
   const planView = usePlanView();
   const spContext = useSpContext();
@@ -39,35 +39,39 @@ export const SidebarTaskAssignees: React.FC = () => {
 
   if (!planView) return null;
 
+  const body =
+    assignees.length === 0 ? (
+      <p className={styles.dayListHint}>No assignees yet — set Assigned to on a task.</p>
+    ) : (
+      <ul className={styles.dayList}>
+        <li>
+          <button
+            type="button"
+            className={`${styles.packingCatBtn} ${filter === null ? styles.packingCatBtnActive : ''}`}
+            onClick={() => planView.setTaskAssigneeFilter(null)}
+          >
+            Anyone
+          </button>
+        </li>
+        {assignees.map((name) => (
+          <li key={name}>
+            <button
+              type="button"
+              className={`${styles.packingCatBtn} ${filter === name ? styles.packingCatBtnActive : ''}`}
+              onClick={() => planView.setTaskAssigneeFilter(name)}
+            >
+              {name}
+            </button>
+          </li>
+        ))}
+      </ul>
+    );
+
+  if (hideHeading) return body;
   return (
     <div className={styles.dayListSection}>
       <h2 className={styles.dayListHeading}>Assigned to</h2>
-      {assignees.length === 0 ? (
-        <p className={styles.dayListHint}>No assignees yet — set Assigned to on a task.</p>
-      ) : (
-        <ul className={styles.dayList}>
-          <li>
-            <button
-              type="button"
-              className={`${styles.packingCatBtn} ${filter === null ? styles.packingCatBtnActive : ''}`}
-              onClick={() => planView.setTaskAssigneeFilter(null)}
-            >
-              Anyone
-            </button>
-          </li>
-          {assignees.map((name) => (
-            <li key={name}>
-              <button
-                type="button"
-                className={`${styles.packingCatBtn} ${filter === name ? styles.packingCatBtnActive : ''}`}
-                onClick={() => planView.setTaskAssigneeFilter(name)}
-              >
-                {name}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {body}
     </div>
   );
 };

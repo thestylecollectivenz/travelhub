@@ -3,6 +3,7 @@ import type { Place } from '../../models/Place';
 import { useConfig } from '../../context/ConfigContext';
 import { COUNTRY_DATA } from '../../data/countryData';
 import { SEASONAL_BY_REGION } from '../../data/seasonalWeather';
+import { forecastDayLabel } from '../../utils/consecutivePlaceDays';
 import styles from './DayHeader.module.css';
 
 function WeatherIcon({ iconCode }: { iconCode: string }): React.ReactElement {
@@ -56,12 +57,21 @@ function SeasonIcon({ season }: { season: 'Summer' | 'Autumn' | 'Winter' | 'Spri
   return <span aria-hidden>🍂</span>;
 }
 
+type ForecastDay = {
+  date: string;
+  label: string;
+  iconCode: string;
+  tempMax: number;
+  conditions: string;
+};
+
 export interface PlaceInfoPanelProps {
   place: Place;
   weatherAnchorDate: string;
+  forecastDates?: string[];
 }
 
-export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAnchorDate }) => {
+export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAnchorDate, forecastDates }) => {
   const { config } = useConfig();
   const countryData = COUNTRY_DATA[place.countryCode];
   const [weather, setWeather] = React.useState<{
@@ -79,6 +89,7 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
     sunset: string;
   } | null>(null);
   const [currentLocalTime, setCurrentLocalTime] = React.useState('');
+  const [forecastDays, setForecastDays] = React.useState<ForecastDay[]>([]);
 
   const monthIndex = React.useMemo(() => {
     const d = new Date(`${weatherAnchorDate}T00:00:00.000Z`);
@@ -117,6 +128,48 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
       })
       .catch(() => setWeather(null));
   }, [place.latitude, place.longitude, config.temperatureUnit, config.weatherApiKey]);
+
+  const datesForForecast = React.useMemo(() => {
+    const fromProp = (forecastDates ?? []).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));
+    if (fromProp.length) return fromProp;
+    const anchor = weatherAnchorDate.slice(0, 10);
+    return anchor ? [anchor] : [];
+  }, [forecastDates, weatherAnchorDate]);
+
+  React.useEffect(() => {
+    if (!config.weatherApiKey.trim() || !datesForForecast.length) {
+      setForecastDays([]);
+      return;
+    }
+    const units = config.temperatureUnit === 'Fahrenheit' ? 'us' : 'metric';
+    const start = datesForForecast[0];
+    const end = datesForForecast[datesForForecast.length - 1];
+    const range = start === end ? start : `${start}/${end}`;
+    const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${place.latitude},${place.longitude}/${range}?key=${encodeURIComponent(config.weatherApiKey.trim())}&include=days&elements=tempmax,tempmin,conditions,icon&unitGroup=${units}&contentType=json`;
+    fetch(url)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Forecast ${r.status}`))))
+      .then((data) => {
+        const byDate = new Map<string, { icon?: string; tempmax?: number; conditions?: string }>();
+        for (const d of data.days ?? []) {
+          const dt = String(d.datetime ?? '').slice(0, 10);
+          if (dt) byDate.set(dt, d);
+        }
+        const anchor = weatherAnchorDate.slice(0, 10);
+        setForecastDays(
+          datesForForecast.map((date) => {
+            const row = byDate.get(date) ?? {};
+            return {
+              date,
+              label: forecastDayLabel(anchor, date),
+              iconCode: String(row.icon ?? ''),
+              tempMax: Number(row.tempmax ?? 0),
+              conditions: String(row.conditions ?? '')
+            };
+          })
+        );
+      })
+      .catch(() => setForecastDays([]));
+  }, [place.latitude, place.longitude, config.weatherApiKey, config.temperatureUnit, datesForForecast, weatherAnchorDate]);
 
   React.useEffect(() => {
     if (!config.weatherApiKey.trim()) {
@@ -184,8 +237,23 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
     return `${part} ${d.toLocaleString('en-NZ', { month: 'long' })}`;
   })();
 
+  const tempSuffix = config.temperatureUnit === 'Fahrenheit' ? 'F' : 'C';
+
   return (
     <div className={styles.placeInfoGrid}>
+      {config.weatherApiKey.trim() && forecastDays.length ? (
+        <div className={styles.forecastStrip} role="list" aria-label="Forecast for stay">
+          {forecastDays.map((fd) => (
+            <div key={fd.date} className={styles.forecastDay} role="listitem" title={fd.conditions}>
+              <span className={styles.forecastDayLabel}>{fd.label}</span>
+              <WeatherIcon iconCode={fd.iconCode} />
+              <span className={styles.forecastDayTemp}>
+                {Math.round(fd.tempMax)}°{tempSuffix}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div className={styles.infoTile}>
         <div className={styles.infoTitle}>Current weather</div>
         {config.weatherApiKey.trim() && weather ? (

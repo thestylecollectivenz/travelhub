@@ -7,7 +7,7 @@ import { loadTripTravellers } from '../../utils/tripTravellers';
 import { confirmUserAction } from '../../utils/confirmAction';
 import styles from './PackingListView.module.css';
 
-const CATEGORIES = ['Clothing', 'Toiletries', 'Electronics', 'Documents', 'Medications', 'Other'];
+const CATEGORIES = ['Clothing', 'Shoes', 'Accessories', 'Toiletries', 'Electronics', 'Documents', 'Medications', 'Other'];
 
 export const PackingListView: React.FC = () => {
   const spContext = useSpContext();
@@ -144,16 +144,32 @@ export const PackingListView: React.FC = () => {
               <span className={styles.muted}>{tpl.items.length} items</span>
               <button className={styles.button} type="button" onClick={() => {
                 if (!trip?.id) return;
-                service.bulkCreate(tpl.items.map((item) => ({
-                  tripId: trip.id,
-                  category: item.category,
-                  itemName: item.itemName,
-                  quantity: item.quantity,
-                  traveller: activeTraveller || travellers[0] || 'Traveller 1',
-                  isPacked: false,
-                  isTemplate: false,
-                  templateId: ''
-                }))).then(refresh).catch(console.error);
+                const traveller = activeTraveller || travellers[0] || 'Traveller 1';
+                const existingKeys = new Set(
+                  items
+                    .filter((i) => (i.traveller || travellers[0]) === traveller)
+                    .map((i) => `${i.category}|${i.itemName.trim().toLowerCase()}`)
+                );
+                const toCreate = tpl.items.filter(
+                  (item) => !existingKeys.has(`${item.category}|${(item.itemName || '').trim().toLowerCase()}`)
+                );
+                if (!toCreate.length) return;
+                planView?.setPackingCategory('__all__');
+                service
+                  .bulkCreate(
+                    toCreate.map((item) => ({
+                      tripId: trip.id,
+                      category: item.category,
+                      itemName: item.itemName,
+                      quantity: item.quantity,
+                      traveller,
+                      isPacked: false,
+                      isTemplate: false,
+                      templateId: ''
+                    }))
+                  )
+                  .then(refresh)
+                  .catch(console.error);
               }}>Load</button>
             </div>
           ))}

@@ -37,15 +37,7 @@ export interface DayPanelProps {
 }
 
 export const DayPanel: React.FC<DayPanelProps> = ({ hideHeader = false }) => {
-  const {
-    trip,
-    tripDays,
-    selectedDayId,
-    setEditingCardId,
-    workspaceReturn,
-    setWorkspaceReturn,
-    setMainWorkspaceTab
-  } = useTripWorkspace();
+  const { trip, tripDays, selectedDayId, setEditingCardId } = useTripWorkspace();
   const planView = usePlanView();
   const { config } = useConfig();
   const { placeById } = usePlaces();
@@ -71,27 +63,7 @@ export const DayPanel: React.FC<DayPanelProps> = ({ hideHeader = false }) => {
 
   return (
     <div className={styles.root}>
-      {workspaceReturn ? (
-        <div className={styles.returnBar} role="navigation">
-          <button
-            type="button"
-            className={styles.returnBtn}
-            onClick={() => {
-              setMainWorkspaceTab(workspaceReturn.tab);
-              if (workspaceReturn.planMode && planView) {
-                planView.setPlanTab(workspaceReturn.planMode);
-              }
-              if (workspaceReturn.tasksViewMode && planView) {
-                planView.setTasksViewMode(workspaceReturn.tasksViewMode);
-              }
-              setWorkspaceReturn(null);
-            }}
-          >
-            ← Back to {workspaceReturn.label}
-          </button>
-        </div>
-      ) : null}
-      {hideHeader ? null : <DayHeader day={day} stickyTitleOnly />}
+      {hideHeader ? null : <DayHeader day={day} />}
       <div id="day-breakdown-tile">
         <BudgetBreakdownTile
           tripId={trip.id}

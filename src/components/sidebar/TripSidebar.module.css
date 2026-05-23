@@ -162,3 +162,25 @@
   padding: 0 0 var(--space-3) 0;
 }
 
+.sectionCollapseHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  border-top: var(--border-default);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sectionCollapseHead .dayListHeading {
+  padding: 0;
+}
+
+.sectionChevron {
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-600);
+}
+

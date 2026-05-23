@@ -14,6 +14,7 @@ import { SubItemList } from './SubItemList';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
 import { requestViewTask } from '../../utils/viewTaskFocus';
+import { loadTripAssignees, rememberTripAssignee } from '../../utils/tripAssignees';
 import { usePlanView } from '../../context/PlanViewContext';
 import { CATEGORY_LIST } from '../../utils/categoryUtils';
 import { confirmUserAction } from '../../utils/confirmAction';
@@ -180,7 +181,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const openTaskTarget =
     manualTasks.find((t) => t.reminderId === openTaskReminderId) ?? linkedEntryTask ?? manualTasks[0];
   const spContext = useSpContext();
-  const { addSubItem, convertToHomeCurrency, setSelectedDayId, setMainWorkspaceTab, setWorkspaceReturn, tripDays } =
+  const { trip, addSubItem, convertToHomeCurrency, setSelectedDayId, setMainWorkspaceTab, tripDays } =
     useTripWorkspace();
   const planView = usePlanView();
   const { config } = useConfig();
@@ -221,12 +222,15 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const [taskDueDate, setTaskDueDate] = React.useState('');
   const [taskDescription, setTaskDescription] = React.useState('');
   const [taskCategory, setTaskCategory] = React.useState(entry.category || 'Other');
+  const [taskAssignee, setTaskAssignee] = React.useState('');
+  const [taskNoteDraft, setTaskNoteDraft] = React.useState('');
   const [editTaskDescription, setEditTaskDescription] = React.useState('');
   const [editTaskDueDate, setEditTaskDueDate] = React.useState('');
   const [editTaskNote, setEditTaskNote] = React.useState('');
-  const [manualTaskOpen, setManualTaskOpen] = React.useState(false);
-  const [manualTaskText, setManualTaskText] = React.useState('');
-  const [manualTaskDue, setManualTaskDue] = React.useState('');
+  const taskAssigneeOptions = React.useMemo(
+    () => (trip?.id ? loadTripAssignees(trip.id) : []),
+    [trip?.id, manualTasks.length]
+  );
 
   React.useEffect(() => {
     if (!menuOpen) {
@@ -248,11 +252,10 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
 
   React.useEffect(() => {
     setTaskPromptOpen(false);
-    setManualTaskOpen(false);
     setTaskDueDate('');
-    setManualTaskDue('');
     setTaskDescription('');
-    setManualTaskText('');
+    setTaskNoteDraft('');
+    setTaskAssignee('');
   }, [entry.id]);
 
   const displayAmountHome = convertToHomeCurrency(entry.amount, entry.currency || 'NZD');
@@ -1013,7 +1016,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         </div>
       ) : null}
 
-      {hasTask && openTaskTarget ? (
+      {manualTasks.length > 0 && openTaskTarget ? (
         <div className={styles.linkedTaskSummary}>
           <span className={styles.linkedTaskLabel}>Linked task</span>
           <p className={styles.linkedTaskText}>{linkedTaskDisplayText(openTaskTarget)}</p>
@@ -1023,7 +1026,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         </div>
       ) : null}
       <div className={styles.subItemActionsRow}>
-        {hasTask && openTaskTarget ? (
+        {manualTasks.length > 0 && openTaskTarget ? (
           <>
             {manualTasks.length > 1 ? (
               <select
@@ -1043,9 +1046,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
               type="button"
               className={styles.addSubItemBtn}
               onClick={() => {
-                setWorkspaceReturn({ tab: 'itinerary', label: 'itinerary' });
                 setMainWorkspaceTab('plan');
                 planView?.setPlanTab('tasks');
+                planView?.setTaskSectionFilter('todo');
                 requestViewTask({
                   reminderId: openTaskTarget.reminderId,
                   entryId: entry.id,
@@ -1089,14 +1092,17 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                 setTaskPromptOpen((v) => {
                   const next = !v;
                   if (!v) {
-                    setTaskDescription(entry.title || 'Itinerary item');
+                    setTaskDescription('');
                     setTaskCategory(entry.category || 'Other');
+                    setTaskAssignee('');
+                    setTaskNoteDraft('');
+                    setTaskDueDate('');
                   }
                   return next;
                 });
               }}
             >
-              Create task
+              {manualTasks.length > 0 ? 'Create another task' : 'Create task'}
             </button>
           </>
         )}
@@ -1170,7 +1176,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           </div>
         </div>
       ) : null}
-      {taskPromptOpen && !hasTask ? (
+      {taskPromptOpen ? (
         <div className={styles.newSubItemForm}>
           <label className={styles.taskInlineLabel} htmlFor={`task-cat-${entry.id}`}>
             Category
@@ -1197,6 +1203,32 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             value={taskDescription}
             onChange={(e) => setTaskDescription(e.target.value)}
           />
+          <label className={styles.taskInlineLabel} htmlFor={`task-note-${entry.id}`}>
+            Task note (optional)
+          </label>
+          <input
+            id={`task-note-${entry.id}`}
+            className={styles.newSubField}
+            type="text"
+            value={taskNoteDraft}
+            onChange={(e) => setTaskNoteDraft(e.target.value)}
+          />
+          <label className={styles.taskInlineLabel} htmlFor={`task-assignee-${entry.id}`}>
+            Assigned to (optional)
+          </label>
+          <input
+            id={`task-assignee-${entry.id}`}
+            className={styles.newSubField}
+            type="text"
+            value={taskAssignee}
+            onChange={(e) => setTaskAssignee(e.target.value)}
+            list={`task-assignees-${entry.id}`}
+          />
+          <datalist id={`task-assignees-${entry.id}`}>
+            {taskAssigneeOptions.map((n) => (
+              <option key={n} value={n} />
+            ))}
+          </datalist>
           <div className={styles.newSubRow}>
             <input className={styles.newSubField} type="date" value={taskDueDate} onChange={(e) => setTaskDueDate(e.target.value)} />
             <button
@@ -1204,26 +1236,31 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
               className={styles.newSubActionBtn}
               onClick={() => {
                 const svc = new ReminderService(spContext);
-                const note = taskDescription.trim();
-                const taskTitle = note || entry.title || 'Itinerary item';
+                const desc = taskDescription.trim();
+                const note = taskNoteDraft.trim();
                 void svc
                   .create({
-                    title: `Task: ${taskTitle}`,
+                    title: desc ? (desc.startsWith('Task:') ? desc : `Task: ${desc}`) : 'Task',
                     tripId: entry.tripId,
                     dayId: entry.dayId,
                     entryId: entry.id,
                     reminderType: 'Manual',
-                    reminderText: taskTitle,
+                    reminderText: desc,
                     taskCategory,
-                    taskNote: (entry.notes || '').trim() || note || undefined,
+                    taskNote: note || undefined,
+                    assignedTo: taskAssignee.trim() || undefined,
                     dueDate: taskDueDate ? `${taskDueDate}T00:00:00.000Z` : undefined,
                     isComplete: false
                   })
-                  .then(() => {
+                  .then((created) => {
+                    if (trip?.id && taskAssignee.trim()) rememberTripAssignee(trip.id, taskAssignee);
+                    setOpenTaskReminderId(created.id);
                     window.dispatchEvent(new CustomEvent('trip-reminders-updated'));
                     setTaskPromptOpen(false);
                     setTaskDueDate('');
                     setTaskDescription('');
+                    setTaskNoteDraft('');
+                    setTaskAssignee('');
                   })
                   .catch(console.error);
               }}
@@ -1237,111 +1274,14 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                 setTaskPromptOpen(false);
                 setTaskDueDate('');
                 setTaskDescription('');
+                setTaskNoteDraft('');
+                setTaskAssignee('');
               }}
             >
               Cancel
             </button>
           </div>
         </div>
-      ) : null}
-
-      {isAccommodation ? (
-        <>
-          <div className={styles.subItemActionsRow}>
-            <button
-              type="button"
-              className={styles.addSubItemBtn}
-              onClick={() => {
-                setManualTaskOpen((v) => {
-                  const next = !v;
-                  if (!v) {
-                    setManualTaskText('');
-                    setManualTaskDue('');
-                  }
-                  return next;
-                });
-              }}
-            >
-              Create a task
-            </button>
-          </div>
-          {manualTaskOpen ? (
-            <div className={styles.newSubItemForm}>
-              <label className={styles.taskInlineLabel} htmlFor={`manual-task-${entry.id}`}>
-                Task description
-              </label>
-              <input
-                id={`manual-task-${entry.id}`}
-                className={styles.newSubField}
-                type="text"
-                value={manualTaskText}
-                onChange={(e) => setManualTaskText(e.target.value)}
-                placeholder="e.g. Request early check-in"
-              />
-              <label className={styles.taskInlineLabel} htmlFor={`manual-due-${entry.id}`}>
-                Due date (optional)
-              </label>
-              <div className={styles.newSubRow}>
-                <input
-                  id={`manual-due-${entry.id}`}
-                  className={styles.newSubField}
-                  type="date"
-                  value={manualTaskDue}
-                  onChange={(e) => setManualTaskDue(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className={styles.newSubActionBtn}
-                  disabled={!manualTaskText.trim()}
-                  onClick={() => {
-                    const t = manualTaskText.trim();
-                    if (!t) return;
-                    const addr = (entry.streetAddress || '').trim();
-                    const ctxParts = [
-                      entry.title || 'Itinerary item',
-                      addr || undefined,
-                      entry.dateStart ? `Check-in ${entry.dateStart}` : undefined,
-                      entry.dateEnd ? `Check-out ${entry.dateEnd}` : undefined
-                    ].filter(Boolean);
-                    const svc = new ReminderService(spContext);
-                    void svc
-                      .create({
-                        title: `Task: ${t}`,
-                        tripId: entry.tripId,
-                        dayId: entry.dayId,
-                        entryId: entry.id,
-                        reminderType: 'ManualEntryTask',
-                        reminderText: t,
-                        taskNote: ctxParts.length ? ctxParts.join(' · ') : undefined,
-                        dueDate: manualTaskDue ? `${manualTaskDue}T00:00:00.000Z` : undefined,
-                        isComplete: false
-                      })
-                      .then(() => {
-                        window.dispatchEvent(new CustomEvent('trip-reminders-updated'));
-                        setManualTaskOpen(false);
-                        setManualTaskText('');
-                        setManualTaskDue('');
-                      })
-                      .catch(console.error);
-                  }}
-                >
-                  Save task
-                </button>
-                <button
-                  type="button"
-                  className={styles.newSubActionBtn}
-                  onClick={() => {
-                    setManualTaskOpen(false);
-                    setManualTaskText('');
-                    setManualTaskDue('');
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : null}
-        </>
       ) : null}
 
       {showSubItemContent ? (

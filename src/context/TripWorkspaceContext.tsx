@@ -7,7 +7,7 @@ import { TripService } from '../services/TripService';
 import { DayService } from '../services/DayService';
 import { ItineraryService } from '../services/ItineraryService';
 import { ReminderService } from '../services/ReminderService';
-import { syncAccommodationCancellationDeadlineReminder } from '../services/accommodationCancellationReminderSync';
+import { syncEntryCancellationDeadlineReminder } from '../utils/entryCancellationReminderSync';
 import { FxService } from '../services/FxService';
 import { useSpContext } from './SpContext';
 import { minutesFromTimeStart } from '../utils/itineraryTimeUtils';
@@ -270,7 +270,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
             return prev.map((e) => (e.id === tempId ? mergedForSync! : e));
           });
           if (mergedForSync) {
-            void syncAccommodationCancellationDeadlineReminder(spContext, mergedForSync)
+            void syncEntryCancellationDeadlineReminder(spContext, mergedForSync)
               .then(
                 () => undefined,
                 (syncErr) => {
@@ -306,7 +306,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       svc
         .update(updated.id, entryWithoutSubItems)
         .then(async () => {
-          await syncAccommodationCancellationDeadlineReminder(spContext, updated);
+          await syncEntryCancellationDeadlineReminder(spContext, updated);
           window.dispatchEvent(new Event('trip-reminders-updated'));
         })
         .catch((err) => {
@@ -380,7 +380,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
           .create({ ...createPayload, sortOrder: maxSort + 1 })
           .then((created) => {
             setLocalEntries((current) => current.map((e) => (e.id === tempId ? { ...e, id: created.id } : e)));
-            void syncAccommodationCancellationDeadlineReminder(spContext, created)
+            void syncEntryCancellationDeadlineReminder(spContext, created)
               .then(
                 () => undefined,
                 (syncErr) => {

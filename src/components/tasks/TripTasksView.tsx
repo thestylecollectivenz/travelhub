@@ -125,6 +125,11 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
 
   const taskCategoryFilter = planView?.taskCategoryFilter ?? null;
   const taskAssigneeFilter = planView?.taskAssigneeFilter ?? null;
+  const taskSectionFilter = planView?.taskSectionFilter ?? null;
+  const showTaskSection = React.useCallback(
+    (key: 'todo' | 'bookings' | 'payments' | 'cancellations') => !taskSectionFilter || taskSectionFilter === key,
+    [taskSectionFilter]
+  );
   const knownAssignees = React.useMemo(
     () => (trip?.id ? loadTripAssignees(trip.id) : []),
     [trip?.id, manual]
@@ -188,6 +193,9 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
       const id = (ev as CustomEvent<{ reminderId?: string }>).detail?.reminderId;
       if (!id) return;
       planView?.setFocusedReminderId(id);
+      planView?.setTaskSectionFilter(
+        manual.find((m) => m.id === id)?.reminderType === 'CancellationDeadline' ? 'cancellations' : 'todo'
+      );
       setViewMode('list');
       window.requestAnimationFrame(() => {
         document.querySelector(`[data-reminder-id="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -195,7 +203,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
     };
     window.addEventListener(TRAVELHUB_VIEW_TASK, onView as EventListener);
     return () => window.removeEventListener(TRAVELHUB_VIEW_TASK, onView as EventListener);
-  }, [planView]);
+  }, [planView, manual]);
 
   React.useEffect(() => {
     if (trip?.id) {
@@ -223,8 +231,14 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
         : [],
     [localEntries, matchesCategoryFilter, showEntryDerivedTasks, showEntryDerivedForAssignee]
   );
-  const visibleManual = React.useMemo(() => {
-    let rows = manual;
+  const manualTodos = React.useMemo(() => {
+    let rows = manual.filter((m) => m.reminderType === 'Manual' || m.reminderType === 'ManualEntryTask');
+    if (filter === 'incomplete') rows = rows.filter((m) => !m.isComplete);
+    return rows.filter(matchesReminderFilters);
+  }, [manual, filter, matchesReminderFilters]);
+
+  const cancellationReminders = React.useMemo(() => {
+    let rows = manual.filter((m) => m.reminderType === 'CancellationDeadline');
     if (filter === 'incomplete') rows = rows.filter((m) => !m.isComplete);
     return rows.filter(matchesReminderFilters);
   }, [manual, filter, matchesReminderFilters]);
@@ -277,7 +291,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
 
   const calendarEvents = React.useMemo((): CalendarEvent[] => {
     const out: CalendarEvent[] = [];
-    for (const m of manual.filter((x) => !x.isComplete && x.dueDate)) {
+    for (const m of [...manualTodos, ...cancellationReminders].filter((x) => !x.isComplete && x.dueDate)) {
       const date = ymdFromIso(m.dueDate);
       if (!date) continue;
       out.push({
@@ -314,7 +328,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
       }
     }
     return out;
-  }, [manual, bookingTasks, paymentTasks]);
+  }, [manualTodos, cancellationReminders, bookingTasks, paymentTasks]);
 
   const showMissingCosts = variant === 'missing_costs';
   const showStandardSections = !showMissingCosts;
@@ -514,6 +528,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
 
       {viewMode === 'list' && showStandardSections ? (
         <>
+          {showTaskSection('todo') ? (
           <div className={styles.group}>
             <h3 className={styles.title}>Add new</h3>
             <div className={`${styles.filters} ${styles.addRow}`}>
@@ -594,7 +609,8 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                 Add {createKind === 'task' ? 'task' : 'reminder'}
               </button>
             </div>
-            {visibleManual.map((m) => {
+            <h3 className={styles.title}>To do</h3>
+            {manualTodos.map((m) => {
               const target = resolveReminderItineraryTarget(m, localEntries);
               const isEditing = editingReminderId === m.id;
               return (
@@ -703,7 +719,9 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
               );
             })}
           </div>
+          ) : null}
 
+          {showTaskSection('bookings') ? (
           <div className={styles.group}>
             <h3 className={styles.title}>Bookings needed</h3>
             {bookingTasks.map((entry) => (
@@ -733,7 +751,9 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
               </div>
             ))}
           </div>
+          ) : null}
 
+          {showTaskSection('payments') ? (
           <div className={styles.group}>
             <h3 className={styles.title}>Payments due</h3>
             {paymentTasks.map((entry) => (
@@ -770,6 +790,61 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
               </div>
             ))}
           </div>
+          ) : null}
+
+          {showTaskSection('cancellations') ? (
+          <div className={styles.group}>
+            <h3 className={styles.title}>Cancellation deadline reminders</h3>
+            {cancellationReminders.length === 0 ? (
+              <p className={styles.meta}>No cancellation reminders.</p>
+            ) : (
+              cancellationReminders.map((m) => {
+                const target = resolveReminderItineraryTarget(m, localEntries);
+                return (
+                  <div
+                    key={m.id}
+                    data-reminder-id={m.id}
+                    className={`${styles.item} ${planView?.focusedReminderId === m.id ? styles.itemFocused : ''}`}
+                  >
+                    <div className={styles.itemBody}>
+                      <div>{reminderDisplayTitle(m)}</div>
+                      <div className={styles.meta}>
+                        {m.dueDate ? `Due ${new Date(m.dueDate).toLocaleString('en-NZ')}` : 'No due date'}
+                      </div>
+                      {renderTaskNote(m.taskNote, reminderDisplayTitle(m))}
+                      {target?.entry ? renderEntryNotes(target.entry) : null}
+                      {target ? (
+                        <div className={styles.meta}>
+                          {target.contextLine}
+                          <span aria-hidden> · </span>
+                          {dayName(target.openDayId) || 'Itinerary day'}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className={styles.actions}>
+                      {target ? (
+                        <button
+                          className={styles.button}
+                          type="button"
+                          onClick={() => openEntryInItineraryRead(target.openEntryId, target.openDayId)}
+                        >
+                          Open in itinerary
+                        </button>
+                      ) : null}
+                      <button
+                        className={styles.button}
+                        type="button"
+                        onClick={() => svc.update(m.id, { isComplete: !m.isComplete }).then(refresh).catch(console.error)}
+                      >
+                        {m.isComplete ? 'Mark incomplete' : 'Complete'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+          ) : null}
         </>
       ) : null}
     </section>

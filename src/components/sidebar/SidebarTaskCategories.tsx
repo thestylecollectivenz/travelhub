@@ -7,7 +7,7 @@ import { getCategorySlug } from '../../utils/categoryUtils';
 import { TASK_FILTER_UNCATEGORISED } from '../../utils/taskFilters';
 import styles from './TripSidebar.module.css';
 
-export const SidebarTaskCategories: React.FC = () => {
+export const SidebarTaskCategories: React.FC<{ hideHeading?: boolean }> = ({ hideHeading = false }) => {
   const { trip, localEntries } = useTripWorkspace();
   const planView = usePlanView();
   const spContext = useSpContext();
@@ -64,50 +64,54 @@ export const SidebarTaskCategories: React.FC = () => {
 
   if (!planView) return null;
 
-  return (
-    <div className={styles.dayListSection}>
-      <h2 className={styles.dayListHeading}>Filter by category</h2>
-      {allCategories.length === 0 && !hasUncategorised ? (
-        <p className={styles.dayListHint}>No task categories yet.</p>
-      ) : (
-        <ul className={styles.dayList}>
+  const body =
+    allCategories.length === 0 && !hasUncategorised ? (
+      <p className={styles.dayListHint}>No task categories yet.</p>
+    ) : (
+      <ul className={styles.dayList}>
+        <li>
+          <button
+            type="button"
+            className={`${styles.packingCatBtn} ${filter === null ? styles.packingCatBtnActive : ''}`}
+            onClick={() => planView.setTaskCategoryFilter(null)}
+          >
+            All categories
+          </button>
+        </li>
+        {hasUncategorised ? (
           <li>
             <button
               type="button"
-              className={`${styles.packingCatBtn} ${filter === null ? styles.packingCatBtnActive : ''}`}
-              onClick={() => planView.setTaskCategoryFilter(null)}
+              className={`${styles.packingCatBtn} ${filter === TASK_FILTER_UNCATEGORISED ? styles.packingCatBtnActive : ''}`}
+              onClick={() => planView.setTaskCategoryFilter(TASK_FILTER_UNCATEGORISED)}
             >
-              All categories
+              Uncategorised
             </button>
           </li>
-          {hasUncategorised ? (
-            <li>
+        ) : null}
+        {allCategories.map((cat) => {
+          const slug = getCategorySlug(cat);
+          const active = filter === cat;
+          return (
+            <li key={cat}>
               <button
                 type="button"
-                className={`${styles.packingCatBtn} ${filter === TASK_FILTER_UNCATEGORISED ? styles.packingCatBtnActive : ''}`}
-                onClick={() => planView.setTaskCategoryFilter(TASK_FILTER_UNCATEGORISED)}
+                className={`${styles.packingCatBtn} th-cat-${slug} ${active ? styles.packingCatBtnActive : ''}`}
+                onClick={() => planView.setTaskCategoryFilter(cat)}
               >
-                Uncategorised
+                {cat}
               </button>
             </li>
-          ) : null}
-          {allCategories.map((cat) => {
-            const slug = getCategorySlug(cat);
-            const active = filter === cat;
-            return (
-              <li key={cat}>
-                <button
-                  type="button"
-                  className={`${styles.packingCatBtn} th-cat-${slug} ${active ? styles.packingCatBtnActive : ''}`}
-                  onClick={() => planView.setTaskCategoryFilter(cat)}
-                >
-                  {cat}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+          );
+        })}
+      </ul>
+    );
+
+  if (hideHeading) return body;
+  return (
+    <div className={styles.dayListSection}>
+      <h2 className={styles.dayListHeading}>Filter by category</h2>
+      {body}
     </div>
   );
 };

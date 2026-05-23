@@ -4,6 +4,7 @@ import { CATEGORY_LIST } from '../../utils/categoryUtils';
 import { combineDayAndTime, formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
+import { flightPlaceOptionsForDay } from '../../utils/flightPlaceOptions';
 import { parseAdditionalPlaceRefs } from '../../utils/tripDayPlaces';
 import { durationFromDateTimes } from '../../utils/durationFromTimes';
 import { useConfig } from '../../context/ConfigContext';
@@ -76,6 +77,9 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   }, [draft.amount, isAccommodation, nights]);
 
   const dayPlaceOptions = React.useMemo(() => {
+    if (isFlights) {
+      return flightPlaceOptionsForDay(draft.dayId, tripDays, placeById);
+    }
     const day = tripDays.find((d) => d.id === draft.dayId);
     if (!day) return [];
     const names = new Set<string>();
@@ -86,7 +90,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       if (p?.title?.trim()) names.add(p.title.trim());
     }
     return Array.from(names);
-  }, [draft.dayId, tripDays, placeById]);
+  }, [draft.dayId, tripDays, placeById, isFlights]);
 
   React.useEffect(() => {
     const auto = durationFromDateTimes({

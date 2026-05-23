@@ -157,9 +157,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
             const list = remindersByEntry.get(eid) ?? [];
             list.push(linked);
             remindersByEntry.set(eid, list);
-            if (!reminderByEntry.has(eid)) {
-              reminderByEntry.set(eid, linked);
-            }
+            reminderByEntry.set(eid, linked);
           }
           if (rt === 'CancellationDeadline') {
             cancelIds.add(eid);

@@ -8,6 +8,7 @@ import { compareTripDaysChronological } from '../../utils/tripDateRangeSync';
 import { parseAdditionalPlaceRefs, serializeAdditionalPlaceRef } from '../../utils/tripDayPlaces';
 import { CollapsibleSummaryBar } from '../shared/CollapsibleSummaryBar';
 import { PlaceInfoPanel } from './PlaceInfoPanel';
+import { consecutivePrimaryPlaceDates } from '../../utils/consecutivePlaceDays';
 import styles from './DayHeader.module.css';
 
 export interface DayHeaderProps {
@@ -76,6 +77,11 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
   }, [day.id, dayLocations.primary?.id, allPlacesForInfo]);
 
   const activePlaceInfo = allPlacesForInfo.find((p) => p.id === activePlaceInfoId) ?? allPlacesForInfo[0];
+
+  const activeForecastDates = React.useMemo(() => {
+    if (!activePlaceInfo?.place?.id) return [weatherAnchorDate.slice(0, 10)].filter(Boolean);
+    return consecutivePrimaryPlaceDates(tripDays, day.id, activePlaceInfo.place.id);
+  }, [activePlaceInfo?.place?.id, tripDays, day.id, weatherAnchorDate]);
 
   const locationsSummary = React.useMemo(() => {
     const count = (dayLocations.primary ? 1 : 0) + dayLocations.additional.length;
@@ -194,7 +200,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
 
   return (
     <header className={styles.bar}>
-      <div className={`${styles.titleBlock} ${stickyTitleOnly ? styles.titleBlockSticky : ''}`}>
+      <div className={styles.titleBlock}>
         <div className={styles.line1}>
           <span className={styles.dayNumber}>Day {day.dayNumber}</span>
           {isShared ? (
@@ -453,16 +459,14 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
                       </div>
                     ) : null}
                   </div>
-                  <button
-                    type="button"
-                    className={`${styles.locationInfoLink} ${isInfoTarget ? styles.locationInfoLinkActive : ''}`}
-                    onClick={() => {
-                      setActivePlaceInfoId(row.place.id);
-                      setLocationsExpanded(true);
-                    }}
+                  <a
+                    className={styles.locationRowMapLink}
+                    href={`https://www.google.com/maps/@${row.place.latitude},${row.place.longitude},10z`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
-                    Place info
-                  </button>
+                    Maps
+                  </a>
                 </div>
                 {!isShared && row.primary && followingDayOptions.length ? (
                   <div className={styles.locationCopyRow}>
@@ -488,9 +492,6 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
                     </button>
                   </div>
                 ) : null}
-                <a className={styles.mapLink} href={`https://www.google.com/maps/@${row.place.latitude},${row.place.longitude},10z`} target="_blank" rel="noopener noreferrer">
-                  Open in Google Maps
-                </a>
               </div>
               );
             })}
@@ -511,7 +512,11 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
                       <span className={styles.placeInfoHeaderLabel}>Place info</span>
                       <span className={styles.placeInfoHeaderTitle}>{activePlaceInfo.place.title}</span>
                     </div>
-                    <PlaceInfoPanel place={activePlaceInfo.place} weatherAnchorDate={weatherAnchorDate} />
+                    <PlaceInfoPanel
+                      place={activePlaceInfo.place}
+                      weatherAnchorDate={weatherAnchorDate}
+                      forecastDates={activeForecastDates}
+                    />
                   </>
                 ) : null}
               </>
