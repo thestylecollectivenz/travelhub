@@ -234,6 +234,9 @@ Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'AccCheckOutT
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'StreetAddress' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'FlightNumbers' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'CheckInClosesTime' -FieldType 'DateTime'
+Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'BagCheckClosesTime' -FieldType 'DateTime'
+Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'PhoneNumber' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'BookingMechanism' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'CabinClass' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'JourneyType' -FieldType 'Choice' -Choices @('oneway', 'return')
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'ReturnDate' -FieldType 'DateTime'

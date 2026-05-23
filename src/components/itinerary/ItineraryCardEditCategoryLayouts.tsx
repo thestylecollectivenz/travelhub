@@ -9,6 +9,7 @@ export interface CategoryEditLayoutProps {
   draft: ItineraryEntry;
   calendarDate: string;
   dayPlaceOptions: string[];
+  bookingMechanismOptions: string[];
   patch: (partial: Partial<ItineraryEntry>) => void;
   nights: number;
   perNight: number;
@@ -296,6 +297,16 @@ export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
         value={formatTimeHHMM(draft.checkInClosesTime ?? '')}
         onChange={(e) => patch({ checkInClosesTime: combineDayAndTime(calendarDate, e.target.value) })}
       />
+      <label className={styles.label} htmlFor={`bcc-${draft.id}`}>
+        Bag check closes
+      </label>
+      <input
+        id={`bcc-${draft.id}`}
+        className={styles.input}
+        type="time"
+        value={formatTimeHHMM(draft.bagCheckClosesTime ?? '')}
+        onChange={(e) => patch({ bagCheckClosesTime: combineDayAndTime(calendarDate, e.target.value) })}
+      />
       <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`notes-${draft.id}`}>
         Notes
       </label>
@@ -312,7 +323,7 @@ export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
 };
 
 export const AccommodationEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
-  const { draft, calendarDate, dayPlaceOptions, patch, nights, perNight } = props;
+  const { draft, calendarDate, dayPlaceOptions, bookingMechanismOptions, patch, nights, perNight } = props;
 
   return (
     <div className={styles.grid}>
@@ -427,6 +438,31 @@ export const AccommodationEditLayout: React.FC<CategoryEditLayoutProps> = (props
         value={draft.streetAddress ?? ''}
         onChange={(e) => patch({ streetAddress: e.target.value })}
       />
+      <label className={styles.label} htmlFor={`phone-a-${draft.id}`}>
+        Phone
+      </label>
+      <input
+        id={`phone-a-${draft.id}`}
+        className={styles.input}
+        type="tel"
+        value={draft.phoneNumber ?? ''}
+        onChange={(e) => patch({ phoneNumber: e.target.value })}
+      />
+      <label className={styles.label} htmlFor={`bm-a-${draft.id}`}>
+        Booking mechanism
+      </label>
+      <input
+        id={`bm-a-${draft.id}`}
+        className={styles.input}
+        list={`booking-mechanism-list-${draft.id}`}
+        value={draft.bookingMechanism ?? ''}
+        onChange={(e) => patch({ bookingMechanism: e.target.value })}
+      />
+      <datalist id={`booking-mechanism-list-${draft.id}`}>
+        {bookingMechanismOptions.map((value) => (
+          <option key={value} value={value} />
+        ))}
+      </datalist>
       <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`perks-${draft.id}`}>
         Perks included
       </label>

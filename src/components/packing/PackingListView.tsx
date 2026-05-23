@@ -149,6 +149,7 @@ export const PackingListView: React.FC = () => {
                   category: item.category,
                   itemName: item.itemName,
                   quantity: item.quantity,
+                  traveller: activeTraveller || travellers[0] || 'Traveller 1',
                   isPacked: false,
                   isTemplate: false,
                   templateId: ''
@@ -169,27 +170,37 @@ export const PackingListView: React.FC = () => {
               checked={item.isPacked}
               onChange={(e) => service.update(item.id, { isPacked: e.target.checked }).then(refresh).catch(console.error)}
             />
-            <div className={styles.itemMain}>
-              <span>{item.itemName}</span>
-              <span className={styles.muted}>×{item.quantity}</span>
-              <textarea
-                className={styles.noteInput}
-                rows={2}
-                placeholder="Note (optional)"
-                value={noteDrafts[item.id] ?? ''}
-                onChange={(e) => setNoteDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))}
-                onBlur={() => {
-                  const notes = (noteDrafts[item.id] ?? '').trim();
-                  void service.update(item.id, { itemNotes: notes || undefined }).then(refresh).catch(console.error);
-                }}
-              />
-            </div>
+            <span className={styles.itemName}>{item.itemName}</span>
+            <input
+              className={styles.qtyInput}
+              type="number"
+              min={1}
+              value={item.quantity}
+              onChange={(e) => {
+                const q = Math.max(1, Number(e.target.value) || 1);
+                void service.update(item.id, { quantity: q }).then(refresh).catch(console.error);
+              }}
+            />
+            <input
+              className={styles.noteInput}
+              type="text"
+              placeholder="Note"
+              value={noteDrafts[item.id] ?? ''}
+              onChange={(e) => setNoteDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))}
+              onBlur={() => {
+                const notes = (noteDrafts[item.id] ?? '').trim();
+                void service.update(item.id, { itemNotes: notes || undefined }).then(refresh).catch(console.error);
+              }}
+            />
             <button
-              className={styles.button}
+              className={styles.deleteBtn}
               type="button"
+              aria-label="Delete packing item"
               onClick={() => {
-                if (!confirmUserAction('Delete this packing item?')) return;
-                service.delete(item.id).then(refresh).catch(console.error);
+                void (async () => {
+                  if (!(await confirmUserAction('Delete this packing item?'))) return;
+                  service.delete(item.id).then(refresh).catch(console.error);
+                })();
               }}
             >
               Delete

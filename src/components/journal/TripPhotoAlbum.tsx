@@ -98,13 +98,15 @@ function AlbumPhotoCell({
                   type="button"
                   className={styles.captionActionBtn}
                   onClick={() => {
-                    if (!confirmUserAction('Clear this photo caption?')) return;
-                    updatePhotoCaption(photo.id, '')
-                      .then(() => {
-                        setCapDraft('');
-                        setEditingCap(false);
-                      })
-                      .catch(console.error);
+                    void (async () => {
+                      if (!(await confirmUserAction('Clear this photo caption?'))) return;
+                      updatePhotoCaption(photo.id, '')
+                        .then(() => {
+                          setCapDraft('');
+                          setEditingCap(false);
+                        })
+                        .catch(console.error);
+                    })();
                   }}
                 >
                   Clear caption

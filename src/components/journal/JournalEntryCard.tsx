@@ -118,13 +118,15 @@ function JournalPhotoSlot({
                   type="button"
                   className={styles.iconButton}
                   onClick={() => {
-                    if (!confirmUserAction('Clear this photo caption?')) return;
-                    updatePhotoCaption(photo.id, '')
-                      .then(() => {
-                        setCapDraft('');
-                        setEditingCap(false);
-                      })
-                      .catch(console.error);
+                    void (async () => {
+                      if (!(await confirmUserAction('Clear this photo caption?'))) return;
+                      updatePhotoCaption(photo.id, '')
+                        .then(() => {
+                          setCapDraft('');
+                          setEditingCap(false);
+                        })
+                        .catch(console.error);
+                    })();
                   }}
                 >
                   Clear caption
@@ -313,8 +315,10 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
                   role="menuitem"
                   onClick={() => {
                     setMenuOpen(false);
-                    if (!confirmUserAction('Delete this journal entry? Photos and comments will be removed.')) return;
-                    deleteEntry(entry.id).catch(console.error);
+                    void (async () => {
+                      if (!(await confirmUserAction('Delete this journal entry? Photos and comments will be removed.'))) return;
+                      deleteEntry(entry.id).catch(console.error);
+                    })();
                   }}
                 >
                   Delete
@@ -497,8 +501,10 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
                   type="button"
                   className={styles.iconButton}
                   onClick={() => {
-                    if (!confirmUserAction('Delete this comment?')) return;
-                    deleteComment(entry.id, c.id).catch(console.error);
+                    void (async () => {
+                      if (!(await confirmUserAction('Delete this comment?'))) return;
+                      deleteComment(entry.id, c.id).catch(console.error);
+                    })();
                   }}
                 >
                   Delete

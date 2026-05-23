@@ -280,8 +280,10 @@ export const TripDocumentsView: React.FC = () => {
                     type="button"
                     className={styles.button}
                     onClick={() => {
-                      if (!confirmUserAction('Delete this document?')) return;
-                      deleteDocument(d.id).catch(console.error);
+                      void (async () => {
+                        if (!(await confirmUserAction('Delete this document?'))) return;
+                        deleteDocument(d.id).catch(console.error);
+                      })();
                     }}
                   >
                     Delete

@@ -53,6 +53,9 @@ const SELECT_PHASE7 = [
   'StreetAddress',
   'FlightNumbers',
   'CheckInClosesTime',
+  'BagCheckClosesTime',
+  'PhoneNumber',
+  'BookingMechanism',
   'CabinClass',
   'JourneyType',
   'ReturnDate',
@@ -211,6 +214,9 @@ function mapToEntry(item: any): ItineraryEntry {
     streetAddress: item.StreetAddress ?? undefined,
     flightNumbers: item.FlightNumbers ?? undefined,
     checkInClosesTime: parseTime(item.CheckInClosesTime),
+    bagCheckClosesTime: parseTime(item.BagCheckClosesTime),
+    phoneNumber: item.PhoneNumber ?? undefined,
+    bookingMechanism: item.BookingMechanism ?? undefined,
     cabinClass: parseCabinClass(item.CabinClass),
     journeyType: parseJourneyType(item.JourneyType),
     returnDate: parseDate(item.ReturnDate),
@@ -295,6 +301,9 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   if (entry.streetAddress !== undefined) item.StreetAddress = entry.streetAddress || null;
   if (entry.flightNumbers !== undefined) item.FlightNumbers = entry.flightNumbers || null;
   if (entry.checkInClosesTime !== undefined) item.CheckInClosesTime = serializeTime(entry.checkInClosesTime);
+  if (entry.bagCheckClosesTime !== undefined) item.BagCheckClosesTime = serializeTime(entry.bagCheckClosesTime);
+  if (entry.phoneNumber !== undefined) item.PhoneNumber = entry.phoneNumber || null;
+  if (entry.bookingMechanism !== undefined) item.BookingMechanism = entry.bookingMechanism || null;
   if (entry.cabinClass !== undefined) item.CabinClass = entry.cabinClass ?? null;
   if (entry.journeyType !== undefined) item.JourneyType = entry.journeyType ?? null;
   if (entry.returnDate !== undefined) item.ReturnDate = serializeDate(entry.returnDate);

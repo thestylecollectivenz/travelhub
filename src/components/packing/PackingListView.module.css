@@ -19,14 +19,44 @@
 }
 .group { border: var(--border-default); border-radius: var(--radius-md); background: var(--color-surface-raised); padding: var(--space-3); }
 .groupHead { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); cursor: pointer; }
-.item { display: grid; grid-template-columns: auto 1fr auto; gap: var(--space-2); align-items: start; margin-top: var(--space-2); }
-.itemMain { display: grid; gap: var(--space-1); }
-.noteInput {
-  width: 100%;
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  flex-wrap: nowrap;
+}
+.itemName {
+  flex: 1 1 120px;
+  min-width: 0;
+  font-size: var(--font-size-sm);
+}
+.qtyInput {
+  width: 3.5rem;
   border: var(--border-default);
   border-radius: var(--radius-sm);
   padding: var(--space-1) var(--space-2);
   font-size: var(--font-size-xs);
-  resize: vertical;
+}
+.noteInput {
+  flex: 1 1 100px;
+  min-width: 80px;
+  max-width: 220px;
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
+}
+.deleteBtn {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-sand-600);
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  padding: var(--space-1);
+}
+.deleteBtn:hover {
+  color: var(--color-primary);
 }
 .muted { font-size: var(--font-size-xs); color: var(--color-sand-600); }

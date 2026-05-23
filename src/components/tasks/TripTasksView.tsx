@@ -144,11 +144,15 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
 
   const matchesCategoryFilter = React.useCallback(
     (entry: ItineraryEntry): boolean => {
-      if (!taskCategoryFilter || taskCategoryFilter === TASK_FILTER_UNCATEGORISED) return true;
+      if (!taskCategoryFilter) return true;
+      if (taskCategoryFilter === TASK_FILTER_UNCATEGORISED) return false;
       return (entry.category || 'Other').trim() === taskCategoryFilter;
     },
     [taskCategoryFilter]
   );
+
+  const showEntryDerivedTasks = !taskCategoryFilter || taskCategoryFilter !== TASK_FILTER_UNCATEGORISED;
+  const showEntryDerivedForAssignee = !taskAssigneeFilter;
 
   const matchesAssigneeFilter = React.useCallback(
     (assignedTo?: string): boolean => {
@@ -201,19 +205,23 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
 
   const bookingTasks = React.useMemo(
     () =>
-      localEntries.filter(
-        (e) => e.bookingRequired && e.bookingStatus === 'Not booked' && matchesCategoryFilter(e)
-      ),
-    [localEntries, matchesCategoryFilter]
+      showEntryDerivedTasks && showEntryDerivedForAssignee
+        ? localEntries.filter(
+            (e) => e.bookingRequired && e.bookingStatus === 'Not booked' && matchesCategoryFilter(e)
+          )
+        : [],
+    [localEntries, matchesCategoryFilter, showEntryDerivedTasks, showEntryDerivedForAssignee]
   );
   const paymentTasks = React.useMemo(
     () =>
-      localEntries.filter(
-        (e) =>
-          ((e.paymentStatus === 'Not paid' && e.amount > 0) || e.paymentStatus === 'Part paid') &&
-          matchesCategoryFilter(e)
-      ),
-    [localEntries, matchesCategoryFilter]
+      showEntryDerivedTasks && showEntryDerivedForAssignee
+        ? localEntries.filter(
+            (e) =>
+              ((e.paymentStatus === 'Not paid' && e.amount > 0) || e.paymentStatus === 'Part paid') &&
+              matchesCategoryFilter(e)
+          )
+        : [],
+    [localEntries, matchesCategoryFilter, showEntryDerivedTasks, showEntryDerivedForAssignee]
   );
   const visibleManual = React.useMemo(() => {
     let rows = manual;
@@ -680,8 +688,10 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                           className={styles.button}
                           type="button"
                           onClick={() => {
-                            if (!confirmUserAction('Delete this task?')) return;
-                            svc.delete(m.id).then(refresh).catch(console.error);
+                            void (async () => {
+                              if (!(await confirmUserAction('Delete this task?'))) return;
+                              svc.delete(m.id).then(refresh).catch(console.error);
+                            })();
                           }}
                         >
                           Delete

@@ -273,8 +273,10 @@ export const TripLinksView: React.FC = () => {
                         type="button"
                         className={styles.button}
                         onClick={() => {
-                          if (!confirmUserAction('Delete this link?')) return;
-                          deleteLink(link.id).catch(console.error);
+                          void (async () => {
+                            if (!(await confirmUserAction('Delete this link?'))) return;
+                            deleteLink(link.id).catch(console.error);
+                          })();
                         }}
                       >
                         Delete

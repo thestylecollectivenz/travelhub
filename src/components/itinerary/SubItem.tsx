@@ -343,8 +343,10 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
           type="button"
           className={styles.deleteButton}
           onClick={() => {
-            if (!confirmUserAction('Delete this related option?')) return;
-            deleteSubItem(parentEntryId, item.id);
+            void (async () => {
+              if (!(await confirmUserAction('Delete this related option?'))) return;
+              deleteSubItem(parentEntryId, item.id);
+            })();
           }}
           aria-label="Delete sub-item"
         >

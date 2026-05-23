@@ -79,6 +79,12 @@ export interface ItineraryEntry {
   flightNumbers?: string;
   /** Flights: latest time to complete check-in (HH:MM). */
   checkInClosesTime?: string;
+  /** Flights: bag check closes (HH:MM). */
+  bagCheckClosesTime?: string;
+  /** Accommodation contact phone. */
+  phoneNumber?: string;
+  /** Accommodation — how the stay was booked (free text, suggested from history). */
+  bookingMechanism?: string;
   cabinClass?: CabinClass;
   journeyType?: TransportJourneyType;
   /** Return leg date (YYYY-MM-DD) when journeyType is return. */

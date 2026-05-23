@@ -310,6 +310,16 @@
   box-sizing: border-box;
 }
 
+.dayTitleSticky {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  background: var(--color-surface);
+  border-bottom: var(--border-default);
+  padding: var(--space-2) var(--space-6) var(--space-3);
+  box-sizing: border-box;
+}
+
 .dragOverlayCard {
   min-width: 280px;
   max-width: 420px;

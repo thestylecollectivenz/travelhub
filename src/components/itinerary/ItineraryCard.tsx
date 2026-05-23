@@ -17,6 +17,7 @@ export interface ItineraryCardProps {
   draggable?: boolean;
   hasTask?: boolean;
   linkedEntryTask?: import('../../utils/linkedEntryTask').LinkedEntryTask;
+  linkedEntryTasks?: import('../../utils/linkedEntryTask').LinkedEntryTask[];
   hasCancellationDeadlineReminder?: boolean;
   /** Portals the edit form to document.body (Day Planner columns are too narrow). */
   useEditPortal?: boolean;
@@ -42,6 +43,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
   draggable = true,
   hasTask = false,
   linkedEntryTask,
+  linkedEntryTasks,
   hasCancellationDeadlineReminder = false,
   useEditPortal = true
 }) => {
@@ -70,9 +72,11 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
   }, [setEditingCardId]);
 
   const handleDelete = React.useCallback(() => {
-    if (!confirmUserAction('Delete this itinerary item?')) return;
-    deleteEntry(entry.id);
-    setEditingCardId(null);
+    void (async () => {
+      if (!(await confirmUserAction('Delete this itinerary item?'))) return;
+      deleteEntry(entry.id);
+      setEditingCardId(null);
+    })();
   }, [deleteEntry, entry.id, setEditingCardId]);
 
   const editForm = showEdit ? (
@@ -126,12 +130,15 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
           suppressCarryoverUi={suppressCarryoverUi}
           hasTask={hasTask}
           linkedEntryTask={linkedEntryTask}
+          linkedEntryTasks={linkedEntryTasks}
           hasCancellationDeadlineReminder={hasCancellationDeadlineReminder}
           onEdit={() => setEditingCardId(entry.id)}
           onDuplicate={() => duplicateEntry(entry.id)}
           onDelete={() => {
-            if (!confirmUserAction('Delete this itinerary item?')) return;
-            deleteEntry(entry.id);
+            void (async () => {
+              if (!(await confirmUserAction('Delete this itinerary item?'))) return;
+              deleteEntry(entry.id);
+            })();
           }}
         />
       )}

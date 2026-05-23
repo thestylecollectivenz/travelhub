@@ -2,6 +2,7 @@ import * as React from 'react';
 import type { ItineraryEntry, ItinerarySubItem } from '../models/ItineraryEntry';
 import type { Trip } from '../models/Trip';
 import type { TripDay } from '../models/TripDay';
+import { loadTripBookingMechanisms } from '../utils/tripBookingMechanisms';
 import { TripService } from '../services/TripService';
 import { DayService } from '../services/DayService';
 import { ItineraryService } from '../services/ItineraryService';
@@ -69,6 +70,7 @@ export interface TripWorkspaceContextValue {
   setWorkspaceReturn: (state: WorkspaceReturnState | null) => void;
   usedSuppliers: string[];
   usedLocations: string[];
+  usedBookingMechanisms: string[];
 }
 
 const TripWorkspaceContext = React.createContext<TripWorkspaceContextValue | undefined>(undefined);
@@ -659,7 +661,13 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       workspaceReturn,
       setWorkspaceReturn,
       usedSuppliers: Array.from(new Set(localEntries.map((e) => (e.supplier || '').trim()).filter(Boolean))).sort(),
-      usedLocations: Array.from(new Set(localEntries.map((e) => (e.location || '').trim()).filter(Boolean))).sort()
+      usedLocations: Array.from(new Set(localEntries.map((e) => (e.location || '').trim()).filter(Boolean))).sort(),
+      usedBookingMechanisms: Array.from(
+        new Set([
+          ...loadTripBookingMechanisms(tripId),
+          ...localEntries.map((e) => (e.bookingMechanism || '').trim()).filter(Boolean)
+        ])
+      ).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
     }),
     [
       trip,

@@ -31,7 +31,12 @@ function PlannerGlyph(): React.ReactElement {
   );
 }
 
-export const DayPanel: React.FC = () => {
+export interface DayPanelProps {
+  /** When true, day title is rendered by TripContent sticky rail. */
+  hideHeader?: boolean;
+}
+
+export const DayPanel: React.FC<DayPanelProps> = ({ hideHeader = false }) => {
   const {
     trip,
     tripDays,
@@ -86,7 +91,7 @@ export const DayPanel: React.FC = () => {
           </button>
         </div>
       ) : null}
-      <DayHeader day={day} stickyTitleOnly />
+      {hideHeader ? null : <DayHeader day={day} stickyTitleOnly />}
       <div id="day-breakdown-tile">
         <BudgetBreakdownTile
           tripId={trip.id}

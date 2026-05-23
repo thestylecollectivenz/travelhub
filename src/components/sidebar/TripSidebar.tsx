@@ -239,8 +239,8 @@ export const TripSidebar: React.FC = () => {
         ) : mainWorkspaceTab === 'plan' &&
           (planView?.planTab === 'tasks' || planView?.planTab === 'missing_costs') ? (
           <>
-            <SidebarTaskCategories />
             <SidebarTaskAssignees />
+            <SidebarTaskCategories />
           </>
         ) : (
           <SidebarDayList />

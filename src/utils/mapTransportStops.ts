@@ -2,7 +2,6 @@ import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { TripDay } from '../models/TripDay';
 import type { Place } from '../models/Place';
 import { isPreTripDayRow } from './itineraryDayEntries';
-import { parseAdditionalPlaceRefs } from './tripDayPlaces';
 
 export const MAP_TRANSPORT_CATEGORIES = new Set(['Flights', 'Cruise', 'Transport']);
 
@@ -24,19 +23,26 @@ function formatDayRangeLabel(dayStart: number, dayEnd: number, placeShort: strin
   return `Day ${dayStart}: ${placeShort}`;
 }
 
-/** Merge consecutive stops at the same place into a single marker with a day range label. */
+function placeShortTitle(title: string): string {
+  return (title || 'Stop').split(',')[0].trim();
+}
+
+/** Merge consecutive days at the same location (by city/short name), not only identical placeId. */
 export function mergeConsecutiveMapStops(stops: MapTransportStop[]): MapTransportStop[] {
   if (stops.length <= 1) return stops;
   const out: MapTransportStop[] = [];
   let run = { ...stops[0], dayNumberEnd: stops[0].dayNumber };
 
+  const runKey = placeShortTitle(run.title).toLowerCase();
+
   for (let i = 1; i < stops.length; i++) {
     const cur = stops[i];
-    const samePlace = cur.placeId === run.placeId;
+    const curKey = placeShortTitle(cur.title).toLowerCase();
+    const sameLocation = curKey === runKey;
     const consecutive = cur.dayNumber === (run.dayNumberEnd ?? run.dayNumber) + 1;
-    if (samePlace && consecutive) {
+    if (sameLocation && consecutive) {
       run = { ...run, dayNumberEnd: cur.dayNumber };
-      const shortTitle = (run.title || 'Stop').split(',')[0].trim();
+      const shortTitle = placeShortTitle(run.title);
       run.label = formatDayRangeLabel(run.dayNumber, cur.dayNumber, shortTitle);
     } else {
       out.push(run);
@@ -65,45 +71,30 @@ export function buildMapTransportStops(options: {
     .sort((a, b) => a.dayNumber - b.dayNumber);
 
   const out: MapTransportStop[] = [];
-  const seenPlaceDay = new Set<string>();
 
   for (const day of orderedDays) {
     const dayEntries = tripEntries.filter((e) => e.dayId === day.id);
     const hasTransport = dayEntries.some((e) => MAP_TRANSPORT_CATEGORIES.has(e.category));
     const transportDay =
       hasTransport || day.dayType === 'Sea' || day.dayType === 'TravelTransit' || day.dayType === 'PlacePort';
-    if (!transportDay) continue;
+    if (!transportDay || !day.primaryPlaceId) continue;
 
-    const addPlace = (placeId: string | undefined, suffix: string): void => {
-      if (!placeId) return;
-      const place = placeById(placeId);
-      if (!place) return;
-      const lat = Number(place.latitude);
-      const lon = Number(place.longitude);
-      if (!isValidLatLng(lat, lon)) return;
-      const key = `${placeId}|${day.id}`;
-      if (seenPlaceDay.has(key)) return;
-      seenPlaceDay.add(key);
-      const shortTitle = (place.title || 'Stop').split(',')[0].trim();
-      out.push({
-        id: `stop-${day.id}-${placeId}${suffix}`,
-        placeId,
-        title: place.title,
-        latitude: lat,
-        longitude: lon,
-        dayNumber: day.dayNumber,
-        label: `Day ${day.dayNumber}: ${shortTitle}`
-      });
-    };
+    const place = placeById(day.primaryPlaceId);
+    if (!place) continue;
+    const lat = Number(place.latitude);
+    const lon = Number(place.longitude);
+    if (!isValidLatLng(lat, lon)) continue;
 
-    addPlace(day.primaryPlaceId, '');
-
-    if (hasTransport) {
-      const additional = parseAdditionalPlaceRefs(day.additionalPlaceIds);
-      for (const ref of additional) {
-        addPlace(ref.placeId, '-add');
-      }
-    }
+    const shortTitle = placeShortTitle(place.title);
+    out.push({
+      id: `stop-${day.id}-${place.id}`,
+      placeId: place.id,
+      title: place.title,
+      latitude: lat,
+      longitude: lon,
+      dayNumber: day.dayNumber,
+      label: `Day ${day.dayNumber}: ${shortTitle}`
+    });
   }
 
   return mergeConsecutiveMapStops(out);

@@ -22,6 +22,7 @@ import {
   resolveSidebarWidthPx
 } from '../../utils/sidebarWidth';
 import { PlanViewProvider, usePlanView } from '../../context/PlanViewContext';
+import { DayHeader } from '../day/DayHeader';
 import dayHeaderStyles from '../day/DayHeader.module.css';
 import styles from './TripWorkspace.module.css';
 
@@ -171,7 +172,12 @@ const TripContentInner: React.FC = () => {
         />
       </div>
       <main className={styles.main}>
-        {mainWorkspaceTab === 'itinerary' ? <DayPanel /> : null}
+        {mainWorkspaceTab === 'itinerary' && dayPanelDay ? (
+          <div className={styles.dayTitleSticky}>
+            <DayHeader day={dayPanelDay} stickyTitleOnly />
+          </div>
+        ) : null}
+        {mainWorkspaceTab === 'itinerary' ? <DayPanel hideHeader /> : null}
         {mainWorkspaceTab === 'budget' ? <TripBudgetDetailView /> : null}
         {mainWorkspaceTab === 'journal' ? <TripJournalFeed /> : null}
         {mainWorkspaceTab === 'photos' ? <TripPhotoAlbum /> : null}

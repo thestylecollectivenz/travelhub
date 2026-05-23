@@ -95,6 +95,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
   }, [focusedEntryId, setFocusedEntryId]);
   const [taskEntryIds, setTaskEntryIds] = React.useState<Set<string>>(new Set());
   const [entryLinkedTask, setEntryLinkedTask] = React.useState<Map<string, LinkedEntryTask>>(new Map());
+  const [entryLinkedTasks, setEntryLinkedTasks] = React.useState<Map<string, LinkedEntryTask[]>>(new Map());
   const [cancellationDeadlineEntryIds, setCancellationDeadlineEntryIds] = React.useState<Set<string>>(new Set());
   const preTripDayId = React.useMemo(() => (trip ? resolvePreTripDayId(tripDays, trip.id) : undefined), [trip, tripDays]);
 
@@ -127,6 +128,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
     if (!trip?.id) {
       setTaskEntryIds(new Set());
       setEntryLinkedTask(new Map());
+      setEntryLinkedTasks(new Map());
       setCancellationDeadlineEntryIds(new Set());
       return;
     }
@@ -136,6 +138,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
       .then((rows) => {
         const ids = new Set<string>();
         const reminderByEntry = new Map<string, LinkedEntryTask>();
+        const remindersByEntry = new Map<string, LinkedEntryTask[]>();
         const cancelIds = new Set<string>();
         for (const r of rows) {
           const eid = (r.entryId || '').trim();
@@ -143,15 +146,19 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
           const rt = (r.reminderType || '').trim();
           if (rt === 'Manual' || rt === 'ManualEntryTask') {
             ids.add(eid);
+            const linked: LinkedEntryTask = {
+              reminderId: r.id,
+              text: r.reminderText || r.title || '',
+              taskNote: r.taskNote,
+              dueDate: r.dueDate,
+              assignedTo: r.assignedTo,
+              taskCategory: r.taskCategory
+            };
+            const list = remindersByEntry.get(eid) ?? [];
+            list.push(linked);
+            remindersByEntry.set(eid, list);
             if (!reminderByEntry.has(eid)) {
-              reminderByEntry.set(eid, {
-                reminderId: r.id,
-                text: r.reminderText || r.title || '',
-                taskNote: r.taskNote,
-                dueDate: r.dueDate,
-                assignedTo: r.assignedTo,
-                taskCategory: r.taskCategory
-              });
+              reminderByEntry.set(eid, linked);
             }
           }
           if (rt === 'CancellationDeadline') {
@@ -160,11 +167,13 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
         }
         setTaskEntryIds(ids);
         setEntryLinkedTask(reminderByEntry);
+        setEntryLinkedTasks(remindersByEntry);
         setCancellationDeadlineEntryIds(cancelIds);
       })
       .catch(() => {
         setTaskEntryIds(new Set());
         setEntryLinkedTask(new Map());
+        setEntryLinkedTasks(new Map());
         setCancellationDeadlineEntryIds(new Set());
       });
   }, [spContext, trip?.id]);
@@ -241,6 +250,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
                   draggable
                   hasTask={taskEntryIds.has(entry.id)}
                   linkedEntryTask={entryLinkedTask.get(entry.id)}
+                  linkedEntryTasks={entryLinkedTasks.get(entry.id)}
                   hasCancellationDeadlineReminder={cancellationDeadlineEntryIds.has(entry.id)}
                 />
               </div>

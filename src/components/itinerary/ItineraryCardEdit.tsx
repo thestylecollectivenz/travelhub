@@ -11,6 +11,7 @@ import { CurrencySelect } from '../shared/CurrencySelect';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { confirmUserAction } from '../../utils/confirmAction';
+import { rememberTripBookingMechanism } from '../../utils/tripBookingMechanisms';
 import { AccommodationEditLayout, FlightEditLayout } from './ItineraryCardEditCategoryLayouts';
 import styles from './ItineraryCardEdit.module.css';
 
@@ -29,7 +30,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   onCancel,
   onDelete
 }) => {
-  const { trip, tripDays, usedSuppliers } = useTripWorkspace();
+  const { trip, tripDays, usedSuppliers, usedBookingMechanisms } = useTripWorkspace();
   const { placeById } = usePlaces();
   const { config } = useConfig();
   const [draft, setDraft] = React.useState<ItineraryEntry>(() => ({ ...entry }));
@@ -164,6 +165,9 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       streetAddress: draft.streetAddress?.trim() || undefined,
       flightNumbers: draft.flightNumbers?.trim() || undefined,
       checkInClosesTime: draft.checkInClosesTime?.trim() || undefined,
+      bagCheckClosesTime: draft.bagCheckClosesTime?.trim() || undefined,
+      phoneNumber: draft.phoneNumber?.trim() || undefined,
+      bookingMechanism: draft.bookingMechanism?.trim() || undefined,
       cabinClass: draft.cabinClass,
       journeyType: draft.journeyType,
       returnDate: draft.returnDate?.trim() || undefined,
@@ -200,6 +204,9 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           saved.dayId = checkInDay.id;
         }
       }
+      if (trip?.id && saved.bookingMechanism) {
+        rememberTripBookingMechanism(trip.id, saved.bookingMechanism);
+      }
     }
     onSave(saved);
   }, [calendarDate, draft, timeValue, nights, perNight, trip, tripDays, config.homeCurrency, isTransport]);
@@ -217,6 +224,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
     draft,
     calendarDate,
     dayPlaceOptions,
+    bookingMechanismOptions: usedBookingMechanisms,
     patch,
     nights,
     perNight,
@@ -957,8 +965,10 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
                       type="button"
                       className={styles.attachRemove}
                       onClick={() => {
-                        if (!confirmUserAction('Remove this document?')) return;
-                        deleteDocument(d.id).catch(console.error);
+                        void (async () => {
+                          if (!(await confirmUserAction('Remove this document?'))) return;
+                          deleteDocument(d.id).catch(console.error);
+                        })();
                       }}
                     >
                       Remove
@@ -974,8 +984,10 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
                       type="button"
                       className={styles.attachRemove}
                       onClick={() => {
-                        if (!confirmUserAction('Remove this link?')) return;
-                        deleteLink(l.id).catch(console.error);
+                        void (async () => {
+                          if (!(await confirmUserAction('Remove this link?'))) return;
+                          deleteLink(l.id).catch(console.error);
+                        })();
                       }}
                     >
                       Remove
@@ -995,8 +1007,10 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           type="button"
           className={styles.deleteBtn}
           onClick={() => {
-            if (!confirmUserAction('Delete this itinerary item?')) return;
-            onDelete();
+            void (async () => {
+              if (!(await confirmUserAction('Delete this itinerary item?'))) return;
+              onDelete();
+            })();
           }}
         >
           Delete

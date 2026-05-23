@@ -72,7 +72,7 @@ export class PackingService {
 
   async getForTrip(tripId: string): Promise<PackingItem[]> {
     const safe = tripId.replace(/'/g, "''");
-    const url = `${this.baseUrl}?$select=ID,TripId,Category,ItemName,Quantity,IsPacked,IsTemplate,TemplateId&$filter=TripId eq '${safe}' and (IsTemplate eq null or IsTemplate eq 0)&$orderby=Category asc,ItemName asc&$top=5000`;
+    const url = `${this.baseUrl}?$select=ID,TripId,Category,ItemName,Quantity,IsPacked,IsTemplate,TemplateId,Traveller,ItemNotes&$filter=TripId eq '${safe}' and (IsTemplate eq null or IsTemplate eq 0)&$orderby=Category asc,ItemName asc&$top=5000`;
     const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
     if (!resp.ok) throw new Error(`PackingService.getForTrip failed: ${resp.status}`);
     const data = await resp.json();

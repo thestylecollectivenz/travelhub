@@ -18,7 +18,7 @@ import { usePlanView } from '../../context/PlanViewContext';
 import { CATEGORY_LIST } from '../../utils/categoryUtils';
 import { confirmUserAction } from '../../utils/confirmAction';
 import type { LinkedEntryTask } from '../../utils/linkedEntryTask';
-import { linkedTaskDisplayText } from '../../utils/linkedEntryTask';
+import { linkedTaskDisplayText, linkedTaskNoteDisplay } from '../../utils/linkedEntryTask';
 import { effectivePlannerTimeStart, isTransportReturnOnCalendarDate } from '../../utils/itineraryDayEntries';
 
 function deriveTransportDisplayTitle(entry: ItineraryEntry, calendarDate: string): string {
@@ -48,6 +48,7 @@ export interface ItineraryCardViewProps {
   suppressCarryoverUi?: boolean;
   hasTask?: boolean;
   linkedEntryTask?: LinkedEntryTask;
+  linkedEntryTasks?: LinkedEntryTask[];
   /** True when a Trip Reminders row exists for this entry with ReminderType CancellationDeadline. */
   hasCancellationDeadlineReminder?: boolean;
   onEdit: () => void;
@@ -163,11 +164,21 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   suppressCarryoverUi = false,
   hasTask = false,
   linkedEntryTask,
+  linkedEntryTasks,
   hasCancellationDeadlineReminder = false,
   onEdit,
   onDuplicate,
   onDelete
 }) => {
+  const manualTasks = linkedEntryTasks?.length ? linkedEntryTasks : linkedEntryTask ? [linkedEntryTask] : [];
+  const [openTaskReminderId, setOpenTaskReminderId] = React.useState(
+    () => linkedEntryTask?.reminderId ?? manualTasks[0]?.reminderId ?? ''
+  );
+  React.useEffect(() => {
+    setOpenTaskReminderId(linkedEntryTask?.reminderId ?? linkedEntryTasks?.[0]?.reminderId ?? '');
+  }, [entry.id, linkedEntryTask?.reminderId, linkedEntryTasks]);
+  const openTaskTarget =
+    manualTasks.find((t) => t.reminderId === openTaskReminderId) ?? linkedEntryTask ?? manualTasks[0];
   const spContext = useSpContext();
   const { addSubItem, convertToHomeCurrency, setSelectedDayId, setMainWorkspaceTab, setWorkspaceReturn, tripDays } =
     useTripWorkspace();
@@ -482,8 +493,10 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                 role="menuitem"
                 onClick={() => {
                   setMenuOpen(false);
-                  if (!confirmUserAction('Delete this itinerary item?')) return;
-                  onDelete();
+                  void (async () => {
+                    if (!(await confirmUserAction('Delete this itinerary item?'))) return;
+                    onDelete();
+                  })();
                 }}
               >
                 Delete
@@ -628,6 +641,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       (entry.roomType?.trim() ||
         entry.checkOutTime ||
         entry.streetAddress?.trim() ||
+        entry.phoneNumber?.trim() ||
+        entry.bookingMechanism?.trim() ||
         entry.perksIncluded?.trim() ||
         entry.cancellationPolicy?.trim() ||
         entry.cancellationDeadline) ? (
@@ -635,6 +650,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           {entry.roomType?.trim() ? <div>Room: {entry.roomType.trim()}</div> : null}
           {entry.checkOutTime ? <div>Check-out {formatTimeHHMM(entry.checkOutTime)}</div> : null}
           {entry.streetAddress?.trim() ? <div>{entry.streetAddress.trim()}</div> : null}
+          {entry.phoneNumber?.trim() ? <div>Phone: {entry.phoneNumber.trim()}</div> : null}
+          {entry.bookingMechanism?.trim() ? <div>Booked via: {entry.bookingMechanism.trim()}</div> : null}
           {entry.perksIncluded?.trim() ? <div>Perks: {entry.perksIncluded.trim()}</div> : null}
           {entry.cancellationPolicy?.trim() ? <div>Cancellation: {entry.cancellationPolicy.trim()}</div> : null}
           {entry.cancellationDeadline ? (
@@ -657,10 +674,11 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           ) : null}
         </div>
       ) : null}
-      {isFlights && (entry.bookingReference?.trim() || entry.checkInClosesTime) ? (
+      {isFlights && (entry.bookingReference?.trim() || entry.checkInClosesTime || entry.bagCheckClosesTime) ? (
         <div className={styles.detailBlock}>
           {entry.bookingReference?.trim() ? <div>PNR / ref {entry.bookingReference.trim()}</div> : null}
           {entry.checkInClosesTime ? <div>Check-in closes {formatTimeHHMM(entry.checkInClosesTime)}</div> : null}
+          {entry.bagCheckClosesTime ? <div>Bag check closes {formatTimeHHMM(entry.bagCheckClosesTime)}</div> : null}
         </div>
       ) : null}
       {isActivities && (entry.streetAddress?.trim() || mapsPlaceUrl) ? (
@@ -785,8 +803,10 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                       type="button"
                       className={styles.newSubActionBtn}
                       onClick={() => {
-                        if (!confirmUserAction('Remove this document?')) return;
-                        deleteDocument(doc.id).catch(console.error);
+                        void (async () => {
+                          if (!(await confirmUserAction('Remove this document?'))) return;
+                          deleteDocument(doc.id).catch(console.error);
+                        })();
                       }}
                     >
                       Delete
@@ -864,8 +884,10 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                       type="button"
                       className={styles.newSubActionBtn}
                       onClick={() => {
-                        if (!confirmUserAction('Remove this link?')) return;
-                        deleteLink(link.id).catch(console.error);
+                        void (async () => {
+                          if (!(await confirmUserAction('Remove this link?'))) return;
+                          deleteLink(link.id).catch(console.error);
+                        })();
                       }}
                     >
                       Delete
@@ -991,18 +1013,32 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         </div>
       ) : null}
 
-      {hasTask && linkedEntryTask ? (
+      {hasTask && openTaskTarget ? (
         <div className={styles.linkedTaskSummary}>
           <span className={styles.linkedTaskLabel}>Linked task</span>
-          <p className={styles.linkedTaskText}>{linkedTaskDisplayText(linkedEntryTask)}</p>
-          {linkedEntryTask.taskNote?.trim() ? (
-            <p className={styles.linkedTaskNote}>{linkedEntryTask.taskNote.trim()}</p>
+          <p className={styles.linkedTaskText}>{linkedTaskDisplayText(openTaskTarget)}</p>
+          {linkedTaskNoteDisplay(openTaskTarget) ? (
+            <p className={styles.linkedTaskNote}>{linkedTaskNoteDisplay(openTaskTarget)}</p>
           ) : null}
         </div>
       ) : null}
       <div className={styles.subItemActionsRow}>
-        {hasTask && linkedEntryTask ? (
+        {hasTask && openTaskTarget ? (
           <>
+            {manualTasks.length > 1 ? (
+              <select
+                className={styles.taskPickSelect}
+                aria-label="Choose linked task"
+                value={openTaskReminderId}
+                onChange={(e) => setOpenTaskReminderId(e.target.value)}
+              >
+                {manualTasks.map((t) => (
+                  <option key={t.reminderId} value={t.reminderId}>
+                    {linkedTaskDisplayText(t)}
+                  </option>
+                ))}
+              </select>
+            ) : null}
             <button
               type="button"
               className={styles.addSubItemBtn}
@@ -1011,7 +1047,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                 setMainWorkspaceTab('plan');
                 planView?.setPlanTab('tasks');
                 requestViewTask({
-                  reminderId: linkedEntryTask.reminderId,
+                  reminderId: openTaskTarget.reminderId,
                   entryId: entry.id,
                   dayId: entry.dayId
                 });
@@ -1019,16 +1055,19 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             >
               Open task
             </button>
+            <button type="button" className={styles.addSubItemBtn} onClick={onEdit}>
+              Edit
+            </button>
             <button
               type="button"
               className={styles.addSubItemBtn}
               onClick={() => {
                 setTaskEditOpen((v) => {
                   const next = !v;
-                  if (!v && linkedEntryTask) {
-                    setEditTaskDescription(linkedTaskDisplayText(linkedEntryTask));
-                    setEditTaskDueDate(linkedEntryTask.dueDate ? linkedEntryTask.dueDate.slice(0, 10) : '');
-                    setEditTaskNote((linkedEntryTask.taskNote || '').trim());
+                  if (!v && openTaskTarget) {
+                    setEditTaskDescription(linkedTaskDisplayText(openTaskTarget));
+                    setEditTaskDueDate(openTaskTarget.dueDate ? openTaskTarget.dueDate.slice(0, 10) : '');
+                    setEditTaskNote((openTaskTarget.taskNote || '').trim());
                   }
                   return next;
                 });
@@ -1039,23 +1078,30 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             </button>
           </>
         ) : (
-          <button
-            type="button"
-            className={styles.addSubItemBtn}
-            onClick={() => {
-              setTaskPromptOpen((v) => {
-                const next = !v;
-                if (!v) {
-                  setTaskDescription(entry.title || 'Itinerary item');
-                  setTaskCategory(entry.category || 'Other');
-                }
-                return next;
-              });
-            }}
-          >
-            + Add to tasks
-          </button>
+          <>
+            <button type="button" className={styles.addSubItemBtn} onClick={onEdit}>
+              Edit
+            </button>
+            <button
+              type="button"
+              className={styles.addSubItemBtn}
+              onClick={() => {
+                setTaskPromptOpen((v) => {
+                  const next = !v;
+                  if (!v) {
+                    setTaskDescription(entry.title || 'Itinerary item');
+                    setTaskCategory(entry.category || 'Other');
+                  }
+                  return next;
+                });
+              }}
+            >
+              Create task
+            </button>
+          </>
         )}
+      </div>
+      <div className={styles.subItemActionsRowSecondary}>
         <button type="button" className={styles.addSubItemBtn} onClick={handleStartAddSubItem}>
           + Add option
         </button>
@@ -1065,7 +1111,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           </button>
         ) : null}
       </div>
-      {taskEditOpen && linkedEntryTask ? (
+      {taskEditOpen && openTaskTarget ? (
         <div className={styles.newSubItemForm}>
           <label className={styles.taskInlineLabel} htmlFor={`task-edit-desc-${entry.id}`}>
             Task description
@@ -1102,7 +1148,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                 if (!trimmed) return;
                 const svc = new ReminderService(spContext);
                 void svc
-                  .update(linkedEntryTask.reminderId, {
+                  .update(openTaskTarget.reminderId, {
                     title: trimmed.startsWith('Task:') ? trimmed : `Task: ${trimmed}`,
                     reminderText: trimmed,
                     taskNote: editTaskNote.trim() || undefined,
