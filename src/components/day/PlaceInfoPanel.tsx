@@ -4,6 +4,7 @@ import { useConfig } from '../../context/ConfigContext';
 import { COUNTRY_DATA } from '../../data/countryData';
 import { SEASONAL_BY_REGION } from '../../data/seasonalWeather';
 import { forecastDayLabel } from '../../utils/consecutivePlaceDays';
+import { placeDisplayLabel } from '../../utils/placeDisplayLabel';
 import styles from './DayHeader.module.css';
 
 function WeatherIcon({ iconCode }: { iconCode: string }): React.ReactElement {
@@ -61,6 +62,7 @@ type ForecastDay = {
   date: string;
   label: string;
   iconCode: string;
+  tempMin: number;
   tempMax: number;
   conditions: string;
 };
@@ -69,9 +71,11 @@ export interface PlaceInfoPanelProps {
   place: Place;
   weatherAnchorDate: string;
   forecastDates?: string[];
+  /** When true, render place name + local time header row. */
+  showHeader?: boolean;
 }
 
-export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAnchorDate, forecastDates }) => {
+export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAnchorDate, forecastDates, showHeader }) => {
   const { config } = useConfig();
   const countryData = COUNTRY_DATA[place.countryCode];
   const [weather, setWeather] = React.useState<{
@@ -149,7 +153,7 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
     fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Forecast ${r.status}`))))
       .then((data) => {
-        const byDate = new Map<string, { icon?: string; tempmax?: number; conditions?: string }>();
+        const byDate = new Map<string, { icon?: string; tempmax?: number; tempmin?: number; conditions?: string }>();
         for (const d of data.days ?? []) {
           const dt = String(d.datetime ?? '').slice(0, 10);
           if (dt) byDate.set(dt, d);
@@ -162,6 +166,7 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
               date,
               label: forecastDayLabel(anchor, date),
               iconCode: String(row.icon ?? ''),
+              tempMin: Number(row.tempmin ?? row.tempmax ?? 0),
               tempMax: Number(row.tempmax ?? 0),
               conditions: String(row.conditions ?? '')
             };
@@ -241,6 +246,15 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
 
   return (
     <div className={styles.placeInfoGrid}>
+      {showHeader ? (
+        <div className={styles.placeInfoHeader}>
+          <div className={styles.placeInfoHeaderMain}>
+            <span className={styles.placeInfoHeaderLabel}>Place info</span>
+            <span className={styles.placeInfoHeaderTitle}>{placeDisplayLabel(place)}</span>
+          </div>
+          {currentLocalTime ? <span className={styles.placeInfoHeaderTime}>{currentLocalTime}</span> : null}
+        </div>
+      ) : null}
       {config.weatherApiKey.trim() && forecastDays.length ? (
         <div className={styles.forecastStrip} role="list" aria-label="Forecast for stay">
           {forecastDays.map((fd) => (
@@ -248,7 +262,7 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
               <span className={styles.forecastDayLabel}>{fd.label}</span>
               <WeatherIcon iconCode={fd.iconCode} />
               <span className={styles.forecastDayTemp}>
-                {Math.round(fd.tempMax)}°{tempSuffix}
+                {Math.round(fd.tempMin)}°–{Math.round(fd.tempMax)}°{tempSuffix}
               </span>
             </div>
           ))}
@@ -262,14 +276,9 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
               <WeatherIcon iconCode={weather.iconCode} />
               {Math.round(weather.temp)}°{config.temperatureUnit === 'Fahrenheit' ? 'F' : 'C'} · {weather.description}
             </div>
-            {currentLocalTime || currentSeason ? (
+            {currentSeason ? (
               <div className={styles.infoSub}>
-                {currentLocalTime || '—'}{' '}
-                {currentSeason ? (
-                  <>
-                    · <SeasonIcon season={currentSeason as 'Summer' | 'Autumn' | 'Winter' | 'Spring'} /> {currentSeason}
-                  </>
-                ) : null}
+                <SeasonIcon season={currentSeason as 'Summer' | 'Autumn' | 'Winter' | 'Spring'} /> {currentSeason}
               </div>
             ) : null}
             <div className={styles.infoSub}>

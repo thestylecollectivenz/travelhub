@@ -11,25 +11,8 @@ import { COUNTRY_DATA } from '../../data/countryData';
 import { usePlaces } from '../../context/PlacesContext';
 import { BudgetBreakdownTile } from './BudgetBreakdownTile';
 import { DayHeader } from './DayHeader';
+import { DayItineraryToolbar } from './DayItineraryToolbar';
 import styles from './DayPanel.module.css';
-
-function TimelineGlyph(): React.ReactElement {
-  return (
-    <svg width={14} height={14} viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path d="M2 3.5h12M2 8h8M2 12.5h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-      <circle cx="12" cy="8" r="1.6" fill="currentColor" />
-    </svg>
-  );
-}
-
-function PlannerGlyph(): React.ReactElement {
-  return (
-    <svg width={14} height={14} viewBox="0 0 16 16" fill="none" aria-hidden>
-      <rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M6 2.5v11M10 2.5v11M2.5 6h11M2.5 10h11" stroke="currentColor" strokeWidth="1" />
-    </svg>
-  );
-}
 
 export interface DayPanelProps {
   /** When true, day title is rendered by TripContent sticky rail. */
@@ -63,6 +46,16 @@ export const DayPanel: React.FC<DayPanelProps> = ({ hideHeader = false }) => {
 
   return (
     <div className={styles.root}>
+      <div className={hideHeader ? styles.dayToolbarSticky : undefined}>
+        <DayItineraryToolbar
+          day={day}
+          trip={trip}
+          itineraryView={itineraryView}
+          onItineraryViewChange={setItineraryView}
+          onJournalEntry={() => setOpenJournalSignal((n) => n + 1)}
+          onTipToggle={() => setTipOpen((v) => !v)}
+        />
+      </div>
       {hideHeader ? <DayHeader day={day} stickyTitleOnly /> : <DayHeader day={day} />}
       <div id="day-breakdown-tile">
         <BudgetBreakdownTile
@@ -70,50 +63,6 @@ export const DayPanel: React.FC<DayPanelProps> = ({ hideHeader = false }) => {
           dayId={day.id}
           defaultExpanded={config.dayBreakdownVisibleByDefault}
         />
-      </div>
-      <div className={styles.itineraryToolbar} role="group" aria-label="Itinerary view and actions">
-        <button
-          type="button"
-          className={styles.itineraryViewBtn}
-          aria-pressed={itineraryView === 'timeline'}
-          onClick={() => setItineraryView('timeline')}
-        >
-          <TimelineGlyph />
-          Timeline
-        </button>
-        <button
-          type="button"
-          className={styles.itineraryViewBtn}
-          aria-pressed={itineraryView === 'dayPlanner'}
-          onClick={() => setItineraryView('dayPlanner')}
-        >
-          <PlannerGlyph />
-          Day Planner
-        </button>
-        <button
-          type="button"
-          className={styles.itineraryViewBtn}
-          onClick={() => window.dispatchEvent(new Event('open-cruise-import'))}
-        >
-          Import cruise itinerary
-        </button>
-        <button
-          type="button"
-          className={styles.itineraryViewBtn}
-          onClick={() => window.dispatchEvent(new Event('export-trip-excel'))}
-        >
-          Export to Excel
-        </button>
-        <span className={styles.toolbarDivider} aria-hidden />
-        <button type="button" className={styles.itineraryViewBtn} onClick={() => setTipOpen((v) => !v)}>
-          Tip calc
-        </button>
-        <button type="button" className={styles.itineraryViewBtn} onClick={() => setOpenJournalSignal((n) => n + 1)}>
-          Journal entry
-        </button>
-        <button type="button" className={styles.addButton} onClick={() => setEditingCardId('new')}>
-          + Add
-        </button>
       </div>
       {tipOpen ? (
         <TipCalculator

@@ -90,6 +90,7 @@ export const BudgetBreakdownTile: React.FC<BudgetBreakdownTileProps> = ({
       <CollapsibleSummaryBar
         expanded={expanded}
         onToggle={() => setExpanded((v) => !v)}
+        collapsedTitle="Day breakdown"
         collapsedSummary={collapsedSummary}
         ariaLabel="Day breakdown"
         className={styles.summaryBar}

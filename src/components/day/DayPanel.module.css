@@ -29,13 +29,15 @@
   background: var(--color-surface);
 }
 
-.stickyChrome {
+.dayToolbarSticky {
   position: sticky;
-  top: 0;
-  z-index: 8;
+  top: 3.5rem;
+  z-index: 11;
   background: var(--color-surface);
-  padding-bottom: var(--space-2);
-  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0;
+  padding: var(--space-2) 0;
+  margin: 0 calc(-1 * var(--space-2));
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
   box-shadow: 0 1px 0 var(--color-sand-200);
 }
 

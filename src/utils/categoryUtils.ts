@@ -6,6 +6,7 @@ export const CATEGORY_LIST = [
   'Cruise at sea',
   'Food & Dining',
   'Activities',
+  'Location info',
   'Transport',
   'Travel Overheads',
   'Preparation',
@@ -28,6 +29,8 @@ export function getCategoryColor(category: string): string {
       return 'var(--color-cat-food)';
     case 'Activities':
       return 'var(--color-cat-activities)';
+    case 'Location info':
+      return 'var(--color-cat-other)';
     case 'Transport':
       return 'var(--color-cat-transport)';
     case 'Travel Overheads':
@@ -80,6 +83,8 @@ export function getCategorySlug(category: string): string {
       return 'food';
     case 'Activities':
       return 'activities';
+    case 'Location info':
+      return 'location-info';
     case 'Transport':
       return 'transport';
     case 'Travel Overheads':

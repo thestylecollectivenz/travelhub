@@ -1,6 +1,12 @@
 import * as React from 'react';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { CATEGORY_LIST } from '../../utils/categoryUtils';
+import {
+  defaultLocationInfoNotes,
+  parseLocationInfoNotes,
+  serializeLocationInfoNotes,
+  type LocationInfoNotes
+} from '../../utils/locationInfoEntry';
 import { combineDayAndTime, formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { CurrencySelect } from '../shared/CurrencySelect';
 import styles from './ItineraryCardEdit.module.css';
@@ -508,6 +514,69 @@ export const AccommodationEditLayout: React.FC<CategoryEditLayoutProps> = (props
         Per night cost
       </label>
       <div className={styles.readOnlyValue}>{nights > 0 ? perNight.toFixed(2) : '—'}</div>
+    </div>
+  );
+};
+
+export const LocationInfoEditLayout: React.FC<CategoryEditLayoutProps> = ({ draft, patch }) => {
+  const data = React.useMemo(
+    () => parseLocationInfoNotes(draft.notes) ?? defaultLocationInfoNotes(''),
+    [draft.notes]
+  );
+
+  const updateNotes = (partial: Partial<LocationInfoNotes>): void => {
+    const next = { ...data, ...partial };
+    patch({ notes: serializeLocationInfoNotes(next), paymentStatus: 'Free', amount: 0 });
+  };
+
+  return (
+    <div className={styles.grid}>
+      <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`loc-overview-${draft.id}`}>
+        Overview — what to see and do
+      </label>
+      <textarea
+        id={`loc-overview-${draft.id}`}
+        className={`${styles.textarea} ${styles.fullRow}`}
+        rows={4}
+        value={data.overview}
+        onChange={(e) => updateNotes({ overview: e.target.value })}
+        placeholder="Your notes about this place…"
+      />
+      <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`loc-sights-${draft.id}`}>
+        Iconic sights
+      </label>
+      <textarea
+        id={`loc-sights-${draft.id}`}
+        className={`${styles.textarea} ${styles.fullRow}`}
+        rows={3}
+        value={data.iconicSights}
+        onChange={(e) => updateNotes({ iconicSights: e.target.value })}
+        placeholder={data.aiSightsPlaceholder}
+      />
+      <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`loc-food-${draft.id}`}>
+        Food &amp; drink
+      </label>
+      <textarea
+        id={`loc-food-${draft.id}`}
+        className={`${styles.textarea} ${styles.fullRow}`}
+        rows={3}
+        value={data.foodDrink}
+        onChange={(e) => updateNotes({ foodDrink: e.target.value })}
+        placeholder={data.aiFoodPlaceholder}
+      />
+      <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`loc-tips-${draft.id}`}>
+        Practical tips
+      </label>
+      <textarea
+        id={`loc-tips-${draft.id}`}
+        className={`${styles.textarea} ${styles.fullRow}`}
+        rows={2}
+        value={data.practicalTips}
+        onChange={(e) => updateNotes({ practicalTips: e.target.value })}
+      />
+      <p className={`${styles.attachmentsHint} ${styles.fullRow}`}>
+        AI research for iconic sights, food, and drink will be available in a future update.
+      </p>
     </div>
   );
 };

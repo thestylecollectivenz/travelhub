@@ -2,6 +2,8 @@ import * as React from 'react';
 import type { TripDay } from '../../models/TripDay';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
+import { useSpContext } from '../../context/SpContext';
+import { syncLocationInfoCards } from '../../utils/locationInfoCardSync';
 import type { PlaceCandidate } from '../../models/Place';
 import { formatDayDate } from '../../utils/dateUtils';
 import { compareTripDaysChronological } from '../../utils/tripDateRangeSync';
@@ -9,6 +11,7 @@ import { parseAdditionalPlaceRefs, serializeAdditionalPlaceRef } from '../../uti
 import { CollapsibleSummaryBar } from '../shared/CollapsibleSummaryBar';
 import { PlaceInfoPanel } from './PlaceInfoPanel';
 import { consecutivePrimaryPlaceDates } from '../../utils/consecutivePlaceDays';
+import { placeDisplayLabel } from '../../utils/placeDisplayLabel';
 import styles from './DayHeader.module.css';
 
 export interface DayHeaderProps {
@@ -34,8 +37,9 @@ function dayTypeLabel(dayType: TripDay['dayType']): string {
 }
 
 export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', stickyTitleOnly = false }) => {
-  const { updateDay, trip, tripDays } = useTripWorkspace();
+  const { updateDay, reloadItineraryEntries, trip, tripDays, localEntries } = useTripWorkspace();
   const { searchPlaces, createOrReusePlace, placeById } = usePlaces();
+  const spContext = useSpContext();
   const isShared = variant === 'shared';
   const [isEditingTitle, setIsEditingTitle] = React.useState(false);
   const [titleDraft, setTitleDraft] = React.useState(day.displayTitle);
@@ -86,7 +90,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
   const locationsSummary = React.useMemo(() => {
     const count = (dayLocations.primary ? 1 : 0) + dayLocations.additional.length;
     if (!count) return 'No locations set';
-    const primaryTitle = dayLocations.primary?.title?.trim();
+    const primaryTitle = dayLocations.primary ? placeDisplayLabel(dayLocations.primary) : '';
     if (count === 1 && primaryTitle) return primaryTitle;
     if (primaryTitle) {
       const extra = count - 1;
@@ -169,8 +173,18 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
         primaryPlaceId: primaryId || '',
         additionalPlaceIds: additional.map((x) => serializeAdditionalPlaceRef(x))
       });
+      if (!trip?.id) return;
+      void syncLocationInfoCards({
+        spContext,
+        tripId: trip.id,
+        tripDays,
+        entries: localEntries,
+        placeById
+      })
+        .then(() => reloadItineraryEntries())
+        .catch(console.error);
     },
-    [day.id, updateDay]
+    [day.id, updateDay, reloadItineraryEntries, trip?.id, tripDays, localEntries, spContext, placeById]
   );
 
   const saveTitle = React.useCallback(() => {
@@ -270,6 +284,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
           <CollapsibleSummaryBar
             expanded={locationsExpanded}
             onToggle={() => setLocationsExpanded((v) => !v)}
+            collapsedTitle="Locations"
             collapsedSummary={locationsSummary}
             ariaLabel="Locations"
             className={styles.locationsSummaryBar}
@@ -328,8 +343,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
                         }).catch(console.error);
                       }}
                     >
-                      <span>{p.title}</span>
-                      <span className={styles.searchMeta}>{p.country}</span>
+                      <span>{placeDisplayLabel(p)}</span>
                     </button>
                   ))}
                 </div>
@@ -355,7 +369,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
                       aria-pressed={isInfoTarget}
                     >
                       <span className={styles.placePill}>
-                        <span aria-hidden>📍</span> {row.place.title}
+                        <span aria-hidden>📍</span> {placeDisplayLabel(row.place)}
                         {row.primary ? <span className={styles.placeMeta}>Primary</span> : null}
                       </span>
                     </button>
@@ -463,13 +477,13 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
                   </div>
                   <button
                     type="button"
-                    className={`${styles.locationInfoLink} ${isInfoTarget ? styles.locationInfoLinkActive : ''}`}
+                    className={`${styles.locationInfoBtn} ${isInfoTarget ? styles.locationInfoBtnActive : ''}`}
                     onClick={() => setActivePlaceInfoId(row.place.id)}
                   >
                     Place info
                   </button>
                   <a
-                    className={styles.locationRowMapLink}
+                    className={styles.locationMapsBtn}
                     href={`https://www.google.com/maps/@${row.place.latitude},${row.place.longitude},10z`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -516,17 +530,12 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
             {allPlacesForInfo.length ? (
               <>
                 {activePlaceInfo ? (
-                  <>
-                    <div className={styles.placeInfoHeader}>
-                      <span className={styles.placeInfoHeaderLabel}>Place info</span>
-                      <span className={styles.placeInfoHeaderTitle}>{activePlaceInfo.place.title}</span>
-                    </div>
-                    <PlaceInfoPanel
-                      place={activePlaceInfo.place}
-                      weatherAnchorDate={weatherAnchorDate}
-                      forecastDates={activeForecastDates}
-                    />
-                  </>
+                  <PlaceInfoPanel
+                    place={activePlaceInfo.place}
+                    weatherAnchorDate={weatherAnchorDate}
+                    forecastDates={activeForecastDates}
+                    showHeader
+                  />
                 ) : null}
               </>
             ) : (

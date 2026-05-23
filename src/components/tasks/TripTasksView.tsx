@@ -18,6 +18,7 @@ import { CATEGORY_LIST } from '../../utils/categoryUtils';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { loadTripAssignees, rememberTripAssignee } from '../../utils/tripAssignees';
 import { reminderTaskCategory, TASK_FILTER_UNCATEGORISED } from '../../utils/taskFilters';
+import { PackingTemplatesManager } from '../packing/PackingTemplatesManager';
 import styles from './TripTasksView.module.css';
 
 type TaskFilter = 'incomplete' | 'all';
@@ -120,8 +121,10 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
   const [editDueDate, setEditDueDate] = React.useState('');
   const [editNote, setEditNote] = React.useState('');
   const [editAssignedTo, setEditAssignedTo] = React.useState('');
+  const [editTaskCategory, setEditTaskCategory] = React.useState('Other');
   const [createAssignedTo, setCreateAssignedTo] = React.useState('');
   const [createTaskCategory, setCreateTaskCategory] = React.useState('Other');
+  const [packingTemplatesOpen, setPackingTemplatesOpen] = React.useState(false);
 
   const taskCategoryFilter = planView?.taskCategoryFilter ?? null;
   const taskAssigneeFilter = planView?.taskAssigneeFilter ?? null;
@@ -349,6 +352,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
     setEditDueDate(m.dueDate ? m.dueDate.slice(0, 10) : '');
     setEditNote((m.taskNote || '').trim());
     setEditAssignedTo((m.assignedTo || '').trim());
+    setEditTaskCategory(reminderTaskCategory(m) || 'Other');
   }, []);
 
   const saveEditReminder = React.useCallback(
@@ -368,6 +372,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
           title,
           reminderText: trimmed,
           taskNote: editNote.trim(),
+          taskCategory: editTaskCategory,
           assignedTo: editAssignedTo.trim() || undefined,
           dueDate: editDueDate ? `${editDueDate}T00:00:00.000Z` : undefined
         })
@@ -378,7 +383,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
         })
         .catch(console.error);
     },
-    [editDueDate, editNote, editTitle, refresh, svc]
+    [editDueDate, editNote, editTitle, editTaskCategory, editAssignedTo, refresh, svc, trip?.id]
   );
 
   const renderTaskNote = (note: string | undefined, titleForDedup: string): React.ReactNode => {
@@ -394,20 +399,25 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
     );
   };
 
-  const renderEntryNotes = (entry: ItineraryEntry): React.ReactNode => {
-    const n = (entry.notes || '').trim();
+  const renderTaskNoteForRow = (
+    note: string | undefined,
+    titleForDedup: string,
+    linkedEntry?: ItineraryEntry
+  ): React.ReactNode => {
+    const n = stripFollowUpPrefix((note || '').trim());
     if (!n) return null;
-    return (
-      <div className={styles.noteCallout}>
-        <span className={styles.noteCalloutLabel}>Notes</span>
-        <p className={styles.noteCalloutText}>{n}</p>
-      </div>
-    );
+    const entryNotes = (linkedEntry?.notes || '').trim();
+    if (entryNotes && n === entryNotes) return null;
+    return renderTaskNote(note, titleForDedup);
   };
 
+  const printTasks = React.useCallback((): void => {
+    window.print();
+  }, []);
+
   return (
-    <section className={styles.root}>
-      <div className={styles.filters}>
+    <section className={styles.root} id="trip-tasks-print-root">
+      <div className={`${styles.filters} ${styles.noPrint}`}>
         <h2 className={styles.title}>Tasks &amp; reminders</h2>
         {showStandardSections ? (
           <select className={styles.select} value={filter} onChange={(e) => setFilter(e.target.value as TaskFilter)}>
@@ -447,7 +457,22 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
             </label>
           </div>
         ) : null}
+        {viewMode === 'list' && showStandardSections ? (
+          <>
+            <button className={styles.button} type="button" onClick={printTasks}>
+              Print view
+            </button>
+            <button className={styles.button} type="button" onClick={() => setPackingTemplatesOpen((v) => !v)}>
+              {packingTemplatesOpen ? 'Hide packing templates' : 'Packing templates'}
+            </button>
+          </>
+        ) : null}
       </div>
+      {packingTemplatesOpen ? (
+        <div className={`${styles.group} ${styles.noPrint}`}>
+          <PackingTemplatesManager onClose={() => setPackingTemplatesOpen(false)} />
+        </div>
+      ) : null}
 
       {viewMode === 'calendar' && showStandardSections ? (
         calendarLayout === 'grid' ? (
@@ -535,7 +560,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
         <>
           {showTaskSection('todo') ? (
           <div className={styles.group}>
-            <h3 className={styles.title}>Add new</h3>
+            <h3 className={styles.composeHeading}>Add new task or reminder</h3>
             <div className={`${styles.filters} ${styles.addRow}`}>
               <select className={styles.select} value={createKind} onChange={(e) => setCreateKind(e.target.value as CreateKind)}>
                 <option value="task">Task</option>
@@ -640,6 +665,32 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                           onChange={(e) => setEditDueDate(e.target.value)}
                           aria-label="Due date"
                         />
+                        {m.reminderType === 'Manual' || m.reminderType === 'ManualEntryTask' ? (
+                          <select
+                            className={styles.select}
+                            value={editTaskCategory}
+                            onChange={(e) => setEditTaskCategory(e.target.value)}
+                            aria-label="Category"
+                          >
+                            {CATEGORY_LIST.map((c) => (
+                              <option key={c} value={c}>
+                                {c}
+                              </option>
+                            ))}
+                          </select>
+                        ) : null}
+                        <input
+                          className={styles.input}
+                          placeholder="Assigned to (optional)"
+                          value={editAssignedTo}
+                          onChange={(e) => setEditAssignedTo(e.target.value)}
+                          list="trip-task-assignees-edit"
+                        />
+                        <datalist id="trip-task-assignees-edit">
+                          {knownAssignees.map((n) => (
+                            <option key={n} value={n} />
+                          ))}
+                        </datalist>
                         <textarea
                           className={styles.textarea}
                           value={editNote}
@@ -660,8 +711,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                             </>
                           ) : null}
                         </div>
-                        {renderTaskNote(m.taskNote, reminderDisplayTitle(m))}
-                        {target?.entry ? renderEntryNotes(target.entry) : null}
+                        {renderTaskNoteForRow(m.taskNote, reminderDisplayTitle(m), target?.entry)}
                         {target ? (
                           <div className={styles.meta}>
                             {target.contextLine}
@@ -672,7 +722,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                       </>
                     )}
                   </div>
-                  <div className={styles.actions}>
+                  <div className={`${styles.actions} ${styles.noPrint}`}>
                     {isEditing ? (
                       <>
                         <button className={styles.button} type="button" onClick={() => saveEditReminder(m)}>
@@ -727,6 +777,9 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
           {showTaskSection('bookings') ? (
           <div className={styles.group}>
             <h3 className={styles.title}>Bookings needed</h3>
+            {bookingTasks.length === 0 ? (
+              <p className={styles.sectionHelp}>No items need booking right now.</p>
+            ) : null}
             {bookingTasks.map((entry) => (
               <div key={entry.id} className={styles.item}>
                 <div className={styles.itemBody}>
@@ -741,9 +794,8 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                       onChange={(e) => updateEntry({ ...entry, bookingDueDate: e.target.value || undefined })}
                     />
                   </label>
-                  {renderEntryNotes(entry)}
                 </div>
-                <div className={styles.actions}>
+                <div className={`${styles.actions} ${styles.noPrint}`}>
                   <button className={styles.button} type="button" onClick={() => openEntryInItineraryRead(entry.id, entry.dayId)}>
                     Open in itinerary
                   </button>
@@ -759,6 +811,9 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
           {showTaskSection('payments') ? (
           <div className={styles.group}>
             <h3 className={styles.title}>Payments due</h3>
+            {paymentTasks.length === 0 ? (
+              <p className={styles.sectionHelp}>No outstanding payments.</p>
+            ) : null}
             {paymentTasks.map((entry) => (
               <div key={entry.id} className={styles.item}>
                 <div className={styles.itemBody}>
@@ -776,9 +831,8 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                       onChange={(e) => updateEntry({ ...entry, paymentDueDate: e.target.value || undefined })}
                     />
                   </label>
-                  {renderEntryNotes(entry)}
                 </div>
-                <div className={styles.actions}>
+                <div className={`${styles.actions} ${styles.noPrint}`}>
                   <button className={styles.button} type="button" onClick={() => openEntryInItineraryRead(entry.id, entry.dayId)}>
                     Open in itinerary
                   </button>
@@ -799,7 +853,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
           <div className={styles.group}>
             <h3 className={styles.title}>Cancellation deadline reminders</h3>
             {cancellationReminders.length === 0 ? (
-              <p className={styles.meta}>No cancellation reminders.</p>
+              <p className={styles.sectionHelp}>No cancellation reminders.</p>
             ) : (
               cancellationReminders.map((m) => {
                 const target = resolveReminderItineraryTarget(m, localEntries);
@@ -814,8 +868,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                       <div className={styles.meta}>
                         {m.dueDate ? `Due ${new Date(m.dueDate).toLocaleString('en-NZ')}` : 'No due date'}
                       </div>
-                      {renderTaskNote(m.taskNote, reminderDisplayTitle(m))}
-                      {target?.entry ? renderEntryNotes(target.entry) : null}
+                      {renderTaskNoteForRow(m.taskNote, reminderDisplayTitle(m), target?.entry)}
                       {target ? (
                         <div className={styles.meta}>
                           {target.contextLine}
@@ -824,7 +877,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                         </div>
                       ) : null}
                     </div>
-                    <div className={styles.actions}>
+                    <div className={`${styles.actions} ${styles.noPrint}`}>
                       {target ? (
                         <button
                           className={styles.button}

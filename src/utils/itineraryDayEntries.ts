@@ -1,6 +1,8 @@
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { TripDay } from '../models/TripDay';
 import { minutesFromTimeStart } from './itineraryTimeUtils';
+import { dayHasPlaceId, isLocationInfoEntry, locationInfoPlaceId } from './locationInfoEntry';
+import { parseAdditionalPlaceRefs } from './tripDayPlaces';
 
 export function isPreTripDayType(dayType?: string): boolean {
   const normalized = String(dayType || '')
@@ -180,5 +182,40 @@ export function sortEntriesForDay(
       map.set(e.id, e);
     }
   }
-  return Array.from(map.values()).sort(compareBySortOrderThenTimeForDay(calendarDate, tripDays));
+
+  const dayRow = tripDays?.find((d) => d.id === dayId);
+  if (dayRow) {
+    for (const e of entries) {
+      if (!isLocationInfoEntry(e) || e.parentEntryId) continue;
+      const pid = locationInfoPlaceId(e);
+      if (!pid) continue;
+      if (dayHasPlaceId(dayRow, pid, () => undefined) || collectPlaceIdsOnDay(dayRow).indexOf(pid) >= 0) {
+        map.set(e.id, e);
+      }
+    }
+  }
+
+  return Array.from(map.values()).sort(compareLocationInfoFirst(calendarDate, tripDays));
+}
+
+function collectPlaceIdsOnDay(day: TripDay): string[] {
+  const ids: string[] = [];
+  if (day.primaryPlaceId) ids.push(day.primaryPlaceId);
+  for (const ref of parseAdditionalPlaceRefs(day.additionalPlaceIds)) {
+    ids.push(ref.placeId);
+  }
+  return ids;
+}
+
+function compareLocationInfoFirst(
+  calendarDate: string,
+  tripDays?: TripDay[]
+): (a: ItineraryEntry, b: ItineraryEntry) => number {
+  const base = compareBySortOrderThenTimeForDay(calendarDate, tripDays);
+  return (a, b) => {
+    const aLoc = isLocationInfoEntry(a) ? 0 : 1;
+    const bLoc = isLocationInfoEntry(b) ? 0 : 1;
+    if (aLoc !== bLoc) return aLoc - bLoc;
+    return base(a, b);
+  };
 }

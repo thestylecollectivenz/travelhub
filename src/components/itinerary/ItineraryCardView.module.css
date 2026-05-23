@@ -564,3 +564,41 @@
   font-size: var(--font-size-xs);
   color: var(--color-sand-600);
 }
+
+.locationInfoBody {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: color-mix(in srgb, #0d9488 5%, var(--color-surface-raised));
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, #0d9488 18%, var(--color-sand-200));
+}
+
+.locationInfoSection {
+  margin: 0;
+}
+
+.locationInfoHeading {
+  margin: 0 0 var(--space-1);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-sand-700);
+}
+
+.locationInfoText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-blue-900);
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
+.locationInfoPlaceholder {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  font-style: italic;
+  color: var(--color-sand-600);
+}

@@ -13,7 +13,8 @@ import { useAttachments } from '../../context/AttachmentsContext';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { rememberTripBookingMechanism } from '../../utils/tripBookingMechanisms';
-import { AccommodationEditLayout, FlightEditLayout } from './ItineraryCardEditCategoryLayouts';
+import { AccommodationEditLayout, FlightEditLayout, LocationInfoEditLayout } from './ItineraryCardEditCategoryLayouts';
+import { isLocationInfoEntry } from '../../utils/locationInfoEntry';
 import styles from './ItineraryCardEdit.module.css';
 
 export interface ItineraryCardEditProps {
@@ -47,6 +48,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   const isTransport = draft.category === 'Transport';
   const isCruise = draft.category === 'Cruise';
   const isActivities = draft.category === 'Activities';
+  const isLocationInfo = isLocationInfoEntry(draft);
   const { docsForEntry, linksForEntry, addDocument, deleteDocument, addLink, deleteLink } = useAttachments();
   const [attachOpen, setAttachOpen] = React.useState(false);
   const [linkTitle, setLinkTitle] = React.useState('');
@@ -241,6 +243,8 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
         <FlightEditLayout {...layoutProps} />
       ) : isAccommodation ? (
         <AccommodationEditLayout {...layoutProps} />
+      ) : isLocationInfo ? (
+        <LocationInfoEditLayout {...layoutProps} />
       ) : (
       <div className={styles.grid}>
         <label className={styles.label} htmlFor={`cat-${draft.id}`}>

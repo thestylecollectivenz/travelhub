@@ -21,6 +21,8 @@ import { confirmUserAction } from '../../utils/confirmAction';
 import type { LinkedEntryTask } from '../../utils/linkedEntryTask';
 import { linkedTaskDisplayText, linkedTaskNoteDisplay } from '../../utils/linkedEntryTask';
 import { effectivePlannerTimeStart, isTransportReturnOnCalendarDate } from '../../utils/itineraryDayEntries';
+import { isLocationInfoEntry, parseLocationInfoNotes } from '../../utils/locationInfoEntry';
+import { formatLocationText } from '../../utils/placeDisplayLabel';
 
 function deriveTransportDisplayTitle(entry: ItineraryEntry, calendarDate: string): string {
   const raw = (entry.title || '').trim();
@@ -281,7 +283,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       : durationDisplay || null;
 
   const supplier = entry.supplier.trim();
-  const location = (entry.location ?? '').trim();
+  const location = formatLocationText((entry.location ?? '').trim());
+  const isLocationInfo = isLocationInfoEntry(entry);
+  const locationInfoData = isLocationInfo ? parseLocationInfoNotes(entry.notes) : null;
   const isAccommodation = entry.category === 'Accommodation' && !!entry.dateStart && !!entry.dateEnd;
   const isCruise = entry.category === 'Cruise' && !!entry.embarksDate && !!entry.disembarksDate;
   const isFlights = entry.category === 'Flights';
@@ -390,6 +394,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const subTotal = subItems.reduce((sum, s) => sum + convertToHomeCurrency(s.amount, s.currency || 'NZD'), 0);
   const subOwing = subTotal - subPaid;
   const hasSubTotal = subTotal > 0;
+  const cardTotalHome = displayAmountHome + subTotal;
   const showSubItemContent = hasSubItems || addingSubItem;
   const docs = docsForEntry(entry.id);
   const links = linksForEntry(entry.id);
@@ -577,6 +582,44 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         </div>
       ) : null}
 
+      {isLocationInfo && locationInfoData ? (
+        <div className={styles.locationInfoBody}>
+          {locationInfoData.overview.trim() ? (
+            <section className={styles.locationInfoSection}>
+              <h4 className={styles.locationInfoHeading}>Overview</h4>
+              <p className={styles.locationInfoText}>{locationInfoData.overview.trim()}</p>
+            </section>
+          ) : null}
+          {locationInfoData.iconicSights.trim() ? (
+            <section className={styles.locationInfoSection}>
+              <h4 className={styles.locationInfoHeading}>Iconic sights</h4>
+              <p className={styles.locationInfoText}>{locationInfoData.iconicSights.trim()}</p>
+            </section>
+          ) : (
+            locationInfoData.aiSightsPlaceholder ? (
+              <p className={styles.locationInfoPlaceholder}>{locationInfoData.aiSightsPlaceholder}</p>
+            ) : null
+          )}
+          {locationInfoData.foodDrink.trim() ? (
+            <section className={styles.locationInfoSection}>
+              <h4 className={styles.locationInfoHeading}>Food &amp; drink</h4>
+              <p className={styles.locationInfoText}>{locationInfoData.foodDrink.trim()}</p>
+            </section>
+          ) : (
+            locationInfoData.aiFoodPlaceholder ? (
+              <p className={styles.locationInfoPlaceholder}>{locationInfoData.aiFoodPlaceholder}</p>
+            ) : null
+          )}
+          {locationInfoData.practicalTips.trim() ? (
+            <section className={styles.locationInfoSection}>
+              <h4 className={styles.locationInfoHeading}>Practical tips</h4>
+              <p className={styles.locationInfoText}>{locationInfoData.practicalTips.trim()}</p>
+            </section>
+          ) : null}
+        </div>
+      ) : null}
+
+      {!isLocationInfo ? (
       <div className={styles.badges}>
         <span className={`${styles.statusPill} ${styles.decisionPill} ${decisionClass}`}>{entry.decisionStatus}</span>
         <span className={`${styles.statusPill} ${styles.paymentPill} ${paymentClass}`}>
@@ -593,51 +636,44 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         ) : null}
         {hasTask ? <span className={`${styles.statusPill} ${styles.taskPill}`}>Task added</span> : null}
       </div>
-
-      <div className={styles.amountRow}>
-        {isAccommodation && nights > 0 ? (
-          entry.currency && entry.currency.toUpperCase() !== (config.homeCurrency || 'NZD').toUpperCase() ? (
-            <>
-              {`${formatCurrency(entry.amount, entry.currency)} total · ${formatCurrency(entry.amount / nights, entry.currency)} /night`}
-              <span className={styles.unitSuffix}>
-                {` (${formatCurrency(displayAmountHome, config.homeCurrency)} total · ${formatCurrency(perNightHome, config.homeCurrency)} /night)`}
-              </span>
-            </>
-          ) : (
-            `${formatCurrency(displayAmountHome, config.homeCurrency)} total · ${formatCurrency(perNightHome, config.homeCurrency)} /night`
-          )
-        ) : showCruiseDailyAmount ? (
-          `${formatCurrency(displayAmountHome, config.homeCurrency)} total · ${formatCurrency(perCruiseDayHome, config.homeCurrency)} /day`
-        ) : (
-          formatCurrency(displayAmountHome, config.homeCurrency)
-        )}
-        {!isAccommodation && entry.currency && entry.currency.toUpperCase() !== config.homeCurrency.toUpperCase() ? (
-          <span className={styles.unitSuffix}>
-            {showCruiseDailyAmount
-              ? ` (${entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency} · ${perCruiseDayTrip.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency} /day)`
-              : ` (${entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency})`}
-          </span>
-        ) : null}
-        {unitSuffix ? <span className={styles.unitSuffix}>{unitSuffix}</span> : null}
-      </div>
-      {entry.paymentStatus === 'Part paid' && entry.amountPaid !== undefined && displayAmountPaidHome !== undefined ? (
-        <div className={styles.partPaidDetail}>
-          <span className={styles.partPaidPaid}>{formatCurrency(displayAmountPaidHome, config.homeCurrency)} paid</span>
-          <span className={styles.partPaidSep}> · </span>
-          <span className={styles.partPaidOwing}>{formatCurrency(displayAmountHome - displayAmountPaidHome, config.homeCurrency)} owing</span>
-        </div>
       ) : null}
-      {hasSubTotal ? (
-        <div className={styles.subTotalLine}>
-          <span className={styles.subTotalLabel}>incl. options</span>
-          <span className={styles.subTotalAmount}>{formatCurrency(displayAmountHome + subTotal, config.homeCurrency)}</span>
-          {subPaid > 0 || subOwing > 0 ? (
-            <span className={styles.subTotalSplit}>
-              <span className={styles.subPaid}>{formatCurrency(subPaid, config.homeCurrency)} paid</span>
-              {subOwing > 0 ? <span className={styles.subOwing}> · {formatCurrency(subOwing, config.homeCurrency)} owing</span> : null}
-            </span>
+
+      {!isLocationInfo ? (
+        <>
+          <div className={styles.amountRow}>
+            {isAccommodation && nights > 0 ? (
+              entry.currency && entry.currency.toUpperCase() !== (config.homeCurrency || 'NZD').toUpperCase() ? (
+                <>
+                  {`${formatCurrency(entry.amount, entry.currency)} total · ${formatCurrency(entry.amount / nights, entry.currency)} /night`}
+                  <span className={styles.unitSuffix}>
+                    {` (${formatCurrency(displayAmountHome, config.homeCurrency)} total · ${formatCurrency(perNightHome, config.homeCurrency)} /night)`}
+                  </span>
+                </>
+              ) : (
+                `${formatCurrency(displayAmountHome, config.homeCurrency)} total · ${formatCurrency(perNightHome, config.homeCurrency)} /night`
+              )
+            ) : showCruiseDailyAmount ? (
+              `${formatCurrency(displayAmountHome, config.homeCurrency)} total · ${formatCurrency(perCruiseDayHome, config.homeCurrency)} /day`
+            ) : (
+              formatCurrency(hasSubItems ? cardTotalHome : displayAmountHome, config.homeCurrency)
+            )}
+            {!isAccommodation && entry.currency && entry.currency.toUpperCase() !== config.homeCurrency.toUpperCase() ? (
+              <span className={styles.unitSuffix}>
+                {showCruiseDailyAmount
+                  ? ` (${entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency} · ${perCruiseDayTrip.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency} /day)`
+                  : ` (${entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency})`}
+              </span>
+            ) : null}
+            {unitSuffix ? <span className={styles.unitSuffix}>{unitSuffix}</span> : null}
+          </div>
+          {entry.paymentStatus === 'Part paid' && entry.amountPaid !== undefined && displayAmountPaidHome !== undefined ? (
+            <div className={styles.partPaidDetail}>
+              <span className={styles.partPaidPaid}>{formatCurrency(displayAmountPaidHome, config.homeCurrency)} paid</span>
+              <span className={styles.partPaidSep}> · </span>
+              <span className={styles.partPaidOwing}>{formatCurrency(displayAmountHome - displayAmountPaidHome, config.homeCurrency)} owing</span>
+            </div>
           ) : null}
-        </div>
+        </>
       ) : null}
 
       {isAccommodation &&
@@ -729,7 +765,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         </div>
       ) : null}
 
-      {entry.notes.trim() ? (
+      {!isLocationInfo && entry.notes.trim() ? (
         <>
           <button type="button" className={styles.notesToggle} onClick={() => setNotesOpen((o) => !o)}>
             {notesOpen ? 'Notes ▴' : 'Notes ▾'}
@@ -1130,6 +1166,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           </>
         )}
       </div>
+      {!isLocationInfo ? (
       <div className={styles.subItemActionsRowSecondary}>
         <button type="button" className={styles.addSubItemBtn} onClick={handleStartAddSubItem}>
           + Add option
@@ -1140,6 +1177,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           </button>
         ) : null}
       </div>
+      ) : null}
       {taskEditOpen && openTaskTarget ? (
         <div className={styles.newSubItemForm}>
           <label className={styles.taskInlineLabel} htmlFor={`task-edit-desc-${entry.id}`}>

@@ -10,11 +10,26 @@
   font-weight: var(--font-weight-bold);
   color: var(--color-blue-800);
 }
+
+.composeHeading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-sand-700);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.sectionHelp {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-600);
+}
 .item {
   display: flex;
   flex-direction: row;
   align-items: flex-start;
-  gap: var(--space-3);
+  gap: var(--space-2);
   border-top: var(--border-default);
   padding-top: var(--space-2);
   margin-top: var(--space-2);
@@ -121,10 +136,18 @@
 .missingTitle { font-weight: var(--font-weight-bold); color: var(--color-blue-800); }
 .actions {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
   flex-shrink: 0;
-  width: 8.75rem;
+  max-width: 12rem;
+}
+
+.actions .button {
+  padding: 4px 8px;
+  font-size: var(--font-size-xs);
+  min-height: 1.75rem;
+  width: auto;
 }
 .input, .select { border: var(--border-default); border-radius: var(--radius-sm); padding: var(--space-2); }
 .button {
@@ -143,4 +166,23 @@
 .addRow .button.addBtn {
   width: auto;
   flex: 0 0 auto;
+}
+
+@media print {
+  .noPrint {
+    display: none !important;
+  }
+
+  .root {
+    gap: var(--space-2);
+  }
+
+  .group {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+
+  .item {
+    break-inside: avoid;
+  }
 }

@@ -9,10 +9,33 @@
   padding: var(--space-2) calc(var(--space-5) + 1.75rem) var(--space-2) 0;
 }
 
+.stripCollapsed {
+  min-height: 1.75rem;
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
+}
+
+.collapsedRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.collapsedTitle {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-800);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 .collapsedSummary {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   color: var(--color-sand-600);
-  line-height: 1.4;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

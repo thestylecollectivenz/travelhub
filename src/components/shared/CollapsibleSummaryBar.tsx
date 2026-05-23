@@ -5,6 +5,8 @@ export interface CollapsibleSummaryBarProps {
   expanded: boolean;
   onToggle: () => void;
   collapsedSummary: string;
+  /** Uppercase section title shown when collapsed (e.g. Locations, Day breakdown). */
+  collapsedTitle?: string;
   ariaLabel: string;
   className?: string;
   children?: React.ReactNode;
@@ -15,13 +17,24 @@ export const CollapsibleSummaryBar: React.FC<CollapsibleSummaryBarProps> = ({
   expanded,
   onToggle,
   collapsedSummary,
+  collapsedTitle,
   ariaLabel,
   className,
   children
 }) => {
   return (
-    <div className={[styles.strip, className].filter(Boolean).join(' ')} aria-label={ariaLabel}>
-      {expanded ? children : <div className={styles.collapsedSummary}>{collapsedSummary}</div>}
+    <div
+      className={[styles.strip, !expanded ? styles.stripCollapsed : '', className].filter(Boolean).join(' ')}
+      aria-label={ariaLabel}
+    >
+      {expanded ? (
+        children
+      ) : (
+        <div className={styles.collapsedRow}>
+          {collapsedTitle ? <span className={styles.collapsedTitle}>{collapsedTitle}</span> : null}
+          <span className={styles.collapsedSummary}>{collapsedSummary}</span>
+        </div>
+      )}
       <button
         type="button"
         className={styles.toggleButton}

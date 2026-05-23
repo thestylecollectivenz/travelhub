@@ -47,6 +47,7 @@ export interface TripWorkspaceContextValue {
   deleteTrip: () => Promise<void>;
   clearDeleteTripError: () => void;
   updateDay: (dayId: string, partial: Partial<TripDay>) => void;
+  reloadItineraryEntries: () => Promise<void>;
   updateEntry: (updated: ItineraryEntry) => void;
   deleteEntry: (entryId: string) => void;
   duplicateEntry: (entryId: string) => void;
@@ -223,6 +224,13 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
     },
     [spContext]
   );
+
+  const reloadItineraryEntries = React.useCallback(async () => {
+    if (!tripId) return;
+    const entrySvc = new ItineraryService(spContext);
+    const loaded = await entrySvc.getAll(tripId);
+    setLocalEntries(loaded);
+  }, [tripId, spContext]);
 
   const updateEntry = React.useCallback((updated: ItineraryEntry) => {
     const isNew = updated.id.startsWith('new-') || updated.id.startsWith('temp-');
@@ -641,6 +649,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       deleteTrip,
       clearDeleteTripError,
       updateDay,
+      reloadItineraryEntries,
       updateEntry,
       deleteEntry,
       duplicateEntry,
@@ -685,6 +694,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       deleteTrip,
       clearDeleteTripError,
       updateDay,
+      reloadItineraryEntries,
       updateEntry,
       deleteEntry,
       duplicateEntry,

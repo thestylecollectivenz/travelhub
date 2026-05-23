@@ -5,6 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { getCategorySlug } from '../../utils/categoryUtils';
+import { isLocationInfoEntry } from '../../utils/locationInfoEntry';
 import { ItineraryCardEdit } from './ItineraryCardEdit';
 import { ItineraryCardView } from './ItineraryCardView';
 import { confirmUserAction } from '../../utils/confirmAction';
@@ -103,7 +104,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
     <div
       ref={setNodeRef}
       id={`itinerary-entry-${entry.id}`}
-      className={`${styles.card} ${showEdit ? styles.cardEditing : ''} ${isFocused ? styles.cardFocused : ''}`}
+      className={`${styles.card} ${isLocationInfoEntry(entry) ? styles.cardLocationInfo : ''} ${showEdit ? styles.cardEditing : ''} ${isFocused ? styles.cardFocused : ''}`}
       data-category={categorySlug}
       data-entry-id={entry.id}
       style={dragStyle}

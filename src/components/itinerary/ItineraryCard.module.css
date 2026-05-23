@@ -37,6 +37,11 @@
   border-left: 3px solid var(--color-cat-other);
 }
 
+.cardLocationInfo {
+  border-left: 3px solid var(--color-teal-500, #0d9488);
+  background: linear-gradient(135deg, var(--color-surface-raised) 0%, color-mix(in srgb, #0d9488 6%, var(--color-surface-raised)) 100%);
+}
+
 .cardEditing {
   box-shadow: var(--shadow-elevated);
   border-color: var(--color-blue-200);
