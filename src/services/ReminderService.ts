@@ -44,7 +44,7 @@ function mapToSpItem(partial: Partial<TripReminder>): Record<string, unknown> {
   if (partial.entryId !== undefined) out.EntryId = partial.entryId || '';
   if (partial.reminderType !== undefined) out.ReminderType = partial.reminderType;
   if (partial.reminderText !== undefined) out.ReminderText = partial.reminderText;
-  if (partial.taskNote !== undefined) out.TaskNote = partial.taskNote || '';
+  if (partial.taskNote !== undefined) out.TaskNote = partial.taskNote;
   if (partial.taskCategory !== undefined) out.TaskCategory = partial.taskCategory || '';
   if (partial.assignedTo !== undefined) out.AssignedTo = partial.assignedTo || '';
   if (partial.dueDate !== undefined) out.DueDate = partial.dueDate || null;

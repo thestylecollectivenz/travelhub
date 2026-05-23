@@ -13,7 +13,7 @@ import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { SubItemList } from './SubItemList';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
-import { requestViewTask } from '../../utils/viewTaskFocus';
+import { requestViewTask, scrollToReminderRow } from '../../utils/viewTaskFocus';
 import { loadTripAssignees, rememberTripAssignee } from '../../utils/tripAssignees';
 import { usePlanView } from '../../context/PlanViewContext';
 import { CATEGORY_LIST } from '../../utils/categoryUtils';
@@ -1048,12 +1048,15 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
               onClick={() => {
                 setMainWorkspaceTab('plan');
                 planView?.setPlanTab('tasks');
+                planView?.setTasksViewMode('list');
                 planView?.setTaskSectionFilter('todo');
+                planView?.setFocusedReminderId(openTaskTarget.reminderId);
                 requestViewTask({
                   reminderId: openTaskTarget.reminderId,
                   entryId: entry.id,
                   dayId: entry.dayId
                 });
+                scrollToReminderRow(openTaskTarget.reminderId);
               }}
             >
               Open task
@@ -1078,6 +1081,26 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
               }}
             >
               Edit task
+            </button>
+            <button
+              type="button"
+              className={styles.addSubItemBtn}
+              onClick={() => {
+                setTaskEditOpen(false);
+                setTaskPromptOpen((v) => {
+                  const next = !v;
+                  if (!v) {
+                    setTaskDescription('');
+                    setTaskCategory(entry.category || 'Other');
+                    setTaskAssignee('');
+                    setTaskNoteDraft('');
+                    setTaskDueDate('');
+                  }
+                  return next;
+                });
+              }}
+            >
+              Create another task
             </button>
           </>
         ) : (
@@ -1157,7 +1180,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                   .update(openTaskTarget.reminderId, {
                     title: trimmed.startsWith('Task:') ? trimmed : `Task: ${trimmed}`,
                     reminderText: trimmed,
-                    taskNote: editTaskNote.trim() || undefined,
+                    taskNote: editTaskNote.trim(),
                     taskCategory: entry.category || taskCategory,
                     dueDate: editTaskDueDate ? `${editTaskDueDate}T00:00:00.000Z` : undefined
                   })

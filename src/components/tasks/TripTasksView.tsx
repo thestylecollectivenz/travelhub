@@ -8,7 +8,7 @@ import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
 import { TasksCalendarView, type CalendarEvent } from './TasksCalendarView';
 import type { CalendarRangeFilter } from '../../utils/tasksCalendarRange';
 import { TasksMonthCalendar } from './TasksMonthCalendar';
-import { TRAVELHUB_VIEW_TASK } from '../../utils/viewTaskFocus';
+import { TRAVELHUB_VIEW_TASK, scrollToReminderRow } from '../../utils/viewTaskFocus';
 import {
   dismissMissingAmountEntry,
   loadDismissedMissingAmountIds,
@@ -196,10 +196,9 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
       planView?.setTaskSectionFilter(
         manual.find((m) => m.id === id)?.reminderType === 'CancellationDeadline' ? 'cancellations' : 'todo'
       );
+      planView?.setTasksViewMode('list');
       setViewMode('list');
-      window.requestAnimationFrame(() => {
-        document.querySelector(`[data-reminder-id="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      });
+      scrollToReminderRow(id);
     };
     window.addEventListener(TRAVELHUB_VIEW_TASK, onView as EventListener);
     return () => window.removeEventListener(TRAVELHUB_VIEW_TASK, onView as EventListener);
@@ -242,6 +241,12 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
     if (filter === 'incomplete') rows = rows.filter((m) => !m.isComplete);
     return rows.filter(matchesReminderFilters);
   }, [manual, filter, matchesReminderFilters]);
+
+  React.useEffect(() => {
+    const id = planView?.focusedReminderId;
+    if (!id || viewMode !== 'list') return;
+    scrollToReminderRow(id);
+  }, [planView?.focusedReminderId, manualTodos, cancellationReminders, taskSectionFilter, viewMode]);
 
   const missingAmountEntries = React.useMemo(() => {
     return localEntries
@@ -362,7 +367,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
         .update(m.id, {
           title,
           reminderText: trimmed,
-          taskNote: editNote.trim() || undefined,
+          taskNote: editNote.trim(),
           assignedTo: editAssignedTo.trim() || undefined,
           dueDate: editDueDate ? `${editDueDate}T00:00:00.000Z` : undefined
         })
@@ -679,11 +684,9 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                       </>
                     ) : (
                       <>
-                        {!target ? (
-                          <button className={styles.button} type="button" onClick={() => startEditReminder(m)}>
-                            Edit
-                          </button>
-                        ) : null}
+                        <button className={styles.button} type="button" onClick={() => startEditReminder(m)}>
+                          Edit
+                        </button>
                         {target ? (
                           <button
                             className={styles.button}

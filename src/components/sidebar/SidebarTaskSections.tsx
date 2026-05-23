@@ -77,7 +77,7 @@ export const SidebarTaskSections: React.FC = () => {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
-        <span className={styles.dayListHeading}>Task sections</span>
+        <span className={styles.dayListHeading}>Task types</span>
         <span className={styles.sectionChevron} aria-hidden>
           {open ? '▾' : '▸'}
         </span>
@@ -90,7 +90,7 @@ export const SidebarTaskSections: React.FC = () => {
               className={`${styles.packingCatBtn} ${active === null ? styles.packingCatBtnActive : ''}`}
               onClick={() => planView.setTaskSectionFilter(null)}
             >
-              All sections
+              All types
             </button>
           </li>
           {rows.map((row) => (

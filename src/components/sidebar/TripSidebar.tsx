@@ -241,9 +241,9 @@ export const TripSidebar: React.FC = () => {
         ) : mainWorkspaceTab === 'plan' &&
           (planView?.planTab === 'tasks' || planView?.planTab === 'missing_costs') ? (
           <>
-            <SidebarTaskSections />
             <SidebarCollapsibleFilters title="Assigned to">
               <SidebarTaskAssignees hideHeading />
+              <SidebarTaskSections />
             </SidebarCollapsibleFilters>
             <SidebarCollapsibleFilters title="Filter by category">
               <SidebarTaskCategories hideHeading />

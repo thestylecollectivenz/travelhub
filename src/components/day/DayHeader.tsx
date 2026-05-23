@@ -199,7 +199,8 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
           : styles.badgePlacePort;
 
   return (
-    <header className={styles.bar}>
+    <header className={`${styles.bar} ${stickyTitleOnly ? styles.barLocationsOnly : ''}`}>
+      {stickyTitleOnly ? null : (
       <div className={styles.titleBlock}>
         <div className={styles.line1}>
           <span className={styles.dayNumber}>Day {day.dayNumber}</span>
@@ -263,6 +264,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
           {day.dayType === 'PreTrip' ? 'Before trip starts' : formatDayDate(day.calendarDate)}
         </div>
       </div>
+      )}
       <section className={styles.locationsColumn}>
         <div className={styles.locationsTile}>
           <CollapsibleSummaryBar
@@ -459,6 +461,13 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
                       </div>
                     ) : null}
                   </div>
+                  <button
+                    type="button"
+                    className={`${styles.locationInfoLink} ${isInfoTarget ? styles.locationInfoLinkActive : ''}`}
+                    onClick={() => setActivePlaceInfoId(row.place.id)}
+                  >
+                    Place info
+                  </button>
                   <a
                     className={styles.locationRowMapLink}
                     href={`https://www.google.com/maps/@${row.place.latitude},${row.place.longitude},10z`}

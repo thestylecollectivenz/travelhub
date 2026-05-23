@@ -5,6 +5,10 @@
   align-items: start;
 }
 
+.barLocationsOnly {
+  margin-bottom: var(--space-3);
+}
+
 .titleBlock {
   grid-column: 1 / -1;
   display: flex;
@@ -383,7 +387,14 @@
 }
 
 .locationInfoLink {
-  display: none;
+  border: none;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .locationRowMapLink {

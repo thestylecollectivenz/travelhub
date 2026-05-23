@@ -143,33 +143,58 @@ export const PackingListView: React.FC = () => {
               <strong>{tpl.templateName}</strong>
               <span className={styles.muted}>{tpl.items.length} items</span>
               <button className={styles.button} type="button" onClick={() => {
-                if (!trip?.id) return;
-                const traveller = activeTraveller || travellers[0] || 'Traveller 1';
-                const existingKeys = new Set(
-                  items
-                    .filter((i) => (i.traveller || travellers[0]) === traveller)
-                    .map((i) => `${i.category}|${i.itemName.trim().toLowerCase()}`)
-                );
-                const toCreate = tpl.items.filter(
-                  (item) => !existingKeys.has(`${item.category}|${(item.itemName || '').trim().toLowerCase()}`)
-                );
-                if (!toCreate.length) return;
-                planView?.setPackingCategory('__all__');
-                service
-                  .bulkCreate(
-                    toCreate.map((item) => ({
-                      tripId: trip.id,
-                      category: item.category,
-                      itemName: item.itemName,
-                      quantity: item.quantity,
-                      traveller,
-                      isPacked: false,
-                      isTemplate: false,
-                      templateId: ''
-                    }))
-                  )
-                  .then(refresh)
-                  .catch(console.error);
+                void (async () => {
+                  if (!trip?.id) return;
+                  const traveller = activeTraveller || travellers[0] || 'Traveller 1';
+                  const travellerItems = items.filter((i) => (i.traveller || travellers[0]) === traveller);
+                  const existingKeys = new Set(
+                    travellerItems.map((i) => `${i.category}|${i.itemName.trim().toLowerCase()}`)
+                  );
+                  const toCreate = tpl.items.filter(
+                    (item) => !existingKeys.has(`${item.category}|${(item.itemName || '').trim().toLowerCase()}`)
+                  );
+
+                  let replaceAll = false;
+                  if (travellerItems.length > 0) {
+                    replaceAll = await confirmUserAction(
+                      `Load template “${tpl.templateName}”?`,
+                      'Confirm to replace all existing packing items for this traveller with the template. Cancel to add only items that are not already on the list.'
+                    );
+                  }
+
+                  planView?.setPackingCategory('__all__');
+
+                  if (replaceAll) {
+                    await Promise.all(travellerItems.map((i) => service.delete(i.id)));
+                    await service.bulkCreate(
+                      tpl.items.map((item) => ({
+                        tripId: trip.id,
+                        category: item.category,
+                        itemName: item.itemName,
+                        quantity: item.quantity,
+                        traveller,
+                        isPacked: false,
+                        isTemplate: false,
+                        templateId: ''
+                      }))
+                    );
+                  } else {
+                    if (!toCreate.length) return;
+                    await service.bulkCreate(
+                      toCreate.map((item) => ({
+                        tripId: trip.id,
+                        category: item.category,
+                        itemName: item.itemName,
+                        quantity: item.quantity,
+                        traveller,
+                        isPacked: false,
+                        isTemplate: false,
+                        templateId: ''
+                      }))
+                    );
+                  }
+                  refresh();
+                })().catch(console.error);
               }}>Load</button>
             </div>
           ))}
@@ -187,6 +212,20 @@ export const PackingListView: React.FC = () => {
               onChange={(e) => service.update(item.id, { isPacked: e.target.checked }).then(refresh).catch(console.error)}
             />
             <span className={styles.itemName}>{item.itemName}</span>
+            <select
+              className={styles.select}
+              aria-label="Category"
+              value={CATEGORIES.indexOf(item.category) >= 0 ? item.category : 'Other'}
+              onChange={(e) => {
+                void service.update(item.id, { category: e.target.value }).then(refresh).catch(console.error);
+              }}
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
             <input
               className={styles.qtyInput}
               type="number"

@@ -63,7 +63,7 @@ export const DayPanel: React.FC<DayPanelProps> = ({ hideHeader = false }) => {
 
   return (
     <div className={styles.root}>
-      {hideHeader ? null : <DayHeader day={day} />}
+      {hideHeader ? <DayHeader day={day} stickyTitleOnly /> : <DayHeader day={day} />}
       <div id="day-breakdown-tile">
         <BudgetBreakdownTile
           tripId={trip.id}
