@@ -1,0 +1,32 @@
+---
+description: Mobile UI (P7-14) is parked — do not modify or commit until restarted
+globs:
+  - "src/components/itinerary/ItineraryDayPlannerView.tsx"
+  - "src/components/itinerary/ItineraryDayPlannerView.module.css"
+  - "src/_parked/mobile/**"
+alwaysApply: false
+---
+
+# Mobile UI — PARKED (P7-14 / ES3-13)
+
+Mobile phone layout work is **intentionally paused**. Do not implement, refactor, or commit changes to mobile-specific code unless the user explicitly asks to restart the mobile sprint.
+
+## What is parked
+
+- `ItineraryDayPlannerView.tsx` — `isMobile`, `matchMedia('(max-width: 640px)')`, `mobileNav`, `mobileDayStack`, `mobileTrackRow`
+- `ItineraryDayPlannerView.module.css` — `.mobileNav`, `.mobileDayStack`, `.mobileTrackRow`
+- Any new mobile shell, hooks, or cut-down layouts
+
+## Where future mobile work should go
+
+When mobile restarts, prefer new files under `src/_parked/mobile/` (gitignored) or a dedicated branch — not ad-hoc edits scattered in desktop components until the shell design is agreed.
+
+## Still allowed without mobile sprint
+
+- Desktop and iPad behaviour (full UI per functional spec §31.2)
+- Unrelated bug fixes in shared components if they do not change mobile breakpoints or `isMobile` branches
+- CSS `@media` tweaks in journal/shared summary only if required for a desktop bug — flag to user if touch mobile layout
+
+## Spec reference
+
+`docs/extended-scope-3.md` ES3-13, task P7-14.

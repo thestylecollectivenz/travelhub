@@ -27,6 +27,9 @@ coverage
 # OSX
 .DS_Store
 
+# Parked mobile UI (P7-14) — experiments here are never committed until sprint restarts
+src/_parked/
+
 # Local licence file (do not commit)
 licence.txt
 
