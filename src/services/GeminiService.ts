@@ -7,7 +7,33 @@
 
 import type { LocationInfoAIResult } from '../utils/locationInfoEntry';
 
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash';
+/**
+ * Models to try in order (free tier). Avoid gemini-2.0-flash — often 0 RPM/RPD on new projects.
+ * Match IDs to AI Studio → Rate limits for your project.
+ */
+export const GEMINI_MODEL_FALLBACK_CHAIN = [
+  'gemini-3.1-flash-lite',
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-flash'
+] as const;
+
+export const DEFAULT_GEMINI_MODEL: (typeof GEMINI_MODEL_FALLBACK_CHAIN)[number] = GEMINI_MODEL_FALLBACK_CHAIN[0];
+
+export interface LocationInfoGenerationResponse {
+  result: LocationInfoAIResult;
+  model: string;
+}
+
+function isQuotaOrModelBlockedError(err: GeminiServiceError): boolean {
+  if (err.status === 429) return true;
+  const m = err.message.toLowerCase();
+  return (
+    m.includes('quota') ||
+    m.includes('resource_exhausted') ||
+    m.includes('free_tier') ||
+    m.includes('limit: 0')
+  );
+}
 
 export type GeminiErrorCode = 'NO_KEY' | 'API_ERROR' | 'PARSE_ERROR' | 'INVALID_RESPONSE';
 
@@ -111,59 +137,89 @@ function validateAIResult(parsed: unknown): LocationInfoAIResult {
   };
 }
 
+async function generateLocationInfoWithModel(
+  placeName: string,
+  country: string,
+  apiKey: string,
+  model: string
+): Promise<LocationInfoAIResult> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: buildPrompt(placeName, country) }] }],
+      generationConfig: {
+        temperature: 0.4,
+        maxOutputTokens: 800
+      }
+    })
+  });
+
+  if (!resp.ok) {
+    let message = `Gemini API returned ${resp.status}`;
+    try {
+      const errBody = (await resp.json()) as { error?: { message?: string } };
+      if (errBody.error?.message) message = errBody.error.message;
+    } catch {
+      /* ignore */
+    }
+    throw new GeminiServiceError('API_ERROR', message, resp.status);
+  }
+
+  const data = await resp.json();
+  const text = stripJsonFences(extractResponseText(data));
+  if (!text) {
+    throw new GeminiServiceError('PARSE_ERROR', 'Gemini returned an empty response.');
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new GeminiServiceError('PARSE_ERROR', 'Could not parse Gemini response as JSON.');
+  }
+
+  return validateAIResult(parsed);
+}
+
 export async function generateLocationInfo(
   placeName: string,
   country: string,
   options: GeminiServiceOptions
-): Promise<LocationInfoAIResult> {
+): Promise<LocationInfoGenerationResponse> {
   const apiKey = (options.apiKey || '').trim();
   if (!apiKey) {
     throw new GeminiServiceError('NO_KEY', 'Gemini API key is not set.');
   }
 
-  const model = options.model || DEFAULT_GEMINI_MODEL;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const models: string[] = options.model
+    ? [options.model, ...GEMINI_MODEL_FALLBACK_CHAIN.filter((m) => m !== options.model)]
+    : [...GEMINI_MODEL_FALLBACK_CHAIN];
 
-  try {
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: buildPrompt(placeName, country) }] }],
-        generationConfig: {
-          temperature: 0.4,
-          maxOutputTokens: 800
-        }
-      })
-    });
-
-    if (!resp.ok) {
-      let message = `Gemini API returned ${resp.status}`;
-      try {
-        const errBody = (await resp.json()) as { error?: { message?: string } };
-        if (errBody.error?.message) message = errBody.error.message;
-      } catch {
-        /* ignore */
-      }
-      throw new GeminiServiceError('API_ERROR', message, resp.status);
-    }
-
-    const data = await resp.json();
-    const text = stripJsonFences(extractResponseText(data));
-    if (!text) {
-      throw new GeminiServiceError('PARSE_ERROR', 'Gemini returned an empty response.');
-    }
-
-    let parsed: unknown;
+  let lastErr: GeminiServiceError | undefined;
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
     try {
-      parsed = JSON.parse(text);
-    } catch {
-      throw new GeminiServiceError('PARSE_ERROR', 'Could not parse Gemini response as JSON.');
+      const result = await generateLocationInfoWithModel(placeName, country, apiKey, model);
+      return { result, model };
+    } catch (err) {
+      if (!(err instanceof GeminiServiceError)) {
+        throw new GeminiServiceError('API_ERROR', err instanceof Error ? err.message : 'Gemini request failed.');
+      }
+      lastErr = err;
+      if (err.code === 'PARSE_ERROR' || err.code === 'INVALID_RESPONSE' || err.code === 'NO_KEY') {
+        throw err;
+      }
+      const hasAnother = i < models.length - 1;
+      if (hasAnother && isQuotaOrModelBlockedError(err)) {
+        // eslint-disable-next-line no-console
+        console.warn(`GeminiService: ${model} unavailable (${err.status ?? err.message}), trying next model.`);
+        continue;
+      }
+      throw err;
     }
-
-    return validateAIResult(parsed);
-  } catch (err) {
-    if (err instanceof GeminiServiceError) throw err;
-    throw new GeminiServiceError('API_ERROR', err instanceof Error ? err.message : 'Gemini request failed.');
   }
+  throw lastErr ?? new GeminiServiceError('API_ERROR', 'No Gemini models available.');
 }

@@ -105,7 +105,7 @@ export function mergeAIResult(
   existing: LocationInfoNotes,
   result: LocationInfoAIResult,
   section?: LocationInfoMergeSection,
-  model = 'gemini-2.0-flash'
+  model = 'gemini-3.1-flash-lite'
 ): LocationInfoNotes {
   const base = normalizeLocationInfoNotes(existing);
   let next: LocationInfoNotes = { ...base };

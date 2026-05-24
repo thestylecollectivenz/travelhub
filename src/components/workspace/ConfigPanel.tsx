@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useConfig } from '../../context/ConfigContext';
 import type { UserConfig } from '../../services/ConfigService';
+import { DEFAULT_GEMINI_MODEL } from '../../services/GeminiService';
 import { CurrencySelect } from '../shared/CurrencySelect';
 import { SecretApiKeyField } from '../shared/SecretApiKeyField';
 
@@ -150,7 +151,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
             value={geminiKeyDraft}
             onChange={setGeminiKeyDraft}
             placeholder="Paste a new Google AI Studio API key"
-            hint="Free tier available with daily limits per Google account/project (see Rate limits in AI Studio). Saved keys are masked here."
+            hint={`Uses ${DEFAULT_GEMINI_MODEL} first (check RPM/RPD in AI Studio), then 2.5 Flash Lite / 2.5 Flash if quota blocked. Avoid models showing 0 limits. Saved keys are masked here.`}
           />
 
           <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>

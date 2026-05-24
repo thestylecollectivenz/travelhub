@@ -3,7 +3,7 @@ import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { Place } from '../models/Place';
 import { ItineraryService } from '../services/ItineraryService';
 import { formatGeminiUserMessage } from '../services/geminiErrorMessage';
-import { DEFAULT_GEMINI_MODEL, generateLocationInfo } from '../services/GeminiService';
+import { generateLocationInfo } from '../services/GeminiService';
 import { emitLocationInfoAIStatus } from './locationInfoAIEvents';
 import {
   type LocationInfoMergeSection,
@@ -25,8 +25,8 @@ export async function applyLocationInfoAIResult(options: {
 }): Promise<LocationInfoNotes> {
   const { spContext, entry, existing, apiKey, place, section } = options;
   const { placeName, country } = placeNameAndCountry(place);
-  const result = await generateLocationInfo(placeName, country, { apiKey });
-  const merged = mergeAIResult(existing, result, section, DEFAULT_GEMINI_MODEL);
+  const { result, model } = await generateLocationInfo(placeName, country, { apiKey });
+  const merged = mergeAIResult(existing, result, section, model);
   const svc = new ItineraryService(spContext);
   await svc.update(entry.id, { notes: serializeLocationInfoNotes(merged) });
   return merged;
