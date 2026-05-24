@@ -79,6 +79,50 @@ const SELECT_PHASE7 = [
 const SELECT = [...SELECT_BASE, ...SELECT_PHASE7].join(',');
 const SELECT_FALLBACK = SELECT_BASE.join(',');
 
+/** SharePoint internal names for Phase 7 columns — omitted on 400 create/update fallback. */
+const SP_PHASE7_FIELD_KEYS = new Set([
+  'BookingReference',
+  'RoomType',
+  'AccCheckInTime',
+  'AccCheckOutTime',
+  'StreetAddress',
+  'FlightNumbers',
+  'CheckInClosesTime',
+  'BagCheckClosesTime',
+  'PhoneNumber',
+  'BookingMechanism',
+  'CabinClass',
+  'JourneyType',
+  'ReturnDate',
+  'ReturnTime',
+  'PerksIncluded',
+  'CancellationPolicy',
+  'CancellationDeadline',
+  'BookingDueDate',
+  'PaymentDueDate',
+  'CruiseReference',
+  'CruiseLineName',
+  'ShipName',
+  'CabinTypeAndNumber',
+  'PackageName',
+  'PackageInclusions',
+  'TransportFrom',
+  'TransportTo',
+  'TransportMode'
+]);
+
+function stripPhase7SpFields(item: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...item };
+  SP_PHASE7_FIELD_KEYS.forEach((key) => {
+    delete out[key];
+  });
+  return out;
+}
+
+function httpStatus(err: unknown): number | undefined {
+  return (err as Error & { status?: number }).status;
+}
+
 function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n);
 }
@@ -448,24 +492,67 @@ export class ItineraryService {
     }
   }
 
+  private async postItem(item: Record<string, unknown>): Promise<ItineraryEntry> {
+    const resp: SPHttpClientResponse = await this.ctx.spHttpClient.post(
+      this.baseUrl,
+      SPHttpClient.configurations.v1,
+      {
+        headers: {
+          'Content-Type': 'application/json;odata.metadata=minimal',
+          Accept: 'application/json;odata.metadata=minimal'
+        },
+        body: JSON.stringify(item)
+      }
+    );
+    if (!resp.ok) {
+      const body = await resp.text();
+      const err = new Error(`ItineraryService.create failed: ${resp.status} ${body.slice(0, 400)}`);
+      (err as Error & { status?: number }).status = resp.status;
+      throw err;
+    }
+    const data = await resp.json();
+    return { ...mapToEntry(data), subItems: [] };
+  }
+
+  private async patchItem(id: string, item: Record<string, unknown>): Promise<void> {
+    const url = `${this.baseUrl}(${id})`;
+    const resp: SPHttpClientResponse = await this.ctx.spHttpClient.fetch(url, SPHttpClient.configurations.v1, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json;odata.metadata=minimal',
+        Accept: 'application/json;odata.metadata=minimal',
+        'IF-MATCH': '*',
+        'X-HTTP-Method': 'MERGE'
+      },
+      body: JSON.stringify(item)
+    });
+    if (!resp.ok && resp.status !== 204) {
+      const body = await resp.text();
+      const err = new Error(`ItineraryService.update failed: ${resp.status} ${body.slice(0, 400)}`);
+      (err as Error & { status?: number }).status = resp.status;
+      throw err;
+    }
+  }
+
   async create(entry: Omit<ItineraryEntry, 'id' | 'subItems'>): Promise<ItineraryEntry> {
-    const body = JSON.stringify(mapToSpItem(entry));
+    const item = mapToSpItem(entry);
     try {
-      const resp: SPHttpClientResponse = await this.ctx.spHttpClient.post(
-        this.baseUrl,
-        SPHttpClient.configurations.v1,
-        {
-          headers: {
-            'Content-Type': 'application/json;odata.metadata=minimal',
-            Accept: 'application/json;odata.metadata=minimal'
-          },
-          body
-        }
-      );
-      if (!resp.ok) throw new Error(`ItineraryService.create failed: ${resp.status}`);
-      const data = await resp.json();
-      return { ...mapToEntry(data), subItems: [] };
+      return await this.postItem(item);
     } catch (err) {
+      if (httpStatus(err) === 400) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          'ItineraryService.create: request failed (likely missing Phase 7 columns). Retrying without extended fields.',
+          err
+        );
+        try {
+          return await this.postItem(stripPhase7SpFields(item));
+        } catch (err2) {
+          // eslint-disable-next-line no-console
+          console.error('ItineraryService.create fallback failed', err2);
+          throw err2;
+        }
+      }
       // eslint-disable-next-line no-console
       console.error('ItineraryService.create', err);
       throw err;
@@ -473,21 +560,25 @@ export class ItineraryService {
   }
 
   async update(id: string, entry: Partial<ItineraryEntry>): Promise<void> {
-    const url = `${this.baseUrl}(${id})`;
-    const body = JSON.stringify(mapToSpItem(entry));
+    const item = mapToSpItem(entry);
     try {
-      const resp: SPHttpClientResponse = await this.ctx.spHttpClient.fetch(url, SPHttpClient.configurations.v1, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json;odata.metadata=minimal',
-          Accept: 'application/json;odata.metadata=minimal',
-          'IF-MATCH': '*',
-          'X-HTTP-Method': 'MERGE'
-        },
-        body
-      });
-      if (!resp.ok && resp.status !== 204) throw new Error(`ItineraryService.update failed: ${resp.status}`);
+      await this.patchItem(id, item);
     } catch (err) {
+      if (httpStatus(err) === 400) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          'ItineraryService.update: request failed (likely missing Phase 7 columns). Retrying without extended fields.',
+          err
+        );
+        try {
+          await this.patchItem(id, stripPhase7SpFields(item));
+          return;
+        } catch (err2) {
+          // eslint-disable-next-line no-console
+          console.error('ItineraryService.update fallback failed', err2);
+          throw err2;
+        }
+      }
       // eslint-disable-next-line no-console
       console.error('ItineraryService.update', err);
       throw err;

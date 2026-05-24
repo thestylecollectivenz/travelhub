@@ -27,6 +27,33 @@ function newTempId(): string {
   return `temp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function isPendingItineraryEntryId(id: string): boolean {
+  return id.startsWith('new-') || id.startsWith('temp-');
+}
+
+function sortItineraryEntries(entries: ItineraryEntry[]): ItineraryEntry[] {
+  return [...entries].sort((a, b) => {
+    if (a.dayId !== b.dayId) return a.dayId.localeCompare(b.dayId, undefined, { numeric: true });
+    return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+  });
+}
+
+/** Keep in-flight creates/duplicates when reloading from SharePoint after background updates. */
+function mergeLoadedItineraryEntries(loaded: ItineraryEntry[], previous: ItineraryEntry[]): ItineraryEntry[] {
+  const pending = previous.filter((e) => isPendingItineraryEntryId(e.id));
+  if (pending.length === 0) {
+    return loaded;
+  }
+  const merged = [...loaded];
+  for (let i = 0; i < pending.length; i++) {
+    const p = pending[i];
+    if (!merged.some((e) => e.id === p.id)) {
+      merged.push(p);
+    }
+  }
+  return sortItineraryEntries(merged);
+}
+
 export interface TripWorkspaceContextValue {
   trip: Trip | null;
   tripDays: TripDay[];
@@ -229,19 +256,32 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
     if (!tripId) return;
     const entrySvc = new ItineraryService(spContext);
     const loaded = await entrySvc.getAll(tripId);
-    setLocalEntries(loaded);
+    setLocalEntries((prev) => mergeLoadedItineraryEntries(loaded, prev));
   }, [tripId, spContext]);
+
+  const reloadItineraryTimerRef = React.useRef<number | undefined>(undefined);
 
   React.useEffect(() => {
     const onItineraryUpdated = (): void => {
-      void reloadItineraryEntries();
+      if (reloadItineraryTimerRef.current !== undefined) {
+        window.clearTimeout(reloadItineraryTimerRef.current);
+      }
+      reloadItineraryTimerRef.current = window.setTimeout(() => {
+        reloadItineraryTimerRef.current = undefined;
+        void reloadItineraryEntries();
+      }, 400);
     };
     window.addEventListener('trip-itinerary-updated', onItineraryUpdated);
-    return () => window.removeEventListener('trip-itinerary-updated', onItineraryUpdated);
+    return () => {
+      window.removeEventListener('trip-itinerary-updated', onItineraryUpdated);
+      if (reloadItineraryTimerRef.current !== undefined) {
+        window.clearTimeout(reloadItineraryTimerRef.current);
+      }
+    };
   }, [reloadItineraryEntries]);
 
   const updateEntry = React.useCallback((updated: ItineraryEntry) => {
-    const isNew = updated.id.startsWith('new-') || updated.id.startsWith('temp-');
+    const isNew = isPendingItineraryEntryId(updated.id);
 
     if (isNew) {
       // Optimistically add with temp ID

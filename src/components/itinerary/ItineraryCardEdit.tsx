@@ -36,8 +36,15 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   const { placeById } = usePlaces();
   const { config } = useConfig();
   const [draft, setDraft] = React.useState<ItineraryEntry>(() => ({ ...entry }));
+  const notesTouchedRef = React.useRef(false);
 
   React.useEffect(() => {
+    notesTouchedRef.current = false;
+    setDraft({ ...entry });
+  }, [entry.id]);
+
+  React.useEffect(() => {
+    if (notesTouchedRef.current) return;
     setDraft((prev) => (prev.id === entry.id ? { ...prev, notes: entry.notes } : prev));
   }, [entry.id, entry.notes]);
 
@@ -45,6 +52,9 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   const arrivalTimeValue = formatTimeHHMM(draft.arrivalTime ?? '');
 
   const patch = React.useCallback((partial: Partial<ItineraryEntry>) => {
+    if (partial.notes !== undefined) {
+      notesTouchedRef.current = true;
+    }
     setDraft((d) => ({ ...d, ...partial }));
   }, []);
   const isAccommodation = draft.category === 'Accommodation';
