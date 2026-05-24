@@ -341,7 +341,7 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
             </div>
           </>
         ) : (
-          <div className={styles.infoSub}>Set Visual Crossing API key in Settings</div>
+          <div className={styles.infoSub}>Set Visual Crossing API key in User settings (My Trips)</div>
         )}
       </div>
       <div className={styles.infoTile}>

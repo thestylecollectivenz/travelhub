@@ -2,7 +2,8 @@ import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { Place } from '../models/Place';
 import { ItineraryService } from '../services/ItineraryService';
-import { DEFAULT_GEMINI_MODEL, GeminiServiceError, generateLocationInfo } from '../services/GeminiService';
+import { formatGeminiUserMessage } from '../services/geminiErrorMessage';
+import { DEFAULT_GEMINI_MODEL, generateLocationInfo } from '../services/GeminiService';
 import { emitLocationInfoAIStatus } from './locationInfoAIEvents';
 import {
   type LocationInfoMergeSection,
@@ -65,12 +66,7 @@ export function scheduleLocationInfoAIGeneration(options: {
       if (onComplete) onComplete();
       window.dispatchEvent(new Event('trip-itinerary-updated'));
     } catch (err) {
-      const message =
-        err instanceof GeminiServiceError
-          ? err.message
-          : err instanceof Error
-            ? err.message
-            : 'Generation failed';
+      const message = formatGeminiUserMessage(err);
       const svc = new ItineraryService(spContext);
       try {
         await svc.update(entry.id, {

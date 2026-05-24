@@ -62,6 +62,7 @@ function addResilientTileLayer(map: L.Map): void {
 export interface ITripBrowserProps {
   onSelectTrip: (tripId: string) => void;
   onCreateTrip: () => void;
+  onOpenSettings: () => void;
 }
 
 type MapTripFilter = 'completed' | 'upcoming';
@@ -70,7 +71,7 @@ function tripEndYmd(trip: Trip): string {
   return (trip.dateEnd || '').slice(0, 10);
 }
 
-export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreateTrip }) => {
+export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreateTrip, onOpenSettings }) => {
   const spContext = useSpContext();
   const [trips, setTrips] = React.useState<Trip[]>([]);
   const [mapTripFilter, setMapTripFilter] = React.useState<MapTripFilter>('upcoming');
@@ -453,9 +454,14 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
     <div style={pageStyle}>
       <div style={headerRowStyle}>
         <h1 style={titleStyle}>My Trips</h1>
-        <button type="button" style={secondaryButtonStyle} onClick={onCreateTrip}>
-          Add Trip
-        </button>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', alignItems: 'center' }}>
+          <button type="button" style={secondaryButtonStyle} onClick={onOpenSettings} aria-label="Open user settings">
+            <span aria-hidden>⚙</span> User settings
+          </button>
+          <button type="button" style={secondaryButtonStyle} onClick={onCreateTrip}>
+            Add Trip
+          </button>
+        </div>
       </div>
 
       {loading && <div style={feedbackStyle}>Loading trips…</div>}

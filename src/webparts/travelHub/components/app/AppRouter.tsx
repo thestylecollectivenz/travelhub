@@ -2,6 +2,7 @@ import * as React from 'react';
 import { TripBrowser } from '../multiTrip/TripBrowser';
 import { CreateTripPanel } from '../multiTrip/CreateTripPanel';
 import { TripWorkspace } from '../../../../components/workspace/TripWorkspace';
+import { ConfigPanel } from '../../../../components/workspace/ConfigPanel';
 import { TermsAndConditions } from './TermsAndConditions';
 import { AppFooter } from './AppFooter';
 
@@ -10,6 +11,13 @@ type AppView = 'multiTrip' | 'singleTrip' | 'createTrip' | 'terms';
 export const AppRouter: React.FC = () => {
   const [view, setView] = React.useState<AppView>('multiTrip');
   const [selectedTripId, setSelectedTripId] = React.useState<string>('');
+  const [configOpen, setConfigOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const openSettings = (): void => setConfigOpen(true);
+    window.addEventListener('travelhub-open-settings', openSettings);
+    return () => window.removeEventListener('travelhub-open-settings', openSettings);
+  }, []);
 
   const goToTrip = (id: string): void => {
     setSelectedTripId(id);
@@ -32,6 +40,7 @@ export const AppRouter: React.FC = () => {
       <TripBrowser
         onSelectTrip={goToTrip}
         onCreateTrip={() => setView('createTrip')}
+        onOpenSettings={() => setConfigOpen(true)}
       />
     );
   }
@@ -39,6 +48,7 @@ export const AppRouter: React.FC = () => {
   return (
     <>
       {content}
+      <ConfigPanel isOpen={configOpen} onClose={() => setConfigOpen(false)} />
       <AppFooter onOpenTerms={() => setView('terms')} />
       {view === 'createTrip' ? (
         <CreateTripPanel

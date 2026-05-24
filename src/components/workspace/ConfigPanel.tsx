@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useConfig } from '../../context/ConfigContext';
 import type { UserConfig } from '../../services/ConfigService';
 import { CurrencySelect } from '../shared/CurrencySelect';
+import { SecretApiKeyField } from '../shared/SecretApiKeyField';
 
 export interface ConfigPanelProps {
   isOpen: boolean;
@@ -11,11 +12,17 @@ export interface ConfigPanelProps {
 export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => {
   const { config, saveConfig } = useConfig();
   const [draft, setDraft] = React.useState<UserConfig>(config);
-  const [showGeminiKey, setShowGeminiKey] = React.useState(false);
+  const [weatherKeyDraft, setWeatherKeyDraft] = React.useState('');
+  const [geminiKeyDraft, setGeminiKeyDraft] = React.useState('');
+
+  const hasWeatherKey = Boolean((config.weatherApiKey || '').trim());
+  const hasGeminiKey = Boolean((config.geminiApiKey || '').trim());
 
   React.useEffect(() => {
     if (isOpen) {
       setDraft(config);
+      setWeatherKeyDraft('');
+      setGeminiKeyDraft('');
     }
   }, [isOpen, config]);
 
@@ -48,7 +55,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
           flexDirection: 'column',
           overflowY: 'auto'
         }}
-        aria-label="Settings"
+        aria-label="User settings"
       >
         <div
           style={{
@@ -59,7 +66,12 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
             justifyContent: 'space-between'
           }}
         >
-          <h2 style={{ margin: 0, color: 'var(--color-blue-800)', fontSize: 'var(--font-size-lg)' }}>Settings</h2>
+          <div>
+            <h2 style={{ margin: 0, color: 'var(--color-blue-800)', fontSize: 'var(--font-size-lg)' }}>User settings</h2>
+            <p style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--font-size-xs)', color: 'var(--color-sand-600)' }}>
+              Applies to all trips on this account
+            </p>
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -121,54 +133,25 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
             />
           </label>
 
-          <label style={{ display: 'grid', gap: 'var(--space-1)' }}>
-            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-800)' }}>Weather API key</span>
-            <input
-              type="text"
-              value={draft.weatherApiKey}
-              onChange={(e) => setDraft((d) => ({ ...d, weatherApiKey: e.target.value }))}
-              placeholder="Visual Crossing API key (optional)"
-              style={{ border: 'var(--border-default)', borderRadius: 'var(--radius-md)', padding: 'var(--space-2)' }}
-            />
-            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-sand-600)' }}>
-              Add your free Visual Crossing API key from visualcrossing.com to enable weather.
-            </span>
-          </label>
+          <SecretApiKeyField
+            label="Weather API key"
+            panelOpen={isOpen}
+            hasSavedKey={hasWeatherKey}
+            value={weatherKeyDraft}
+            onChange={setWeatherKeyDraft}
+            placeholder="Paste a new Visual Crossing API key"
+            hint="Free key from visualcrossing.com. Saved keys are masked and cannot be copied from this screen."
+          />
 
-          <label style={{ display: 'grid', gap: 'var(--space-1)' }}>
-            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-800)' }}>Gemini API key</span>
-            <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-              <input
-                type={showGeminiKey ? 'text' : 'password'}
-                value={draft.geminiApiKey}
-                onChange={(e) => setDraft((d) => ({ ...d, geminiApiKey: e.target.value }))}
-                placeholder="Google AI Studio API key (optional)"
-                style={{
-                  flex: 1,
-                  border: 'var(--border-default)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: 'var(--space-2)'
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowGeminiKey((v) => !v)}
-                style={{
-                  border: 'var(--border-default)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: 'var(--space-2)',
-                  background: 'var(--color-surface)',
-                  cursor: 'pointer',
-                  fontSize: 'var(--font-size-xs)'
-                }}
-              >
-                {showGeminiKey ? 'Hide' : 'Show'}
-              </button>
-            </div>
-            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-sand-600)' }}>
-              Required for AI-generated place highlights. Get a free key at aistudio.google.com
-            </span>
-          </label>
+          <SecretApiKeyField
+            label="Gemini API key"
+            panelOpen={isOpen}
+            hasSavedKey={hasGeminiKey}
+            value={geminiKeyDraft}
+            onChange={setGeminiKeyDraft}
+            placeholder="Paste a new Google AI Studio API key"
+            hint="Free tier available with daily limits per Google account/project (see Rate limits in AI Studio). Saved keys are masked here."
+          />
 
           <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <input
@@ -218,10 +201,12 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
           <button
             type="button"
             onClick={() => {
+              const weatherTrim = weatherKeyDraft.trim();
+              const geminiTrim = geminiKeyDraft.trim();
               saveConfig({
                 ...draft,
-                geminiApiKey: draft.geminiApiKey.trim(),
-                weatherApiKey: draft.weatherApiKey.trim()
+                weatherApiKey: weatherTrim || config.weatherApiKey,
+                geminiApiKey: geminiTrim || config.geminiApiKey
               }).catch(console.error);
               onClose();
             }}

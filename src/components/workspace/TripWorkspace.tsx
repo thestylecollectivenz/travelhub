@@ -11,7 +11,6 @@ import { RouteStrip } from '../maps/RouteStrip';
 import { TripStatsStrip } from './TripStatsStrip';
 import { TripContent } from './TripContent';
 import { SharedTripView } from './SharedTripView';
-import { ConfigPanel } from './ConfigPanel';
 import { EditTripPanel } from './EditTripPanel';
 import { TripDateRangeReassignDialog } from './TripDateRangeReassignDialog';
 import { ErrorBoundary } from '../shared/ErrorBoundary';
@@ -58,13 +57,6 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
   const { config } = useConfig();
   const { allEntries: journalEntries, allTripPhotos, commentsForEntry, reassignDayContent } = useJournal();
   const { documents, links, setHighlightedDocumentId, setHighlightedLinkId } = useAttachments();
-  const [configOpen, setConfigOpen] = React.useState(false);
-
-  React.useEffect(() => {
-    const openSettings = (): void => setConfigOpen(true);
-    window.addEventListener('travelhub-open-settings', openSettings);
-    return () => window.removeEventListener('travelhub-open-settings', openSettings);
-  }, []);
   const [editOpen, setEditOpen] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [searchOpen, setSearchOpen] = React.useState(false);
@@ -472,15 +464,6 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
               <button
                 type="button"
                 className={styles.settingsButton}
-                onClick={() => setConfigOpen(true)}
-                aria-label="Open settings"
-                disabled={deletingTrip}
-              >
-                <span aria-hidden>⚙</span> Settings
-              </button>
-              <button
-                type="button"
-                className={styles.settingsButton}
                 onClick={() => setExportOpen((v) => !v)}
                 disabled={deletingTrip}
               >
@@ -606,7 +589,6 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
           </div>
         </div>
       ) : null}
-      <ConfigPanel isOpen={configOpen} onClose={() => setConfigOpen(false)} />
       <EditTripPanel trip={trip} isOpen={editOpen} onClose={() => setEditOpen(false)} onSave={handleTripDetailsSave} />
       {dateReassignState && trip ? (
         <TripDateRangeReassignDialog
