@@ -3,29 +3,29 @@ import type { Place } from '../../models/Place';
 import { useConfig } from '../../context/ConfigContext';
 import { COUNTRY_DATA } from '../../data/countryData';
 import { SEASONAL_BY_REGION } from '../../data/seasonalWeather';
-import { forecastDayLabel } from '../../utils/consecutivePlaceDays';
 import { placeDisplayLabel } from '../../utils/placeDisplayLabel';
+import { forecastDayLabelFromToday, todayYmd } from '../../utils/placeForecastDates';
 import styles from './DayHeader.module.css';
 
-function WeatherIcon({ iconCode }: { iconCode: string }): React.ReactElement {
+function WeatherIcon({ iconCode, size = 14 }: { iconCode: string; size?: number }): React.ReactElement {
   const code = (iconCode || '').toLowerCase();
   if (code.includes('clear-night')) {
     return (
-      <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden>
+      <svg viewBox="0 0 16 16" width={size} height={size} aria-hidden>
         <path d="M10.8 2.2a5.2 5.2 0 1 0 3 8.7 5 5 0 1 1-3-8.7Z" fill="var(--color-blue-400)" />
       </svg>
     );
   }
   if (code.includes('clear-day')) {
     return (
-      <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden>
+      <svg viewBox="0 0 16 16" width={size} height={size} aria-hidden>
         <circle cx="8" cy="8" r="3.2" fill="var(--color-amber-400)" />
       </svg>
     );
   }
   if (code.includes('rain')) {
     return (
-      <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden>
+      <svg viewBox="0 0 16 16" width={size} height={size} aria-hidden>
         <path d="M4.3 9h7.2a2.4 2.4 0 0 0 0-4.8A3.3 3.3 0 0 0 5 3 2.8 2.8 0 0 0 4.3 9Z" fill="var(--color-blue-200)" />
       </svg>
     );
@@ -36,6 +36,8 @@ function WeatherIcon({ iconCode }: { iconCode: string }): React.ReactElement {
     </svg>
   );
 }
+
+const FORECAST_SCROLL_THRESHOLD = 4;
 
 function seasonForLatitude(month: number, latitude: number): 'Summer' | 'Autumn' | 'Winter' | 'Spring' {
   const north = latitude >= 0;
@@ -94,6 +96,8 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
   } | null>(null);
   const [currentLocalTime, setCurrentLocalTime] = React.useState('');
   const [forecastDays, setForecastDays] = React.useState<ForecastDay[]>([]);
+  const [forecastScroll, setForecastScroll] = React.useState(0);
+  const forecastStripRef = React.useRef<HTMLDivElement | null>(null);
 
   const monthIndex = React.useMemo(() => {
     const d = new Date(`${weatherAnchorDate}T00:00:00.000Z`);
@@ -141,14 +145,19 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
   }, [forecastDates, weatherAnchorDate]);
 
   React.useEffect(() => {
+    setForecastScroll(0);
+  }, [datesForForecast.join(','), place.id]);
+
+  React.useEffect(() => {
     if (!config.weatherApiKey.trim() || !datesForForecast.length) {
       setForecastDays([]);
       return;
     }
     const units = config.temperatureUnit === 'Fahrenheit' ? 'us' : 'metric';
-    const start = datesForForecast[0];
-    const end = datesForForecast[datesForForecast.length - 1];
-    const range = start === end ? start : `${start}/${end}`;
+    const today = todayYmd();
+    const apiStart = today;
+    const apiEnd = datesForForecast[datesForForecast.length - 1];
+    const range = apiStart === apiEnd ? apiStart : `${apiStart}/${apiEnd}`;
     const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${place.latitude},${place.longitude}/${range}?key=${encodeURIComponent(config.weatherApiKey.trim())}&include=days&elements=tempmax,tempmin,conditions,icon&unitGroup=${units}&contentType=json`;
     fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Forecast ${r.status}`))))
@@ -158,23 +167,25 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
           const dt = String(d.datetime ?? '').slice(0, 10);
           if (dt) byDate.set(dt, d);
         }
-        const anchor = weatherAnchorDate.slice(0, 10);
         setForecastDays(
           datesForForecast.map((date) => {
             const row = byDate.get(date) ?? {};
+            const tempMax = Number(row.tempmax);
+            const tempMin = Number(row.tempmin);
+            const hasTemps = Number.isFinite(tempMax) || Number.isFinite(tempMin);
             return {
               date,
-              label: forecastDayLabel(anchor, date),
+              label: forecastDayLabelFromToday(date, today),
               iconCode: String(row.icon ?? ''),
-              tempMin: Number(row.tempmin ?? row.tempmax ?? 0),
-              tempMax: Number(row.tempmax ?? 0),
+              tempMin: hasTemps ? Math.round(Number.isFinite(tempMin) ? tempMin : tempMax) : NaN,
+              tempMax: hasTemps ? Math.round(Number.isFinite(tempMax) ? tempMax : tempMin) : NaN,
               conditions: String(row.conditions ?? '')
             };
           })
         );
       })
       .catch(() => setForecastDays([]));
-  }, [place.latitude, place.longitude, config.weatherApiKey, config.temperatureUnit, datesForForecast, weatherAnchorDate]);
+  }, [place.latitude, place.longitude, config.weatherApiKey, config.temperatureUnit, datesForForecast]);
 
   React.useEffect(() => {
     if (!config.weatherApiKey.trim()) {
@@ -256,16 +267,55 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
         </div>
       ) : null}
       {config.weatherApiKey.trim() && forecastDays.length ? (
-        <div className={styles.forecastStrip} role="list" aria-label="Forecast for stay">
-          {forecastDays.map((fd) => (
-            <div key={fd.date} className={styles.forecastDay} role="listitem" title={fd.conditions}>
-              <span className={styles.forecastDayLabel}>{fd.label}</span>
-              <WeatherIcon iconCode={fd.iconCode} />
-              <span className={styles.forecastDayTemp}>
-                {Math.round(fd.tempMin)}°–{Math.round(fd.tempMax)}°{tempSuffix}
-              </span>
-            </div>
-          ))}
+        <div className={styles.forecastStripWrap}>
+          {forecastDays.length > FORECAST_SCROLL_THRESHOLD ? (
+            <button
+              type="button"
+              className={styles.forecastScrollBtn}
+              aria-label="Scroll forecast left"
+              disabled={forecastScroll <= 0}
+              onClick={() => {
+                const el = forecastStripRef.current;
+                if (!el) return;
+                const next = Math.max(0, forecastScroll - 1);
+                setForecastScroll(next);
+                el.scrollTo({ left: next * 76, behavior: 'smooth' });
+              }}
+            >
+              ‹
+            </button>
+          ) : null}
+          <div className={styles.forecastStrip} ref={forecastStripRef} role="list" aria-label="Forecast for stay">
+            {forecastDays.map((fd) => (
+              <div key={fd.date} className={styles.forecastDay} role="listitem" title={fd.conditions}>
+                <span className={styles.forecastDayLabel}>{fd.label}</span>
+                <WeatherIcon iconCode={fd.iconCode} size={22} />
+                <span className={styles.forecastDayTemp}>
+                  {Number.isFinite(fd.tempMin) && Number.isFinite(fd.tempMax)
+                    ? `${fd.tempMin}°–${fd.tempMax}°${tempSuffix}`
+                    : '—'}
+                </span>
+              </div>
+            ))}
+          </div>
+          {forecastDays.length > FORECAST_SCROLL_THRESHOLD ? (
+            <button
+              type="button"
+              className={styles.forecastScrollBtn}
+              aria-label="Scroll forecast right"
+              disabled={forecastScroll >= forecastDays.length - FORECAST_SCROLL_THRESHOLD}
+              onClick={() => {
+                const el = forecastStripRef.current;
+                if (!el) return;
+                const maxScroll = Math.max(0, forecastDays.length - FORECAST_SCROLL_THRESHOLD);
+                const next = Math.min(maxScroll, forecastScroll + 1);
+                setForecastScroll(next);
+                el.scrollTo({ left: next * 76, behavior: 'smooth' });
+              }}
+            >
+              ›
+            </button>
+          ) : null}
         </div>
       ) : null}
       <div className={styles.infoTile}>

@@ -10,7 +10,7 @@ import { compareTripDaysChronological } from '../../utils/tripDateRangeSync';
 import { parseAdditionalPlaceRefs, serializeAdditionalPlaceRef } from '../../utils/tripDayPlaces';
 import { CollapsibleSummaryBar } from '../shared/CollapsibleSummaryBar';
 import { PlaceInfoPanel } from './PlaceInfoPanel';
-import { consecutivePrimaryPlaceDates } from '../../utils/consecutivePlaceDays';
+import { datesWherePlaceAppears, forecastDatesForPlaceStay } from '../../utils/placeForecastDates';
 import { placeDisplayLabel } from '../../utils/placeDisplayLabel';
 import styles from './DayHeader.module.css';
 
@@ -84,8 +84,9 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
 
   const activeForecastDates = React.useMemo(() => {
     if (!activePlaceInfo?.place?.id) return [weatherAnchorDate.slice(0, 10)].filter(Boolean);
-    return consecutivePrimaryPlaceDates(tripDays, day.id, activePlaceInfo.place.id);
-  }, [activePlaceInfo?.place?.id, tripDays, day.id, weatherAnchorDate]);
+    const stayDates = datesWherePlaceAppears(tripDays, activePlaceInfo.place.id);
+    return forecastDatesForPlaceStay(stayDates);
+  }, [activePlaceInfo?.place?.id, tripDays, weatherAnchorDate]);
 
   const locationsSummary = React.useMemo(() => {
     const count = (dayLocations.primary ? 1 : 0) + dayLocations.additional.length;
@@ -361,20 +362,19 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
                 className={`${styles.locationRow} ${isInfoTarget ? styles.locationRowActive : ''}`}
               >
                 <div className={styles.locationRowHead}>
-                  <div className={styles.locationPillRow}>
-                    <button
-                      type="button"
-                      className={styles.locationSelectBtn}
-                      onClick={() => setActivePlaceInfoId(row.place.id)}
-                      aria-pressed={isInfoTarget}
-                    >
-                      <span className={styles.placePill}>
-                        <span aria-hidden>📍</span> {placeDisplayLabel(row.place)}
-                        {row.primary ? <span className={styles.placeMeta}>Primary</span> : null}
-                      </span>
-                    </button>
-                    {!isShared ? (
-                      <div className={styles.locationInlineActions}>
+                  <button
+                    type="button"
+                    className={styles.locationSelectBtn}
+                    onClick={() => setActivePlaceInfoId(row.place.id)}
+                    aria-pressed={isInfoTarget}
+                  >
+                    <span className={styles.placePill}>
+                      <span aria-hidden>📍</span> {placeDisplayLabel(row.place)}
+                      {row.primary ? <span className={styles.placeMeta}>Primary</span> : null}
+                    </span>
+                  </button>
+                  {!isShared ? (
+                    <div className={styles.locationInlineActions}>
                         {!row.primary ? (
                           <button
                             type="button"
@@ -472,24 +472,25 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
                         >
                           ↓
                         </button>
-                      </div>
-                    ) : null}
+                    </div>
+                  ) : null}
+                  <div className={styles.locationLinkGroup}>
+                    <button
+                      type="button"
+                      className={`${styles.locationInfoBtn} ${isInfoTarget ? styles.locationInfoBtnActive : ''}`}
+                      onClick={() => setActivePlaceInfoId(row.place.id)}
+                    >
+                      Place info
+                    </button>
+                    <a
+                      className={styles.locationMapsBtn}
+                      href={`https://www.google.com/maps/@${row.place.latitude},${row.place.longitude},10z`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Map
+                    </a>
                   </div>
-                  <button
-                    type="button"
-                    className={`${styles.locationInfoBtn} ${isInfoTarget ? styles.locationInfoBtnActive : ''}`}
-                    onClick={() => setActivePlaceInfoId(row.place.id)}
-                  >
-                    Place info
-                  </button>
-                  <a
-                    className={styles.locationMapsBtn}
-                    href={`https://www.google.com/maps/@${row.place.latitude},${row.place.longitude},10z`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Maps
-                  </a>
                 </div>
                 {!isShared && row.primary && followingDayOptions.length ? (
                   <div className={styles.locationCopyRow}>

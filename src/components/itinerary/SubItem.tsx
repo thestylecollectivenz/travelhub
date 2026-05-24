@@ -7,6 +7,8 @@ import { useAttachments } from '../../context/AttachmentsContext';
 import { ReminderService } from '../../services/ReminderService';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { SubItemDetailLines } from './SubItemDetailLines';
+import { CurrencySelect } from '../shared/CurrencySelect';
+import { useConfig } from '../../context/ConfigContext';
 import styles from './SubItem.module.css';
 
 export interface SubItemProps {
@@ -42,6 +44,7 @@ function TaskIcon(): React.ReactElement {
 
 export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
   const spContext = useSpContext();
+  const { config } = useConfig();
   const { trip, localEntries, updateSubItem, deleteSubItem } = useTripWorkspace();
   const { docsForEntry, linksForEntry, addDocument, addLink } = useAttachments();
   const [isEditing, setIsEditing] = React.useState(false);
@@ -162,13 +165,20 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
             <option value="Free">Free</option>
           </select>
           {draft.paymentStatus !== 'Free' ? (
-            <input
-              className={styles.field}
-              type="number"
-              min={0}
-              value={draft.amount}
-              onChange={(e) => setDraft((prev) => ({ ...prev, amount: Number(e.target.value) || 0 }))}
-            />
+            <>
+              <input
+                className={styles.field}
+                type="number"
+                min={0}
+                step={0.01}
+                value={draft.amount}
+                onChange={(e) => setDraft((prev) => ({ ...prev, amount: Number(e.target.value) || 0 }))}
+              />
+              <CurrencySelect
+                value={draft.currency || config.homeCurrency || 'NZD'}
+                onChange={(code) => setDraft((prev) => ({ ...prev, currency: code }))}
+              />
+            </>
           ) : null}
         </div>
         {draft.paymentStatus === 'Part paid' ? (

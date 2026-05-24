@@ -19,6 +19,8 @@ import { confirmUserAction } from '../../utils/confirmAction';
 import { loadTripAssignees, rememberTripAssignee } from '../../utils/tripAssignees';
 import { reminderTaskCategory, TASK_FILTER_UNCATEGORISED } from '../../utils/taskFilters';
 import { PackingTemplatesManager } from '../packing/PackingTemplatesManager';
+import { openTasksPrintPreview, type TasksPrintSection } from '../../utils/tasksPrintHtml';
+import dayHeaderStyles from '../day/DayHeader.module.css';
 import styles from './TripTasksView.module.css';
 
 type TaskFilter = 'incomplete' | 'all';
@@ -412,60 +414,81 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
   };
 
   const printTasks = React.useCallback((): void => {
-    window.print();
-  }, []);
+    if (!trip) return;
+    const sections: TasksPrintSection[] = [];
+    if (showTaskSection('todo') && manualTodos.length) {
+      sections.push({
+        heading: 'To do',
+        rows: manualTodos.map((m) => {
+          const target = resolveReminderItineraryTarget(m, localEntries);
+          const note = stripFollowUpPrefix((m.taskNote || '').trim());
+          const entryNotes = (target?.entry?.notes || '').trim();
+          return {
+            title: reminderDisplayTitle(m),
+            dueLine: m.dueDate ? `Due ${new Date(m.dueDate).toLocaleDateString('en-NZ')}` : '',
+            contextLine: target ? `${target.contextLine} · ${dayName(target.openDayId) || ''}` : '',
+            note: entryNotes && note === entryNotes ? undefined : note || undefined,
+            complete: m.isComplete
+          };
+        })
+      });
+    }
+    openTasksPrintPreview(`${trip.title} — Tasks`, sections);
+  }, [trip, manualTodos, localEntries, showTaskSection, dayName]);
 
   return (
     <section className={styles.root} id="trip-tasks-print-root">
-      <div className={`${styles.filters} ${styles.noPrint}`}>
-        <h2 className={styles.title}>Tasks &amp; reminders</h2>
-        {showStandardSections ? (
-          <select className={styles.select} value={filter} onChange={(e) => setFilter(e.target.value as TaskFilter)}>
-            <option value="incomplete">Incomplete only</option>
-            <option value="all">All</option>
+      <div className={`${styles.filterBar} ${styles.noPrint}`}>
+        <div className={styles.filterBarMain}>
+          <h2 className={styles.title}>Tasks &amp; reminders</h2>
+          {showStandardSections ? (
+            <select className={styles.select} value={filter} onChange={(e) => setFilter(e.target.value as TaskFilter)}>
+              <option value="incomplete">Incomplete only</option>
+              <option value="all">All</option>
+            </select>
+          ) : null}
+          <select className={styles.select} value={viewMode} onChange={(e) => setViewMode(e.target.value as ViewMode)}>
+            <option value="list">List</option>
+            <option value="calendar">Calendar</option>
           </select>
-        ) : null}
-        <select className={styles.select} value={viewMode} onChange={(e) => setViewMode(e.target.value as ViewMode)}>
-          <option value="list">List</option>
-          <option value="calendar">Calendar</option>
-        </select>
-        {viewMode === 'calendar' ? (
-          <select className={styles.select} value={calendarLayout} onChange={(e) => setCalendarLayout(e.target.value as CalendarLayout)}>
-            <option value="grid">Month grid</option>
-            <option value="list">By date list</option>
-          </select>
-        ) : null}
-        {viewMode === 'calendar' ? (
-          <select className={styles.select} value={calendarRange} onChange={(e) => setCalendarRange(e.target.value as CalendarRangeFilter)}>
-            <option value="this_week">This week</option>
-            <option value="this_month">This month</option>
-            <option value="next_week">Next week</option>
-            <option value="next_month">Next month</option>
-            <option value="all">All dates</option>
-            <option value="custom">Custom range</option>
-          </select>
-        ) : null}
-        {viewMode === 'calendar' && calendarRange === 'custom' ? (
-          <div className={styles.customRange}>
-            <label>
-              From{' '}
-              <input className={styles.input} type="date" value={customRangeStart} onChange={(e) => setCustomRangeStart(e.target.value)} />
-            </label>
-            <label>
-              To{' '}
-              <input className={styles.input} type="date" value={customRangeEnd} onChange={(e) => setCustomRangeEnd(e.target.value)} />
-            </label>
-          </div>
-        ) : null}
+          {viewMode === 'calendar' ? (
+            <select className={styles.select} value={calendarLayout} onChange={(e) => setCalendarLayout(e.target.value as CalendarLayout)}>
+              <option value="grid">Month grid</option>
+              <option value="list">By date list</option>
+            </select>
+          ) : null}
+          {viewMode === 'calendar' ? (
+            <select className={styles.select} value={calendarRange} onChange={(e) => setCalendarRange(e.target.value as CalendarRangeFilter)}>
+              <option value="this_week">This week</option>
+              <option value="this_month">This month</option>
+              <option value="next_week">Next week</option>
+              <option value="next_month">Next month</option>
+              <option value="all">All dates</option>
+              <option value="custom">Custom range</option>
+            </select>
+          ) : null}
+          {viewMode === 'calendar' && calendarRange === 'custom' ? (
+            <div className={styles.customRange}>
+              <label>
+                From{' '}
+                <input className={styles.input} type="date" value={customRangeStart} onChange={(e) => setCustomRangeStart(e.target.value)} />
+              </label>
+              <label>
+                To{' '}
+                <input className={styles.input} type="date" value={customRangeEnd} onChange={(e) => setCustomRangeEnd(e.target.value)} />
+              </label>
+            </div>
+          ) : null}
+        </div>
         {viewMode === 'list' && showStandardSections ? (
-          <>
-            <button className={styles.button} type="button" onClick={printTasks}>
-              Print view
+          <div className={styles.filterBarActions}>
+            <button className={dayHeaderStyles.journalButton} type="button" onClick={printTasks}>
+              Print
             </button>
-            <button className={styles.button} type="button" onClick={() => setPackingTemplatesOpen((v) => !v)}>
-              {packingTemplatesOpen ? 'Hide packing templates' : 'Packing templates'}
+            <button className={dayHeaderStyles.journalButton} type="button" onClick={() => setPackingTemplatesOpen((v) => !v)}>
+              {packingTemplatesOpen ? 'Hide templates' : 'Templates'}
             </button>
-          </>
+          </div>
         ) : null}
       </div>
       {packingTemplatesOpen ? (
@@ -639,7 +662,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                 Add {createKind === 'task' ? 'task' : 'reminder'}
               </button>
             </div>
-            <h3 className={styles.title}>To do</h3>
+            <h3 className={styles.todoHeading}>To do</h3>
             {manualTodos.map((m) => {
               const target = resolveReminderItineraryTarget(m, localEntries);
               const isEditing = editingReminderId === m.id;
@@ -649,6 +672,15 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                   data-reminder-id={m.id}
                   className={`${styles.item} ${planView?.focusedReminderId === m.id ? styles.itemFocused : ''}`}
                 >
+                  {!isEditing ? (
+                    <input
+                      className={styles.completeCheck}
+                      type="checkbox"
+                      checked={m.isComplete}
+                      aria-label={m.isComplete ? 'Mark incomplete' : 'Mark complete'}
+                      onChange={() => svc.update(m.id, { isComplete: !m.isComplete }).then(refresh).catch(console.error)}
+                    />
+                  ) : null}
                   <div className={styles.itemBody}>
                     {isEditing ? (
                       <div className={styles.editForm}>
@@ -722,40 +754,35 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                       </>
                     )}
                   </div>
-                  <div className={`${styles.actions} ${styles.noPrint}`}>
+                  <div className={`${styles.iconActions} ${styles.noPrint}`}>
                     {isEditing ? (
                       <>
-                        <button className={styles.button} type="button" onClick={() => saveEditReminder(m)}>
-                          Save
+                        <button className={styles.iconBtn} type="button" title="Save" onClick={() => saveEditReminder(m)}>
+                          ✓
                         </button>
-                        <button className={styles.button} type="button" onClick={() => setEditingReminderId(null)}>
-                          Cancel
+                        <button className={styles.iconBtn} type="button" title="Cancel" onClick={() => setEditingReminderId(null)}>
+                          ✕
                         </button>
                       </>
                     ) : (
                       <>
-                        <button className={styles.button} type="button" onClick={() => startEditReminder(m)}>
-                          Edit
+                        <button className={styles.iconBtn} type="button" title="Edit" onClick={() => startEditReminder(m)}>
+                          ✎
                         </button>
                         {target ? (
                           <button
-                            className={styles.button}
+                            className={styles.iconBtn}
                             type="button"
+                            title="Open in itinerary"
                             onClick={() => openEntryInItineraryRead(target.openEntryId, target.openDayId)}
                           >
-                            Open in itinerary
+                            ↗
                           </button>
                         ) : null}
                         <button
-                          className={styles.button}
+                          className={styles.iconBtn}
                           type="button"
-                          onClick={() => svc.update(m.id, { isComplete: !m.isComplete }).then(refresh).catch(console.error)}
-                        >
-                          {m.isComplete ? 'Mark incomplete' : 'Complete'}
-                        </button>
-                        <button
-                          className={styles.button}
-                          type="button"
+                          title="Delete"
                           onClick={() => {
                             void (async () => {
                               if (!(await confirmUserAction('Delete this task?'))) return;
@@ -763,7 +790,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                             })();
                           }}
                         >
-                          Delete
+                          🗑
                         </button>
                       </>
                     )}

@@ -46,6 +46,14 @@ export const DayPanel: React.FC<DayPanelProps> = ({ hideHeader = false }) => {
 
   return (
     <div className={styles.root}>
+      {hideHeader ? <DayHeader day={day} stickyTitleOnly /> : <DayHeader day={day} />}
+      <div id="day-breakdown-tile">
+        <BudgetBreakdownTile
+          tripId={trip.id}
+          dayId={day.id}
+          defaultExpanded={config.dayBreakdownVisibleByDefault}
+        />
+      </div>
       <div className={hideHeader ? styles.dayToolbarSticky : undefined}>
         <DayItineraryToolbar
           day={day}
@@ -54,14 +62,6 @@ export const DayPanel: React.FC<DayPanelProps> = ({ hideHeader = false }) => {
           onItineraryViewChange={setItineraryView}
           onJournalEntry={() => setOpenJournalSignal((n) => n + 1)}
           onTipToggle={() => setTipOpen((v) => !v)}
-        />
-      </div>
-      {hideHeader ? <DayHeader day={day} stickyTitleOnly /> : <DayHeader day={day} />}
-      <div id="day-breakdown-tile">
-        <BudgetBreakdownTile
-          tripId={trip.id}
-          dayId={day.id}
-          defaultExpanded={config.dayBreakdownVisibleByDefault}
         />
       </div>
       {tipOpen ? (
@@ -78,7 +78,9 @@ export const DayPanel: React.FC<DayPanelProps> = ({ hideHeader = false }) => {
         />
       ) : null}
       <CruiseItineraryImport trip={trip} />
-      {itineraryView === 'timeline' ? <ItineraryTimeline dayId={day.id} /> : <ItineraryDayPlannerView />}
+      <div className={hideHeader ? styles.dayContentBelowToolbar : undefined}>
+        {itineraryView === 'timeline' ? <ItineraryTimeline dayId={day.id} /> : <ItineraryDayPlannerView />}
+      </div>
       <div className={styles.hideOnPrint}>
         <JournalFeed dayId={day.id} openComposerSignal={openJournalSignal} />
       </div>

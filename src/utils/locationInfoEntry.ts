@@ -6,15 +6,60 @@ import { parseAdditionalPlaceRefs } from './tripDayPlaces';
 
 export const LOCATION_INFO_CATEGORY = 'Location info';
 
+export type LocationInfoCheckItem = {
+  id: string;
+  label: string;
+  done: boolean;
+};
+
 export type LocationInfoNotes = {
   placeId: string;
   overview: string;
   iconicSights: string;
   foodDrink: string;
   practicalTips: string;
+  iconicSightsItems?: LocationInfoCheckItem[];
+  foodDrinkItems?: LocationInfoCheckItem[];
   aiSightsPlaceholder?: string;
   aiFoodPlaceholder?: string;
 };
+
+export function linesToCheckItems(text: string): LocationInfoCheckItem[] {
+  const lines = (text || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const items: LocationInfoCheckItem[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const label = lines[i].replace(/^[-*•]\s*/, '').trim();
+    if (!label) continue;
+    items.push({ id: `item-${i}-${label.slice(0, 12).replace(/\W/g, '')}`, label, done: false });
+  }
+  return items;
+}
+
+export function checkItemsToText(items: LocationInfoCheckItem[] | undefined): string {
+  return (items ?? []).map((x) => x.label).filter(Boolean).join('\n');
+}
+
+export function getIconicSightsItems(data: LocationInfoNotes): LocationInfoCheckItem[] {
+  if (data.iconicSightsItems && data.iconicSightsItems.length) return data.iconicSightsItems;
+  return linesToCheckItems(data.iconicSights);
+}
+
+export function getFoodDrinkItems(data: LocationInfoNotes): LocationInfoCheckItem[] {
+  if (data.foodDrinkItems && data.foodDrinkItems.length) return data.foodDrinkItems;
+  return linesToCheckItems(data.foodDrink);
+}
+
+export function normalizeLocationInfoNotes(data: LocationInfoNotes): LocationInfoNotes {
+  const iconicSightsItems = getIconicSightsItems(data);
+  const foodDrinkItems = getFoodDrinkItems(data);
+  return {
+    ...data,
+    iconicSightsItems,
+    foodDrinkItems,
+    iconicSights: checkItemsToText(iconicSightsItems),
+    foodDrink: checkItemsToText(foodDrinkItems)
+  };
+}
 
 export function isLocationInfoEntry(entry: Pick<ItineraryEntry, 'category'>): boolean {
   return (entry.category || '').trim() === LOCATION_INFO_CATEGORY;

@@ -218,6 +218,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   }, [calendarDate, draft, timeValue, nights, perNight, trip, tripDays, config.homeCurrency, isTransport]);
 
   const canSave =
+    isLocationInfo ||
     draft.title.trim().length > 0 ||
     (isTransport &&
       Boolean(
@@ -244,7 +245,42 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       ) : isAccommodation ? (
         <AccommodationEditLayout {...layoutProps} />
       ) : isLocationInfo ? (
-        <LocationInfoEditLayout {...layoutProps} />
+        <>
+          <div className={styles.grid}>
+            <label className={styles.label} htmlFor={`cat-${draft.id}`}>
+              Category
+            </label>
+            <select
+              id={`cat-${draft.id}`}
+              className={styles.select}
+              value={draft.category}
+              onChange={(e) => patch({ category: e.target.value })}
+            >
+              {CATEGORY_LIST.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <label className={styles.label} htmlFor={`loc-${draft.id}`}>
+              Location
+            </label>
+            <input
+              id={`loc-${draft.id}`}
+              className={styles.input}
+              list={`day-places-${draft.id}`}
+              value={draft.location ?? ''}
+              onChange={(e) => patch({ location: e.target.value, title: e.target.value.trim() || draft.title })}
+              placeholder="Place name or pick from day locations"
+            />
+            <datalist id={`day-places-${draft.id}`}>
+              {dayPlaceOptions.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+          </div>
+          <LocationInfoEditLayout {...layoutProps} />
+        </>
       ) : (
       <div className={styles.grid}>
         <label className={styles.label} htmlFor={`cat-${draft.id}`}>

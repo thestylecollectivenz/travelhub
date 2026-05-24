@@ -3,10 +3,14 @@ import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { CATEGORY_LIST } from '../../utils/categoryUtils';
 import {
   defaultLocationInfoNotes,
+  getFoodDrinkItems,
+  getIconicSightsItems,
+  normalizeLocationInfoNotes,
   parseLocationInfoNotes,
   serializeLocationInfoNotes,
   type LocationInfoNotes
 } from '../../utils/locationInfoEntry';
+import { LocationInfoChecklist } from './LocationInfoChecklist';
 import { combineDayAndTime, formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { CurrencySelect } from '../shared/CurrencySelect';
 import styles from './ItineraryCardEdit.module.css';
@@ -519,13 +523,13 @@ export const AccommodationEditLayout: React.FC<CategoryEditLayoutProps> = (props
 };
 
 export const LocationInfoEditLayout: React.FC<CategoryEditLayoutProps> = ({ draft, patch }) => {
-  const data = React.useMemo(
-    () => parseLocationInfoNotes(draft.notes) ?? defaultLocationInfoNotes(''),
-    [draft.notes]
-  );
+  const data = React.useMemo(() => {
+    const parsed = parseLocationInfoNotes(draft.notes) ?? defaultLocationInfoNotes('');
+    return normalizeLocationInfoNotes(parsed);
+  }, [draft.notes]);
 
   const updateNotes = (partial: Partial<LocationInfoNotes>): void => {
-    const next = { ...data, ...partial };
+    const next = normalizeLocationInfoNotes({ ...data, ...partial });
     patch({ notes: serializeLocationInfoNotes(next), paymentStatus: 'Free', amount: 0 });
   };
 
@@ -542,28 +546,34 @@ export const LocationInfoEditLayout: React.FC<CategoryEditLayoutProps> = ({ draf
         onChange={(e) => updateNotes({ overview: e.target.value })}
         placeholder="Your notes about this place…"
       />
-      <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`loc-sights-${draft.id}`}>
+      <label className={`${styles.label} ${styles.fullRow}`}>
         Iconic sights
       </label>
-      <textarea
-        id={`loc-sights-${draft.id}`}
-        className={`${styles.textarea} ${styles.fullRow}`}
-        rows={3}
-        value={data.iconicSights}
-        onChange={(e) => updateNotes({ iconicSights: e.target.value })}
-        placeholder={data.aiSightsPlaceholder}
-      />
-      <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`loc-food-${draft.id}`}>
+      <div className={styles.fullRow}>
+        <LocationInfoChecklist
+          items={getIconicSightsItems(data)}
+          aiHint={data.aiSightsPlaceholder}
+          addPlaceholder="Add sight or experience"
+          onChange={(iconicSightsItems) => updateNotes({ iconicSightsItems })}
+        />
+        <button type="button" className={styles.btnSecondary} disabled title="Coming soon">
+          Research with AI (coming soon)
+        </button>
+      </div>
+      <label className={`${styles.label} ${styles.fullRow}`}>
         Food &amp; drink
       </label>
-      <textarea
-        id={`loc-food-${draft.id}`}
-        className={`${styles.textarea} ${styles.fullRow}`}
-        rows={3}
-        value={data.foodDrink}
-        onChange={(e) => updateNotes({ foodDrink: e.target.value })}
-        placeholder={data.aiFoodPlaceholder}
-      />
+      <div className={styles.fullRow}>
+        <LocationInfoChecklist
+          items={getFoodDrinkItems(data)}
+          aiHint={data.aiFoodPlaceholder}
+          addPlaceholder="Add food or drink"
+          onChange={(foodDrinkItems) => updateNotes({ foodDrinkItems })}
+        />
+        <button type="button" className={styles.btnSecondary} disabled title="Coming soon">
+          Research with AI (coming soon)
+        </button>
+      </div>
       <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`loc-tips-${draft.id}`}>
         Practical tips
       </label>
@@ -574,9 +584,6 @@ export const LocationInfoEditLayout: React.FC<CategoryEditLayoutProps> = ({ draf
         value={data.practicalTips}
         onChange={(e) => updateNotes({ practicalTips: e.target.value })}
       />
-      <p className={`${styles.attachmentsHint} ${styles.fullRow}`}>
-        AI research for iconic sights, food, and drink will be available in a future update.
-      </p>
     </div>
   );
 };

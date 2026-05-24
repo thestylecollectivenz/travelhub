@@ -1,5 +1,64 @@
 .root { display: grid; gap: var(--space-3); }
 .filters { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+.filterBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.filterBarMain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+}
+.filterBarActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+.todoHeading {
+  margin: var(--space-5) 0 var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 2px solid var(--color-sand-200);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-800);
+}
+.completeCheck {
+  margin-top: 4px;
+  flex-shrink: 0;
+  width: 1.1rem;
+  height: 1.1rem;
+}
+.iconActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: flex-start;
+  flex-shrink: 0;
+}
+.iconBtn {
+  width: 2rem;
+  height: 2rem;
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-blue-800);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  line-height: 1;
+  padding: 0;
+}
+.iconBtn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
 .addRow { flex-wrap: nowrap; }
 .addRow .input { flex: 1; min-width: 8rem; }
 .addBtn { flex-shrink: 0; white-space: nowrap; width: auto; }

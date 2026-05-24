@@ -36,6 +36,15 @@ export const PackingListView: React.FC = () => {
     refresh();
   }, [refresh]);
 
+  React.useEffect(() => {
+    const openTemplates = (): void => {
+      service.getTemplates().then(setTemplates).catch(console.error);
+      setTemplatesOpen(true);
+    };
+    window.addEventListener('open-packing-templates', openTemplates);
+    return () => window.removeEventListener('open-packing-templates', openTemplates);
+  }, [service]);
+
   const grouped = React.useMemo(() => {
     const map = new Map<string, PackingItem[]>();
     for (const c of CATEGORIES) map.set(c, []);

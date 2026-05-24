@@ -209,6 +209,10 @@
   padding: 2px var(--space-2);
   font-size: var(--font-size-xs);
   color: var(--color-blue-800);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .placeMeta {
@@ -344,15 +348,6 @@
   width: 100%;
 }
 
-.locationPillRow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  flex: 1;
-  min-width: 0;
-  flex-wrap: wrap;
-}
-
 .locationInlineActions {
   display: inline-flex;
   align-items: center;
@@ -457,10 +452,13 @@
 
 .locationSelectBtn {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--space-1);
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: calc(100% - 10rem);
+  width: auto;
   border: none;
   background: transparent;
   padding: 0;
@@ -539,11 +537,45 @@
   color: var(--color-blue-800);
 }
 
+.forecastStripWrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+  min-width: 0;
+}
+
 .forecastStrip {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--space-2);
-  margin-bottom: var(--space-3);
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  flex: 1;
+  min-width: 0;
+  scrollbar-width: none;
+}
+
+.forecastStrip::-webkit-scrollbar {
+  display: none;
+}
+
+.forecastScrollBtn {
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 4.5rem;
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-blue-800);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.forecastScrollBtn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .forecastDay {
@@ -551,15 +583,17 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  width: 4.5rem;
-  min-height: 4.25rem;
+  gap: 4px;
+  width: 4.75rem;
+  min-width: 4.75rem;
+  min-height: 5rem;
   padding: var(--space-1) var(--space-2);
   border: var(--border-default);
   border-radius: var(--radius-md);
   background: var(--color-sand-50);
   font-size: var(--font-size-xs);
   box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .forecastDayLabel {

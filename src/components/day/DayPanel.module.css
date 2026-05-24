@@ -31,14 +31,18 @@
 
 .dayToolbarSticky {
   position: sticky;
-  top: 3.5rem;
+  top: 4.25rem;
   z-index: 11;
   background: var(--color-surface);
-  padding: var(--space-2) 0;
-  margin: 0 calc(-1 * var(--space-2));
+  padding: var(--space-2) 0 var(--space-3);
+  margin: 0 calc(-1 * var(--space-2)) var(--space-2);
   padding-left: var(--space-2);
   padding-right: var(--space-2);
-  box-shadow: 0 1px 0 var(--color-sand-200);
+  box-shadow: 0 2px 0 var(--color-sand-200);
+}
+
+.dayContentBelowToolbar {
+  scroll-margin-top: 7rem;
 }
 
 .itineraryToolbar {

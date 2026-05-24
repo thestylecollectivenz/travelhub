@@ -216,7 +216,18 @@ const TripContentInner: React.FC = () => {
               </button>
             </div>
             {planView?.planTab === 'packing' ? (
-              <PackingListView />
+              <>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
+                  <button
+                    type="button"
+                    className={dayHeaderStyles.journalButton}
+                    onClick={() => window.dispatchEvent(new Event('open-packing-templates'))}
+                  >
+                    Packing templates
+                  </button>
+                </div>
+                <PackingListView />
+              </>
             ) : (
               <TripTasksView variant={planView?.planTab === 'missing_costs' ? 'missing_costs' : 'tasks'} />
             )}
