@@ -18,7 +18,6 @@ import { CATEGORY_LIST } from '../../utils/categoryUtils';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { loadTripAssignees, rememberTripAssignee } from '../../utils/tripAssignees';
 import { reminderTaskCategory, TASK_FILTER_UNCATEGORISED } from '../../utils/taskFilters';
-import { PackingTemplatesManager } from '../packing/PackingTemplatesManager';
 import { openTasksPrintPreview, type TasksPrintSection } from '../../utils/tasksPrintHtml';
 import dayHeaderStyles from '../day/DayHeader.module.css';
 import styles from './TripTasksView.module.css';
@@ -32,6 +31,19 @@ type CreateKind = 'task' | 'reminder';
 type ViewMode = 'list' | 'calendar';
 type CalendarLayout = 'grid' | 'list';
 type MissingAmountFilter = 'unchecked' | 'all';
+type DueDateSort = 'none' | 'asc' | 'desc';
+
+function sortRemindersByDueDate(rows: TripReminder[], mode: DueDateSort): TripReminder[] {
+  if (mode === 'none') return rows;
+  const copy = rows.slice();
+  copy.sort((a, b) => {
+    const aDue = a.dueDate ? new Date(a.dueDate).getTime() : Number.POSITIVE_INFINITY;
+    const bDue = b.dueDate ? new Date(b.dueDate).getTime() : Number.POSITIVE_INFINITY;
+    if (aDue !== bDue) return mode === 'asc' ? aDue - bDue : bDue - aDue;
+    return (a.title || '').localeCompare(b.title || '');
+  });
+  return copy;
+}
 
 function entryAmountMissing(amount: number | undefined): boolean {
   if (amount === undefined || amount === null) return true;
@@ -126,7 +138,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
   const [editTaskCategory, setEditTaskCategory] = React.useState('Other');
   const [createAssignedTo, setCreateAssignedTo] = React.useState('');
   const [createTaskCategory, setCreateTaskCategory] = React.useState('Other');
-  const [packingTemplatesOpen, setPackingTemplatesOpen] = React.useState(false);
+  const [dueDateSort, setDueDateSort] = React.useState<DueDateSort>('none');
 
   const taskCategoryFilter = planView?.taskCategoryFilter ?? null;
   const taskAssigneeFilter = planView?.taskAssigneeFilter ?? null;
@@ -236,10 +248,16 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
     [localEntries, matchesCategoryFilter, showEntryDerivedTasks, showEntryDerivedForAssignee]
   );
   const manualTodos = React.useMemo(() => {
-    let rows = manual.filter((m) => m.reminderType === 'Manual' || m.reminderType === 'ManualEntryTask');
+    let rows = manual.filter(
+      (m) =>
+        m.reminderType === 'Manual' ||
+        m.reminderType === 'ManualEntryTask' ||
+        m.reminderType === 'Custom'
+    );
     if (filter === 'incomplete') rows = rows.filter((m) => !m.isComplete);
-    return rows.filter(matchesReminderFilters);
-  }, [manual, filter, matchesReminderFilters]);
+    rows = rows.filter(matchesReminderFilters);
+    return sortRemindersByDueDate(rows, dueDateSort);
+  }, [manual, filter, matchesReminderFilters, dueDateSort]);
 
   const cancellationReminders = React.useMemo(() => {
     let rows = manual.filter((m) => m.reminderType === 'CancellationDeadline');
@@ -485,17 +503,9 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
             <button className={dayHeaderStyles.journalButton} type="button" onClick={printTasks}>
               Print
             </button>
-            <button className={dayHeaderStyles.journalButton} type="button" onClick={() => setPackingTemplatesOpen((v) => !v)}>
-              {packingTemplatesOpen ? 'Hide templates' : 'Templates'}
-            </button>
           </div>
         ) : null}
       </div>
-      {packingTemplatesOpen ? (
-        <div className={`${styles.group} ${styles.noPrint}`}>
-          <PackingTemplatesManager onClose={() => setPackingTemplatesOpen(false)} />
-        </div>
-      ) : null}
 
       {viewMode === 'calendar' && showStandardSections ? (
         calendarLayout === 'grid' ? (
@@ -662,7 +672,19 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                 Add {createKind === 'task' ? 'task' : 'reminder'}
               </button>
             </div>
-            <h3 className={styles.todoHeading}>To do</h3>
+            <div className={styles.todoHeadingRow}>
+              <h3 className={styles.todoHeading}>To do</h3>
+              <button
+                type="button"
+                className={styles.sortDueBtn}
+                onClick={() =>
+                  setDueDateSort((s) => (s === 'none' ? 'asc' : s === 'asc' ? 'desc' : 'none'))
+                }
+                title="Sort by due date"
+              >
+                Due date {dueDateSort === 'asc' ? '↑' : dueDateSort === 'desc' ? '↓' : '—'}
+              </button>
+            </div>
             {manualTodos.map((m) => {
               const target = resolveReminderItineraryTarget(m, localEntries);
               const isEditing = editingReminderId === m.id;
@@ -809,6 +831,12 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
             ) : null}
             {bookingTasks.map((entry) => (
               <div key={entry.id} className={styles.item}>
+                <input
+                  className={styles.completeCheck}
+                  type="checkbox"
+                  aria-label="Mark booked"
+                  onChange={() => updateEntry({ ...entry, bookingStatus: 'Booked' })}
+                />
                 <div className={styles.itemBody}>
                   <div>Book: {entry.title}</div>
                   <div className={styles.meta}>{dayName(entry.dayId)}</div>
@@ -822,12 +850,22 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                     />
                   </label>
                 </div>
-                <div className={`${styles.actions} ${styles.noPrint}`}>
-                  <button className={styles.button} type="button" onClick={() => openEntryInItineraryRead(entry.id, entry.dayId)}>
-                    Open in itinerary
+                <div className={`${styles.iconActions} ${styles.noPrint}`}>
+                  <button
+                    className={styles.iconBtn}
+                    type="button"
+                    title="Open in itinerary"
+                    onClick={() => openEntryInItineraryRead(entry.id, entry.dayId)}
+                  >
+                    ↗
                   </button>
-                  <button className={styles.button} type="button" onClick={() => updateEntry({ ...entry, bookingStatus: 'Booked' })}>
-                    Mark done
+                  <button
+                    className={styles.iconBtn}
+                    type="button"
+                    title="Mark booked"
+                    onClick={() => updateEntry({ ...entry, bookingStatus: 'Booked' })}
+                  >
+                    ✓
                   </button>
                 </div>
               </div>
@@ -843,6 +881,12 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
             ) : null}
             {paymentTasks.map((entry) => (
               <div key={entry.id} className={styles.item}>
+                <input
+                  className={styles.completeCheck}
+                  type="checkbox"
+                  aria-label="Mark paid"
+                  onChange={() => updateEntry({ ...entry, paymentStatus: 'Fully paid', amountPaid: entry.amount })}
+                />
                 <div className={styles.itemBody}>
                   <div>
                     {entry.paymentStatus === 'Part paid' ? `Pay balance: ${entry.title}` : `Pay: ${entry.title}`} (
@@ -859,16 +903,22 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                     />
                   </label>
                 </div>
-                <div className={`${styles.actions} ${styles.noPrint}`}>
-                  <button className={styles.button} type="button" onClick={() => openEntryInItineraryRead(entry.id, entry.dayId)}>
-                    Open in itinerary
+                <div className={`${styles.iconActions} ${styles.noPrint}`}>
+                  <button
+                    className={styles.iconBtn}
+                    type="button"
+                    title="Open in itinerary"
+                    onClick={() => openEntryInItineraryRead(entry.id, entry.dayId)}
+                  >
+                    ↗
                   </button>
                   <button
-                    className={styles.button}
+                    className={styles.iconBtn}
                     type="button"
+                    title="Mark paid"
                     onClick={() => updateEntry({ ...entry, paymentStatus: 'Fully paid', amountPaid: entry.amount })}
                   >
-                    Mark done
+                    ✓
                   </button>
                 </div>
               </div>
@@ -890,10 +940,23 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                     data-reminder-id={m.id}
                     className={`${styles.item} ${planView?.focusedReminderId === m.id ? styles.itemFocused : ''}`}
                   >
+                    <input
+                      className={styles.completeCheck}
+                      type="checkbox"
+                      checked={m.isComplete}
+                      aria-label={m.isComplete ? 'Mark incomplete' : 'Mark complete'}
+                      onChange={() => svc.update(m.id, { isComplete: !m.isComplete }).then(refresh).catch(console.error)}
+                    />
                     <div className={styles.itemBody}>
                       <div>{reminderDisplayTitle(m)}</div>
                       <div className={styles.meta}>
                         {m.dueDate ? `Due ${new Date(m.dueDate).toLocaleString('en-NZ')}` : 'No due date'}
+                        {m.assignedTo?.trim() ? (
+                          <>
+                            <span aria-hidden> · </span>
+                            Assigned to {m.assignedTo.trim()}
+                          </>
+                        ) : null}
                       </div>
                       {renderTaskNoteForRow(m.taskNote, reminderDisplayTitle(m), target?.entry)}
                       {target ? (
@@ -904,22 +967,37 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                         </div>
                       ) : null}
                     </div>
-                    <div className={`${styles.actions} ${styles.noPrint}`}>
+                    <div className={`${styles.iconActions} ${styles.noPrint}`}>
                       {target ? (
                         <button
-                          className={styles.button}
+                          className={styles.iconBtn}
                           type="button"
+                          title="Open in itinerary"
                           onClick={() => openEntryInItineraryRead(target.openEntryId, target.openDayId)}
                         >
-                          Open in itinerary
+                          ↗
                         </button>
                       ) : null}
                       <button
-                        className={styles.button}
+                        className={styles.iconBtn}
                         type="button"
-                        onClick={() => svc.update(m.id, { isComplete: !m.isComplete }).then(refresh).catch(console.error)}
+                        title="Edit"
+                        onClick={() => startEditReminder(m)}
                       >
-                        {m.isComplete ? 'Mark incomplete' : 'Complete'}
+                        ✎
+                      </button>
+                      <button
+                        className={styles.iconBtn}
+                        type="button"
+                        title="Delete"
+                        onClick={() => {
+                          void (async () => {
+                            if (!(await confirmUserAction('Delete this reminder?'))) return;
+                            svc.delete(m.id).then(refresh).catch(console.error);
+                          })();
+                        }}
+                      >
+                        🗑
                       </button>
                     </div>
                   </div>

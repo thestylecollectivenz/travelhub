@@ -31,11 +31,13 @@ function WeatherIcon({ iconCode, size = 14 }: { iconCode: string; size?: number 
     );
   }
   return (
-    <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden>
+    <svg viewBox="0 0 16 16" width={size} height={size} aria-hidden>
       <path d="M4.3 12h7.2a2 2 0 0 0 0-4 2.8 2.8 0 0 0-5.2-.8A2 2 0 0 0 6.2 12.5Z" fill="var(--color-blue-200)" />
     </svg>
   );
 }
+
+const FORECAST_DAY_SCROLL_PX = 56;
 
 const FORECAST_SCROLL_THRESHOLD = 4;
 
@@ -279,7 +281,7 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
                 if (!el) return;
                 const next = Math.max(0, forecastScroll - 1);
                 setForecastScroll(next);
-                el.scrollTo({ left: next * 76, behavior: 'smooth' });
+                el.scrollTo({ left: next * FORECAST_DAY_SCROLL_PX, behavior: 'smooth' });
               }}
             >
               ‹
@@ -289,7 +291,9 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
             {forecastDays.map((fd) => (
               <div key={fd.date} className={styles.forecastDay} role="listitem" title={fd.conditions}>
                 <span className={styles.forecastDayLabel}>{fd.label}</span>
-                <WeatherIcon iconCode={fd.iconCode} size={22} />
+                <span className={styles.forecastDayIcon}>
+                  <WeatherIcon iconCode={fd.iconCode} size={28} />
+                </span>
                 <span className={styles.forecastDayTemp}>
                   {Number.isFinite(fd.tempMin) && Number.isFinite(fd.tempMax)
                     ? `${fd.tempMin}°–${fd.tempMax}°${tempSuffix}`
@@ -310,7 +314,7 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
                 const maxScroll = Math.max(0, forecastDays.length - FORECAST_SCROLL_THRESHOLD);
                 const next = Math.min(maxScroll, forecastScroll + 1);
                 setForecastScroll(next);
-                el.scrollTo({ left: next * 76, behavior: 'smooth' });
+                el.scrollTo({ left: next * FORECAST_DAY_SCROLL_PX, behavior: 'smooth' });
               }}
             >
               ›

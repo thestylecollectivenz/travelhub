@@ -10,6 +10,7 @@ import { ErrorBoundary } from '../shared/ErrorBoundary';
 import { TripTasksView } from '../tasks/TripTasksView';
 import { TripBudgetDetailView } from '../budget/TripBudgetDetailView';
 import { PackingListView } from '../packing/PackingListView';
+import { PackingTemplatesManager } from '../packing/PackingTemplatesManager';
 import { TripSidebar } from '../sidebar/TripSidebar';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { isPreTripDayRow, resolvePreTripDayId, sortEntriesForDay } from '../../utils/itineraryDayEntries';
@@ -214,20 +215,23 @@ const TripContentInner: React.FC = () => {
               >
                 Packing
               </button>
+              <button
+                type="button"
+                className={dayHeaderStyles.journalButton}
+                style={
+                  planView?.planTab === 'packing_templates'
+                    ? { borderColor: 'var(--color-primary)', boxShadow: '0 0 0 1px var(--color-primary)' }
+                    : undefined
+                }
+                onClick={() => planView?.setPlanTab('packing_templates')}
+              >
+                Packing templates
+              </button>
             </div>
             {planView?.planTab === 'packing' ? (
-              <>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
-                  <button
-                    type="button"
-                    className={dayHeaderStyles.journalButton}
-                    onClick={() => window.dispatchEvent(new Event('open-packing-templates'))}
-                  >
-                    Packing templates
-                  </button>
-                </div>
-                <PackingListView />
-              </>
+              <PackingListView />
+            ) : planView?.planTab === 'packing_templates' ? (
+              <PackingTemplatesManager />
             ) : (
               <TripTasksView variant={planView?.planTab === 'missing_costs' ? 'missing_costs' : 'tasks'} />
             )}

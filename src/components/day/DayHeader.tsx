@@ -280,6 +280,26 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
         </div>
       </div>
       )}
+      <div className={styles.placeInfoColumn}>
+        {locationsExpanded ? (
+          <div className={styles.placeInfoCard}>
+            {allPlacesForInfo.length ? (
+              <>
+                {activePlaceInfo ? (
+                  <PlaceInfoPanel
+                    place={activePlaceInfo.place}
+                    weatherAnchorDate={weatherAnchorDate}
+                    forecastDates={activeForecastDates}
+                    showHeader
+                  />
+                ) : null}
+              </>
+            ) : (
+              <div className={styles.infoSub}>Set a primary location to view place intelligence.</div>
+            )}
+          </div>
+        ) : null}
+      </div>
       <section className={styles.locationsColumn}>
         <div className={styles.locationsTile}>
           <CollapsibleSummaryBar
@@ -525,26 +545,6 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
           ) : null}
         </div>
       </section>
-      <div className={styles.placeInfoColumn}>
-        {locationsExpanded ? (
-          <div className={styles.placeInfoCard}>
-            {allPlacesForInfo.length ? (
-              <>
-                {activePlaceInfo ? (
-                  <PlaceInfoPanel
-                    place={activePlaceInfo.place}
-                    weatherAnchorDate={weatherAnchorDate}
-                    forecastDates={activeForecastDates}
-                    showHeader
-                  />
-                ) : null}
-              </>
-            ) : (
-              <div className={styles.infoSub}>Set a primary location to view place intelligence.</div>
-            )}
-          </div>
-        ) : null}
-      </div>
     </header>
   );
 };

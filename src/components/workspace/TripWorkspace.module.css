@@ -266,13 +266,13 @@
   flex-shrink: 0;
   min-width: 180px;
   max-width: 400px;
-  /* Sidebar scrolls inside the column; main column grows with content and uses page scroll. */
+  /* Sticky column scrolls with the page so the day list is not trapped behind main-panel height. */
   position: sticky;
   top: 0;
   align-self: flex-start;
-  max-height: 100vh;
+  max-height: none;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   box-sizing: border-box;
 }
 
@@ -283,8 +283,7 @@
   box-sizing: border-box;
   align-self: stretch;
   position: static;
-  /* Scroll lives inside TripSidebar (.sidebarBodyScroll) so tabs stay visible. */
-  overflow: hidden;
+  overflow: visible;
   border-right: var(--border-default);
   background: var(--color-surface-raised);
   padding: 0;

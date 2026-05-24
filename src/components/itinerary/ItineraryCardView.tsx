@@ -22,15 +22,18 @@ import type { LinkedEntryTask } from '../../utils/linkedEntryTask';
 import { linkedTaskDisplayText, linkedTaskNoteDisplay } from '../../utils/linkedEntryTask';
 import { effectivePlannerTimeStart, isTransportReturnOnCalendarDate } from '../../utils/itineraryDayEntries';
 import {
-  getFoodDrinkItems,
-  getIconicSightsItems,
   isLocationInfoEntry,
   normalizeLocationInfoNotes,
   parseLocationInfoNotes,
   serializeLocationInfoNotes
 } from '../../utils/locationInfoEntry';
-import { LocationInfoChecklist } from './LocationInfoChecklist';
-import { formatLocationText } from '../../utils/placeDisplayLabel';
+import { LocationInfoHighlights } from './LocationInfoHighlights';
+import { formatLocationText, placeDisplayLabel } from '../../utils/placeDisplayLabel';
+import { usePlaces } from '../../context/PlacesContext';
+import {
+  locationHighlightRows,
+  splitHighlightRows
+} from '../../utils/locationInfoEntry';
 
 function deriveTransportDisplayTitle(entry: ItineraryEntry, calendarDate: string): string {
   const raw = (entry.title || '').trim();
@@ -293,12 +296,19 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const supplier = entry.supplier.trim();
   const location = formatLocationText((entry.location ?? '').trim());
   const isLocationInfo = isLocationInfoEntry(entry);
+  const { placeById } = usePlaces();
+  const [locationInfoExpanded, setLocationInfoExpanded] = React.useState(true);
   const locationInfoData = isLocationInfo
     ? (() => {
         const parsed = parseLocationInfoNotes(entry.notes);
         return parsed ? normalizeLocationInfoNotes(parsed) : null;
       })()
     : null;
+  const locationInfoPlaceLabel = React.useMemo(() => {
+    if (!locationInfoData) return formatLocationText((entry.location ?? '').trim());
+    const place = placeById(locationInfoData.placeId);
+    return place ? placeDisplayLabel(place) : formatLocationText((entry.location ?? '').trim());
+  }, [locationInfoData, entry.location, placeById]);
   const isAccommodation = entry.category === 'Accommodation' && !!entry.dateStart && !!entry.dateEnd;
   const isCruise = entry.category === 'Cruise' && !!entry.embarksDate && !!entry.disembarksDate;
   const isFlights = entry.category === 'Flights';
@@ -527,10 +537,27 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         </div>
       </div>
 
-      <h3 className={styles.title}>
-        {transportReturnHere ? <span className={styles.returnPill}>Return</span> : null}
-        {isTransport ? deriveTransportDisplayTitle(entry, calendarDate) : entry.title || 'Untitled'}
-      </h3>
+      {isLocationInfo ? (
+        <div className={styles.locationInfoTitleRow}>
+          <h3 className={styles.locationInfoTitle}>
+            <PinIcon />
+            <span>{locationInfoPlaceLabel || 'Location'}</span>
+          </h3>
+          <button
+            type="button"
+            className={styles.locationInfoCollapseBtn}
+            aria-expanded={locationInfoExpanded}
+            onClick={() => setLocationInfoExpanded((v) => !v)}
+          >
+            {locationInfoExpanded ? '▾' : '▸'}
+          </button>
+        </div>
+      ) : (
+        <h3 className={styles.title}>
+          {transportReturnHere ? <span className={styles.returnPill}>Return</span> : null}
+          {isTransport ? deriveTransportDisplayTitle(entry, calendarDate) : entry.title || 'Untitled'}
+        </h3>
+      )}
       {entry.category === 'Accommodation' && (entry.checkInTime || entry.bookingReference?.trim()) ? (
         <div className={styles.categorySummary}>
           {entry.checkInTime ? <span>Check-in {formatTimeHHMM(entry.checkInTime)}</span> : null}
@@ -582,7 +609,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         </div>
       ) : null}
 
-      {supplier || location ? (
+      {!isLocationInfo && (supplier || location) ? (
         <div className={styles.metaRow}>
           {supplier ? <span>{supplier}</span> : null}
           {supplier && location ? <span aria-hidden> · </span> : null}
@@ -595,7 +622,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         </div>
       ) : null}
 
-      {isLocationInfo && locationInfoData ? (
+      {isLocationInfo && locationInfoData && locationInfoExpanded ? (
         <div className={styles.locationInfoBody}>
           {locationInfoData.overview.trim() ? (
             <section className={styles.locationInfoSection}>
@@ -604,23 +631,15 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             </section>
           ) : null}
           <section className={styles.locationInfoSection}>
-            <h4 className={styles.locationInfoHeading}>Iconic sights</h4>
-            <LocationInfoChecklist
-              items={getIconicSightsItems(locationInfoData)}
-              aiHint={locationInfoData.aiSightsPlaceholder}
-              onChange={(iconicSightsItems) => {
-                const next = normalizeLocationInfoNotes({ ...locationInfoData, iconicSightsItems });
-                updateEntry({ ...entry, notes: serializeLocationInfoNotes(next) });
-              }}
-            />
-          </section>
-          <section className={styles.locationInfoSection}>
-            <h4 className={styles.locationInfoHeading}>Food &amp; drink</h4>
-            <LocationInfoChecklist
-              items={getFoodDrinkItems(locationInfoData)}
-              aiHint={locationInfoData.aiFoodPlaceholder}
-              onChange={(foodDrinkItems) => {
-                const next = normalizeLocationInfoNotes({ ...locationInfoData, foodDrinkItems });
+            <h4 className={styles.locationInfoHeading}>Highlights</h4>
+            <LocationInfoHighlights
+              rows={locationHighlightRows(locationInfoData)}
+              emptyHint={locationInfoData.aiSightsPlaceholder}
+              onChange={(rows) => {
+                const next = normalizeLocationInfoNotes({
+                  ...locationInfoData,
+                  ...splitHighlightRows(rows)
+                });
                 updateEntry({ ...entry, notes: serializeLocationInfoNotes(next) });
               }}
             />
@@ -1071,6 +1090,11 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         <div className={styles.linkedTaskSummary}>
           <span className={styles.linkedTaskLabel}>Linked task</span>
           <p className={styles.linkedTaskText}>{linkedTaskDisplayText(openTaskTarget)}</p>
+          {openTaskTarget.dueDate ? (
+            <p className={styles.linkedTaskNote}>
+              Due {new Date(openTaskTarget.dueDate).toLocaleDateString('en-NZ')}
+            </p>
+          ) : null}
           {openTaskTarget.assignedTo?.trim() ? (
             <p className={styles.linkedTaskNote}>Assigned to {openTaskTarget.assignedTo.trim()}</p>
           ) : null}

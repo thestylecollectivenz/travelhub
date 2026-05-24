@@ -134,7 +134,7 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
           />
           <label htmlFor={`br-${item.id}`}>Booking required</label>
         </div>
-        <div className={styles.editRow}>
+        <div className={styles.costRow}>
           <select
             className={styles.field}
             value={draft.decisionStatus}
@@ -166,18 +166,35 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
           </select>
           {draft.paymentStatus !== 'Free' ? (
             <>
-              <input
+              <select
                 className={styles.field}
+                value={draft.costCertainty || 'Confirmed'}
+                onChange={(e) =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    costCertainty: e.target.value as ItinerarySubItem['costCertainty']
+                  }))
+                }
+                aria-label="Cost certainty"
+              >
+                <option value="Estimated">Estimated</option>
+                <option value="Confirmed">Confirmed</option>
+              </select>
+              <input
+                className={`${styles.field} ${styles.costAmount}`}
                 type="number"
                 min={0}
                 step={0.01}
                 value={draft.amount}
                 onChange={(e) => setDraft((prev) => ({ ...prev, amount: Number(e.target.value) || 0 }))}
+                aria-label="Amount"
               />
-              <CurrencySelect
-                value={draft.currency || config.homeCurrency || 'NZD'}
-                onChange={(code) => setDraft((prev) => ({ ...prev, currency: code }))}
-              />
+              <div className={styles.costCurrency}>
+                <CurrencySelect
+                  value={draft.currency || config.homeCurrency || 'NZD'}
+                  onChange={(code) => setDraft((prev) => ({ ...prev, currency: code }))}
+                />
+              </div>
             </>
           ) : null}
         </div>
@@ -201,58 +218,62 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
           </div>
         ) : null}
         {parentEntry ? (
-          <div className={styles.attachToolbar}>
-            <button type="button" className={styles.actionButton} disabled={uploadBusy} onClick={() => fileRef.current?.click()}>
-              {uploadBusy ? 'Upload…' : 'Add file'}
-            </button>
-            <input
-              ref={fileRef}
-              type="file"
-              className={styles.fileHidden}
-              onChange={(ev) => {
-                const f = ev.target.files?.[0];
-                if (!f || !parentEntry) return;
-                setUploadBusy(true);
-                void addDocument({ file: f, dayId: parentEntry.dayId, entryId: item.id, documentType: 'Other', notes: '' })
-                  .catch(console.error)
-                  .then(() => {
-                    setUploadBusy(false);
-                    ev.target.value = '';
-                  });
-              }}
-            />
-            <input
-              className={styles.field}
-              placeholder="Link title"
-              value={linkTitle}
-              onChange={(e) => setLinkTitle(e.target.value)}
-            />
-            <input
-              className={styles.field}
-              placeholder="URL"
-              value={linkUrl}
-              onChange={(e) => setLinkUrl(e.target.value)}
-            />
-            <button
-              type="button"
-              className={styles.actionButton}
-              onClick={() => {
-                const t = linkTitle.trim();
-                const u = linkUrl.trim();
-                if (!t || !u || !parentEntry) return;
-                addLink({ dayId: parentEntry.dayId, entryId: item.id, linkType: 'Url', url: u, linkTitle: t })
-                  .then(() => {
-                    setLinkTitle('');
-                    setLinkUrl('');
-                  })
-                  .catch(console.error);
-              }}
-            >
-              Add link
-            </button>
+          <div className={styles.attachBlock}>
+            <div className={styles.attachToolbar}>
+              <button type="button" className={styles.actionButton} disabled={uploadBusy} onClick={() => fileRef.current?.click()}>
+                {uploadBusy ? 'Upload…' : 'Add file'}
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                className={styles.fileHidden}
+                onChange={(ev) => {
+                  const f = ev.target.files?.[0];
+                  if (!f || !parentEntry) return;
+                  setUploadBusy(true);
+                  void addDocument({ file: f, dayId: parentEntry.dayId, entryId: item.id, documentType: 'Other', notes: '' })
+                    .catch(console.error)
+                    .then(() => {
+                      setUploadBusy(false);
+                      ev.target.value = '';
+                    });
+                }}
+              />
+            </div>
+            <div className={styles.linkRow}>
+              <input
+                className={styles.field}
+                placeholder="Link title"
+                value={linkTitle}
+                onChange={(e) => setLinkTitle(e.target.value)}
+              />
+              <input
+                className={styles.field}
+                placeholder="URL"
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+              />
+              <button
+                type="button"
+                className={styles.actionButton}
+                onClick={() => {
+                  const t = linkTitle.trim();
+                  const u = linkUrl.trim();
+                  if (!t || !u || !parentEntry) return;
+                  addLink({ dayId: parentEntry.dayId, entryId: item.id, linkType: 'Url', url: u, linkTitle: t })
+                    .then(() => {
+                      setLinkTitle('');
+                      setLinkUrl('');
+                    })
+                    .catch(console.error);
+                }}
+              >
+                Add link
+              </button>
+            </div>
           </div>
         ) : null}
-        <div className={styles.actions}>
+        <div className={styles.editFooter}>
           <button
             type="button"
             className={styles.actionButton}
@@ -265,7 +286,7 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
           </button>
           <button
             type="button"
-            className={styles.actionButton}
+            className={styles.actionButtonMuted}
             onClick={() => {
               setDraft({ ...item });
               setIsEditing(false);

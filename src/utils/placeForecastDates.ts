@@ -48,32 +48,18 @@ export function datesWherePlaceAppears(tripDays: TripDay[], placeId: string): st
 }
 
 /**
- * Forecast strip: always begins with actual today (when still within or before stay end),
- * then each remaining stay day up to API horizon.
+ * Forecast strip from actual today forward (not trip calendar dates).
+ * Box count follows how many days this place appears on the trip, capped at MAX_FORECAST_DAYS.
  */
 export function forecastDatesForPlaceStay(stayDates: string[], today = todayYmd()): string[] {
-  const sorted = stayDates.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
-  if (!sorted.length) return [today];
-
-  const lastStay = sorted[sorted.length - 1];
-  const horizonEnd = addDaysYmd(today, MAX_FORECAST_DAYS - 1);
-  const end = lastStay < horizonEnd ? lastStay : horizonEnd;
-
-  if (today > lastStay) {
-    return sorted.slice(-Math.min(MAX_FORECAST_DAYS, sorted.length));
-  }
-
+  const stayCount = stayDates.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).length;
+  const count = Math.max(1, Math.min(MAX_FORECAST_DAYS, stayCount > 0 ? stayCount : MAX_FORECAST_DAYS));
   const out: string[] = [];
-  out.push(today);
-
-  let cursor = addDaysYmd(today, 1);
-  while (cursor <= end && out.length < MAX_FORECAST_DAYS) {
-    if (sorted.indexOf(cursor) >= 0) {
-      out.push(cursor);
-    }
+  let cursor = today;
+  for (let i = 0; i < count; i++) {
+    out.push(cursor);
     cursor = addDaysYmd(cursor, 1);
   }
-
   return out;
 }
 

@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-export type PlanTab = 'tasks' | 'packing' | 'missing_costs';
+export type PlanTab = 'tasks' | 'packing' | 'packing_templates' | 'missing_costs';
 
 export type TaskSectionKey = 'todo' | 'bookings' | 'payments' | 'cancellations';
 

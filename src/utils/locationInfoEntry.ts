@@ -20,6 +20,8 @@ export type LocationInfoNotes = {
   practicalTips: string;
   iconicSightsItems?: LocationInfoCheckItem[];
   foodDrinkItems?: LocationInfoCheckItem[];
+  drinkItems?: LocationInfoCheckItem[];
+  souvenirItems?: LocationInfoCheckItem[];
   aiSightsPlaceholder?: string;
   aiFoodPlaceholder?: string;
 };
@@ -40,22 +42,48 @@ export function checkItemsToText(items: LocationInfoCheckItem[] | undefined): st
 }
 
 export function getIconicSightsItems(data: LocationInfoNotes): LocationInfoCheckItem[] {
-  if (data.iconicSightsItems && data.iconicSightsItems.length) return data.iconicSightsItems;
+  if (data.iconicSightsItems !== undefined) return data.iconicSightsItems;
   return linesToCheckItems(data.iconicSights);
 }
 
 export function getFoodDrinkItems(data: LocationInfoNotes): LocationInfoCheckItem[] {
-  if (data.foodDrinkItems && data.foodDrinkItems.length) return data.foodDrinkItems;
+  if (data.foodDrinkItems !== undefined) return data.foodDrinkItems;
   return linesToCheckItems(data.foodDrink);
+}
+
+export type LocationHighlightKind = 'sight' | 'food' | 'drink' | 'souvenir';
+
+export type LocationHighlightRow = LocationInfoCheckItem & { kind: LocationHighlightKind };
+
+export function locationHighlightRows(data: LocationInfoNotes): LocationHighlightRow[] {
+  const rows: LocationHighlightRow[] = [];
+  getIconicSightsItems(data).forEach((item) => rows.push({ ...item, kind: 'sight' }));
+  getFoodDrinkItems(data).forEach((item) => rows.push({ ...item, kind: 'food' }));
+  (data.drinkItems ?? []).forEach((item) => rows.push({ ...item, kind: 'drink' }));
+  (data.souvenirItems ?? []).forEach((item) => rows.push({ ...item, kind: 'souvenir' }));
+  return rows;
+}
+
+export function splitHighlightRows(rows: LocationHighlightRow[]): Pick<LocationInfoNotes, 'iconicSightsItems' | 'foodDrinkItems' | 'drinkItems' | 'souvenirItems'> {
+  return {
+    iconicSightsItems: rows.filter((r) => r.kind === 'sight').map(({ kind, ...item }) => item),
+    foodDrinkItems: rows.filter((r) => r.kind === 'food').map(({ kind, ...item }) => item),
+    drinkItems: rows.filter((r) => r.kind === 'drink').map(({ kind, ...item }) => item),
+    souvenirItems: rows.filter((r) => r.kind === 'souvenir').map(({ kind, ...item }) => item)
+  };
 }
 
 export function normalizeLocationInfoNotes(data: LocationInfoNotes): LocationInfoNotes {
   const iconicSightsItems = getIconicSightsItems(data);
   const foodDrinkItems = getFoodDrinkItems(data);
+  const drinkItems = data.drinkItems ?? [];
+  const souvenirItems = data.souvenirItems ?? [];
   return {
     ...data,
     iconicSightsItems,
     foodDrinkItems,
+    drinkItems,
+    souvenirItems,
     iconicSights: checkItemsToText(iconicSightsItems),
     foodDrink: checkItemsToText(foodDrinkItems)
   };

@@ -3,14 +3,14 @@ import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { CATEGORY_LIST } from '../../utils/categoryUtils';
 import {
   defaultLocationInfoNotes,
-  getFoodDrinkItems,
-  getIconicSightsItems,
+  locationHighlightRows,
   normalizeLocationInfoNotes,
+  splitHighlightRows,
   parseLocationInfoNotes,
   serializeLocationInfoNotes,
   type LocationInfoNotes
 } from '../../utils/locationInfoEntry';
-import { LocationInfoChecklist } from './LocationInfoChecklist';
+import { LocationInfoHighlights } from './LocationInfoHighlights';
 import { combineDayAndTime, formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { CurrencySelect } from '../shared/CurrencySelect';
 import styles from './ItineraryCardEdit.module.css';
@@ -547,31 +547,16 @@ export const LocationInfoEditLayout: React.FC<CategoryEditLayoutProps> = ({ draf
         placeholder="Your notes about this place…"
       />
       <label className={`${styles.label} ${styles.fullRow}`}>
-        Iconic sights
+        Highlights (sights, food, drink, souvenirs)
       </label>
       <div className={styles.fullRow}>
-        <LocationInfoChecklist
-          items={getIconicSightsItems(data)}
-          aiHint={data.aiSightsPlaceholder}
-          addPlaceholder="Add sight or experience"
-          onChange={(iconicSightsItems) => updateNotes({ iconicSightsItems })}
+        <LocationInfoHighlights
+          rows={locationHighlightRows(data)}
+          emptyHint={data.aiSightsPlaceholder}
+          onChange={(rows) => updateNotes(splitHighlightRows(rows))}
         />
         <button type="button" className={styles.btnSecondary} disabled title="Coming soon">
-          Research with AI (coming soon)
-        </button>
-      </div>
-      <label className={`${styles.label} ${styles.fullRow}`}>
-        Food &amp; drink
-      </label>
-      <div className={styles.fullRow}>
-        <LocationInfoChecklist
-          items={getFoodDrinkItems(data)}
-          aiHint={data.aiFoodPlaceholder}
-          addPlaceholder="Add food or drink"
-          onChange={(foodDrinkItems) => updateNotes({ foodDrinkItems })}
-        />
-        <button type="button" className={styles.btnSecondary} disabled title="Coming soon">
-          Research with AI (coming soon)
+          Research all with AI (coming soon)
         </button>
       </div>
       <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`loc-tips-${draft.id}`}>
