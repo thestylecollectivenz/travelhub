@@ -1,5 +1,6 @@
 import * as React from 'react';
 import type { TripDay } from '../../models/TripDay';
+import { useConfig } from '../../context/ConfigContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
 import { useSpContext } from '../../context/SpContext';
@@ -38,6 +39,7 @@ function dayTypeLabel(dayType: TripDay['dayType']): string {
 
 export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', stickyTitleOnly = false }) => {
   const { updateDay, reloadItineraryEntries, trip, tripDays, localEntries } = useTripWorkspace();
+  const { config } = useConfig();
   const { searchPlaces, createOrReusePlace, placeById } = usePlaces();
   const spContext = useSpContext();
   const isShared = variant === 'shared';
@@ -180,12 +182,14 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
         tripId: trip.id,
         tripDays,
         entries: localEntries,
-        placeById
+        placeById,
+        geminiApiKey: config.geminiApiKey,
+        onCardsCreated: () => reloadItineraryEntries()
       })
         .then(() => reloadItineraryEntries())
         .catch(console.error);
     },
-    [day.id, updateDay, reloadItineraryEntries, trip?.id, tripDays, localEntries, spContext, placeById]
+    [day.id, updateDay, reloadItineraryEntries, trip?.id, tripDays, localEntries, spContext, placeById, config.geminiApiKey]
   );
 
   const saveTitle = React.useCallback(() => {

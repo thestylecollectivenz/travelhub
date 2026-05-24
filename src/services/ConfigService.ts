@@ -15,6 +15,7 @@ export interface UserConfig {
   /** When true, use `sidebarWidth`; otherwise auto-fit to icon tab strip. */
   sidebarWidthCustomized?: boolean;
   weatherApiKey: string;
+  geminiApiKey: string;
   /** When false, day budget breakdown starts collapsed on each day. */
   dayBreakdownVisibleByDefault: boolean;
 }
@@ -27,6 +28,7 @@ export const DEFAULT_USER_CONFIG: UserConfig = {
   journalAuthorName: '',
   sidebarWidth: 260,
   weatherApiKey: '',
+  geminiApiKey: '',
   dayBreakdownVisibleByDefault: true
 };
 
@@ -65,6 +67,7 @@ export class ConfigService {
           ? item.SidebarWidth
           : Number(item.SidebarWidth ?? DEFAULT_USER_CONFIG.sidebarWidth) || DEFAULT_USER_CONFIG.sidebarWidth,
       weatherApiKey: typeof item.WeatherApiKey === 'string' ? item.WeatherApiKey : '',
+      geminiApiKey: typeof item.GeminiApiKey === 'string' ? item.GeminiApiKey : '',
       dayBreakdownVisibleByDefault:
         typeof item.DayBreakdownVisibleByDefault === 'boolean'
           ? item.DayBreakdownVisibleByDefault
@@ -84,6 +87,7 @@ export class ConfigService {
       SidebarWidth: typeof config.sidebarWidth === 'number' ? config.sidebarWidth : DEFAULT_USER_CONFIG.sidebarWidth,
       SidebarWidthCustomized: config.sidebarWidthCustomized === true,
       WeatherApiKey: config.weatherApiKey ?? '',
+      GeminiApiKey: config.geminiApiKey ?? '',
       DayBreakdownVisibleByDefault: config.dayBreakdownVisibleByDefault
     };
   }
@@ -91,8 +95,8 @@ export class ConfigService {
   private async getItemsWithFilter(filterExpr: string, includeUserIdField: boolean): Promise<SPHttpClientResponse> {
     const safeFilter = encodeURIComponent(filterExpr);
     const selectFields = includeUserIdField
-      ? 'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,WeatherApiKey'
-      : 'ID,Title,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,WeatherApiKey';
+      ? 'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault'
+      : 'ID,Title,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault';
     const select = encodeURIComponent(selectFields);
     const url = `${this.baseUrl}?$select=${select}&$filter=${safeFilter}&$top=1`;
     return this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);

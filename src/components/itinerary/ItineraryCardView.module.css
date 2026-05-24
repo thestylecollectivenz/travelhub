@@ -631,6 +631,12 @@
   line-height: 1.45;
 }
 
+.locationInfoAiError {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-status-unpaid);
+}
+
 .locationInfoPlaceholder {
   margin: 0;
   font-size: var(--font-size-xs);

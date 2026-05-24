@@ -4,6 +4,7 @@ import { CATEGORY_LIST } from '../../utils/categoryUtils';
 import {
   defaultLocationInfoNotes,
   locationHighlightRows,
+  locationInfoHasAIContent,
   normalizeLocationInfoNotes,
   splitHighlightRows,
   parseLocationInfoNotes,
@@ -11,6 +12,11 @@ import {
   type LocationInfoNotes
 } from '../../utils/locationInfoEntry';
 import { LocationInfoHighlights } from './LocationInfoHighlights';
+import { useConfig } from '../../context/ConfigContext';
+import { usePlaces } from '../../context/PlacesContext';
+import { useSpContext } from '../../context/SpContext';
+import { subscribeLocationInfoAIStatus } from '../../utils/locationInfoAIEvents';
+import { scheduleLocationInfoAIGeneration } from '../../utils/locationInfoGeneration';
 import { combineDayAndTime, formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { CurrencySelect } from '../shared/CurrencySelect';
 import styles from './ItineraryCardEdit.module.css';
@@ -523,14 +529,47 @@ export const AccommodationEditLayout: React.FC<CategoryEditLayoutProps> = (props
 };
 
 export const LocationInfoEditLayout: React.FC<CategoryEditLayoutProps> = ({ draft, patch }) => {
+  const { config } = useConfig();
+  const { placeById } = usePlaces();
+  const spContext = useSpContext();
+  const [researchLoading, setResearchLoading] = React.useState(false);
+  const [researchSuccess, setResearchSuccess] = React.useState(false);
+
   const data = React.useMemo(() => {
     const parsed = parseLocationInfoNotes(draft.notes) ?? defaultLocationInfoNotes('');
     return normalizeLocationInfoNotes(parsed);
   }, [draft.notes]);
 
+  const place = placeById(data.placeId);
+
   const updateNotes = (partial: Partial<LocationInfoNotes>): void => {
     const next = normalizeLocationInfoNotes({ ...data, ...partial });
     patch({ notes: serializeLocationInfoNotes(next), paymentStatus: 'Free', amount: 0 });
+  };
+
+  const openSettings = (): void => {
+    window.dispatchEvent(new Event('travelhub-open-settings'));
+  };
+
+  React.useEffect(() => {
+    return subscribeLocationInfoAIStatus(draft.id, (detail) => {
+      if (detail.section && detail.section !== 'all') return;
+      setResearchLoading(detail.loading);
+      if (detail.success) {
+        setResearchSuccess(true);
+        window.setTimeout(() => setResearchSuccess(false), 3000);
+      }
+    });
+  }, [draft.id]);
+
+  const runResearchAll = (): void => {
+    if (!place || !(config.geminiApiKey || '').trim()) return;
+    scheduleLocationInfoAIGeneration({
+      spContext,
+      entry: draft,
+      place,
+      apiKey: config.geminiApiKey
+    });
   };
 
   return (
@@ -550,14 +589,28 @@ export const LocationInfoEditLayout: React.FC<CategoryEditLayoutProps> = ({ draf
         Highlights (sights, food, drink, souvenirs)
       </label>
       <div className={styles.fullRow}>
+        <div className={styles.locationInfoResearchRow}>
+          <button
+            type="button"
+            className={styles.btnSecondary}
+            disabled={researchLoading || !(config.geminiApiKey || '').trim() || !place}
+            onClick={runResearchAll}
+          >
+            {researchLoading ? 'Researching…' : 'Research with AI'}
+          </button>
+          {researchSuccess ? <span className={styles.aiSuccessHint}>Updated from AI</span> : null}
+          {data.aiError?.trim() ? <span className={styles.aiErrorHint}>{data.aiError.trim()}</span> : null}
+        </div>
         <LocationInfoHighlights
           rows={locationHighlightRows(data)}
           emptyHint={data.aiSightsPlaceholder}
+          entry={draft}
+          place={place}
+          geminiApiKey={config.geminiApiKey}
+          hasAnyContent={locationInfoHasAIContent(data)}
+          onOpenSettings={openSettings}
           onChange={(rows) => updateNotes(splitHighlightRows(rows))}
         />
-        <button type="button" className={styles.btnSecondary} disabled title="Coming soon">
-          Research all with AI (coming soon)
-        </button>
       </div>
       <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`loc-tips-${draft.id}`}>
         Practical tips

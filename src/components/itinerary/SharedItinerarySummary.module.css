@@ -45,6 +45,32 @@
   background: var(--color-surface-raised);
 }
 
+.locationInfoRow {
+  list-style: none;
+}
+
+.locationInfoBlock {
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: var(--border-default);
+  background: var(--color-surface-raised);
+}
+
+.locationInfoTitle {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-blue-900);
+}
+
+.locationInfoOverview {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-blue-900);
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
 @media (max-width: 560px) {
   .row {
     grid-template-columns: 4rem minmax(0, 1fr);

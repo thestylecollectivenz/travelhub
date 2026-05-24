@@ -1,5 +1,10 @@
 import * as React from 'react';
+import type { ItineraryEntry } from '../../models/ItineraryEntry';
+import type { Place } from '../../models/Place';
+import { useSpContext } from '../../context/SpContext';
 import type { LocationHighlightKind, LocationHighlightRow } from '../../utils/locationInfoEntry';
+import { subscribeLocationInfoAIStatus } from '../../utils/locationInfoAIEvents';
+import { scheduleLocationInfoAIGeneration } from '../../utils/locationInfoGeneration';
 import styles from './LocationInfoHighlights.module.css';
 
 const KIND_ICON: Record<LocationHighlightKind, string> = {
@@ -10,10 +15,19 @@ const KIND_ICON: Record<LocationHighlightKind, string> = {
 };
 
 const KIND_LABEL: Record<LocationHighlightKind, string> = {
-  sight: 'Sight',
+  sight: 'Sights',
   food: 'Food',
   drink: 'Drink',
-  souvenir: 'Souvenir'
+  souvenir: 'Souvenirs'
+};
+
+const SECTION_ORDER: LocationHighlightKind[] = ['sight', 'food', 'drink', 'souvenir'];
+
+const SECTION_TO_MERGE: Record<LocationHighlightKind, 'sights' | 'food' | 'drink' | 'souvenirs'> = {
+  sight: 'sights',
+  food: 'food',
+  drink: 'drink',
+  souvenir: 'souvenirs'
 };
 
 export interface LocationInfoHighlightsProps {
@@ -21,16 +35,66 @@ export interface LocationInfoHighlightsProps {
   onChange: (rows: LocationHighlightRow[]) => void;
   readOnly?: boolean;
   emptyHint?: string;
+  entry?: ItineraryEntry;
+  place?: Place;
+  geminiApiKey?: string;
+  hasAnyContent?: boolean;
+  onGenerationComplete?: () => void;
+  onOpenSettings?: () => void;
 }
 
 export const LocationInfoHighlights: React.FC<LocationInfoHighlightsProps> = ({
   rows,
   onChange,
   readOnly = false,
-  emptyHint = 'AI suggestions will appear here once research is enabled.'
+  emptyHint = 'Add a Gemini API key in Settings to auto-generate highlights, or add items manually.',
+  entry,
+  place,
+  geminiApiKey = '',
+  hasAnyContent = false,
+  onGenerationComplete,
+  onOpenSettings
 }) => {
+  const spContext = useSpContext();
   const [draftLine, setDraftLine] = React.useState('');
   const [draftKind, setDraftKind] = React.useState<LocationHighlightKind>('sight');
+  const [loadingSection, setLoadingSection] = React.useState<LocationHighlightKind | 'all' | null>(null);
+  const [sectionError, setSectionError] = React.useState<Partial<Record<LocationHighlightKind | 'all', string>>>({});
+
+  const hasKey = Boolean((geminiApiKey || '').trim());
+
+  const entryId = entry?.id;
+
+  React.useEffect(() => {
+    if (!entryId) return undefined;
+    return subscribeLocationInfoAIStatus(entryId, (detail) => {
+      if (detail.loading) {
+        setLoadingSection(detail.section === 'all' ? 'all' : (detail.section as LocationHighlightKind) ?? 'all');
+        return;
+      }
+      setLoadingSection(null);
+      if (detail.error) {
+        const key = detail.section === 'all' ? 'all' : (detail.section as LocationHighlightKind);
+        setSectionError((prev) => ({ ...prev, [key]: detail.error }));
+      } else if (detail.success) {
+        setSectionError({});
+        if (onGenerationComplete) onGenerationComplete();
+      }
+    });
+  }, [entryId, onGenerationComplete]);
+
+  const rowsByKind = React.useMemo(() => {
+    const map: Record<LocationHighlightKind, LocationHighlightRow[]> = {
+      sight: [],
+      food: [],
+      drink: [],
+      souvenir: []
+    };
+    for (let i = 0; i < rows.length; i++) {
+      map[rows[i].kind].push(rows[i]);
+    }
+    return map;
+  }, [rows]);
 
   const toggle = (id: string): void => {
     onChange(rows.map((x) => (x.id === id ? { ...x, done: !x.done } : x)));
@@ -50,48 +114,100 @@ export const LocationInfoHighlights: React.FC<LocationInfoHighlightsProps> = ({
     setDraftLine('');
   };
 
+  const refreshSection = (kind: LocationHighlightKind): void => {
+    if (!entry || !place || !hasKey || readOnly) return;
+    setSectionError((prev) => ({ ...prev, [kind]: undefined }));
+    scheduleLocationInfoAIGeneration({
+      spContext,
+      entry,
+      place,
+      apiKey: geminiApiKey,
+      section: SECTION_TO_MERGE[kind],
+      onComplete: onGenerationComplete
+    });
+  };
+
   const doneCount = rows.filter((x) => x.done).length;
+  const anyLoading = loadingSection !== null;
 
   return (
     <div className={styles.root}>
-      {rows.length ? (
-        <ul className={styles.list}>
-          {rows.map((item) => (
-            <li key={item.id} className={styles.row}>
-              <span className={styles.kindIcon} title={KIND_LABEL[item.kind]} aria-hidden>
-                {KIND_ICON[item.kind]}
+      {!hasKey && !hasAnyContent && !readOnly ? (
+        <p className={styles.noKeyPrompt}>
+          Add a Gemini API key in{' '}
+          {onOpenSettings ? (
+            <button type="button" className={styles.settingsLink} onClick={onOpenSettings}>
+              Settings
+            </button>
+          ) : (
+            'Settings'
+          )}{' '}
+          to auto-generate highlights.
+        </p>
+      ) : null}
+
+      {SECTION_ORDER.map((kind) => {
+        const sectionRows = rowsByKind[kind];
+        const isLoading = loadingSection === kind || loadingSection === 'all';
+        const err = sectionError[kind] || (loadingSection === 'all' ? sectionError.all : undefined);
+        return (
+          <div key={kind} className={styles.section}>
+            <div className={styles.sectionHead}>
+              <span className={styles.sectionTitle}>
+                {KIND_ICON[kind]} {KIND_LABEL[kind]}
               </span>
-              <label className={styles.checkLabel}>
-                <input
-                  type="checkbox"
-                  checked={item.done}
-                  disabled={readOnly}
-                  onChange={() => toggle(item.id)}
-                />
-                <span className={item.done ? styles.labelDone : undefined}>{item.label}</span>
-              </label>
-              {!readOnly ? (
-                <>
-                  <button
-                    type="button"
-                    className={styles.refreshBtn}
-                    disabled
-                    title="Refresh this suggestion with AI (coming soon)"
-                    aria-label={`Refresh ${item.label}`}
-                  >
-                    ↻
-                  </button>
-                  <button type="button" className={styles.removeBtn} onClick={() => remove(item.id)} aria-label="Remove">
-                    ×
-                  </button>
-                </>
+              {!readOnly && hasKey && entry ? (
+                <button
+                  type="button"
+                  className={styles.refreshBtn}
+                  disabled={anyLoading}
+                  title={`Refresh ${KIND_LABEL[kind]} with AI`}
+                  onClick={() => refreshSection(kind)}
+                >
+                  {isLoading ? <span className={styles.spinner} aria-hidden /> : '↻'}
+                </button>
               ) : null}
-            </li>
-          ))}
-        </ul>
-      ) : (
+            </div>
+            {err ? (
+              <p className={styles.sectionError}>
+                Couldn&apos;t generate highlights. Check your API key in Settings or try again.{' '}
+                <button type="button" className={styles.retryLink} onClick={() => refreshSection(kind)}>
+                  Retry
+                </button>
+              </p>
+            ) : null}
+            {sectionRows.length ? (
+              <ul className={styles.list}>
+                {sectionRows.map((item) => (
+                  <li key={item.id} className={styles.row}>
+                    <label className={styles.checkLabel}>
+                      <input
+                        type="checkbox"
+                        checked={item.done}
+                        disabled={readOnly}
+                        onChange={() => toggle(item.id)}
+                      />
+                      <span className={item.done ? styles.labelDone : undefined}>{item.label}</span>
+                    </label>
+                    {!readOnly ? (
+                      <button type="button" className={styles.removeBtn} onClick={() => remove(item.id)} aria-label="Remove">
+                        ×
+                      </button>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className={styles.emptySection}>No {KIND_LABEL[kind].toLowerCase()} yet.</p>
+            )}
+          </div>
+        );
+      })}
+
+      {!rows.length && !SECTION_ORDER.some((k) => rowsByKind[k].length) ? (
         <p className={styles.empty}>{emptyHint}</p>
-      )}
+      ) : null}
+
       {!readOnly ? (
         <div className={styles.addRow}>
           <select

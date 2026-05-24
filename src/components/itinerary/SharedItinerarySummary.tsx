@@ -3,6 +3,8 @@ import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import type { TripDay } from '../../models/TripDay';
 import { formatTimeHHMM, minutesFromTimeStart } from '../../utils/itineraryTimeUtils';
 import { effectivePlannerTimeStart, sortEntriesForDay } from '../../utils/itineraryDayEntries';
+import { isLocationInfoEntry } from '../../utils/locationInfoEntry';
+import { SharedLocationInfoBlock } from './SharedLocationInfoBlock';
 import styles from './SharedItinerarySummary.module.css';
 
 export interface SharedItinerarySummaryProps {
@@ -49,20 +51,26 @@ export const SharedItinerarySummary: React.FC<SharedItinerarySummaryProps> = ({
 
   return (
     <ol className={styles.list}>
-      {sortedWithTime.map((entry) => (
-        <li key={entry.id} className={styles.row}>
-          <span className={styles.time}>{formatTimeHHMM(effectivePlannerTimeStart(entry, calendarDate, tripDays))}</span>
-          <span className={styles.title}>
-            {entry.title?.trim() || 'Untitled'}
-            {(entry.subItems ?? []).length > 0 ? (
-              <span style={{ display: 'block', marginTop: '4px', fontSize: 'var(--font-size-xs)', color: 'var(--color-sand-700)' }}>
-                Related items: {(entry.subItems ?? []).map((s) => s.title?.trim() || 'Untitled').join(' · ')}
-              </span>
-            ) : null}
-          </span>
-          <span className={styles.category}>{entry.category}</span>
-        </li>
-      ))}
+      {sortedWithTime.map((entry) =>
+        isLocationInfoEntry(entry) ? (
+          <li key={entry.id} className={styles.locationInfoRow}>
+            <SharedLocationInfoBlock entry={entry} />
+          </li>
+        ) : (
+          <li key={entry.id} className={styles.row}>
+            <span className={styles.time}>{formatTimeHHMM(effectivePlannerTimeStart(entry, calendarDate, tripDays))}</span>
+            <span className={styles.title}>
+              {entry.title?.trim() || 'Untitled'}
+              {(entry.subItems ?? []).length > 0 ? (
+                <span style={{ display: 'block', marginTop: '4px', fontSize: 'var(--font-size-xs)', color: 'var(--color-sand-700)' }}>
+                  Related items: {(entry.subItems ?? []).map((s) => s.title?.trim() || 'Untitled').join(' · ')}
+                </span>
+              ) : null}
+            </span>
+            <span className={styles.category}>{entry.category}</span>
+          </li>
+        )
+      )}
     </ol>
   );
 };

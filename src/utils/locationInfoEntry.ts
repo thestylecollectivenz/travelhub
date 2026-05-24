@@ -1,6 +1,6 @@
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { TripDay } from '../models/TripDay';
-import { placeDisplayLabel } from './placeDisplayLabel';
+import { placeDisplayLabel, placeNameFromTitle } from './placeDisplayLabel';
 import type { Place } from '../models/Place';
 import { parseAdditionalPlaceRefs } from './tripDayPlaces';
 
@@ -24,7 +24,142 @@ export type LocationInfoNotes = {
   souvenirItems?: LocationInfoCheckItem[];
   aiSightsPlaceholder?: string;
   aiFoodPlaceholder?: string;
+  aiGenerated?: boolean;
+  aiGeneratedAt?: string;
+  aiModel?: string;
+  aiError?: string;
 };
+
+export type LocationInfoAIResult = {
+  overview: string;
+  sights: Array<{ label: string; done: boolean }>;
+  food: Array<{ label: string; done: boolean }>;
+  drink: Array<{ label: string; done: boolean }>;
+  souvenirs: Array<{ label: string; done: boolean }>;
+};
+
+export type LocationInfoMergeSection = 'sights' | 'food' | 'drink' | 'souvenirs';
+
+function labelKey(label: string): string {
+  return (label || '').trim().toLowerCase();
+}
+
+function aiRowsToCheckItems(
+  rows: Array<{ label: string; done: boolean }>,
+  existing: LocationInfoCheckItem[]
+): LocationInfoCheckItem[] {
+  const existingByKey = new Map<string, LocationInfoCheckItem>();
+  for (let i = 0; i < existing.length; i++) {
+    existingByKey.set(labelKey(existing[i].label), existing[i]);
+  }
+
+  const incomingKeys: string[] = [];
+  const merged: LocationInfoCheckItem[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const label = rows[i].label.trim();
+    if (!label) continue;
+    const key = labelKey(label);
+    incomingKeys.push(key);
+    const prev = existingByKey.get(key);
+    merged.push({
+      id: prev?.id ?? `item-${Date.now()}-${i}`,
+      label,
+      done: prev ? prev.done : false
+    });
+  }
+
+  for (let i = 0; i < existing.length; i++) {
+    const item = existing[i];
+    if (incomingKeys.indexOf(labelKey(item.label)) < 0) {
+      merged.push(item);
+    }
+  }
+
+  return merged;
+}
+
+function mergeOneSection(
+  existing: LocationInfoNotes,
+  result: LocationInfoAIResult,
+  section: LocationInfoMergeSection
+): LocationInfoNotes {
+  if (section === 'sights') {
+    const iconicSightsItems = aiRowsToCheckItems(result.sights, getIconicSightsItems(existing));
+    return { ...existing, iconicSightsItems, iconicSights: checkItemsToText(iconicSightsItems) };
+  }
+  if (section === 'food') {
+    const foodDrinkItems = aiRowsToCheckItems(result.food, getFoodDrinkItems(existing));
+    return { ...existing, foodDrinkItems, foodDrink: checkItemsToText(foodDrinkItems) };
+  }
+  if (section === 'drink') {
+    const drinkItems = aiRowsToCheckItems(result.drink, existing.drinkItems ?? []);
+    return { ...existing, drinkItems };
+  }
+  const souvenirItems = aiRowsToCheckItems(result.souvenirs, existing.souvenirItems ?? []);
+  return { ...existing, souvenirItems };
+}
+
+/** Merge AI output into notes; never overwrites done:true on matching labels; keeps manual extras. */
+export function mergeAIResult(
+  existing: LocationInfoNotes,
+  result: LocationInfoAIResult,
+  section?: LocationInfoMergeSection,
+  model = 'gemini-2.0-flash'
+): LocationInfoNotes {
+  const base = normalizeLocationInfoNotes(existing);
+  let next: LocationInfoNotes = { ...base };
+
+  if (!section || section === 'sights') {
+    next = mergeOneSection(next, result, 'sights');
+  }
+  if (!section || section === 'food') {
+    next = mergeOneSection(next, result, 'food');
+  }
+  if (!section || section === 'drink') {
+    next = mergeOneSection(next, result, 'drink');
+  }
+  if (!section || section === 'souvenirs') {
+    next = mergeOneSection(next, result, 'souvenirs');
+  }
+
+  if (!section) {
+    next.overview = result.overview.trim();
+  }
+
+  next.aiGenerated = true;
+  next.aiGeneratedAt = new Date().toISOString();
+  next.aiModel = model;
+  next.aiError = '';
+
+  return normalizeLocationInfoNotes(next);
+}
+
+export function locationInfoHasAIContent(data: LocationInfoNotes): boolean {
+  if (data.aiGenerated) return true;
+  if ((data.overview || '').trim()) return true;
+  if (getIconicSightsItems(data).length) return true;
+  if (getFoodDrinkItems(data).length) return true;
+  if ((data.drinkItems ?? []).length) return true;
+  if ((data.souvenirItems ?? []).length) return true;
+  return false;
+}
+
+export function placeNameAndCountry(place: Pick<Place, 'title' | 'country'>): { placeName: string; country: string } {
+  const label = placeDisplayLabel(place);
+  const comma = label.indexOf(',');
+  if (comma >= 0) {
+    return {
+      placeName: label.slice(0, comma).trim(),
+      country: label.slice(comma + 1).trim()
+    };
+  }
+  return {
+    placeName: placeNameFromTitle(place.title) || label,
+    country: (place.country || '').trim()
+  };
+}
+
 
 export function linesToCheckItems(text: string): LocationInfoCheckItem[] {
   const lines = (text || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
@@ -116,8 +251,7 @@ export function defaultLocationInfoNotes(placeId: string): LocationInfoNotes {
     iconicSights: '',
     foodDrink: '',
     practicalTips: '',
-    aiSightsPlaceholder: 'AI: iconic sights and must-see spots (coming soon)',
-    aiFoodPlaceholder: 'AI: food, drink and local favourites (coming soon)'
+    aiSightsPlaceholder: 'Add a Gemini API key in Settings to auto-generate highlights, or add items manually.'
   };
 }
 

@@ -11,6 +11,7 @@ export interface ConfigPanelProps {
 export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => {
   const { config, saveConfig } = useConfig();
   const [draft, setDraft] = React.useState<UserConfig>(config);
+  const [showGeminiKey, setShowGeminiKey] = React.useState(false);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -134,6 +135,41 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
             </span>
           </label>
 
+          <label style={{ display: 'grid', gap: 'var(--space-1)' }}>
+            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-800)' }}>Gemini API key</span>
+            <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+              <input
+                type={showGeminiKey ? 'text' : 'password'}
+                value={draft.geminiApiKey}
+                onChange={(e) => setDraft((d) => ({ ...d, geminiApiKey: e.target.value }))}
+                placeholder="Google AI Studio API key (optional)"
+                style={{
+                  flex: 1,
+                  border: 'var(--border-default)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: 'var(--space-2)'
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowGeminiKey((v) => !v)}
+                style={{
+                  border: 'var(--border-default)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: 'var(--space-2)',
+                  background: 'var(--color-surface)',
+                  cursor: 'pointer',
+                  fontSize: 'var(--font-size-xs)'
+                }}
+              >
+                {showGeminiKey ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-sand-600)' }}>
+              Required for AI-generated place highlights. Get a free key at aistudio.google.com
+            </span>
+          </label>
+
           <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <input
               type="checkbox"
@@ -182,7 +218,11 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
           <button
             type="button"
             onClick={() => {
-              saveConfig(draft).catch(console.error);
+              saveConfig({
+                ...draft,
+                geminiApiKey: draft.geminiApiKey.trim(),
+                weatherApiKey: draft.weatherApiKey.trim()
+              }).catch(console.error);
               onClose();
             }}
             style={{

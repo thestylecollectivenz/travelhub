@@ -59,6 +59,12 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
   const { allEntries: journalEntries, allTripPhotos, commentsForEntry, reassignDayContent } = useJournal();
   const { documents, links, setHighlightedDocumentId, setHighlightedLinkId } = useAttachments();
   const [configOpen, setConfigOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const openSettings = (): void => setConfigOpen(true);
+    window.addEventListener('travelhub-open-settings', openSettings);
+    return () => window.removeEventListener('travelhub-open-settings', openSettings);
+  }, []);
   const [editOpen, setEditOpen] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [searchOpen, setSearchOpen] = React.useState(false);

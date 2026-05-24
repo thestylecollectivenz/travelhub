@@ -1,7 +1,74 @@
 .root {
   display: flex;
   flex-direction: column;
+  gap: var(--space-3);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--space-2);
+}
+
+.sectionTitle {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-sand-700);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sectionError {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-status-unpaid);
+}
+
+.retryLink,
+.settingsLink {
+  border: none;
+  background: transparent;
+  color: var(--color-primary);
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  font-size: inherit;
+}
+
+.noKeyPrompt {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-600);
+}
+
+.emptySection {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-500);
+  font-style: italic;
+}
+
+.spinner {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2px solid var(--color-sand-300);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: locationInfoSpin 0.7s linear infinite;
+}
+
+@keyframes locationInfoSpin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .list {

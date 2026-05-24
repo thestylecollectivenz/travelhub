@@ -37,6 +37,10 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   const { config } = useConfig();
   const [draft, setDraft] = React.useState<ItineraryEntry>(() => ({ ...entry }));
 
+  React.useEffect(() => {
+    setDraft((prev) => (prev.id === entry.id ? { ...prev, notes: entry.notes } : prev));
+  }, [entry.id, entry.notes]);
+
   const timeValue = formatTimeHHMM(draft.timeStart);
   const arrivalTimeValue = formatTimeHHMM(draft.arrivalTime ?? '');
 

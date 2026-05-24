@@ -5,6 +5,7 @@ import { ItineraryService } from '../services/ItineraryService';
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import { compareTripDaysChronological } from './tripDateRangeSync';
 import { buildLocationInfoEntryDraft, isLocationInfoEntry, locationInfoPlaceId } from './locationInfoEntry';
+import { scheduleLocationInfoAIGeneration } from './locationInfoGeneration';
 import { parseAdditionalPlaceRefs } from './tripDayPlaces';
 
 function collectPlaceIdsForDay(day: TripDay): string[] {
@@ -32,8 +33,10 @@ export async function syncLocationInfoCards(options: {
   tripDays: TripDay[];
   entries: ItineraryEntry[];
   placeById: (id: string) => Place | undefined;
+  geminiApiKey?: string;
+  onCardsCreated?: () => void;
 }): Promise<void> {
-  const { spContext, tripId, tripDays, entries, placeById } = options;
+  const { spContext, tripId, tripDays, entries, placeById, geminiApiKey, onCardsCreated } = options;
   const svc = new ItineraryService(spContext);
 
   const placeIdsInUse = new Set<string>();
@@ -71,6 +74,15 @@ export async function syncLocationInfoCards(options: {
     const maxSort = entries
       .filter((e) => e.dayId === homeDayId && !e.parentEntryId)
       .reduce((m, e) => Math.max(m, e.sortOrder ?? 0), -1);
-    await svc.create(buildLocationInfoEntryDraft({ tripId, dayId: homeDayId, place, sortOrder: maxSort + 1 }));
+    const created = await svc.create(buildLocationInfoEntryDraft({ tripId, dayId: homeDayId, place, sortOrder: maxSort + 1 }));
+    if ((geminiApiKey || '').trim()) {
+      scheduleLocationInfoAIGeneration({
+        spContext,
+        entry: created,
+        place,
+        apiKey: geminiApiKey || '',
+        onComplete: onCardsCreated
+      });
+    }
   }
 }

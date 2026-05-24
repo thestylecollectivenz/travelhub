@@ -232,6 +232,14 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
     setLocalEntries(loaded);
   }, [tripId, spContext]);
 
+  React.useEffect(() => {
+    const onItineraryUpdated = (): void => {
+      void reloadItineraryEntries();
+    };
+    window.addEventListener('trip-itinerary-updated', onItineraryUpdated);
+    return () => window.removeEventListener('trip-itinerary-updated', onItineraryUpdated);
+  }, [reloadItineraryEntries]);
+
   const updateEntry = React.useCallback((updated: ItineraryEntry) => {
     const isNew = updated.id.startsWith('new-') || updated.id.startsWith('temp-');
 

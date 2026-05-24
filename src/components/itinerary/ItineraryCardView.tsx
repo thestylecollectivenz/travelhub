@@ -23,6 +23,7 @@ import { linkedTaskDisplayText, linkedTaskNoteDisplay } from '../../utils/linked
 import { effectivePlannerTimeStart, isTransportReturnOnCalendarDate } from '../../utils/itineraryDayEntries';
 import {
   isLocationInfoEntry,
+  locationInfoHasAIContent,
   normalizeLocationInfoNotes,
   parseLocationInfoNotes,
   serializeLocationInfoNotes
@@ -624,6 +625,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
 
       {isLocationInfo && locationInfoData && locationInfoExpanded ? (
         <div className={styles.locationInfoBody}>
+          {locationInfoData.aiError?.trim() ? (
+            <p className={styles.locationInfoAiError}>{locationInfoData.aiError.trim()}</p>
+          ) : null}
           {locationInfoData.overview.trim() ? (
             <section className={styles.locationInfoSection}>
               <h4 className={styles.locationInfoHeading}>Overview</h4>
@@ -635,6 +639,11 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             <LocationInfoHighlights
               rows={locationHighlightRows(locationInfoData)}
               emptyHint={locationInfoData.aiSightsPlaceholder}
+              entry={entry}
+              place={placeById(locationInfoData.placeId)}
+              geminiApiKey={config.geminiApiKey}
+              hasAnyContent={locationInfoHasAIContent(locationInfoData)}
+              onOpenSettings={() => window.dispatchEvent(new Event('travelhub-open-settings'))}
               onChange={(rows) => {
                 const next = normalizeLocationInfoNotes({
                   ...locationInfoData,
