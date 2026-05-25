@@ -11,6 +11,11 @@ import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import * as strings from 'TravelHubWebPartStrings';
 import TravelHub from './components/TravelHub';
 import { ITravelHubProps } from './components/ITravelHubProps';
+import {
+  TRAVEL_HUB_CHROME_CSS,
+  TRAVEL_HUB_CHROME_STYLE_ID,
+  TRAVEL_HUB_PAGE_CLASS
+} from './sharePointChromeCss';
 
 export interface ITravelHubWebPartProps {
   description: string;
@@ -22,7 +27,29 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
   private _isDarkTheme: boolean = false;
   private _environmentMessage: string = '';
 
+  private _ensureChromeStyle(): void {
+    if (!document.getElementById(TRAVEL_HUB_CHROME_STYLE_ID)) {
+      const styleEl: HTMLStyleElement = document.createElement('style');
+      styleEl.id = TRAVEL_HUB_CHROME_STYLE_ID;
+      styleEl.textContent = TRAVEL_HUB_CHROME_CSS;
+      document.head.appendChild(styleEl);
+    }
+
+    document.body.classList.add(TRAVEL_HUB_PAGE_CLASS);
+  }
+
+  private _removeChromeStyleIfUnused(): void {
+    document.body.classList.remove(TRAVEL_HUB_PAGE_CLASS);
+
+    const styleEl = document.getElementById(TRAVEL_HUB_CHROME_STYLE_ID);
+    if (styleEl) {
+      styleEl.remove();
+    }
+  }
+
   public render(): void {
+    this._ensureChromeStyle();
+
     const element: React.ReactElement<ITravelHubProps> = React.createElement(
       TravelHub,
       {
@@ -94,6 +121,7 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
 
   protected onDispose(): void {
     ReactDom.unmountComponentAtNode(this.domElement);
+    this._removeChromeStyleIfUnused();
   }
 
   protected get dataVersion(): Version {
