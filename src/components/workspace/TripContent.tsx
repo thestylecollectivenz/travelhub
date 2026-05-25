@@ -24,7 +24,26 @@ import {
 } from '../../utils/sidebarWidth';
 import { PlanViewProvider, usePlanView } from '../../context/PlanViewContext';
 import { DayTitleStrip } from '../day/DayTitleStrip';
+import { PaneCollapseToggle } from '../layout/PaneCollapseToggle';
+import { RightPane } from '../layout/RightPane';
 import dayHeaderStyles from '../day/DayHeader.module.css';
+import { useMinViewportWidth } from '../../utils/useMinViewportWidth';
+import {
+  defaultRightPaneWidthPx,
+  DESKTOP_LAYOUT_MIN_PX,
+  LEFT_PANE_MAX_PX,
+  LEFT_PANE_MIN_PX,
+  LS_LEFT_COLLAPSED,
+  LS_RIGHT_COLLAPSED,
+  LS_RIGHT_WIDTH,
+  PANE_COLLAPSED_WIDTH_PX,
+  readBool,
+  readPaneWidth,
+  RIGHT_PANE_MAX_PX,
+  RIGHT_PANE_MIN_PX,
+  writeBool,
+  writePaneWidth
+} from '../../utils/workspacePaneLayout';
 import styles from './TripWorkspace.module.css';
 
 const TripContentInner: React.FC = () => {
@@ -32,12 +51,22 @@ const TripContentInner: React.FC = () => {
   const { config, saveConfig } = useConfig();
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const planView = usePlanView();
+  const showDesktopRightPane = useMinViewportWidth(DESKTOP_LAYOUT_MIN_PX);
   const [sidebarWidth, setSidebarWidth] = React.useState<number>(() =>
     resolveSidebarWidthPx(config, PRIVATE_WORKSPACE_TAB_COUNT)
   );
+  const [leftPaneCollapsed, setLeftPaneCollapsed] = React.useState<boolean>(() => readBool(LS_LEFT_COLLAPSED));
+  const [rightPaneWidth, setRightPaneWidth] = React.useState<number>(() =>
+    readPaneWidth(LS_RIGHT_WIDTH, defaultRightPaneWidthPx(), RIGHT_PANE_MIN_PX, RIGHT_PANE_MAX_PX)
+  );
+  const [rightPaneCollapsed, setRightPaneCollapsed] = React.useState<boolean>(() => readBool(LS_RIGHT_COLLAPSED));
+  const [activePlaceInfoId, setActivePlaceInfoId] = React.useState('');
   const sidebarWidthRef = React.useRef(sidebarWidth);
+  const rightPaneWidthRef = React.useRef(rightPaneWidth);
   const saveTimerRef = React.useRef<number | null>(null);
+  const rightPaneSaveTimerRef = React.useRef<number | null>(null);
   const isDraggingRef = React.useRef(false);
+  const isRightPaneDraggingRef = React.useRef(false);
 
   React.useEffect(() => {
     if (isDraggingRef.current) return;
@@ -46,11 +75,26 @@ const TripContentInner: React.FC = () => {
   React.useEffect(() => {
     sidebarWidthRef.current = sidebarWidth;
   }, [sidebarWidth]);
+  React.useEffect(() => {
+    rightPaneWidthRef.current = rightPaneWidth;
+  }, [rightPaneWidth]);
 
   const dayPanelDay = React.useMemo(() => {
     if (!trip || !selectedDayId) return undefined;
     return tripDays.find((x) => x.id === selectedDayId && x.tripId === trip.id);
   }, [trip, tripDays, selectedDayId]);
+
+  React.useEffect(() => {
+    setActivePlaceInfoId(dayPanelDay?.primaryPlaceId || '');
+  }, [dayPanelDay?.id, dayPanelDay?.primaryPlaceId]);
+
+  React.useEffect(() => {
+    writeBool(LS_LEFT_COLLAPSED, leftPaneCollapsed);
+  }, [leftPaneCollapsed]);
+
+  React.useEffect(() => {
+    writeBool(LS_RIGHT_COLLAPSED, rightPaneCollapsed);
+  }, [rightPaneCollapsed]);
 
   const preTripDayId = React.useMemo(() => resolvePreTripDayId(tripDays, trip?.id ?? ''), [tripDays, trip?.id]);
 
@@ -133,7 +177,7 @@ const TripContentInner: React.FC = () => {
 
       const onMouseMove = (moveEvent: MouseEvent): void => {
         const delta = moveEvent.clientX - startX;
-        const nextWidth = Math.max(180, Math.min(400, startWidth + delta));
+        const nextWidth = Math.max(LEFT_PANE_MIN_PX, Math.min(LEFT_PANE_MAX_PX, startWidth + delta));
         setSidebarWidth(nextWidth);
       };
 
@@ -144,7 +188,7 @@ const TripContentInner: React.FC = () => {
         if (saveTimerRef.current) {
           window.clearTimeout(saveTimerRef.current);
         }
-        const finalWidth = Math.max(180, Math.min(400, sidebarWidthRef.current));
+        const finalWidth = Math.max(LEFT_PANE_MIN_PX, Math.min(LEFT_PANE_MAX_PX, sidebarWidthRef.current));
         saveTimerRef.current = window.setTimeout(() => {
           markSidebarWidthCustomized();
           saveConfig({ ...config, sidebarWidth: finalWidth, sidebarWidthCustomized: true }).catch(console.error);
@@ -158,19 +202,67 @@ const TripContentInner: React.FC = () => {
     [config, saveConfig]
   );
 
+  const startRightPaneResize = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = rightPaneWidthRef.current;
+
+    const onMouseMove = (moveEvent: MouseEvent): void => {
+      const delta = startX - moveEvent.clientX;
+      const nextWidth = Math.max(RIGHT_PANE_MIN_PX, Math.min(RIGHT_PANE_MAX_PX, startWidth + delta));
+      setRightPaneWidth(nextWidth);
+    };
+
+    const onMouseUp = (): void => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      isRightPaneDraggingRef.current = false;
+      if (rightPaneSaveTimerRef.current) {
+        window.clearTimeout(rightPaneSaveTimerRef.current);
+      }
+      rightPaneSaveTimerRef.current = window.setTimeout(() => {
+        writePaneWidth(LS_RIGHT_WIDTH, rightPaneWidthRef.current);
+      }, 150);
+    };
+
+    isRightPaneDraggingRef.current = true;
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }, []);
+
+  const tripContentStyle = React.useMemo(
+    () =>
+      ({
+        '--th-left-pane-width': `${leftPaneCollapsed ? PANE_COLLAPSED_WIDTH_PX : sidebarWidth}px`,
+        '--th-right-pane-width': `${rightPaneCollapsed ? PANE_COLLAPSED_WIDTH_PX : rightPaneWidth}px`
+      }) as React.CSSProperties,
+    [leftPaneCollapsed, rightPaneCollapsed, rightPaneWidth, sidebarWidth]
+  );
+
   const shell = (
-    <div className={styles.tripContent}>
-      <div className={styles.sidebarShell} style={{ width: `${sidebarWidth}px` }}>
+    <div className={`${styles.tripContent} ${showDesktopRightPane ? '' : styles.tripContentTwoPane}`} style={tripContentStyle}>
+      <div
+        className={`${styles.sidebarShell} ${leftPaneCollapsed ? styles.sidebarShellCollapsed : ''}`}
+        style={{ width: `${leftPaneCollapsed ? PANE_COLLAPSED_WIDTH_PX : sidebarWidth}px` }}
+      >
+        <PaneCollapseToggle
+          side="left"
+          collapsed={leftPaneCollapsed}
+          onToggle={() => setLeftPaneCollapsed((value) => !value)}
+          ariaLabel={leftPaneCollapsed ? 'Expand navigation panel' : 'Collapse navigation panel'}
+        />
         <aside className={styles.sidebar} aria-label="Trip navigation and budget">
           <TripSidebar />
         </aside>
-        <div
-          className={styles.sidebarResizeHandle}
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize sidebar"
-          onMouseDown={startSidebarResize}
-        />
+        {!leftPaneCollapsed ? (
+          <div
+            className={styles.sidebarResizeHandle}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize sidebar"
+            onMouseDown={startSidebarResize}
+          />
+        ) : null}
       </div>
       <main className={styles.main}>
         {mainWorkspaceTab === 'itinerary' && dayPanelDay ? (
@@ -178,7 +270,13 @@ const TripContentInner: React.FC = () => {
             <DayTitleStrip day={dayPanelDay} />
           </div>
         ) : null}
-        {mainWorkspaceTab === 'itinerary' ? <DayPanel hideHeader /> : null}
+        {mainWorkspaceTab === 'itinerary' ? (
+          <DayPanel
+            hideHeader
+            activePlaceInfoId={activePlaceInfoId}
+            onActivePlaceInfoChange={setActivePlaceInfoId}
+          />
+        ) : null}
         {mainWorkspaceTab === 'budget' ? <TripBudgetDetailView /> : null}
         {mainWorkspaceTab === 'journal' ? <TripJournalFeed /> : null}
         {mainWorkspaceTab === 'photos' ? <TripPhotoAlbum /> : null}
@@ -238,6 +336,20 @@ const TripContentInner: React.FC = () => {
           </section>
         ) : null}
       </main>
+      {showDesktopRightPane ? (
+        <div className={styles.rightPaneCell}>
+          <RightPane
+            widthPx={rightPaneWidth}
+            collapsed={rightPaneCollapsed}
+            onToggleCollapse={() => setRightPaneCollapsed((value) => !value)}
+            onResizeStart={startRightPaneResize}
+            day={dayPanelDay}
+            activePlaceInfoId={activePlaceInfoId}
+            showItineraryDayContent={mainWorkspaceTab === 'itinerary' && !!dayPanelDay}
+            showSelectDayHint={mainWorkspaceTab === 'itinerary' && !dayPanelDay}
+          />
+        </div>
+      ) : null}
     </div>
   );
 

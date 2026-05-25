@@ -1,0 +1,49 @@
+.shell {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  border-left: var(--border-default);
+  background: var(--color-surface-raised);
+}
+
+.collapsed {}
+
+.collapsed .scroll {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.scroll {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-4);
+  box-sizing: border-box;
+  transition: opacity 150ms ease;
+}
+
+.resizeHandle {
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  border-left: var(--border-default);
+  flex-shrink: 0;
+}
+
+.resizeHandle:hover {
+  background: var(--color-blue-100);
+}
+
+.divider {
+  border: none;
+  border-top: var(--border-default);
+  margin: var(--space-4) 0;
+}

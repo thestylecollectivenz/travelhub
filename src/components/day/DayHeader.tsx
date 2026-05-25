@@ -10,8 +10,6 @@ import { formatDayDate } from '../../utils/dateUtils';
 import { compareTripDaysChronological } from '../../utils/tripDateRangeSync';
 import { parseAdditionalPlaceRefs, serializeAdditionalPlaceRef } from '../../utils/tripDayPlaces';
 import { CollapsibleSummaryBar } from '../shared/CollapsibleSummaryBar';
-import { PlaceInfoPanel } from './PlaceInfoPanel';
-import { datesWherePlaceAppears, forecastDatesForPlaceStay } from '../../utils/placeForecastDates';
 import { placeDisplayLabel } from '../../utils/placeDisplayLabel';
 import styles from './DayHeader.module.css';
 
@@ -21,6 +19,8 @@ export interface DayHeaderProps {
   variant?: 'default' | 'shared';
   /** When true, only the day title row stays sticky while scrolling (not locations or place info). */
   stickyTitleOnly?: boolean;
+  activePlaceInfoId?: string;
+  onActivePlaceInfoChange?: (placeId: string) => void;
 }
 
 function dayTypeLabel(dayType: TripDay['dayType']): string {
@@ -37,7 +37,13 @@ function dayTypeLabel(dayType: TripDay['dayType']): string {
   }
 }
 
-export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', stickyTitleOnly = false }) => {
+export const DayHeader: React.FC<DayHeaderProps> = ({
+  day,
+  variant = 'default',
+  stickyTitleOnly = false,
+  activePlaceInfoId: controlledActivePlaceInfoId,
+  onActivePlaceInfoChange
+}) => {
   const { updateDay, reloadItineraryEntries, trip, tripDays, localEntries } = useTripWorkspace();
   const { config } = useConfig();
   const { searchPlaces, createOrReusePlace, placeById } = usePlaces();
@@ -49,7 +55,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
   const [locationSearch, setLocationSearch] = React.useState('');
   const [locationResults, setLocationResults] = React.useState<PlaceCandidate[]>([]);
   const [locationsExpanded, setLocationsExpanded] = React.useState(true);
-  const [activePlaceInfoId, setActivePlaceInfoId] = React.useState('');
+  const [activePlaceInfoIdState, setActivePlaceInfoIdState] = React.useState('');
   const [copyDaysCount, setCopyDaysCount] = React.useState(1);
   const [locationMessage, setLocationMessage] = React.useState('');
   const additionalRefs = React.useMemo(() => parseAdditionalPlaceRefs(day.additionalPlaceIds), [day.additionalPlaceIds]);
@@ -64,31 +70,13 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
       .filter(Boolean) as Array<{ placeId: string; place: NonNullable<ReturnType<typeof placeById>>; returnToPrimary: boolean }>;
     return { primary, additional };
   }, [day.primaryPlaceId, additionalRefs, placeById]);
-  const weatherAnchorDate =
-    day.dayType === 'PreTrip' && trip?.dateStart ? trip.dateStart.split('T')[0] : day.calendarDate;
-
-  const allPlacesForInfo = React.useMemo(() => {
-    const rows: Array<{ id: string; place: NonNullable<typeof dayLocations.primary>; isPrimary: boolean }> = [];
-    if (dayLocations.primary) {
-      rows.push({ id: dayLocations.primary.id, place: dayLocations.primary, isPrimary: true });
-    }
-    for (const a of dayLocations.additional) {
-      rows.push({ id: a.place.id, place: a.place, isPrimary: false });
-    }
-    return rows;
-  }, [dayLocations]);
+  const firstPlaceInfoId = dayLocations.primary?.id ?? dayLocations.additional[0]?.place.id ?? '';
+  const activePlaceInfoId = controlledActivePlaceInfoId ?? activePlaceInfoIdState;
+  const setActivePlaceInfoId = onActivePlaceInfoChange ?? setActivePlaceInfoIdState;
 
   React.useEffect(() => {
-    setActivePlaceInfoId(dayLocations.primary?.id || allPlacesForInfo[0]?.id || '');
-  }, [day.id, dayLocations.primary?.id, allPlacesForInfo]);
-
-  const activePlaceInfo = allPlacesForInfo.find((p) => p.id === activePlaceInfoId) ?? allPlacesForInfo[0];
-
-  const activeForecastDates = React.useMemo(() => {
-    if (!activePlaceInfo?.place?.id) return [weatherAnchorDate.slice(0, 10)].filter(Boolean);
-    const stayDates = datesWherePlaceAppears(tripDays, activePlaceInfo.place.id);
-    return forecastDatesForPlaceStay(stayDates);
-  }, [activePlaceInfo?.place?.id, tripDays, weatherAnchorDate]);
+    setActivePlaceInfoId(firstPlaceInfoId);
+  }, [day.id, firstPlaceInfoId, setActivePlaceInfoId]);
 
   const locationsSummary = React.useMemo(() => {
     const count = (dayLocations.primary ? 1 : 0) + dayLocations.additional.length;
@@ -284,26 +272,6 @@ export const DayHeader: React.FC<DayHeaderProps> = ({ day, variant = 'default', 
         </div>
       </div>
       )}
-      <div className={styles.placeInfoColumn}>
-        {locationsExpanded ? (
-          <div className={styles.placeInfoCard}>
-            {allPlacesForInfo.length ? (
-              <>
-                {activePlaceInfo ? (
-                  <PlaceInfoPanel
-                    place={activePlaceInfo.place}
-                    weatherAnchorDate={weatherAnchorDate}
-                    forecastDates={activeForecastDates}
-                    showHeader
-                  />
-                ) : null}
-              </>
-            ) : (
-              <div className={styles.infoSub}>Set a primary location to view place intelligence.</div>
-            )}
-          </div>
-        ) : null}
-      </div>
       <section className={styles.locationsColumn}>
         <div className={styles.locationsTile}>
           <CollapsibleSummaryBar

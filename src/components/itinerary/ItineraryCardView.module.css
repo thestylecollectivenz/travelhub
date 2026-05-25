@@ -165,6 +165,9 @@
   font-size: var(--font-size-xs);
   color: var(--color-sand-700);
   font-weight: var(--font-weight-medium);
+  overflow-wrap: break-word;
+  word-break: break-word;
+  overflow: hidden;
 }
 
 .metaRow {

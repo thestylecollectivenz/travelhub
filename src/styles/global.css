@@ -139,6 +139,9 @@
   /* Layout */
   --sidebar-width: 260px;
   --header-height: 64px;
+  --th-side-pane-default: clamp(200px, 18vw, 320px);
+  --th-left-pane-width: var(--th-side-pane-default);
+  --th-right-pane-width: var(--th-side-pane-default);
 }
 
 * {

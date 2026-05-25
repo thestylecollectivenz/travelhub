@@ -77,8 +77,8 @@
   border-color: var(--color-primary);
   color: var(--color-primary);
 }
-.addRow { flex-wrap: nowrap; }
-.addRow .input { flex: 1; min-width: 8rem; }
+.addRow { flex-wrap: wrap; }
+.addRow .input, .addRow .select { flex: 1 1 120px; min-width: 120px; }
 .addBtn { flex-shrink: 0; white-space: nowrap; width: auto; }
 .group { border: var(--border-default); border-radius: var(--radius-md); padding: var(--space-3); background: var(--color-surface-raised); }
 .title {

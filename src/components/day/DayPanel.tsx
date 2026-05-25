@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
-import { usePlanView } from '../../context/PlanViewContext';
 import { useConfig } from '../../context/ConfigContext';
 import { ItineraryTimeline } from '../itinerary/ItineraryTimeline';
 import { ItineraryDayPlannerView } from '../itinerary/ItineraryDayPlannerView';
@@ -9,7 +8,6 @@ import { CruiseItineraryImport } from '../cruise/CruiseItineraryImport';
 import { TipCalculator } from '../utilities/TipCalculator';
 import { COUNTRY_DATA } from '../../data/countryData';
 import { usePlaces } from '../../context/PlacesContext';
-import { BudgetBreakdownTile } from './BudgetBreakdownTile';
 import { DayHeader } from './DayHeader';
 import { DayItineraryToolbar } from './DayItineraryToolbar';
 import styles from './DayPanel.module.css';
@@ -17,11 +15,16 @@ import styles from './DayPanel.module.css';
 export interface DayPanelProps {
   /** When true, day title is rendered by TripContent sticky rail. */
   hideHeader?: boolean;
+  activePlaceInfoId?: string;
+  onActivePlaceInfoChange?: (placeId: string) => void;
 }
 
-export const DayPanel: React.FC<DayPanelProps> = ({ hideHeader = false }) => {
-  const { trip, tripDays, selectedDayId, setEditingCardId } = useTripWorkspace();
-  const planView = usePlanView();
+export const DayPanel: React.FC<DayPanelProps> = ({
+  hideHeader = false,
+  activePlaceInfoId,
+  onActivePlaceInfoChange
+}) => {
+  const { trip, tripDays, selectedDayId } = useTripWorkspace();
   const { config } = useConfig();
   const { placeById } = usePlaces();
   const [openJournalSignal, setOpenJournalSignal] = React.useState(0);
@@ -46,14 +49,20 @@ export const DayPanel: React.FC<DayPanelProps> = ({ hideHeader = false }) => {
 
   return (
     <div className={styles.root}>
-      {hideHeader ? <DayHeader day={day} stickyTitleOnly /> : <DayHeader day={day} />}
-      <div id="day-breakdown-tile">
-        <BudgetBreakdownTile
-          tripId={trip.id}
-          dayId={day.id}
-          defaultExpanded={config.dayBreakdownVisibleByDefault}
+      {hideHeader ? (
+        <DayHeader
+          day={day}
+          stickyTitleOnly
+          activePlaceInfoId={activePlaceInfoId}
+          onActivePlaceInfoChange={onActivePlaceInfoChange}
         />
-      </div>
+      ) : (
+        <DayHeader
+          day={day}
+          activePlaceInfoId={activePlaceInfoId}
+          onActivePlaceInfoChange={onActivePlaceInfoChange}
+        />
+      )}
       <div className={hideHeader ? styles.dayToolbarSticky : undefined}>
         <DayItineraryToolbar
           day={day}
