@@ -118,28 +118,32 @@ export const BudgetBreakdownTile: React.FC<BudgetBreakdownTileProps> = ({
               const categorySlug = getCategorySlug(category);
               return (
                 <div key={category} className={styles.row}>
-                  <div className={styles.rowLeft}>
-                    <span className={lineTotal > 0 ? `th-cat-${categorySlug} th-cat-icon` : undefined}>
-                      <CategoryIcon
-                        category={category}
-                        size={14}
-                        color={lineTotal > 0 ? 'currentColor' : 'var(--color-sand-400)'}
-                      />
-                    </span>
-                    <span className={styles.name}>{category}</span>
+                  <div className={styles.rowHeader}>
+                    <div className={styles.rowLeft}>
+                      <span className={lineTotal > 0 ? `th-cat-${categorySlug} th-cat-icon` : undefined}>
+                        <CategoryIcon
+                          category={category}
+                          size={14}
+                          color={lineTotal > 0 ? 'currentColor' : 'var(--color-sand-400)'}
+                        />
+                      </span>
+                      <span className={styles.name} title={category}>
+                        {category}
+                      </span>
+                    </div>
                     <span className={styles.count}>{countLabel}</span>
                   </div>
-                  <div className={styles.spacer} />
-                  <div className={styles.progressWrap} aria-hidden>
-                    <div className={styles.progressFill} style={{ width: `${pct}%` }} />
+                  <div className={styles.rowMetrics}>
+                    <div className={styles.progressWrap} aria-hidden>
+                      <div className={styles.progressFill} style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className={styles.amount}>{formatCurrency(lineTotal, config.homeCurrency)}</span>
                   </div>
-                  <span className={styles.amount}>{formatCurrency(lineTotal, config.homeCurrency)}</span>
                 </div>
               );
             })}
             <div className={styles.totalRow}>
               <span className={styles.totalLabel}>Day total</span>
-              <div className={styles.spacer} />
               <span className={styles.totalAmount}>{formatCurrency(dayTotalAll, config.homeCurrency)}</span>
             </div>
           </>

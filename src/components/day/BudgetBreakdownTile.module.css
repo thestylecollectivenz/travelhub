@@ -23,13 +23,14 @@
 }
 
 .totalRow {
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-3);
   padding-top: var(--space-3);
   margin-top: var(--space-1);
   border-top: 2px solid var(--color-blue-100);
+  min-width: 0;
 }
 
 .totalLabel {
@@ -42,7 +43,7 @@
 
 .totalAmount {
   flex-shrink: 0;
-  width: 6.5rem;
+  min-width: max-content;
   text-align: right;
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-bold);
@@ -58,46 +59,63 @@
 
 .row {
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: var(--space-3);
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
   padding: var(--space-3) 0;
   border-bottom: var(--border-default);
+  min-width: 0;
 }
 
 .row:last-child {
   border-bottom: none;
 }
 
+.rowHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
 .rowLeft {
   display: flex;
   flex-direction: row;
   align-items: center;
+  flex: 1 1 auto;
   min-width: 0;
   gap: var(--space-2);
 }
 
 .name {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: var(--font-size-sm);
   color: var(--color-blue-800);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .count {
   font-size: var(--font-size-xs);
   color: var(--color-sand-400);
-  margin-left: var(--space-2);
   white-space: nowrap;
 }
 
-.spacer {
-  flex: 1;
-  min-width: var(--space-2);
+.rowMetrics {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
 }
 
 .progressWrap {
-  width: 120px;
-  max-width: 120px;
-  flex-shrink: 0;
+  flex: 1 1 8rem;
+  min-width: 0;
+  width: auto;
+  max-width: none;
   height: 6px;
   border-radius: var(--radius-full);
   background: var(--color-sand-200);
@@ -113,8 +131,8 @@
 }
 
 .amount {
-  flex-shrink: 0;
-  width: 6.5rem;
+  flex: 0 0 auto;
+  min-width: max-content;
   text-align: right;
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
