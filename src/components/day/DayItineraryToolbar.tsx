@@ -74,7 +74,16 @@ export const DayItineraryToolbar: React.FC<DayItineraryToolbarProps> = ({
       <button type="button" className={styles.itineraryViewBtn} onClick={onJournalEntry}>
         Journal entry
       </button>
-      <button type="button" className={styles.addButton} onClick={() => setEditingCardId('new')}>
+      <button
+        type="button"
+        className={styles.addButton}
+        onClick={() => {
+          if (itineraryView !== 'timeline') {
+            onItineraryViewChange('timeline');
+          }
+          setEditingCardId('new');
+        }}
+      >
         + Add
       </button>
     </div>
