@@ -48,6 +48,17 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
     element.style.setProperty(property, value, 'important');
   }
 
+  private _applyViewportBreakout(element: HTMLElement): void {
+    this._setImportantStyle(element, 'width', '100vw');
+    this._setImportantStyle(element, 'max-width', '100vw');
+    this._setImportantStyle(element, 'min-width', '100vw');
+    this._setImportantStyle(element, 'margin-left', 'calc(50% - 50vw)');
+    this._setImportantStyle(element, 'margin-right', 'calc(50% - 50vw)');
+    this._setImportantStyle(element, 'padding-left', '0');
+    this._setImportantStyle(element, 'padding-right', '0');
+    this._setImportantStyle(element, 'box-sizing', 'border-box');
+  }
+
   private _scheduleHostNormalization(): void {
     if (this._normalizeHostFrame !== undefined) {
       window.cancelAnimationFrame(this._normalizeHostFrame);
@@ -71,6 +82,7 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
     };
 
     const targets = new Set<HTMLElement>();
+    const breakoutTargets = new Set<HTMLElement>();
     addTarget(targets, this.domElement);
     addTarget(targets, this.domElement.parentElement);
     addTarget(targets, hostRoot);
@@ -126,6 +138,30 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
       this._setImportantStyle(element, 'right', 'auto');
       this._setImportantStyle(element, 'inset-inline-start', '0');
       this._setImportantStyle(element, 'box-sizing', 'border-box');
+      this._setImportantStyle(element, 'overflow', 'visible');
+    });
+
+    const shouldBreakout = (element: HTMLElement): boolean => {
+      const className = typeof element.className === 'string' ? element.className : '';
+      const automationId = element.getAttribute('data-automation-id') ?? element.getAttribute('data-automationid') ?? '';
+      return (
+        element === hostRoot ||
+        element === this.domElement ||
+        element === this.domElement.parentElement ||
+        automationId.includes('Canvas') ||
+        automationId.includes('contentScrollRegion') ||
+        className.includes('Canvas') ||
+        className.includes('ControlZone') ||
+        className.includes('mainContent') ||
+        className.includes('SPCanvas') ||
+        className.includes('sp-canvasPage')
+      );
+    };
+
+    targets.forEach((element) => {
+      if (shouldBreakout(element)) {
+        breakoutTargets.add(element);
+      }
     });
 
     document.querySelectorAll('#sp-appBar, .spAppAndPropertyPanelContainer .sp-appBar, .spAppAndPropertyPanelContainer .sp-appBar-mobile, .sp-sideNav, [class*="spReactLeftNav"], [data-automationid="SiteHeaderLeftNavToggleButton"]').forEach((element) => {
@@ -161,12 +197,15 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
     this._setImportantStyle(hostRoot, 'margin-left', '0');
     this._setImportantStyle(hostRoot, 'width', '100%');
 
-    const rect = hostRoot.getBoundingClientRect();
-    const leftGap = Math.max(0, Math.round(rect.left));
-    if (leftGap > 4) {
-      this._setImportantStyle(hostRoot, 'margin-left', `${-leftGap}px`);
-      this._setImportantStyle(hostRoot, 'width', `calc(100% + ${leftGap}px)`);
-    }
+    breakoutTargets.forEach((element) => {
+      const rect = element.getBoundingClientRect();
+      const leftGap = Math.max(0, Math.round(rect.left));
+      const rightGap = Math.max(0, Math.round(window.innerWidth - rect.right));
+      const constrained = leftGap > 16 || rightGap > 16 || rect.width < window.innerWidth - 24;
+      if (constrained) {
+        this._applyViewportBreakout(element);
+      }
+    });
   }
 
   private _ensureHostObservers(): void {
