@@ -4,6 +4,7 @@
   flex-direction: row;
   justify-content: space-around;
   align-items: stretch;
+  flex-shrink: 0;
   width: 100%;
   box-sizing: border-box;
   background: var(--color-surface-raised);

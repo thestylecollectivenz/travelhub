@@ -4,6 +4,7 @@
   background: var(--color-surface-raised);
   padding: var(--space-4);
   box-shadow: var(--shadow-card);
+  box-sizing: border-box;
 }
 
 .cardUnread {

@@ -278,7 +278,7 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
   }, [entry.likedByUsers, spContext.pageContext.user.loginName]);
 
   return (
-    <article className={`${styles.card} ${isUnread ? styles.cardUnread : ''}`} data-journal-id={entry.id}>
+    <div className={`${styles.card} ${isUnread ? styles.cardUnread : ''}`} data-journal-id={entry.id}>
       <div className={styles.metaRow}>
         <div>
           {isUnread ? <span className={styles.unreadBadge}>New</span> : null}
@@ -537,6 +537,6 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
       ) : null}
 
       {lightboxUrl ? <JournalImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} /> : null}
-    </article>
+    </div>
   );
 };

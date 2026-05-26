@@ -306,11 +306,18 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
     borderRadius: 'var(--radius-lg)',
     boxShadow: 'var(--shadow-card)',
     border: 'var(--border-default)',
-    padding: 'var(--space-5)',
+    display: 'flex',
+    flexDirection: 'column',
+    textAlign: 'left',
+    overflow: 'hidden'
+  };
+
+  const cardContentStyle: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
     gap: 'var(--space-3)',
-    textAlign: 'left'
+    padding: 'var(--space-5)',
+    minHeight: '100%'
   };
 
   const cardTitleStyle: React.CSSProperties = {
@@ -374,12 +381,11 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
     border: 'var(--border-default)',
     borderRadius: 'var(--radius-lg)',
     overflow: 'hidden',
-    background: 'var(--color-surface-raised)'
+    background: 'var(--color-surface-raised)',
+    boxShadow: 'var(--shadow-card)'
   };
   const statsWrapStyle: React.CSSProperties = {
-    marginTop: 'var(--space-6)',
-    border: 'var(--border-default)',
-    borderRadius: 'var(--radius-lg)',
+    borderTop: 'var(--border-default)',
     background: 'var(--color-surface-raised)',
     padding: 'var(--space-4)'
   };
@@ -393,9 +399,15 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
   };
   const mapTitleStyle: React.CSSProperties = {
     margin: 0,
-    fontSize: 'var(--font-size-sm)',
+    fontSize: 'var(--font-size-lg)',
     fontWeight: 'var(--font-weight-bold)',
     color: 'var(--color-blue-800)'
+  };
+  const statsTitleStyle: React.CSSProperties = {
+    margin: '0 0 var(--space-3)',
+    color: 'var(--color-blue-800)',
+    fontSize: 'var(--font-size-md)',
+    fontWeight: 'var(--font-weight-bold)'
   };
   const mapTabsStyle: React.CSSProperties = {
     display: 'inline-flex',
@@ -534,16 +546,18 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
             {listTrips.map((trip) => {
               const isNextUp = trip.id === nextUpId;
               return (
-                <article key={trip.id} style={isNextUp ? featuredCardStyle : cardStyle}>
-                  {isNextUp ? <span style={nextUpBadgeStyle}>Next up</span> : null}
-                  <h2 style={cardTitleStyle}>{trip.title}</h2>
-                  {trip.destination ? <p style={destinationStyle}>{trip.destination}</p> : null}
-                  <p style={dateStyle}>{formatDateRange(trip.dateStart, trip.dateEnd)}</p>
-                  <span style={{ ...badgeStyleBase, ...getStatusBadgeStyles(trip.status) }}>{trip.status}</span>
-                  <button type="button" style={primaryButtonStyle} onClick={() => onSelectTrip(trip.id)}>
-                    Open Trip
-                  </button>
-                </article>
+                <div key={trip.id} style={isNextUp ? featuredCardStyle : cardStyle}>
+                  <div style={cardContentStyle}>
+                    {isNextUp ? <span style={nextUpBadgeStyle}>Next up</span> : null}
+                    <h2 style={cardTitleStyle}>{trip.title}</h2>
+                    {trip.destination ? <p style={destinationStyle}>{trip.destination}</p> : null}
+                    <p style={dateStyle}>{formatDateRange(trip.dateStart, trip.dateEnd)}</p>
+                    <span style={{ ...badgeStyleBase, ...getStatusBadgeStyles(trip.status) }}>{trip.status}</span>
+                    <button type="button" style={primaryButtonStyle} onClick={() => onSelectTrip(trip.id)}>
+                      Open Trip
+                    </button>
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -579,26 +593,24 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
               </p>
             ) : null}
             <div ref={mapRef} className="th-map-container" />
-          </section>
-          <section style={statsWrapStyle} aria-label="Travel stats">
-            <h2 style={{ margin: '0 0 var(--space-3)', color: 'var(--color-blue-800)', fontSize: 'var(--font-size-lg)' }}>
-              Stats ({mapTripFilter === 'completed' ? 'Completed trips' : 'Upcoming trips'})
-            </h2>
-            <div style={statsGridStyle}>
-              <div>Total countries visited: <strong>{countriesVisited.length}</strong></div>
-              <div>Total cities/places visited: <strong>{totalCitiesVisited}</strong></div>
-              <div>Total trip days: <strong>{totalTripDays}</strong></div>
-              <div>Total nights away: <strong>{totalNightsAway}</strong></div>
-            </div>
-            {countriesVisited.length ? (
-              <div style={{ marginTop: 'var(--space-3)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-                {countriesVisited.map((c) => (
-                  <span key={c.code} style={{ border: 'var(--border-default)', borderRadius: 'var(--radius-full)', padding: '2px var(--space-2)', fontSize: 'var(--font-size-xs)' }}>
-                    {flagEmoji(c.code)} {c.name}
-                  </span>
-                ))}
+            <div style={statsWrapStyle} aria-label="Travel stats">
+              <h2 style={statsTitleStyle}>Stats ({mapTripFilter === 'completed' ? 'Completed trips' : 'Upcoming trips'})</h2>
+              <div style={statsGridStyle}>
+                <div>Total countries visited: <strong>{countriesVisited.length}</strong></div>
+                <div>Total cities/places visited: <strong>{totalCitiesVisited}</strong></div>
+                <div>Total trip days: <strong>{totalTripDays}</strong></div>
+                <div>Total nights away: <strong>{totalNightsAway}</strong></div>
               </div>
-            ) : null}
+              {countriesVisited.length ? (
+                <div style={{ marginTop: 'var(--space-3)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+                  {countriesVisited.map((c) => (
+                    <span key={c.code} style={{ border: 'var(--border-default)', borderRadius: 'var(--radius-full)', padding: '2px var(--space-2)', fontSize: 'var(--font-size-xs)' }}>
+                      {flagEmoji(c.code)} {c.name}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           </section>
         </>
       )}

@@ -9,7 +9,8 @@ export const TRAVEL_HUB_PAGE_CLASS = 'th-travelhub-page';
  * - `#SuiteNavWrapper` / `#O365_NavHeader`: Microsoft 365 suite shell
  * - `#spCommandBar`: SharePoint authoring command bar (+ New / Promote / Page details / Preview / Analytics / Share / Edit / Republish)
  * - `.spAppAndPropertyPanelContainer`: SharePoint flex wrapper for the app bar and page content
- * - current page wrappers under `role="main"` include classes that apply `width: calc(100% - 120px)` and `margin: 0 auto`
+ * - current page wrappers under `role="main"` include classes that apply `width: calc(100% - 120px)`,
+ *   `margin: 0 auto`, and left-side offset styles after the nav host is hidden
  *
  * The site quick-launch nav is rendered by SharePoint's left-nav React host. Its concrete class is hashed,
  * so this targets the stable runtime class prefix SharePoint uses for that nav container.
@@ -21,16 +22,20 @@ body.${TRAVEL_HUB_PAGE_CLASS} .spAppAndPropertyPanelContainer .sp-appBar-mobile,
 body.${TRAVEL_HUB_PAGE_CLASS} #SuiteNavWrapper,
 body.${TRAVEL_HUB_PAGE_CLASS} #O365_NavHeader,
 body.${TRAVEL_HUB_PAGE_CLASS} #spCommandBar,
+body.${TRAVEL_HUB_PAGE_CLASS} .sp-sideNav,
 body.${TRAVEL_HUB_PAGE_CLASS} [class*="spReactLeftNav"],
 body.${TRAVEL_HUB_PAGE_CLASS} [data-automationid="SiteHeaderLeftNavToggleButton"] {
   display: none !important;
 }
 
 body.${TRAVEL_HUB_PAGE_CLASS} .spAppAndPropertyPanelContainer .sp-appBar,
-body.${TRAVEL_HUB_PAGE_CLASS} .spAppAndPropertyPanelContainer .sp-appBar-mobile {
+body.${TRAVEL_HUB_PAGE_CLASS} .spAppAndPropertyPanelContainer .sp-appBar-mobile,
+body.${TRAVEL_HUB_PAGE_CLASS} .sp-sideNav {
   min-width: 0 !important;
   width: 0 !important;
   flex-basis: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 body.${TRAVEL_HUB_PAGE_CLASS} .spAppAndPropertyPanelContainer,
@@ -39,9 +44,11 @@ body.${TRAVEL_HUB_PAGE_CLASS} #spPageContentContainer,
 body.${TRAVEL_HUB_PAGE_CLASS} #spPageChromeAppDiv,
 body.${TRAVEL_HUB_PAGE_CLASS} [data-automationid="AppChrome"],
 body.${TRAVEL_HUB_PAGE_CLASS} .SPPageChrome-app,
+body.${TRAVEL_HUB_PAGE_CLASS} .ms-scroller,
+body.${TRAVEL_HUB_PAGE_CLASS} .sp-canvasPage,
 body.${TRAVEL_HUB_PAGE_CLASS} section.mainContent,
-body.${TRAVEL_HUB_PAGE_CLASS} article,
 body.${TRAVEL_HUB_PAGE_CLASS} [data-automation-id="contentScrollRegion"],
+body.${TRAVEL_HUB_PAGE_CLASS} [data-automationid="contentScrollRegion"],
 body.${TRAVEL_HUB_PAGE_CLASS} [role="main"],
 body.${TRAVEL_HUB_PAGE_CLASS} #spPageCanvasContent,
 body.${TRAVEL_HUB_PAGE_CLASS} .SPCanvas,
@@ -63,9 +70,12 @@ body.${TRAVEL_HUB_PAGE_CLASS} .th-app-root {
 body.${TRAVEL_HUB_PAGE_CLASS} .spAppAndPropertyPanelContainer,
 body.${TRAVEL_HUB_PAGE_CLASS} #spPlaceholdersAndPageContentContainer,
 body.${TRAVEL_HUB_PAGE_CLASS} #spPageContentContainer,
+body.${TRAVEL_HUB_PAGE_CLASS} .ms-scroller,
+body.${TRAVEL_HUB_PAGE_CLASS} .sp-canvasPage,
 body.${TRAVEL_HUB_PAGE_CLASS} section.mainContent,
-body.${TRAVEL_HUB_PAGE_CLASS} article,
 body.${TRAVEL_HUB_PAGE_CLASS} [data-automation-id="contentScrollRegion"],
+body.${TRAVEL_HUB_PAGE_CLASS} [data-automationid="contentScrollRegion"],
+body.${TRAVEL_HUB_PAGE_CLASS} .sp-sideNav + div,
 body.${TRAVEL_HUB_PAGE_CLASS} [role="main"] > div,
 body.${TRAVEL_HUB_PAGE_CLASS} #spPageCanvasContent,
 body.${TRAVEL_HUB_PAGE_CLASS} .SPCanvas,
@@ -82,6 +92,10 @@ body.${TRAVEL_HUB_PAGE_CLASS} .ControlZone {
   padding-left: 0 !important;
   padding-right: 0 !important;
   left: 0 !important;
+  right: auto !important;
+  inset-inline-start: 0 !important;
+  transform: none !important;
+  translate: none !important;
 }
 
 body.${TRAVEL_HUB_PAGE_CLASS} .c_1avbf_St4iq > :last-child,

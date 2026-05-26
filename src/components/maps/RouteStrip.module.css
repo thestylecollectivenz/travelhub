@@ -2,6 +2,7 @@
   border-bottom: var(--border-default);
   background: var(--color-surface-raised);
   padding: var(--space-2) var(--space-4);
+  flex-shrink: 0;
 }
 
 .scroll {

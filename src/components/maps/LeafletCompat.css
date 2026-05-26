@@ -119,14 +119,14 @@
 
 .leaflet-control {
   position: relative;
-  z-index: 800;
+  z-index: 1200;
   pointer-events: auto;
 }
 
 .leaflet-top,
 .leaflet-bottom {
   position: absolute;
-  z-index: 1000;
+  z-index: 1300;
   pointer-events: none;
 }
 
