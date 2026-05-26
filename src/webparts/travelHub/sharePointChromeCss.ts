@@ -8,6 +8,7 @@ export const TRAVEL_HUB_PAGE_CLASS = 'th-travelhub-page';
  * - `#sp-appBar`: SharePoint left app/navigation rail
  * - `#SuiteNavWrapper` / `#O365_NavHeader`: Microsoft 365 suite shell
  * - `#spCommandBar`: SharePoint authoring command bar (+ New / Promote / Page details / Preview / Analytics / Share / Edit / Republish)
+ * - `#spSiteHeader` / page header hosts: SharePoint site title/header rows that still reserve vertical space above the app
  * - `.spAppAndPropertyPanelContainer`: SharePoint flex wrapper for the app bar and page content
  * - current page wrappers under `role="main"` include classes that apply `width: calc(100% - 120px)`,
  *   `margin: 0 auto`, and left-side offset styles after the nav host is hidden
@@ -22,8 +23,15 @@ body.${TRAVEL_HUB_PAGE_CLASS} .spAppAndPropertyPanelContainer .sp-appBar-mobile,
 body.${TRAVEL_HUB_PAGE_CLASS} #SuiteNavWrapper,
 body.${TRAVEL_HUB_PAGE_CLASS} #O365_NavHeader,
 body.${TRAVEL_HUB_PAGE_CLASS} #spCommandBar,
+body.${TRAVEL_HUB_PAGE_CLASS} #spSiteHeader,
+body.${TRAVEL_HUB_PAGE_CLASS} #spPageHeader,
+body.${TRAVEL_HUB_PAGE_CLASS} #spTopPlaceholder,
 body.${TRAVEL_HUB_PAGE_CLASS} .sp-sideNav,
 body.${TRAVEL_HUB_PAGE_CLASS} [class*="spReactLeftNav"],
+body.${TRAVEL_HUB_PAGE_CLASS} [data-automationid="SiteHeader"],
+body.${TRAVEL_HUB_PAGE_CLASS} [data-automation-id="SiteHeader"],
+body.${TRAVEL_HUB_PAGE_CLASS} [data-automationid="pageHeader"],
+body.${TRAVEL_HUB_PAGE_CLASS} [data-automation-id="pageHeader"],
 body.${TRAVEL_HUB_PAGE_CLASS} [data-automationid="SiteHeaderLeftNavToggleButton"] {
   display: none !important;
 }
@@ -89,9 +97,12 @@ body.${TRAVEL_HUB_PAGE_CLASS} [data-automation-id="CanvasSection"],
 body.${TRAVEL_HUB_PAGE_CLASS} .ControlZone {
   margin-left: 0 !important;
   margin-right: 0 !important;
+  margin-top: 0 !important;
   padding-left: 0 !important;
   padding-right: 0 !important;
+  padding-top: 0 !important;
   left: 0 !important;
+  top: 0 !important;
   right: auto !important;
   inset-inline-start: 0 !important;
   transform: none !important;

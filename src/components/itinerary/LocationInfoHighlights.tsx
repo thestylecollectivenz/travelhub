@@ -47,7 +47,7 @@ export const LocationInfoHighlights: React.FC<LocationInfoHighlightsProps> = ({
   rows,
   onChange,
   readOnly = false,
-  emptyHint = 'Add a Gemini API key in User settings (My Trips) to auto-generate highlights, or add items manually.',
+  emptyHint = 'Add a Gemini API key in User settings to auto-generate highlights, or add items manually.',
   entry,
   place,
   geminiApiKey = '',
@@ -140,7 +140,7 @@ export const LocationInfoHighlights: React.FC<LocationInfoHighlightsProps> = ({
               User settings
             </button>
           ) : (
-            'User settings on My Trips'
+            'User settings'
           )}{' '}
           to auto-generate highlights.
         </p>
@@ -170,7 +170,7 @@ export const LocationInfoHighlights: React.FC<LocationInfoHighlightsProps> = ({
             </div>
             {err ? (
               <p className={styles.sectionError}>
-                Couldn&apos;t generate highlights. Check your API key in User settings (My Trips) or try again.{' '}
+                Couldn&apos;t generate highlights. Check your API key in User settings or try again.{' '}
                 <button type="button" className={styles.retryLink} onClick={() => refreshSection(kind)}>
                   Retry
                 </button>

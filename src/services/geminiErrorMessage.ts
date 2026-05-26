@@ -4,7 +4,7 @@ import { GeminiServiceError } from './GeminiService';
 export function formatGeminiUserMessage(err: unknown): string {
   if (err instanceof GeminiServiceError) {
     if (err.code === 'NO_KEY') {
-      return 'Add a Gemini API key in User settings on the My Trips screen.';
+      return 'Add a Gemini API key in User settings.';
     }
     const raw = err.message;
     const lower = raw.toLowerCase();

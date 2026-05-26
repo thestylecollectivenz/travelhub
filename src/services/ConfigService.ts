@@ -89,6 +89,10 @@ export class ConfigService {
     }
   }
 
+  private hasOwnField(item: Record<string, unknown>, fieldName: string): boolean {
+    return Object.prototype.hasOwnProperty.call(item, fieldName);
+  }
+
   private mapFromSpItem(item: Record<string, unknown>): UserConfig {
     return {
       homeCurrency: (item.HomeCurrency as string) || DEFAULT_USER_CONFIG.homeCurrency,
@@ -128,6 +132,37 @@ export class ConfigService {
       WeatherApiKey: config.weatherApiKey ?? '',
       GeminiApiKey: config.geminiApiKey ?? '',
       DayBreakdownVisibleByDefault: config.dayBreakdownVisibleByDefault
+    };
+  }
+
+  private mergeWithLocalFallback(
+    item: Record<string, unknown>,
+    mapped: UserConfig,
+    localFallback?: UserConfig
+  ): UserConfig {
+    if (!localFallback) {
+      return mapped;
+    }
+
+    return {
+      homeCurrency: this.hasOwnField(item, 'HomeCurrency') ? mapped.homeCurrency : localFallback.homeCurrency,
+      temperatureUnit: this.hasOwnField(item, 'TemperatureUnit') ? mapped.temperatureUnit : localFallback.temperatureUnit,
+      distanceUnit: this.hasOwnField(item, 'DistanceUnit') ? mapped.distanceUnit : localFallback.distanceUnit,
+      showTravellerNames: this.hasOwnField(item, 'ShowTravellerNames')
+        ? mapped.showTravellerNames
+        : localFallback.showTravellerNames,
+      journalAuthorName: this.hasOwnField(item, 'JournalAuthorName')
+        ? mapped.journalAuthorName
+        : localFallback.journalAuthorName,
+      sidebarWidth: this.hasOwnField(item, 'SidebarWidth') ? mapped.sidebarWidth : localFallback.sidebarWidth,
+      sidebarWidthCustomized: this.hasOwnField(item, 'SidebarWidthCustomized')
+        ? mapped.sidebarWidthCustomized
+        : localFallback.sidebarWidthCustomized,
+      weatherApiKey: this.hasOwnField(item, 'WeatherApiKey') ? mapped.weatherApiKey : localFallback.weatherApiKey,
+      geminiApiKey: this.hasOwnField(item, 'GeminiApiKey') ? mapped.geminiApiKey : localFallback.geminiApiKey,
+      dayBreakdownVisibleByDefault: this.hasOwnField(item, 'DayBreakdownVisibleByDefault')
+        ? mapped.dayBreakdownVisibleByDefault
+        : localFallback.dayBreakdownVisibleByDefault
     };
   }
 
@@ -177,7 +212,8 @@ export class ConfigService {
     if (!item) {
       return { config: this.loadFromLocalFallback(userId) ?? { ...DEFAULT_USER_CONFIG } };
     }
-    const resolved = this.mapFromSpItem(item);
+    const localFallback = this.loadFromLocalFallback(userId);
+    const resolved = this.mergeWithLocalFallback(item, this.mapFromSpItem(item), localFallback);
     this.saveToLocalFallback(userId, resolved);
     return { id: Number(item.ID), config: resolved, raw: item };
   }
@@ -204,7 +240,7 @@ export class ConfigService {
       if (!updateResp.ok && updateResp.status !== 204) {
         await logFailedResponse('saveConfig PATCH', updateResp);
         this.saveToLocalFallback(userId, config);
-        throw new Error(`ConfigService.saveConfig update failed: ${updateResp.status}`);
+        return;
       }
       this.saveToLocalFallback(userId, config);
       return;
@@ -220,7 +256,7 @@ export class ConfigService {
     if (!createResp.ok && createResp.status !== 201) {
       await logFailedResponse('saveConfig POST', createResp);
       this.saveToLocalFallback(userId, config);
-      throw new Error(`ConfigService.saveConfig create failed: ${createResp.status}`);
+      return;
     }
     this.saveToLocalFallback(userId, config);
   }

@@ -69,7 +69,9 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
       this._setImportantStyle(child, 'width', '100%');
       this._setImportantStyle(child, 'max-width', 'none');
       this._setImportantStyle(child, 'margin-left', '0');
+      this._setImportantStyle(child, 'margin-top', '0');
       this._setImportantStyle(child, 'padding-left', '0');
+      this._setImportantStyle(child, 'padding-top', '0');
     });
   }
 
@@ -160,7 +162,14 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
       '#spPlaceholdersAndPageContentContainer',
       '#spPageContentContainer',
       '#spPageChromeAppDiv',
+      '#spSiteHeader',
+      '#spPageHeader',
+      '#spTopPlaceholder',
       '[data-automationid="AppChrome"]',
+      '[data-automationid="SiteHeader"]',
+      '[data-automation-id="SiteHeader"]',
+      '[data-automationid="pageHeader"]',
+      '[data-automation-id="pageHeader"]',
       '.SPPageChrome-app',
       '.ms-scroller',
       '.sp-canvasPage',
@@ -191,16 +200,19 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
       this._setImportantStyle(element, 'max-width', 'none');
       this._setImportantStyle(element, 'margin-left', '0');
       this._setImportantStyle(element, 'margin-right', '0');
+      this._setImportantStyle(element, 'margin-top', '0');
       this._setImportantStyle(element, 'padding-left', '0');
       this._setImportantStyle(element, 'padding-right', '0');
+      this._setImportantStyle(element, 'padding-top', '0');
       this._setImportantStyle(element, 'left', '0');
+      this._setImportantStyle(element, 'top', '0');
       this._setImportantStyle(element, 'right', 'auto');
       this._setImportantStyle(element, 'inset-inline-start', '0');
       this._setImportantStyle(element, 'box-sizing', 'border-box');
       this._setImportantStyle(element, 'overflow', 'visible');
     });
 
-    document.querySelectorAll('#sp-appBar, .spAppAndPropertyPanelContainer .sp-appBar, .spAppAndPropertyPanelContainer .sp-appBar-mobile, .sp-sideNav, [class*="spReactLeftNav"], [data-automationid="SiteHeaderLeftNavToggleButton"]').forEach((element) => {
+    document.querySelectorAll('#sp-appBar, .spAppAndPropertyPanelContainer .sp-appBar, .spAppAndPropertyPanelContainer .sp-appBar-mobile, #SuiteNavWrapper, #O365_NavHeader, #spCommandBar, #spSiteHeader, #spPageHeader, #spTopPlaceholder, .sp-sideNav, [class*="spReactLeftNav"], [data-automationid="SiteHeader"], [data-automation-id="SiteHeader"], [data-automationid="pageHeader"], [data-automation-id="pageHeader"], [data-automationid="SiteHeaderLeftNavToggleButton"]').forEach((element) => {
       if (!(element instanceof HTMLElement)) return;
       this._collapseElement(element);
 
@@ -218,14 +230,18 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
       if (parent instanceof HTMLElement) {
         this._setImportantStyle(parent, 'gap', '0');
         this._setImportantStyle(parent, 'column-gap', '0');
+        this._setImportantStyle(parent, 'row-gap', '0');
         this._setImportantStyle(parent, 'padding-left', '0');
+        this._setImportantStyle(parent, 'padding-top', '0');
         this._setImportantStyle(parent, 'margin-left', '0');
+        this._setImportantStyle(parent, 'margin-top', '0');
       }
     });
 
     this._setImportantStyle(hostRoot, 'display', 'block');
     this._setImportantStyle(hostRoot, 'max-width', 'none');
     this._setImportantStyle(hostRoot, 'margin-left', '0');
+    this._setImportantStyle(hostRoot, 'margin-top', '0');
     this._setImportantStyle(hostRoot, 'width', '100%');
     this._setImportantStyle(hostRoot, 'min-width', '0');
 

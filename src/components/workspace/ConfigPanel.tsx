@@ -15,6 +15,8 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
   const [draft, setDraft] = React.useState<UserConfig>(config);
   const [weatherKeyDraft, setWeatherKeyDraft] = React.useState('');
   const [geminiKeyDraft, setGeminiKeyDraft] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState('');
 
   const hasWeatherKey = Boolean((config.weatherApiKey || '').trim());
   const hasGeminiKey = Boolean((config.geminiApiKey || '').trim());
@@ -24,6 +26,8 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
       setDraft(config);
       setWeatherKeyDraft('');
       setGeminiKeyDraft('');
+      setSaveError('');
+      setSaving(false);
     }
   }, [isOpen, config]);
 
@@ -75,7 +79,9 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => {
+              if (!saving) onClose();
+            }}
             style={{
               border: 'none',
               background: 'transparent',
@@ -84,6 +90,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
               cursor: 'pointer'
             }}
             aria-label="Close settings"
+            disabled={saving}
           >
             ✕
           </button>
@@ -173,6 +180,9 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
               Show day budget breakdown by default
             </span>
           </label>
+          {saveError ? (
+            <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--color-warning)' }}>{saveError}</p>
+          ) : null}
         </div>
 
         <div
@@ -187,7 +197,9 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
         >
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => {
+              if (!saving) onClose();
+            }}
             style={{
               border: 'var(--border-default)',
               background: 'transparent',
@@ -196,6 +208,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
               padding: 'var(--space-2) var(--space-4)',
               cursor: 'pointer'
             }}
+            disabled={saving}
           >
             Cancel
           </button>
@@ -204,12 +217,22 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
             onClick={() => {
               const weatherTrim = weatherKeyDraft.trim();
               const geminiTrim = geminiKeyDraft.trim();
-              saveConfig({
+              setSaving(true);
+              setSaveError('');
+              void saveConfig({
                 ...draft,
                 weatherApiKey: weatherTrim || config.weatherApiKey,
                 geminiApiKey: geminiTrim || config.geminiApiKey
-              }).catch(console.error);
-              onClose();
+              })
+                .then(() => {
+                  setSaving(false);
+                  onClose();
+                })
+                .catch((err) => {
+                  console.error(err);
+                  setSaving(false);
+                  setSaveError('Could not save settings. Your browser may have blocked the request.');
+                });
             }}
             style={{
               border: 'none',
@@ -219,8 +242,9 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
               padding: 'var(--space-2) var(--space-4)',
               cursor: 'pointer'
             }}
+            disabled={saving}
           >
-            Save settings
+            {saving ? 'Saving…' : 'Save settings'}
           </button>
         </div>
       </aside>

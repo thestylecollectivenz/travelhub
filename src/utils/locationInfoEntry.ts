@@ -251,7 +251,7 @@ export function defaultLocationInfoNotes(placeId: string): LocationInfoNotes {
     iconicSights: '',
     foodDrink: '',
     practicalTips: '',
-    aiSightsPlaceholder: 'Add a Gemini API key in User settings (My Trips) to auto-generate highlights, or add items manually.'
+    aiSightsPlaceholder: 'Add a Gemini API key in User settings to auto-generate highlights, or add items manually.'
   };
 }
 

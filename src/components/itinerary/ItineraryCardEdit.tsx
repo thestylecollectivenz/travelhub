@@ -71,6 +71,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   const fileRef = React.useRef<HTMLInputElement | null>(null);
 
   const persistableId = !draft.id.startsWith('new-') && !draft.id.startsWith('temp-');
+  const isPendingDraft = !persistableId;
   const attachDocs = persistableId ? docsForEntry(draft.id) : [];
   const attachLinks = persistableId ? linksForEntry(draft.id) : [];
 
@@ -158,7 +159,11 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       title = (arrow + (tm ? ` (${tm})` : '')).trim() || 'Transport';
     }
     if (!title) {
-      return;
+      title =
+        (draft.location ?? '').trim() ||
+        draft.supplier.trim() ||
+        draft.category.trim() ||
+        'Itinerary item';
     }
     const cur = draft.currency.trim().toUpperCase().slice(0, 3) || 'NZD';
     const timeStart = combineDayAndTime(calendarDate, timeValue);
@@ -231,9 +236,64 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
     onSave(saved);
   }, [calendarDate, draft, timeValue, nights, perNight, trip, tripDays, config.homeCurrency, isTransport]);
 
+  const hasMeaningfulDraftContent = React.useMemo(
+    () =>
+      Boolean(
+        draft.title.trim() ||
+          draft.supplier.trim() ||
+          (draft.location ?? '').trim() ||
+          draft.notes.trim() ||
+          draft.duration.trim() ||
+          (draft.bookingReference ?? '').trim() ||
+          (draft.roomType ?? '').trim() ||
+          (draft.streetAddress ?? '').trim() ||
+          (draft.flightNumbers ?? '').trim() ||
+          (draft.phoneNumber ?? '').trim() ||
+          (draft.bookingMechanism ?? '').trim() ||
+          (draft.transportFrom ?? '').trim() ||
+          (draft.transportTo ?? '').trim() ||
+          (draft.transportMode ?? '').trim() ||
+          (draft.cruiseReference ?? '').trim() ||
+          (draft.cruiseLineName ?? '').trim() ||
+          (draft.shipName ?? '').trim() ||
+          (draft.cabinTypeAndNumber ?? '').trim() ||
+          (draft.packageName ?? '').trim() ||
+          (draft.packageInclusions ?? '').trim() ||
+          (draft.perksIncluded ?? '').trim() ||
+          (draft.cancellationPolicy ?? '').trim() ||
+          draft.amount > 0 ||
+          (draft.amountPaid ?? 0) > 0 ||
+          draft.bookingRequired ||
+          draft.category !== entry.category ||
+          draft.decisionStatus !== entry.decisionStatus ||
+          draft.paymentStatus !== entry.paymentStatus ||
+          draft.bookingStatus !== entry.bookingStatus ||
+          Boolean(
+            draft.timeStart ||
+              draft.arrivalTime ||
+              draft.arrivalDate ||
+              draft.embarksDate ||
+              draft.disembarksDate ||
+              draft.dateStart ||
+              draft.dateEnd ||
+              draft.returnDate ||
+              draft.returnTime ||
+              draft.paymentDueDate ||
+              draft.bookingDueDate ||
+              draft.checkInTime ||
+              draft.checkOutTime ||
+              draft.checkInClosesTime ||
+              draft.bagCheckClosesTime ||
+              draft.cancellationDeadline
+          )
+      ),
+    [draft, entry.bookingStatus, entry.category, entry.decisionStatus, entry.paymentStatus]
+  );
+
   const canSave =
+    !isPendingDraft ||
     isLocationInfo ||
-    draft.title.trim().length > 0 ||
+    hasMeaningfulDraftContent ||
     (isTransport &&
       Boolean(
         (draft.transportFrom ?? '').trim() ||
