@@ -67,15 +67,6 @@ body.${TRAVEL_HUB_PAGE_CLASS} .th-app-root {
   box-sizing: border-box !important;
 }
 
-body.${TRAVEL_HUB_PAGE_CLASS} .th-app-root,
-body.${TRAVEL_HUB_PAGE_CLASS} [data-th-app-root] {
-  width: 100vw !important;
-  max-width: 100vw !important;
-  min-width: 100vw !important;
-  margin-left: calc(50% - 50vw) !important;
-  margin-right: calc(50% - 50vw) !important;
-}
-
 body.${TRAVEL_HUB_PAGE_CLASS} .spAppAndPropertyPanelContainer,
 body.${TRAVEL_HUB_PAGE_CLASS} #spPlaceholdersAndPageContentContainer,
 body.${TRAVEL_HUB_PAGE_CLASS} #spPageContentContainer,

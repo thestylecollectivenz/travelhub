@@ -48,15 +48,75 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
     element.style.setProperty(property, value, 'important');
   }
 
-  private _applyViewportBreakout(element: HTMLElement): void {
-    this._setImportantStyle(element, 'width', '100vw');
-    this._setImportantStyle(element, 'max-width', '100vw');
-    this._setImportantStyle(element, 'min-width', '100vw');
-    this._setImportantStyle(element, 'margin-left', 'calc(50% - 50vw)');
-    this._setImportantStyle(element, 'margin-right', 'calc(50% - 50vw)');
-    this._setImportantStyle(element, 'padding-left', '0');
-    this._setImportantStyle(element, 'padding-right', '0');
-    this._setImportantStyle(element, 'box-sizing', 'border-box');
+  private _collapseElement(element: HTMLElement): void {
+    this._setImportantStyle(element, 'display', 'none');
+    this._setImportantStyle(element, 'width', '0');
+    this._setImportantStyle(element, 'min-width', '0');
+    this._setImportantStyle(element, 'max-width', '0');
+    this._setImportantStyle(element, 'flex-basis', '0');
+    this._setImportantStyle(element, 'margin', '0');
+    this._setImportantStyle(element, 'padding', '0');
+    this._setImportantStyle(element, 'overflow', 'hidden');
+    this._setImportantStyle(element, 'pointer-events', 'none');
+  }
+
+  private _normalizeContentChild(container: HTMLElement, hostRoot: HTMLElement): void {
+    Array.from(container.children).forEach((child) => {
+      if (!(child instanceof HTMLElement)) return;
+      if (!child.contains(hostRoot) && child !== hostRoot && child !== this.domElement) return;
+      this._setImportantStyle(child, 'flex', '1 1 auto');
+      this._setImportantStyle(child, 'min-width', '0');
+      this._setImportantStyle(child, 'width', '100%');
+      this._setImportantStyle(child, 'max-width', 'none');
+      this._setImportantStyle(child, 'margin-left', '0');
+      this._setImportantStyle(child, 'padding-left', '0');
+    });
+  }
+
+  private _collapseReservedLeftColumns(hostRoot: HTMLElement): void {
+    const hostRect = hostRoot.getBoundingClientRect();
+    const containers = new Set<HTMLElement>();
+
+    const addContainer = (element: Element | null): void => {
+      if (element instanceof HTMLElement) {
+        containers.add(element);
+      }
+    };
+
+    addContainer(document.querySelector('.spAppAndPropertyPanelContainer'));
+    addContainer(hostRoot.parentElement);
+
+    let ancestor: HTMLElement | null = hostRoot.parentElement;
+    while (ancestor && ancestor !== document.body) {
+      containers.add(ancestor);
+      if (ancestor.getAttribute('role') === 'main') {
+        break;
+      }
+      ancestor = ancestor.parentElement;
+    }
+
+    containers.forEach((container) => {
+      this._normalizeContentChild(container, hostRoot);
+      Array.from(container.children).forEach((child) => {
+        if (!(child instanceof HTMLElement)) return;
+        if (child.contains(hostRoot) || child === hostRoot || child === this.domElement) return;
+
+        const rect = child.getBoundingClientRect();
+        const blankRail =
+          rect.width > 0 &&
+          rect.width <= 360 &&
+          rect.left <= hostRect.left + 8 &&
+          rect.right <= hostRect.left + 360;
+        const hasNavChrome = Boolean(
+          child.querySelector('.sp-appBar, .sp-appBar-mobile, .sp-sideNav, [class*="spReactLeftNav"], [data-automationid="SiteHeaderLeftNavToggleButton"]')
+        );
+        const emptyShell = (child.textContent ?? '').trim() === '' && child.children.length <= 2;
+
+        if (blankRail && (hasNavChrome || emptyShell)) {
+          this._collapseElement(child);
+        }
+      });
+    });
   }
 
   private _scheduleHostNormalization(): void {
@@ -82,7 +142,6 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
     };
 
     const targets = new Set<HTMLElement>();
-    const breakoutTargets = new Set<HTMLElement>();
     addTarget(targets, this.domElement);
     addTarget(targets, this.domElement.parentElement);
     addTarget(targets, hostRoot);
@@ -141,37 +200,9 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
       this._setImportantStyle(element, 'overflow', 'visible');
     });
 
-    const shouldBreakout = (element: HTMLElement): boolean => {
-      const className = typeof element.className === 'string' ? element.className : '';
-      const automationId = element.getAttribute('data-automation-id') ?? element.getAttribute('data-automationid') ?? '';
-      return (
-        element === hostRoot ||
-        element === this.domElement ||
-        element === this.domElement.parentElement ||
-        automationId.includes('Canvas') ||
-        automationId.includes('contentScrollRegion') ||
-        className.includes('Canvas') ||
-        className.includes('ControlZone') ||
-        className.includes('mainContent') ||
-        className.includes('SPCanvas') ||
-        className.includes('sp-canvasPage')
-      );
-    };
-
-    targets.forEach((element) => {
-      if (shouldBreakout(element)) {
-        breakoutTargets.add(element);
-      }
-    });
-
     document.querySelectorAll('#sp-appBar, .spAppAndPropertyPanelContainer .sp-appBar, .spAppAndPropertyPanelContainer .sp-appBar-mobile, .sp-sideNav, [class*="spReactLeftNav"], [data-automationid="SiteHeaderLeftNavToggleButton"]').forEach((element) => {
       if (!(element instanceof HTMLElement)) return;
-      this._setImportantStyle(element, 'display', 'none');
-      this._setImportantStyle(element, 'width', '0');
-      this._setImportantStyle(element, 'min-width', '0');
-      this._setImportantStyle(element, 'flex-basis', '0');
-      this._setImportantStyle(element, 'margin', '0');
-      this._setImportantStyle(element, 'padding', '0');
+      this._collapseElement(element);
 
       const sibling = element.nextElementSibling;
       if (sibling instanceof HTMLElement) {
@@ -196,16 +227,9 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
     this._setImportantStyle(hostRoot, 'max-width', 'none');
     this._setImportantStyle(hostRoot, 'margin-left', '0');
     this._setImportantStyle(hostRoot, 'width', '100%');
+    this._setImportantStyle(hostRoot, 'min-width', '0');
 
-    breakoutTargets.forEach((element) => {
-      const rect = element.getBoundingClientRect();
-      const leftGap = Math.max(0, Math.round(rect.left));
-      const rightGap = Math.max(0, Math.round(window.innerWidth - rect.right));
-      const constrained = leftGap > 16 || rightGap > 16 || rect.width < window.innerWidth - 24;
-      if (constrained) {
-        this._applyViewportBreakout(element);
-      }
-    });
+    this._collapseReservedLeftColumns(hostRoot);
   }
 
   private _ensureHostObservers(): void {
