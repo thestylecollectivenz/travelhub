@@ -15,7 +15,7 @@ const TravelHub: React.FC<ITravelHubProps> = (props) => {
   }, [props.licenceKey]);
 
   return (
-    <div className="th-app-root">
+    <div className="th-app-root" data-th-app-root>
       <SpContext.Provider value={props.context}>
         <AppConfigProvider>
           <ConfigProvider>

@@ -46,10 +46,47 @@ async function logFailedResponse(label: string, resp: SPHttpClientResponse): Pro
 export class ConfigService {
   private ctx: WebPartContext;
   private baseUrl: string;
+  private localStorageKeyPrefix: string;
 
   constructor(context: WebPartContext) {
     this.ctx = context;
     this.baseUrl = `${context.pageContext.web.absoluteUrl}/_api/web/lists/getbytitle('${LIST}')/items`;
+    this.localStorageKeyPrefix = `travelhub:userconfig:${context.pageContext.web.absoluteUrl}`;
+  }
+
+  private localStorageKey(userId: string): string {
+    return `${this.localStorageKeyPrefix}:${userId}`;
+  }
+
+  private loadFromLocalFallback(userId: string): UserConfig | undefined {
+    try {
+      const raw = window.localStorage.getItem(this.localStorageKey(userId));
+      if (!raw) return undefined;
+      const parsed = JSON.parse(raw) as Partial<UserConfig>;
+      return {
+        ...DEFAULT_USER_CONFIG,
+        ...parsed,
+        sidebarWidth:
+          typeof parsed.sidebarWidth === 'number'
+            ? parsed.sidebarWidth
+            : Number(parsed.sidebarWidth ?? DEFAULT_USER_CONFIG.sidebarWidth) || DEFAULT_USER_CONFIG.sidebarWidth,
+        sidebarWidthCustomized: parsed.sidebarWidthCustomized === true,
+        dayBreakdownVisibleByDefault:
+          typeof parsed.dayBreakdownVisibleByDefault === 'boolean'
+            ? parsed.dayBreakdownVisibleByDefault
+            : DEFAULT_USER_CONFIG.dayBreakdownVisibleByDefault
+      };
+    } catch {
+      return undefined;
+    }
+  }
+
+  private saveToLocalFallback(userId: string, config: UserConfig): void {
+    try {
+      window.localStorage.setItem(this.localStorageKey(userId), JSON.stringify(config));
+    } catch {
+      // Ignore quota/privacy mode errors.
+    }
   }
 
   private mapFromSpItem(item: Record<string, unknown>): UserConfig {
@@ -66,6 +103,8 @@ export class ConfigService {
         typeof item.SidebarWidth === 'number'
           ? item.SidebarWidth
           : Number(item.SidebarWidth ?? DEFAULT_USER_CONFIG.sidebarWidth) || DEFAULT_USER_CONFIG.sidebarWidth,
+      sidebarWidthCustomized:
+        typeof item.SidebarWidthCustomized === 'boolean' ? item.SidebarWidthCustomized : false,
       weatherApiKey: typeof item.WeatherApiKey === 'string' ? item.WeatherApiKey : '',
       geminiApiKey: typeof item.GeminiApiKey === 'string' ? item.GeminiApiKey : '',
       dayBreakdownVisibleByDefault:
@@ -95,8 +134,8 @@ export class ConfigService {
   private async getItemsWithFilter(filterExpr: string, includeUserIdField: boolean): Promise<SPHttpClientResponse> {
     const safeFilter = encodeURIComponent(filterExpr);
     const selectFields = includeUserIdField
-      ? 'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault'
-      : 'ID,Title,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault';
+      ? 'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault'
+      : 'ID,Title,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault';
     const select = encodeURIComponent(selectFields);
     const url = `${this.baseUrl}?$select=${select}&$filter=${safeFilter}&$top=1`;
     return this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
@@ -110,7 +149,7 @@ export class ConfigService {
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('ConfigService.getConfigItem UserId query threw', err);
-      return { config: { ...DEFAULT_USER_CONFIG } };
+      return { config: this.loadFromLocalFallback(userId) ?? { ...DEFAULT_USER_CONFIG } };
     }
     if (resp.status === 400 || resp.status === 406) {
       await logFailedResponse('getConfigItem UserId filter (will try Title fallback)', resp);
@@ -119,12 +158,12 @@ export class ConfigService {
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error('ConfigService.getConfigItem Title query threw', err);
-        return { config: { ...DEFAULT_USER_CONFIG } };
+        return { config: this.loadFromLocalFallback(userId) ?? { ...DEFAULT_USER_CONFIG } };
       }
     }
     if (!resp.ok) {
       await logFailedResponse('getConfigItem', resp);
-      return { config: { ...DEFAULT_USER_CONFIG } };
+      return { config: this.loadFromLocalFallback(userId) ?? { ...DEFAULT_USER_CONFIG } };
     }
     let data: { value?: Record<string, unknown>[] };
     try {
@@ -132,13 +171,14 @@ export class ConfigService {
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('ConfigService.getConfigItem JSON parse', err);
-      return { config: { ...DEFAULT_USER_CONFIG } };
+      return { config: this.loadFromLocalFallback(userId) ?? { ...DEFAULT_USER_CONFIG } };
     }
     const item = (data.value ?? [])[0];
     if (!item) {
-      return { config: { ...DEFAULT_USER_CONFIG } };
+      return { config: this.loadFromLocalFallback(userId) ?? { ...DEFAULT_USER_CONFIG } };
     }
     const resolved = this.mapFromSpItem(item);
+    this.saveToLocalFallback(userId, resolved);
     return { id: Number(item.ID), config: resolved, raw: item };
   }
 
@@ -163,8 +203,10 @@ export class ConfigService {
       });
       if (!updateResp.ok && updateResp.status !== 204) {
         await logFailedResponse('saveConfig PATCH', updateResp);
+        this.saveToLocalFallback(userId, config);
         throw new Error(`ConfigService.saveConfig update failed: ${updateResp.status}`);
       }
+      this.saveToLocalFallback(userId, config);
       return;
     }
 
@@ -177,8 +219,10 @@ export class ConfigService {
     });
     if (!createResp.ok && createResp.status !== 201) {
       await logFailedResponse('saveConfig POST', createResp);
+      this.saveToLocalFallback(userId, config);
       throw new Error(`ConfigService.saveConfig create failed: ${createResp.status}`);
     }
+    this.saveToLocalFallback(userId, config);
   }
 }
 
