@@ -4,17 +4,11 @@ export const TRAVEL_HUB_PAGE_CLASS = 'th-travelhub-page';
 /**
  * Runtime-injected page CSS for SharePoint host chrome.
  *
- * Live DOM selectors confirmed from the current page:
- * - `#sp-appBar`: SharePoint left app/navigation rail
- * - `#SuiteNavWrapper` / `#O365_NavHeader`: Microsoft 365 suite shell
- * - `#spCommandBar`: SharePoint authoring command bar (+ New / Promote / Page details / Preview / Analytics / Share / Edit / Republish)
- * - `#spSiteHeader` / page header hosts: SharePoint site title/header rows that still reserve vertical space above the app
- * - `.spAppAndPropertyPanelContainer`: SharePoint flex wrapper for the app bar and page content
- * - current page wrappers under `role="main"` include classes that apply `width: calc(100% - 120px)`,
- *   `margin: 0 auto`, and left-side offset styles after the nav host is hidden
- *
- * The site quick-launch nav is rendered by SharePoint's left-nav React host. Its concrete class is hashed,
- * so this targets the stable runtime class prefix SharePoint uses for that nav container.
+ * Live DOM selectors confirmed on travelhub SitePages/Travel-Hub.aspx (May 2026):
+ * - `#spLeftNav`: page layout left nav (sibling of `section.mainContent` under App Chrome)
+ * - `#sp-appBar`, `#spCommandBar`, `#spSiteHeader`, suite nav: standard SharePoint chrome
+ * - `#CommentsWrapper` / `[data-sp-feature-tag="Comments"]`: page comments band below canvas
+ * - `#spPageCanvasContent`: canvas host — width/margin reset only (no negative margin reclaim)
  */
 export const TRAVEL_HUB_CHROME_CSS = `
 body.${TRAVEL_HUB_PAGE_CLASS} #sp-appBar,
@@ -26,27 +20,33 @@ body.${TRAVEL_HUB_PAGE_CLASS} #spCommandBar,
 body.${TRAVEL_HUB_PAGE_CLASS} #spSiteHeader,
 body.${TRAVEL_HUB_PAGE_CLASS} #spPageHeader,
 body.${TRAVEL_HUB_PAGE_CLASS} #spTopPlaceholder,
+body.${TRAVEL_HUB_PAGE_CLASS} #spLeftNav,
 body.${TRAVEL_HUB_PAGE_CLASS} .sp-sideNav,
 body.${TRAVEL_HUB_PAGE_CLASS} [class*="spReactLeftNav"],
 body.${TRAVEL_HUB_PAGE_CLASS} [data-automationid="SiteHeader"],
 body.${TRAVEL_HUB_PAGE_CLASS} [data-automation-id="SiteHeader"],
 body.${TRAVEL_HUB_PAGE_CLASS} [data-automationid="pageHeader"],
 body.${TRAVEL_HUB_PAGE_CLASS} [data-automation-id="pageHeader"],
-body.${TRAVEL_HUB_PAGE_CLASS} [data-automationid="SiteHeaderLeftNavToggleButton"] {
+body.${TRAVEL_HUB_PAGE_CLASS} [data-automationid="SiteHeaderLeftNavToggleButton"],
+body.${TRAVEL_HUB_PAGE_CLASS} #CommentsWrapper,
+body.${TRAVEL_HUB_PAGE_CLASS} [data-sp-feature-tag="Comments"],
+body.${TRAVEL_HUB_PAGE_CLASS} [data-sp-placeholder="Bottom"],
+body.${TRAVEL_HUB_PAGE_CLASS} .sp-placeholder-bottom {
   display: none !important;
 }
 
 body.${TRAVEL_HUB_PAGE_CLASS} .spAppAndPropertyPanelContainer .sp-appBar,
 body.${TRAVEL_HUB_PAGE_CLASS} .spAppAndPropertyPanelContainer .sp-appBar-mobile,
-body.${TRAVEL_HUB_PAGE_CLASS} .sp-sideNav {
+body.${TRAVEL_HUB_PAGE_CLASS} .sp-sideNav,
+body.${TRAVEL_HUB_PAGE_CLASS} #spLeftNav {
   min-width: 0 !important;
   width: 0 !important;
   flex-basis: 0 !important;
   padding: 0 !important;
   margin: 0 !important;
+  overflow: hidden !important;
 }
 
-/* Mirror top-header reclaim: remove the flex column SharePoint keeps for the hidden app/nav rail */
 body.${TRAVEL_HUB_PAGE_CLASS} .spAppAndPropertyPanelContainer {
   gap: 0 !important;
   column-gap: 0 !important;
@@ -55,19 +55,7 @@ body.${TRAVEL_HUB_PAGE_CLASS} .spAppAndPropertyPanelContainer {
   margin-left: 0 !important;
 }
 
-body.${TRAVEL_HUB_PAGE_CLASS} .spAppAndPropertyPanelContainer > :first-child:not(:has([data-th-app-root])) {
-  display: none !important;
-  width: 0 !important;
-  min-width: 0 !important;
-  max-width: 0 !important;
-  flex: 0 0 0 !important;
-  overflow: hidden !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  border: none !important;
-}
-
-body.${TRAVEL_HUB_PAGE_CLASS} .spAppAndPropertyPanelContainer > :has([data-th-app-root]),
+body.${TRAVEL_HUB_PAGE_CLASS} section.mainContent,
 body.${TRAVEL_HUB_PAGE_CLASS} #spPageCanvasContent:has([data-th-app-root]),
 body.${TRAVEL_HUB_PAGE_CLASS} [role="main"]:has([data-th-app-root]) {
   flex: 1 1 auto !important;
@@ -75,7 +63,9 @@ body.${TRAVEL_HUB_PAGE_CLASS} [role="main"]:has([data-th-app-root]) {
   max-width: none !important;
   min-width: 0 !important;
   margin-left: 0 !important;
+  margin-right: 0 !important;
   padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
 body.${TRAVEL_HUB_PAGE_CLASS} .spAppAndPropertyPanelContainer,

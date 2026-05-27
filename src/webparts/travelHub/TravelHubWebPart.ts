@@ -26,12 +26,6 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
 
   private _isDarkTheme: boolean = false;
   private _environmentMessage: string = '';
-  private _hostMutationObserver?: MutationObserver;
-  private _normalizeHostFrame?: number;
-
-  private readonly _handleWindowResize = (): void => {
-    this._scheduleHostNormalization();
-  };
 
   private _ensureChromeStyle(): void {
     if (!document.getElementById(TRAVEL_HUB_CHROME_STYLE_ID)) {
@@ -42,268 +36,6 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
     }
 
     document.body.classList.add(TRAVEL_HUB_PAGE_CLASS);
-  }
-
-  private _setImportantStyle(element: HTMLElement, property: string, value: string): void {
-    element.style.setProperty(property, value, 'important');
-  }
-
-  private _collapseElement(element: HTMLElement): void {
-    this._setImportantStyle(element, 'display', 'none');
-    this._setImportantStyle(element, 'width', '0');
-    this._setImportantStyle(element, 'min-width', '0');
-    this._setImportantStyle(element, 'max-width', '0');
-    this._setImportantStyle(element, 'flex-basis', '0');
-    this._setImportantStyle(element, 'margin', '0');
-    this._setImportantStyle(element, 'padding', '0');
-    this._setImportantStyle(element, 'overflow', 'hidden');
-    this._setImportantStyle(element, 'pointer-events', 'none');
-  }
-
-  private _normalizeContentChild(container: HTMLElement, hostRoot: HTMLElement): void {
-    Array.from(container.children).forEach((child) => {
-      if (!(child instanceof HTMLElement)) return;
-      if (!child.contains(hostRoot) && child !== hostRoot && child !== this.domElement) return;
-      this._setImportantStyle(child, 'flex', '1 1 auto');
-      this._setImportantStyle(child, 'min-width', '0');
-      this._setImportantStyle(child, 'width', '100%');
-      this._setImportantStyle(child, 'max-width', 'none');
-      this._setImportantStyle(child, 'margin-left', '0');
-      this._setImportantStyle(child, 'margin-top', '0');
-      this._setImportantStyle(child, 'padding-left', '0');
-      this._setImportantStyle(child, 'padding-top', '0');
-    });
-  }
-
-  private _isLeftGutterSibling(child: HTMLElement, hostRoot: HTMLElement, hostRect: DOMRect): boolean {
-    if (child.contains(hostRoot) || child === hostRoot || child === this.domElement) {
-      return false;
-    }
-
-    const rect = child.getBoundingClientRect();
-    if (rect.width < 32) {
-      return false;
-    }
-
-    const sitsLeftOfApp = rect.right <= hostRect.left + 16;
-
-    const hasNavChrome = Boolean(
-      child.querySelector(
-        '#sp-appBar, .sp-appBar, .sp-appBar-mobile, .sp-sideNav, [class*="spReactLeftNav"], [data-automationid="SiteHeaderLeftNavToggleButton"]'
-      )
-    );
-    const emptyShell = (child.textContent ?? '').trim() === '' && child.children.length <= 3;
-
-    return sitsLeftOfApp && (hasNavChrome || emptyShell || rect.width >= 120);
-  }
-
-  private _collapseReservedLeftColumns(hostRoot: HTMLElement): void {
-    const hostRect = hostRoot.getBoundingClientRect();
-    const containers = new Set<HTMLElement>();
-
-    const addContainer = (element: Element | null): void => {
-      if (element instanceof HTMLElement) {
-        containers.add(element);
-      }
-    };
-
-    addContainer(document.querySelector('.spAppAndPropertyPanelContainer'));
-    addContainer(hostRoot.parentElement);
-
-    let ancestor: HTMLElement | null = hostRoot.parentElement;
-    while (ancestor && ancestor !== document.body) {
-      containers.add(ancestor);
-      if (ancestor.getAttribute('role') === 'main') {
-        break;
-      }
-      ancestor = ancestor.parentElement;
-    }
-
-    containers.forEach((container) => {
-      this._normalizeContentChild(container, hostRoot);
-      Array.from(container.children).forEach((child) => {
-        if (!(child instanceof HTMLElement)) return;
-        if (this._isLeftGutterSibling(child, hostRoot, hostRect)) {
-          this._collapseElement(child);
-        }
-      });
-    });
-  }
-
-  /** Pull the app flush left when SharePoint still offsets the canvas after hiding nav chrome. */
-  private _reclaimLeftViewportOffset(hostRoot: HTMLElement): void {
-    const hostRect = hostRoot.getBoundingClientRect();
-    const offsetLeft = Math.round(hostRect.left);
-    if (offsetLeft <= 4) {
-      return;
-    }
-
-    const reclaimTargets = new Set<HTMLElement>();
-    reclaimTargets.add(hostRoot);
-    reclaimTargets.add(this.domElement);
-
-    let ancestor: HTMLElement | null = this.domElement.parentElement;
-    while (ancestor && ancestor !== document.body) {
-      reclaimTargets.add(ancestor);
-      if (
-        ancestor.classList.contains('spAppAndPropertyPanelContainer') ||
-        ancestor.id === 'spPageCanvasContent' ||
-        ancestor.getAttribute('role') === 'main'
-      ) {
-        break;
-      }
-      ancestor = ancestor.parentElement;
-    }
-
-    reclaimTargets.forEach((element) => {
-      this._setImportantStyle(element, 'margin-left', `-${offsetLeft}px`);
-      this._setImportantStyle(element, 'width', `calc(100% + ${offsetLeft}px)`);
-      this._setImportantStyle(element, 'max-width', 'none');
-      this._setImportantStyle(element, 'min-width', '0');
-    });
-  }
-
-  private _scheduleHostNormalization(): void {
-    if (this._normalizeHostFrame !== undefined) {
-      window.cancelAnimationFrame(this._normalizeHostFrame);
-    }
-    this._normalizeHostFrame = window.requestAnimationFrame(() => {
-      this._normalizeHostFrame = undefined;
-      this._normalizeHostLayout();
-    });
-  }
-
-  private _normalizeHostLayout(): void {
-    const hostRoot = this.domElement.querySelector('[data-th-app-root]') as HTMLElement | null;
-    if (!hostRoot) {
-      return;
-    }
-
-    const addTarget = (set: Set<HTMLElement>, element: Element | null): void => {
-      if (element instanceof HTMLElement) {
-        set.add(element);
-      }
-    };
-
-    const targets = new Set<HTMLElement>();
-    addTarget(targets, this.domElement);
-    addTarget(targets, this.domElement.parentElement);
-    addTarget(targets, hostRoot);
-
-    let ancestor: HTMLElement | null = this.domElement.parentElement;
-    while (ancestor && ancestor !== document.body) {
-      targets.add(ancestor);
-      if (ancestor.getAttribute('role') === 'main') {
-        break;
-      }
-      ancestor = ancestor.parentElement;
-    }
-
-    const hostSelectors = [
-      '.spAppAndPropertyPanelContainer',
-      '#spPlaceholdersAndPageContentContainer',
-      '#spPageContentContainer',
-      '#spPageChromeAppDiv',
-      '#spSiteHeader',
-      '#spPageHeader',
-      '#spTopPlaceholder',
-      '[data-automationid="AppChrome"]',
-      '[data-automationid="SiteHeader"]',
-      '[data-automation-id="SiteHeader"]',
-      '[data-automationid="pageHeader"]',
-      '[data-automation-id="pageHeader"]',
-      '.SPPageChrome-app',
-      '.ms-scroller',
-      '.sp-canvasPage',
-      'section.mainContent',
-      '[data-automation-id="contentScrollRegion"]',
-      '[data-automationid="contentScrollRegion"]',
-      '[role="main"]',
-      '#spPageCanvasContent',
-      '.SPCanvas',
-      '.SPCanvas-canvas',
-      '.CanvasComponent',
-      '[data-automation-id="Canvas"]',
-      '[data-automation-id="CanvasLayout"]',
-      '[data-automation-id="CanvasZone"]',
-      '[data-automation-id="CanvasZone-SectionContainer"]',
-      '[data-automation-id="CanvasSection"]',
-      '.ControlZone',
-      '.ms-SPLegacyFabricBlock',
-      '.sp-sideNav + div'
-    ];
-
-    for (const selector of hostSelectors) {
-      document.querySelectorAll(selector).forEach((element) => addTarget(targets, element));
-    }
-
-    targets.forEach((element) => {
-      this._setImportantStyle(element, 'width', '100%');
-      this._setImportantStyle(element, 'max-width', 'none');
-      this._setImportantStyle(element, 'margin-left', '0');
-      this._setImportantStyle(element, 'margin-right', '0');
-      this._setImportantStyle(element, 'margin-top', '0');
-      this._setImportantStyle(element, 'padding-left', '0');
-      this._setImportantStyle(element, 'padding-right', '0');
-      this._setImportantStyle(element, 'padding-top', '0');
-      this._setImportantStyle(element, 'left', '0');
-      this._setImportantStyle(element, 'top', '0');
-      this._setImportantStyle(element, 'right', 'auto');
-      this._setImportantStyle(element, 'inset-inline-start', '0');
-      this._setImportantStyle(element, 'box-sizing', 'border-box');
-      this._setImportantStyle(element, 'overflow', 'visible');
-    });
-
-    document.querySelectorAll('#sp-appBar, .spAppAndPropertyPanelContainer .sp-appBar, .spAppAndPropertyPanelContainer .sp-appBar-mobile, #SuiteNavWrapper, #O365_NavHeader, #spCommandBar, #spSiteHeader, #spPageHeader, #spTopPlaceholder, .sp-sideNav, [class*="spReactLeftNav"], [data-automationid="SiteHeader"], [data-automation-id="SiteHeader"], [data-automationid="pageHeader"], [data-automation-id="pageHeader"], [data-automationid="SiteHeaderLeftNavToggleButton"]').forEach((element) => {
-      if (!(element instanceof HTMLElement)) return;
-      this._collapseElement(element);
-
-      const sibling = element.nextElementSibling;
-      if (sibling instanceof HTMLElement) {
-        this._setImportantStyle(sibling, 'width', '100%');
-        this._setImportantStyle(sibling, 'max-width', 'none');
-        this._setImportantStyle(sibling, 'margin-left', '0');
-        this._setImportantStyle(sibling, 'padding-left', '0');
-        this._setImportantStyle(sibling, 'flex', '1 1 auto');
-        this._setImportantStyle(sibling, 'min-width', '0');
-      }
-
-      const parent = element.parentElement;
-      if (parent instanceof HTMLElement) {
-        this._setImportantStyle(parent, 'gap', '0');
-        this._setImportantStyle(parent, 'column-gap', '0');
-        this._setImportantStyle(parent, 'row-gap', '0');
-        this._setImportantStyle(parent, 'padding-left', '0');
-        this._setImportantStyle(parent, 'padding-top', '0');
-        this._setImportantStyle(parent, 'margin-left', '0');
-        this._setImportantStyle(parent, 'margin-top', '0');
-      }
-    });
-
-    this._setImportantStyle(hostRoot, 'display', 'block');
-    this._setImportantStyle(hostRoot, 'max-width', 'none');
-    this._setImportantStyle(hostRoot, 'margin-left', '0');
-    this._setImportantStyle(hostRoot, 'margin-top', '0');
-    this._setImportantStyle(hostRoot, 'width', '100%');
-    this._setImportantStyle(hostRoot, 'min-width', '0');
-
-    this._collapseReservedLeftColumns(hostRoot);
-    this._reclaimLeftViewportOffset(hostRoot);
-  }
-
-  private _ensureHostObservers(): void {
-    if (!this._hostMutationObserver) {
-      this._hostMutationObserver = new MutationObserver(() => {
-        this._scheduleHostNormalization();
-      });
-      this._hostMutationObserver.observe(document.body, {
-        childList: true,
-        subtree: true
-      });
-    }
-
-    window.removeEventListener('resize', this._handleWindowResize);
-    window.addEventListener('resize', this._handleWindowResize);
   }
 
   private _removeChromeStyleIfUnused(): void {
@@ -317,7 +49,6 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
 
   public render(): void {
     this._ensureChromeStyle();
-    this._ensureHostObservers();
 
     const element: React.ReactElement<ITravelHubProps> = React.createElement(
       TravelHub,
@@ -333,7 +64,6 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
     );
 
     ReactDom.render(element, this.domElement);
-    this._scheduleHostNormalization();
   }
 
   protected onInit(): Promise<void> {
@@ -341,8 +71,6 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
       this._environmentMessage = message;
     });
   }
-
-
 
   private _getEnvironmentMessage(): Promise<string> {
     if (!!this.context.sdks.microsoftTeams) { // running in Teams, office.com or Outlook
@@ -390,13 +118,6 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
   }
 
   protected onDispose(): void {
-    if (this._normalizeHostFrame !== undefined) {
-      window.cancelAnimationFrame(this._normalizeHostFrame);
-      this._normalizeHostFrame = undefined;
-    }
-    this._hostMutationObserver?.disconnect();
-    this._hostMutationObserver = undefined;
-    window.removeEventListener('resize', this._handleWindowResize);
     ReactDom.unmountComponentAtNode(this.domElement);
     this._removeChromeStyleIfUnused();
   }
