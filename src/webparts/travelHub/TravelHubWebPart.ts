@@ -75,6 +75,28 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
     });
   }
 
+  private _isLeftGutterSibling(child: HTMLElement, hostRoot: HTMLElement, hostRect: DOMRect): boolean {
+    if (child.contains(hostRoot) || child === hostRoot || child === this.domElement) {
+      return false;
+    }
+
+    const rect = child.getBoundingClientRect();
+    if (rect.width < 32) {
+      return false;
+    }
+
+    const sitsLeftOfApp = rect.right <= hostRect.left + 16;
+
+    const hasNavChrome = Boolean(
+      child.querySelector(
+        '#sp-appBar, .sp-appBar, .sp-appBar-mobile, .sp-sideNav, [class*="spReactLeftNav"], [data-automationid="SiteHeaderLeftNavToggleButton"]'
+      )
+    );
+    const emptyShell = (child.textContent ?? '').trim() === '' && child.children.length <= 3;
+
+    return sitsLeftOfApp && (hasNavChrome || emptyShell || rect.width >= 120);
+  }
+
   private _collapseReservedLeftColumns(hostRoot: HTMLElement): void {
     const hostRect = hostRoot.getBoundingClientRect();
     const containers = new Set<HTMLElement>();
@@ -101,23 +123,43 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
       this._normalizeContentChild(container, hostRoot);
       Array.from(container.children).forEach((child) => {
         if (!(child instanceof HTMLElement)) return;
-        if (child.contains(hostRoot) || child === hostRoot || child === this.domElement) return;
-
-        const rect = child.getBoundingClientRect();
-        const blankRail =
-          rect.width > 0 &&
-          rect.width <= 360 &&
-          rect.left <= hostRect.left + 8 &&
-          rect.right <= hostRect.left + 360;
-        const hasNavChrome = Boolean(
-          child.querySelector('.sp-appBar, .sp-appBar-mobile, .sp-sideNav, [class*="spReactLeftNav"], [data-automationid="SiteHeaderLeftNavToggleButton"]')
-        );
-        const emptyShell = (child.textContent ?? '').trim() === '' && child.children.length <= 2;
-
-        if (blankRail && (hasNavChrome || emptyShell)) {
+        if (this._isLeftGutterSibling(child, hostRoot, hostRect)) {
           this._collapseElement(child);
         }
       });
+    });
+  }
+
+  /** Pull the app flush left when SharePoint still offsets the canvas after hiding nav chrome. */
+  private _reclaimLeftViewportOffset(hostRoot: HTMLElement): void {
+    const hostRect = hostRoot.getBoundingClientRect();
+    const offsetLeft = Math.round(hostRect.left);
+    if (offsetLeft <= 4) {
+      return;
+    }
+
+    const reclaimTargets = new Set<HTMLElement>();
+    reclaimTargets.add(hostRoot);
+    reclaimTargets.add(this.domElement);
+
+    let ancestor: HTMLElement | null = this.domElement.parentElement;
+    while (ancestor && ancestor !== document.body) {
+      reclaimTargets.add(ancestor);
+      if (
+        ancestor.classList.contains('spAppAndPropertyPanelContainer') ||
+        ancestor.id === 'spPageCanvasContent' ||
+        ancestor.getAttribute('role') === 'main'
+      ) {
+        break;
+      }
+      ancestor = ancestor.parentElement;
+    }
+
+    reclaimTargets.forEach((element) => {
+      this._setImportantStyle(element, 'margin-left', `-${offsetLeft}px`);
+      this._setImportantStyle(element, 'width', `calc(100% + ${offsetLeft}px)`);
+      this._setImportantStyle(element, 'max-width', 'none');
+      this._setImportantStyle(element, 'min-width', '0');
     });
   }
 
@@ -246,6 +288,7 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
     this._setImportantStyle(hostRoot, 'min-width', '0');
 
     this._collapseReservedLeftColumns(hostRoot);
+    this._reclaimLeftViewportOffset(hostRoot);
   }
 
   private _ensureHostObservers(): void {

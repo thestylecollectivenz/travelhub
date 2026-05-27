@@ -46,6 +46,38 @@ body.${TRAVEL_HUB_PAGE_CLASS} .sp-sideNav {
   margin: 0 !important;
 }
 
+/* Mirror top-header reclaim: remove the flex column SharePoint keeps for the hidden app/nav rail */
+body.${TRAVEL_HUB_PAGE_CLASS} .spAppAndPropertyPanelContainer {
+  gap: 0 !important;
+  column-gap: 0 !important;
+  row-gap: 0 !important;
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+}
+
+body.${TRAVEL_HUB_PAGE_CLASS} .spAppAndPropertyPanelContainer > :first-child:not(:has([data-th-app-root])) {
+  display: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  flex: 0 0 0 !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+}
+
+body.${TRAVEL_HUB_PAGE_CLASS} .spAppAndPropertyPanelContainer > :has([data-th-app-root]),
+body.${TRAVEL_HUB_PAGE_CLASS} #spPageCanvasContent:has([data-th-app-root]),
+body.${TRAVEL_HUB_PAGE_CLASS} [role="main"]:has([data-th-app-root]) {
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+}
+
 body.${TRAVEL_HUB_PAGE_CLASS} .spAppAndPropertyPanelContainer,
 body.${TRAVEL_HUB_PAGE_CLASS} #spPlaceholdersAndPageContentContainer,
 body.${TRAVEL_HUB_PAGE_CLASS} #spPageContentContainer,
