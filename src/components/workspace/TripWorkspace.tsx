@@ -26,6 +26,7 @@ import { formatCurrency, sumByCategory, sumByPaymentStatus } from '../../utils/f
 import { useConfig } from '../../context/ConfigContext';
 import { JournalPdfExport } from '../export/JournalPdfExport';
 import { SOLUTION_VERSION } from '../../appVersion';
+import { LocationInfoTripOpenBackfill } from '../itinerary/LocationInfoTripOpenBackfill';
 import styles from './TripWorkspace.module.css';
 
 export interface ITripWorkspaceProps {
@@ -629,6 +630,7 @@ export const TripWorkspace: React.FC<ITripWorkspaceProps> = (props) => {
         <JournalProvider>
           <PlacesProvider>
             <AttachmentsProvider>
+              <LocationInfoTripOpenBackfill />
               <TripWorkspaceLayout {...props} />
             </AttachmentsProvider>
           </PlacesProvider>

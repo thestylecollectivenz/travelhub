@@ -23,11 +23,15 @@ import { linkedTaskDisplayText, linkedTaskNoteDisplay } from '../../utils/linked
 import { effectivePlannerTimeStart, isTransportReturnOnCalendarDate } from '../../utils/itineraryDayEntries';
 import {
   isLocationInfoEntry,
-  locationInfoHasAIContent,
+  locationInfoIsPopulated,
+  markHighlightRowsUserEdited,
   normalizeLocationInfoNotes,
   parseLocationInfoNotes,
-  serializeLocationInfoNotes
+  recordSuppressedHighlightLabels,
+  serializeLocationInfoNotes,
+  type LocationHighlightRow
 } from '../../utils/locationInfoEntry';
+import { LocationInfoAskPanel } from './LocationInfoAskPanel';
 import { LocationInfoHighlights } from './LocationInfoHighlights';
 import { formatLocationText, placeDisplayLabel } from '../../utils/placeDisplayLabel';
 import { usePlaces } from '../../context/PlacesContext';
@@ -305,6 +309,12 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         return parsed ? normalizeLocationInfoNotes(parsed) : null;
       })()
     : null;
+  const locationHighlightRowsRef = React.useRef<LocationHighlightRow[]>(
+    locationInfoData ? locationHighlightRows(locationInfoData) : []
+  );
+  if (locationInfoData) {
+    locationHighlightRowsRef.current = locationHighlightRows(locationInfoData);
+  }
   const locationInfoPlaceLabel = React.useMemo(() => {
     if (!locationInfoData) return formatLocationText((entry.location ?? '').trim());
     const place = placeById(locationInfoData.placeId);
@@ -642,12 +652,17 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
               entry={entry}
               place={placeById(locationInfoData.placeId)}
               geminiApiKey={config.geminiApiKey}
-              hasAnyContent={locationInfoHasAIContent(locationInfoData)}
+              hasAnyContent={locationInfoIsPopulated(locationInfoData)}
               onOpenSettings={() => window.dispatchEvent(new Event('travelhub-open-settings'))}
               onChange={(rows) => {
+                const prev = locationHighlightRowsRef.current;
+                const suppressed = recordSuppressedHighlightLabels(locationInfoData, prev, rows);
+                const marked = markHighlightRowsUserEdited(rows);
+                locationHighlightRowsRef.current = marked;
                 const next = normalizeLocationInfoNotes({
                   ...locationInfoData,
-                  ...splitHighlightRows(rows)
+                  ...splitHighlightRows(marked),
+                  suppressedHighlightKeys: suppressed
                 });
                 updateEntry({ ...entry, notes: serializeLocationInfoNotes(next) });
               }}
@@ -659,6 +674,13 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
               <p className={styles.locationInfoText}>{locationInfoData.practicalTips.trim()}</p>
             </section>
           ) : null}
+          <LocationInfoAskPanel
+            entry={entry}
+            place={placeById(locationInfoData.placeId)}
+            data={locationInfoData}
+            geminiApiKey={config.geminiApiKey}
+            onOpenSettings={() => window.dispatchEvent(new Event('travelhub-open-settings'))}
+          />
         </div>
       ) : null}
 

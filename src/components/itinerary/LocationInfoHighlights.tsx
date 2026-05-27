@@ -109,7 +109,7 @@ export const LocationInfoHighlights: React.FC<LocationInfoHighlightsProps> = ({
     if (!label) return;
     onChange([
       ...rows,
-      { id: `item-${Date.now()}`, label, done: false, kind: draftKind }
+      { id: `item-${Date.now()}`, label, done: false, kind: draftKind, source: 'user' }
     ]);
     setDraftLine('');
   };

@@ -10,6 +10,15 @@ export type LocationInfoCheckItem = {
   id: string;
   label: string;
   done: boolean;
+  /** User-added or user-edited items are never changed by AI merge. */
+  source?: 'ai' | 'user';
+};
+
+export type LocationInfoQaEntry = {
+  id: string;
+  question: string;
+  answer: string;
+  createdAt: string;
 };
 
 export type LocationInfoNotes = {
@@ -28,10 +37,16 @@ export type LocationInfoNotes = {
   aiGeneratedAt?: string;
   aiModel?: string;
   aiError?: string;
+  /** Labels the user removed — AI must not re-add them. */
+  suppressedHighlightKeys?: string[];
+  userEditedOverview?: boolean;
+  userEditedPracticalTips?: boolean;
+  aiQaThread?: LocationInfoQaEntry[];
 };
 
 export type LocationInfoAIResult = {
   overview: string;
+  practicalTips: string;
   sights: Array<{ label: string; done: boolean }>;
   food: Array<{ label: string; done: boolean }>;
   drink: Array<{ label: string; done: boolean }>;
@@ -44,36 +59,45 @@ function labelKey(label: string): string {
   return (label || '').trim().toLowerCase();
 }
 
+function suppressedKeySet(data: LocationInfoNotes): Set<string> {
+  const keys = data.suppressedHighlightKeys ?? [];
+  const set = new Set<string>();
+  for (let i = 0; i < keys.length; i++) {
+    set.add(keys[i]);
+  }
+  return set;
+}
+
+/** Additive merge: keep every existing row; only append new AI labels; never change done on existing rows. */
 function aiRowsToCheckItems(
   rows: Array<{ label: string; done: boolean }>,
-  existing: LocationInfoCheckItem[]
+  existing: LocationInfoCheckItem[],
+  suppressed: Set<string>
 ): LocationInfoCheckItem[] {
-  const existingByKey = new Map<string, LocationInfoCheckItem>();
+  const merged: LocationInfoCheckItem[] = [];
   for (let i = 0; i < existing.length; i++) {
-    existingByKey.set(labelKey(existing[i].label), existing[i]);
+    merged.push({ ...existing[i] });
   }
 
-  const incomingKeys: string[] = [];
-  const merged: LocationInfoCheckItem[] = [];
+  const existingKeys = new Set<string>();
+  for (let i = 0; i < existing.length; i++) {
+    existingKeys.add(labelKey(existing[i].label));
+  }
 
+  let addIndex = 0;
   for (let i = 0; i < rows.length; i++) {
     const label = rows[i].label.trim();
     if (!label) continue;
     const key = labelKey(label);
-    incomingKeys.push(key);
-    const prev = existingByKey.get(key);
+    if (suppressed.has(key) || existingKeys.has(key)) continue;
     merged.push({
-      id: prev?.id ?? `item-${Date.now()}-${i}`,
+      id: `item-ai-${Date.now()}-${addIndex}`,
       label,
-      done: prev ? prev.done : false
+      done: false,
+      source: 'ai'
     });
-  }
-
-  for (let i = 0; i < existing.length; i++) {
-    const item = existing[i];
-    if (incomingKeys.indexOf(labelKey(item.label)) < 0) {
-      merged.push(item);
-    }
+    existingKeys.add(key);
+    addIndex++;
   }
 
   return merged;
@@ -84,23 +108,27 @@ function mergeOneSection(
   result: LocationInfoAIResult,
   section: LocationInfoMergeSection
 ): LocationInfoNotes {
+  const suppressed = suppressedKeySet(existing);
   if (section === 'sights') {
-    const iconicSightsItems = aiRowsToCheckItems(result.sights, getIconicSightsItems(existing));
+    const iconicSightsItems = aiRowsToCheckItems(result.sights, getIconicSightsItems(existing), suppressed);
     return { ...existing, iconicSightsItems, iconicSights: checkItemsToText(iconicSightsItems) };
   }
   if (section === 'food') {
-    const foodDrinkItems = aiRowsToCheckItems(result.food, getFoodDrinkItems(existing));
+    const foodDrinkItems = aiRowsToCheckItems(result.food, getFoodDrinkItems(existing), suppressed);
     return { ...existing, foodDrinkItems, foodDrink: checkItemsToText(foodDrinkItems) };
   }
   if (section === 'drink') {
-    const drinkItems = aiRowsToCheckItems(result.drink, existing.drinkItems ?? []);
+    const drinkItems = aiRowsToCheckItems(result.drink, existing.drinkItems ?? [], suppressed);
     return { ...existing, drinkItems };
   }
-  const souvenirItems = aiRowsToCheckItems(result.souvenirs, existing.souvenirItems ?? []);
+  const souvenirItems = aiRowsToCheckItems(result.souvenirs, existing.souvenirItems ?? [], suppressed);
   return { ...existing, souvenirItems };
 }
 
-/** Merge AI output into notes; never overwrites done:true on matching labels; keeps manual extras. */
+/**
+ * Merge AI output into notes.
+ * Never overwrites user-edited overview/practical tips, existing highlight rows, or checked state.
+ */
 export function mergeAIResult(
   existing: LocationInfoNotes,
   result: LocationInfoAIResult,
@@ -124,7 +152,12 @@ export function mergeAIResult(
   }
 
   if (!section) {
-    next.overview = result.overview.trim();
+    if (!next.userEditedOverview && !(next.overview || '').trim()) {
+      next.overview = result.overview.trim();
+    }
+    if (!next.userEditedPracticalTips && !(next.practicalTips || '').trim()) {
+      next.practicalTips = result.practicalTips.trim();
+    }
   }
 
   next.aiGenerated = true;
@@ -135,14 +168,47 @@ export function mergeAIResult(
   return normalizeLocationInfoNotes(next);
 }
 
-export function locationInfoHasAIContent(data: LocationInfoNotes): boolean {
-  if (data.aiGenerated) return true;
+/** True when the card already has content worth preserving (skip auto-run on trip open). */
+export function locationInfoIsPopulated(data: LocationInfoNotes): boolean {
   if ((data.overview || '').trim()) return true;
+  if ((data.practicalTips || '').trim()) return true;
   if (getIconicSightsItems(data).length) return true;
   if (getFoodDrinkItems(data).length) return true;
   if ((data.drinkItems ?? []).length) return true;
   if ((data.souvenirItems ?? []).length) return true;
+  if ((data.aiQaThread ?? []).length) return true;
   return false;
+}
+
+/** @deprecated Use locationInfoIsPopulated — kept for existing imports. */
+export function locationInfoHasAIContent(data: LocationInfoNotes): boolean {
+  return locationInfoIsPopulated(data);
+}
+
+export function recordSuppressedHighlightLabels(
+  previous: LocationInfoNotes,
+  previousRows: LocationHighlightRow[],
+  nextRows: LocationHighlightRow[]
+): string[] {
+  const nextKeys = new Set<string>();
+  for (let i = 0; i < nextRows.length; i++) {
+    nextKeys.add(labelKey(nextRows[i].label));
+  }
+  const suppressed = [...(previous.suppressedHighlightKeys ?? [])];
+  const suppressedSet = new Set(suppressed);
+  for (let i = 0; i < previousRows.length; i++) {
+    const row = previousRows[i];
+    const key = labelKey(row.label);
+    if (!nextKeys.has(key) && !suppressedSet.has(key)) {
+      suppressed.push(key);
+      suppressedSet.add(key);
+    }
+  }
+  return suppressed;
+}
+
+export function markHighlightRowsUserEdited(rows: LocationHighlightRow[]): LocationHighlightRow[] {
+  return rows.map((row) => ({ ...row, source: 'user' as const }));
 }
 
 export function placeNameAndCountry(place: Pick<Place, 'title' | 'country'>): { placeName: string; country: string } {
@@ -160,14 +226,18 @@ export function placeNameAndCountry(place: Pick<Place, 'title' | 'country'>): { 
   };
 }
 
-
 export function linesToCheckItems(text: string): LocationInfoCheckItem[] {
   const lines = (text || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const items: LocationInfoCheckItem[] = [];
   for (let i = 0; i < lines.length; i++) {
     const label = lines[i].replace(/^[-*•]\s*/, '').trim();
     if (!label) continue;
-    items.push({ id: `item-${i}-${label.slice(0, 12).replace(/\W/g, '')}`, label, done: false });
+    items.push({
+      id: `item-${i}-${label.slice(0, 12).replace(/\W/g, '')}`,
+      label,
+      done: false,
+      source: 'user'
+    });
   }
   return items;
 }
@@ -220,7 +290,8 @@ export function normalizeLocationInfoNotes(data: LocationInfoNotes): LocationInf
     drinkItems,
     souvenirItems,
     iconicSights: checkItemsToText(iconicSightsItems),
-    foodDrink: checkItemsToText(foodDrinkItems)
+    foodDrink: checkItemsToText(foodDrinkItems),
+    aiQaThread: data.aiQaThread ?? []
   };
 }
 
@@ -251,7 +322,8 @@ export function defaultLocationInfoNotes(placeId: string): LocationInfoNotes {
     iconicSights: '',
     foodDrink: '',
     practicalTips: '',
-    aiSightsPlaceholder: 'Add a Gemini API key in User settings to auto-generate highlights, or add items manually.'
+    aiSightsPlaceholder: 'Highlights generate in the background when you open a trip (Gemini key required), or use the button below.',
+    aiQaThread: []
   };
 }
 

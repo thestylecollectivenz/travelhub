@@ -4,13 +4,17 @@ import { CATEGORY_LIST } from '../../utils/categoryUtils';
 import {
   defaultLocationInfoNotes,
   locationHighlightRows,
-  locationInfoHasAIContent,
+  locationInfoIsPopulated,
+  markHighlightRowsUserEdited,
   normalizeLocationInfoNotes,
+  recordSuppressedHighlightLabels,
   splitHighlightRows,
   parseLocationInfoNotes,
   serializeLocationInfoNotes,
+  type LocationHighlightRow,
   type LocationInfoNotes
 } from '../../utils/locationInfoEntry';
+import { LocationInfoAskPanel } from './LocationInfoAskPanel';
 import { LocationInfoHighlights } from './LocationInfoHighlights';
 import { useConfig } from '../../context/ConfigContext';
 import { usePlaces } from '../../context/PlacesContext';
@@ -541,6 +545,10 @@ export const LocationInfoEditLayout: React.FC<CategoryEditLayoutProps> = ({ draf
   }, [draft.notes]);
 
   const place = placeById(data.placeId);
+  const highlightRowsRef = React.useRef<LocationHighlightRow[]>(locationHighlightRows(data));
+  const populated = locationInfoIsPopulated(data);
+
+  highlightRowsRef.current = locationHighlightRows(data);
 
   const updateNotes = (partial: Partial<LocationInfoNotes>): void => {
     const next = normalizeLocationInfoNotes({ ...data, ...partial });
@@ -553,6 +561,7 @@ export const LocationInfoEditLayout: React.FC<CategoryEditLayoutProps> = ({ draf
 
   React.useEffect(() => {
     return subscribeLocationInfoAIStatus(draft.id, (detail) => {
+      if (detail.section === 'qa') return;
       if (detail.section && detail.section !== 'all') return;
       setResearchLoading(detail.loading);
       if (detail.success) {
@@ -568,7 +577,19 @@ export const LocationInfoEditLayout: React.FC<CategoryEditLayoutProps> = ({ draf
       spContext,
       entry: draft,
       place,
-      apiKey: config.geminiApiKey
+      apiKey: config.geminiApiKey,
+      additiveOnly: populated
+    });
+  };
+
+  const handleHighlightChange = (rows: LocationHighlightRow[]): void => {
+    const prev = highlightRowsRef.current;
+    const suppressed = recordSuppressedHighlightLabels(data, prev, rows);
+    const marked = markHighlightRowsUserEdited(rows);
+    highlightRowsRef.current = marked;
+    updateNotes({
+      ...splitHighlightRows(marked),
+      suppressedHighlightKeys: suppressed
     });
   };
 
@@ -582,7 +603,7 @@ export const LocationInfoEditLayout: React.FC<CategoryEditLayoutProps> = ({ draf
         className={`${styles.textarea} ${styles.fullRow}`}
         rows={4}
         value={data.overview}
-        onChange={(e) => updateNotes({ overview: e.target.value })}
+        onChange={(e) => updateNotes({ overview: e.target.value, userEditedOverview: true })}
         placeholder="Your notes about this place…"
       />
       <label className={`${styles.label} ${styles.fullRow}`}>
@@ -607,10 +628,13 @@ export const LocationInfoEditLayout: React.FC<CategoryEditLayoutProps> = ({ draf
           entry={draft}
           place={place}
           geminiApiKey={config.geminiApiKey}
-          hasAnyContent={locationInfoHasAIContent(data)}
+          hasAnyContent={populated}
           onOpenSettings={openSettings}
-          onChange={(rows) => updateNotes(splitHighlightRows(rows))}
+          onChange={handleHighlightChange}
         />
+        <p className={styles.locationInfoMergeHint}>
+          AI only adds new suggestions. Your edits, checkmarks, and deleted items are kept.
+        </p>
       </div>
       <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`loc-tips-${draft.id}`}>
         Practical tips
@@ -618,10 +642,20 @@ export const LocationInfoEditLayout: React.FC<CategoryEditLayoutProps> = ({ draf
       <textarea
         id={`loc-tips-${draft.id}`}
         className={`${styles.textarea} ${styles.fullRow}`}
-        rows={2}
+        rows={3}
         value={data.practicalTips}
-        onChange={(e) => updateNotes({ practicalTips: e.target.value })}
+        onChange={(e) => updateNotes({ practicalTips: e.target.value, userEditedPracticalTips: true })}
+        placeholder="Transport, timing, etiquette, money — filled by AI on first generate if left empty"
       />
+      <div className={styles.fullRow}>
+        <LocationInfoAskPanel
+          entry={draft}
+          place={place}
+          data={data}
+          geminiApiKey={config.geminiApiKey}
+          onOpenSettings={openSettings}
+        />
+      </div>
     </div>
   );
 };

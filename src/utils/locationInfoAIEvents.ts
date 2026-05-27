@@ -1,7 +1,7 @@
 export type LocationInfoAIEventDetail = {
   entryId: string;
   loading: boolean;
-  section?: 'sights' | 'food' | 'drink' | 'souvenirs' | 'all';
+  section?: 'sights' | 'food' | 'drink' | 'souvenirs' | 'all' | 'qa';
   error?: string;
   success?: boolean;
 };

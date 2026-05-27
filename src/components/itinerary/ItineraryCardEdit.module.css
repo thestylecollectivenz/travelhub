@@ -125,6 +125,13 @@
   margin-bottom: var(--space-2);
 }
 
+.locationInfoMergeHint {
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-600);
+  line-height: 1.4;
+}
+
 .aiSuccessHint {
   font-size: var(--font-size-xs);
   color: var(--color-status-confirmed);

@@ -3,16 +3,17 @@ import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { Place } from '../models/Place';
 import { ItineraryService } from '../services/ItineraryService';
 import { formatGeminiUserMessage } from '../services/geminiErrorMessage';
-import { generateLocationInfo } from '../services/GeminiService';
+import { answerLocationQuestion, generateLocationInfo } from '../services/GeminiService';
 import { emitLocationInfoAIStatus } from './locationInfoAIEvents';
 import {
   type LocationInfoMergeSection,
   type LocationInfoNotes,
+  type LocationInfoQaEntry,
   mergeAIResult,
   parseLocationInfoNotes,
   placeNameAndCountry,
   serializeLocationInfoNotes,
-  locationInfoHasAIContent
+  locationInfoIsPopulated
 } from './locationInfoEntry';
 
 export async function applyLocationInfoAIResult(options: {
@@ -32,22 +33,65 @@ export async function applyLocationInfoAIResult(options: {
   return merged;
 }
 
-export function scheduleLocationInfoAIGeneration(options: {
+export async function applyLocationInfoQuestion(options: {
+  spContext: WebPartContext;
+  entry: ItineraryEntry;
+  existing: LocationInfoNotes;
+  apiKey: string;
+  place: Place;
+  question: string;
+}): Promise<LocationInfoNotes> {
+  const { spContext, entry, existing, apiKey, place, question } = options;
+  const { placeName, country } = placeNameAndCountry(place);
+  const contextSummary = [
+    existing.overview.trim() ? `Overview: ${existing.overview.trim()}` : '',
+    existing.practicalTips.trim() ? `Practical tips: ${existing.practicalTips.trim()}` : ''
+  ]
+    .filter(Boolean)
+    .join('\n');
+  const { answer, model } = await answerLocationQuestion(placeName, country, question, {
+    apiKey,
+    contextSummary
+  });
+  const qa: LocationInfoQaEntry = {
+    id: `qa-${Date.now()}`,
+    question: question.trim(),
+    answer,
+    createdAt: new Date().toISOString()
+  };
+  const merged: LocationInfoNotes = {
+    ...existing,
+    aiQaThread: [...(existing.aiQaThread ?? []), qa],
+    aiModel: model,
+    aiError: ''
+  };
+  const svc = new ItineraryService(spContext);
+  await svc.update(entry.id, { notes: serializeLocationInfoNotes(merged) });
+  return merged;
+}
+
+export interface ScheduleLocationInfoAIOptions {
   spContext: WebPartContext;
   entry: ItineraryEntry;
   place: Place;
   apiKey: string;
   section?: LocationInfoMergeSection;
+  /** When true, only append new AI suggestions (manual refresh on populated cards). */
+  additiveOnly?: boolean;
   onComplete?: () => void;
-}): void {
-  const { spContext, entry, place, apiKey, section, onComplete } = options;
+}
+
+export function scheduleLocationInfoAIGeneration(options: ScheduleLocationInfoAIOptions): void {
+  const { spContext, entry, place, apiKey, section, additiveOnly, onComplete } = options;
   const key = (apiKey || '').trim();
   if (!key) return;
 
   const parsed = parseLocationInfoNotes(entry.notes);
   if (!parsed) return;
-  if (!section && parsed.aiGenerated) return;
-  if (!section && locationInfoHasAIContent(parsed) && parsed.aiGenerated) return;
+
+  if (!section && !additiveOnly && locationInfoIsPopulated(parsed)) {
+    return;
+  }
 
   const sectionKey = section ?? 'all';
   emitLocationInfoAIStatus({ entryId: entry.id, loading: true, section: sectionKey });
@@ -78,6 +122,45 @@ export function scheduleLocationInfoAIGeneration(options: {
       emitLocationInfoAIStatus({ entryId: entry.id, loading: false, section: sectionKey, error: message });
       if (onComplete) onComplete();
       window.dispatchEvent(new Event('trip-itinerary-updated'));
+    }
+  })();
+}
+
+export function scheduleLocationInfoQuestion(options: {
+  spContext: WebPartContext;
+  entry: ItineraryEntry;
+  place: Place;
+  apiKey: string;
+  question: string;
+  onComplete?: () => void;
+}): void {
+  const { spContext, entry, place, apiKey, question, onComplete } = options;
+  const key = (apiKey || '').trim();
+  if (!key) return;
+  const parsed = parseLocationInfoNotes(entry.notes);
+  if (!parsed) return;
+  const q = (question || '').trim();
+  if (!q) return;
+
+  emitLocationInfoAIStatus({ entryId: entry.id, loading: true, section: 'qa' });
+
+  void (async () => {
+    try {
+      await applyLocationInfoQuestion({
+        spContext,
+        entry,
+        existing: parsed,
+        apiKey: key,
+        place,
+        question: q
+      });
+      emitLocationInfoAIStatus({ entryId: entry.id, loading: false, section: 'qa', success: true });
+      if (onComplete) onComplete();
+      window.dispatchEvent(new Event('trip-itinerary-updated'));
+    } catch (err) {
+      const message = formatGeminiUserMessage(err);
+      emitLocationInfoAIStatus({ entryId: entry.id, loading: false, section: 'qa', error: message });
+      if (onComplete) onComplete();
     }
   })();
 }
