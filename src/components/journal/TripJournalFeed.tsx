@@ -1,8 +1,11 @@
 import * as React from 'react';
+import { DndContext, closestCenter, useDroppable, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { JournalEntry } from '../../models';
 import { useJournal } from '../../context/JournalContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { JournalEntryCard } from './JournalEntryCard';
+import { JournalEntrySortable } from './JournalEntrySortable';
 import { JournalEntryComposer } from './JournalEntryComposer';
 import { TRAVELHUB_SCROLL_JOURNAL_DAY } from '../../utils/contentScroll';
 import { loadJournalViewPrefs, saveJournalViewPrefs } from '../../utils/journalViewPrefs';
@@ -12,8 +15,35 @@ type SortOrder = 'newest' | 'oldest';
 type ReadFilter = 'all' | 'unread' | 'read';
 type JournalLayout = 'all' | 'by-day';
 
+function JournalDayDropSection({
+  dayId,
+  title,
+  entryIds,
+  children
+}: {
+  dayId: string;
+  title: string;
+  entryIds: string[];
+  children: React.ReactNode;
+}): React.ReactElement {
+  const { setNodeRef, isOver } = useDroppable({ id: `journal-day-drop-${dayId}` });
+  return (
+    <section
+      ref={setNodeRef}
+      id={`journal-day-${dayId}`}
+      className={`${styles.daySection} ${isOver ? styles.daySectionDropActive : ''}`}
+      aria-label={title}
+    >
+      <h3 className={styles.dayTag}>{title}</h3>
+      <SortableContext items={entryIds} strategy={verticalListSortingStrategy}>
+        <div className={styles.dayEntries}>{children}</div>
+      </SortableContext>
+    </section>
+  );
+}
+
 export const TripJournalFeed: React.FC = () => {
-  const { allEntries, photosForEntry } = useJournal();
+  const { allEntries, photosForEntry, moveEntryToDay, reorderEntryBefore } = useJournal();
   const { trip, tripDays, sharedPreview, selectedDayId, setSelectedDayId } = useTripWorkspace();
   const [sortOrder, setSortOrder] = React.useState<SortOrder>('newest');
   const [readFilter, setReadFilter] = React.useState<ReadFilter>('all');
@@ -188,6 +218,73 @@ export const TripJournalFeed: React.FC = () => {
     setComposerOpen(true);
   }, [resolveDefaultComposerDayId]);
 
+  const handleDragEnd = React.useCallback(
+    (event: DragEndEvent): void => {
+      const { active, over } = event;
+      if (!over || sharedPreview) return;
+      const activeId = String(active.id);
+      const overId = String(over.id);
+      if (overId.startsWith('journal-day-drop-')) {
+        const targetDayId = overId.replace('journal-day-drop-', '');
+        moveEntryToDay(activeId, targetDayId).catch(console.error);
+        return;
+      }
+      if (activeId !== overId) {
+        reorderEntryBefore(activeId, overId).catch(console.error);
+      }
+    },
+    [sharedPreview, moveEntryToDay, reorderEntryBefore]
+  );
+
+  const entryList = (
+    <div className={styles.list}>
+      {selectedDayId && selectedDayEntryCount === 0 ? (
+        <div className={styles.empty} role="status">
+          No journal entries for the selected day yet.
+        </div>
+      ) : null}
+      {groupedByDay.order.map((dayId) => {
+        const dayEntries = groupedByDay.map.get(dayId) ?? [];
+        const entryIds = dayEntries.map((e) => e.id);
+        const entryCards = dayEntries.map((e) =>
+          sharedPreview ? (
+            <div key={e.id} className={styles.block}>
+              <JournalEntryCard
+                entry={e}
+                photos={photosForEntry(e.id)}
+                journalDays={journalDays}
+                canModerate={false}
+                isUnread={isUnread(e)}
+              />
+            </div>
+          ) : (
+            <JournalEntrySortable
+              key={e.id}
+              entry={e}
+              photos={photosForEntry(e.id)}
+              journalDays={journalDays}
+              canModerate
+              isUnread={isUnread(e)}
+            />
+          )
+        );
+        if (sharedPreview) {
+          return (
+            <section key={dayId} id={`journal-day-${dayId}`} className={styles.daySection} aria-label={dayHeading(dayId)}>
+              <h3 className={styles.dayTag}>{dayHeading(dayId)}</h3>
+              <div className={styles.dayEntries}>{entryCards}</div>
+            </section>
+          );
+        }
+        return (
+          <JournalDayDropSection key={dayId} dayId={dayId} title={dayHeading(dayId)} entryIds={entryIds}>
+            {entryCards}
+          </JournalDayDropSection>
+        );
+      })}
+    </div>
+  );
+
   return (
     <section className={styles.root} aria-label="Trip journal">
       <header className={styles.header}>
@@ -325,30 +422,13 @@ export const TripJournalFeed: React.FC = () => {
         </div>
       ) : null}
       {filteredEntries.length > 0 ? (
-        <div className={styles.list}>
-          {selectedDayId && selectedDayEntryCount === 0 ? (
-            <div className={styles.empty} role="status">
-              No journal entries for the selected day yet.
-            </div>
-          ) : null}
-          {groupedByDay.order.map((dayId) => (
-            <section key={dayId} id={`journal-day-${dayId}`} className={styles.daySection} aria-label={dayHeading(dayId)}>
-              <h3 className={styles.dayTag}>{dayHeading(dayId)}</h3>
-              <div className={styles.dayEntries}>
-                {(groupedByDay.map.get(dayId) ?? []).map((e) => (
-                  <div key={e.id} className={styles.block}>
-                    <JournalEntryCard
-                      entry={e}
-                      photos={photosForEntry(e.id)}
-                      canModerate={!sharedPreview}
-                      isUnread={isUnread(e)}
-                    />
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
+        !sharedPreview ? (
+          <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            {entryList}
+          </DndContext>
+        ) : (
+          entryList
+        )
       ) : null}
     </section>
   );

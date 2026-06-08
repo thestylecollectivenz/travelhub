@@ -1,21 +1,34 @@
 import * as React from 'react';
 import type { JournalComment, JournalEntry, JournalPhoto } from '../../models';
+import type { TripDay } from '../../models/TripDay';
 import { useJournal } from '../../context/JournalContext';
+import { useJournalMediaSelection } from '../../context/JournalMediaSelectionContext';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { useSpContext } from '../../context/SpContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
 import { JournalImageLightbox } from './JournalImageLightbox';
+import { JournalPhotoBoard } from './JournalPhotoBoard';
 import { RichTextEditor } from './RichTextEditor';
 import { isLikelyJournalHtml, plainTextToEditorHtml } from '../../utils/journalRichText';
+import { readJournalPhotoDragData } from '../../utils/journalPhotoDrag';
 import styles from './JournalEntryCard.module.css';
+
+function isAllowedImage(file: File): boolean {
+  const lower = file.name.toLowerCase();
+  const okExt = lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.webp');
+  const okMime = file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'image/webp' || file.type === '';
+  return okExt && okMime;
+}
 
 export interface JournalEntryCardProps {
   entry: JournalEntry;
   photos: JournalPhoto[];
+  journalDays?: TripDay[];
   /** Temporary: treat all workspace viewers as authorised editors for journal moderation. */
   canModerate?: boolean;
   isUnread?: boolean;
+  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
 }
 
 function formatTimestamp(iso: string): string {
@@ -28,14 +41,14 @@ function formatTimestamp(iso: string): string {
   }
 }
 
-function JournalPhotoSlot({
+function JournalPhotoFooter({
   photo,
-  onOpenLightbox
+  canModerate
 }: {
   photo: JournalPhoto;
-  onOpenLightbox: (url: string) => void;
+  canModerate: boolean;
 }): React.ReactElement {
-  const { updatePhotoCaption, togglePhotoLike } = useJournal();
+  const { updatePhotoCaption, togglePhotoLike, deletePhoto } = useJournal();
   const spContext = useSpContext();
   const [editingCap, setEditingCap] = React.useState(false);
   const [capDraft, setCapDraft] = React.useState(photo.caption);
@@ -54,121 +67,135 @@ function JournalPhotoSlot({
   }, [photo.likedByUsers, spContext.pageContext.user.loginName]);
 
   return (
-    <div className={styles.photoCard} data-photo-id={photo.id}>
-      <figure className={styles.photoFigure}>
-        <img
-          className={styles.photoThumb}
-          src={photo.fileUrl}
-          alt={photo.caption ? photo.caption : ''}
-          loading="lazy"
-          onClick={() => onOpenLightbox(photo.fileUrl)}
-        />
-      </figure>
-      <div className={styles.photoFooter}>
-        <div className={styles.photoLikeCell}>
+  <div className={styles.photoFooter}>
+    <div className={styles.photoLikeCell}>
+      <button
+        type="button"
+        className={styles.photoHeartBtn}
+        onClick={() => togglePhotoLike(photo.id).catch(console.error)}
+        aria-label="Like photo"
+      >
+        {liked ? (
+          <svg viewBox="0 0 16 16" width={12} height={12} aria-hidden>
+            <path
+              d="M3.2 3.6c0-1.1.9-2 2-2 1 0 1.8.6 2.1 1.4.3-.8 1.1-1.4 2.1-1.4 1.1 0 2 .9 2 2 0 2.4-3.5 5.6-4.1 6.1-.1.1-.3.1-.4 0-.6-.5-4.1-3.7-4.1-6.1Z"
+              fill="currentColor"
+            />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 16 16" width={12} height={12} aria-hidden>
+            <path
+              d="M3.2 3.6c0-1.1.9-2 2-2 1 0 1.8.6 2.1 1.4.3-.8 1.1-1.4 2.1-1.4 1.1 0 2 .9 2 2 0 2.4-3.5 5.6-4.1 6.1-.1.1-.3.1-.4 0-.6-.5-4.1-3.7-4.1-6.1Z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.2"
+              strokeLinejoin="round"
+            />
+          </svg>
+        )}
+      </button>
+      {photo.likeCount > 0 ? <span className={styles.photoLikeCount}>{photo.likeCount}</span> : null}
+    </div>
+    <div className={styles.photoCaptionCell}>
+      {editingCap ? (
+        <>
+          <input
+            className={styles.photoCaptionInput}
+            value={capDraft}
+            onChange={(e) => setCapDraft(e.target.value)}
+            aria-label="Caption"
+          />
+          <div className={styles.photoCaptionEditActions}>
+            <button
+              type="button"
+              className={styles.iconButton}
+              onClick={() => {
+                updatePhotoCaption(photo.id, capDraft.trim())
+                  .then(() => setEditingCap(false))
+                  .catch(console.error);
+              }}
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              className={styles.iconButton}
+              onClick={() => {
+                void (async () => {
+                  if (!(await confirmUserAction('Clear this photo caption?'))) return;
+                  updatePhotoCaption(photo.id, '')
+                    .then(() => {
+                      setCapDraft('');
+                      setEditingCap(false);
+                    })
+                    .catch(console.error);
+                })();
+              }}
+            >
+              Clear caption
+            </button>
+            <button
+              type="button"
+              className={styles.iconButton}
+              onClick={() => {
+                setCapDraft(photo.caption);
+                setEditingCap(false);
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className={styles.photoCaptionView}>
+          <span className={styles.photoCaption}>{photo.caption?.trim() || '\u00a0'}</span>
           <button
             type="button"
-            className={styles.photoHeartBtn}
-            onClick={() => togglePhotoLike(photo.id).catch(console.error)}
-            aria-label="Like photo"
+            className={`${styles.iconButton} ${styles.photoCaptionEdit}`}
+            aria-label="Edit caption"
+            onClick={() => setEditingCap(true)}
           >
-            {liked ? (
-              <svg viewBox="0 0 16 16" width={12} height={12} aria-hidden>
-                <path
-                  d="M3.2 3.6c0-1.1.9-2 2-2 1 0 1.8.6 2.1 1.4.3-.8 1.1-1.4 2.1-1.4 1.1 0 2 .9 2 2 0 2.4-3.5 5.6-4.1 6.1-.1.1-.3.1-.4 0-.6-.5-4.1-3.7-4.1-6.1Z"
-                  fill="currentColor"
-                />
-              </svg>
-            ) : (
-              <svg viewBox="0 0 16 16" width={12} height={12} aria-hidden>
-                <path
-                  d="M3.2 3.6c0-1.1.9-2 2-2 1 0 1.8.6 2.1 1.4.3-.8 1.1-1.4 2.1-1.4 1.1 0 2 .9 2 2 0 2.4-3.5 5.6-4.1 6.1-.1.1-.3.1-.4 0-.6-.5-4.1-3.7-4.1-6.1Z"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.2"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            )}
+            ✎
           </button>
-          {photo.likeCount > 0 ? <span className={styles.photoLikeCount}>{photo.likeCount}</span> : null}
         </div>
-        <div className={styles.photoCaptionCell}>
-          {editingCap ? (
-            <>
-              <input
-                className={styles.photoCaptionInput}
-                value={capDraft}
-                onChange={(e) => setCapDraft(e.target.value)}
-                aria-label="Caption"
-              />
-              <div className={styles.photoCaptionEditActions}>
-                <button
-                  type="button"
-                  className={styles.iconButton}
-                  onClick={() => {
-                    updatePhotoCaption(photo.id, capDraft.trim())
-                      .then(() => setEditingCap(false))
-                      .catch(console.error);
-                  }}
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  className={styles.iconButton}
-                  onClick={() => {
-                    void (async () => {
-                      if (!(await confirmUserAction('Clear this photo caption?'))) return;
-                      updatePhotoCaption(photo.id, '')
-                        .then(() => {
-                          setCapDraft('');
-                          setEditingCap(false);
-                        })
-                        .catch(console.error);
-                    })();
-                  }}
-                >
-                  Clear caption
-                </button>
-                <button
-                  type="button"
-                  className={styles.iconButton}
-                  onClick={() => {
-                    setCapDraft(photo.caption);
-                    setEditingCap(false);
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className={styles.photoCaptionView}>
-              <span className={styles.photoCaption}>{photo.caption?.trim() || '\u00a0'}</span>
-              <button
-                type="button"
-                className={`${styles.iconButton} ${styles.photoCaptionEdit}`}
-                aria-label="Edit caption"
-                onClick={() => setEditingCap(true)}
-              >
-                ✎
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
+      )}
     </div>
+    {canModerate ? (
+      <button
+        type="button"
+        className={`${styles.iconButton} ${styles.photoDeleteBtn}`}
+        aria-label="Delete photo"
+        onClick={() => {
+          void (async () => {
+            if (!(await confirmUserAction('Delete this photo?'))) return;
+            deletePhoto(photo.id).catch(console.error);
+          })();
+        }}
+      >
+        Delete
+      </button>
+    ) : null}
+  </div>
   );
 }
 
-export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photos, canModerate = true, isUnread }) => {
+export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
+  entry,
+  photos,
+  journalDays = [],
+  canModerate = true,
+  isUnread,
+  dragHandleProps
+}) => {
   const spContext = useSpContext();
   const { trip } = useTripWorkspace();
   const { journalAuthorName } = useConfig();
   const {
     updateEntry,
     deleteEntry,
+    moveEntryToDay,
+    addPhoto,
+    assignPhotoToEntry,
     toggleLike,
     commentsForEntry,
     loadCommentsForEntry,
@@ -177,6 +204,7 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
     ensureShareableLink,
     commentCountForEntry
   } = useJournal();
+  const { selectedPhotoId, setSelectedPhotoId } = useJournalMediaSelection();
 
   const displayName = spContext.pageContext.user.displayName ?? '';
   const isOwner = entry.authorName === journalAuthorName || entry.authorName === displayName;
@@ -198,6 +226,10 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
   const [shareUrl, setShareUrl] = React.useState<string>('');
   const [shareBusy, setShareBusy] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
+  const [photoUploading, setPhotoUploading] = React.useState(false);
+  const [dropActive, setDropActive] = React.useState(false);
+  const [moveDayId, setMoveDayId] = React.useState(entry.dayId);
+  const photoInputRef = React.useRef<HTMLInputElement | null>(null);
   const copyTimerRef = React.useRef<number | undefined>(undefined);
 
   const webShareSupported = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
@@ -205,7 +237,8 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
   React.useEffect(() => {
     setDraftHtml(isLikelyJournalHtml(entry.entryText) ? entry.entryText : plainTextToEditorHtml(entry.entryText));
     setDraftLocation(entry.location);
-  }, [entry.entryText, entry.location]);
+    setMoveDayId(entry.dayId);
+  }, [entry.entryText, entry.location, entry.dayId]);
 
   React.useEffect(() => {
     return () => {
@@ -277,9 +310,61 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
     return users.some((u) => u.toLowerCase() === login.toLowerCase());
   }, [entry.likedByUsers, spContext.pageContext.user.loginName]);
 
+  const onPhotoFiles = async (files: FileList | File[]): Promise<void> => {
+    const list = Array.from(files);
+    if (!list.length) return;
+    setPhotoUploading(true);
+    try {
+      for (const file of list) {
+        if (!isAllowedImage(file) || file.size > 10 * 1024 * 1024) continue;
+        // eslint-disable-next-line no-await-in-loop
+        await addPhoto({ journalEntryId: entry.id, dayId: entry.dayId, file });
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('JournalEntryCard.onPhotoFiles', err);
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
+  const onPhotoDrop = (e: React.DragEvent): void => {
+    e.preventDefault();
+    setDropActive(false);
+    const photoId = readJournalPhotoDragData(e.dataTransfer);
+    if (photoId) {
+      assignPhotoToEntry(photoId, entry.dayId, entry.id).catch(console.error);
+      return;
+    }
+    if (e.dataTransfer.files?.length) {
+      onPhotoFiles(e.dataTransfer.files).catch(console.error);
+    }
+  };
+
   return (
-    <div className={`${styles.card} ${isUnread ? styles.cardUnread : ''}`} data-journal-id={entry.id}>
+    <div
+      className={`${styles.card} ${isUnread ? styles.cardUnread : ''} ${dropActive ? styles.cardDropActive : ''}`}
+      data-journal-id={entry.id}
+      onDragOver={(e) => {
+        if (!canModerate) return;
+        e.preventDefault();
+        setDropActive(true);
+      }}
+      onDragLeave={() => setDropActive(false)}
+      onDrop={canModerate ? onPhotoDrop : undefined}
+    >
       <div className={styles.metaRow}>
+        {dragHandleProps ? (
+          <button
+            type="button"
+            className={styles.dragHandle}
+            aria-label="Drag to reorder or move entry"
+            title="Drag to reorder"
+            {...dragHandleProps}
+          >
+            ⋮⋮
+          </button>
+        ) : null}
         <div>
           {isUnread ? <span className={styles.unreadBadge}>New</span> : null}
           {showAuthorLine ? (
@@ -309,6 +394,38 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
                 >
                   Edit
                 </button>
+                {journalDays.length > 1 ? (
+                  <div className={styles.menuMoveRow} role="none">
+                    <label className={styles.menuMoveLabel}>
+                      Move to day
+                      <select
+                        className={styles.menuMoveSelect}
+                        value={moveDayId}
+                        onChange={(e) => setMoveDayId(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {journalDays.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.dayType === 'PreTrip' ? 'Pre-trip' : `Day ${d.dayNumber}`}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      className={styles.menuItem}
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        if (moveDayId && moveDayId !== entry.dayId) {
+                          moveEntryToDay(entry.id, moveDayId).catch(console.error);
+                        }
+                      }}
+                    >
+                      Apply move
+                    </button>
+                  </div>
+                ) : null}
                 <button
                   type="button"
                   className={`${styles.menuItem} ${styles.menuDanger}`}
@@ -358,13 +475,36 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, photo
         <div className={styles.text}>{entry.entryText}</div>
       )}
 
-      {photos.length ? (
-        <div className={styles.photoGrid}>
-          {photos.map((p) => (
-            <JournalPhotoSlot key={p.id} photo={p} onOpenLightbox={setLightboxUrl} />
-          ))}
+      {canModerate ? (
+        <div className={styles.addPhotosRow}>
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+            multiple
+            className={styles.hiddenFileInput}
+            onChange={(e) => {
+              if (e.target.files?.length) {
+                onPhotoFiles(e.target.files).catch(console.error);
+              }
+              e.target.value = '';
+            }}
+          />
+          <button type="button" className={styles.addPhotosBtn} disabled={photoUploading} onClick={() => photoInputRef.current?.click()}>
+            {photoUploading ? 'Uploading…' : 'Add photos'}
+          </button>
+          <span className={styles.dropHint}>or drop photos here</span>
         </div>
       ) : null}
+
+      <JournalPhotoBoard
+        photos={photos}
+        selectedPhotoId={selectedPhotoId}
+        onSelectPhoto={setSelectedPhotoId}
+        onOpenLightbox={setLightboxUrl}
+        draggable={canModerate}
+        renderFooter={(p) => <JournalPhotoFooter photo={p} canModerate={canModerate} />}
+      />
 
       <div className={styles.actionsRow}>
         <button type="button" className={styles.iconButton} onClick={() => toggleLike(entry.id).catch(console.error)} aria-label="Like">

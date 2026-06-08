@@ -284,10 +284,20 @@
   color: var(--color-blue-800);
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: var(--space-3);
+.entryLabel {
+  font-size: 10px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-800);
+}
+
+.deletePhotoBtn {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: var(--font-size-xs);
+  color: var(--color-danger, #b42318);
+  cursor: pointer;
 }
 
 .cell {

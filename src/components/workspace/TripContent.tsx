@@ -84,6 +84,11 @@ const TripContentInner: React.FC = () => {
     return tripDays.find((x) => x.id === selectedDayId && x.tripId === trip.id);
   }, [trip, tripDays, selectedDayId]);
 
+  const journalPaneDays = React.useMemo(() => {
+    if (!trip) return [];
+    return tripDays.filter((d) => d.tripId === trip.id).sort((a, b) => a.dayNumber - b.dayNumber);
+  }, [trip, tripDays]);
+
   React.useEffect(() => {
     setActivePlaceInfoId(dayPanelDay?.primaryPlaceId || '');
   }, [dayPanelDay?.id, dayPanelDay?.primaryPlaceId]);
@@ -347,6 +352,8 @@ const TripContentInner: React.FC = () => {
             activePlaceInfoId={activePlaceInfoId}
             showItineraryDayContent={mainWorkspaceTab === 'itinerary' && !!dayPanelDay}
             showSelectDayHint={mainWorkspaceTab === 'itinerary' && !dayPanelDay}
+            showJournalMedia={mainWorkspaceTab === 'journal' || mainWorkspaceTab === 'photos'}
+            journalDays={journalPaneDays}
           />
         </div>
       ) : null}

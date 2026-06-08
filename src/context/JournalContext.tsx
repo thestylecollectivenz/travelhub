@@ -1,6 +1,7 @@
 import * as React from 'react';
 import type { JournalComment, JournalEntry, JournalPhoto } from '../models';
 import { JournalService } from '../services/JournalService';
+import { timestampBetween } from '../utils/journalEntryOrder';
 import { useSpContext } from './SpContext';
 import { useTripWorkspace } from './TripWorkspaceContext';
 import { useConfig } from './ConfigContext';
@@ -16,8 +17,11 @@ export interface JournalContextValue {
   addEntry: (input: { dayId: string; entryText: string; location?: string }) => Promise<JournalEntry>;
   updateEntry: (id: string, partial: Partial<Pick<JournalEntry, 'entryText' | 'location'>>) => Promise<void>;
   deleteEntry: (id: string) => Promise<void>;
+  moveEntryToDay: (entryId: string, targetDayId: string, beforeEntryId?: string) => Promise<void>;
+  reorderEntryBefore: (entryId: string, beforeEntryId: string) => Promise<void>;
   addPhoto: (input: { journalEntryId: string; dayId: string; file: File; caption?: string }) => Promise<JournalPhoto>;
   addAlbumPhoto: (dayId: string, file: File, caption?: string) => Promise<JournalPhoto>;
+  assignPhotoToEntry: (photoId: string, dayId: string, journalEntryId: string) => Promise<void>;
   deletePhoto: (id: string) => Promise<void>;
   updatePhotoCaption: (photoId: string, caption: string) => Promise<void>;
   togglePhotoLike: (photoId: string) => Promise<void>;
@@ -173,6 +177,93 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     [entries, spContext]
   );
 
+  const syncEntryPhotosDay = React.useCallback(
+    async (entryId: string, targetDayId: string): Promise<void> => {
+      const linked = photos.filter((p) => p.journalEntryId === entryId && p.dayId !== targetDayId);
+      if (!linked.length) return;
+      const svc = new JournalService(spContext);
+      for (const photo of linked) {
+        // eslint-disable-next-line no-await-in-loop
+        await svc.updatePhoto(photo.id, { dayId: targetDayId });
+      }
+      setPhotos((prev) => prev.map((p) => (p.journalEntryId === entryId ? { ...p, dayId: targetDayId } : p)));
+    },
+    [photos, spContext]
+  );
+
+  const moveEntryToDay = React.useCallback(
+    async (entryId: string, targetDayId: string, beforeEntryId?: string): Promise<void> => {
+      const entry = entries.find((e) => e.id === entryId);
+      if (!entry || !targetDayId) return;
+
+      const sortedTarget = entries
+        .filter((e) => e.dayId === targetDayId && e.id !== entryId)
+        .sort((a, b) => a.entryTimestamp.localeCompare(b.entryTimestamp));
+
+      let newTimestamp: string;
+      if (beforeEntryId) {
+        const beforeIdx = sortedTarget.findIndex((e) => e.id === beforeEntryId);
+        const beforeNeighbor = beforeIdx > 0 ? sortedTarget[beforeIdx - 1] : null;
+        const afterNeighbor = beforeIdx >= 0 ? sortedTarget[beforeIdx] : null;
+        newTimestamp = timestampBetween(beforeNeighbor?.entryTimestamp, afterNeighbor?.entryTimestamp);
+      } else {
+        const last = sortedTarget[sortedTarget.length - 1];
+        newTimestamp = timestampBetween(last?.entryTimestamp, null);
+      }
+
+      const prevEntry = entry;
+      const nextEntry: JournalEntry = { ...entry, dayId: targetDayId, entryTimestamp: newTimestamp };
+      setEntries((prev) => prev.map((e) => (e.id === entryId ? nextEntry : e)));
+
+      try {
+        const svc = new JournalService(spContext);
+        await svc.update(entryId, { dayId: targetDayId, entryTimestamp: newTimestamp });
+        await syncEntryPhotosDay(entryId, targetDayId);
+      } catch (err) {
+        setEntries((prev) => prev.map((e) => (e.id === entryId ? prevEntry : e)));
+        // eslint-disable-next-line no-console
+        console.error('JournalProvider.moveEntryToDay', err);
+        throw err;
+      }
+    },
+    [entries, spContext, syncEntryPhotosDay]
+  );
+
+  const reorderEntryBefore = React.useCallback(
+    async (entryId: string, beforeEntryId: string): Promise<void> => {
+      if (entryId === beforeEntryId) return;
+      const entry = entries.find((e) => e.id === entryId);
+      const beforeEntry = entries.find((e) => e.id === beforeEntryId);
+      if (!entry || !beforeEntry) return;
+
+      const targetDayId = beforeEntry.dayId;
+      const sorted = entries
+        .filter((e) => e.dayId === targetDayId && e.id !== entryId)
+        .sort((a, b) => a.entryTimestamp.localeCompare(b.entryTimestamp));
+      const beforeIdx = sorted.findIndex((e) => e.id === beforeEntryId);
+      const prevNeighbor = beforeIdx > 0 ? sorted[beforeIdx - 1] : null;
+      const newTimestamp = timestampBetween(prevNeighbor?.entryTimestamp, beforeEntry.entryTimestamp);
+
+      const prevEntry = entry;
+      const nextEntry: JournalEntry = { ...entry, dayId: targetDayId, entryTimestamp: newTimestamp };
+      setEntries((prev) => prev.map((e) => (e.id === entryId ? nextEntry : e)));
+
+      try {
+        const svc = new JournalService(spContext);
+        await svc.update(entryId, { dayId: targetDayId, entryTimestamp: newTimestamp });
+        if (targetDayId !== entry.dayId) {
+          await syncEntryPhotosDay(entryId, targetDayId);
+        }
+      } catch (err) {
+        setEntries((prev) => prev.map((e) => (e.id === entryId ? prevEntry : e)));
+        // eslint-disable-next-line no-console
+        console.error('JournalProvider.reorderEntryBefore', err);
+        throw err;
+      }
+    },
+    [entries, spContext, syncEntryPhotosDay]
+  );
+
   const deleteEntry = React.useCallback(
     async (id: string): Promise<void> => {
       const prevEntry = entries.find((e) => e.id === id);
@@ -276,6 +367,27 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (prev) setPhotos((x) => x.map((p) => (p.id === photoId ? prev : p)));
         // eslint-disable-next-line no-console
         console.error('JournalProvider.updatePhotoCaption', err);
+        throw err;
+      }
+    },
+    [photos, spContext]
+  );
+
+  const assignPhotoToEntry = React.useCallback(
+    async (photoId: string, dayId: string, journalEntryId: string): Promise<void> => {
+      const prev = photos.find((p) => p.id === photoId);
+      if (!prev) return;
+      const nextJournalEntryId = journalEntryId.trim();
+      setPhotos((x) =>
+        x.map((p) => (p.id === photoId ? { ...p, dayId, journalEntryId: nextJournalEntryId } : p))
+      );
+      try {
+        const svc = new JournalService(spContext);
+        await svc.updatePhoto(photoId, { dayId, journalEntryId: nextJournalEntryId });
+      } catch (err) {
+        if (prev) setPhotos((x) => x.map((p) => (p.id === photoId ? prev : p)));
+        // eslint-disable-next-line no-console
+        console.error('JournalProvider.assignPhotoToEntry', err);
         throw err;
       }
     },
@@ -475,8 +587,11 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       addEntry,
       updateEntry,
       deleteEntry,
+      moveEntryToDay,
+      reorderEntryBefore,
       addPhoto,
       addAlbumPhoto,
+      assignPhotoToEntry,
       deletePhoto,
       updatePhotoCaption,
       togglePhotoLike,
@@ -497,8 +612,11 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       addEntry,
       updateEntry,
       deleteEntry,
+      moveEntryToDay,
+      reorderEntryBefore,
       addPhoto,
       addAlbumPhoto,
+      assignPhotoToEntry,
       deletePhoto,
       updatePhotoCaption,
       togglePhotoLike,

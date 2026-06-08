@@ -35,6 +35,8 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-
 .photoGrid img { max-width: 100%; height: auto; object-fit: contain; }
 .photoHeavy img { max-height: 24rem; }
 .textHeavy img { max-height: 8rem; }
+.print-album-photos { margin-top: 1rem; }
+.print-album-heading { font-size: 1rem; color: #475569; margin: 0 0 0.5rem; }
 @media print {
   .toolbar { display: none !important; }
   .th-journal-print { padding: 0; max-width: none; }
@@ -59,7 +61,7 @@ export interface JournalPrintPreviewParams {
   oneDayPerPage: boolean;
 }
 
-export function openJournalPrintPreview(params: JournalPrintPreviewParams): void {
+function buildJournalPrintDocument(params: JournalPrintPreviewParams): string {
   const {
     trip,
     tripDays,
@@ -82,6 +84,7 @@ export function openJournalPrintPreview(params: JournalPrintPreviewParams): void
 
   const rawHero = includeHeroOnCover && trip.heroImageUrl?.trim() ? trip.heroImageUrl.trim() : '';
   const coverHeroAttr = rawHero.replace(/"/g, '&quot;');
+  const docTitle = `${trip.title} — Journal`;
 
   let body = '';
   if (showCover) {
@@ -112,7 +115,7 @@ export function openJournalPrintPreview(params: JournalPrintPreviewParams): void
       body += `<p class="print-entry-meta">${esc(day.calendarDate)}</p>`;
     }
     for (const entry of dayEntries) {
-      const entryPhotos = photos.filter((p) => p.journalEntryId === entry.id || (!p.journalEntryId && p.dayId === day.id));
+      const entryPhotos = photos.filter((p) => p.journalEntryId === entry.id);
       const comments = commentsForEntry(entry.id);
       const locPrefix = entry.location ? `${esc(entry.location)} — ` : '';
       body += `<article class="print-entry"><h3>${locPrefix}${esc(new Date(entry.entryTimestamp).toLocaleString('en-NZ'))}</h3>`;
@@ -139,24 +142,45 @@ export function openJournalPrintPreview(params: JournalPrintPreviewParams): void
       }
       body += `</article>`;
     }
+
+    const orphanPhotos = photos.filter((p) => p.dayId === day.id && !p.journalEntryId?.trim());
+    if (orphanPhotos.length) {
+      body += `<div class="print-album-photos"><h4 class="print-album-heading">Album photos (not linked to an entry)</h4>`;
+      body += `<div class="photoGrid ${layout === 'photo' ? 'photoHeavy' : 'textHeavy'}">`;
+      for (const p of orphanPhotos) {
+        body += `<figure style="margin:0"><img src="${esc(p.fileUrl)}" alt="${esc(p.caption || 'Album photo')}" />`;
+        if (p.caption) body += `<figcaption style="font-size:11px">${esc(p.caption)}</figcaption>`;
+        body += `</figure>`;
+      }
+      body += `</div></div>`;
+    }
+
     body += `</section></div>`;
   });
 
   const dayBreakClass = oneDayPerPage ? 'dayPageBreaks' : '';
-  const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${esc(trip.title)} — Journal</title><style>${JOURNAL_PRINT_STYLES}</style></head><body>
-<div class="toolbar"><button type="button" id="th-print-btn">Print / Save PDF</button></div>
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${esc(docTitle)}</title><style>${JOURNAL_PRINT_STYLES}</style></head><body>
+<div class="toolbar"><button type="button" onclick="window.focus();window.print();return false;">Print / Save PDF</button></div>
 <div class="th-journal-print printRoot ${dayBreakClass}">${body}</div>
-<script>
-document.getElementById('th-print-btn').addEventListener('click', function () { window.focus(); window.print(); });
-</script></body></html>`;
+</body></html>`;
+}
 
-  const previewWindow = window.open('', '_blank', 'width=900,height=700,scrollbars=yes');
+export function openJournalPrintPreview(params: JournalPrintPreviewParams): void {
+  const doc = buildJournalPrintDocument(params);
+  const docTitle = `${params.trip.title} — Journal`;
+  const blob = new Blob([doc], { type: 'text/html;charset=utf-8' });
+  const blobUrl = URL.createObjectURL(blob);
+  const previewWindow = window.open(blobUrl, '_blank', 'width=900,height=700,scrollbars=yes');
   if (!previewWindow) {
+    URL.revokeObjectURL(blobUrl);
     // eslint-disable-next-line no-console
     console.warn('Journal print preview blocked by popup blocker');
     return;
   }
-  previewWindow.document.open();
-  previewWindow.document.write(doc);
-  previewWindow.document.close();
+  try {
+    previewWindow.document.title = docTitle;
+  } catch {
+    /* cross-origin guard */
+  }
+  window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
 }

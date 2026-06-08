@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { TripWorkspaceProvider, useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { JournalProvider } from '../../context/JournalContext';
+import { JournalMediaSelectionProvider } from '../../context/JournalMediaSelectionContext';
 import { AttachmentsProvider } from '../../context/AttachmentsContext';
 import { ConfirmDialogProvider } from '../shared/ConfirmDialogProvider';
 import { PlacesProvider } from '../../context/PlacesContext';
@@ -628,12 +629,14 @@ export const TripWorkspace: React.FC<ITripWorkspaceProps> = (props) => {
     <TripWorkspaceProvider tripId={props.tripId} onBack={props.onBack}>
       <ConfirmDialogProvider>
         <JournalProvider>
-          <PlacesProvider>
-            <AttachmentsProvider>
-              <LocationInfoTripOpenBackfill />
-              <TripWorkspaceLayout {...props} />
-            </AttachmentsProvider>
-          </PlacesProvider>
+          <JournalMediaSelectionProvider>
+            <PlacesProvider>
+              <AttachmentsProvider>
+                <LocationInfoTripOpenBackfill />
+                <TripWorkspaceLayout {...props} />
+              </AttachmentsProvider>
+            </PlacesProvider>
+          </JournalMediaSelectionProvider>
         </JournalProvider>
       </ConfirmDialogProvider>
     </TripWorkspaceProvider>

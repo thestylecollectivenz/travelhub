@@ -6,6 +6,7 @@ import { BudgetBreakdownTile } from '../day/BudgetBreakdownTile';
 import { DayPlaceInfoSection } from '../day/DayPlaceInfoSection';
 import { PaneCollapseToggle } from './PaneCollapseToggle';
 import { RightPaneTripSummary } from './RightPaneTripSummary';
+import { RightPaneJournalMedia } from './RightPaneJournalMedia';
 import styles from './RightPane.module.css';
 
 export interface RightPaneProps {
@@ -17,6 +18,8 @@ export interface RightPaneProps {
   activePlaceInfoId: string;
   showItineraryDayContent: boolean;
   showSelectDayHint: boolean;
+  showJournalMedia?: boolean;
+  journalDays?: TripDay[];
 }
 
 export const RightPane: React.FC<RightPaneProps> = ({
@@ -27,7 +30,9 @@ export const RightPane: React.FC<RightPaneProps> = ({
   day,
   activePlaceInfoId,
   showItineraryDayContent,
-  showSelectDayHint
+  showSelectDayHint,
+  showJournalMedia = false,
+  journalDays = []
 }) => {
   const { trip } = useTripWorkspace();
   const { config } = useConfig();
@@ -63,6 +68,12 @@ export const RightPane: React.FC<RightPaneProps> = ({
                 defaultExpanded={config.dayBreakdownVisibleByDefault}
               />
             </div>
+          </>
+        ) : showJournalMedia && journalDays.length ? (
+          <>
+            <RightPaneTripSummary showSelectDayHint={false} />
+            <hr className={styles.divider} />
+            <RightPaneJournalMedia journalDays={journalDays} />
           </>
         ) : (
           <RightPaneTripSummary showSelectDayHint={showSelectDayHint} />

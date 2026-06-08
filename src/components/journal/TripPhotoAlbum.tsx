@@ -1,24 +1,26 @@
 import * as React from 'react';
 import type { JournalPhoto } from '../../models';
 import { useJournal } from '../../context/JournalContext';
+import { useJournalMediaSelection } from '../../context/JournalMediaSelectionContext';
 import { useSpContext } from '../../context/SpContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { JournalEntryComposer } from './JournalEntryComposer';
 import { JournalImageLightbox } from './JournalImageLightbox';
+import { JournalPhotoBoard } from './JournalPhotoBoard';
 import { TRAVELHUB_SCROLL_PHOTOS_DAY } from '../../utils/contentScroll';
 import { confirmUserAction } from '../../utils/confirmAction';
 import styles from './TripPhotoAlbum.module.css';
 
-function AlbumPhotoCell({
+function AlbumPhotoFooter({
   photo,
-  onOpenLightbox,
-  isUnread
+  entryLabel,
+  canModerate
 }: {
   photo: JournalPhoto;
-  onOpenLightbox: (url: string) => void;
-  isUnread?: boolean;
+  entryLabel: string;
+  canModerate: boolean;
 }): React.ReactElement {
-  const { updatePhotoCaption, togglePhotoLike } = useJournal();
+  const { updatePhotoCaption, togglePhotoLike, deletePhoto } = useJournal();
   const spContext = useSpContext();
   const [editingCap, setEditingCap] = React.useState(false);
   const [capDraft, setCapDraft] = React.useState(photo.caption);
@@ -37,107 +39,77 @@ function AlbumPhotoCell({
   }, [photo.likedByUsers, spContext.pageContext.user.loginName]);
 
   return (
-    <div className={`${styles.cell} ${isUnread ? styles.cellUnread : ''}`} data-photo-id={photo.id}>
-      {isUnread ? <span className={styles.unreadDot} aria-label="Unread">New</span> : null}
-      <figure className={styles.figure}>
-        <button type="button" className={styles.thumbBtn} onClick={() => onOpenLightbox(photo.fileUrl)} aria-label="View full size">
-          <img src={photo.fileUrl} alt="" className={styles.thumb} loading="lazy" />
+    <div className={styles.photoFooter}>
+      <span className={styles.entryLabel}>{entryLabel}</span>
+      <div className={styles.likeCell}>
+        <button
+          type="button"
+          className={styles.heartBtn}
+          onClick={() => togglePhotoLike(photo.id).catch(console.error)}
+          aria-label="Like photo"
+        >
+          {liked ? '♥' : '♡'}
         </button>
-      </figure>
-      <div className={styles.photoFooter}>
-        <div className={styles.likeCell}>
-          <button
-            type="button"
-            className={styles.heartBtn}
-            onClick={() => togglePhotoLike(photo.id).catch(console.error)}
-            aria-label="Like photo"
-          >
-            {liked ? (
-              <svg viewBox="0 0 16 16" width={12} height={12} aria-hidden>
-                <path
-                  d="M3.2 3.6c0-1.1.9-2 2-2 1 0 1.8.6 2.1 1.4.3-.8 1.1-1.4 2.1-1.4 1.1 0 2 .9 2 2 0 2.4-3.5 5.6-4.1 6.1-.1.1-.3.1-.4 0-.6-.5-4.1-3.7-4.1-6.1Z"
-                  fill="currentColor"
-                />
-              </svg>
-            ) : (
-              <svg viewBox="0 0 16 16" width={12} height={12} aria-hidden>
-                <path
-                  d="M3.2 3.6c0-1.1.9-2 2-2 1 0 1.8.6 2.1 1.4.3-.8 1.1-1.4 2.1-1.4 1.1 0 2 .9 2 2 0 2.4-3.5 5.6-4.1 6.1-.1.1-.3.1-.4 0-.6-.5-4.1-3.7-4.1-6.1Z"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.2"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            )}
-          </button>
-          {photo.likeCount > 0 ? <span className={styles.likeCount}>{photo.likeCount}</span> : null}
-        </div>
-        <div className={styles.captionCell}>
-          {editingCap ? (
-            <>
-              <input
-                className={styles.captionInput}
-                value={capDraft}
-                onChange={(e) => setCapDraft(e.target.value)}
-                aria-label="Caption"
-              />
-              <div className={styles.captionEditRow}>
-                <button
-                  type="button"
-                  className={styles.captionActionBtn}
-                  onClick={() => {
-                    updatePhotoCaption(photo.id, capDraft.trim())
-                      .then(() => setEditingCap(false))
-                      .catch(console.error);
-                  }}
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  className={styles.captionActionBtn}
-                  onClick={() => {
-                    void (async () => {
-                      if (!(await confirmUserAction('Clear this photo caption?'))) return;
-                      updatePhotoCaption(photo.id, '')
-                        .then(() => {
-                          setCapDraft('');
-                          setEditingCap(false);
-                        })
-                        .catch(console.error);
-                    })();
-                  }}
-                >
-                  Clear caption
-                </button>
-                <button
-                  type="button"
-                  className={styles.captionActionBtn}
-                  onClick={() => {
-                    setCapDraft(photo.caption);
-                    setEditingCap(false);
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className={styles.captionView}>
-              <span className={styles.caption}>{photo.caption?.trim() || '\u00a0'}</span>
+        {photo.likeCount > 0 ? <span className={styles.likeCount}>{photo.likeCount}</span> : null}
+      </div>
+      <div className={styles.captionCell}>
+        {editingCap ? (
+          <>
+            <input
+              className={styles.captionInput}
+              value={capDraft}
+              onChange={(e) => setCapDraft(e.target.value)}
+              aria-label="Caption"
+            />
+            <div className={styles.captionEditRow}>
               <button
                 type="button"
-                className={`${styles.captionEditBtn} ${styles.captionEditIcon}`}
-                aria-label="Edit caption"
-                onClick={() => setEditingCap(true)}
+                className={styles.captionActionBtn}
+                onClick={() => {
+                  updatePhotoCaption(photo.id, capDraft.trim())
+                    .then(() => setEditingCap(false))
+                    .catch(console.error);
+                }}
               >
-                ✎
+                Save
+              </button>
+              <button
+                type="button"
+                className={styles.captionActionBtn}
+                onClick={() => {
+                  setCapDraft(photo.caption);
+                  setEditingCap(false);
+                }}
+              >
+                Cancel
               </button>
             </div>
-          )}
-        </div>
+          </>
+        ) : (
+          <div className={styles.captionView}>
+            <span className={styles.caption}>{photo.caption?.trim() || '\u00a0'}</span>
+            {canModerate ? (
+              <button type="button" className={styles.captionEditBtn} aria-label="Edit caption" onClick={() => setEditingCap(true)}>
+                ✎
+              </button>
+            ) : null}
+          </div>
+        )}
       </div>
+      {canModerate ? (
+        <button
+          type="button"
+          className={styles.deletePhotoBtn}
+          onClick={() => {
+            void (async () => {
+              if (!(await confirmUserAction('Delete this photo?'))) return;
+              deletePhoto(photo.id).catch(console.error);
+            })();
+          }}
+        >
+          Delete
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -152,7 +124,8 @@ function isAllowedImage(file: File): boolean {
 }
 
 export const TripPhotoAlbum: React.FC = () => {
-  const { allTripPhotos, addAlbumPhoto } = useJournal();
+  const { allTripPhotos, allEntries, addAlbumPhoto, addPhoto } = useJournal();
+  const { selectedPhotoId, setSelectedPhotoId } = useJournalMediaSelection();
   const { trip, tripDays, selectedDayId, sharedPreview } = useTripWorkspace();
 
   const [layout, setLayout] = React.useState<AlbumLayout>('all');
@@ -167,6 +140,7 @@ export const TripPhotoAlbum: React.FC = () => {
 
   const [uploadOpen, setUploadOpen] = React.useState(false);
   const [uploadDayId, setUploadDayId] = React.useState<string>('');
+  const [uploadEntryId, setUploadEntryId] = React.useState<string>('');
   const [pendingFiles, setPendingFiles] = React.useState<File[]>([]);
   const [captions, setCaptions] = React.useState<string[]>([]);
   const [pendingPreviews, setPendingPreviews] = React.useState<string[]>([]);
@@ -201,6 +175,35 @@ export const TripPhotoAlbum: React.FC = () => {
       setUploadDayId(days[0].id);
     }
   }, [days, uploadDayId]);
+
+  const uploadEntriesForDay = React.useMemo(() => {
+    if (!uploadDayId) return [];
+    return allEntries
+      .filter((e) => e.dayId === uploadDayId)
+      .sort((a, b) => a.entryTimestamp.localeCompare(b.entryTimestamp));
+  }, [allEntries, uploadDayId]);
+
+  React.useEffect(() => {
+    if (!uploadEntryId) return;
+    if (!uploadEntriesForDay.some((e) => e.id === uploadEntryId)) {
+      setUploadEntryId('');
+    }
+  }, [uploadEntriesForDay, uploadEntryId]);
+
+  const entryLabelForPhoto = React.useCallback(
+    (photo: JournalPhoto): string => {
+      if (!photo.journalEntryId?.trim()) return 'Album only';
+      const entry = allEntries.find((e) => e.id === photo.journalEntryId);
+      if (!entry) return 'Journal entry';
+      const idx =
+        allEntries
+          .filter((e) => e.dayId === entry.dayId)
+          .sort((a, b) => a.entryTimestamp.localeCompare(b.entryTimestamp))
+          .findIndex((e) => e.id === entry.id) + 1;
+      return `Entry ${idx || 1}`;
+    },
+    [allEntries]
+  );
 
   React.useEffect(() => {
     const onScrollDay = (ev: Event): void => {
@@ -327,7 +330,16 @@ export const TripPhotoAlbum: React.FC = () => {
       for (let i = 0; i < pendingFiles.length; i++) {
         setProgress(`Uploading ${i + 1} of ${pendingFiles.length}…`);
         const cap = captions[i]?.trim() ?? '';
-        await addAlbumPhoto(uploadDayId, pendingFiles[i], cap);
+        if (uploadEntryId) {
+          await addPhoto({
+            journalEntryId: uploadEntryId,
+            dayId: uploadDayId,
+            file: pendingFiles[i],
+            caption: cap
+          });
+        } else {
+          await addAlbumPhoto(uploadDayId, pendingFiles[i], cap);
+        }
       }
       setPendingFiles([]);
       setCaptions([]);
@@ -459,10 +471,28 @@ export const TripPhotoAlbum: React.FC = () => {
         <div className={styles.uploadPanel}>
           <label className={styles.field}>
             <span className={styles.fieldLabel}>Day for new photos</span>
-            <select className={styles.select} value={uploadDayId} onChange={(e) => setUploadDayId(e.target.value)}>
+            <select
+              className={styles.select}
+              value={uploadDayId}
+              onChange={(e) => {
+                setUploadDayId(e.target.value);
+                setUploadEntryId('');
+              }}
+            >
               {days.map((d) => (
                 <option key={d.id} value={d.id}>
                   Day {d.dayNumber} — {d.displayTitle}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Journal entry (optional)</span>
+            <select className={styles.select} value={uploadEntryId} onChange={(e) => setUploadEntryId(e.target.value)}>
+              <option value="">Album only — assign later</option>
+              {uploadEntriesForDay.map((e, i) => (
+                <option key={e.id} value={e.id}>
+                  Entry {i + 1} — {new Date(e.entryTimestamp).toLocaleString()}
                 </option>
               ))}
             </select>
@@ -524,16 +554,16 @@ export const TripPhotoAlbum: React.FC = () => {
             className={styles.section}
           >
             {sec.title ? <h3 className={styles.sectionTitle}>{sec.title}</h3> : null}
-            <div className={styles.grid}>
-              {sec.items.map((p) => (
-                <AlbumPhotoCell
-                  key={p.id}
-                  photo={p}
-                  isUnread={isPhotoUnread(p)}
-                  onOpenLightbox={(url) => setLightboxUrl(url)}
-                />
-              ))}
-            </div>
+            <JournalPhotoBoard
+              photos={sec.items}
+              selectedPhotoId={selectedPhotoId}
+              onSelectPhoto={setSelectedPhotoId}
+              onOpenLightbox={setLightboxUrl}
+              draggable={!sharedPreview}
+              renderFooter={(p) => (
+                <AlbumPhotoFooter photo={p} entryLabel={entryLabelForPhoto(p)} canModerate={!sharedPreview} />
+              )}
+            />
           </div>
         ))
       ) : null}
