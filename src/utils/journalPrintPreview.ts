@@ -2,7 +2,8 @@ import type { Trip } from '../models/Trip';
 import type { TripDay } from '../models/TripDay';
 import type { JournalEntry, JournalPhoto, JournalComment } from '../models';
 import { compareJournalPhotos } from './compareJournalPhotos';
-import { formatTripDayDate, type DateFormatPref } from './formatTripDayDate';
+import { formatOrdinalDayDate, formatOrdinalDateRange } from './formatTripDayDate';
+import { formatJournalDayTitle } from './formatDayHeadingLabel';
 
 function esc(s: string): string {
   return (s || '')
@@ -17,10 +18,12 @@ const JOURNAL_PRINT_STYLES = `
 body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color: #0f172a; background: #fff; }
 .th-journal-print { padding: 16px 20px 40px; max-width: 52rem; margin: 0 auto; }
 .print-front-matter { page-break-inside: avoid; page-break-after: always; }
-.print-cover-page { display: grid; grid-template-rows: auto 1fr; page-break-after: avoid; min-height: auto; }
-.print-cover-hero { width: 100%; max-height: 11rem; object-fit: cover; object-position: center; }
-.print-cover-content { display: grid; gap: 8px; justify-items: center; text-align: center; padding: 12px 16px; }
-.print-cover-summary { margin-top: 12px; width: min(36rem, 100%); border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+.print-cover-page { display: grid; grid-template-rows: auto auto; page-break-after: avoid; min-height: auto; }
+.print-cover-hero { width: 100%; max-height: 9rem; object-fit: cover; object-position: center; }
+.print-cover-content { display: grid; gap: 4px; justify-items: center; text-align: center; padding: 8px 16px 4px; }
+.print-cover-content h1 { margin: 0; font-size: 1.75rem; line-height: 1.2; }
+.print-cover-content p { margin: 0; line-height: 1.35; }
+.print-cover-summary { margin-top: 8px; width: min(36rem, 100%); border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
 .print-cover-summary > div { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
 .print-cover-summary > div:last-child { border-bottom: none; }
 .print-day-block { page-break-before: auto; }
@@ -60,7 +63,6 @@ export interface JournalPrintPreviewParams {
   includeEntryTimestamps: boolean;
   includeAuthorNames: boolean;
   oneDayPerPage: boolean;
-  dateFormat?: DateFormatPref;
 }
 
 function renderPhotoGrid(items: JournalPhoto[], includePhotoCaptions: boolean): string {
@@ -94,8 +96,7 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
     includePhotoCaptions,
     includeEntryTimestamps,
     includeAuthorNames,
-    oneDayPerPage,
-    dateFormat = 'DMY'
+    oneDayPerPage
   } = params;
 
   const showEntryTimestamps = includeEntryTimestamps && trip.showJournalEntryDate !== false;
@@ -115,7 +116,7 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
     if (rawHero) {
       body += `<img class="print-cover-hero" src="${coverHeroAttr}" alt="" />`;
     }
-    body += `<div class="print-cover-content"><h1>${esc(trip.title)}</h1><p>${esc(trip.destination)}</p><p>${esc(trip.dateStart)} to ${esc(trip.dateEnd)}</p></div></div>`;
+    body += `<div class="print-cover-content"><h1>${esc(trip.title)}</h1><p>${esc(trip.destination)}</p><p>${esc(formatOrdinalDateRange(trip.dateStart, trip.dateEnd))}</p></div></div>`;
     if (showSummary) {
       body += `<div class="print-cover-summary">`;
       body += `<div><strong>Total days</strong><span>${printableDays.length}</span></div>`;
@@ -131,11 +132,11 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
     const dayEntries = entries
       .filter((e) => e.dayId === day.id)
       .sort((a, b) => a.entryTimestamp.localeCompare(b.entryTimestamp));
-    const dayTitle = day.dayType === 'PreTrip' ? 'Pre-trip' : `Day ${day.dayNumber} — ${esc(day.displayTitle)}`;
+    const dayTitle = esc(formatJournalDayTitle(day));
     const firstClass = !showCover && idx === 0 ? ' print-day-first' : showCover && idx === 0 ? ' print-day-first' : '';
     body += `<div class="print-day-block${firstClass}"><section class="print-day-section"><h2 class="print-day-heading">${dayTitle}</h2>`;
     if (day.dayType !== 'PreTrip') {
-      body += `<p class="print-entry-meta">${esc(formatTripDayDate(day.calendarDate, dateFormat))}</p>`;
+      body += `<p class="print-entry-meta">${esc(formatOrdinalDayDate(day.calendarDate))}</p>`;
     }
     for (const entry of dayEntries) {
       const entryPhotos = photos.filter((p) => p.journalEntryId === entry.id);

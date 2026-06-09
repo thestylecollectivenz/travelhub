@@ -2,7 +2,6 @@ import * as React from 'react';
 import type { Trip } from '../../models/Trip';
 import type { TripDay } from '../../models/TripDay';
 import type { JournalEntry, JournalPhoto, JournalComment } from '../../models';
-import { useConfig } from '../../context/ConfigContext';
 import { buildJournalPrintDocument } from '../../utils/journalPrintPreview';
 import { JournalPrintSheet } from './JournalPrintSheet';
 import './JournalPdfExport.css';
@@ -25,7 +24,6 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
   commentsForEntry,
   onCloseExport
 }) => {
-  const { config } = useConfig();
   const [showCover, setShowCover] = React.useState(true);
   const [includeHeroOnCover, setIncludeHeroOnCover] = React.useState(true);
   const [showSummary, setShowSummary] = React.useState(true);
@@ -58,8 +56,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
       includePhotoCaptions,
       includeEntryTimestamps,
       includeAuthorNames,
-      oneDayPerPage,
-      dateFormat: config.dateFormat
+      oneDayPerPage
     });
     setPrintHtml(html);
   }, [
@@ -77,8 +74,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
     includePhotoCaptions,
     includeEntryTimestamps,
     includeAuthorNames,
-    oneDayPerPage,
-    config.dateFormat
+    oneDayPerPage
   ]);
 
   return (

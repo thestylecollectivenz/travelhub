@@ -1,0 +1,62 @@
+.photoFooterBar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2) var(--space-2);
+  background: var(--color-surface-raised);
+  border-top: 1px solid color-mix(in srgb, var(--color-sand-200) 80%, transparent);
+}
+
+.photoFooterBtn {
+  align-self: flex-start;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.photoDeleteBtn {
+  color: var(--color-danger, #b42318);
+}
+
+.photoCaptionReadonly {
+  margin: 0;
+  padding: var(--space-1) var(--space-2) var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-700);
+  background: var(--color-surface-raised);
+  border-top: 1px solid color-mix(in srgb, var(--color-sand-200) 80%, transparent);
+}
+
+.photoCaptionView {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.photoCaptionEditActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.photoCaption {
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-700);
+  flex: 1;
+}
+
+.photoCaptionInput {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: var(--font-size-xs);
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+}

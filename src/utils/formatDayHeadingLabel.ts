@@ -9,6 +9,12 @@ export function formatSidebarDayDate(calendarDate: string): string {
   return d.toLocaleDateString('en-NZ', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
+/** Journal day section heading — sidebar display title only (no extra Day n prefix). */
+export function formatJournalDayTitle(day: TripDay): string {
+  if (day.dayType === 'PreTrip') return 'Pre-trip';
+  return day.displayTitle?.trim() || `Day ${day.dayNumber}`;
+}
+
 /** Photo album / grouped day headings: Day 1 | Thu 28 May */
 export function formatDayPhotoSectionTitle(day: TripDay): string {
   if (day.dayType === 'PreTrip') return 'Pre-trip';

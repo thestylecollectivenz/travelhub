@@ -2,6 +2,7 @@ import * as React from 'react';
 import {
   DndContext,
   PointerSensor,
+  TouchSensor,
   closestCenter,
   useSensor,
   useSensors,
@@ -11,6 +12,7 @@ import { SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sort
 import { CSS } from '@dnd-kit/utilities';
 import type { JournalPhoto } from '../../models';
 import { setJournalPhotoDragData } from '../../utils/journalPhotoDrag';
+import { fromPhotoSortId, toPhotoSortId } from '../../utils/journalPhotoSortId';
 import styles from './JournalPhotoBoard.module.css';
 
 export interface JournalPhotoBoardProps {
@@ -113,8 +115,10 @@ function PhotoTile({
   );
 }
 
-function SortablePhotoTile(props: Omit<PhotoTileProps, 'sortableRef' | 'sortableStyle' | 'sortableHandleProps'> & { id: string }): React.ReactElement {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.id });
+function SortablePhotoTile(
+  props: Omit<PhotoTileProps, 'sortableRef' | 'sortableStyle' | 'sortableHandleProps'> & { sortableId: string }
+): React.ReactElement {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.sortableId });
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -143,13 +147,16 @@ export const JournalPhotoBoard: React.FC<JournalPhotoBoardProps> = ({
   footerOptional = false,
   variant = 'board'
 }) => {
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 6 } })
+  );
 
   const onDragEnd = React.useCallback(
     (event: DragEndEvent): void => {
       const { active, over } = event;
       if (!over || active.id === over.id) return;
-      onReorderPhoto?.(String(active.id), String(over.id));
+      onReorderPhoto?.(fromPhotoSortId(String(active.id)), fromPhotoSortId(String(over.id)));
     },
     [onReorderPhoto]
   );
@@ -200,7 +207,7 @@ export const JournalPhotoBoard: React.FC<JournalPhotoBoardProps> = ({
       footerOptional
     };
     if (sortable) {
-      return <SortablePhotoTile key={photo.id} id={photo.id} {...common} />;
+      return <SortablePhotoTile key={photo.id} sortableId={toPhotoSortId(photo.id)} {...common} />;
     }
     return <PhotoTile key={photo.id} {...common} />;
   });
@@ -208,7 +215,7 @@ export const JournalPhotoBoard: React.FC<JournalPhotoBoardProps> = ({
   if (sortable && onReorderPhoto) {
     return (
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-        <SortableContext items={photos.map((p) => p.id)} strategy={rectSortingStrategy}>
+        <SortableContext items={photos.map((p) => toPhotoSortId(p.id))} strategy={rectSortingStrategy}>
           <div className={styles.board} role="list">
             {tiles}
           </div>

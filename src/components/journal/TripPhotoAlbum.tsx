@@ -2,115 +2,14 @@ import * as React from 'react';
 import type { JournalPhoto } from '../../models';
 import { useJournal } from '../../context/JournalContext';
 import { useJournalMediaSelection } from '../../context/JournalMediaSelectionContext';
-import { useSpContext } from '../../context/SpContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { JournalEntryComposer } from './JournalEntryComposer';
 import { JournalImageLightbox } from './JournalImageLightbox';
 import { JournalPhotoBoard } from './JournalPhotoBoard';
+import { JournalPhotoCaptionFooter } from './JournalPhotoCaptionFooter';
 import { TRAVELHUB_SCROLL_PHOTOS_DAY } from '../../utils/contentScroll';
 import { formatDayPhotoSectionTitle } from '../../utils/formatDayHeadingLabel';
-import { confirmUserAction } from '../../utils/confirmAction';
 import styles from './TripPhotoAlbum.module.css';
-
-function AlbumPhotoFooter({
-  photo,
-  canModerate
-}: {
-  photo: JournalPhoto;
-  canModerate: boolean;
-}): React.ReactElement {
-  const { updatePhotoCaption, togglePhotoLike, deletePhoto } = useJournal();
-  const spContext = useSpContext();
-  const [editingCap, setEditingCap] = React.useState(false);
-  const [capDraft, setCapDraft] = React.useState(photo.caption);
-
-  React.useEffect(() => {
-    setCapDraft(photo.caption);
-  }, [photo.caption]);
-
-  const liked = React.useMemo(() => {
-    const users = (photo.likedByUsers ?? '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const login = (spContext.pageContext.user.loginName ?? '').trim();
-    return users.some((u) => u.toLowerCase() === login.toLowerCase());
-  }, [photo.likedByUsers, spContext.pageContext.user.loginName]);
-
-  return (
-    <div className={styles.photoFooter}>
-      <div className={styles.likeCell}>
-        <button
-          type="button"
-          className={styles.heartBtn}
-          onClick={() => togglePhotoLike(photo.id).catch(console.error)}
-          aria-label="Like photo"
-        >
-          {liked ? '♥' : '♡'}
-        </button>
-        {photo.likeCount > 0 ? <span className={styles.likeCount}>{photo.likeCount}</span> : null}
-      </div>
-      <div className={styles.captionCell}>
-        {editingCap ? (
-          <>
-            <input
-              className={styles.captionInput}
-              value={capDraft}
-              onChange={(e) => setCapDraft(e.target.value)}
-              aria-label="Caption"
-            />
-            <div className={styles.captionEditRow}>
-              <button
-                type="button"
-                className={styles.captionActionBtn}
-                onClick={() => {
-                  updatePhotoCaption(photo.id, capDraft.trim())
-                    .then(() => setEditingCap(false))
-                    .catch(console.error);
-                }}
-              >
-                Save
-              </button>
-              <button
-                type="button"
-                className={styles.captionActionBtn}
-                onClick={() => {
-                  setCapDraft(photo.caption);
-                  setEditingCap(false);
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </>
-        ) : (
-          <div className={styles.captionView}>
-            <span className={styles.caption}>{photo.caption?.trim() || '\u00a0'}</span>
-            {canModerate ? (
-              <button type="button" className={styles.captionEditBtn} aria-label="Edit caption" onClick={() => setEditingCap(true)}>
-                ✎
-              </button>
-            ) : null}
-          </div>
-        )}
-      </div>
-      {canModerate ? (
-        <button
-          type="button"
-          className={styles.deletePhotoBtn}
-          onClick={() => {
-            void (async () => {
-              if (!(await confirmUserAction('Delete this photo?'))) return;
-              deletePhoto(photo.id).catch(console.error);
-            })();
-          }}
-        >
-          Delete
-        </button>
-      ) : null}
-    </div>
-  );
-}
 
 type AlbumLayout = 'all' | 'by-day';
 
@@ -192,8 +91,6 @@ export const TripPhotoAlbum: React.FC = () => {
     const onScrollDay = (ev: Event): void => {
       const dayId = (ev as CustomEvent<{ dayId?: string }>).detail?.dayId;
       if (!dayId) return;
-      setLayout('by-day');
-      setScopeDayId('');
       window.requestAnimationFrame(() => {
         document.getElementById(`photos-day-${dayId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
@@ -204,7 +101,6 @@ export const TripPhotoAlbum: React.FC = () => {
 
   React.useEffect(() => {
     if (!selectedDayId) return;
-    setLayout('by-day');
     window.requestAnimationFrame(() => {
       document.getElementById(`photos-day-${selectedDayId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
@@ -562,7 +458,8 @@ export const TripPhotoAlbum: React.FC = () => {
                 setLightboxIndex(idx >= 0 ? idx : 0);
               }}
               draggable={!sharedPreview}
-              renderFooter={(p) => <AlbumPhotoFooter photo={p} canModerate={!sharedPreview} />}
+              footerOptional
+              renderFooter={(p) => <JournalPhotoCaptionFooter photo={p} canModerate={!sharedPreview} />}
             />
           </div>
         ))

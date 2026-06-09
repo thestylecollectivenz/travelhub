@@ -8,6 +8,8 @@ import { JournalEntryCard } from './JournalEntryCard';
 import { JournalEntrySortable } from './JournalEntrySortable';
 import { JournalEntryComposer } from './JournalEntryComposer';
 import { TRAVELHUB_SCROLL_JOURNAL_DAY } from '../../utils/contentScroll';
+import { formatJournalDayTitle } from '../../utils/formatDayHeadingLabel';
+import { isPhotoSortId } from '../../utils/journalPhotoSortId';
 import { loadJournalViewPrefs, saveJournalViewPrefs } from '../../utils/journalViewPrefs';
 import styles from './TripJournalFeed.module.css';
 
@@ -77,19 +79,14 @@ export const TripJournalFeed: React.FC = () => {
   React.useEffect(() => {
     if (!trip?.id) return;
     const saved = loadJournalViewPrefs(trip.id);
+    setLayout('all');
+    setScopeDayId('');
+    setSelectedDayId('');
     if (saved) {
-      setLayout(saved.layout);
-      setScopeDayId(saved.scopeDayId);
       setSortOrder(saved.sortOrder);
       setReadFilter(saved.readFilter);
-      if (saved.layout === 'all') {
-        setSelectedDayId('');
-      }
     } else {
-      setLayout('all');
-      setScopeDayId('');
       setReadFilter('all');
-      setSelectedDayId('');
     }
   }, [trip?.id, setSelectedDayId]);
 
@@ -121,8 +118,10 @@ export const TripJournalFeed: React.FC = () => {
   }, []);
 
   React.useEffect(() => {
-    if (!selectedDayId || layout !== 'by-day') return;
-    setScopeDayId(selectedDayId);
+    if (!selectedDayId) return;
+    if (layout === 'by-day') {
+      setScopeDayId(selectedDayId);
+    }
     document.getElementById(`journal-day-${selectedDayId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [selectedDayId, layout]);
 
@@ -187,8 +186,7 @@ export const TripJournalFeed: React.FC = () => {
     (dayId: string): string => {
       const d = tripDays.find((x) => x.id === dayId && trip && x.tripId === trip.id);
       if (!d) return 'Journal';
-      if (d.dayType === 'PreTrip') return 'Pre-trip';
-      return `Day ${d.dayNumber} — ${d.displayTitle}`;
+      return formatJournalDayTitle(d);
     },
     [trip, tripDays]
   );
@@ -231,12 +229,17 @@ export const TripJournalFeed: React.FC = () => {
     setComposerOpen(true);
   }, [resolveDefaultComposerDayId]);
 
+  const entryIdSet = React.useMemo(() => new Set(allEntries.map((e) => e.id)), [allEntries]);
+
   const handleDragEnd = React.useCallback(
     (event: DragEndEvent): void => {
       const { active, over } = event;
       if (!over || sharedPreview) return;
       const activeId = String(active.id);
       const overId = String(over.id);
+      if (isPhotoSortId(activeId) || isPhotoSortId(overId)) return;
+      if (!entryIdSet.has(activeId)) return;
+      if (!overId.startsWith('journal-day-drop-') && !entryIdSet.has(overId)) return;
       if (overId.startsWith('journal-day-drop-')) {
         const targetDayId = overId.replace('journal-day-drop-', '');
         moveEntryToDay(activeId, targetDayId).catch(console.error);
@@ -246,7 +249,7 @@ export const TripJournalFeed: React.FC = () => {
         reorderEntryBefore(activeId, overId).catch(console.error);
       }
     },
-    [sharedPreview, moveEntryToDay, reorderEntryBefore]
+    [sharedPreview, moveEntryToDay, reorderEntryBefore, entryIdSet]
   );
 
   const entryList = (

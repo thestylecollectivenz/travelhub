@@ -9,11 +9,11 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
 import { JournalImageLightbox } from './JournalImageLightbox';
 import { JournalPhotoBoard } from './JournalPhotoBoard';
-import boardStyles from './JournalPhotoBoard.module.css';
+import { JournalPhotoCaptionFooter } from './JournalPhotoCaptionFooter';
 import { RichTextEditor } from './RichTextEditor';
 import { isLikelyJournalHtml, plainTextToEditorHtml } from '../../utils/journalRichText';
 import { readJournalPhotoDragData } from '../../utils/journalPhotoDrag';
-import { formatTripDayDate } from '../../utils/formatTripDayDate';
+import { formatOrdinalDayDate } from '../../utils/formatTripDayDate';
 import styles from './JournalEntryCard.module.css';
 
 function isAllowedImage(file: File): boolean {
@@ -43,120 +43,6 @@ function formatTimestamp(iso: string): string {
   }
 }
 
-function JournalPhotoFooter({
-  photo,
-  canModerate
-}: {
-  photo: JournalPhoto;
-  canModerate: boolean;
-}): React.ReactElement | null {
-  const { updatePhotoCaption, deletePhoto } = useJournal();
-  const [editingCap, setEditingCap] = React.useState(false);
-  const [capDraft, setCapDraft] = React.useState(photo.caption);
-
-  React.useEffect(() => {
-    setCapDraft(photo.caption);
-  }, [photo.caption]);
-
-  const hasCaption = Boolean(photo.caption?.trim());
-
-  if (!canModerate) {
-    return hasCaption ? <p className={styles.photoCaptionReadonly}>{photo.caption.trim()}</p> : null;
-  }
-
-  return (
-    <div className={journalPhotoFooterClass(hasCaption, editingCap)}>
-      {editingCap ? (
-        <>
-          <input
-            className={styles.photoCaptionInput}
-            value={capDraft}
-            onChange={(e) => setCapDraft(e.target.value)}
-            placeholder="Write a caption…"
-            aria-label="Caption"
-            autoFocus
-          />
-          <div className={styles.photoCaptionEditActions}>
-            <button
-              type="button"
-              className={styles.photoFooterBtn}
-              onClick={() => {
-                updatePhotoCaption(photo.id, capDraft.trim())
-                  .then(() => setEditingCap(false))
-                  .catch(console.error);
-              }}
-            >
-              Save
-            </button>
-            {hasCaption ? (
-              <button
-                type="button"
-                className={styles.photoFooterBtn}
-                onClick={() => {
-                  void (async () => {
-                    if (!(await confirmUserAction('Delete this photo caption?'))) return;
-                    updatePhotoCaption(photo.id, '')
-                      .then(() => {
-                        setCapDraft('');
-                        setEditingCap(false);
-                      })
-                      .catch(console.error);
-                  })();
-                }}
-              >
-                Remove caption
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className={styles.photoFooterBtn}
-              onClick={() => {
-                setCapDraft(photo.caption);
-                setEditingCap(false);
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </>
-      ) : hasCaption ? (
-        <div className={styles.photoCaptionView}>
-          <span className={styles.photoCaption}>{photo.caption.trim()}</span>
-          {canModerate ? (
-            <button type="button" className={styles.photoFooterBtn} onClick={() => setEditingCap(true)}>
-              Edit caption
-            </button>
-          ) : null}
-        </div>
-      ) : canModerate ? (
-        <button type="button" className={styles.photoFooterBtn} onClick={() => setEditingCap(true)}>
-          Add caption
-        </button>
-      ) : null}
-      {canModerate ? (
-        <button
-          type="button"
-          className={`${styles.photoFooterBtn} ${styles.photoDeleteBtn}`}
-          onClick={() => {
-            void (async () => {
-              if (!(await confirmUserAction('Delete this photo?'))) return;
-              deletePhoto(photo.id).catch(console.error);
-            })();
-          }}
-        >
-          Delete photo
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-function journalPhotoFooterClass(hasCaption: boolean, editingCap: boolean): string {
-  return hasCaption || editingCap
-    ? styles.photoFooterBar
-    : `${styles.photoFooterBar} ${boardStyles.photoFooterOnHover}`;
-}
-
 export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
   entry,
   photos,
@@ -167,7 +53,7 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
 }) => {
   const spContext = useSpContext();
   const { trip } = useTripWorkspace();
-  const { journalAuthorName, config } = useConfig();
+  const { journalAuthorName } = useConfig();
   const {
     updateEntry,
     deleteEntry,
@@ -194,7 +80,7 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
   const dateLabel = showEntryTimestamp
     ? formatTimestamp(entry.entryTimestamp)
     : entryDay?.calendarDate
-      ? formatTripDayDate(entryDay.calendarDate, config.dateFormat)
+      ? formatOrdinalDayDate(entryDay.calendarDate)
       : null;
 
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -501,7 +387,8 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
         onReorderPhoto={(activePhotoId, overPhotoId) => {
           reorderPhotoInEntry(entry.id, activePhotoId, overPhotoId).catch(console.error);
         }}
-        renderFooter={(p) => <JournalPhotoFooter photo={p} canModerate={canModerate} />}
+        footerOptional
+        renderFooter={(p) => <JournalPhotoCaptionFooter photo={p} canModerate={canModerate} />}
       />
 
       <div className={styles.actionsRow}>
