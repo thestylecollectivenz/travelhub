@@ -8,6 +8,7 @@ import { JournalEntryComposer } from './JournalEntryComposer';
 import { JournalImageLightbox } from './JournalImageLightbox';
 import { JournalPhotoBoard } from './JournalPhotoBoard';
 import { TRAVELHUB_SCROLL_PHOTOS_DAY } from '../../utils/contentScroll';
+import { formatDayPhotoSectionTitle } from '../../utils/formatDayHeadingLabel';
 import { confirmUserAction } from '../../utils/confirmAction';
 import styles from './TripPhotoAlbum.module.css';
 
@@ -192,7 +193,7 @@ export const TripPhotoAlbum: React.FC = () => {
       const dayId = (ev as CustomEvent<{ dayId?: string }>).detail?.dayId;
       if (!dayId) return;
       setLayout('by-day');
-      setScopeDayId(dayId);
+      setScopeDayId('');
       window.requestAnimationFrame(() => {
         document.getElementById(`photos-day-${dayId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
@@ -204,7 +205,6 @@ export const TripPhotoAlbum: React.FC = () => {
   React.useEffect(() => {
     if (!selectedDayId) return;
     setLayout('by-day');
-    setScopeDayId(selectedDayId);
     window.requestAnimationFrame(() => {
       document.getElementById(`photos-day-${selectedDayId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
@@ -255,12 +255,18 @@ export const TripPhotoAlbum: React.FC = () => {
   const visibleSections = React.useMemo(() => {
     if (layout === 'all') {
       const items = filterPhotos(photos);
-      return [{ title: null as string | null, items }];
+      return [{ title: null as string | null, dayId: undefined as string | undefined, items }];
     }
     if (scopeDayId) {
       const d = days.find((x) => x.id === scopeDayId);
       const items = filterPhotos(photos.filter((p) => p.dayId === scopeDayId));
-      return [{ title: d ? `Day ${d.dayNumber} — ${d.displayTitle}` : 'Photos', items }];
+      return [
+        {
+          title: d ? formatDayPhotoSectionTitle(d) : 'Photos',
+          dayId: scopeDayId,
+          items
+        }
+      ];
     }
     const sections: { title: string; dayId?: string; items: JournalPhoto[] }[] = [];
     for (const dayId of orderedDayIds) {
@@ -268,7 +274,7 @@ export const TripPhotoAlbum: React.FC = () => {
       if (!items.length) continue;
       const d = days.find((x) => x.id === dayId);
       sections.push({
-        title: d ? `Day ${d.dayNumber} — ${d.displayTitle}` : 'Photos',
+        title: d ? formatDayPhotoSectionTitle(d) : 'Photos',
         dayId,
         items
       });
@@ -389,7 +395,7 @@ export const TripPhotoAlbum: React.FC = () => {
               <option value="">Every day</option>
               {days.map((d) => (
                 <option key={d.id} value={d.id}>
-                  Day {d.dayNumber} — {d.displayTitle}
+                  {formatDayPhotoSectionTitle(d)}
                 </option>
               ))}
             </select>
@@ -442,7 +448,7 @@ export const TripPhotoAlbum: React.FC = () => {
             >
               {days.map((d) => (
                 <option key={d.id} value={d.id}>
-                  Day {d.dayNumber} — {d.displayTitle}
+                  {formatDayPhotoSectionTitle(d)}
                 </option>
               ))}
             </select>
@@ -470,7 +476,7 @@ export const TripPhotoAlbum: React.FC = () => {
             >
               {days.map((d) => (
                 <option key={d.id} value={d.id}>
-                  Day {d.dayNumber} — {d.displayTitle}
+                  {formatDayPhotoSectionTitle(d)}
                 </option>
               ))}
             </select>

@@ -58,6 +58,7 @@ export interface JournalPrintPreviewParams {
   includeLikes: boolean;
   includePhotoCaptions: boolean;
   includeEntryTimestamps: boolean;
+  includeAuthorNames: boolean;
   oneDayPerPage: boolean;
   dateFormat?: DateFormatPref;
 }
@@ -92,11 +93,13 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
     includeLikes,
     includePhotoCaptions,
     includeEntryTimestamps,
+    includeAuthorNames,
     oneDayPerPage,
     dateFormat = 'DMY'
   } = params;
 
   const showEntryTimestamps = includeEntryTimestamps && trip.showJournalEntryDate !== false;
+  const showAuthorNames = includeAuthorNames && trip.showAuthorName !== false;
 
   const printableDays = [...tripDays]
     .sort((a, b) => a.dayNumber - b.dayNumber)
@@ -138,13 +141,14 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
       const entryPhotos = photos.filter((p) => p.journalEntryId === entry.id);
       const comments = commentsForEntry(entry.id);
       const locLine = entry.location?.trim() ? `<div class="print-entry-meta">📍 ${esc(entry.location)}</div>` : '';
+      const authorLine =
+        showAuthorNames && entry.authorName?.trim()
+          ? `<div class="print-entry-meta">${esc(entry.authorName)}</div>`
+          : '';
       const tsLine = showEntryTimestamps
         ? `<div class="print-entry-meta">${esc(new Date(entry.entryTimestamp).toLocaleString('en-NZ'))}</div>`
         : '';
-      body += `<article class="print-entry">${tsLine}`;
-      if (entry.authorName?.trim()) {
-        body += `<div class="print-entry-meta">${esc(entry.authorName)}</div>`;
-      }
+      body += `<article class="print-entry">${authorLine}${tsLine}`;
       body += locLine;
       body += `<div class="print-entry-body">${entry.entryText || ''}</div>`;
       if (includeLikes) {

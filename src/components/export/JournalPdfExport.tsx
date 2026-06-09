@@ -34,7 +34,12 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
   const [includeLikes, setIncludeLikes] = React.useState(true);
   const [includePhotoCaptions, setIncludePhotoCaptions] = React.useState(true);
   const [includeEntryTimestamps, setIncludeEntryTimestamps] = React.useState(true);
+  const [includeAuthorNames, setIncludeAuthorNames] = React.useState(trip.showAuthorName !== false);
   const [oneDayPerPage, setOneDayPerPage] = React.useState(false);
+
+  React.useEffect(() => {
+    setIncludeAuthorNames(trip.showAuthorName !== false);
+  }, [trip.id, trip.showAuthorName]);
   const [printHtml, setPrintHtml] = React.useState<string | null>(null);
 
   const openPreview = React.useCallback((): void => {
@@ -52,6 +57,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
       includeLikes,
       includePhotoCaptions,
       includeEntryTimestamps,
+      includeAuthorNames,
       oneDayPerPage,
       dateFormat: config.dateFormat
     });
@@ -70,6 +76,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
     includeLikes,
     includePhotoCaptions,
     includeEntryTimestamps,
+    includeAuthorNames,
     oneDayPerPage,
     config.dateFormat
   ]);
@@ -99,6 +106,9 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
           </label>
           <label>
             <input type="checkbox" checked={includePhotoCaptions} onChange={(e) => setIncludePhotoCaptions(e.target.checked)} /> Photo captions
+          </label>
+          <label>
+            <input type="checkbox" checked={includeAuthorNames} onChange={(e) => setIncludeAuthorNames(e.target.checked)} /> Author names
           </label>
           <label>
             <input type="checkbox" checked={includeEntryTimestamps} onChange={(e) => setIncludeEntryTimestamps(e.target.checked)} /> Entry dates &amp; times

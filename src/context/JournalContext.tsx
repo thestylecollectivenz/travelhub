@@ -2,6 +2,7 @@ import * as React from 'react';
 import type { JournalComment, JournalEntry, JournalPhoto } from '../models';
 import { JournalService } from '../services/JournalService';
 import { timestampBetween } from '../utils/journalEntryOrder';
+import { arrayMove } from '@dnd-kit/sortable';
 import { compareJournalPhotos } from '../utils/compareJournalPhotos';
 import { compressImageForUpload } from '../utils/compressImageForUpload';
 import { useSpContext } from './SpContext';
@@ -24,7 +25,7 @@ export interface JournalContextValue {
   addPhoto: (input: { journalEntryId: string; dayId: string; file: File; caption?: string }) => Promise<JournalPhoto>;
   addAlbumPhoto: (dayId: string, file: File, caption?: string) => Promise<JournalPhoto>;
   assignPhotoToEntry: (photoId: string, dayId: string, journalEntryId: string) => Promise<void>;
-  reorderPhotoBefore: (entryId: string, photoId: string, beforePhotoId: string) => Promise<void>;
+  reorderPhotoInEntry: (entryId: string, activePhotoId: string, overPhotoId: string) => Promise<void>;
   deletePhoto: (id: string) => Promise<void>;
   updatePhotoCaption: (photoId: string, caption: string) => Promise<void>;
   togglePhotoLike: (photoId: string) => Promise<void>;
@@ -96,8 +97,17 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
   );
 
   const photosForEntry = React.useCallback(
-    (journalEntryId: string) =>
-      photos.filter((p) => p.journalEntryId === journalEntryId).sort(compareJournalPhotos),
+    (journalEntryId: string) => {
+      const seen = new Set<string>();
+      return photos
+        .filter((p) => p.journalEntryId === journalEntryId)
+        .filter((p) => {
+          if (seen.has(p.id)) return false;
+          seen.add(p.id);
+          return true;
+        })
+        .sort(compareJournalPhotos);
+    },
     [photos]
   );
 
@@ -407,21 +417,17 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     [photos, spContext]
   );
 
-  const reorderPhotoBefore = React.useCallback(
-    async (entryId: string, photoId: string, beforePhotoId: string): Promise<void> => {
+  const reorderPhotoInEntry = React.useCallback(
+    async (entryId: string, activePhotoId: string, overPhotoId: string): Promise<void> => {
       const entryPhotos = photos
         .filter((p) => p.journalEntryId === entryId)
         .slice()
         .sort(compareJournalPhotos);
-      const fromIdx = entryPhotos.findIndex((p) => p.id === photoId);
-      const toIdx = entryPhotos.findIndex((p) => p.id === beforePhotoId);
-      if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return;
+      const oldIndex = entryPhotos.findIndex((p) => p.id === activePhotoId);
+      const newIndex = entryPhotos.findIndex((p) => p.id === overPhotoId);
+      if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return;
 
-      const reordered = [...entryPhotos];
-      const [moved] = reordered.splice(fromIdx, 1);
-      const insertAt = fromIdx < toIdx ? toIdx - 1 : toIdx;
-      reordered.splice(insertAt, 0, moved);
-
+      const reordered = arrayMove(entryPhotos, oldIndex, newIndex);
       const updates = reordered.map((p, index) => ({ id: p.id, sortOrder: index }));
       const prevById = new Map(entryPhotos.map((p) => [p.id, p]));
       setPhotos((prev) =>
@@ -441,7 +447,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
           })
         );
         // eslint-disable-next-line no-console
-        console.error('JournalProvider.reorderPhotoBefore', err);
+        console.error('JournalProvider.reorderPhotoInEntry', err);
         throw err;
       }
     },
@@ -646,7 +652,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       addPhoto,
       addAlbumPhoto,
       assignPhotoToEntry,
-      reorderPhotoBefore,
+      reorderPhotoInEntry,
       deletePhoto,
       updatePhotoCaption,
       togglePhotoLike,
@@ -672,7 +678,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       addPhoto,
       addAlbumPhoto,
       assignPhotoToEntry,
-      reorderPhotoBefore,
+      reorderPhotoInEntry,
       deletePhoto,
       updatePhotoCaption,
       togglePhotoLike,

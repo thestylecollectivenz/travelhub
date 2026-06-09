@@ -174,7 +174,7 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
     moveEntryToDay,
     addPhoto,
     assignPhotoToEntry,
-    reorderPhotoBefore,
+    reorderPhotoInEntry,
     toggleLike,
     commentsForEntry,
     loadCommentsForEntry,
@@ -323,6 +323,10 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
     setDropActive(false);
     const photoId = readJournalPhotoDragData(e.dataTransfer);
     if (photoId) {
+      const dragged = photos.find((p) => p.id === photoId);
+      if (dragged?.journalEntryId === entry.id) {
+        return;
+      }
       assignPhotoToEntry(photoId, entry.dayId, entry.id).catch(console.error);
       return;
     }
@@ -494,8 +498,8 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
         }}
         draggable={canModerate}
         sortable={canModerate}
-        onReorderPhoto={(photoId, beforePhotoId) => {
-          reorderPhotoBefore(entry.id, photoId, beforePhotoId).catch(console.error);
+        onReorderPhoto={(activePhotoId, overPhotoId) => {
+          reorderPhotoInEntry(entry.id, activePhotoId, overPhotoId).catch(console.error);
         }}
         renderFooter={(p) => <JournalPhotoFooter photo={p} canModerate={canModerate} />}
       />
