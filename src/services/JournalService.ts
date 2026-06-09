@@ -268,7 +268,7 @@ export class JournalService {
     return this.getPhotosWithSelectFallback(url);
   }
 
-  async createPhoto(photo: Omit<JournalPhoto, 'id'>): Promise<JournalPhoto> {
+  private buildPhotoCreateItem(photo: Omit<JournalPhoto, 'id'>, includeSortOrder: boolean): Record<string, unknown> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const item: Record<string, any> = {
       Title: photo.title,
@@ -277,24 +277,40 @@ export class JournalService {
       FileUrl: photo.fileUrl,
       Caption: photo.caption ?? '',
       LikeCount: typeof photo.likeCount === 'number' ? photo.likeCount : 0,
-      LikedByUsers: photo.likedByUsers ?? '',
-      SortOrder: typeof photo.sortOrder === 'number' ? photo.sortOrder : 0
+      LikedByUsers: photo.likedByUsers ?? ''
     };
+    if (includeSortOrder) {
+      item.SortOrder = typeof photo.sortOrder === 'number' ? photo.sortOrder : 0;
+    }
     if (photo.journalEntryId && photo.journalEntryId.trim() !== '') {
       item.JournalEntryId = photo.journalEntryId;
     }
+    return item;
+  }
 
-    const body = JSON.stringify(item);
-    const resp: SPHttpClientResponse = await this.ctx.spHttpClient.post(this.photosUrl, SPHttpClient.configurations.v1, {
-      headers: {
-        'Content-Type': 'application/json;odata.metadata=minimal',
-        Accept: 'application/json;odata.metadata=minimal'
-      },
-      body
-    });
-    if (!resp.ok) throw new Error(`JournalService.createPhoto failed: ${resp.status}`);
-    const created = await resp.json();
-    return this.mapJournalPhotoItem(created);
+  async createPhoto(photo: Omit<JournalPhoto, 'id'>): Promise<JournalPhoto> {
+    const payloads = [this.buildPhotoCreateItem(photo, true), this.buildPhotoCreateItem(photo, false)];
+    let lastStatus = 0;
+    for (const item of payloads) {
+      const body = JSON.stringify(item);
+      // eslint-disable-next-line no-await-in-loop
+      const resp: SPHttpClientResponse = await this.ctx.spHttpClient.post(this.photosUrl, SPHttpClient.configurations.v1, {
+        headers: {
+          'Content-Type': 'application/json;odata.metadata=minimal',
+          Accept: 'application/json;odata.metadata=minimal'
+        },
+        body
+      });
+      if (resp.ok) {
+        const created = await resp.json();
+        return this.mapJournalPhotoItem(created);
+      }
+      lastStatus = resp.status;
+      if (resp.status !== 400) {
+        break;
+      }
+    }
+    throw new Error(`JournalService.createPhoto failed: ${lastStatus}`);
   }
 
   async deletePhoto(id: string): Promise<void> {
@@ -354,18 +370,34 @@ export class JournalService {
     if (partial.likeCount !== undefined) item.LikeCount = partial.likeCount;
     if (partial.likedByUsers !== undefined) item.LikedByUsers = partial.likedByUsers;
     if (partial.sortOrder !== undefined) item.SortOrder = partial.sortOrder;
-    const body = JSON.stringify(item);
-    const resp = await this.ctx.spHttpClient.fetch(url, SPHttpClient.configurations.v1, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json;odata.metadata=minimal',
-        Accept: 'application/json;odata.metadata=minimal',
-        'IF-MATCH': '*',
-        'X-HTTP-Method': 'MERGE'
-      },
-      body
-    });
-    if (!resp.ok && resp.status !== 204) throw new Error(`JournalService.updatePhoto failed: ${resp.status}`);
+
+    const withoutSort = { ...item };
+    delete withoutSort.SortOrder;
+    const payloads = partial.sortOrder !== undefined ? [item, withoutSort] : [item];
+    let lastStatus = 0;
+    for (const payload of payloads) {
+      if (!Object.keys(payload).length) continue;
+      const body = JSON.stringify(payload);
+      // eslint-disable-next-line no-await-in-loop
+      const resp = await this.ctx.spHttpClient.fetch(url, SPHttpClient.configurations.v1, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json;odata.metadata=minimal',
+          Accept: 'application/json;odata.metadata=minimal',
+          'IF-MATCH': '*',
+          'X-HTTP-Method': 'MERGE'
+        },
+        body
+      });
+      if (resp.ok || resp.status === 204) {
+        return;
+      }
+      lastStatus = resp.status;
+      if (resp.status !== 400) {
+        break;
+      }
+    }
+    throw new Error(`JournalService.updatePhoto failed: ${lastStatus}`);
   }
 
   async togglePhotoLike(

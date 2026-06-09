@@ -586,6 +586,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
                 entries={journalEntries}
                 photos={allTripPhotos}
                 commentsForEntry={commentsForEntry}
+                onCloseExport={() => setExportOpen(false)}
               />
             </div>
           </div>

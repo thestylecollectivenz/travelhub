@@ -139,7 +139,7 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
       const comments = commentsForEntry(entry.id);
       const locLine = entry.location?.trim() ? `<div class="print-entry-meta">📍 ${esc(entry.location)}</div>` : '';
       const tsLine = showEntryTimestamps
-        ? `<h3 class="print-entry-heading">${esc(new Date(entry.entryTimestamp).toLocaleString('en-NZ'))}</h3>`
+        ? `<div class="print-entry-meta">${esc(new Date(entry.entryTimestamp).toLocaleString('en-NZ'))}</div>`
         : '';
       body += `<article class="print-entry">${tsLine}`;
       if (entry.authorName?.trim()) {

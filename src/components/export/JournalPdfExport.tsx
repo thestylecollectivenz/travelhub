@@ -13,9 +13,18 @@ export interface JournalPdfExportProps {
   entries: JournalEntry[];
   photos: JournalPhoto[];
   commentsForEntry: (entryId: string) => JournalComment[];
+  /** Called when the print preview sheet is closed (also closes export dialog). */
+  onCloseExport?: () => void;
 }
 
-export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({ trip, tripDays, entries, photos, commentsForEntry }) => {
+export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
+  trip,
+  tripDays,
+  entries,
+  photos,
+  commentsForEntry,
+  onCloseExport
+}) => {
   const { config } = useConfig();
   const [showCover, setShowCover] = React.useState(true);
   const [includeHeroOnCover, setIncludeHeroOnCover] = React.useState(true);
@@ -103,7 +112,14 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({ trip, tripDa
         </div>
       </div>
       {printHtml ? (
-        <JournalPrintSheet title={`${trip.title} — Journal`} html={printHtml} onClose={() => setPrintHtml(null)} />
+        <JournalPrintSheet
+          title={`${trip.title} — Journal`}
+          html={printHtml}
+          onClose={() => {
+            setPrintHtml(null);
+            onCloseExport?.();
+          }}
+        />
       ) : null}
     </>
   );

@@ -3,6 +3,7 @@ import type { JournalComment, JournalEntry, JournalPhoto } from '../models';
 import { JournalService } from '../services/JournalService';
 import { timestampBetween } from '../utils/journalEntryOrder';
 import { compareJournalPhotos } from '../utils/compareJournalPhotos';
+import { compressImageForUpload } from '../utils/compressImageForUpload';
 import { useSpContext } from './SpContext';
 import { useTripWorkspace } from './TripWorkspaceContext';
 import { useConfig } from './ConfigContext';
@@ -308,9 +309,10 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (!tripId) throw new Error('No trip loaded');
       const siblings = photos.filter((p) => p.journalEntryId === input.journalEntryId);
       const nextSort = siblings.reduce((max, p) => Math.max(max, p.sortOrder ?? 0), -1) + 1;
+      const file = await compressImageForUpload(input.file);
       const svc = new JournalService(spContext);
       const created = await svc.uploadPhoto(
-        input.file,
+        file,
         tripId,
         input.dayId,
         input.journalEntryId,
@@ -328,9 +330,10 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const addAlbumPhoto = React.useCallback(
     async (dayId: string, file: File, caption?: string): Promise<JournalPhoto> => {
       if (!tripId) throw new Error('No trip loaded');
+      const compressed = await compressImageForUpload(file);
       const svc = new JournalService(spContext);
       const created = await svc.uploadPhoto(
-        file,
+        compressed,
         tripId,
         dayId,
         undefined,

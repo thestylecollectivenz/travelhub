@@ -331,7 +331,6 @@
 }
 
 .photoDeleteBtn {
-  flex-shrink: 0;
   color: var(--color-danger, #b42318);
 }
 
@@ -363,12 +362,35 @@
   background: var(--color-surface);
 }
 
-.photoFooter {
+.photoFooterBar {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: var(--space-1);
-  margin-top: var(--space-1);
+  padding: var(--space-1) var(--space-2) var(--space-2);
+  background: var(--color-surface-raised);
+  border-top: 1px solid color-mix(in srgb, var(--color-sand-200) 80%, transparent);
+}
+
+.photoFooterBtn {
+  align-self: flex-start;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.photoCaptionReadonly {
+  margin: 0;
+  padding: var(--space-1) var(--space-2) var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-700);
+  background: var(--color-surface-raised);
+  border-top: 1px solid color-mix(in srgb, var(--color-sand-200) 80%, transparent);
 }
 
 .photoFooterActions {

@@ -50,8 +50,7 @@ function JournalPhotoFooter({
   photo: JournalPhoto;
   canModerate: boolean;
 }): React.ReactElement | null {
-  const { updatePhotoCaption, togglePhotoLike, deletePhoto } = useJournal();
-  const spContext = useSpContext();
+  const { updatePhotoCaption, deletePhoto } = useJournal();
   const [editingCap, setEditingCap] = React.useState(false);
   const [capDraft, setCapDraft] = React.useState(photo.caption);
 
@@ -59,145 +58,103 @@ function JournalPhotoFooter({
     setCapDraft(photo.caption);
   }, [photo.caption]);
 
-  const liked = React.useMemo(() => {
-    const users = (photo.likedByUsers ?? '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const login = (spContext.pageContext.user.loginName ?? '').trim();
-    return users.some((u) => u.toLowerCase() === login.toLowerCase());
-  }, [photo.likedByUsers, spContext.pageContext.user.loginName]);
+  const hasCaption = Boolean(photo.caption?.trim());
 
-  const hasCaptionBlock = editingCap || Boolean(photo.caption?.trim());
-  const footerClass = hasCaptionBlock ? styles.photoFooter : boardStyles.footerHoverReveal;
+  if (!canModerate) {
+    return hasCaption ? <p className={styles.photoCaptionReadonly}>{photo.caption.trim()}</p> : null;
+  }
 
   return (
-    <div className={footerClass}>
-      {hasCaptionBlock ? (
-      <div className={styles.photoCaptionCell}>
-        {editingCap ? (
-          <>
-            <input
-              className={styles.photoCaptionInput}
-              value={capDraft}
-              onChange={(e) => setCapDraft(e.target.value)}
-              placeholder="Write a caption…"
-              aria-label="Caption"
-            />
-            <div className={styles.photoCaptionEditActions}>
+    <div className={journalPhotoFooterClass(hasCaption, editingCap)}>
+      {editingCap ? (
+        <>
+          <input
+            className={styles.photoCaptionInput}
+            value={capDraft}
+            onChange={(e) => setCapDraft(e.target.value)}
+            placeholder="Write a caption…"
+            aria-label="Caption"
+            autoFocus
+          />
+          <div className={styles.photoCaptionEditActions}>
+            <button
+              type="button"
+              className={styles.photoFooterBtn}
+              onClick={() => {
+                updatePhotoCaption(photo.id, capDraft.trim())
+                  .then(() => setEditingCap(false))
+                  .catch(console.error);
+              }}
+            >
+              Save
+            </button>
+            {hasCaption ? (
               <button
                 type="button"
-                className={styles.iconButton}
+                className={styles.photoFooterBtn}
                 onClick={() => {
-                  updatePhotoCaption(photo.id, capDraft.trim())
-                    .then(() => setEditingCap(false))
-                    .catch(console.error);
+                  void (async () => {
+                    if (!(await confirmUserAction('Delete this photo caption?'))) return;
+                    updatePhotoCaption(photo.id, '')
+                      .then(() => {
+                        setCapDraft('');
+                        setEditingCap(false);
+                      })
+                      .catch(console.error);
+                  })();
                 }}
               >
-                Save
-              </button>
-              {photo.caption?.trim() ? (
-                <button
-                  type="button"
-                  className={styles.iconButton}
-                  onClick={() => {
-                    void (async () => {
-                      if (!(await confirmUserAction('Delete this photo caption?'))) return;
-                      updatePhotoCaption(photo.id, '')
-                        .then(() => {
-                          setCapDraft('');
-                          setEditingCap(false);
-                        })
-                        .catch(console.error);
-                    })();
-                  }}
-                >
-                  Delete caption
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className={styles.iconButton}
-                onClick={() => {
-                  setCapDraft(photo.caption);
-                  setEditingCap(false);
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </>
-        ) : photo.caption?.trim() ? (
-          <div className={styles.photoCaptionView}>
-            <span className={styles.photoCaption}>{photo.caption.trim()}</span>
-            {canModerate ? (
-              <button
-                type="button"
-                className={`${styles.iconButton} ${styles.photoCaptionEdit}`}
-                onClick={() => setEditingCap(true)}
-              >
-                Edit
+                Remove caption
               </button>
             ) : null}
+            <button
+              type="button"
+              className={styles.photoFooterBtn}
+              onClick={() => {
+                setCapDraft(photo.caption);
+                setEditingCap(false);
+              }}
+            >
+              Cancel
+            </button>
           </div>
-        ) : canModerate ? (
-          <button
-            type="button"
-            className={`${styles.iconButton} ${styles.photoCaptionAdd}`}
-            onClick={() => setEditingCap(true)}
-          >
-            Add caption
-          </button>
-        ) : null}
-      </div>
-      ) : null}
-      <div className={styles.photoFooterActions}>
-        <div className={styles.photoLikeCell}>
-          <button
-            type="button"
-            className={styles.photoHeartBtn}
-            onClick={() => togglePhotoLike(photo.id).catch(console.error)}
-            aria-label="Like photo"
-          >
-            {liked ? (
-              <svg viewBox="0 0 16 16" width={12} height={12} aria-hidden>
-                <path
-                  d="M3.2 3.6c0-1.1.9-2 2-2 1 0 1.8.6 2.1 1.4.3-.8 1.1-1.4 2.1-1.4 1.1 0 2 .9 2 2 0 2.4-3.5 5.6-4.1 6.1-.1.1-.3.1-.4 0-.6-.5-4.1-3.7-4.1-6.1Z"
-                  fill="currentColor"
-                />
-              </svg>
-            ) : (
-              <svg viewBox="0 0 16 16" width={12} height={12} aria-hidden>
-                <path
-                  d="M3.2 3.6c0-1.1.9-2 2-2 1 0 1.8.6 2.1 1.4.3-.8 1.1-1.4 2.1-1.4 1.1 0 2 .9 2 2 0 2.4-3.5 5.6-4.1 6.1-.1.1-.3.1-.4 0-.6-.5-4.1-3.7-4.1-6.1Z"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.2"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            )}
-          </button>
-          {photo.likeCount > 0 ? <span className={styles.photoLikeCount}>{photo.likeCount}</span> : null}
+        </>
+      ) : hasCaption ? (
+        <div className={styles.photoCaptionView}>
+          <span className={styles.photoCaption}>{photo.caption.trim()}</span>
+          {canModerate ? (
+            <button type="button" className={styles.photoFooterBtn} onClick={() => setEditingCap(true)}>
+              Edit caption
+            </button>
+          ) : null}
         </div>
-        {canModerate ? (
-          <button
-            type="button"
-            className={`${styles.iconButton} ${styles.photoDeleteBtn}`}
-            aria-label="Delete photo"
-            onClick={() => {
-              void (async () => {
-                if (!(await confirmUserAction('Delete this photo?'))) return;
-                deletePhoto(photo.id).catch(console.error);
-              })();
-            }}
-          >
-            Delete
-          </button>
-        ) : null}
-      </div>
+      ) : canModerate ? (
+        <button type="button" className={styles.photoFooterBtn} onClick={() => setEditingCap(true)}>
+          Add caption
+        </button>
+      ) : null}
+      {canModerate ? (
+        <button
+          type="button"
+          className={`${styles.photoFooterBtn} ${styles.photoDeleteBtn}`}
+          onClick={() => {
+            void (async () => {
+              if (!(await confirmUserAction('Delete this photo?'))) return;
+              deletePhoto(photo.id).catch(console.error);
+            })();
+          }}
+        >
+          Delete photo
+        </button>
+      ) : null}
     </div>
   );
+}
+
+function journalPhotoFooterClass(hasCaption: boolean, editingCap: boolean): string {
+  return hasCaption || editingCap
+    ? styles.photoFooterBar
+    : `${styles.photoFooterBar} ${boardStyles.photoFooterOnHover}`;
 }
 
 export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
@@ -250,7 +207,11 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
   const [commentsLoaded, setCommentsLoaded] = React.useState(false);
   const [commentDraft, setCommentDraft] = React.useState('');
 
-  const [lightboxUrl, setLightboxUrl] = React.useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = React.useState<number | null>(null);
+  const lightboxItems = React.useMemo(
+    () => photos.map((p) => ({ url: p.fileUrl, caption: p.caption })),
+    [photos]
+  );
   const [shareOpen, setShareOpen] = React.useState(false);
   const [shareUrl, setShareUrl] = React.useState<string>('');
   const [shareBusy, setShareBusy] = React.useState(false);
@@ -527,13 +488,15 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
           setSelectedPhotoId(id);
           setSelectedEntryId(entry.id);
         }}
-        onOpenLightbox={setLightboxUrl}
+        onOpenLightbox={(url) => {
+          const idx = photos.findIndex((p) => p.fileUrl === url);
+          setLightboxIndex(idx >= 0 ? idx : 0);
+        }}
         draggable={canModerate}
         sortable={canModerate}
         onReorderPhoto={(photoId, beforePhotoId) => {
           reorderPhotoBefore(entry.id, photoId, beforePhotoId).catch(console.error);
         }}
-        footerOptional
         renderFooter={(p) => <JournalPhotoFooter photo={p} canModerate={canModerate} />}
       />
 
@@ -707,7 +670,13 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
         </div>
       ) : null}
 
-      {lightboxUrl ? <JournalImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} /> : null}
+      {lightboxIndex !== null ? (
+        <JournalImageLightbox
+          items={lightboxItems}
+          startIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      ) : null}
     </div>
   );
 };

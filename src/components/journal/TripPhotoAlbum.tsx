@@ -13,11 +13,9 @@ import styles from './TripPhotoAlbum.module.css';
 
 function AlbumPhotoFooter({
   photo,
-  entryLabel,
   canModerate
 }: {
   photo: JournalPhoto;
-  entryLabel: string;
   canModerate: boolean;
 }): React.ReactElement {
   const { updatePhotoCaption, togglePhotoLike, deletePhoto } = useJournal();
@@ -40,7 +38,6 @@ function AlbumPhotoFooter({
 
   return (
     <div className={styles.photoFooter}>
-      <span className={styles.entryLabel}>{entryLabel}</span>
       <div className={styles.likeCell}>
         <button
           type="button"
@@ -132,7 +129,7 @@ export const TripPhotoAlbum: React.FC = () => {
   const [scopeDayId, setScopeDayId] = React.useState<string>('');
   const [readFilter, setReadFilter] = React.useState<'all' | 'unread' | 'read'>('all');
   const [photosLastSeenMaxId, setPhotosLastSeenMaxId] = React.useState<number>(0);
-  const [lightboxUrl, setLightboxUrl] = React.useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = React.useState<number | null>(null);
 
   const [journalComposerOpen, setJournalComposerOpen] = React.useState(false);
   const [journalComposerDayId, setJournalComposerDayId] = React.useState('');
@@ -189,21 +186,6 @@ export const TripPhotoAlbum: React.FC = () => {
       setUploadEntryId('');
     }
   }, [uploadEntriesForDay, uploadEntryId]);
-
-  const entryLabelForPhoto = React.useCallback(
-    (photo: JournalPhoto): string => {
-      if (!photo.journalEntryId?.trim()) return 'Album only';
-      const entry = allEntries.find((e) => e.id === photo.journalEntryId);
-      if (!entry) return 'Journal entry';
-      const idx =
-        allEntries
-          .filter((e) => e.dayId === entry.dayId)
-          .sort((a, b) => a.entryTimestamp.localeCompare(b.entryTimestamp))
-          .findIndex((e) => e.id === entry.id) + 1;
-      return `Entry ${idx || 1}`;
-    },
-    [allEntries]
-  );
 
   React.useEffect(() => {
     const onScrollDay = (ev: Event): void => {
@@ -353,6 +335,13 @@ export const TripPhotoAlbum: React.FC = () => {
   };
 
   const totalVisible = visibleSections.reduce((n, s) => n + s.items.length, 0);
+  const lightboxPhotos = React.useMemo(() => {
+    const merged: JournalPhoto[] = [];
+    for (const sec of visibleSections) {
+      merged.push(...sec.items);
+    }
+    return merged.map((p) => ({ url: p.fileUrl, caption: p.caption }));
+  }, [visibleSections]);
   const selectedDayPhotosCount = React.useMemo(
     () => (selectedDayId ? photos.filter((p) => p.dayId === selectedDayId).length : 0),
     [photos, selectedDayId]
@@ -562,17 +551,24 @@ export const TripPhotoAlbum: React.FC = () => {
                 const match = sec.items.find((p) => p.id === id);
                 setSelectedEntryId(match?.journalEntryId?.trim() ? match.journalEntryId : null);
               }}
-              onOpenLightbox={setLightboxUrl}
+              onOpenLightbox={(url) => {
+                const idx = lightboxPhotos.findIndex((p) => p.url === url);
+                setLightboxIndex(idx >= 0 ? idx : 0);
+              }}
               draggable={!sharedPreview}
-              renderFooter={(p) => (
-                <AlbumPhotoFooter photo={p} entryLabel={entryLabelForPhoto(p)} canModerate={!sharedPreview} />
-              )}
+              renderFooter={(p) => <AlbumPhotoFooter photo={p} canModerate={!sharedPreview} />}
             />
           </div>
         ))
       ) : null}
 
-      {lightboxUrl ? <JournalImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} /> : null}
+      {lightboxIndex !== null ? (
+        <JournalImageLightbox
+          items={lightboxPhotos}
+          startIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      ) : null}
     </section>
   );
 };

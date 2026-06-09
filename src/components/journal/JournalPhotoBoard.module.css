@@ -122,29 +122,20 @@
   cursor: grabbing;
 }
 
-.footerHoverReveal {
-  position: absolute;
-  left: 4px;
-  right: 4px;
-  bottom: 4px;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: 4px 6px;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, #0f172a 55%, transparent);
+.photoFooterOnHover {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  overflow: hidden;
   opacity: 0;
+  border-top: none;
   transition: opacity 0.15s ease;
-  pointer-events: none;
 }
 
-.tile:hover .footerHoverReveal,
-.footerHoverReveal:focus-within {
+.tile:hover .photoFooterOnHover,
+.tile:focus-within .photoFooterOnHover {
+  max-height: 4rem;
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-2);
   opacity: 1;
-  pointer-events: auto;
-}
-
-.footerHoverReveal button {
-  color: #fff;
 }
