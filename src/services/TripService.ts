@@ -4,6 +4,11 @@ import { Trip, TripLifecycleStatus } from '../models';
 
 const LIST = 'Trips';
 
+const TRIP_SELECT_CORE =
+  'ID,Title,Destination,DateStart,DateEnd,HeroImageUrl,Status,SharedViewEnabled,Description';
+const TRIP_SELECT_WITH_AUTHOR = `${TRIP_SELECT_CORE},ShowAuthorName`;
+const TRIP_SELECT_FULL = `${TRIP_SELECT_WITH_AUTHOR},ShowJournalEntryDate`;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapToTrip(item: any): Trip {
   const sn = item.ShowAuthorName;
@@ -51,16 +56,31 @@ export class TripService {
     this.baseUrl = `${context.pageContext.web.absoluteUrl}/_api/web/lists/getbytitle('${LIST}')/items`;
   }
 
-  async getAll(): Promise<Trip[]> {
-    const select =
-      '$select=ID,Title,Destination,DateStart,DateEnd,HeroImageUrl,Status,SharedViewEnabled,ShowAuthorName,ShowJournalEntryDate,Description';
-    const orderby = '$orderby=DateStart desc';
-    const url = `${this.baseUrl}?${select}&${orderby}`;
-    try {
+  /** SharePoint rejects $select when a column is not provisioned yet — fall back gracefully. */
+  private async getWithSelectFallback(itemUrl: string): Promise<Record<string, unknown>> {
+    const selects = [TRIP_SELECT_FULL, TRIP_SELECT_WITH_AUTHOR, TRIP_SELECT_CORE];
+    let lastStatus = 0;
+    for (const fields of selects) {
+      const url = `${itemUrl}${itemUrl.includes('?') ? '&' : '?'}$select=${fields}`;
+      // eslint-disable-next-line no-await-in-loop
       const resp: SPHttpClientResponse = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
-      if (!resp.ok) throw new Error(`TripService.getAll failed: ${resp.status}`);
-      const data = await resp.json();
-      return (data.value ?? []).map(mapToTrip);
+      if (resp.ok) {
+        return resp.json();
+      }
+      lastStatus = resp.status;
+      if (resp.status !== 400 && resp.status !== 404) {
+        break;
+      }
+    }
+    throw new Error(`TripService.get failed: ${lastStatus || 'unknown'}`);
+  }
+
+  async getAll(): Promise<Trip[]> {
+    const orderby = '$orderby=DateStart desc';
+    const url = `${this.baseUrl}?${orderby}`;
+    try {
+      const data = await this.getWithSelectFallback(url);
+      return ((data.value as Record<string, unknown>[]) ?? []).map((item) => mapToTrip(item));
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('TripService.getAll', err);
@@ -69,13 +89,9 @@ export class TripService {
   }
 
   async getById(id: string): Promise<Trip> {
-    const select =
-      '$select=ID,Title,Destination,DateStart,DateEnd,HeroImageUrl,Status,SharedViewEnabled,ShowAuthorName,ShowJournalEntryDate,Description';
-    const url = `${this.baseUrl}(${id})?${select}`;
+    const url = `${this.baseUrl}(${id})`;
     try {
-      const resp: SPHttpClientResponse = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
-      if (!resp.ok) throw new Error(`TripService.getById failed: ${resp.status}`);
-      const item = await resp.json();
+      const item = await this.getWithSelectFallback(url);
       return mapToTrip(item);
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -110,19 +126,38 @@ export class TripService {
 
   async update(id: string, trip: Partial<Trip>): Promise<void> {
     const url = `${this.baseUrl}(${id})`;
-    const body = JSON.stringify(mapToSpItem(trip));
+    const fullItem = mapToSpItem(trip);
+    const withoutJournalDate = { ...fullItem };
+    delete withoutJournalDate.ShowJournalEntryDate;
+    const withoutOptional = { ...withoutJournalDate };
+    delete withoutOptional.ShowAuthorName;
+
+    const payloads = [fullItem, withoutJournalDate, withoutOptional];
+    let lastStatus = 0;
     try {
-      const resp: SPHttpClientResponse = await this.ctx.spHttpClient.fetch(url, SPHttpClient.configurations.v1, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json;odata.metadata=minimal',
-          Accept: 'application/json;odata.metadata=minimal',
-          'IF-MATCH': '*',
-          'X-HTTP-Method': 'MERGE'
-        },
-        body
-      });
-      if (!resp.ok && resp.status !== 204) throw new Error(`TripService.update failed: ${resp.status}`);
+      for (const item of payloads) {
+        if (!Object.keys(item).length) continue;
+        const body = JSON.stringify(item);
+        // eslint-disable-next-line no-await-in-loop
+        const resp: SPHttpClientResponse = await this.ctx.spHttpClient.fetch(url, SPHttpClient.configurations.v1, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json;odata.metadata=minimal',
+            Accept: 'application/json;odata.metadata=minimal',
+            'IF-MATCH': '*',
+            'X-HTTP-Method': 'MERGE'
+          },
+          body
+        });
+        if (resp.ok || resp.status === 204) {
+          return;
+        }
+        lastStatus = resp.status;
+        if (resp.status !== 400) {
+          break;
+        }
+      }
+      throw new Error(`TripService.update failed: ${lastStatus}`);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('TripService.update', err);
