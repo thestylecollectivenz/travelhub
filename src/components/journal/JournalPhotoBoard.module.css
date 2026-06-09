@@ -17,6 +17,15 @@
   box-sizing: border-box;
 }
 
+.tileSortable {
+  cursor: grab;
+  touch-action: none;
+}
+
+.tileSortable:active {
+  cursor: grabbing;
+}
+
 .tileSelected {
   outline: 2px solid var(--color-primary);
   outline-offset: 1px;
@@ -63,25 +72,6 @@
 }
 
 .dragHandle:active {
-  cursor: grabbing;
-}
-
-.sortHandle {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  z-index: 2;
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  border: var(--border-default);
-  background: color-mix(in srgb, var(--color-surface-raised) 92%, transparent);
-  font-size: 10px;
-  cursor: grab;
-  color: var(--color-sand-700);
-  touch-action: none;
-}
-
-.sortHandle:active {
   cursor: grabbing;
 }
 

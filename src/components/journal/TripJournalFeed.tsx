@@ -1,5 +1,13 @@
 import * as React from 'react';
-import { DndContext, closestCenter, useDroppable, type DragEndEvent } from '@dnd-kit/core';
+import {
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent
+} from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { JournalEntry } from '../../models';
 import { useJournal } from '../../context/JournalContext';
@@ -9,7 +17,8 @@ import { JournalEntrySortable } from './JournalEntrySortable';
 import { JournalEntryComposer } from './JournalEntryComposer';
 import { TRAVELHUB_SCROLL_JOURNAL_DAY } from '../../utils/contentScroll';
 import { formatJournalDayTitle } from '../../utils/formatDayHeadingLabel';
-import { isPhotoSortId } from '../../utils/journalPhotoSortId';
+import { journalFeedCollisionDetection } from '../../utils/journalDndCollision';
+import { fromPhotoSortId, isPhotoSortId } from '../../utils/journalPhotoSortId';
 import { loadJournalViewPrefs, saveJournalViewPrefs } from '../../utils/journalViewPrefs';
 import styles from './TripJournalFeed.module.css';
 
@@ -58,7 +67,7 @@ function JournalDaySection({
 }
 
 export const TripJournalFeed: React.FC = () => {
-  const { allEntries, photosForEntry, moveEntryToDay, reorderEntryBefore } = useJournal();
+  const { allEntries, photosForEntry, moveEntryToDay, reorderEntryBefore, reorderPhotoInEntry } = useJournal();
   const { trip, tripDays, sharedPreview, selectedDayId, setSelectedDayId } = useTripWorkspace();
   const [sortOrder, setSortOrder] = React.useState<SortOrder>('newest');
   const [readFilter, setReadFilter] = React.useState<ReadFilter>('all');
@@ -231,13 +240,29 @@ export const TripJournalFeed: React.FC = () => {
 
   const entryIdSet = React.useMemo(() => new Set(allEntries.map((e) => e.id)), [allEntries]);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 6 } })
+  );
+
   const handleDragEnd = React.useCallback(
     (event: DragEndEvent): void => {
       const { active, over } = event;
       if (!over || sharedPreview) return;
       const activeId = String(active.id);
       const overId = String(over.id);
-      if (isPhotoSortId(activeId) || isPhotoSortId(overId)) return;
+
+      if (isPhotoSortId(activeId)) {
+        if (!isPhotoSortId(overId)) return;
+        const activePhotoId = fromPhotoSortId(activeId);
+        const overPhotoId = fromPhotoSortId(overId);
+        const entryId = active.data.current?.entryId as string | undefined;
+        if (!entryId || activePhotoId === overPhotoId) return;
+        reorderPhotoInEntry(entryId, activePhotoId, overPhotoId).catch(console.error);
+        return;
+      }
+
+      if (isPhotoSortId(overId)) return;
       if (!entryIdSet.has(activeId)) return;
       if (!overId.startsWith('journal-day-drop-') && !entryIdSet.has(overId)) return;
       if (overId.startsWith('journal-day-drop-')) {
@@ -249,7 +274,7 @@ export const TripJournalFeed: React.FC = () => {
         reorderEntryBefore(activeId, overId).catch(console.error);
       }
     },
-    [sharedPreview, moveEntryToDay, reorderEntryBefore, entryIdSet]
+    [sharedPreview, moveEntryToDay, reorderEntryBefore, reorderPhotoInEntry, entryIdSet]
   );
 
   const entryList = (
@@ -439,7 +464,11 @@ export const TripJournalFeed: React.FC = () => {
       ) : null}
       {filteredEntries.length > 0 ? (
         !sharedPreview ? (
-          <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={journalFeedCollisionDetection}
+            onDragEnd={handleDragEnd}
+          >
             {entryList}
           </DndContext>
         ) : (

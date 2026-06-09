@@ -60,7 +60,6 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
     moveEntryToDay,
     addPhoto,
     assignPhotoToEntry,
-    reorderPhotoInEntry,
     toggleLike,
     commentsForEntry,
     loadCommentsForEntry,
@@ -384,9 +383,7 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
         }}
         draggable={canModerate}
         sortable={canModerate}
-        onReorderPhoto={(activePhotoId, overPhotoId) => {
-          reorderPhotoInEntry(entry.id, activePhotoId, overPhotoId).catch(console.error);
-        }}
+        sortableEntryId={entry.id}
         footerOptional
         renderFooter={(p) => <JournalPhotoCaptionFooter photo={p} canModerate={canModerate} />}
       />

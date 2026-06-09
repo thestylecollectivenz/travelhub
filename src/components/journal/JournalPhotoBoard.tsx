@@ -1,18 +1,9 @@
 import * as React from 'react';
-import {
-  DndContext,
-  PointerSensor,
-  TouchSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent
-} from '@dnd-kit/core';
 import { SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { JournalPhoto } from '../../models';
 import { setJournalPhotoDragData } from '../../utils/journalPhotoDrag';
-import { fromPhotoSortId, toPhotoSortId } from '../../utils/journalPhotoSortId';
+import { toPhotoSortId } from '../../utils/journalPhotoSortId';
 import styles from './JournalPhotoBoard.module.css';
 
 export interface JournalPhotoBoardProps {
@@ -22,9 +13,10 @@ export interface JournalPhotoBoardProps {
   onOpenLightbox?: (url: string) => void;
   /** HTML5 drag handle for moving photos between journal entries. */
   draggable?: boolean;
-  /** Drag-and-drop reorder within one entry (dnd-kit). */
+  /** Drag-and-drop reorder within one entry (parent DndContext + SortableContext here). */
   sortable?: boolean;
-  onReorderPhoto?: (photoId: string, beforePhotoId: string) => void;
+  /** Journal entry id when sortable — scopes collision detection in the parent DndContext. */
+  sortableEntryId?: string;
   renderFooter?: (photo: JournalPhoto) => React.ReactNode;
   /** When true, footer is omitted if renderFooter returns null. */
   footerOptional?: boolean;
@@ -37,7 +29,8 @@ interface PhotoTileProps {
   selected: boolean;
   draggable: boolean;
   sortable: boolean;
-  sortableHandleProps?: React.HTMLAttributes<HTMLSpanElement>;
+  sortableEntryId?: string;
+  sortableHandleProps?: React.HTMLAttributes<HTMLElement>;
   sortableStyle?: React.CSSProperties;
   sortableRef?: (node: HTMLElement | null) => void;
   onSelectPhoto?: (photoId: string) => void;
@@ -66,47 +59,42 @@ function PhotoTile({
     <figure
       ref={sortableRef}
       style={sortableStyle}
-      className={`${styles.tile} ${selected ? styles.tileSelected : ''}`}
+      className={`${styles.tile} ${selected ? styles.tileSelected : ''} ${sortable ? styles.tileSortable : ''}`}
       role="listitem"
       data-photo-id={photo.id}
+      {...(sortable ? sortableHandleProps : undefined)}
     >
       {draggable ? (
         <span
           className={styles.dragHandle}
           draggable
+          onPointerDown={(e) => e.stopPropagation()}
           onDragStart={(e) => {
             setJournalPhotoDragData(e.dataTransfer, photo.id);
             e.stopPropagation();
           }}
           aria-label="Drag photo to another journal entry"
-          title="Drag to a journal entry"
+          title="Drag to another entry"
         >
           ⋮⋮
-        </span>
-      ) : null}
-      {sortable ? (
-        <span
-          className={styles.sortHandle}
-          aria-label="Drag to reorder photo"
-          title="Drag to reorder"
-          {...sortableHandleProps}
-        >
-          ⇅
         </span>
       ) : null}
       <button
         type="button"
         className={styles.thumbBtn}
         onClick={() => onOpenLightbox?.(photo.fileUrl)}
+        onPointerDown={sortable ? (e) => e.stopPropagation() : undefined}
         aria-label={photo.caption?.trim() ? photo.caption : 'View photo'}
       >
         <img className={styles.thumb} src={photo.fileUrl} alt={photo.caption?.trim() ? photo.caption : ''} loading="lazy" />
       </button>
       {showFooter && footer ? (
         footerOptional ? (
-          <div onClick={(e) => e.stopPropagation()}>{footer}</div>
+          <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+            {footer}
+          </div>
         ) : (
-          <div className={styles.footer} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.footer} onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
             {footer}
           </div>
         )
@@ -116,9 +104,15 @@ function PhotoTile({
 }
 
 function SortablePhotoTile(
-  props: Omit<PhotoTileProps, 'sortableRef' | 'sortableStyle' | 'sortableHandleProps'> & { sortableId: string }
+  props: Omit<PhotoTileProps, 'sortableRef' | 'sortableStyle' | 'sortableHandleProps'> & {
+    sortableId: string;
+    sortableEntryId: string;
+  }
 ): React.ReactElement {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.sortableId });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: props.sortableId,
+    data: { type: 'photo', entryId: props.sortableEntryId }
+  });
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -142,25 +136,11 @@ export const JournalPhotoBoard: React.FC<JournalPhotoBoardProps> = ({
   onOpenLightbox,
   draggable = false,
   sortable = false,
-  onReorderPhoto,
+  sortableEntryId,
   renderFooter,
   footerOptional = false,
   variant = 'board'
 }) => {
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 6 } })
-  );
-
-  const onDragEnd = React.useCallback(
-    (event: DragEndEvent): void => {
-      const { active, over } = event;
-      if (!over || active.id === over.id) return;
-      onReorderPhoto?.(fromPhotoSortId(String(active.id)), fromPhotoSortId(String(over.id)));
-    },
-    [onReorderPhoto]
-  );
-
   if (!photos.length) return null;
 
   if (variant === 'compact') {
@@ -194,6 +174,8 @@ export const JournalPhotoBoard: React.FC<JournalPhotoBoardProps> = ({
     );
   }
 
+  const entryId = sortableEntryId ?? photos[0]?.journalEntryId?.trim() ?? '';
+
   const tiles = photos.map((photo) => {
     const selected = selectedPhotoId === photo.id;
     const common = {
@@ -201,26 +183,25 @@ export const JournalPhotoBoard: React.FC<JournalPhotoBoardProps> = ({
       selected,
       draggable,
       sortable,
+      sortableEntryId: entryId,
       onSelectPhoto,
       onOpenLightbox,
       renderFooter,
       footerOptional
     };
-    if (sortable) {
-      return <SortablePhotoTile key={photo.id} sortableId={toPhotoSortId(photo.id)} {...common} />;
+    if (sortable && entryId) {
+      return <SortablePhotoTile key={photo.id} sortableId={toPhotoSortId(photo.id)} {...common} sortableEntryId={entryId} />;
     }
     return <PhotoTile key={photo.id} {...common} />;
   });
 
-  if (sortable && onReorderPhoto) {
+  if (sortable && entryId) {
     return (
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-        <SortableContext items={photos.map((p) => toPhotoSortId(p.id))} strategy={rectSortingStrategy}>
-          <div className={styles.board} role="list">
-            {tiles}
-          </div>
-        </SortableContext>
-      </DndContext>
+      <SortableContext items={photos.map((p) => toPhotoSortId(p.id))} strategy={rectSortingStrategy}>
+        <div className={styles.board} role="list">
+          {tiles}
+        </div>
+      </SortableContext>
     );
   }
 
