@@ -9,9 +9,11 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
 import { JournalImageLightbox } from './JournalImageLightbox';
 import { JournalPhotoBoard } from './JournalPhotoBoard';
+import boardStyles from './JournalPhotoBoard.module.css';
 import { RichTextEditor } from './RichTextEditor';
 import { isLikelyJournalHtml, plainTextToEditorHtml } from '../../utils/journalRichText';
 import { readJournalPhotoDragData } from '../../utils/journalPhotoDrag';
+import { formatTripDayDate } from '../../utils/formatTripDayDate';
 import styles from './JournalEntryCard.module.css';
 
 function isAllowedImage(file: File): boolean {
@@ -47,7 +49,7 @@ function JournalPhotoFooter({
 }: {
   photo: JournalPhoto;
   canModerate: boolean;
-}): React.ReactElement {
+}): React.ReactElement | null {
   const { updatePhotoCaption, togglePhotoLike, deletePhoto } = useJournal();
   const spContext = useSpContext();
   const [editingCap, setEditingCap] = React.useState(false);
@@ -66,8 +68,12 @@ function JournalPhotoFooter({
     return users.some((u) => u.toLowerCase() === login.toLowerCase());
   }, [photo.likedByUsers, spContext.pageContext.user.loginName]);
 
+  const hasCaptionBlock = editingCap || Boolean(photo.caption?.trim());
+  const footerClass = hasCaptionBlock ? styles.photoFooter : boardStyles.footerHoverReveal;
+
   return (
-    <div className={styles.photoFooter}>
+    <div className={footerClass}>
+      {hasCaptionBlock ? (
       <div className={styles.photoCaptionCell}>
         {editingCap ? (
           <>
@@ -121,21 +127,30 @@ function JournalPhotoFooter({
               </button>
             </div>
           </>
-        ) : (
+        ) : photo.caption?.trim() ? (
           <div className={styles.photoCaptionView}>
-            <span className={styles.photoCaption}>{photo.caption?.trim() || (canModerate ? 'No caption' : '\u00a0')}</span>
+            <span className={styles.photoCaption}>{photo.caption.trim()}</span>
             {canModerate ? (
               <button
                 type="button"
                 className={`${styles.iconButton} ${styles.photoCaptionEdit}`}
                 onClick={() => setEditingCap(true)}
               >
-                {photo.caption?.trim() ? 'Edit' : 'Add caption'}
+                Edit
               </button>
             ) : null}
           </div>
-        )}
+        ) : canModerate ? (
+          <button
+            type="button"
+            className={`${styles.iconButton} ${styles.photoCaptionAdd}`}
+            onClick={() => setEditingCap(true)}
+          >
+            Add caption
+          </button>
+        ) : null}
       </div>
+      ) : null}
       <div className={styles.photoFooterActions}>
         <div className={styles.photoLikeCell}>
           <button
@@ -195,13 +210,14 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
 }) => {
   const spContext = useSpContext();
   const { trip } = useTripWorkspace();
-  const { journalAuthorName } = useConfig();
+  const { journalAuthorName, config } = useConfig();
   const {
     updateEntry,
     deleteEntry,
     moveEntryToDay,
     addPhoto,
     assignPhotoToEntry,
+    reorderPhotoBefore,
     toggleLike,
     commentsForEntry,
     loadCommentsForEntry,
@@ -210,14 +226,19 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
     ensureShareableLink,
     commentCountForEntry
   } = useJournal();
-  const { selectedPhotoId, selectedEntryId, setSelectedPhotoId, setSelectedEntryId } = useJournalMediaSelection();
+  const { selectedPhotoId, setSelectedPhotoId, setSelectedEntryId } = useJournalMediaSelection();
 
   const displayName = spContext.pageContext.user.displayName ?? '';
   const isOwner = entry.authorName === journalAuthorName || entry.authorName === displayName;
   const showMenu = canModerate || isOwner;
   const showAuthorLine = trip?.showAuthorName !== false;
-  const showEntryDate = trip?.showJournalEntryDate !== false;
-  const entrySelected = selectedEntryId === entry.id;
+  const showEntryTimestamp = trip?.showJournalEntryDate !== false;
+  const entryDay = journalDays.find((d) => d.id === entry.dayId);
+  const dateLabel = showEntryTimestamp
+    ? formatTimestamp(entry.entryTimestamp)
+    : entryDay?.calendarDate
+      ? formatTripDayDate(entryDay.calendarDate, config.dateFormat)
+      : null;
 
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
@@ -373,32 +394,10 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
             ⋮⋮
           </button>
         ) : null}
-        <div
-          className={`${styles.metaMain} ${canModerate ? styles.metaMainSelectable : ''} ${entrySelected ? styles.metaMainSelected : ''}`}
-          onClick={
-            canModerate
-              ? () => {
-                  setSelectedEntryId(entry.id);
-                  setSelectedPhotoId(null);
-                }
-              : undefined
-          }
-          onKeyDown={
-            canModerate
-              ? (e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    setSelectedEntryId(entry.id);
-                    setSelectedPhotoId(null);
-                  }
-                }
-              : undefined
-          }
-          role={canModerate ? 'button' : undefined}
-          tabIndex={canModerate ? 0 : undefined}
-        >
+        <div className={styles.metaMain}>
           {isUnread ? <span className={styles.unreadBadge}>New</span> : null}
           {showAuthorLine ? <div className={styles.author}>{entry.authorName || 'Traveller'}</div> : null}
-          {showEntryDate ? <div className={styles.timestamp}>{formatTimestamp(entry.entryTimestamp)}</div> : null}
+          {dateLabel ? <div className={styles.timestamp}>{dateLabel}</div> : null}
         </div>
         {showMenu ? (
           <div className={styles.menuWrap}>
@@ -530,6 +529,11 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
         }}
         onOpenLightbox={setLightboxUrl}
         draggable={canModerate}
+        sortable={canModerate}
+        onReorderPhoto={(photoId, beforePhotoId) => {
+          reorderPhotoBefore(entry.id, photoId, beforePhotoId).catch(console.error);
+        }}
+        footerOptional
         renderFooter={(p) => <JournalPhotoFooter photo={p} canModerate={canModerate} />}
       />
 

@@ -84,8 +84,32 @@ export class JournalService {
       fileUrl: this.resolveJournalFileUrl(raw),
       caption: String(item.Caption ?? ''),
       likeCount: typeof item.LikeCount === 'number' ? item.LikeCount : Number(item.LikeCount ?? 0) || 0,
-      likedByUsers: String(item.LikedByUsers ?? '')
+      likedByUsers: String(item.LikedByUsers ?? ''),
+      sortOrder: typeof item.SortOrder === 'number' ? item.SortOrder : Number(item.SortOrder ?? 0) || 0
     };
+  }
+
+  private static readonly PHOTO_SELECT_WITH_SORT = 'ID,Title,JournalEntryId,TripId,DayId,FileUrl,Caption,LikeCount,LikedByUsers,SortOrder';
+  private static readonly PHOTO_SELECT_CORE = 'ID,Title,JournalEntryId,TripId,DayId,FileUrl,Caption,LikeCount,LikedByUsers';
+
+  /** SharePoint rejects $select when SortOrder is not provisioned yet — fall back gracefully. */
+  private async getPhotosWithSelectFallback(baseUrl: string): Promise<JournalPhoto[]> {
+    const selects = [JournalService.PHOTO_SELECT_WITH_SORT, JournalService.PHOTO_SELECT_CORE];
+    let lastStatus = 0;
+    for (const fields of selects) {
+      const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}$select=${fields}`;
+      // eslint-disable-next-line no-await-in-loop
+      const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
+      if (resp.ok) {
+        const data = await resp.json();
+        return (data.value ?? []).map((item: Record<string, unknown>) => this.mapJournalPhotoItem(item));
+      }
+      lastStatus = resp.status;
+      if (resp.status !== 400 && resp.status !== 404) {
+        break;
+      }
+    }
+    throw new Error(`JournalService.getPhotos failed: ${lastStatus || 'unknown'}`);
   }
 
   // --- JournalEntries ---
@@ -224,36 +248,24 @@ export class JournalService {
   // --- JournalPhotos ---
   async getForEntry(journalEntryId: string): Promise<JournalPhoto[]> {
     const safe = odataEscapeString(journalEntryId);
-    const select = '$select=ID,Title,JournalEntryId,TripId,DayId,FileUrl,Caption,LikeCount,LikedByUsers';
     const filter = `$filter=JournalEntryId eq '${safe}'`;
-    const url = `${this.photosUrl}?${select}&${filter}`;
-    const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
-    if (!resp.ok) throw new Error(`JournalService.getForEntry photos failed: ${resp.status}`);
-    const data = await resp.json();
-    return (data.value ?? []).map((item: Record<string, unknown>) => this.mapJournalPhotoItem(item));
+    const url = `${this.photosUrl}?${filter}`;
+    return this.getPhotosWithSelectFallback(url);
   }
 
   async getForTrip(tripId: string): Promise<JournalPhoto[]> {
     const safeTrip = odataEscapeString(tripId);
-    const select = '$select=ID,Title,JournalEntryId,TripId,DayId,FileUrl,Caption,LikeCount,LikedByUsers';
     const filter = `$filter=TripId eq '${safeTrip}'`;
-    const url = `${this.photosUrl}?${select}&${filter}`;
-    const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
-    if (!resp.ok) throw new Error(`JournalService.getForTrip photos failed: ${resp.status}`);
-    const data = await resp.json();
-    return (data.value ?? []).map((item: Record<string, unknown>) => this.mapJournalPhotoItem(item));
+    const url = `${this.photosUrl}?${filter}`;
+    return this.getPhotosWithSelectFallback(url);
   }
 
   /** Photos list — cannot overload `getForDay` with journal entries in TypeScript. */
   async getPhotosForDay(dayId: string): Promise<JournalPhoto[]> {
     const safeDay = odataEscapeString(dayId);
-    const select = '$select=ID,Title,JournalEntryId,TripId,DayId,FileUrl,Caption,LikeCount,LikedByUsers';
     const filter = `$filter=DayId eq '${safeDay}'`;
-    const url = `${this.photosUrl}?${select}&${filter}`;
-    const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
-    if (!resp.ok) throw new Error(`JournalService.getForDay photos failed: ${resp.status}`);
-    const data = await resp.json();
-    return (data.value ?? []).map((item: Record<string, unknown>) => this.mapJournalPhotoItem(item));
+    const url = `${this.photosUrl}?${filter}`;
+    return this.getPhotosWithSelectFallback(url);
   }
 
   async createPhoto(photo: Omit<JournalPhoto, 'id'>): Promise<JournalPhoto> {
@@ -265,7 +277,8 @@ export class JournalService {
       FileUrl: photo.fileUrl,
       Caption: photo.caption ?? '',
       LikeCount: typeof photo.likeCount === 'number' ? photo.likeCount : 0,
-      LikedByUsers: photo.likedByUsers ?? ''
+      LikedByUsers: photo.likedByUsers ?? '',
+      SortOrder: typeof photo.sortOrder === 'number' ? photo.sortOrder : 0
     };
     if (photo.journalEntryId && photo.journalEntryId.trim() !== '') {
       item.JournalEntryId = photo.journalEntryId;
@@ -300,7 +313,8 @@ export class JournalService {
     journalEntryId: string | undefined,
     webAbsoluteUrl: string,
     serverRelativeUrl: string,
-    caption: string
+    caption: string,
+    sortOrder?: number
   ): Promise<JournalPhoto> {
     const webRoot = serverRelativeUrl.replace(/\/$/, '');
     const rootFolder = `${webRoot}/TravelHubAssets/journal-photos`;
@@ -318,13 +332,16 @@ export class JournalService {
       fileUrl,
       caption: caption ?? '',
       likeCount: 0,
-      likedByUsers: ''
+      likedByUsers: '',
+      sortOrder: typeof sortOrder === 'number' ? sortOrder : Date.now()
     });
   }
 
   async updatePhoto(
     id: string,
-    partial: Partial<Pick<JournalPhoto, 'caption' | 'title' | 'fileUrl' | 'likeCount' | 'likedByUsers' | 'dayId' | 'journalEntryId'>>
+    partial: Partial<
+      Pick<JournalPhoto, 'caption' | 'title' | 'fileUrl' | 'likeCount' | 'likedByUsers' | 'dayId' | 'journalEntryId' | 'sortOrder'>
+    >
   ): Promise<void> {
     const url = `${this.photosUrl}(${id})`;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -336,6 +353,7 @@ export class JournalService {
     if (partial.journalEntryId !== undefined) item.JournalEntryId = partial.journalEntryId;
     if (partial.likeCount !== undefined) item.LikeCount = partial.likeCount;
     if (partial.likedByUsers !== undefined) item.LikedByUsers = partial.likedByUsers;
+    if (partial.sortOrder !== undefined) item.SortOrder = partial.sortOrder;
     const body = JSON.stringify(item);
     const resp = await this.ctx.spHttpClient.fetch(url, SPHttpClient.configurations.v1, {
       method: 'PATCH',

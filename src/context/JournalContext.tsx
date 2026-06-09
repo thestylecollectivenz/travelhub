@@ -2,6 +2,7 @@ import * as React from 'react';
 import type { JournalComment, JournalEntry, JournalPhoto } from '../models';
 import { JournalService } from '../services/JournalService';
 import { timestampBetween } from '../utils/journalEntryOrder';
+import { compareJournalPhotos } from '../utils/compareJournalPhotos';
 import { useSpContext } from './SpContext';
 import { useTripWorkspace } from './TripWorkspaceContext';
 import { useConfig } from './ConfigContext';
@@ -22,6 +23,7 @@ export interface JournalContextValue {
   addPhoto: (input: { journalEntryId: string; dayId: string; file: File; caption?: string }) => Promise<JournalPhoto>;
   addAlbumPhoto: (dayId: string, file: File, caption?: string) => Promise<JournalPhoto>;
   assignPhotoToEntry: (photoId: string, dayId: string, journalEntryId: string) => Promise<void>;
+  reorderPhotoBefore: (entryId: string, photoId: string, beforePhotoId: string) => Promise<void>;
   deletePhoto: (id: string) => Promise<void>;
   updatePhotoCaption: (photoId: string, caption: string) => Promise<void>;
   togglePhotoLike: (photoId: string) => Promise<void>;
@@ -93,7 +95,8 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
   );
 
   const photosForEntry = React.useCallback(
-    (journalEntryId: string) => photos.filter((p) => p.journalEntryId === journalEntryId),
+    (journalEntryId: string) =>
+      photos.filter((p) => p.journalEntryId === journalEntryId).sort(compareJournalPhotos),
     [photos]
   );
 
@@ -303,6 +306,8 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const addPhoto = React.useCallback(
     async (input: { journalEntryId: string; dayId: string; file: File; caption?: string }): Promise<JournalPhoto> => {
       if (!tripId) throw new Error('No trip loaded');
+      const siblings = photos.filter((p) => p.journalEntryId === input.journalEntryId);
+      const nextSort = siblings.reduce((max, p) => Math.max(max, p.sortOrder ?? 0), -1) + 1;
       const svc = new JournalService(spContext);
       const created = await svc.uploadPhoto(
         input.file,
@@ -311,12 +316,13 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         input.journalEntryId,
         webAbsoluteUrl,
         serverRelativeUrl,
-        input.caption ?? ''
+        input.caption ?? '',
+        nextSort
       );
       setPhotos((prev) => [...prev, created]);
       return created;
     },
-    [spContext, tripId, webAbsoluteUrl, serverRelativeUrl]
+    [photos, spContext, tripId, webAbsoluteUrl, serverRelativeUrl]
   );
 
   const addAlbumPhoto = React.useCallback(
@@ -378,16 +384,61 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const prev = photos.find((p) => p.id === photoId);
       if (!prev) return;
       const nextJournalEntryId = journalEntryId.trim();
+      const targetSiblings = photos.filter((p) => p.journalEntryId === nextJournalEntryId && p.id !== photoId);
+      const nextSort = targetSiblings.reduce((max, p) => Math.max(max, p.sortOrder ?? 0), -1) + 1;
       setPhotos((x) =>
-        x.map((p) => (p.id === photoId ? { ...p, dayId, journalEntryId: nextJournalEntryId } : p))
+        x.map((p) =>
+          p.id === photoId ? { ...p, dayId, journalEntryId: nextJournalEntryId, sortOrder: nextSort } : p
+        )
       );
       try {
         const svc = new JournalService(spContext);
-        await svc.updatePhoto(photoId, { dayId, journalEntryId: nextJournalEntryId });
+        await svc.updatePhoto(photoId, { dayId, journalEntryId: nextJournalEntryId, sortOrder: nextSort });
       } catch (err) {
         if (prev) setPhotos((x) => x.map((p) => (p.id === photoId ? prev : p)));
         // eslint-disable-next-line no-console
         console.error('JournalProvider.assignPhotoToEntry', err);
+        throw err;
+      }
+    },
+    [photos, spContext]
+  );
+
+  const reorderPhotoBefore = React.useCallback(
+    async (entryId: string, photoId: string, beforePhotoId: string): Promise<void> => {
+      const entryPhotos = photos
+        .filter((p) => p.journalEntryId === entryId)
+        .slice()
+        .sort(compareJournalPhotos);
+      const fromIdx = entryPhotos.findIndex((p) => p.id === photoId);
+      const toIdx = entryPhotos.findIndex((p) => p.id === beforePhotoId);
+      if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return;
+
+      const reordered = [...entryPhotos];
+      const [moved] = reordered.splice(fromIdx, 1);
+      const insertAt = fromIdx < toIdx ? toIdx - 1 : toIdx;
+      reordered.splice(insertAt, 0, moved);
+
+      const updates = reordered.map((p, index) => ({ id: p.id, sortOrder: index }));
+      const prevById = new Map(entryPhotos.map((p) => [p.id, p]));
+      setPhotos((prev) =>
+        prev.map((p) => {
+          const hit = updates.find((u) => u.id === p.id);
+          return hit ? { ...p, sortOrder: hit.sortOrder } : p;
+        })
+      );
+      try {
+        const svc = new JournalService(spContext);
+        await Promise.all(updates.map((u) => svc.updatePhoto(u.id, { sortOrder: u.sortOrder })));
+      } catch (err) {
+        setPhotos((prev) =>
+          prev.map((p) => {
+            const snap = prevById.get(p.id);
+            return snap ? { ...p, sortOrder: snap.sortOrder } : p;
+          })
+        );
+        // eslint-disable-next-line no-console
+        console.error('JournalProvider.reorderPhotoBefore', err);
         throw err;
       }
     },
@@ -592,6 +643,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       addPhoto,
       addAlbumPhoto,
       assignPhotoToEntry,
+      reorderPhotoBefore,
       deletePhoto,
       updatePhotoCaption,
       togglePhotoLike,
@@ -617,6 +669,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       addPhoto,
       addAlbumPhoto,
       assignPhotoToEntry,
+      reorderPhotoBefore,
       deletePhoto,
       updatePhotoCaption,
       togglePhotoLike,

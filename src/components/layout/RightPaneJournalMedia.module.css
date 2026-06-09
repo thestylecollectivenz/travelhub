@@ -140,3 +140,27 @@
   border-radius: var(--radius-sm);
   flex-shrink: 0;
 }
+
+.viewTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.viewTab {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--space-2) var(--space-2);
+  border-radius: var(--radius-md);
+  border: var(--border-default);
+  background: var(--color-surface);
+  font-size: var(--font-size-xs);
+  color: var(--color-blue-800);
+  cursor: pointer;
+}
+
+.viewTabActive {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
+  font-weight: var(--font-weight-medium);
+}

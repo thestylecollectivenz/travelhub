@@ -139,6 +139,7 @@ Add-ListFieldIfMissing -ListTitle 'UserConfig' -InternalName 'UserId' -FieldType
 Add-ListFieldIfMissing -ListTitle 'UserConfig' -InternalName 'HomeCurrency' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'UserConfig' -InternalName 'TemperatureUnit' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'UserConfig' -InternalName 'DistanceUnit' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'UserConfig' -InternalName 'DateFormat' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'UserConfig' -InternalName 'ShowTravellerNames' -FieldType 'Boolean'
 Add-ListFieldIfMissing -ListTitle 'UserConfig' -InternalName 'JournalAuthorName' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'UserConfig' -InternalName 'SidebarWidth' -FieldType 'Number'
@@ -301,6 +302,7 @@ Add-ListFieldIfMissing -ListTitle 'JournalPhotos' -InternalName 'TripId' -FieldT
 Add-ListFieldIfMissing -ListTitle 'JournalPhotos' -InternalName 'DayId' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'JournalPhotos' -InternalName 'FileUrl' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'JournalPhotos' -InternalName 'Caption' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'JournalPhotos' -InternalName 'SortOrder' -FieldType 'Number'
 
 # --- JournalLikes ---
 Ensure-CustomList -Title 'JournalLikes'

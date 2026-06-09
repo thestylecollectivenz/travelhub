@@ -1,27 +1,16 @@
 .board {
-  column-count: 3;
-  column-gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
   margin-top: var(--space-2);
-}
-
-@media (max-width: 900px) {
-  .board {
-    column-count: 2;
-  }
-}
-
-@media (max-width: 480px) {
-  .board {
-    column-count: 1;
-  }
+  align-items: start;
 }
 
 .tile {
   position: relative;
-  display: inline-block;
-  width: 100%;
-  margin: 0 0 6px;
-  break-inside: avoid;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
   border-radius: var(--radius-md);
   overflow: hidden;
   border: var(--border-default);
@@ -46,12 +35,13 @@
 .thumb {
   display: block;
   width: 100%;
-  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
   vertical-align: top;
 }
 
 .footer {
-  padding: var(--space-1) var(--space-2) var(--space-2);
+  padding: var(--space-1) var(--space-2);
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -76,19 +66,52 @@
   cursor: grabbing;
 }
 
+.sortHandle {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  border: var(--border-default);
+  background: color-mix(in srgb, var(--color-surface-raised) 92%, transparent);
+  font-size: 10px;
+  cursor: grab;
+  color: var(--color-sand-700);
+  touch-action: none;
+}
+
+.sortHandle:active {
+  cursor: grabbing;
+}
+
 .compactList {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-2);
+  max-height: min(28rem, 55vh);
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .compactTile {
   margin: 0;
 }
 
+.compactThumbBtn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  line-height: 0;
+}
+
 .compactThumb {
   width: 100%;
-  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
   display: block;
   border-radius: var(--radius-sm);
   border: var(--border-default);
@@ -97,4 +120,31 @@
 
 .compactThumb:active {
   cursor: grabbing;
+}
+
+.footerHoverReveal {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, #0f172a 55%, transparent);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.tile:hover .footerHoverReveal,
+.footerHoverReveal:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.footerHoverReveal button {
+  color: #fff;
 }

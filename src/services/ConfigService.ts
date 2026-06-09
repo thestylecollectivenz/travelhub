@@ -7,6 +7,8 @@ export interface UserConfig {
   homeCurrency: string;
   temperatureUnit: 'Celsius' | 'Fahrenheit';
   distanceUnit: 'Kilometres' | 'Miles';
+  /** Trip day dates in journal: DD/MM/YYYY (DMY) or MM/DD/YYYY (MDY). */
+  dateFormat: 'DMY' | 'MDY';
   showTravellerNames: boolean;
   /** Stored display name for new journal entries; empty = use M365 display name at write time. */
   journalAuthorName: string;
@@ -24,6 +26,7 @@ export const DEFAULT_USER_CONFIG: UserConfig = {
   homeCurrency: 'NZD',
   temperatureUnit: 'Celsius',
   distanceUnit: 'Kilometres',
+  dateFormat: 'DMY',
   showTravellerNames: true,
   journalAuthorName: '',
   sidebarWidth: 260,
@@ -74,7 +77,8 @@ export class ConfigService {
         dayBreakdownVisibleByDefault:
           typeof parsed.dayBreakdownVisibleByDefault === 'boolean'
             ? parsed.dayBreakdownVisibleByDefault
-            : DEFAULT_USER_CONFIG.dayBreakdownVisibleByDefault
+            : DEFAULT_USER_CONFIG.dayBreakdownVisibleByDefault,
+        dateFormat: parsed.dateFormat === 'MDY' ? 'MDY' : DEFAULT_USER_CONFIG.dateFormat
       };
     } catch {
       return undefined;
@@ -98,6 +102,7 @@ export class ConfigService {
       homeCurrency: (item.HomeCurrency as string) || DEFAULT_USER_CONFIG.homeCurrency,
       temperatureUnit: item.TemperatureUnit === 'Fahrenheit' ? 'Fahrenheit' : 'Celsius',
       distanceUnit: item.DistanceUnit === 'Miles' ? 'Miles' : 'Kilometres',
+      dateFormat: item.DateFormat === 'MDY' ? 'MDY' : 'DMY',
       showTravellerNames:
         typeof item.ShowTravellerNames === 'boolean'
           ? item.ShowTravellerNames
@@ -125,6 +130,7 @@ export class ConfigService {
       HomeCurrency: config.homeCurrency,
       TemperatureUnit: config.temperatureUnit,
       DistanceUnit: config.distanceUnit,
+      DateFormat: config.dateFormat,
       ShowTravellerNames: config.showTravellerNames,
       JournalAuthorName: config.journalAuthorName ?? '',
       SidebarWidth: typeof config.sidebarWidth === 'number' ? config.sidebarWidth : DEFAULT_USER_CONFIG.sidebarWidth,
@@ -148,6 +154,7 @@ export class ConfigService {
       homeCurrency: this.hasOwnField(item, 'HomeCurrency') ? mapped.homeCurrency : localFallback.homeCurrency,
       temperatureUnit: this.hasOwnField(item, 'TemperatureUnit') ? mapped.temperatureUnit : localFallback.temperatureUnit,
       distanceUnit: this.hasOwnField(item, 'DistanceUnit') ? mapped.distanceUnit : localFallback.distanceUnit,
+      dateFormat: this.hasOwnField(item, 'DateFormat') ? mapped.dateFormat : localFallback.dateFormat,
       showTravellerNames: this.hasOwnField(item, 'ShowTravellerNames')
         ? mapped.showTravellerNames
         : localFallback.showTravellerNames,
@@ -168,12 +175,30 @@ export class ConfigService {
 
   private async getItemsWithFilter(filterExpr: string, includeUserIdField: boolean): Promise<SPHttpClientResponse> {
     const safeFilter = encodeURIComponent(filterExpr);
-    const selectFields = includeUserIdField
-      ? 'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault'
-      : 'ID,Title,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault';
-    const select = encodeURIComponent(selectFields);
-    const url = `${this.baseUrl}?$select=${select}&$filter=${safeFilter}&$top=1`;
-    return this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
+    const selects = includeUserIdField
+      ? [
+          'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault',
+          'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault'
+        ]
+      : [
+          'ID,Title,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault',
+          'ID,Title,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault'
+        ];
+    let lastResp: SPHttpClientResponse | undefined;
+    for (const selectFields of selects) {
+      const select = encodeURIComponent(selectFields);
+      const url = `${this.baseUrl}?$select=${select}&$filter=${safeFilter}&$top=1`;
+      // eslint-disable-next-line no-await-in-loop
+      const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
+      if (resp.ok) {
+        return resp;
+      }
+      lastResp = resp;
+      if (resp.status !== 400 && resp.status !== 404) {
+        break;
+      }
+    }
+    return lastResp ?? (await this.ctx.spHttpClient.get(`${this.baseUrl}?$top=0`, SPHttpClient.configurations.v1));
   }
 
   private async getConfigItem(userId: string): Promise<{ id?: number; config: UserConfig; raw?: Record<string, unknown> }> {

@@ -131,6 +131,18 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
           </label>
 
           <label style={{ display: 'grid', gap: 'var(--space-1)' }}>
+            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-800)' }}>Date format</span>
+            <select
+              value={draft.dateFormat}
+              onChange={(e) => setDraft((d) => ({ ...d, dateFormat: e.target.value as UserConfig['dateFormat'] }))}
+              style={{ border: 'var(--border-default)', borderRadius: 'var(--radius-md)', padding: 'var(--space-2)' }}
+            >
+              <option value="DMY">Day / month / year (29/05/2026)</option>
+              <option value="MDY">Month / day / year (05/29/2026)</option>
+            </select>
+          </label>
+
+          <label style={{ display: 'grid', gap: 'var(--space-1)' }}>
             <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-800)' }}>Journal display name</span>
             <input
               type="text"

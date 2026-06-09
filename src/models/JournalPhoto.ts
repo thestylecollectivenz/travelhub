@@ -8,4 +8,6 @@ export interface JournalPhoto {
   caption: string;
   likeCount: number;
   likedByUsers: string;
+  /** Display order within a journal entry (lower = earlier). */
+  sortOrder: number;
 }
