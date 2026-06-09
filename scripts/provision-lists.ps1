@@ -111,6 +111,8 @@ Add-ListFieldIfMissing -ListTitle 'Trips' -InternalName 'Status' -FieldType 'Cho
 )
 Add-ListFieldIfMissing -ListTitle 'Trips' -InternalName 'HeroImageUrl' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'Trips' -InternalName 'SharedViewEnabled' -FieldType 'Boolean'
+Add-ListFieldIfMissing -ListTitle 'Trips' -InternalName 'ShowAuthorName' -FieldType 'Boolean'
+Add-ListFieldIfMissing -ListTitle 'Trips' -InternalName 'ShowJournalEntryDate' -FieldType 'Boolean'
 
 # --- TripDays ---
 Ensure-CustomList -Title 'TripDays'

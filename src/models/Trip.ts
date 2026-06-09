@@ -17,6 +17,8 @@ export interface Trip {
   sharedViewEnabled: boolean;
   /** When false, journal cards show timestamp only (no author line). */
   showAuthorName: boolean;
+  /** When false, journal cards hide created date/time. */
+  showJournalEntryDate: boolean;
   /** Optional short trip blurb; omit or leave empty to hide on hero. */
   description?: string;
 }

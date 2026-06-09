@@ -15,7 +15,26 @@ type SortOrder = 'newest' | 'oldest';
 type ReadFilter = 'all' | 'unread' | 'read';
 type JournalLayout = 'all' | 'by-day';
 
-function JournalDayDropSection({
+function JournalDayHeaderDrop({
+  dayId,
+  title
+}: {
+  dayId: string;
+  title: string;
+}): React.ReactElement {
+  const { setNodeRef, isOver } = useDroppable({ id: `journal-day-drop-${dayId}` });
+  return (
+    <h3
+      ref={setNodeRef}
+      className={`${styles.dayTag} ${isOver ? styles.dayTagDropActive : ''}`}
+      title="Drop here to move entry to this day"
+    >
+      {title}
+    </h3>
+  );
+}
+
+function JournalDaySection({
   dayId,
   title,
   entryIds,
@@ -26,15 +45,9 @@ function JournalDayDropSection({
   entryIds: string[];
   children: React.ReactNode;
 }): React.ReactElement {
-  const { setNodeRef, isOver } = useDroppable({ id: `journal-day-drop-${dayId}` });
   return (
-    <section
-      ref={setNodeRef}
-      id={`journal-day-${dayId}`}
-      className={`${styles.daySection} ${isOver ? styles.daySectionDropActive : ''}`}
-      aria-label={title}
-    >
-      <h3 className={styles.dayTag}>{title}</h3>
+    <section id={`journal-day-${dayId}`} className={styles.daySection} aria-label={title}>
+      <JournalDayHeaderDrop dayId={dayId} title={title} />
       <SortableContext items={entryIds} strategy={verticalListSortingStrategy}>
         <div className={styles.dayEntries}>{children}</div>
       </SortableContext>
@@ -277,9 +290,9 @@ export const TripJournalFeed: React.FC = () => {
           );
         }
         return (
-          <JournalDayDropSection key={dayId} dayId={dayId} title={dayHeading(dayId)} entryIds={entryIds}>
+          <JournalDaySection key={dayId} dayId={dayId} title={dayHeading(dayId)} entryIds={entryIds}>
             {entryCards}
-          </JournalDayDropSection>
+          </JournalDaySection>
         );
       })}
     </div>

@@ -1,6 +1,5 @@
 import * as React from 'react';
 import type { JournalPhoto } from '../../models';
-import { journalPhotoTileSizeAt } from '../../utils/journalPhotoBoardLayout';
 import { setJournalPhotoDragData } from '../../utils/journalPhotoDrag';
 import styles from './JournalPhotoBoard.module.css';
 
@@ -11,13 +10,8 @@ export interface JournalPhotoBoardProps {
   onOpenLightbox?: (url: string) => void;
   draggable?: boolean;
   renderFooter?: (photo: JournalPhoto) => React.ReactNode;
-}
-
-function tileClass(size: ReturnType<typeof journalPhotoTileSizeAt>): string {
-  if (size === 'large') return `${styles.tile} ${styles.tileLarge}`;
-  if (size === 'tall') return `${styles.tile} ${styles.tileTall}`;
-  if (size === 'medium') return `${styles.tile} ${styles.tileMedium}`;
-  return styles.tile;
+  /** Compact draggable thumbnails (e.g. right pane). */
+  variant?: 'board' | 'compact';
 }
 
 export const JournalPhotoBoard: React.FC<JournalPhotoBoardProps> = ({
@@ -26,21 +20,46 @@ export const JournalPhotoBoard: React.FC<JournalPhotoBoardProps> = ({
   onSelectPhoto,
   onOpenLightbox,
   draggable = false,
-  renderFooter
+  renderFooter,
+  variant = 'board'
 }) => {
   if (!photos.length) return null;
 
+  if (variant === 'compact') {
+    return (
+      <div className={styles.compactList} role="list">
+        {photos.map((photo) => (
+          <div key={photo.id} className={styles.compactTile} role="listitem">
+            <img
+              className={styles.compactThumb}
+              src={photo.fileUrl}
+              alt={photo.caption?.trim() ? photo.caption : ''}
+              draggable={draggable}
+              onDragStart={
+                draggable
+                  ? (e) => {
+                      setJournalPhotoDragData(e.dataTransfer, photo.id);
+                    }
+                  : undefined
+              }
+              onClick={() => onSelectPhoto?.(photo.id)}
+            />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className={styles.board} role="list">
-      {photos.map((photo, index) => {
+      {photos.map((photo) => {
         const selected = selectedPhotoId === photo.id;
         return (
           <figure
             key={photo.id}
-            className={`${tileClass(journalPhotoTileSizeAt(index))} ${selected ? styles.tileSelected : ''}`}
+            className={`${styles.tile} ${selected ? styles.tileSelected : ''}`}
             role="listitem"
             data-photo-id={photo.id}
-            onClick={() => onSelectPhoto?.(photo.id)}
           >
             {draggable ? (
               <span
@@ -59,15 +78,16 @@ export const JournalPhotoBoard: React.FC<JournalPhotoBoardProps> = ({
             <button
               type="button"
               className={styles.thumbBtn}
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenLightbox?.(photo.fileUrl);
-              }}
+              onClick={() => onOpenLightbox?.(photo.fileUrl)}
               aria-label={photo.caption?.trim() ? photo.caption : 'View photo'}
             >
               <img className={styles.thumb} src={photo.fileUrl} alt={photo.caption?.trim() ? photo.caption : ''} loading="lazy" />
             </button>
-            {renderFooter ? <div className={styles.footer}>{renderFooter(photo)}</div> : null}
+            {renderFooter ? (
+              <div className={styles.footer} onClick={(e) => e.stopPropagation()}>
+                {renderFooter(photo)}
+              </div>
+            ) : null}
           </figure>
         );
       })}

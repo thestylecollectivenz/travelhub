@@ -125,7 +125,7 @@ function isAllowedImage(file: File): boolean {
 
 export const TripPhotoAlbum: React.FC = () => {
   const { allTripPhotos, allEntries, addAlbumPhoto, addPhoto } = useJournal();
-  const { selectedPhotoId, setSelectedPhotoId } = useJournalMediaSelection();
+  const { selectedPhotoId, setSelectedPhotoId, setSelectedEntryId } = useJournalMediaSelection();
   const { trip, tripDays, selectedDayId, sharedPreview } = useTripWorkspace();
 
   const [layout, setLayout] = React.useState<AlbumLayout>('all');
@@ -557,7 +557,11 @@ export const TripPhotoAlbum: React.FC = () => {
             <JournalPhotoBoard
               photos={sec.items}
               selectedPhotoId={selectedPhotoId}
-              onSelectPhoto={setSelectedPhotoId}
+              onSelectPhoto={(id) => {
+                setSelectedPhotoId(id);
+                const match = sec.items.find((p) => p.id === id);
+                setSelectedEntryId(match?.journalEntryId?.trim() ? match.journalEntryId : null);
+              }}
               onOpenLightbox={setLightboxUrl}
               draggable={!sharedPreview}
               renderFooter={(p) => (

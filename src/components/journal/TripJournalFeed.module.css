@@ -197,10 +197,10 @@
   margin-top: 0;
 }
 
-.daySectionDropActive {
+.dayTagDropActive {
   outline: 2px dashed var(--color-primary);
-  outline-offset: 4px;
-  border-radius: var(--radius-md);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 .dayEntries {

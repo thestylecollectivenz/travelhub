@@ -8,6 +8,8 @@ const LIST = 'Trips';
 function mapToTrip(item: any): Trip {
   const sn = item.ShowAuthorName;
   const showAuthorName = sn === false || sn === 'No' ? false : true;
+  const sjd = item.ShowJournalEntryDate;
+  const showJournalEntryDate = sjd === false || sjd === 'No' ? false : true;
   return {
     id: String(item.ID),
     title: item.Title ?? '',
@@ -18,6 +20,7 @@ function mapToTrip(item: any): Trip {
     status: (item.Status as TripLifecycleStatus) ?? 'Planning',
     sharedViewEnabled: item.SharedViewEnabled === true,
     showAuthorName,
+    showJournalEntryDate,
     description: item.Description ?? ''
   };
 }
@@ -34,6 +37,7 @@ function mapToSpItem(trip: Partial<Trip>): Record<string, any> {
   if (trip.status !== undefined) item.Status = trip.status;
   if (trip.sharedViewEnabled !== undefined) item.SharedViewEnabled = trip.sharedViewEnabled;
   if (trip.showAuthorName !== undefined) item.ShowAuthorName = trip.showAuthorName;
+  if (trip.showJournalEntryDate !== undefined) item.ShowJournalEntryDate = trip.showJournalEntryDate;
   if (trip.description !== undefined) item.Description = trip.description;
   return item;
 }
@@ -49,7 +53,7 @@ export class TripService {
 
   async getAll(): Promise<Trip[]> {
     const select =
-      '$select=ID,Title,Destination,DateStart,DateEnd,HeroImageUrl,Status,SharedViewEnabled,ShowAuthorName,Description';
+      '$select=ID,Title,Destination,DateStart,DateEnd,HeroImageUrl,Status,SharedViewEnabled,ShowAuthorName,ShowJournalEntryDate,Description';
     const orderby = '$orderby=DateStart desc';
     const url = `${this.baseUrl}?${select}&${orderby}`;
     try {
@@ -66,7 +70,7 @@ export class TripService {
 
   async getById(id: string): Promise<Trip> {
     const select =
-      '$select=ID,Title,Destination,DateStart,DateEnd,HeroImageUrl,Status,SharedViewEnabled,ShowAuthorName,Description';
+      '$select=ID,Title,Destination,DateStart,DateEnd,HeroImageUrl,Status,SharedViewEnabled,ShowAuthorName,ShowJournalEntryDate,Description';
     const url = `${this.baseUrl}(${id})?${select}`;
     try {
       const resp: SPHttpClientResponse = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);

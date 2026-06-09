@@ -28,20 +28,24 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-
 .print-day-section { margin-top: 1.5rem; padding-top: 0.75rem; border-top: 1px solid #ddd; }
 .print-day-heading { margin-bottom: 0.75rem; font-size: 1.35rem; page-break-after: avoid; }
 .print-entry { margin-bottom: 1.5rem; }
-.print-entry-meta { margin-bottom: 0.5rem; color: #64748b; font-size: 0.85rem; }
-.photoGrid { display: grid; gap: 8px; }
-.photoHeavy { grid-template-columns: repeat(2, 1fr); }
-.textHeavy { grid-template-columns: repeat(4, 1fr); }
-.photoGrid img { max-width: 100%; height: auto; object-fit: contain; }
-.photoHeavy img { max-height: 24rem; }
-.textHeavy img { max-height: 8rem; }
+.print-entry-meta { margin-bottom: 0.5rem; color: #64748b; font-size: 0.85rem; text-align: left; }
+.print-entry-heading { margin: 0 0 0.35rem; font-size: 1rem; text-align: left; }
+.print-entry-body { text-align: left; }
+.photoMasonry { column-count: 3; column-gap: 10px; margin-top: 0.75rem; }
+.photoMasonry figure { break-inside: avoid; margin: 0 0 10px; display: block; }
+.photoMasonry img { width: 100%; height: auto; display: block; border-radius: 4px; }
+.photoMasonry figcaption { font-size: 11px; color: #475569; margin-top: 4px; text-align: left; }
 .print-album-photos { margin-top: 1rem; }
-.print-album-heading { font-size: 1rem; color: #475569; margin: 0 0 0.5rem; }
+.print-album-heading { font-size: 1rem; color: #475569; margin: 0 0 0.5rem; text-align: left; }
 @media print {
   .toolbar { display: none !important; }
   .th-journal-print { padding: 0; max-width: none; }
   .th-journal-print h1, .th-journal-print h2, .th-journal-print h3 { page-break-after: avoid; }
   .th-journal-print.dayPageBreaks .print-day-block + .print-day-block { page-break-before: always; }
+  .photoMasonry { column-count: 2; }
+}
+@media (max-width: 640px) {
+  .photoMasonry { column-count: 2; }
 }
 `;
 
@@ -57,8 +61,26 @@ export interface JournalPrintPreviewParams {
   includePreTrip: boolean;
   includeComments: boolean;
   includeLikes: boolean;
-  layout: 'photo' | 'text';
+  includePhotoCaptions: boolean;
+  includeEntryTimestamps: boolean;
   oneDayPerPage: boolean;
+}
+
+function renderPhotoMasonry(
+  items: JournalPhoto[],
+  includePhotoCaptions: boolean
+): string {
+  if (!items.length) return '';
+  let html = `<div class="photoMasonry">`;
+  for (const p of items) {
+    html += `<figure><img src="${esc(p.fileUrl)}" alt="${esc(p.caption || 'Journal photo')}" />`;
+    if (includePhotoCaptions && p.caption?.trim()) {
+      html += `<figcaption>${esc(p.caption.trim())}</figcaption>`;
+    }
+    html += `</figure>`;
+  }
+  html += `</div>`;
+  return html;
 }
 
 function buildJournalPrintDocument(params: JournalPrintPreviewParams): string {
@@ -74,7 +96,8 @@ function buildJournalPrintDocument(params: JournalPrintPreviewParams): string {
     includePreTrip,
     includeComments,
     includeLikes,
-    layout,
+    includePhotoCaptions,
+    includeEntryTimestamps,
     oneDayPerPage
   } = params;
 
@@ -117,22 +140,21 @@ function buildJournalPrintDocument(params: JournalPrintPreviewParams): string {
     for (const entry of dayEntries) {
       const entryPhotos = photos.filter((p) => p.journalEntryId === entry.id);
       const comments = commentsForEntry(entry.id);
-      const locPrefix = entry.location ? `${esc(entry.location)} — ` : '';
-      body += `<article class="print-entry"><h3>${locPrefix}${esc(new Date(entry.entryTimestamp).toLocaleString('en-NZ'))}</h3>`;
-      body += `<div class="print-entry-meta">${esc(entry.authorName || '')}</div>`;
+      const locLine = entry.location?.trim() ? `<div class="print-entry-meta">📍 ${esc(entry.location)}</div>` : '';
+      const tsLine =
+        includeEntryTimestamps
+          ? `<h3 class="print-entry-heading">${esc(new Date(entry.entryTimestamp).toLocaleString('en-NZ'))}</h3>`
+          : '';
+      body += `<article class="print-entry">${tsLine}`;
+      if (entry.authorName?.trim()) {
+        body += `<div class="print-entry-meta">${esc(entry.authorName)}</div>`;
+      }
+      body += locLine;
       body += `<div class="print-entry-body">${entry.entryText || ''}</div>`;
       if (includeLikes) {
-        body += `<div>Likes: ${entry.likeCount}</div>`;
+        body += `<div class="print-entry-meta">Likes: ${entry.likeCount}</div>`;
       }
-      if (entryPhotos.length) {
-        body += `<div class="photoGrid ${layout === 'photo' ? 'photoHeavy' : 'textHeavy'}">`;
-        for (const p of entryPhotos) {
-          body += `<figure style="margin:0"><img src="${esc(p.fileUrl)}" alt="${esc(p.caption || 'Journal photo')}" />`;
-          if (p.caption) body += `<figcaption style="font-size:11px">${esc(p.caption)}</figcaption>`;
-          body += `</figure>`;
-        }
-        body += `</div>`;
-      }
+      body += renderPhotoMasonry(entryPhotos, includePhotoCaptions);
       if (includeComments && comments.length) {
         body += `<div style="margin-top:8px">`;
         for (const c of comments) {
@@ -146,13 +168,8 @@ function buildJournalPrintDocument(params: JournalPrintPreviewParams): string {
     const orphanPhotos = photos.filter((p) => p.dayId === day.id && !p.journalEntryId?.trim());
     if (orphanPhotos.length) {
       body += `<div class="print-album-photos"><h4 class="print-album-heading">Album photos (not linked to an entry)</h4>`;
-      body += `<div class="photoGrid ${layout === 'photo' ? 'photoHeavy' : 'textHeavy'}">`;
-      for (const p of orphanPhotos) {
-        body += `<figure style="margin:0"><img src="${esc(p.fileUrl)}" alt="${esc(p.caption || 'Album photo')}" />`;
-        if (p.caption) body += `<figcaption style="font-size:11px">${esc(p.caption)}</figcaption>`;
-        body += `</figure>`;
-      }
-      body += `</div></div>`;
+      body += renderPhotoMasonry(orphanPhotos, includePhotoCaptions);
+      body += `</div>`;
     }
 
     body += `</section></div>`;
@@ -160,27 +177,33 @@ function buildJournalPrintDocument(params: JournalPrintPreviewParams): string {
 
   const dayBreakClass = oneDayPerPage ? 'dayPageBreaks' : '';
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${esc(docTitle)}</title><style>${JOURNAL_PRINT_STYLES}</style></head><body>
-<div class="toolbar"><button type="button" onclick="window.focus();window.print();return false;">Print / Save PDF</button></div>
+<div class="toolbar"><button type="button" id="th-journal-print-btn">Print / Save PDF</button></div>
 <div class="th-journal-print printRoot ${dayBreakClass}">${body}</div>
-</body></html>`;
+<script>
+(function () {
+  var btn = document.getElementById('th-journal-print-btn');
+  if (btn) {
+    btn.addEventListener('click', function () {
+      window.focus();
+      window.print();
+    });
+  }
+})();
+</script></body></html>`;
 }
 
-export function openJournalPrintPreview(params: JournalPrintPreviewParams): void {
+export function openJournalPrintPreview(params: JournalPrintPreviewParams): Window | null {
   const doc = buildJournalPrintDocument(params);
   const docTitle = `${params.trip.title} — Journal`;
-  const blob = new Blob([doc], { type: 'text/html;charset=utf-8' });
-  const blobUrl = URL.createObjectURL(blob);
-  const previewWindow = window.open(blobUrl, '_blank', 'width=900,height=700,scrollbars=yes');
+  const previewWindow = window.open('', '_blank', 'width=900,height=700,scrollbars=yes');
   if (!previewWindow) {
-    URL.revokeObjectURL(blobUrl);
     // eslint-disable-next-line no-console
     console.warn('Journal print preview blocked by popup blocker');
-    return;
+    return null;
   }
-  try {
-    previewWindow.document.title = docTitle;
-  } catch {
-    /* cross-origin guard */
-  }
-  window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+  previewWindow.document.open();
+  previewWindow.document.write(doc);
+  previewWindow.document.close();
+  previewWindow.document.title = docTitle;
+  return previewWindow;
 }

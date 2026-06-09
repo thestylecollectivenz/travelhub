@@ -70,11 +70,7 @@ export const RightPane: React.FC<RightPaneProps> = ({
             </div>
           </>
         ) : showJournalMedia && journalDays.length ? (
-          <>
-            <RightPaneTripSummary showSelectDayHint={false} />
-            <hr className={styles.divider} />
-            <RightPaneJournalMedia journalDays={journalDays} />
-          </>
+          <RightPaneJournalMedia journalDays={journalDays} />
         ) : (
           <RightPaneTripSummary showSelectDayHint={showSelectDayHint} />
         )}

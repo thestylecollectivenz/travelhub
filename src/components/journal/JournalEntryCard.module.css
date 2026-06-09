@@ -26,22 +26,40 @@
 }
 
 .metaRow {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: var(--space-2);
+}
+
+.metaMain {
+  text-align: left;
+  min-width: 0;
+}
+
+.metaMainSelectable {
+  cursor: pointer;
+}
+
+.metaMainSelected {
+  outline: 1px solid color-mix(in srgb, var(--color-primary) 40%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+  margin: -2px -4px;
 }
 
 .author {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-blue-800);
+  text-align: left;
 }
 
 .timestamp {
   margin-top: 2px;
   font-size: var(--font-size-xs);
   color: var(--color-sand-600);
+  text-align: left;
 }
 
 .location {
@@ -347,9 +365,17 @@
 
 .photoFooter {
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
   margin-top: var(--space-1);
+}
+
+.photoFooterActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
 }
 
 .photoLikeCell {

@@ -20,7 +20,8 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({ trip, tripDa
   const [includePreTrip, setIncludePreTrip] = React.useState(false);
   const [includeComments, setIncludeComments] = React.useState(true);
   const [includeLikes, setIncludeLikes] = React.useState(true);
-  const [layout, setLayout] = React.useState<'photo' | 'text'>('photo');
+  const [includePhotoCaptions, setIncludePhotoCaptions] = React.useState(true);
+  const [includeEntryTimestamps, setIncludeEntryTimestamps] = React.useState(true);
   const [oneDayPerPage, setOneDayPerPage] = React.useState(false);
 
   const openPreview = React.useCallback((): void => {
@@ -36,7 +37,8 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({ trip, tripDa
       includePreTrip,
       includeComments,
       includeLikes,
-      layout,
+      includePhotoCaptions,
+      includeEntryTimestamps,
       oneDayPerPage
     });
   }, [
@@ -51,7 +53,8 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({ trip, tripDa
     includePreTrip,
     includeComments,
     includeLikes,
-    layout,
+    includePhotoCaptions,
+    includeEntryTimestamps,
     oneDayPerPage
   ]);
 
@@ -78,12 +81,14 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({ trip, tripDa
           <input type="checkbox" checked={includeLikes} onChange={(e) => setIncludeLikes(e.target.checked)} /> Include likes
         </label>
         <label>
+          <input type="checkbox" checked={includePhotoCaptions} onChange={(e) => setIncludePhotoCaptions(e.target.checked)} /> Photo captions
+        </label>
+        <label>
+          <input type="checkbox" checked={includeEntryTimestamps} onChange={(e) => setIncludeEntryTimestamps(e.target.checked)} /> Entry dates &amp; times
+        </label>
+        <label>
           <input type="checkbox" checked={oneDayPerPage} onChange={(e) => setOneDayPerPage(e.target.checked)} /> One day per page (print)
         </label>
-        <select value={layout} onChange={(e) => setLayout(e.target.value as 'photo' | 'text')}>
-          <option value="photo">Photo-heavy</option>
-          <option value="text">Text-heavy</option>
-        </select>
         <button type="button" className="printPrimaryBtn" onClick={openPreview}>
           Preview print layout
         </button>
