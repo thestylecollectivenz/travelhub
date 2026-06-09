@@ -18,7 +18,12 @@ import { JournalEntryComposer } from './JournalEntryComposer';
 import { TRAVELHUB_SCROLL_JOURNAL_DAY } from '../../utils/contentScroll';
 import { formatJournalDayTitle } from '../../utils/formatDayHeadingLabel';
 import { journalFeedCollisionDetection } from '../../utils/journalDndCollision';
-import { fromPhotoSortId, isPhotoSortId } from '../../utils/journalPhotoSortId';
+import {
+  fromJournalEntryPhotoDropId,
+  fromPhotoSortId,
+  isJournalEntryPhotoDropId,
+  isPhotoSortId
+} from '../../utils/journalPhotoSortId';
 import { loadJournalViewPrefs, saveJournalViewPrefs } from '../../utils/journalViewPrefs';
 import styles from './TripJournalFeed.module.css';
 
@@ -67,7 +72,8 @@ function JournalDaySection({
 }
 
 export const TripJournalFeed: React.FC = () => {
-  const { allEntries, photosForEntry, moveEntryToDay, reorderEntryBefore, reorderPhotoInEntry } = useJournal();
+  const { allEntries, photosForEntry, moveEntryToDay, reorderEntryBefore, reorderPhotoInEntry, assignPhotoToEntry } =
+    useJournal();
   const { trip, tripDays, sharedPreview, selectedDayId, setSelectedDayId } = useTripWorkspace();
   const [sortOrder, setSortOrder] = React.useState<SortOrder>('newest');
   const [readFilter, setReadFilter] = React.useState<ReadFilter>('all');
@@ -253,12 +259,36 @@ export const TripJournalFeed: React.FC = () => {
       const overId = String(over.id);
 
       if (isPhotoSortId(activeId)) {
-        if (!isPhotoSortId(overId)) return;
         const activePhotoId = fromPhotoSortId(activeId);
+        const activeEntryId = active.data.current?.entryId as string | undefined;
+        if (!activeEntryId) return;
+
+        if (isJournalEntryPhotoDropId(overId)) {
+          const targetEntryId = fromJournalEntryPhotoDropId(overId);
+          if (targetEntryId && targetEntryId !== activeEntryId) {
+            const targetEntry = allEntries.find((e) => e.id === targetEntryId);
+            if (targetEntry) {
+              assignPhotoToEntry(activePhotoId, targetEntry.dayId, targetEntryId).catch(console.error);
+            }
+          }
+          return;
+        }
+
+        if (!isPhotoSortId(overId)) return;
         const overPhotoId = fromPhotoSortId(overId);
-        const entryId = active.data.current?.entryId as string | undefined;
-        if (!entryId || activePhotoId === overPhotoId) return;
-        reorderPhotoInEntry(entryId, activePhotoId, overPhotoId).catch(console.error);
+        const overEntryId = over.data.current?.entryId as string | undefined;
+        if (!overEntryId || activePhotoId === overPhotoId) return;
+
+        if (activeEntryId === overEntryId) {
+          reorderPhotoInEntry(activeEntryId, activePhotoId, overPhotoId).catch(console.error);
+          return;
+        }
+
+        const targetEntry = allEntries.find((e) => e.id === overEntryId);
+        if (!targetEntry) return;
+        assignPhotoToEntry(activePhotoId, targetEntry.dayId, overEntryId)
+          .then(() => reorderPhotoInEntry(overEntryId, activePhotoId, overPhotoId))
+          .catch(console.error);
         return;
       }
 
@@ -274,7 +304,7 @@ export const TripJournalFeed: React.FC = () => {
         reorderEntryBefore(activeId, overId).catch(console.error);
       }
     },
-    [sharedPreview, moveEntryToDay, reorderEntryBefore, reorderPhotoInEntry, entryIdSet]
+    [sharedPreview, moveEntryToDay, reorderEntryBefore, reorderPhotoInEntry, assignPhotoToEntry, allEntries, entryIdSet]
   );
 
   const entryList = (

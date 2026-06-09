@@ -285,12 +285,10 @@ export const RightPaneJournalMedia: React.FC<RightPaneJournalMediaProps> = ({ jo
           ) : null}
           {panelPhotos.length ? (
             <>
-              <p className={styles.hint}>Drag a photo onto a journal entry card to move it.</p>
               <JournalPhotoBoard
                 photos={panelPhotos}
                 selectedPhotoId={selectedPhotoId}
                 onSelectPhoto={setSelectedPhotoId}
-                draggable
                 variant="compact"
               />
             </>

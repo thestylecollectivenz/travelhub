@@ -457,7 +457,6 @@ export const TripPhotoAlbum: React.FC = () => {
                 const idx = lightboxPhotos.findIndex((p) => p.url === url);
                 setLightboxIndex(idx >= 0 ? idx : 0);
               }}
-              draggable={!sharedPreview}
               footerOptional
               renderFooter={(p) => <JournalPhotoCaptionFooter photo={p} canModerate={!sharedPreview} />}
             />

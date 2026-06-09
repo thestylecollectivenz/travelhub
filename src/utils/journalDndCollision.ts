@@ -4,32 +4,22 @@ import {
   rectIntersection,
   type CollisionDetection
 } from '@dnd-kit/core';
-import { isPhotoSortId } from './journalPhotoSortId';
+import { isJournalEntryPhotoDropId, isPhotoSortId } from './journalPhotoSortId';
 
-function photoHits(
-  hits: ReturnType<typeof pointerWithin>,
-  activeEntryId: string | undefined
-): ReturnType<typeof pointerWithin> {
-  return hits.filter((hit) => {
-    const id = String(hit.id);
-    if (!isPhotoSortId(id)) return false;
-    const hitEntryId = hit.data?.current?.entryId as string | undefined;
-    if (activeEntryId && hitEntryId && hitEntryId !== activeEntryId) return false;
-    return true;
-  });
+function isPhotoDropTarget(id: string): boolean {
+  return isPhotoSortId(id) || isJournalEntryPhotoDropId(id);
 }
 
-/** Prefer photo tiles when dragging photos; exclude photo tiles when dragging journal entries. */
+/** Prefer photo tiles and entry photo zones when dragging photos. */
 export const journalFeedCollisionDetection: CollisionDetection = (args) => {
   const activeId = String(args.active.id);
 
   if (isPhotoSortId(activeId)) {
-    const activeEntryId = args.active.data.current?.entryId as string | undefined;
-    const pointer = photoHits(pointerWithin(args), activeEntryId);
+    const pointer = pointerWithin(args).filter((hit) => isPhotoDropTarget(String(hit.id)));
     if (pointer.length) return pointer;
-    const rects = photoHits(rectIntersection(args), activeEntryId);
+    const rects = rectIntersection(args).filter((hit) => isPhotoDropTarget(String(hit.id)));
     if (rects.length) return rects;
-    return photoHits(closestCenter(args), activeEntryId);
+    return closestCenter(args).filter((hit) => isPhotoDropTarget(String(hit.id)));
   }
 
   return closestCenter(args).filter((hit) => !isPhotoSortId(String(hit.id)));

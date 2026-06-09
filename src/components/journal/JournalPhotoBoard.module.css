@@ -17,15 +17,6 @@
   box-sizing: border-box;
 }
 
-.tileSortable {
-  cursor: grab;
-  touch-action: none;
-}
-
-.tileSortable:active {
-  cursor: grabbing;
-}
-
 .tileSelected {
   outline: 2px solid var(--color-primary);
   outline-offset: 1px;
@@ -69,6 +60,7 @@
   font-size: 10px;
   cursor: grab;
   color: var(--color-sand-700);
+  touch-action: none;
 }
 
 .dragHandle:active {

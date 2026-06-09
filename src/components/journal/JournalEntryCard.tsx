@@ -12,7 +12,7 @@ import { JournalPhotoBoard } from './JournalPhotoBoard';
 import { JournalPhotoCaptionFooter } from './JournalPhotoCaptionFooter';
 import { RichTextEditor } from './RichTextEditor';
 import { isLikelyJournalHtml, plainTextToEditorHtml } from '../../utils/journalRichText';
-import { readJournalPhotoDragData } from '../../utils/journalPhotoDrag';
+import { JournalEntryPhotoDrop } from './JournalEntryPhotoDrop';
 import { formatOrdinalDayDate } from '../../utils/formatTripDayDate';
 import styles from './JournalEntryCard.module.css';
 
@@ -59,7 +59,6 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
     deleteEntry,
     moveEntryToDay,
     addPhoto,
-    assignPhotoToEntry,
     toggleLike,
     commentsForEntry,
     loadCommentsForEntry,
@@ -206,18 +205,11 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
   const onPhotoDrop = (e: React.DragEvent): void => {
     e.preventDefault();
     setDropActive(false);
-    const photoId = readJournalPhotoDragData(e.dataTransfer);
-    if (photoId) {
-      const dragged = photos.find((p) => p.id === photoId);
-      if (dragged?.journalEntryId === entry.id) {
-        return;
-      }
-      assignPhotoToEntry(photoId, entry.dayId, entry.id).catch(console.error);
-      return;
-    }
-    if (e.dataTransfer.files?.length) {
-      onPhotoFiles(e.dataTransfer.files).catch(console.error);
-    }
+    if (!e.dataTransfer.files?.length) return;
+    const types = Array.from(e.dataTransfer.types);
+    const isExternalFileDrop = types.indexOf('Files') >= 0 && types.indexOf('text/html') < 0;
+    if (!isExternalFileDrop) return;
+    onPhotoFiles(e.dataTransfer.files).catch(console.error);
   };
 
   return (
@@ -370,23 +362,24 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
         </div>
       ) : null}
 
-      <JournalPhotoBoard
-        photos={photos}
-        selectedPhotoId={selectedPhotoId}
-        onSelectPhoto={(id) => {
-          setSelectedPhotoId(id);
-          setSelectedEntryId(entry.id);
-        }}
-        onOpenLightbox={(url) => {
-          const idx = photos.findIndex((p) => p.fileUrl === url);
-          setLightboxIndex(idx >= 0 ? idx : 0);
-        }}
-        draggable={canModerate}
-        sortable={canModerate}
-        sortableEntryId={entry.id}
-        footerOptional
-        renderFooter={(p) => <JournalPhotoCaptionFooter photo={p} canModerate={canModerate} />}
-      />
+      <JournalEntryPhotoDrop entryId={entry.id} enabled={canModerate}>
+        <JournalPhotoBoard
+          photos={photos}
+          selectedPhotoId={selectedPhotoId}
+          onSelectPhoto={(id) => {
+            setSelectedPhotoId(id);
+            setSelectedEntryId(entry.id);
+          }}
+          onOpenLightbox={(url) => {
+            const idx = photos.findIndex((p) => p.fileUrl === url);
+            setLightboxIndex(idx >= 0 ? idx : 0);
+          }}
+          sortable={canModerate}
+          sortableEntryId={entry.id}
+          footerOptional
+          renderFooter={(p) => <JournalPhotoCaptionFooter photo={p} canModerate={canModerate} />}
+        />
+      </JournalEntryPhotoDrop>
 
       <div className={styles.actionsRow}>
         <button type="button" className={styles.iconButton} onClick={() => toggleLike(entry.id).catch(console.error)} aria-label="Like">

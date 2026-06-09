@@ -1,0 +1,9 @@
+.root {
+  border-radius: var(--radius-md);
+}
+
+.over {
+  outline: 2px dashed var(--color-primary);
+  outline-offset: 4px;
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+}

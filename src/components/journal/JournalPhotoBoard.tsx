@@ -2,7 +2,6 @@ import * as React from 'react';
 import { SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { JournalPhoto } from '../../models';
-import { setJournalPhotoDragData } from '../../utils/journalPhotoDrag';
 import { toPhotoSortId } from '../../utils/journalPhotoSortId';
 import styles from './JournalPhotoBoard.module.css';
 
@@ -11,26 +10,22 @@ export interface JournalPhotoBoardProps {
   selectedPhotoId?: string | null;
   onSelectPhoto?: (photoId: string) => void;
   onOpenLightbox?: (url: string) => void;
-  /** HTML5 drag handle for moving photos between journal entries. */
-  draggable?: boolean;
-  /** Drag-and-drop reorder within one entry (parent DndContext + SortableContext here). */
+  /** Show drag handle and enable reorder / cross-entry move via parent DndContext. */
   sortable?: boolean;
-  /** Journal entry id when sortable — scopes collision detection in the parent DndContext. */
+  /** Journal entry id when sortable — scopes drag data in the parent DndContext. */
   sortableEntryId?: string;
   renderFooter?: (photo: JournalPhoto) => React.ReactNode;
   /** When true, footer is omitted if renderFooter returns null. */
   footerOptional?: boolean;
-  /** Compact draggable thumbnails (e.g. right pane). */
+  /** Compact thumbnails (e.g. right pane). */
   variant?: 'board' | 'compact';
 }
 
 interface PhotoTileProps {
   photo: JournalPhoto;
   selected: boolean;
-  draggable: boolean;
   sortable: boolean;
-  sortableEntryId?: string;
-  sortableHandleProps?: React.HTMLAttributes<HTMLElement>;
+  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
   sortableStyle?: React.CSSProperties;
   sortableRef?: (node: HTMLElement | null) => void;
   onSelectPhoto?: (photoId: string) => void;
@@ -42,9 +37,8 @@ interface PhotoTileProps {
 function PhotoTile({
   photo,
   selected,
-  draggable,
   sortable,
-  sortableHandleProps,
+  dragHandleProps,
   sortableStyle,
   sortableRef,
   onSelectPhoto,
@@ -59,34 +53,34 @@ function PhotoTile({
     <figure
       ref={sortableRef}
       style={sortableStyle}
-      className={`${styles.tile} ${selected ? styles.tileSelected : ''} ${sortable ? styles.tileSortable : ''}`}
+      className={`${styles.tile} ${selected ? styles.tileSelected : ''}`}
       role="listitem"
       data-photo-id={photo.id}
-      {...(sortable ? sortableHandleProps : undefined)}
     >
-      {draggable ? (
-        <span
+      {sortable && dragHandleProps ? (
+        <button
+          type="button"
           className={styles.dragHandle}
-          draggable
-          onPointerDown={(e) => e.stopPropagation()}
-          onDragStart={(e) => {
-            setJournalPhotoDragData(e.dataTransfer, photo.id);
-            e.stopPropagation();
-          }}
-          aria-label="Drag photo to another journal entry"
-          title="Drag to another entry"
+          aria-label="Drag to reorder or move photo"
+          title="Drag to reorder or move"
+          {...dragHandleProps}
         >
           ⋮⋮
-        </span>
+        </button>
       ) : null}
       <button
         type="button"
         className={styles.thumbBtn}
         onClick={() => onOpenLightbox?.(photo.fileUrl)}
-        onPointerDown={sortable ? (e) => e.stopPropagation() : undefined}
         aria-label={photo.caption?.trim() ? photo.caption : 'View photo'}
       >
-        <img className={styles.thumb} src={photo.fileUrl} alt={photo.caption?.trim() ? photo.caption : ''} loading="lazy" />
+        <img
+          className={styles.thumb}
+          src={photo.fileUrl}
+          alt={photo.caption?.trim() ? photo.caption : ''}
+          loading="lazy"
+          draggable={false}
+        />
       </button>
       {showFooter && footer ? (
         footerOptional ? (
@@ -104,7 +98,7 @@ function PhotoTile({
 }
 
 function SortablePhotoTile(
-  props: Omit<PhotoTileProps, 'sortableRef' | 'sortableStyle' | 'sortableHandleProps'> & {
+  props: Omit<PhotoTileProps, 'sortableRef' | 'sortableStyle' | 'dragHandleProps'> & {
     sortableId: string;
     sortableEntryId: string;
   }
@@ -124,7 +118,7 @@ function SortablePhotoTile(
       {...props}
       sortableRef={setNodeRef}
       sortableStyle={style}
-      sortableHandleProps={{ ...attributes, ...listeners }}
+      dragHandleProps={{ ...attributes, ...listeners }}
     />
   );
 }
@@ -134,7 +128,6 @@ export const JournalPhotoBoard: React.FC<JournalPhotoBoardProps> = ({
   selectedPhotoId,
   onSelectPhoto,
   onOpenLightbox,
-  draggable = false,
   sortable = false,
   sortableEntryId,
   renderFooter,
@@ -158,14 +151,7 @@ export const JournalPhotoBoard: React.FC<JournalPhotoBoardProps> = ({
                 className={styles.compactThumb}
                 src={photo.fileUrl}
                 alt={photo.caption?.trim() ? photo.caption : ''}
-                draggable={draggable}
-                onDragStart={
-                  draggable
-                    ? (e) => {
-                        setJournalPhotoDragData(e.dataTransfer, photo.id);
-                      }
-                    : undefined
-                }
+                draggable={false}
               />
             </button>
           </div>
@@ -181,9 +167,7 @@ export const JournalPhotoBoard: React.FC<JournalPhotoBoardProps> = ({
     const common = {
       photo,
       selected,
-      draggable,
       sortable,
-      sortableEntryId: entryId,
       onSelectPhoto,
       onOpenLightbox,
       renderFooter,
