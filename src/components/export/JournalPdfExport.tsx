@@ -2,7 +2,7 @@ import * as React from 'react';
 import type { Trip } from '../../models/Trip';
 import type { TripDay } from '../../models/TripDay';
 import type { JournalEntry, JournalPhoto, JournalComment } from '../../models';
-import { buildJournalPrintDocument } from '../../utils/journalPrintPreview';
+import { buildJournalPrintDocument, type JournalExportFontSize } from '../../utils/journalPrintPreview';
 import { JournalPrintSheet } from './JournalPrintSheet';
 import './JournalPdfExport.css';
 
@@ -34,6 +34,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
   const [includeEntryTimestamps, setIncludeEntryTimestamps] = React.useState(true);
   const [includeAuthorNames, setIncludeAuthorNames] = React.useState(trip.showAuthorName !== false);
   const [oneDayPerPage, setOneDayPerPage] = React.useState(false);
+  const [fontSize, setFontSize] = React.useState<JournalExportFontSize>('medium');
 
   React.useEffect(() => {
     setIncludeAuthorNames(trip.showAuthorName !== false);
@@ -56,7 +57,8 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
       includePhotoCaptions,
       includeEntryTimestamps,
       includeAuthorNames,
-      oneDayPerPage
+      oneDayPerPage,
+      fontSize
     });
     setPrintHtml(html);
   }, [
@@ -74,7 +76,8 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
     includePhotoCaptions,
     includeEntryTimestamps,
     includeAuthorNames,
-    oneDayPerPage
+    oneDayPerPage,
+    fontSize
   ]);
 
   return (
@@ -112,8 +115,20 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
           <label>
             <input type="checkbox" checked={oneDayPerPage} onChange={(e) => setOneDayPerPage(e.target.checked)} /> One day per page (print)
           </label>
+          <label className="fontSizeControl">
+            Font size{' '}
+            <select
+              value={fontSize}
+              onChange={(e) => setFontSize(e.target.value as JournalExportFontSize)}
+              aria-label="Export font size"
+            >
+              <option value="small">Small</option>
+              <option value="medium">Medium</option>
+              <option value="large">Large</option>
+            </select>
+          </label>
           <button type="button" className="printPrimaryBtn" onClick={openPreview}>
-            Preview &amp; export
+            Preview print layout
           </button>
         </div>
       </div>
@@ -121,7 +136,6 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
         <JournalPrintSheet
           title={`${trip.title} — Journal`}
           html={printHtml}
-          fileName={`${trip.title} — Journal`}
           onClose={() => {
             setPrintHtml(null);
             onCloseExport?.();

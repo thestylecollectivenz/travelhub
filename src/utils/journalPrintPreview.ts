@@ -13,7 +13,16 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function buildJournalPrintStyles(oneDayPerPage: boolean): string {
+export type JournalExportFontSize = 'small' | 'medium' | 'large';
+
+const FONT_SIZE_PX: Record<JournalExportFontSize, number> = {
+  small: 14,
+  medium: 16,
+  large: 18
+};
+
+function buildJournalPrintStyles(oneDayPerPage: boolean, fontSize: JournalExportFontSize): string {
+  const basePx = FONT_SIZE_PX[fontSize];
   const coverBreak = oneDayPerPage
     ? `.print-root.one-day-per-page .print-front-matter { page-break-after: always; }
 .print-root.one-day-per-page .print-day-block.print-day-first { page-break-before: always; }
@@ -22,6 +31,7 @@ function buildJournalPrintStyles(oneDayPerPage: boolean): string {
 .print-root .print-day-block { page-break-before: auto; }`;
 
   return `
+html { font-size: ${basePx}px; }
 @page { size: portrait; margin: 2.2cm 1.9cm 2.2cm 1.9cm; }
 body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color: #0f172a; background: #fff; }
 .th-journal-print { padding: 16px 20px 32px; max-width: 46rem; margin: 0 auto; }
@@ -47,7 +57,7 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-
 .photoGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 0.75rem; }
 .photoGrid figure { margin: 0; display: flex; flex-direction: column; gap: 4px; }
 .photoGrid img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; border-radius: 4px; }
-.photoGrid figcaption { font-size: 11px; color: #475569; margin: 0; text-align: left; }
+.photoGrid figcaption { font-size: 0.6875rem; color: #475569; margin: 0; text-align: left; }
 .print-album-photos { margin-top: 1rem; }
 .print-album-heading { font-size: 1rem; color: #475569; margin: 0 0 0.5rem; text-align: left; }
 ${coverBreak}
@@ -74,6 +84,7 @@ export interface JournalPrintPreviewParams {
   includeEntryTimestamps: boolean;
   includeAuthorNames: boolean;
   oneDayPerPage: boolean;
+  fontSize?: JournalExportFontSize;
 }
 
 function renderPhotoGrid(items: JournalPhoto[], includePhotoCaptions: boolean): string {
@@ -107,7 +118,8 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
     includePhotoCaptions,
     includeEntryTimestamps,
     includeAuthorNames,
-    oneDayPerPage
+    oneDayPerPage,
+    fontSize = 'medium'
   } = params;
 
   const showEntryTimestamps = includeEntryTimestamps && trip.showJournalEntryDate !== false;
@@ -119,8 +131,6 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
 
   const rawHero = includeHeroOnCover && trip.heroImageUrl?.trim() ? trip.heroImageUrl.trim() : '';
   const coverHeroAttr = rawHero.replace(/"/g, '&quot;');
-  const docTitle = `${trip.title} — Journal`;
-
   let body = '';
   if (showCover) {
     body += `<div class="print-front-matter"><div class="print-cover-page ${rawHero ? 'hasHero' : 'noHero'}">`;
@@ -171,7 +181,7 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
       if (includeComments && comments.length) {
         body += `<div style="margin-top:8px">`;
         for (const c of comments) {
-          body += `<blockquote style="margin:6px 0;font-size:12px">${esc(c.authorName)}: ${esc(c.commentText)}</blockquote>`;
+          body += `<blockquote style="margin:0.375rem 0;font-size:0.75rem">${esc(c.authorName)}: ${esc(c.commentText)}</blockquote>`;
         }
         body += `</div>`;
       }
@@ -189,6 +199,6 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
   });
 
   const rootClass = `print-root th-journal-print${showCover ? ' has-cover' : ''}${oneDayPerPage ? ' one-day-per-page' : ''}`;
-  const styles = buildJournalPrintStyles(oneDayPerPage);
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${esc(docTitle)}</title><style>${styles}</style></head><body><div class="${rootClass}">${body}</div></body></html>`;
+  const styles = buildJournalPrintStyles(oneDayPerPage, fontSize);
+  return `<!DOCTYPE html><html class="font-size-${fontSize}"><head><meta charset="utf-8"/><title> </title><style>${styles}</style></head><body><div class="${rootClass}">${body}</div></body></html>`;
 }
