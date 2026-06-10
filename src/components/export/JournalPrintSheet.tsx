@@ -32,6 +32,10 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({ title, htm
           <button type="button" className={styles.closeBtn} onClick={onClose}>
             Close
           </button>
+          <p className={styles.printHint}>
+            Portrait layout with a left-aligned trip title. In the print dialog, turn off <strong>Headers and footers</strong> to
+            hide the browser date, URL, and page numbers.
+          </p>
         </div>
         <iframe ref={frameRef} className={styles.frame} title={title} srcDoc={html} />
       </div>

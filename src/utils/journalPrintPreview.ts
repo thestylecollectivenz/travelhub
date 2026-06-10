@@ -13,11 +13,20 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-/** Inline print styles for the preview iframe (no dependency on host CSS variables). */
-const JOURNAL_PRINT_STYLES = `
+function buildJournalPrintStyles(oneDayPerPage: boolean): string {
+  const coverBreak = oneDayPerPage
+    ? `.print-root.one-day-per-page .print-front-matter { page-break-after: always; }
+.print-root.one-day-per-page .print-day-block.print-day-first { page-break-before: always; }
+.print-root.one-day-per-page .print-day-block + .print-day-block { page-break-before: always; }`
+    : `.print-root .print-front-matter { page-break-after: auto; }
+.print-root .print-day-block { page-break-before: auto; }`;
+
+  return `
+@page { size: portrait; margin: 2.4cm 1.9cm 2.6cm 1.9cm; }
 body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color: #0f172a; background: #fff; }
-.th-journal-print { padding: 16px 20px 40px; max-width: 52rem; margin: 0 auto; }
-.print-front-matter { page-break-inside: avoid; page-break-after: always; }
+.print-running-header { display: none; }
+.th-journal-print { padding: 16px 20px 40px; max-width: 46rem; margin: 0 auto; }
+.print-front-matter { page-break-inside: avoid; }
 .print-cover-page { display: grid; grid-template-rows: auto auto; page-break-after: avoid; min-height: auto; }
 .print-cover-hero { width: 100%; max-height: 9rem; object-fit: cover; object-position: center; }
 .print-cover-content { display: grid; gap: 4px; justify-items: center; text-align: center; padding: 8px 16px 4px; }
@@ -26,9 +35,9 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-
 .print-cover-summary { margin-top: 8px; width: min(36rem, 100%); border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
 .print-cover-summary > div { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
 .print-cover-summary > div:last-child { border-bottom: none; }
-.print-day-block { page-break-before: auto; }
-.print-day-block.print-day-first { page-break-before: always; }
-.print-day-section { margin-top: 1.5rem; padding-top: 0.75rem; border-top: 1px solid #ddd; }
+.print-day-block { page-break-inside: auto; }
+.print-day-section { margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px solid #ddd; }
+.print-day-section:first-of-type { margin-top: 0.75rem; }
 .print-day-heading { margin-bottom: 0.75rem; font-size: 1.35rem; page-break-after: avoid; }
 .print-entry { margin-bottom: 1.5rem; }
 .print-entry-meta { margin-bottom: 0.5rem; color: #64748b; font-size: 0.85rem; text-align: left; }
@@ -40,12 +49,30 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-
 .photoGrid figcaption { font-size: 11px; color: #475569; margin: 0; text-align: left; }
 .print-album-photos { margin-top: 1rem; }
 .print-album-heading { font-size: 1rem; color: #475569; margin: 0 0 0.5rem; text-align: left; }
+${coverBreak}
 @media print {
-  .th-journal-print { padding: 0; max-width: none; }
+  .print-running-header {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    text-align: left;
+    font-size: 10pt;
+    font-weight: 600;
+    color: #0f172a;
+    padding: 0 0 8px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #fff;
+  }
+  .th-journal-print {
+    padding: 0.35cm 0 0;
+    max-width: none;
+  }
   .th-journal-print h1, .th-journal-print h2, .th-journal-print h3 { page-break-after: avoid; }
-  .th-journal-print.dayPageBreaks .print-day-block + .print-day-block { page-break-before: always; }
 }
 `;
+}
 
 export interface JournalPrintPreviewParams {
   trip: Trip;
@@ -108,9 +135,9 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
 
   const rawHero = includeHeroOnCover && trip.heroImageUrl?.trim() ? trip.heroImageUrl.trim() : '';
   const coverHeroAttr = rawHero.replace(/"/g, '&quot;');
-  const docTitle = `${trip.title} — Journal`;
+  const headerLabel = `${trip.title} — Journal`;
 
-  let body = '';
+  let body = `<div class="print-running-header">${esc(headerLabel)}</div>`;
   if (showCover) {
     body += `<div class="print-front-matter"><div class="print-cover-page ${rawHero ? 'hasHero' : 'noHero'}">`;
     if (rawHero) {
@@ -133,7 +160,7 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
       .filter((e) => e.dayId === day.id)
       .sort((a, b) => a.entryTimestamp.localeCompare(b.entryTimestamp));
     const dayTitle = esc(formatJournalDayTitle(day));
-    const firstClass = !showCover && idx === 0 ? ' print-day-first' : showCover && idx === 0 ? ' print-day-first' : '';
+    const firstClass = oneDayPerPage && idx === 0 ? ' print-day-first' : '';
     body += `<div class="print-day-block${firstClass}"><section class="print-day-section"><h2 class="print-day-heading">${dayTitle}</h2>`;
     if (day.dayType !== 'PreTrip') {
       body += `<p class="print-entry-meta">${esc(formatOrdinalDayDate(day.calendarDate))}</p>`;
@@ -176,6 +203,7 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
     body += `</section></div>`;
   });
 
-  const dayBreakClass = oneDayPerPage ? 'dayPageBreaks' : '';
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${esc(docTitle)}</title><style>${JOURNAL_PRINT_STYLES}</style></head><body><div class="th-journal-print printRoot ${dayBreakClass}">${body}</div></body></html>`;
+  const rootClass = `print-root th-journal-print${oneDayPerPage ? ' one-day-per-page' : ''}`;
+  const styles = buildJournalPrintStyles(oneDayPerPage);
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${esc(headerLabel)}</title><style>${styles}</style></head><body><div class="${rootClass}">${body}</div></body></html>`;
 }

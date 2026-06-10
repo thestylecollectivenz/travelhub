@@ -9,6 +9,7 @@ import { ItineraryService } from '../services/ItineraryService';
 import { ReminderService } from '../services/ReminderService';
 import { syncEntryCancellationDeadlineReminder } from '../utils/entryCancellationReminderSync';
 import { FxService } from '../services/FxService';
+import { mergeTripDisplayPrefs, saveTripDisplayPrefs } from '../utils/tripDisplayPrefs';
 import { useSpContext } from './SpContext';
 import { minutesFromTimeStart } from '../utils/itineraryTimeUtils';
 import { repairPreTripCalendarIfCollidingWithFirstDay } from '../utils/tripPreTripCalendarAnchor';
@@ -155,7 +156,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
         entrySvc.getAll(tripId)
       ]);
 
-      setTrip(loadedTrip);
+      setTrip(mergeTripDisplayPrefs(loadedTrip));
       let anchoredDays = await repairPreTripCalendarIfCollidingWithFirstDay(daySvc, loadedTrip, loadedDays);
       if (planChronologicalRenumber(anchoredDays).length) {
         anchoredDays = await daySvc.renumberDaysChronologically(tripId, anchoredDays);
@@ -193,6 +194,12 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       setTrip((prev) => (prev ? { ...prev, ...partial } : prev));
       const currentTripId = trip?.id;
       if (!currentTripId) return;
+      if (partial.showAuthorName !== undefined || partial.showJournalEntryDate !== undefined) {
+        saveTripDisplayPrefs(currentTripId, {
+          ...(partial.showAuthorName !== undefined ? { showAuthorName: partial.showAuthorName } : {}),
+          ...(partial.showJournalEntryDate !== undefined ? { showJournalEntryDate: partial.showJournalEntryDate } : {})
+        });
+      }
       const svc = new TripService(spContext);
       svc.update(currentTripId, partial).catch((err) => {
         // eslint-disable-next-line no-console
