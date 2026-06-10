@@ -4,23 +4,48 @@ import styles from '../itinerary/DayPlannerPrintSheet.module.css';
 export interface JournalPrintSheetProps {
   title: string;
   html: string;
+  includePageNumbers?: boolean;
   onClose: () => void;
 }
 
 /** In-app journal print preview (iframe) — avoids popup blockers in SharePoint. */
-export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({ title, html, onClose }) => {
+export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({
+  title,
+  html,
+  includePageNumbers = false,
+  onClose
+}) => {
   const frameRef = React.useRef<HTMLIFrameElement | null>(null);
+
+  const clearFrameTitle = React.useCallback((): void => {
+    const doc = frameRef.current?.contentDocument;
+    if (doc) {
+      doc.title = '';
+    }
+  }, []);
 
   const handlePrint = React.useCallback((): void => {
     const win = frameRef.current?.contentWindow;
     if (!win) return;
+
+    const parentTitle = document.title;
+    clearFrameTitle();
+    document.title = '';
+
+    const restoreTitle = (): void => {
+      document.title = parentTitle;
+      win.removeEventListener('afterprint', restoreTitle);
+    };
+
+    win.addEventListener('afterprint', restoreTitle);
+
     try {
       win.focus();
       win.print();
     } catch {
-      /* ignore */
+      restoreTitle();
     }
-  }, []);
+  }, [clearFrameTitle]);
 
   return (
     <div className={styles.backdrop} role="presentation">
@@ -32,8 +57,19 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({ title, htm
           <button type="button" className={styles.closeBtn} onClick={onClose}>
             Close
           </button>
+          {includePageNumbers ? (
+            <p className={styles.printHint}>
+              Turn <strong>Headers and footers</strong> <strong>Off</strong> in the print dialog — page numbers are in the journal footer.
+            </p>
+          ) : null}
         </div>
-        <iframe ref={frameRef} className={styles.frame} title={title} srcDoc={html} />
+        <iframe
+          ref={frameRef}
+          className={styles.frame}
+          title={title}
+          srcDoc={html}
+          onLoad={clearFrameTitle}
+        />
       </div>
     </div>
   );

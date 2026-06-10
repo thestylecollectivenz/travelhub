@@ -21,8 +21,26 @@ const FONT_SIZE_PX: Record<JournalExportFontSize, number> = {
   large: 18
 };
 
-function buildJournalPrintStyles(oneDayPerPage: boolean, fontSize: JournalExportFontSize): string {
+function buildJournalPrintStyles(
+  oneDayPerPage: boolean,
+  fontSize: JournalExportFontSize,
+  includePageNumbers: boolean
+): string {
   const basePx = FONT_SIZE_PX[fontSize];
+  const pageMarginBottom = includePageNumbers ? '2.8cm' : '2.2cm';
+  const pageNumberPrintCss = includePageNumbers
+    ? `body.print-has-page-numbers::after {
+    content: counter(page) " / " counter(pages);
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    text-align: right;
+    font-size: 0.53rem;
+    color: #64748b;
+    line-height: 1;
+  }`
+    : '';
   const coverBreak = oneDayPerPage
     ? `.print-root.one-day-per-page .print-front-matter { page-break-after: always; }
 .print-root.one-day-per-page .print-day-block.print-day-first { page-break-before: always; }
@@ -32,7 +50,7 @@ function buildJournalPrintStyles(oneDayPerPage: boolean, fontSize: JournalExport
 
   return `
 html { font-size: ${basePx}px; }
-@page { size: portrait; margin: 2.2cm 1.9cm 2.2cm 1.9cm; }
+@page { size: portrait; margin: 2.2cm 1.9cm ${pageMarginBottom} 1.9cm; }
 body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color: #0f172a; background: #fff; }
 .th-journal-print { padding: 16px 20px 32px; max-width: 46rem; margin: 0 auto; }
 .print-front-matter { page-break-inside: avoid; margin-bottom: 0.5rem; }
@@ -64,6 +82,7 @@ ${coverBreak}
 @media print {
   .th-journal-print { padding: 0; max-width: none; }
   .th-journal-print h1, .th-journal-print h2, .th-journal-print h3 { page-break-after: avoid; }
+  ${pageNumberPrintCss}
 }
 `;
 }
@@ -85,6 +104,7 @@ export interface JournalPrintPreviewParams {
   includeAuthorNames: boolean;
   oneDayPerPage: boolean;
   fontSize?: JournalExportFontSize;
+  includePageNumbers?: boolean;
 }
 
 function renderPhotoGrid(items: JournalPhoto[], includePhotoCaptions: boolean): string {
@@ -119,7 +139,8 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
     includeEntryTimestamps,
     includeAuthorNames,
     oneDayPerPage,
-    fontSize = 'medium'
+    fontSize = 'medium',
+    includePageNumbers = true
   } = params;
 
   const showEntryTimestamps = includeEntryTimestamps && trip.showJournalEntryDate !== false;
@@ -199,6 +220,7 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
   });
 
   const rootClass = `print-root th-journal-print${showCover ? ' has-cover' : ''}${oneDayPerPage ? ' one-day-per-page' : ''}`;
-  const styles = buildJournalPrintStyles(oneDayPerPage, fontSize);
-  return `<!DOCTYPE html><html class="font-size-${fontSize}"><head><meta charset="utf-8"/><title> </title><style>${styles}</style></head><body><div class="${rootClass}">${body}</div></body></html>`;
+  const bodyClass = includePageNumbers ? 'print-has-page-numbers' : '';
+  const styles = buildJournalPrintStyles(oneDayPerPage, fontSize, includePageNumbers);
+  return `<!DOCTYPE html><html class="font-size-${fontSize}"><head><meta charset="utf-8"/><title></title><style>${styles}</style></head><body class="${bodyClass}"><div class="${rootClass}">${body}</div></body></html>`;
 }
