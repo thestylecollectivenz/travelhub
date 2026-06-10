@@ -56,8 +56,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
       includePhotoCaptions,
       includeEntryTimestamps,
       includeAuthorNames,
-      oneDayPerPage,
-      sourceUrl: typeof window !== 'undefined' ? window.location.href : ''
+      oneDayPerPage
     });
     setPrintHtml(html);
   }, [
@@ -114,7 +113,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
             <input type="checkbox" checked={oneDayPerPage} onChange={(e) => setOneDayPerPage(e.target.checked)} /> One day per page (print)
           </label>
           <button type="button" className="printPrimaryBtn" onClick={openPreview}>
-            Preview print layout
+            Preview &amp; export
           </button>
         </div>
       </div>
@@ -122,6 +121,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
         <JournalPrintSheet
           title={`${trip.title} — Journal`}
           html={printHtml}
+          fileName={`${trip.title} — Journal`}
           onClose={() => {
             setPrintHtml(null);
             onCloseExport?.();
