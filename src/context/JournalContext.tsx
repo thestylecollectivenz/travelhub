@@ -419,23 +419,34 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const reorderPhotoInEntry = React.useCallback(
     async (entryId: string, activePhotoId: string, overPhotoId: string): Promise<void> => {
-      const entryPhotos = photos
-        .filter((p) => p.journalEntryId === entryId)
-        .slice()
-        .sort(compareJournalPhotos);
-      const oldIndex = entryPhotos.findIndex((p) => p.id === activePhotoId);
-      const newIndex = entryPhotos.findIndex((p) => p.id === overPhotoId);
-      if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return;
+      let updates: { id: string; sortOrder: number }[] = [];
+      const prevById = new Map<string, JournalPhoto>();
 
-      const reordered = arrayMove(entryPhotos, oldIndex, newIndex);
-      const updates = reordered.map((p, index) => ({ id: p.id, sortOrder: index }));
-      const prevById = new Map(entryPhotos.map((p) => [p.id, p]));
-      setPhotos((prev) =>
-        prev.map((p) => {
+      setPhotos((prev) => {
+        const entryPhotos = prev
+          .filter((p) => p.journalEntryId === entryId)
+          .slice()
+          .sort(compareJournalPhotos);
+        const oldIndex = entryPhotos.findIndex((p) => p.id === activePhotoId);
+        const newIndex = entryPhotos.findIndex((p) => p.id === overPhotoId);
+        if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) {
+          updates = [];
+          return prev;
+        }
+
+        const reordered = arrayMove(entryPhotos, oldIndex, newIndex);
+        updates = reordered.map((p, index) => ({ id: p.id, sortOrder: index }));
+        for (const p of entryPhotos) {
+          prevById.set(p.id, p);
+        }
+        return prev.map((p) => {
           const hit = updates.find((u) => u.id === p.id);
           return hit ? { ...p, sortOrder: hit.sortOrder } : p;
-        })
-      );
+        });
+      });
+
+      if (!updates.length) return;
+
       try {
         const svc = new JournalService(spContext);
         await Promise.all(updates.map((u) => svc.updatePhoto(u.id, { sortOrder: u.sortOrder })));
@@ -451,7 +462,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw err;
       }
     },
-    [photos, spContext]
+    [spContext]
   );
 
   const togglePhotoLike = React.useCallback(

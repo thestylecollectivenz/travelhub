@@ -26,6 +26,7 @@ interface PhotoTileProps {
   selected: boolean;
   sortable: boolean;
   dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
+  dragActivatorRef?: (node: HTMLButtonElement | null) => void;
   sortableStyle?: React.CSSProperties;
   sortableRef?: (node: HTMLElement | null) => void;
   onSelectPhoto?: (photoId: string) => void;
@@ -39,6 +40,7 @@ function PhotoTile({
   selected,
   sortable,
   dragHandleProps,
+  dragActivatorRef,
   sortableStyle,
   sortableRef,
   onSelectPhoto,
@@ -59,6 +61,7 @@ function PhotoTile({
     >
       {sortable && dragHandleProps ? (
         <button
+          ref={dragActivatorRef}
           type="button"
           className={styles.dragHandle}
           aria-label="Drag to reorder or move photo"
@@ -98,12 +101,12 @@ function PhotoTile({
 }
 
 function SortablePhotoTile(
-  props: Omit<PhotoTileProps, 'sortableRef' | 'sortableStyle' | 'dragHandleProps'> & {
+  props: Omit<PhotoTileProps, 'sortableRef' | 'sortableStyle' | 'dragHandleProps' | 'dragActivatorRef'> & {
     sortableId: string;
     sortableEntryId: string;
   }
 ): React.ReactElement {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: props.sortableId,
     data: { type: 'photo', entryId: props.sortableEntryId }
   });
@@ -118,6 +121,7 @@ function SortablePhotoTile(
       {...props}
       sortableRef={setNodeRef}
       sortableStyle={style}
+      dragActivatorRef={setActivatorNodeRef}
       dragHandleProps={{ ...attributes, ...listeners }}
     />
   );
