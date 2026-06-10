@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { paginateJournalPrintDocument } from '../../utils/journalPrintPagination';
 import { printHtmlDocument } from '../../utils/printHtmlDocument';
 import styles from '../itinerary/DayPlannerPrintSheet.module.css';
 
@@ -27,7 +28,12 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({
 
   const printFromIframe = React.useCallback((): void => {
     const win = frameRef.current?.contentWindow;
-    if (!win) return;
+    const doc = frameRef.current?.contentDocument;
+    if (!win || !doc) return;
+
+    if (includePageNumbers) {
+      paginateJournalPrintDocument(doc);
+    }
 
     const parentTitle = document.title;
     clearFrameTitle();
@@ -46,11 +52,15 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({
     } catch {
       restoreTitle();
     }
-  }, [clearFrameTitle]);
+  }, [clearFrameTitle, includePageNumbers]);
 
   const handlePrint = React.useCallback((): void => {
-    printHtmlDocument(html, printFromIframe);
-  }, [html, printFromIframe]);
+    printHtmlDocument(
+      html,
+      printFromIframe,
+      includePageNumbers ? paginateJournalPrintDocument : undefined
+    );
+  }, [html, includePageNumbers, printFromIframe]);
 
   return (
     <div className={styles.backdrop} role="presentation">

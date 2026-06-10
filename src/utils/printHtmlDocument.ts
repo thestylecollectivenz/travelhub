@@ -18,7 +18,11 @@ function waitForImages(doc: Document): Promise<void> {
   ).then(() => undefined);
 }
 
-export function printHtmlDocument(html: string, onFallback?: () => void): void {
+export function printHtmlDocument(
+  html: string,
+  onFallback?: () => void,
+  prepare?: (doc: Document) => void | Promise<void>
+): void {
   const printWin = window.open('', '_blank');
   if (!printWin) {
     onFallback?.();
@@ -31,11 +35,13 @@ export function printHtmlDocument(html: string, onFallback?: () => void): void {
   printWin.document.title = '';
 
   const runPrint = (): void => {
-    void waitForImages(printWin.document).then(() => {
-      printWin.focus();
-      printWin.addEventListener('afterprint', () => printWin.close(), { once: true });
-      printWin.print();
-    });
+    void waitForImages(printWin.document)
+      .then(() => (prepare ? prepare(printWin.document) : undefined))
+      .then(() => {
+        printWin.focus();
+        printWin.addEventListener('afterprint', () => printWin.close(), { once: true });
+        printWin.print();
+      });
   };
 
   if (printWin.document.readyState === 'complete') {
