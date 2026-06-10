@@ -56,7 +56,8 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
       includePhotoCaptions,
       includeEntryTimestamps,
       includeAuthorNames,
-      oneDayPerPage
+      oneDayPerPage,
+      sourceUrl: typeof window !== 'undefined' ? window.location.href : ''
     });
     setPrintHtml(html);
   }, [

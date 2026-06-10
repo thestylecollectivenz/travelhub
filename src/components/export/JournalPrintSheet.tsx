@@ -33,8 +33,8 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({ title, htm
             Close
           </button>
           <p className={styles.printHint}>
-            For a clean PDF: in the print dialog set <strong>Headers and footers</strong> to <strong>Off</strong> (removes the
-            browser date, URL, and duplicate title). Layout is portrait with trip name left and day title right on each day.
+            Turn <strong>Headers and footers</strong> <strong>Off</strong> in the print dialog (hides the browser date/time only).
+            URL and page numbers are included in the journal footer. More options → Headers and footers (Chrome/Edge).
           </p>
         </div>
         <iframe ref={frameRef} className={styles.frame} title={title} srcDoc={html} />

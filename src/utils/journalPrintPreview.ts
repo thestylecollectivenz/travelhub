@@ -22,9 +22,22 @@ function buildJournalPrintStyles(oneDayPerPage: boolean): string {
 .print-root .print-day-block { page-break-before: auto; }`;
 
   return `
-@page { size: portrait; margin: 2.2cm 1.9cm 2.4cm 1.9cm; }
+@page { size: portrait; margin: 2.2cm 1.9cm 2.9cm 1.9cm; }
 body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color: #0f172a; background: #fff; }
-.th-journal-print { padding: 16px 20px 40px; max-width: 46rem; margin: 0 auto; }
+.th-journal-print { padding: 16px 20px 48px; max-width: 46rem; margin: 0 auto; }
+.print-doc-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 8.5pt;
+  color: #64748b;
+}
+.print-footer-url { flex: 1 1 auto; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 78%; }
+.print-footer-page { flex: 0 0 auto; text-align: right; }
 .print-front-matter { page-break-inside: avoid; margin-bottom: 0.5rem; }
 .print-cover-page { display: grid; grid-template-rows: auto auto; page-break-after: avoid; min-height: auto; }
 .print-cover-hero { width: 100%; max-height: 9rem; object-fit: cover; object-position: center; }
@@ -64,8 +77,18 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-
 .print-album-heading { font-size: 1rem; color: #475569; margin: 0 0 0.5rem; text-align: left; }
 ${coverBreak}
 @media print {
-  .th-journal-print { padding: 0; max-width: none; }
+  .th-journal-print { padding: 0 0 1.4cm; max-width: none; }
   .th-journal-print h1, .th-journal-print h2, .th-journal-print h3 { page-break-after: avoid; }
+  .print-doc-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 6px 0 0;
+    background: #fff;
+  }
+  .print-footer-page::after { content: counter(page) " / " counter(pages); }
 }
 `;
 }
@@ -86,6 +109,8 @@ export interface JournalPrintPreviewParams {
   includeEntryTimestamps: boolean;
   includeAuthorNames: boolean;
   oneDayPerPage: boolean;
+  /** Page URL shown in the document footer (browser headers should stay off). */
+  sourceUrl?: string;
 }
 
 function renderPhotoGrid(items: JournalPhoto[], includePhotoCaptions: boolean): string {
@@ -119,7 +144,8 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
     includePhotoCaptions,
     includeEntryTimestamps,
     includeAuthorNames,
-    oneDayPerPage
+    oneDayPerPage,
+    sourceUrl = ''
   } = params;
 
   const showEntryTimestamps = includeEntryTimestamps && trip.showJournalEntryDate !== false;
@@ -203,5 +229,9 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
 
   const rootClass = `print-root th-journal-print${showCover ? ' has-cover' : ''}${oneDayPerPage ? ' one-day-per-page' : ''}`;
   const styles = buildJournalPrintStyles(oneDayPerPage);
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title> </title><style>${styles}</style></head><body><div class="${rootClass}">${body}</div></body></html>`;
+  const footerUrl = esc(sourceUrl.trim());
+  const footer = footerUrl
+    ? `<footer class="print-doc-footer"><span class="print-footer-url">${footerUrl}</span><span class="print-footer-page" aria-hidden="true"></span></footer>`
+    : `<footer class="print-doc-footer"><span class="print-footer-url"></span><span class="print-footer-page" aria-hidden="true"></span></footer>`;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title> </title><style>${styles}</style></head><body><div class="${rootClass}">${body}</div>${footer}</body></html>`;
 }
