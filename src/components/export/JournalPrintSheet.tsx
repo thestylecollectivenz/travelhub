@@ -33,8 +33,8 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({ title, htm
             Close
           </button>
           <p className={styles.printHint}>
-            Portrait layout with a left-aligned trip title. In the print dialog, turn off <strong>Headers and footers</strong> to
-            hide the browser date, URL, and page numbers.
+            For a clean PDF: in the print dialog set <strong>Headers and footers</strong> to <strong>Off</strong> (removes the
+            browser date, URL, and duplicate title). Layout is portrait with trip name left and day title right on each day.
           </p>
         </div>
         <iframe ref={frameRef} className={styles.frame} title={title} srcDoc={html} />
