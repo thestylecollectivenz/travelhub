@@ -32,26 +32,22 @@ function buildJournalPrintStyles(
 ): string {
   const basePx = FONT_SIZE_PX[fontSize];
   const pageMarginBottom = includePageNumbers ? '3cm' : '2.2cm';
-  const pageInnerMm = PAGE_HEIGHT_MM - MARGIN_TOP_MM - MARGIN_BOTTOM_MM;
   const paginatedPageCss = includePageNumbers
-    ? `.print-pages.th-journal-print { padding: 0; max-width: none; }
+    ? `.print-pages { width: 100%; }
 .print-page-sheet {
-  display: flex;
-  flex-direction: column;
+  position: relative;
   box-sizing: border-box;
   width: 100%;
-  height: ${pageInnerMm}mm;
-  min-height: ${pageInnerMm}mm;
+  min-height: ${PAGE_HEIGHT_MM - MARGIN_TOP_MM - MARGIN_BOTTOM_MM}mm;
   page-break-after: always;
   break-after: page;
-  overflow: hidden;
 }
 .print-page-sheet:last-child { page-break-after: auto; break-after: auto; }
-.print-page-content { flex: 1 1 auto; min-height: 0; width: 100%; }
+.print-page-content { width: 100%; }
 .print-page-number {
-  flex: 0 0 auto;
-  text-align: right;
-  padding-top: 4mm;
+  position: absolute;
+  bottom: 0;
+  right: 0;
   font-size: 0.53rem;
   color: #64748b;
   line-height: 1;

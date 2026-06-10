@@ -1,6 +1,6 @@
 /** Open HTML in a new window and print — page counters work reliably vs iframe print. */
 
-export function waitForImages(doc: Document): Promise<void> {
+function waitForImages(doc: Document): Promise<void> {
   const images = Array.from(doc.images);
   if (!images.length) return Promise.resolve();
   return Promise.all(
