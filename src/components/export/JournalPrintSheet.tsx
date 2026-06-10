@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { paginateJournalPrintDocument } from '../../utils/journalPrintPagination';
-import { printHtmlDocument } from '../../utils/printHtmlDocument';
+import { printHtmlDocument, waitForImages } from '../../utils/printHtmlDocument';
 import styles from '../itinerary/DayPlannerPrintSheet.module.css';
 
 export interface JournalPrintSheetProps {
@@ -26,32 +26,46 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({
     }
   }, []);
 
+  const runPagination = React.useCallback((): void => {
+    const doc = frameRef.current?.contentDocument;
+    if (!doc || !includePageNumbers) return;
+    void waitForImages(doc).then(() => paginateJournalPrintDocument(doc));
+  }, [includePageNumbers]);
+
   const printFromIframe = React.useCallback((): void => {
     const win = frameRef.current?.contentWindow;
     const doc = frameRef.current?.contentDocument;
     if (!win || !doc) return;
 
-    if (includePageNumbers) {
-      paginateJournalPrintDocument(doc);
-    }
+    const doPrint = (): void => {
+      const parentTitle = document.title;
+      clearFrameTitle();
+      document.title = '';
 
-    const parentTitle = document.title;
-    clearFrameTitle();
-    document.title = '';
+      const restoreTitle = (): void => {
+        document.title = parentTitle;
+        win.removeEventListener('afterprint', restoreTitle);
+      };
 
-    const restoreTitle = (): void => {
-      document.title = parentTitle;
-      win.removeEventListener('afterprint', restoreTitle);
+      win.addEventListener('afterprint', restoreTitle);
+
+      try {
+        win.focus();
+        win.print();
+      } catch {
+        restoreTitle();
+      }
     };
 
-    win.addEventListener('afterprint', restoreTitle);
-
-    try {
-      win.focus();
-      win.print();
-    } catch {
-      restoreTitle();
+    if (includePageNumbers && !doc.querySelector('.print-pages')) {
+      void waitForImages(doc).then(() => {
+        paginateJournalPrintDocument(doc);
+        doPrint();
+      });
+      return;
     }
+
+    doPrint();
   }, [clearFrameTitle, includePageNumbers]);
 
   const handlePrint = React.useCallback((): void => {
@@ -61,6 +75,11 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({
       includePageNumbers ? paginateJournalPrintDocument : undefined
     );
   }, [html, includePageNumbers, printFromIframe]);
+
+  const handleFrameLoad = React.useCallback((): void => {
+    clearFrameTitle();
+    runPagination();
+  }, [clearFrameTitle, runPagination]);
 
   return (
     <div className={styles.backdrop} role="presentation">
@@ -83,7 +102,7 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({
           className={styles.frame}
           title={title}
           srcDoc={html}
-          onLoad={clearFrameTitle}
+          onLoad={handleFrameLoad}
         />
       </div>
     </div>
