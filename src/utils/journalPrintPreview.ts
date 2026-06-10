@@ -27,18 +27,28 @@ function buildJournalPrintStyles(
   includePageNumbers: boolean
 ): string {
   const basePx = FONT_SIZE_PX[fontSize];
-  const pageMarginBottom = includePageNumbers ? '2.8cm' : '2.2cm';
+  const pageMarginBottom = includePageNumbers ? '3cm' : '2.2cm';
+  const pageNumberScreenCss = includePageNumbers ? `.print-page-number-footer { display: none; }` : '';
   const pageNumberPrintCss = includePageNumbers
-    ? `body.print-has-page-numbers::after {
-    content: counter(page) " / " counter(pages);
+    ? `.print-page-number-footer {
+    display: flex;
     position: fixed;
     bottom: 0;
-    right: 0;
     left: 0;
-    text-align: right;
+    right: 0;
+    height: ${pageMarginBottom};
+    align-items: flex-end;
+    justify-content: flex-end;
+    padding: 0 1.9cm 0.45cm 0;
+    box-sizing: border-box;
     font-size: 0.53rem;
     color: #64748b;
     line-height: 1;
+    pointer-events: none;
+    z-index: 9999;
+  }
+  .print-page-number-footer::after {
+    content: counter(page) " / " counter(pages);
   }`
     : '';
   const coverBreak = oneDayPerPage
@@ -78,6 +88,7 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-
 .photoGrid figcaption { font-size: 0.6875rem; color: #475569; margin: 0; text-align: left; }
 .print-album-photos { margin-top: 1rem; }
 .print-album-heading { font-size: 1rem; color: #475569; margin: 0 0 0.5rem; text-align: left; }
+${pageNumberScreenCss}
 ${coverBreak}
 @media print {
   .th-journal-print { padding: 0; max-width: none; }
@@ -220,7 +231,9 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
   });
 
   const rootClass = `print-root th-journal-print${showCover ? ' has-cover' : ''}${oneDayPerPage ? ' one-day-per-page' : ''}`;
-  const bodyClass = includePageNumbers ? 'print-has-page-numbers' : '';
+  const pageFooter = includePageNumbers
+    ? `<div class="print-page-number-footer" aria-hidden="true"></div>`
+    : '';
   const styles = buildJournalPrintStyles(oneDayPerPage, fontSize, includePageNumbers);
-  return `<!DOCTYPE html><html class="font-size-${fontSize}"><head><meta charset="utf-8"/><title></title><style>${styles}</style></head><body class="${bodyClass}"><div class="${rootClass}">${body}</div></body></html>`;
+  return `<!DOCTYPE html><html class="font-size-${fontSize}"><head><meta charset="utf-8"/><title></title><style>${styles}</style></head><body><div class="${rootClass}">${body}</div>${pageFooter}</body></html>`;
 }

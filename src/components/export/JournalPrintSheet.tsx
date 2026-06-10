@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { printHtmlDocument } from '../../utils/printHtmlDocument';
 import styles from '../itinerary/DayPlannerPrintSheet.module.css';
 
 export interface JournalPrintSheetProps {
@@ -24,7 +25,7 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({
     }
   }, []);
 
-  const handlePrint = React.useCallback((): void => {
+  const printFromIframe = React.useCallback((): void => {
     const win = frameRef.current?.contentWindow;
     if (!win) return;
 
@@ -46,6 +47,10 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({
       restoreTitle();
     }
   }, [clearFrameTitle]);
+
+  const handlePrint = React.useCallback((): void => {
+    printHtmlDocument(html, printFromIframe);
+  }, [html, printFromIframe]);
 
   return (
     <div className={styles.backdrop} role="presentation">
