@@ -4,6 +4,13 @@ import { JournalService } from '../services/JournalService';
 import { timestampBetween } from '../utils/journalEntryOrder';
 import { arrayMove } from '@dnd-kit/sortable';
 import { compareJournalPhotos } from '../utils/compareJournalPhotos';
+import {
+  appendPhotoToOrder,
+  applyPhotoOrder,
+  mergePhotoOrdersFromStorage,
+  removePhotoFromOrder,
+  savePhotoOrder
+} from '../utils/journalPhotoOrder';
 import { compressImageForUpload } from '../utils/compressImageForUpload';
 import { useSpContext } from './SpContext';
 import { useTripWorkspace } from './TripWorkspaceContext';
@@ -46,6 +53,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [entries, setEntries] = React.useState<JournalEntry[]>([]);
   const [photos, setPhotos] = React.useState<JournalPhoto[]>([]);
+  const [photoOrderByEntry, setPhotoOrderByEntry] = React.useState<Record<string, string[]>>({});
   const [commentsByEntry, setCommentsByEntry] = React.useState<Record<string, JournalComment[]>>({});
   const [commentCountByEntry, setCommentCountByEntry] = React.useState<Record<string, number>>({});
   const loadedCommentsRef = React.useRef<Set<string>>(new Set());
@@ -66,6 +74,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!tripId) {
       setEntries([]);
       setPhotos([]);
+      setPhotoOrderByEntry({});
       setCommentsByEntry({});
       setCommentCountByEntry({});
       loadedCommentsRef.current = new Set();
@@ -79,6 +88,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     ]);
     setEntries(e);
     setPhotos(p);
+    setPhotoOrderByEntry(mergePhotoOrdersFromStorage(tripId, p));
     setCommentCountByEntry(counts);
     setCommentsByEntry({});
     loadedCommentsRef.current = new Set();
@@ -99,16 +109,18 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const photosForEntry = React.useCallback(
     (journalEntryId: string) => {
       const seen = new Set<string>();
-      return photos
+      const list = photos
         .filter((p) => p.journalEntryId === journalEntryId)
         .filter((p) => {
           if (seen.has(p.id)) return false;
           seen.add(p.id);
           return true;
-        })
-        .sort(compareJournalPhotos);
+        });
+      const order = photoOrderByEntry[journalEntryId];
+      if (order?.length) return applyPhotoOrder(list, order);
+      return list.sort(compareJournalPhotos);
     },
-    [photos]
+    [photos, photoOrderByEntry]
   );
 
   const commentCountForEntry = React.useCallback(
@@ -332,6 +344,12 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         nextSort
       );
       setPhotos((prev) => [...prev, created]);
+      setPhotoOrderByEntry((prev) => {
+        const current = prev[input.journalEntryId] ?? [];
+        const next = appendPhotoToOrder(current, created.id);
+        if (tripId) savePhotoOrder(tripId, input.journalEntryId, next);
+        return { ...prev, [input.journalEntryId]: next };
+      });
       return created;
     },
     [photos, spContext, tripId, webAbsoluteUrl, serverRelativeUrl]
@@ -361,6 +379,16 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     async (id: string): Promise<void> => {
       const prev = photos.find((p) => p.id === id);
       setPhotos((x) => x.filter((p) => p.id !== id));
+      if (prev?.journalEntryId?.trim()) {
+        const entryId = prev.journalEntryId.trim();
+        setPhotoOrderByEntry((orderPrev) => {
+          const current = orderPrev[entryId];
+          if (!current?.length) return orderPrev;
+          const next = removePhotoFromOrder(current, id);
+          if (tripId) savePhotoOrder(tripId, entryId, next);
+          return { ...orderPrev, [entryId]: next };
+        });
+      }
       try {
         const svc = new JournalService(spContext);
         await svc.deletePhoto(id);
@@ -371,7 +399,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw err;
       }
     },
-    [photos, spContext]
+    [photos, spContext, tripId]
   );
 
   const updatePhotoCaption = React.useCallback(
@@ -399,11 +427,23 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const nextJournalEntryId = journalEntryId.trim();
       const targetSiblings = photos.filter((p) => p.journalEntryId === nextJournalEntryId && p.id !== photoId);
       const nextSort = targetSiblings.reduce((max, p) => Math.max(max, p.sortOrder ?? 0), -1) + 1;
+      const fromEntryId = prev.journalEntryId?.trim() ?? '';
       setPhotos((x) =>
         x.map((p) =>
           p.id === photoId ? { ...p, dayId, journalEntryId: nextJournalEntryId, sortOrder: nextSort } : p
         )
       );
+      setPhotoOrderByEntry((orderPrev) => {
+        const next = { ...orderPrev };
+        if (fromEntryId && next[fromEntryId]) {
+          next[fromEntryId] = removePhotoFromOrder(next[fromEntryId], photoId);
+          if (tripId) savePhotoOrder(tripId, fromEntryId, next[fromEntryId]);
+        }
+        const targetOrder = next[nextJournalEntryId] ?? [];
+        next[nextJournalEntryId] = appendPhotoToOrder(targetOrder, photoId);
+        if (tripId) savePhotoOrder(tripId, nextJournalEntryId, next[nextJournalEntryId]);
+        return next;
+      });
       try {
         const svc = new JournalService(spContext);
         await svc.updatePhoto(photoId, { dayId, journalEntryId: nextJournalEntryId, sortOrder: nextSort });
@@ -414,55 +454,50 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw err;
       }
     },
-    [photos, spContext]
+    [photos, spContext, tripId]
   );
 
   const reorderPhotoInEntry = React.useCallback(
     async (entryId: string, activePhotoId: string, overPhotoId: string): Promise<void> => {
-      let updates: { id: string; sortOrder: number }[] = [];
-      const prevById = new Map<string, JournalPhoto>();
+      const seen = new Set<string>();
+      const entryList = photos
+        .filter((p) => p.journalEntryId === entryId)
+        .filter((p) => {
+          if (seen.has(p.id)) return false;
+          seen.add(p.id);
+          return true;
+        });
+      const savedOrder = photoOrderByEntry[entryId];
+      const displayList = savedOrder?.length ? applyPhotoOrder(entryList, savedOrder) : [...entryList].sort(compareJournalPhotos);
 
-      setPhotos((prev) => {
-        const entryPhotos = prev
-          .filter((p) => p.journalEntryId === entryId)
-          .slice()
-          .sort(compareJournalPhotos);
-        const oldIndex = entryPhotos.findIndex((p) => p.id === activePhotoId);
-        const newIndex = entryPhotos.findIndex((p) => p.id === overPhotoId);
-        if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) {
-          updates = [];
-          return prev;
-        }
+      const oldIndex = displayList.findIndex((p) => p.id === activePhotoId);
+      const newIndex = displayList.findIndex((p) => p.id === overPhotoId);
+      if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return;
 
-        const reordered = arrayMove(entryPhotos, oldIndex, newIndex);
-        updates = reordered.map((p, index) => ({ id: p.id, sortOrder: index }));
-        for (const p of entryPhotos) {
-          prevById.set(p.id, p);
-        }
-        return prev.map((p) => {
+      const reordered = arrayMove(displayList, oldIndex, newIndex);
+      const newOrder = reordered.map((p) => p.id);
+      const updates = reordered.map((p, index) => ({ id: p.id, sortOrder: index }));
+
+      setPhotoOrderByEntry((prev) => ({ ...prev, [entryId]: newOrder }));
+      if (tripId) savePhotoOrder(tripId, entryId, newOrder);
+
+      setPhotos((prev) =>
+        prev.map((p) => {
           const hit = updates.find((u) => u.id === p.id);
           return hit ? { ...p, sortOrder: hit.sortOrder } : p;
-        });
-      });
-
-      if (!updates.length) return;
+        })
+      );
 
       try {
         const svc = new JournalService(spContext);
         await Promise.all(updates.map((u) => svc.updatePhoto(u.id, { sortOrder: u.sortOrder })));
       } catch (err) {
-        setPhotos((prev) =>
-          prev.map((p) => {
-            const snap = prevById.get(p.id);
-            return snap ? { ...p, sortOrder: snap.sortOrder } : p;
-          })
-        );
+        // Keep local display order even when SharePoint SortOrder is unavailable.
         // eslint-disable-next-line no-console
         console.error('JournalProvider.reorderPhotoInEntry', err);
-        throw err;
       }
     },
-    [spContext]
+    [photos, photoOrderByEntry, tripId, spContext]
   );
 
   const togglePhotoLike = React.useCallback(

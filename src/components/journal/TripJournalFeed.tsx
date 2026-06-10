@@ -255,10 +255,9 @@ export const TripJournalFeed: React.FC = () => {
 
   const handleDragEnd = React.useCallback(
     (event: DragEndEvent): void => {
+      if (sharedPreview) return;
       const { active, over } = event;
-      if (!over || sharedPreview) return;
       const activeId = String(active.id);
-      const overId = String(over.id);
 
       if (isPhotoSortId(activeId)) {
         const activePhotoId = fromPhotoSortId(activeId);
@@ -299,6 +298,9 @@ export const TripJournalFeed: React.FC = () => {
         }
         return;
       }
+
+      if (!over) return;
+      const overId = String(over.id);
 
       if (isPhotoSortId(overId)) return;
       if (!entryIdSet.has(activeId)) return;
