@@ -218,7 +218,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
             {separateCoverPage && showCover ? (
               <>
                 {' '}
-                With <strong>Separate cover page</strong>, headers and footers are applied from page 2 onward (the cover stays unmarked).
+                With <strong>Separate cover page</strong>, headers and footers start on page 2 (e.g. 2/5); the cover page stays unmarked.
               </>
             ) : null}
           </p>

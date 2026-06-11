@@ -24,6 +24,8 @@ const FONT_SIZE_PX: Record<JournalExportFontSize, number> = {
 /** Printable area inside @page margins (mm). */
 const COVER_PAGE_WIDTH_MM = 172;
 const COVER_PAGE_HEIGHT_MM = 253;
+/** Slightly under full page height so the cover cannot bleed onto page 2. */
+const COVER_PRINT_HEIGHT_MM = 250;
 /** Below this effective DPI, hero is centred with contain instead of full-page cover. */
 const COVER_HERO_MIN_DPI = 150;
 const COVER_OVERLAY_HEIGHT_MM = Math.round(COVER_PAGE_HEIGHT_MM * 0.33);
@@ -40,6 +42,7 @@ export function prepareJournalCoverForPrint(doc: Document): void {
   const stage = doc.querySelector<HTMLElement>('.print-cover-hero-stage.hasHero');
   if (!stage) return;
 
+  const sheet = stage.closest<HTMLElement>('.print-cover-sheet');
   const img = stage.querySelector<HTMLImageElement>('.print-cover-hero-full');
   const fillsPage = img ? heroFillsPrintPage(img.naturalWidth, img.naturalHeight) : true;
   const bgSize = fillsPage ? 'cover' : 'contain';
@@ -51,12 +54,18 @@ export function prepareJournalCoverForPrint(doc: Document): void {
   stage.style.position = 'relative';
   stage.style.display = 'block';
   stage.style.width = '100%';
-  stage.style.height = `${COVER_PAGE_HEIGHT_MM}mm`;
-  stage.style.minHeight = `${COVER_PAGE_HEIGHT_MM}mm`;
-  stage.style.maxHeight = `${COVER_PAGE_HEIGHT_MM}mm`;
+  stage.style.height = `${COVER_PRINT_HEIGHT_MM}mm`;
+  stage.style.maxHeight = `${COVER_PRINT_HEIGHT_MM}mm`;
   stage.style.overflow = 'hidden';
-  stage.style.pageBreakAfter = 'always';
-  stage.style.breakAfter = 'page';
+  stage.style.margin = '0';
+  stage.style.padding = '0';
+  stage.style.boxSizing = 'border-box';
+  if (sheet) {
+    sheet.style.margin = '0';
+    sheet.style.padding = '0';
+    sheet.style.pageBreakAfter = 'always';
+    sheet.style.breakAfter = 'page';
+  }
   stage.style.backgroundColor = '#0f172a';
   if (heroUrl) {
     stage.style.backgroundImage = `url("${heroUrl.replace(/"/g, '%22')}")`;
@@ -116,15 +125,16 @@ function buildJournalPrintStyles(
 ): string {
   const basePx = FONT_SIZE_PX[fontSize];
   const separateCoverCss = separateCoverPage
-    ? `.print-root.separate-cover-page.th-journal-print {
-  max-width: none;
-  padding: 0;
-}
-.print-root.separate-cover-page .print-cover-sheet {
+    ? `.print-root.separate-cover-page .print-cover-sheet {
   page-break-after: always;
   break-after: page;
   page-break-inside: avoid;
   width: 100%;
+  margin: 0;
+}
+.print-root.separate-cover-page .print-day-block:first-of-type {
+  margin-top: 0;
+  padding-top: 0;
 }
 .print-root.separate-cover-page .print-cover-hero-stage {
   position: relative;
@@ -208,7 +218,7 @@ function buildJournalPrintStyles(
   let coverBreak = separateCoverCss;
   if (oneDayPerPage) {
     if (separateCoverPage) {
-      coverBreak += `.print-root.one-day-per-page .print-day-block.print-day-first { page-break-before: always; }
+      coverBreak += `.print-root.separate-cover-page.one-day-per-page .print-day-block.print-day-first { page-break-before: auto; }
 .print-root.one-day-per-page .print-day-block + .print-day-block { page-break-before: always; }`;
     } else {
       coverBreak += `.print-root.one-day-per-page .print-front-matter { page-break-after: always; }
@@ -257,18 +267,29 @@ ${coverBreak}
   .print-root.separate-cover-page .print-cover-sheet {
     page-break-after: always;
     break-after: page;
+    margin: 0 !important;
+    padding: 0 !important;
   }
   .print-root.separate-cover-page .print-cover-hero-stage.hasHero {
     position: relative !important;
     display: block !important;
     width: 100% !important;
-    height: ${COVER_PAGE_HEIGHT_MM}mm !important;
-    min-height: ${COVER_PAGE_HEIGHT_MM}mm !important;
-    max-height: ${COVER_PAGE_HEIGHT_MM}mm !important;
+    height: ${COVER_PRINT_HEIGHT_MM}mm !important;
+    max-height: ${COVER_PRINT_HEIGHT_MM}mm !important;
     overflow: hidden !important;
     aspect-ratio: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+  .print-root.separate-cover-page .print-day-block:first-of-type {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    page-break-before: auto !important;
   }
   .print-root.separate-cover-page .print-cover-hero-stage.hasHero .print-cover-hero-full {
     display: none !important;
