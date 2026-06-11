@@ -35,7 +35,6 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
   const [includeAuthorNames, setIncludeAuthorNames] = React.useState(trip.showAuthorName !== false);
   const [oneDayPerPage, setOneDayPerPage] = React.useState(false);
   const [fontSize, setFontSize] = React.useState<JournalExportFontSize>('medium');
-  const [includePageNumbers, setIncludePageNumbers] = React.useState(true);
 
   React.useEffect(() => {
     setIncludeAuthorNames(trip.showAuthorName !== false);
@@ -59,8 +58,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
       includeEntryTimestamps,
       includeAuthorNames,
       oneDayPerPage,
-      fontSize,
-      includePageNumbers
+      fontSize
     });
     setPrintHtml(html);
   }, [
@@ -79,8 +77,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
     includeEntryTimestamps,
     includeAuthorNames,
     oneDayPerPage,
-    fontSize,
-    includePageNumbers
+    fontSize
   ]);
 
   return (
@@ -118,14 +115,6 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
           <label>
             <input type="checkbox" checked={oneDayPerPage} onChange={(e) => setOneDayPerPage(e.target.checked)} /> One day per page (print)
           </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={includePageNumbers}
-              onChange={(e) => setIncludePageNumbers(e.target.checked)}
-            />{' '}
-            Page numbers
-          </label>
           <label className="fontSizeControl">
             Font size{' '}
             <select
@@ -147,7 +136,6 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
         <JournalPrintSheet
           title={`${trip.title} — Journal`}
           html={printHtml}
-          includePageNumbers={includePageNumbers}
           onClose={() => {
             setPrintHtml(null);
             onCloseExport?.();

@@ -1,22 +1,14 @@
 import * as React from 'react';
-import { paginateJournalPrintDocument } from '../../utils/journalPrintPagination';
-import { printHtmlDocument, waitForImages } from '../../utils/printHtmlDocument';
 import styles from '../itinerary/DayPlannerPrintSheet.module.css';
 
 export interface JournalPrintSheetProps {
   title: string;
   html: string;
-  includePageNumbers?: boolean;
   onClose: () => void;
 }
 
 /** In-app journal print preview (iframe) — avoids popup blockers in SharePoint. */
-export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({
-  title,
-  html,
-  includePageNumbers = false,
-  onClose
-}) => {
+export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({ title, html, onClose }) => {
   const frameRef = React.useRef<HTMLIFrameElement | null>(null);
 
   const clearFrameTitle = React.useCallback((): void => {
@@ -26,14 +18,9 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({
     }
   }, []);
 
-  const printFromIframe = React.useCallback((): void => {
+  const handlePrint = React.useCallback((): void => {
     const win = frameRef.current?.contentWindow;
-    const doc = frameRef.current?.contentDocument;
-    if (!win || !doc) return;
-
-    if (includePageNumbers && !doc.querySelector('.print-pages')) {
-      paginateJournalPrintDocument(doc);
-    }
+    if (!win) return;
 
     const parentTitle = document.title;
     clearFrameTitle();
@@ -52,15 +39,7 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({
     } catch {
       restoreTitle();
     }
-  }, [clearFrameTitle, includePageNumbers]);
-
-  const handlePrint = React.useCallback((): void => {
-    printHtmlDocument(
-      html,
-      printFromIframe,
-      includePageNumbers ? paginateJournalPrintDocument : undefined
-    );
-  }, [html, includePageNumbers, printFromIframe]);
+  }, [clearFrameTitle]);
 
   return (
     <div className={styles.backdrop} role="presentation">
@@ -72,24 +51,13 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({
           <button type="button" className={styles.closeBtn} onClick={onClose}>
             Close
           </button>
-          {includePageNumbers ? (
-            <p className={styles.printHint}>
-              Turn <strong>Headers and footers Off</strong> in the print dialog — browsers cannot enable page numbers only. Numbers are printed at the bottom of each journal page.
-            </p>
-          ) : null}
         </div>
         <iframe
           ref={frameRef}
           className={styles.frame}
           title={title}
           srcDoc={html}
-          onLoad={() => {
-            clearFrameTitle();
-            const doc = frameRef.current?.contentDocument;
-            if (doc && includePageNumbers) {
-              void waitForImages(doc).then(() => paginateJournalPrintDocument(doc));
-            }
-          }}
+          onLoad={clearFrameTitle}
         />
       </div>
     </div>
