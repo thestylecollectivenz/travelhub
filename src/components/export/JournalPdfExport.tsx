@@ -3,6 +3,11 @@ import type { Trip } from '../../models/Trip';
 import type { TripDay } from '../../models/TripDay';
 import type { JournalEntry, JournalPhoto, JournalComment } from '../../models';
 import { buildJournalPrintDocument, type JournalExportFontSize } from '../../utils/journalPrintPreview';
+import {
+  downloadStampedPdf,
+  stampJournalPdf,
+  stampedJournalFileName
+} from '../../utils/stampJournalPdf';
 import { JournalPrintSheet } from './JournalPrintSheet';
 import './JournalPdfExport.css';
 
@@ -35,6 +40,16 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
   const [includeAuthorNames, setIncludeAuthorNames] = React.useState(trip.showAuthorName !== false);
   const [oneDayPerPage, setOneDayPerPage] = React.useState(false);
   const [fontSize, setFontSize] = React.useState<JournalExportFontSize>('medium');
+
+  const [stampFooterUrl, setStampFooterUrl] = React.useState(true);
+  const [stampPageNumbers, setStampPageNumbers] = React.useState(true);
+  const [stampHeaderTripTitle, setStampHeaderTripTitle] = React.useState(false);
+  const [stampHeaderDate, setStampHeaderDate] = React.useState(false);
+  const [uploadedPdf, setUploadedPdf] = React.useState<File | null>(null);
+  const [stampBusy, setStampBusy] = React.useState(false);
+  const [stampError, setStampError] = React.useState<string | null>(null);
+
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   React.useEffect(() => {
     setIncludeAuthorNames(trip.showAuthorName !== false);
@@ -78,6 +93,50 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
     includeAuthorNames,
     oneDayPerPage,
     fontSize
+  ]);
+
+  const handlePdfSelected = React.useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
+    const file = e.target.files?.[0];
+    setStampError(null);
+    setUploadedPdf(file && file.type === 'application/pdf' ? file : null);
+    if (file && file.type !== 'application/pdf') {
+      setStampError('Please choose a PDF file.');
+    }
+    e.target.value = '';
+  }, []);
+
+  const handleStampAndDownload = React.useCallback(async (): Promise<void> => {
+    if (!uploadedPdf || stampBusy) return;
+    if (!stampFooterUrl && !stampPageNumbers && !stampHeaderTripTitle && !stampHeaderDate) {
+      setStampError('Choose at least one header or footer option.');
+      return;
+    }
+
+    setStampError(null);
+    setStampBusy(true);
+    try {
+      const bytes = await stampJournalPdf(uploadedPdf, {
+        includeFooterUrl: stampFooterUrl,
+        sourceUrl: typeof window !== 'undefined' ? window.location.href : '',
+        includePageNumbers: stampPageNumbers,
+        includeHeaderTripTitle: stampHeaderTripTitle,
+        tripTitle: trip.title,
+        includeHeaderDate: stampHeaderDate
+      });
+      downloadStampedPdf(bytes, stampedJournalFileName(trip.title));
+    } catch (err) {
+      setStampError(err instanceof Error ? err.message : 'Could not stamp the PDF.');
+    } finally {
+      setStampBusy(false);
+    }
+  }, [
+    uploadedPdf,
+    stampBusy,
+    stampFooterUrl,
+    stampPageNumbers,
+    stampHeaderTripTitle,
+    stampHeaderDate,
+    trip.title
   ]);
 
   return (
@@ -130,6 +189,53 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
           <button type="button" className="printPrimaryBtn" onClick={openPreview}>
             Preview print layout
           </button>
+        </div>
+
+        <div className="pdfStampSection">
+          <h4 className="pdfStampHeading">Step 1 — Print / save PDF</h4>
+          <p className="pdfStampHint">
+            Preview the layout, then use <strong>Print / Save PDF</strong>. Turn <strong>Headers and footers Off</strong> in the print dialog for a clean journal.
+          </p>
+
+          <h4 className="pdfStampHeading">Step 2 — Stamp headers &amp; footers</h4>
+          <p className="pdfStampHint">Upload the PDF you saved, then add page numbers and other chrome.</p>
+          <div className="pdfStampOptions">
+            <label>
+              <input type="checkbox" checked={stampPageNumbers} onChange={(e) => setStampPageNumbers(e.target.checked)} /> Page numbers (footer right)
+            </label>
+            <label>
+              <input type="checkbox" checked={stampFooterUrl} onChange={(e) => setStampFooterUrl(e.target.checked)} /> Page URL (footer left)
+            </label>
+            <label>
+              <input type="checkbox" checked={stampHeaderTripTitle} onChange={(e) => setStampHeaderTripTitle(e.target.checked)} /> Trip title (header left)
+            </label>
+            <label>
+              <input type="checkbox" checked={stampHeaderDate} onChange={(e) => setStampHeaderDate(e.target.checked)} /> Export date (header right)
+            </label>
+          </div>
+          <div className="pdfStampActions">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf,.pdf"
+              className="pdfStampFileInput"
+              onChange={handlePdfSelected}
+              aria-label="Upload saved journal PDF"
+            />
+            <button type="button" className="pdfStampSecondaryBtn" onClick={() => fileInputRef.current?.click()} disabled={stampBusy}>
+              Choose PDF…
+            </button>
+            <button
+              type="button"
+              className="printPrimaryBtn"
+              onClick={handleStampAndDownload}
+              disabled={!uploadedPdf || stampBusy}
+            >
+              {stampBusy ? 'Stamping…' : 'Stamp & download PDF'}
+            </button>
+          </div>
+          {uploadedPdf ? <p className="pdfStampFileName">Selected: {uploadedPdf.name}</p> : null}
+          {stampError ? <p className="pdfStampError">{stampError}</p> : null}
         </div>
       </div>
       {printHtml ? (

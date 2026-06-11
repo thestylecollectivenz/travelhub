@@ -33,6 +33,73 @@
   cursor: pointer;
 }
 
+.printPrimaryBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pdfStampSection {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--border-default);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.pdfStampHeading {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-sand-800);
+}
+
+.pdfStampHint {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-600);
+  line-height: 1.45;
+}
+
+.pdfStampOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  font-size: var(--font-size-sm);
+}
+
+.pdfStampActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.pdfStampFileInput {
+  display: none;
+}
+
+.pdfStampSecondaryBtn {
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+.pdfStampFileName {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-700);
+}
+
+.pdfStampError {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-danger, #b42318);
+}
+
 .printRoot {
   font-family: var(--font-sans);
 }
