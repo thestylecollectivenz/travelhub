@@ -46,6 +46,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
   const [stampPageNumbers, setStampPageNumbers] = React.useState(true);
   const [stampHeaderTripTitle, setStampHeaderTripTitle] = React.useState(false);
   const [stampHeaderDate, setStampHeaderDate] = React.useState(false);
+  const [stampSkipCoverPage, setStampSkipCoverPage] = React.useState(false);
   const [uploadedPdf, setUploadedPdf] = React.useState<File | null>(null);
   const [stampBusy, setStampBusy] = React.useState(false);
   const [stampError, setStampError] = React.useState<string | null>(null);
@@ -55,6 +56,12 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
   React.useEffect(() => {
     setIncludeAuthorNames(trip.showAuthorName !== false);
   }, [trip.id, trip.showAuthorName]);
+
+  React.useEffect(() => {
+    if (separateCoverPage && showCover) {
+      setStampSkipCoverPage(true);
+    }
+  }, [separateCoverPage, showCover]);
   const [printHtml, setPrintHtml] = React.useState<string | null>(null);
 
   const openPreview = React.useCallback((): void => {
@@ -125,7 +132,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
         includeHeaderTripTitle: stampHeaderTripTitle,
         tripTitle: trip.title,
         includeHeaderDate: stampHeaderDate,
-        skipCoverPageStamp: separateCoverPage && showCover
+        skipCoverPageStamp: stampSkipCoverPage
       });
       downloadStampedPdf(bytes, stampedJournalFileName(trip.title));
     } catch (err) {
@@ -141,8 +148,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
     stampHeaderTripTitle,
     stampHeaderDate,
     trip.title,
-    separateCoverPage,
-    showCover
+    stampSkipCoverPage
   ]);
 
   return (
@@ -234,6 +240,14 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
             </label>
             <label>
               <input type="checkbox" checked={stampHeaderDate} onChange={(e) => setStampHeaderDate(e.target.checked)} /> Export date (header right)
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={stampSkipCoverPage}
+                onChange={(e) => setStampSkipCoverPage(e.target.checked)}
+              />{' '}
+              Skip cover page (stamp from page 2)
             </label>
           </div>
           <div className="pdfStampActions">

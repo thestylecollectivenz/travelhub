@@ -21,11 +21,13 @@ const FONT_SIZE_PX: Record<JournalExportFontSize, number> = {
   large: 18
 };
 
-/** Printable area inside @page margins (mm). */
-const COVER_PAGE_WIDTH_MM = 172;
-const COVER_PAGE_HEIGHT_MM = 253;
-/** Slightly under full page height so the cover cannot bleed onto page 2. */
-const COVER_PRINT_HEIGHT_MM = 250;
+/** A4 page with 22mm top/bottom and 19mm left/right @page margins (mm). */
+const A4_WIDTH_MM = 210;
+const A4_HEIGHT_MM = 297;
+const PAGE_MARGIN_X_MM = 19;
+const PAGE_MARGIN_Y_MM = 22;
+const COVER_PAGE_WIDTH_MM = A4_WIDTH_MM - PAGE_MARGIN_X_MM * 2;
+const COVER_PAGE_HEIGHT_MM = A4_HEIGHT_MM - PAGE_MARGIN_Y_MM * 2;
 /** Below this effective DPI, hero is centred with contain instead of full-page cover. */
 const COVER_HERO_MIN_DPI = 150;
 const COVER_OVERLAY_HEIGHT_MM = Math.round(COVER_PAGE_HEIGHT_MM * 0.33);
@@ -37,7 +39,71 @@ export function heroFillsPrintPage(naturalWidth: number, naturalHeight: number):
   return Math.max(needW / naturalWidth, needH / naturalHeight) <= 1;
 }
 
-/** Lock cover layout for browser print — img object-fit is unreliable; use background-image. */
+/** Embed hero as data URL so it prints in PDF (background-image from SharePoint URLs does not). */
+export async function embedCoverHeroForPrint(doc: Document): Promise<void> {
+  const img = doc.querySelector<HTMLImageElement>('.print-cover-hero-stage.hasHero .print-cover-hero-full');
+  if (!img?.src || img.dataset.embedded === '1') return;
+
+  const win = doc.defaultView;
+  const src = img.currentSrc || img.src;
+
+  const loadDataUrl = (dataUrl: string): Promise<void> =>
+    new Promise((resolve, reject) => {
+      const onLoad = (): void => {
+        img.removeEventListener('error', onError);
+        img.dataset.embedded = '1';
+        resolve();
+      };
+      const onError = (): void => {
+        img.removeEventListener('load', onLoad);
+        reject(new Error('hero embed load failed'));
+      };
+      img.addEventListener('load', onLoad, { once: true });
+      img.addEventListener('error', onError, { once: true });
+      img.src = dataUrl;
+    });
+
+  if (src.startsWith('data:')) {
+    img.dataset.embedded = '1';
+    return;
+  }
+
+  if (win) {
+    try {
+      const response = await win.fetch(src, { credentials: 'include' });
+      if (response.ok) {
+        const blob = await response.blob();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(blob);
+        });
+        await loadDataUrl(dataUrl);
+        return;
+      }
+    } catch {
+      /* try canvas fallback */
+    }
+  }
+
+  if (img.complete && img.naturalWidth > 0) {
+    try {
+      const canvas = doc.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        await loadDataUrl(canvas.toDataURL('image/jpeg', 0.92));
+      }
+    } catch {
+      /* keep original src */
+    }
+  }
+}
+
+/** Lock cover layout for browser print/PDF. */
 export function prepareJournalCoverForPrint(doc: Document): void {
   const stage = doc.querySelector<HTMLElement>('.print-cover-hero-stage.hasHero');
   if (!stage) return;
@@ -45,39 +111,45 @@ export function prepareJournalCoverForPrint(doc: Document): void {
   const sheet = stage.closest<HTMLElement>('.print-cover-sheet');
   const img = stage.querySelector<HTMLImageElement>('.print-cover-hero-full');
   const fillsPage = img ? heroFillsPrintPage(img.naturalWidth, img.naturalHeight) : true;
-  const bgSize = fillsPage ? 'cover' : 'contain';
-  const heroUrl = img?.currentSrc || img?.src || stage.dataset.heroSrc || '';
 
   stage.classList.remove('hero-fills-page', 'hero-centered');
   stage.classList.add(fillsPage ? 'hero-fills-page' : 'hero-centered');
 
+  const coverHeight = `${COVER_PAGE_HEIGHT_MM}mm`;
   stage.style.position = 'relative';
   stage.style.display = 'block';
   stage.style.width = '100%';
-  stage.style.height = `${COVER_PRINT_HEIGHT_MM}mm`;
-  stage.style.maxHeight = `${COVER_PRINT_HEIGHT_MM}mm`;
+  stage.style.height = coverHeight;
+  stage.style.maxHeight = coverHeight;
   stage.style.overflow = 'hidden';
   stage.style.margin = '0';
   stage.style.padding = '0';
   stage.style.boxSizing = 'border-box';
+  stage.style.backgroundColor = '#0f172a';
+  stage.style.backgroundImage = 'none';
   if (sheet) {
     sheet.style.margin = '0';
     sheet.style.padding = '0';
+    sheet.style.height = coverHeight;
+    sheet.style.maxHeight = coverHeight;
+    sheet.style.overflow = 'hidden';
     sheet.style.pageBreakAfter = 'always';
     sheet.style.breakAfter = 'page';
-  }
-  stage.style.backgroundColor = '#0f172a';
-  if (heroUrl) {
-    stage.style.backgroundImage = `url("${heroUrl.replace(/"/g, '%22')}")`;
-    stage.style.backgroundRepeat = 'no-repeat';
-    stage.style.backgroundPosition = 'center center';
-    stage.style.backgroundSize = bgSize;
   }
   stage.style.setProperty('-webkit-print-color-adjust', 'exact');
   stage.style.setProperty('print-color-adjust', 'exact');
 
   if (img) {
-    img.style.display = 'none';
+    img.style.display = 'block';
+    img.style.position = 'absolute';
+    img.style.inset = '0';
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.maxWidth = '100%';
+    img.style.maxHeight = '100%';
+    img.style.objectFit = fillsPage ? 'cover' : 'contain';
+    img.style.objectPosition = 'center center';
+    img.style.zIndex = '1';
   }
 
   const overlay = stage.querySelector<HTMLElement>('.print-cover-overlay');
@@ -142,14 +214,6 @@ function buildJournalPrintStyles(
   aspect-ratio: ${COVER_PAGE_WIDTH_MM} / ${COVER_PAGE_HEIGHT_MM};
   overflow: hidden;
   background-color: #0f172a;
-  background-repeat: no-repeat;
-  background-position: center center;
-}
-.print-root.separate-cover-page .print-cover-hero-stage.hero-fills-page.hasHero {
-  background-size: cover;
-}
-.print-root.separate-cover-page .print-cover-hero-stage.hero-centered.hasHero {
-  background-size: contain;
 }
 .print-root.separate-cover-page .print-cover-hero-full {
   position: absolute;
@@ -232,7 +296,7 @@ function buildJournalPrintStyles(
 
   return `
 html { font-size: ${basePx}px; }
-@page { size: portrait; margin: 2.2cm 1.9cm 2.2cm 1.9cm; }
+@page { size: A4 portrait; margin: ${PAGE_MARGIN_Y_MM}mm ${PAGE_MARGIN_X_MM}mm; }
 body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color: #0f172a; background: #fff; }
 .th-journal-print { padding: 16px 20px 32px; max-width: 46rem; margin: 0 auto; }
 .print-front-matter { page-break-inside: avoid; margin-bottom: 0.5rem; }
@@ -246,7 +310,8 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-
 .print-cover-summary > div:last-child { border-bottom: none; }
 .print-day-block { page-break-inside: auto; }
 .print-day-section { margin-top: 0; padding-top: 0; border-top: none; }
-.print-root.has-cover .print-day-block:first-of-type { margin-top: 0.75rem; }
+.print-root.has-cover:not(.separate-cover-page) .print-day-block:first-of-type { margin-top: 0.75rem; }
+.print-root.separate-cover-page.has-cover .print-day-block:first-of-type { margin-top: 0; }
 .print-root:not(.has-cover) .print-day-block:first-of-type { margin-top: 0; }
 .print-day-block + .print-day-block { margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px solid #ddd; }
 .print-day-heading { margin-bottom: 0.75rem; font-size: 1.35rem; page-break-after: avoid; }
@@ -269,13 +334,17 @@ ${coverBreak}
     break-after: page;
     margin: 0 !important;
     padding: 0 !important;
+    height: ${COVER_PAGE_HEIGHT_MM}mm !important;
+    max-height: ${COVER_PAGE_HEIGHT_MM}mm !important;
+    overflow: hidden !important;
+    page-break-inside: avoid !important;
   }
   .print-root.separate-cover-page .print-cover-hero-stage.hasHero {
     position: relative !important;
     display: block !important;
     width: 100% !important;
-    height: ${COVER_PRINT_HEIGHT_MM}mm !important;
-    max-height: ${COVER_PRINT_HEIGHT_MM}mm !important;
+    height: ${COVER_PAGE_HEIGHT_MM}mm !important;
+    max-height: ${COVER_PAGE_HEIGHT_MM}mm !important;
     overflow: hidden !important;
     aspect-ratio: auto !important;
     margin: 0 !important;
@@ -292,15 +361,22 @@ ${coverBreak}
     page-break-before: auto !important;
   }
   .print-root.separate-cover-page .print-cover-hero-stage.hasHero .print-cover-hero-full {
-    display: none !important;
+    display: block !important;
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 1 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
-  .print-root.separate-cover-page .print-cover-hero-stage.hero-fills-page.hasHero {
-    background-size: cover !important;
-    background-position: center center !important;
+  .print-root.separate-cover-page .print-cover-hero-stage.hero-fills-page .print-cover-hero-full {
+    object-fit: cover !important;
+    object-position: center center !important;
   }
-  .print-root.separate-cover-page .print-cover-hero-stage.hero-centered.hasHero {
-    background-size: contain !important;
-    background-position: center center !important;
+  .print-root.separate-cover-page .print-cover-hero-stage.hero-centered .print-cover-hero-full {
+    object-fit: contain !important;
+    object-position: center center !important;
   }
   .print-root.separate-cover-page .print-cover-overlay {
     position: absolute !important;
@@ -395,7 +471,7 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
       const heroDataAttr = rawHero ? ` data-hero-src="${coverHeroAttr}"` : '';
       body += `<div class="print-cover-sheet"><div class="print-cover-hero-stage ${rawHero ? 'hasHero hero-fills-page' : 'noHero'}"${heroDataAttr}>`;
       if (rawHero) {
-        body += `<img class="print-cover-hero-full" src="${coverHeroAttr}" alt="" crossorigin="anonymous" />`;
+        body += `<img class="print-cover-hero-full" src="${coverHeroAttr}" alt="" />`;
       }
       body += `<div class="print-cover-overlay"><div class="print-cover-content"><h1>${esc(trip.title)}</h1><p>${esc(trip.destination)}</p><p>${esc(formatOrdinalDateRange(trip.dateStart, trip.dateEnd))}</p></div></div></div></div>`;
       if (showSummary) {

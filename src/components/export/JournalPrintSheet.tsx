@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { prepareJournalCoverForPrint } from '../../utils/journalPrintPreview';
+import { embedCoverHeroForPrint, prepareJournalCoverForPrint } from '../../utils/journalPrintPreview';
 import styles from '../itinerary/DayPlannerPrintSheet.module.css';
 
 export interface JournalPrintSheetProps {
@@ -42,6 +42,8 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({ title, htm
     const doc = frameRef.current?.contentDocument;
     if (!win || !doc) return;
 
+    await waitForPrintReady(doc);
+    await embedCoverHeroForPrint(doc);
     await waitForPrintReady(doc);
     prepareJournalCoverForPrint(doc);
 
