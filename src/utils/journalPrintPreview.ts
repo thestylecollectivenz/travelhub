@@ -14,6 +14,7 @@ function esc(s: string): string {
 }
 
 export type JournalExportFontSize = 'small' | 'medium' | 'large';
+export type CoverTitleAlign = 'center' | 'left';
 
 const FONT_SIZE_PX: Record<JournalExportFontSize, number> = {
   small: 14,
@@ -30,12 +31,12 @@ const COVER_PAGE_WIDTH_MM = A4_WIDTH_MM - PAGE_MARGIN_X_MM * 2;
 const COVER_PAGE_HEIGHT_MM = A4_HEIGHT_MM - PAGE_MARGIN_Y_MM * 2;
 /** Below this effective DPI, hero is centred with contain instead of full-page cover. */
 const COVER_HERO_MIN_DPI = 150;
-const COVER_OVERLAY_HEIGHT_MM = Math.round(COVER_PAGE_HEIGHT_MM * 0.33);
+const COVER_OVERLAY_HEIGHT_MM = Math.round(A4_HEIGHT_MM * 0.33);
 
 export function heroFillsPrintPage(naturalWidth: number, naturalHeight: number): boolean {
   if (!naturalWidth || !naturalHeight) return true;
-  const needW = Math.round((COVER_PAGE_WIDTH_MM / 25.4) * COVER_HERO_MIN_DPI);
-  const needH = Math.round((COVER_PAGE_HEIGHT_MM / 25.4) * COVER_HERO_MIN_DPI);
+  const needW = Math.round((A4_WIDTH_MM / 25.4) * COVER_HERO_MIN_DPI);
+  const needH = Math.round((A4_HEIGHT_MM / 25.4) * COVER_HERO_MIN_DPI);
   return Math.max(needW / naturalWidth, needH / naturalHeight) <= 1;
 }
 
@@ -115,10 +116,11 @@ export function prepareJournalCoverForPrint(doc: Document): void {
   stage.classList.remove('hero-fills-page', 'hero-centered');
   stage.classList.add(fillsPage ? 'hero-fills-page' : 'hero-centered');
 
-  const coverHeight = `${COVER_PAGE_HEIGHT_MM}mm`;
+  const coverWidth = `${A4_WIDTH_MM}mm`;
+  const coverHeight = `${A4_HEIGHT_MM}mm`;
   stage.style.position = 'relative';
   stage.style.display = 'block';
-  stage.style.width = '100%';
+  stage.style.width = coverWidth;
   stage.style.height = coverHeight;
   stage.style.maxHeight = coverHeight;
   stage.style.overflow = 'hidden';
@@ -130,6 +132,7 @@ export function prepareJournalCoverForPrint(doc: Document): void {
   if (sheet) {
     sheet.style.margin = '0';
     sheet.style.padding = '0';
+    sheet.style.width = coverWidth;
     sheet.style.height = coverHeight;
     sheet.style.maxHeight = coverHeight;
     sheet.style.overflow = 'hidden';
@@ -152,6 +155,7 @@ export function prepareJournalCoverForPrint(doc: Document): void {
     img.style.zIndex = '1';
   }
 
+  const isLeftAlign = doc.querySelector('.print-root')?.classList.contains('cover-title-left') === true;
   const overlay = stage.querySelector<HTMLElement>('.print-cover-overlay');
   if (overlay) {
     overlay.style.position = 'absolute';
@@ -161,15 +165,20 @@ export function prepareJournalCoverForPrint(doc: Document): void {
     overlay.style.height = `${COVER_OVERLAY_HEIGHT_MM}mm`;
     overlay.style.zIndex = '2';
     overlay.style.display = 'flex';
-    overlay.style.alignItems = 'center';
-    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = isLeftAlign ? 'flex-start' : 'center';
+    overlay.style.justifyContent = isLeftAlign ? 'flex-start' : 'center';
     overlay.style.padding = '1.25rem 1.5rem';
-    overlay.style.textAlign = 'center';
+    overlay.style.textAlign = isLeftAlign ? 'left' : 'center';
     overlay.style.boxSizing = 'border-box';
     overlay.style.background =
       'linear-gradient(180deg, rgba(15, 23, 42, 0.62) 0%, rgba(15, 23, 42, 0.3) 55%, transparent 100%)';
     overlay.style.setProperty('-webkit-print-color-adjust', 'exact');
     overlay.style.setProperty('print-color-adjust', 'exact');
+    const content = overlay.querySelector<HTMLElement>('.print-cover-content');
+    if (content) {
+      content.style.justifyItems = isLeftAlign ? 'start' : 'center';
+      content.style.textAlign = isLeftAlign ? 'left' : 'center';
+    }
   }
 
   stage.querySelectorAll<HTMLElement>('.print-cover-overlay .print-cover-content h1').forEach((el) => {
@@ -193,16 +202,59 @@ export function prepareJournalCoverForPrint(doc: Document): void {
 function buildJournalPrintStyles(
   oneDayPerPage: boolean,
   fontSize: JournalExportFontSize,
-  separateCoverPage: boolean
+  separateCoverPage: boolean,
+  coverTitleAlign: CoverTitleAlign
 ): string {
   const basePx = FONT_SIZE_PX[fontSize];
+  const coverTitleCss =
+    coverTitleAlign === 'left'
+      ? `.print-root.cover-title-left .print-cover-content {
+  justify-items: start;
+  text-align: left;
+}
+.print-root.cover-title-left.separate-cover-page .print-cover-overlay {
+  align-items: flex-start;
+  justify-content: flex-start;
+  text-align: left;
+}
+.print-root.cover-title-left.separate-cover-page .print-cover-overlay .print-cover-content {
+  justify-items: start;
+  text-align: left;
+}
+.print-root.cover-title-left.separate-cover-page .print-cover-hero-stage.noHero {
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+.print-root.cover-title-left.separate-cover-page .print-cover-hero-stage.noHero .print-cover-overlay {
+  padding: 1.5rem;
+}`
+      : `.print-root.cover-title-center .print-cover-content {
+  justify-items: center;
+  text-align: center;
+}
+.print-root.cover-title-center.separate-cover-page .print-cover-overlay {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.print-root.cover-title-center.separate-cover-page .print-cover-overlay .print-cover-content {
+  justify-items: center;
+  text-align: center;
+}`;
   const separateCoverCss = separateCoverPage
     ? `.print-root.separate-cover-page .print-cover-sheet {
+  page: cover;
   page-break-after: always;
   break-after: page;
   page-break-inside: avoid;
-  width: 100%;
-  margin: 0;
+  width: ${A4_WIDTH_MM}mm;
+  max-width: ${A4_WIDTH_MM}mm;
+  margin: 0 auto;
+}
+.print-root.separate-cover-page .print-cover-sheet + .print-front-matter,
+.print-root.separate-cover-page .print-cover-sheet + .print-day-block {
+  margin-top: 0;
+  padding-top: 0;
 }
 .print-root.separate-cover-page .print-day-block:first-of-type {
   margin-top: 0;
@@ -211,7 +263,7 @@ function buildJournalPrintStyles(
 .print-root.separate-cover-page .print-cover-hero-stage {
   position: relative;
   width: 100%;
-  aspect-ratio: ${COVER_PAGE_WIDTH_MM} / ${COVER_PAGE_HEIGHT_MM};
+  aspect-ratio: ${A4_WIDTH_MM} / ${A4_HEIGHT_MM};
   overflow: hidden;
   background-color: #0f172a;
 }
@@ -297,12 +349,25 @@ function buildJournalPrintStyles(
   return `
 html { font-size: ${basePx}px; }
 @page { size: A4 portrait; margin: ${PAGE_MARGIN_Y_MM}mm ${PAGE_MARGIN_X_MM}mm; }
+@page cover { size: A4 portrait; margin: 0; }
 body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color: #0f172a; background: #fff; }
+.print-day-head { break-inside: avoid; page-break-inside: avoid; break-after: avoid; page-break-after: avoid; }
+.print-day-head .print-day-heading { margin-bottom: 0.35rem; }
+.print-day-head + .print-entry,
+.print-day-head + .print-album-photos { break-before: avoid; page-break-before: avoid; }
+.print-entry > .print-entry-meta { break-after: avoid; page-break-after: avoid; }
+.print-entry > .print-entry-body { break-before: avoid; page-break-before: avoid; orphans: 3; widows: 3; }
+.print-entry-body + .photoGrid,
+.print-entry-meta + .photoGrid { break-before: avoid; page-break-before: avoid; }
+.print-album-heading { break-after: avoid; page-break-after: avoid; }
+.print-album-heading + .photoGrid { break-before: avoid; page-break-before: avoid; }
+.photoGrid figure { break-inside: avoid; page-break-inside: avoid; }
 .th-journal-print { padding: 16px 20px 32px; max-width: 46rem; margin: 0 auto; }
 .print-front-matter { page-break-inside: avoid; margin-bottom: 0.5rem; }
 .print-cover-page { display: grid; grid-template-rows: auto auto; page-break-after: avoid; min-height: auto; }
 .print-cover-hero { width: 100%; max-height: 9rem; object-fit: cover; object-position: center; }
-.print-cover-content { display: grid; gap: 4px; justify-items: center; text-align: center; padding: 8px 16px 4px; }
+.print-cover-content { display: grid; gap: 4px; padding: 8px 16px 4px; }
+${coverTitleCss}
 .print-cover-content h1 { margin: 0; font-size: 1.75rem; line-height: 1.2; }
 .print-cover-content p { margin: 0; line-height: 1.35; }
 .print-cover-summary { margin-top: 8px; width: min(36rem, 100%); border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
@@ -314,7 +379,7 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-
 .print-root.separate-cover-page.has-cover .print-day-block:first-of-type { margin-top: 0; }
 .print-root:not(.has-cover) .print-day-block:first-of-type { margin-top: 0; }
 .print-day-block + .print-day-block { margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px solid #ddd; }
-.print-day-heading { margin-bottom: 0.75rem; font-size: 1.35rem; page-break-after: avoid; }
+.print-day-heading { margin-bottom: 0.75rem; font-size: 1.35rem; break-after: avoid; page-break-after: avoid; }
 .print-entry { margin-bottom: 1.5rem; }
 .print-entry-meta { margin-bottom: 0.5rem; color: #64748b; font-size: 0.85rem; text-align: left; }
 .print-entry-heading { margin: 0 0 0.35rem; font-size: 1rem; text-align: left; }
@@ -330,12 +395,15 @@ ${coverBreak}
   .th-journal-print { padding: 0; max-width: none; }
   .th-journal-print h1, .th-journal-print h2, .th-journal-print h3 { page-break-after: avoid; }
   .print-root.separate-cover-page .print-cover-sheet {
+    page: cover !important;
     page-break-after: always;
     break-after: page;
     margin: 0 !important;
     padding: 0 !important;
-    height: ${COVER_PAGE_HEIGHT_MM}mm !important;
-    max-height: ${COVER_PAGE_HEIGHT_MM}mm !important;
+    width: ${A4_WIDTH_MM}mm !important;
+    max-width: ${A4_WIDTH_MM}mm !important;
+    height: ${A4_HEIGHT_MM}mm !important;
+    max-height: ${A4_HEIGHT_MM}mm !important;
     overflow: hidden !important;
     page-break-inside: avoid !important;
   }
@@ -343,8 +411,8 @@ ${coverBreak}
     position: relative !important;
     display: block !important;
     width: 100% !important;
-    height: ${COVER_PAGE_HEIGHT_MM}mm !important;
-    max-height: ${COVER_PAGE_HEIGHT_MM}mm !important;
+    height: ${A4_HEIGHT_MM}mm !important;
+    max-height: ${A4_HEIGHT_MM}mm !important;
     overflow: hidden !important;
     aspect-ratio: auto !important;
     margin: 0 !important;
@@ -355,11 +423,24 @@ ${coverBreak}
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+  .print-root.separate-cover-page .print-cover-sheet + .print-front-matter,
+  .print-root.separate-cover-page .print-cover-sheet + .print-day-block,
   .print-root.separate-cover-page .print-day-block:first-of-type {
     margin-top: 0 !important;
     padding-top: 0 !important;
     page-break-before: auto !important;
   }
+  .print-day-head {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+  }
+  .print-day-head + .print-entry,
+  .print-day-head + .print-album-photos { break-before: avoid !important; page-break-before: avoid !important; }
+  .print-entry > .print-entry-meta { break-after: avoid !important; page-break-after: avoid !important; }
+  .print-entry > .print-entry-body { break-before: avoid !important; page-break-before: avoid !important; }
+  .print-entry-body + .photoGrid { break-before: avoid !important; page-break-before: avoid !important; }
   .print-root.separate-cover-page .print-cover-hero-stage.hasHero .print-cover-hero-full {
     display: block !important;
     position: absolute !important;
@@ -396,6 +477,19 @@ ${coverBreak}
   .print-root.separate-cover-page .print-cover-overlay .print-cover-content p {
     color: #fff !important;
   }
+  .print-root.cover-title-left.separate-cover-page .print-cover-overlay {
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    text-align: left !important;
+  }
+  .print-root.cover-title-left.separate-cover-page .print-cover-overlay .print-cover-content {
+    justify-items: start !important;
+    text-align: left !important;
+  }
+  .print-root.cover-title-left .print-cover-content {
+    justify-items: start !important;
+    text-align: left !important;
+  }
 }
 `;
 }
@@ -417,6 +511,7 @@ export interface JournalPrintPreviewParams {
   includeAuthorNames: boolean;
   oneDayPerPage: boolean;
   separateCoverPage?: boolean;
+  coverTitleAlign?: CoverTitleAlign;
   fontSize?: JournalExportFontSize;
 }
 
@@ -453,6 +548,7 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
     includeAuthorNames,
     oneDayPerPage,
     separateCoverPage = false,
+    coverTitleAlign = 'center',
     fontSize = 'medium'
   } = params;
 
@@ -507,10 +603,11 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
     const dayTitle = esc(formatJournalDayTitle(day));
     const firstClass = oneDayPerPage && idx === 0 ? ' print-day-first' : '';
     body += `<div class="print-day-block${firstClass}">`;
-    body += `<section class="print-day-section"><h2 class="print-day-heading">${dayTitle}</h2>`;
+    body += `<section class="print-day-section"><div class="print-day-head"><h2 class="print-day-heading">${dayTitle}</h2>`;
     if (day.dayType !== 'PreTrip') {
-      body += `<p class="print-entry-meta">${esc(formatOrdinalDayDate(day.calendarDate))}</p>`;
+      body += `<p class="print-entry-meta print-day-date">${esc(formatOrdinalDayDate(day.calendarDate))}</p>`;
     }
+    body += `</div>`;
     for (const entry of dayEntries) {
       const entryPhotos = photos.filter((p) => p.journalEntryId === entry.id);
       const comments = commentsForEntry(entry.id);
@@ -550,7 +647,8 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
   });
 
   const useSeparateCover = separateCoverPage && showCover;
-  const rootClass = `print-root th-journal-print${showCover ? ' has-cover' : ''}${useSeparateCover ? ' separate-cover-page' : ''}${oneDayPerPage ? ' one-day-per-page' : ''}`;
-  const styles = buildJournalPrintStyles(oneDayPerPage, fontSize, useSeparateCover);
+  const titleAlignClass = showCover ? (coverTitleAlign === 'left' ? ' cover-title-left' : ' cover-title-center') : '';
+  const rootClass = `print-root th-journal-print${showCover ? ' has-cover' : ''}${useSeparateCover ? ' separate-cover-page' : ''}${oneDayPerPage ? ' one-day-per-page' : ''}${titleAlignClass}`;
+  const styles = buildJournalPrintStyles(oneDayPerPage, fontSize, useSeparateCover, coverTitleAlign);
   return `<!DOCTYPE html><html class="font-size-${fontSize}"><head><meta charset="utf-8"/><title></title><style>${styles}</style></head><body><div class="${rootClass}">${body}</div></body></html>`;
 }

@@ -2,7 +2,11 @@ import * as React from 'react';
 import type { Trip } from '../../models/Trip';
 import type { TripDay } from '../../models/TripDay';
 import type { JournalEntry, JournalPhoto, JournalComment } from '../../models';
-import { buildJournalPrintDocument, type JournalExportFontSize } from '../../utils/journalPrintPreview';
+import {
+  buildJournalPrintDocument,
+  type CoverTitleAlign,
+  type JournalExportFontSize
+} from '../../utils/journalPrintPreview';
 import {
   downloadStampedPdf,
   stampJournalPdf,
@@ -40,6 +44,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
   const [includeAuthorNames, setIncludeAuthorNames] = React.useState(trip.showAuthorName !== false);
   const [oneDayPerPage, setOneDayPerPage] = React.useState(false);
   const [separateCoverPage, setSeparateCoverPage] = React.useState(false);
+  const [coverTitleAlign, setCoverTitleAlign] = React.useState<CoverTitleAlign>('center');
   const [fontSize, setFontSize] = React.useState<JournalExportFontSize>('medium');
 
   const [stampFooterUrl, setStampFooterUrl] = React.useState(true);
@@ -82,6 +87,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
       includeAuthorNames,
       oneDayPerPage,
       separateCoverPage,
+      coverTitleAlign,
       fontSize
     });
     setPrintHtml(html);
@@ -102,6 +108,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
     includeAuthorNames,
     oneDayPerPage,
     separateCoverPage,
+    coverTitleAlign,
     fontSize
   ]);
 
@@ -194,6 +201,18 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
           </label>
           <label>
             <input type="checkbox" checked={oneDayPerPage} onChange={(e) => setOneDayPerPage(e.target.checked)} /> One day per page (print)
+          </label>
+          <label className="fontSizeControl">
+            Cover title{' '}
+            <select
+              value={coverTitleAlign}
+              onChange={(e) => setCoverTitleAlign(e.target.value as CoverTitleAlign)}
+              disabled={!showCover}
+              aria-label="Cover title alignment"
+            >
+              <option value="center">Centred</option>
+              <option value="left">Left aligned</option>
+            </select>
           </label>
           <label className="fontSizeControl">
             Font size{' '}
