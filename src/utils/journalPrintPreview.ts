@@ -4,6 +4,11 @@ import type { JournalEntry, JournalPhoto, JournalComment } from '../models';
 import { compareJournalPhotos } from './compareJournalPhotos';
 import { formatOrdinalDayDate, formatOrdinalDateRange } from './formatTripDayDate';
 import { formatJournalDayTitle } from './formatDayHeadingLabel';
+import {
+  JOURNAL_FOOTER_BAND_MM,
+  JOURNAL_SHEET_HEIGHT_MM,
+  journalPrintPageMargins
+} from './journalPrintLayout';
 
 function esc(s: string): string {
   return (s || '')
@@ -21,33 +26,37 @@ const FONT_SIZE_PX: Record<JournalExportFontSize, number> = {
   large: 18
 };
 
-const PAGE_HEIGHT_MM = 297;
-const MARGIN_TOP_MM = 22;
-const MARGIN_BOTTOM_MM = 30;
-
 function buildJournalPrintStyles(
   oneDayPerPage: boolean,
   fontSize: JournalExportFontSize,
   includePageNumbers: boolean
 ): string {
   const basePx = FONT_SIZE_PX[fontSize];
-  const pageMarginBottom = includePageNumbers ? '3cm' : '2.2cm';
+  const pageMargins = journalPrintPageMargins(includePageNumbers);
   const paginatedPageCss = includePageNumbers
-    ? `.print-pages { width: 100%; }
+    ? `.print-pages.th-journal-print { padding: 0; max-width: none; }
 .print-page-sheet {
-  position: relative;
+  display: flex;
+  flex-direction: column;
   box-sizing: border-box;
   width: 100%;
-  min-height: ${PAGE_HEIGHT_MM - MARGIN_TOP_MM - MARGIN_BOTTOM_MM}mm;
+  height: ${JOURNAL_SHEET_HEIGHT_MM}mm;
+  min-height: ${JOURNAL_SHEET_HEIGHT_MM}mm;
   page-break-after: always;
   break-after: page;
+  overflow: hidden;
 }
 .print-page-sheet:last-child { page-break-after: auto; break-after: auto; }
-.print-page-content { width: 100%; }
+.print-page-content { flex: 1 1 auto; min-height: 0; width: 100%; }
+.print-page-footer {
+  flex: 0 0 ${JOURNAL_FOOTER_BAND_MM}mm;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  margin: 0;
+  padding: 0;
+}
 .print-page-number {
-  position: absolute;
-  bottom: 0;
-  right: 0;
   font-size: 0.53rem;
   color: #64748b;
   line-height: 1;
@@ -64,7 +73,7 @@ function buildJournalPrintStyles(
 
   return `
 html { font-size: ${basePx}px; }
-@page { size: portrait; margin: 2.2cm 1.9cm ${pageMarginBottom} 1.9cm; }
+@page { size: portrait; margin: ${pageMargins}; }
 body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color: #0f172a; background: #fff; }
 .th-journal-print { padding: 16px 20px 32px; max-width: 46rem; margin: 0 auto; }
 .print-front-matter { page-break-inside: avoid; margin-bottom: 0.5rem; }

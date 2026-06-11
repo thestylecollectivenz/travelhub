@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { paginateJournalPrintDocument } from '../../utils/journalPrintPagination';
-import { printHtmlDocument } from '../../utils/printHtmlDocument';
+import { printHtmlDocument, waitForImages } from '../../utils/printHtmlDocument';
 import styles from '../itinerary/DayPlannerPrintSheet.module.css';
 
 export interface JournalPrintSheetProps {
@@ -31,7 +31,7 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({
     const doc = frameRef.current?.contentDocument;
     if (!win || !doc) return;
 
-    if (includePageNumbers) {
+    if (includePageNumbers && !doc.querySelector('.print-pages')) {
       paginateJournalPrintDocument(doc);
     }
 
@@ -74,7 +74,7 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({
           </button>
           {includePageNumbers ? (
             <p className={styles.printHint}>
-              Turn <strong>Headers and footers</strong> <strong>Off</strong> in the print dialog — page numbers are in the journal footer.
+              Turn <strong>Headers and footers Off</strong> in the print dialog — browsers cannot enable page numbers only. Numbers are printed at the bottom of each journal page.
             </p>
           ) : null}
         </div>
@@ -83,7 +83,13 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({
           className={styles.frame}
           title={title}
           srcDoc={html}
-          onLoad={clearFrameTitle}
+          onLoad={() => {
+            clearFrameTitle();
+            const doc = frameRef.current?.contentDocument;
+            if (doc && includePageNumbers) {
+              void waitForImages(doc).then(() => paginateJournalPrintDocument(doc));
+            }
+          }}
         />
       </div>
     </div>
