@@ -18,9 +18,50 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({ title, htm
     }
   }, []);
 
-  const handlePrint = React.useCallback((): void => {
+  const waitForPrintReady = React.useCallback(async (doc: Document): Promise<void> => {
+    const hasHeroCover = doc.querySelector('.print-cover-hero-stage.hasHero');
+    if (hasHeroCover) {
+      await new Promise<void>((resolve) => {
+        const done = (): void => resolve();
+        if (doc.body?.getAttribute('data-cover-ready') === '1') {
+          done();
+          return;
+        }
+        const deadline = Date.now() + 10000;
+        const tick = (): void => {
+          if (doc.body?.getAttribute('data-cover-ready') === '1' || Date.now() > deadline) {
+            done();
+            return;
+          }
+          requestAnimationFrame(tick);
+        };
+        tick();
+      });
+    }
+
+    const images = Array.from(doc.querySelectorAll('img'));
+    await Promise.all(
+      images.map(
+        (img) =>
+          new Promise<void>((resolve) => {
+            if (img.complete) {
+              resolve();
+              return;
+            }
+            const finish = (): void => resolve();
+            img.addEventListener('load', finish, { once: true });
+            img.addEventListener('error', finish, { once: true });
+          })
+      )
+    );
+  }, []);
+
+  const handlePrint = React.useCallback(async (): Promise<void> => {
     const win = frameRef.current?.contentWindow;
-    if (!win) return;
+    const doc = frameRef.current?.contentDocument;
+    if (!win || !doc) return;
+
+    await waitForPrintReady(doc);
 
     const parentTitle = document.title;
     clearFrameTitle();
@@ -39,7 +80,7 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({ title, htm
     } catch {
       restoreTitle();
     }
-  }, [clearFrameTitle]);
+  }, [clearFrameTitle, waitForPrintReady]);
 
   return (
     <div className={styles.backdrop} role="presentation">

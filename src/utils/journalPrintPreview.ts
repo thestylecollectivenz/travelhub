@@ -21,6 +21,39 @@ const FONT_SIZE_PX: Record<JournalExportFontSize, number> = {
   large: 18
 };
 
+/** Printable area inside @page margins (mm). */
+const COVER_PAGE_WIDTH_MM = 172;
+const COVER_PAGE_HEIGHT_MM = 253;
+/** Below this effective DPI, hero is centred with contain instead of full-page cover. */
+const COVER_HERO_MIN_DPI = 150;
+
+const COVER_HERO_FIT_SCRIPT = `(function(){
+  var PAGE_W_MM=${COVER_PAGE_WIDTH_MM},PAGE_H_MM=${COVER_PAGE_HEIGHT_MM},MIN_DPI=${COVER_HERO_MIN_DPI};
+  function minPx(mm){return Math.round(mm/25.4*MIN_DPI);}
+  function apply(stage,img){
+    if(!img.naturalWidth){return;}
+    var needW=minPx(PAGE_W_MM),needH=minPx(PAGE_H_MM);
+    var scale=Math.max(needW/img.naturalWidth,needH/img.naturalHeight);
+    stage.classList.remove('hero-fills-page','hero-centered');
+    stage.classList.add(scale>1?'hero-centered':'hero-fills-page');
+    document.body.setAttribute('data-cover-ready','1');
+  }
+  function ready(){
+    var stage=document.querySelector('.print-cover-hero-stage.hasHero');
+    if(!stage){document.body.setAttribute('data-cover-ready','1');return;}
+    var img=stage.querySelector('.print-cover-hero-full');
+    if(!img){document.body.setAttribute('data-cover-ready','1');return;}
+    if(img.complete&&img.naturalWidth){apply(stage,img);return;}
+    img.addEventListener('load',function(){apply(stage,img);});
+    img.addEventListener('error',function(){
+      stage.classList.add('hero-centered');
+      document.body.setAttribute('data-cover-ready','1');
+    });
+  }
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',ready);}
+  else{ready();}
+})();`;
+
 function buildJournalPrintStyles(
   oneDayPerPage: boolean,
   fontSize: JournalExportFontSize,
@@ -28,28 +61,36 @@ function buildJournalPrintStyles(
 ): string {
   const basePx = FONT_SIZE_PX[fontSize];
   const separateCoverCss = separateCoverPage
-    ? `.print-root.separate-cover-page .print-cover-sheet {
+    ? `.print-root.separate-cover-page.th-journal-print {
+  max-width: none;
+  padding: 0;
+}
+.print-root.separate-cover-page .print-cover-sheet {
   page-break-after: always;
   break-after: page;
   page-break-inside: avoid;
+  width: 100%;
 }
-.print-root.separate-cover-page .print-cover-sheet .print-cover-page {
+.print-root.separate-cover-page .print-cover-hero-stage {
   position: relative;
   width: 100%;
-  height: 36rem;
-  max-height: 36rem;
+  aspect-ratio: ${COVER_PAGE_WIDTH_MM} / ${COVER_PAGE_HEIGHT_MM};
   overflow: hidden;
-  display: block;
+  background: #0f172a;
 }
 .print-root.separate-cover-page .print-cover-hero-full {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  max-height: none;
-  object-fit: cover;
-  object-position: center center;
   display: block;
+  object-position: center center;
+}
+.print-root.separate-cover-page .print-cover-hero-stage.hero-fills-page .print-cover-hero-full {
+  object-fit: cover;
+}
+.print-root.separate-cover-page .print-cover-hero-stage.hero-centered .print-cover-hero-full {
+  object-fit: contain;
 }
 .print-root.separate-cover-page .print-cover-overlay {
   position: absolute;
@@ -57,13 +98,14 @@ function buildJournalPrintStyles(
   left: 0;
   right: 0;
   height: 33%;
-  z-index: 1;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1.25rem 1.5rem;
   text-align: center;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.58) 0%, rgba(15, 23, 42, 0.28) 55%, transparent 100%);
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.62) 0%, rgba(15, 23, 42, 0.3) 55%, transparent 100%);
 }
 .print-root.separate-cover-page .print-cover-overlay .print-cover-content {
   display: grid;
@@ -71,13 +113,14 @@ function buildJournalPrintStyles(
   justify-items: center;
   padding: 0;
   color: #fff;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
 }
 .print-root.separate-cover-page .print-cover-overlay .print-cover-content h1 {
   margin: 0;
   color: #fff;
   font-size: 1.85rem;
   line-height: 1.15;
+  font-weight: 700;
 }
 .print-root.separate-cover-page .print-cover-overlay .print-cover-content p {
   margin: 0;
@@ -85,13 +128,13 @@ function buildJournalPrintStyles(
   line-height: 1.35;
   font-size: 1rem;
 }
-.print-root.separate-cover-page .print-cover-page.noHero {
+.print-root.separate-cover-page .print-cover-hero-stage.noHero {
   display: flex;
   align-items: center;
   justify-content: center;
   background: linear-gradient(160deg, #1e3a5f 0%, #0f172a 100%);
 }
-.print-root.separate-cover-page .print-cover-page.noHero .print-cover-overlay {
+.print-root.separate-cover-page .print-cover-hero-stage.noHero .print-cover-overlay {
   position: static;
   height: auto;
   width: 100%;
@@ -148,9 +191,10 @@ ${coverBreak}
 @media print {
   .th-journal-print { padding: 0; max-width: none; }
   .th-journal-print h1, .th-journal-print h2, .th-journal-print h3 { page-break-after: avoid; }
-  .print-root.separate-cover-page .print-cover-sheet .print-cover-page {
-    height: 253mm;
-    max-height: 253mm;
+  .print-root.separate-cover-page .print-cover-hero-stage {
+    aspect-ratio: auto;
+    height: ${COVER_PAGE_HEIGHT_MM}mm;
+    max-height: ${COVER_PAGE_HEIGHT_MM}mm;
   }
 }
 `;
@@ -224,9 +268,9 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
   let body = '';
   if (showCover) {
     if (separateCoverPage) {
-      body += `<div class="print-cover-sheet"><div class="print-cover-page ${rawHero ? 'hasHero' : 'noHero'}">`;
+      body += `<div class="print-cover-sheet"><div class="print-cover-hero-stage ${rawHero ? 'hasHero hero-fills-page' : 'noHero'}">`;
       if (rawHero) {
-        body += `<img class="print-cover-hero print-cover-hero-full" src="${coverHeroAttr}" alt="" crossorigin="anonymous" />`;
+        body += `<img class="print-cover-hero-full" src="${coverHeroAttr}" alt="" crossorigin="anonymous" />`;
       }
       body += `<div class="print-cover-overlay"><div class="print-cover-content"><h1>${esc(trip.title)}</h1><p>${esc(trip.destination)}</p><p>${esc(formatOrdinalDateRange(trip.dateStart, trip.dateEnd))}</p></div></div></div></div>`;
       if (showSummary) {
@@ -304,7 +348,9 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
     body += `</section></div>`;
   });
 
-  const rootClass = `print-root th-journal-print${showCover ? ' has-cover' : ''}${separateCoverPage && showCover ? ' separate-cover-page' : ''}${oneDayPerPage ? ' one-day-per-page' : ''}`;
-  const styles = buildJournalPrintStyles(oneDayPerPage, fontSize, separateCoverPage && showCover);
-  return `<!DOCTYPE html><html class="font-size-${fontSize}"><head><meta charset="utf-8"/><title></title><style>${styles}</style></head><body><div class="${rootClass}">${body}</div></body></html>`;
+  const useSeparateCover = separateCoverPage && showCover;
+  const rootClass = `print-root th-journal-print${showCover ? ' has-cover' : ''}${useSeparateCover ? ' separate-cover-page' : ''}${oneDayPerPage ? ' one-day-per-page' : ''}`;
+  const styles = buildJournalPrintStyles(oneDayPerPage, fontSize, useSeparateCover);
+  const coverScript = useSeparateCover ? `<script>${COVER_HERO_FIT_SCRIPT}</script>` : '';
+  return `<!DOCTYPE html><html class="font-size-${fontSize}"><head><meta charset="utf-8"/><title></title><style>${styles}</style></head><body><div class="${rootClass}">${body}</div>${coverScript}</body></html>`;
 }
