@@ -166,7 +166,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
               onChange={(e) => setSeparateCoverPage(e.target.checked)}
               disabled={!showCover}
             />{' '}
-            Separate cover page (full hero image)
+            Separate cover page (full-page hero)
           </label>
           <label>
             <input type="checkbox" checked={includePreTrip} onChange={(e) => setIncludePreTrip(e.target.checked)} /> Include pre-trip

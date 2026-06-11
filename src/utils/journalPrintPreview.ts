@@ -34,19 +34,68 @@ function buildJournalPrintStyles(
   page-break-inside: avoid;
 }
 .print-root.separate-cover-page .print-cover-sheet .print-cover-page {
-  display: grid;
-  gap: 12px;
-  justify-items: center;
-  text-align: center;
+  position: relative;
+  width: 100%;
+  height: 36rem;
+  max-height: 36rem;
+  overflow: hidden;
+  display: block;
 }
 .print-root.separate-cover-page .print-cover-hero-full {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  max-width: 100%;
+  height: 100%;
   max-height: none;
-  height: auto;
-  object-fit: contain;
-  object-position: center;
+  object-fit: cover;
+  object-position: center center;
   display: block;
+}
+.print-root.separate-cover-page .print-cover-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 33%;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem 1.5rem;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.58) 0%, rgba(15, 23, 42, 0.28) 55%, transparent 100%);
+}
+.print-root.separate-cover-page .print-cover-overlay .print-cover-content {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  padding: 0;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+.print-root.separate-cover-page .print-cover-overlay .print-cover-content h1 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.85rem;
+  line-height: 1.15;
+}
+.print-root.separate-cover-page .print-cover-overlay .print-cover-content p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.96);
+  line-height: 1.35;
+  font-size: 1rem;
+}
+.print-root.separate-cover-page .print-cover-page.noHero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, #1e3a5f 0%, #0f172a 100%);
+}
+.print-root.separate-cover-page .print-cover-page.noHero .print-cover-overlay {
+  position: static;
+  height: auto;
+  width: 100%;
+  background: none;
 }`
     : '';
 
@@ -99,6 +148,10 @@ ${coverBreak}
 @media print {
   .th-journal-print { padding: 0; max-width: none; }
   .th-journal-print h1, .th-journal-print h2, .th-journal-print h3 { page-break-after: avoid; }
+  .print-root.separate-cover-page .print-cover-sheet .print-cover-page {
+    height: 253mm;
+    max-height: 253mm;
+  }
 }
 `;
 }
@@ -175,7 +228,7 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
       if (rawHero) {
         body += `<img class="print-cover-hero print-cover-hero-full" src="${coverHeroAttr}" alt="" crossorigin="anonymous" />`;
       }
-      body += `<div class="print-cover-content"><h1>${esc(trip.title)}</h1><p>${esc(trip.destination)}</p><p>${esc(formatOrdinalDateRange(trip.dateStart, trip.dateEnd))}</p></div></div></div>`;
+      body += `<div class="print-cover-overlay"><div class="print-cover-content"><h1>${esc(trip.title)}</h1><p>${esc(trip.destination)}</p><p>${esc(formatOrdinalDateRange(trip.dateStart, trip.dateEnd))}</p></div></div></div></div>`;
       if (showSummary) {
         body += `<div class="print-front-matter"><div class="print-cover-summary">`;
         body += `<div><strong>Total days</strong><span>${printableDays.length}</span></div>`;
