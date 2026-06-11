@@ -9,6 +9,8 @@ export interface JournalPdfStampOptions {
   tripTitle: string;
   /** Header right — export date */
   includeHeaderDate: boolean;
+  /** Omit stamping on PDF page 1 (separate cover page) */
+  skipCoverPageStamp?: boolean;
 }
 
 const STAMP_FONT_SIZE = 8;
@@ -49,9 +51,16 @@ export async function stampJournalPdf(file: File, options: JournalPdfStampOption
     return pdf.save();
   }
 
+  const skipCover = options.skipCoverPageStamp === true && total > 1;
+  const stampedTotal = skipCover ? total - 1 : total;
+
   pages.forEach((page, index) => {
+    if (skipCover && index === 0) {
+      return;
+    }
+
     const { width, height } = page.getSize();
-    const pageNum = index + 1;
+    const stampedPageNum = skipCover ? index : index + 1;
 
     if (options.includeHeaderTripTitle && options.tripTitle.trim()) {
       const text = truncateText(options.tripTitle.trim(), 72);
@@ -88,7 +97,7 @@ export async function stampJournalPdf(file: File, options: JournalPdfStampOption
     }
 
     if (options.includePageNumbers) {
-      const label = `${pageNum} / ${total}`;
+      const label = `${stampedPageNum} / ${stampedTotal}`;
       const textWidth = font.widthOfTextAtSize(label, STAMP_FONT_SIZE);
       page.drawText(label, {
         x: width - MARGIN_X_PT - textWidth,

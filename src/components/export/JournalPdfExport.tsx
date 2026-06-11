@@ -39,6 +39,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
   const [includeEntryTimestamps, setIncludeEntryTimestamps] = React.useState(true);
   const [includeAuthorNames, setIncludeAuthorNames] = React.useState(trip.showAuthorName !== false);
   const [oneDayPerPage, setOneDayPerPage] = React.useState(false);
+  const [separateCoverPage, setSeparateCoverPage] = React.useState(false);
   const [fontSize, setFontSize] = React.useState<JournalExportFontSize>('medium');
 
   const [stampFooterUrl, setStampFooterUrl] = React.useState(true);
@@ -73,6 +74,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
       includeEntryTimestamps,
       includeAuthorNames,
       oneDayPerPage,
+      separateCoverPage,
       fontSize
     });
     setPrintHtml(html);
@@ -92,6 +94,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
     includeEntryTimestamps,
     includeAuthorNames,
     oneDayPerPage,
+    separateCoverPage,
     fontSize
   ]);
 
@@ -121,7 +124,8 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
         includePageNumbers: stampPageNumbers,
         includeHeaderTripTitle: stampHeaderTripTitle,
         tripTitle: trip.title,
-        includeHeaderDate: stampHeaderDate
+        includeHeaderDate: stampHeaderDate,
+        skipCoverPageStamp: separateCoverPage && showCover
       });
       downloadStampedPdf(bytes, stampedJournalFileName(trip.title));
     } catch (err) {
@@ -136,7 +140,9 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
     stampPageNumbers,
     stampHeaderTripTitle,
     stampHeaderDate,
-    trip.title
+    trip.title,
+    separateCoverPage,
+    showCover
   ]);
 
   return (
@@ -152,6 +158,15 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
           </label>
           <label>
             <input type="checkbox" checked={showSummary} onChange={(e) => setShowSummary(e.target.checked)} /> Cover summary
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={separateCoverPage}
+              onChange={(e) => setSeparateCoverPage(e.target.checked)}
+              disabled={!showCover}
+            />{' '}
+            Separate cover page (full hero image)
           </label>
           <label>
             <input type="checkbox" checked={includePreTrip} onChange={(e) => setIncludePreTrip(e.target.checked)} /> Include pre-trip
@@ -198,7 +213,15 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
           </p>
 
           <h4 className="pdfStampHeading">Step 2 — Stamp headers &amp; footers</h4>
-          <p className="pdfStampHint">Upload the PDF you saved, then add page numbers and other chrome.</p>
+          <p className="pdfStampHint">
+            Upload the PDF you saved, then add page numbers and other chrome.
+            {separateCoverPage && showCover ? (
+              <>
+                {' '}
+                With <strong>Separate cover page</strong>, headers and footers are applied from page 2 onward (the cover stays unmarked).
+              </>
+            ) : null}
+          </p>
           <div className="pdfStampOptions">
             <label>
               <input type="checkbox" checked={stampPageNumbers} onChange={(e) => setStampPageNumbers(e.target.checked)} /> Page numbers (footer right)

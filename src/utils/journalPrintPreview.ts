@@ -21,14 +21,49 @@ const FONT_SIZE_PX: Record<JournalExportFontSize, number> = {
   large: 18
 };
 
-function buildJournalPrintStyles(oneDayPerPage: boolean, fontSize: JournalExportFontSize): string {
+function buildJournalPrintStyles(
+  oneDayPerPage: boolean,
+  fontSize: JournalExportFontSize,
+  separateCoverPage: boolean
+): string {
   const basePx = FONT_SIZE_PX[fontSize];
-  const coverBreak = oneDayPerPage
-    ? `.print-root.one-day-per-page .print-front-matter { page-break-after: always; }
+  const separateCoverCss = separateCoverPage
+    ? `.print-root.separate-cover-page .print-cover-sheet {
+  page-break-after: always;
+  break-after: page;
+  page-break-inside: avoid;
+}
+.print-root.separate-cover-page .print-cover-sheet .print-cover-page {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  text-align: center;
+}
+.print-root.separate-cover-page .print-cover-hero-full {
+  width: 100%;
+  max-width: 100%;
+  max-height: none;
+  height: auto;
+  object-fit: contain;
+  object-position: center;
+  display: block;
+}`
+    : '';
+
+  let coverBreak = separateCoverCss;
+  if (oneDayPerPage) {
+    if (separateCoverPage) {
+      coverBreak += `.print-root.one-day-per-page .print-day-block.print-day-first { page-break-before: always; }
+.print-root.one-day-per-page .print-day-block + .print-day-block { page-break-before: always; }`;
+    } else {
+      coverBreak += `.print-root.one-day-per-page .print-front-matter { page-break-after: always; }
 .print-root.one-day-per-page .print-day-block.print-day-first { page-break-before: always; }
-.print-root.one-day-per-page .print-day-block + .print-day-block { page-break-before: always; }`
-    : `.print-root .print-front-matter { page-break-after: auto; }
+.print-root.one-day-per-page .print-day-block + .print-day-block { page-break-before: always; }`;
+    }
+  } else if (!separateCoverPage) {
+    coverBreak += `.print-root .print-front-matter { page-break-after: auto; }
 .print-root .print-day-block { page-break-before: auto; }`;
+  }
 
   return `
 html { font-size: ${basePx}px; }
@@ -84,6 +119,7 @@ export interface JournalPrintPreviewParams {
   includeEntryTimestamps: boolean;
   includeAuthorNames: boolean;
   oneDayPerPage: boolean;
+  separateCoverPage?: boolean;
   fontSize?: JournalExportFontSize;
 }
 
@@ -119,6 +155,7 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
     includeEntryTimestamps,
     includeAuthorNames,
     oneDayPerPage,
+    separateCoverPage = false,
     fontSize = 'medium'
   } = params;
 
@@ -133,20 +170,36 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
   const coverHeroAttr = rawHero.replace(/"/g, '&quot;');
   let body = '';
   if (showCover) {
-    body += `<div class="print-front-matter"><div class="print-cover-page ${rawHero ? 'hasHero' : 'noHero'}">`;
-    if (rawHero) {
-      body += `<img class="print-cover-hero" src="${coverHeroAttr}" alt="" crossorigin="anonymous" />`;
-    }
-    body += `<div class="print-cover-content"><h1>${esc(trip.title)}</h1><p>${esc(trip.destination)}</p><p>${esc(formatOrdinalDateRange(trip.dateStart, trip.dateEnd))}</p></div></div>`;
-    if (showSummary) {
-      body += `<div class="print-cover-summary">`;
-      body += `<div><strong>Total days</strong><span>${printableDays.length}</span></div>`;
-      body += `<div><strong>Journal entries</strong><span>${entries.length}</span></div>`;
-      body += `<div><strong>Photos</strong><span>${photos.length}</span></div>`;
-      body += `<div><strong>Budget</strong><span>Not included in journal export</span></div>`;
+    if (separateCoverPage) {
+      body += `<div class="print-cover-sheet"><div class="print-cover-page ${rawHero ? 'hasHero' : 'noHero'}">`;
+      if (rawHero) {
+        body += `<img class="print-cover-hero print-cover-hero-full" src="${coverHeroAttr}" alt="" crossorigin="anonymous" />`;
+      }
+      body += `<div class="print-cover-content"><h1>${esc(trip.title)}</h1><p>${esc(trip.destination)}</p><p>${esc(formatOrdinalDateRange(trip.dateStart, trip.dateEnd))}</p></div></div></div>`;
+      if (showSummary) {
+        body += `<div class="print-front-matter"><div class="print-cover-summary">`;
+        body += `<div><strong>Total days</strong><span>${printableDays.length}</span></div>`;
+        body += `<div><strong>Journal entries</strong><span>${entries.length}</span></div>`;
+        body += `<div><strong>Photos</strong><span>${photos.length}</span></div>`;
+        body += `<div><strong>Budget</strong><span>Not included in journal export</span></div>`;
+        body += `</div></div>`;
+      }
+    } else {
+      body += `<div class="print-front-matter"><div class="print-cover-page ${rawHero ? 'hasHero' : 'noHero'}">`;
+      if (rawHero) {
+        body += `<img class="print-cover-hero" src="${coverHeroAttr}" alt="" crossorigin="anonymous" />`;
+      }
+      body += `<div class="print-cover-content"><h1>${esc(trip.title)}</h1><p>${esc(trip.destination)}</p><p>${esc(formatOrdinalDateRange(trip.dateStart, trip.dateEnd))}</p></div></div>`;
+      if (showSummary) {
+        body += `<div class="print-cover-summary">`;
+        body += `<div><strong>Total days</strong><span>${printableDays.length}</span></div>`;
+        body += `<div><strong>Journal entries</strong><span>${entries.length}</span></div>`;
+        body += `<div><strong>Photos</strong><span>${photos.length}</span></div>`;
+        body += `<div><strong>Budget</strong><span>Not included in journal export</span></div>`;
+        body += `</div>`;
+      }
       body += `</div>`;
     }
-    body += `</div>`;
   }
 
   printableDays.forEach((day, idx) => {
@@ -198,7 +251,7 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
     body += `</section></div>`;
   });
 
-  const rootClass = `print-root th-journal-print${showCover ? ' has-cover' : ''}${oneDayPerPage ? ' one-day-per-page' : ''}`;
-  const styles = buildJournalPrintStyles(oneDayPerPage, fontSize);
+  const rootClass = `print-root th-journal-print${showCover ? ' has-cover' : ''}${separateCoverPage && showCover ? ' separate-cover-page' : ''}${oneDayPerPage ? ' one-day-per-page' : ''}`;
+  const styles = buildJournalPrintStyles(oneDayPerPage, fontSize, separateCoverPage && showCover);
   return `<!DOCTYPE html><html class="font-size-${fontSize}"><head><meta charset="utf-8"/><title></title><style>${styles}</style></head><body><div class="${rootClass}">${body}</div></body></html>`;
 }
