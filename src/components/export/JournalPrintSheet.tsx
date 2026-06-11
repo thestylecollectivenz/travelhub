@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { prepareJournalCoverForPrint } from '../../utils/journalPrintPreview';
 import styles from '../itinerary/DayPlannerPrintSheet.module.css';
 
 export interface JournalPrintSheetProps {
@@ -19,26 +20,6 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({ title, htm
   }, []);
 
   const waitForPrintReady = React.useCallback(async (doc: Document): Promise<void> => {
-    const hasHeroCover = doc.querySelector('.print-cover-hero-stage.hasHero');
-    if (hasHeroCover) {
-      await new Promise<void>((resolve) => {
-        const done = (): void => resolve();
-        if (doc.body?.getAttribute('data-cover-ready') === '1') {
-          done();
-          return;
-        }
-        const deadline = Date.now() + 10000;
-        const tick = (): void => {
-          if (doc.body?.getAttribute('data-cover-ready') === '1' || Date.now() > deadline) {
-            done();
-            return;
-          }
-          requestAnimationFrame(tick);
-        };
-        tick();
-      });
-    }
-
     const images = Array.from(doc.querySelectorAll('img'));
     await Promise.all(
       images.map(
@@ -62,6 +43,7 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({ title, htm
     if (!win || !doc) return;
 
     await waitForPrintReady(doc);
+    prepareJournalCoverForPrint(doc);
 
     const parentTitle = document.title;
     clearFrameTitle();
