@@ -9,10 +9,13 @@ import {
   type JournalExportFontSize
 } from '../../utils/journalPrintPreview';
 import {
-  downloadStampedPdf,
-  stampJournalPdf,
-  stampedJournalFileName
-} from '../../utils/stampJournalPdf';
+  chooseJournalExportFolder,
+  getExportFolderLabel,
+  pickJournalPdfFile,
+  saveStampedJournalPdf,
+  supportsJournalExportFolderPicker
+} from '../../utils/journalExportFilePicker';
+import { stampJournalPdf, stampedJournalFileName } from '../../utils/stampJournalPdf';
 import { JournalPrintSheet } from './JournalPrintSheet';
 import './JournalPdfExport.css';
 
@@ -62,8 +65,11 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
   const [uploadedPdf, setUploadedPdf] = React.useState<File | null>(null);
   const [stampBusy, setStampBusy] = React.useState(false);
   const [stampError, setStampError] = React.useState<string | null>(null);
+  const [exportFolderLabel, setExportFolderLabel] = React.useState<string | null>(null);
+  const [dragOver, setDragOver] = React.useState(false);
 
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const folderPickerSupported = supportsJournalExportFolderPicker();
 
   React.useEffect(() => {
     setIncludeAuthorNames(trip.showAuthorName !== false);
@@ -124,27 +130,86 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
     photosForEntry
   ]);
 
+  const refreshExportFolderLabel = React.useCallback((): void => {
+    if (!folderPickerSupported) return;
+    void getExportFolderLabel().then(setExportFolderLabel);
+  }, [folderPickerSupported]);
+
   const handlePrintFinished = React.useCallback((): void => {
     setPrintHtml(null);
     setShowStampStep(true);
+    refreshExportFolderLabel();
     window.setTimeout(() => {
       stampSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, 0);
-  }, []);
+  }, [refreshExportFolderLabel]);
 
   const handleClosePrintPreview = React.useCallback((): void => {
     setPrintHtml(null);
   }, []);
 
-  const handlePdfSelected = React.useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
-    const file = e.target.files?.[0];
+  const applyPdfFile = React.useCallback((file: File | undefined): void => {
     setStampError(null);
-    setUploadedPdf(file && file.type === 'application/pdf' ? file : null);
-    if (file && file.type !== 'application/pdf') {
-      setStampError('Please choose a PDF file.');
+    if (!file) {
+      setUploadedPdf(null);
+      return;
     }
-    e.target.value = '';
+    if (file.type !== 'application/pdf') {
+      setUploadedPdf(null);
+      setStampError('Please choose a PDF file.');
+      return;
+    }
+    setUploadedPdf(file);
   }, []);
+
+  const handlePdfSelected = React.useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>): void => {
+      applyPdfFile(e.target.files?.[0]);
+      e.target.value = '';
+    },
+    [applyPdfFile]
+  );
+
+  const handleChoosePdf = React.useCallback(async (): Promise<void> => {
+    if (stampBusy) return;
+    setStampError(null);
+    try {
+      const file = await pickJournalPdfFile();
+      if (file) {
+        applyPdfFile(file);
+        refreshExportFolderLabel();
+        return;
+      }
+    } catch (err) {
+      setStampError(err instanceof Error ? err.message : 'Could not open the file picker.');
+      return;
+    }
+    fileInputRef.current?.click();
+  }, [stampBusy, applyPdfFile, refreshExportFolderLabel]);
+
+  const handleSetExportFolder = React.useCallback(async (): Promise<void> => {
+    if (stampBusy) return;
+    setStampError(null);
+    try {
+      const name = await chooseJournalExportFolder();
+      if (name) {
+        setExportFolderLabel(name);
+      }
+    } catch (err) {
+      setStampError(err instanceof Error ? err.message : 'Could not choose a folder.');
+    }
+  }, [stampBusy]);
+
+  const handleStampDrop = React.useCallback(
+    (e: React.DragEvent<HTMLDivElement>): void => {
+      e.preventDefault();
+      setDragOver(false);
+      if (stampBusy) return;
+      const file = e.dataTransfer.files?.[0];
+      applyPdfFile(file);
+    },
+    [stampBusy, applyPdfFile]
+  );
 
   const handleStampAndDownload = React.useCallback(async (): Promise<void> => {
     if (!uploadedPdf || stampBusy) return;
@@ -166,7 +231,8 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
         includeHeaderDate: stampHeaderDate,
         skipCoverPageStamp: stampSkipCoverPage
       });
-      downloadStampedPdf(bytes, stampedJournalFileName(trip.title));
+      await saveStampedJournalPdf(bytes, stampedJournalFileName(trip.title));
+      refreshExportFolderLabel();
     } catch (err) {
       setStampError(err instanceof Error ? err.message : 'Could not stamp the PDF.');
     } finally {
@@ -181,7 +247,8 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
     stampHeaderDate,
     trip.title,
     stampSkipCoverPage,
-    stampHeaderTitleAlign
+    stampHeaderTitleAlign,
+    refreshExportFolderLabel
   ]);
 
   return (
@@ -276,10 +343,34 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
         </p>
 
         {showStampStep ? (
-        <div className="pdfStampSection pdfStampSectionReveal" ref={stampSectionRef}>
+        <div
+          className={`pdfStampSection pdfStampSectionReveal${dragOver ? ' pdfStampSectionDragOver' : ''}`}
+          ref={stampSectionRef}
+          onDragEnter={(e) => {
+            if (Array.from(e.dataTransfer.types).indexOf('Files') >= 0) setDragOver(true);
+          }}
+          onDragLeave={(e) => {
+            if (e.currentTarget === e.target) setDragOver(false);
+          }}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={handleStampDrop}
+        >
           <h4 className="pdfStampHeading">Step 2 — Stamp headers &amp; footers</h4>
           <p className="pdfStampHint">
-            Upload the PDF you saved, then add page numbers and other chrome.
+            Upload the PDF you saved in Step 1, then add page numbers and other chrome.
+            {folderPickerSupported ? (
+              <>
+                {' '}
+                <strong>Choose PDF</strong> opens your{' '}
+                <strong>{exportFolderLabel ?? 'Downloads'}</strong> folder The print dialog cannot tell the app where you saved — use{' '}
+                <button type="button" className="pdfStampLinkBtn" onClick={handleSetExportFolder} disabled={stampBusy}>
+                  Set export folder…
+                </button>{' '}
+                once if you use a different location. Or drag the PDF here.
+              </>
+            ) : (
+              <> Drag the PDF onto this box, or use Choose PDF.</>
+            )}
             {separateCoverPage && showCover ? (
               <>
                 {' '}
@@ -330,7 +421,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
               onChange={handlePdfSelected}
               aria-label="Upload saved journal PDF"
             />
-            <button type="button" className="pdfStampSecondaryBtn" onClick={() => fileInputRef.current?.click()} disabled={stampBusy}>
+            <button type="button" className="pdfStampSecondaryBtn" onClick={handleChoosePdf} disabled={stampBusy}>
               Choose PDF…
             </button>
             <button

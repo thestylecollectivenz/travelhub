@@ -99,6 +99,28 @@
   cursor: pointer;
 }
 
+.pdfStampLinkBtn {
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: none;
+  font: inherit;
+  font-size: inherit;
+  color: var(--color-primary, #1e3a5f);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.pdfStampLinkBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pdfStampSectionDragOver {
+  outline: 2px dashed var(--color-primary, #1e3a5f);
+  outline-offset: 4px;
+}
+
 .pdfStampFileName {
   margin: 0;
   font-size: var(--font-size-xs);

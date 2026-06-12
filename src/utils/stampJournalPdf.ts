@@ -118,15 +118,7 @@ export async function stampJournalPdf(file: File, options: JournalPdfStampOption
   return pdf.save();
 }
 
-export function downloadStampedPdf(bytes: Uint8Array, fileName: string): void {
-  const blob = new Blob([bytes], { type: 'application/pdf' });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = fileName;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
+export { saveStampedJournalPdf as downloadStampedPdf } from './journalExportFilePicker';
 
 export function stampedJournalFileName(tripTitle: string): string {
   const base = (tripTitle || 'journal').replace(/[<>:"/\\|?*]+/g, '-').trim();
