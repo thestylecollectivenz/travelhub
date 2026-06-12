@@ -108,14 +108,12 @@ export async function embedCoverHeroForPrint(doc: Document): Promise<void> {
 
   const loadDataUrl = (dataUrl: string): Promise<void> =>
     new Promise((resolve, reject) => {
-      const onError = (): void => {
-        img.removeEventListener('load', onLoad);
-        reject(new Error('hero embed load failed'));
-      };
       const onLoad = (): void => {
-        img.removeEventListener('error', onError);
         img.dataset.embedded = '1';
         resolve();
+      };
+      const onError = (): void => {
+        reject(new Error('hero embed load failed'));
       };
       img.addEventListener('load', onLoad, { once: true });
       img.addEventListener('error', onError, { once: true });
