@@ -6,10 +6,12 @@ export interface JournalPrintSheetProps {
   title: string;
   html: string;
   onClose: () => void;
+  /** Fired after the browser print / save PDF dialog closes. */
+  onAfterPrint?: () => void;
 }
 
 /** In-app journal print preview (iframe) — avoids popup blockers in SharePoint. */
-export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({ title, html, onClose }) => {
+export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({ title, html, onClose, onAfterPrint }) => {
   const frameRef = React.useRef<HTMLIFrameElement | null>(null);
 
   const clearFrameTitle = React.useCallback((): void => {
@@ -51,20 +53,22 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({ title, htm
     clearFrameTitle();
     document.title = '';
 
-    const restoreTitle = (): void => {
+    const onAfterPrintEvent = (): void => {
       document.title = parentTitle;
-      win.removeEventListener('afterprint', restoreTitle);
+      win.removeEventListener('afterprint', onAfterPrintEvent);
+      onAfterPrint?.();
     };
 
-    win.addEventListener('afterprint', restoreTitle);
+    win.addEventListener('afterprint', onAfterPrintEvent);
 
     try {
       win.focus();
       win.print();
     } catch {
-      restoreTitle();
+      document.title = parentTitle;
+      win.removeEventListener('afterprint', onAfterPrintEvent);
     }
-  }, [clearFrameTitle, waitForPrintReady]);
+  }, [clearFrameTitle, waitForPrintReady, onAfterPrint]);
 
   return (
     <div className={styles.backdrop} role="presentation">

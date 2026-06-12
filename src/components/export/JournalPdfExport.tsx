@@ -5,6 +5,7 @@ import type { JournalEntry, JournalPhoto, JournalComment } from '../../models';
 import {
   buildJournalPrintDocument,
   type CoverTitleAlign,
+  type CoverTitleFontSize,
   type JournalExportFontSize
 } from '../../utils/journalPrintPreview';
 import {
@@ -32,8 +33,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
   entries,
   photos,
   photosForEntry,
-  commentsForEntry,
-  onCloseExport
+  commentsForEntry
 }) => {
   const [showCover, setShowCover] = React.useState(true);
   const [includeHeroOnCover, setIncludeHeroOnCover] = React.useState(true);
@@ -47,12 +47,17 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
   const [oneDayPerPage, setOneDayPerPage] = React.useState(false);
   const [separateCoverPage, setSeparateCoverPage] = React.useState(false);
   const [coverTitleAlign, setCoverTitleAlign] = React.useState<CoverTitleAlign>('center');
+  const [coverTitleFontSize, setCoverTitleFontSize] = React.useState<CoverTitleFontSize>('medium');
   const [fontSize, setFontSize] = React.useState<JournalExportFontSize>('medium');
+
+  const [showStampStep, setShowStampStep] = React.useState(false);
+  const stampSectionRef = React.useRef<HTMLDivElement | null>(null);
 
   const [stampFooterUrl, setStampFooterUrl] = React.useState(true);
   const [stampPageNumbers, setStampPageNumbers] = React.useState(true);
   const [stampHeaderTripTitle, setStampHeaderTripTitle] = React.useState(false);
   const [stampHeaderDate, setStampHeaderDate] = React.useState(false);
+  const [stampHeaderTitleAlign, setStampHeaderTitleAlign] = React.useState<CoverTitleAlign>('center');
   const [stampSkipCoverPage, setStampSkipCoverPage] = React.useState(false);
   const [uploadedPdf, setUploadedPdf] = React.useState<File | null>(null);
   const [stampBusy, setStampBusy] = React.useState(false);
@@ -90,9 +95,11 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
       oneDayPerPage,
       separateCoverPage,
       coverTitleAlign,
+      coverTitleFontSize,
       fontSize,
       photosForEntry
     });
+    setShowStampStep(false);
     setPrintHtml(html);
   }, [
     trip,
@@ -112,9 +119,22 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
     oneDayPerPage,
     separateCoverPage,
     coverTitleAlign,
+    coverTitleFontSize,
     fontSize,
     photosForEntry
   ]);
+
+  const handlePrintFinished = React.useCallback((): void => {
+    setPrintHtml(null);
+    setShowStampStep(true);
+    window.setTimeout(() => {
+      stampSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 0);
+  }, []);
+
+  const handleClosePrintPreview = React.useCallback((): void => {
+    setPrintHtml(null);
+  }, []);
 
   const handlePdfSelected = React.useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
     const file = e.target.files?.[0];
@@ -142,7 +162,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
         includePageNumbers: stampPageNumbers,
         includeHeaderTripTitle: stampHeaderTripTitle,
         tripTitle: trip.title,
-        headerTripTitleAlign: coverTitleAlign,
+        headerTripTitleAlign: stampHeaderTitleAlign,
         includeHeaderDate: stampHeaderDate,
         skipCoverPageStamp: stampSkipCoverPage
       });
@@ -161,7 +181,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
     stampHeaderDate,
     trip.title,
     stampSkipCoverPage,
-    coverTitleAlign
+    stampHeaderTitleAlign
   ]);
 
   return (
@@ -209,7 +229,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
             <input type="checkbox" checked={oneDayPerPage} onChange={(e) => setOneDayPerPage(e.target.checked)} /> One day per page (print)
           </label>
           <label className="fontSizeControl">
-            Cover title{' '}
+            Cover title align{' '}
             <select
               value={coverTitleAlign}
               onChange={(e) => setCoverTitleAlign(e.target.value as CoverTitleAlign)}
@@ -221,11 +241,24 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
             </select>
           </label>
           <label className="fontSizeControl">
-            Font size{' '}
+            Cover title size{' '}
+            <select
+              value={coverTitleFontSize}
+              onChange={(e) => setCoverTitleFontSize(e.target.value as CoverTitleFontSize)}
+              disabled={!showCover}
+              aria-label="Cover title font size"
+            >
+              <option value="small">Small</option>
+              <option value="medium">Medium</option>
+              <option value="large">Large</option>
+            </select>
+          </label>
+          <label className="fontSizeControl">
+            Journal font size{' '}
             <select
               value={fontSize}
               onChange={(e) => setFontSize(e.target.value as JournalExportFontSize)}
-              aria-label="Export font size"
+              aria-label="Journal body font size"
             >
               <option value="small">Small</option>
               <option value="medium">Medium</option>
@@ -233,16 +266,17 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
             </select>
           </label>
           <button type="button" className="printPrimaryBtn" onClick={openPreview}>
-            Preview print layout
+            Step 1 — Preview &amp; print
           </button>
         </div>
 
-        <div className="pdfStampSection">
-          <h4 className="pdfStampHeading">Step 1 — Print / save PDF</h4>
-          <p className="pdfStampHint">
-            Preview the layout, then use <strong>Print / Save PDF</strong>. Turn <strong>Headers and footers Off</strong> in the print dialog for a clean journal.
-          </p>
+        <p className="pdfStampHint pdfStepOneHint">
+          Choose your options, then <strong>Step 1 — Preview &amp; print</strong>. In the print dialog use{' '}
+          <strong>Save as PDF</strong> and turn <strong>Headers and footers Off</strong>. Step 2 appears after you close the print dialog.
+        </p>
 
+        {showStampStep ? (
+        <div className="pdfStampSection pdfStampSectionReveal" ref={stampSectionRef}>
           <h4 className="pdfStampHeading">Step 2 — Stamp headers &amp; footers</h4>
           <p className="pdfStampHint">
             Upload the PDF you saved, then add page numbers and other chrome.
@@ -264,10 +298,10 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
               <input type="checkbox" checked={stampHeaderTripTitle} onChange={(e) => setStampHeaderTripTitle(e.target.checked)} /> Trip title (header)
             </label>
             <label className="fontSizeControl">
-              Header title{' '}
+              Header title align{' '}
               <select
-                value={coverTitleAlign}
-                onChange={(e) => setCoverTitleAlign(e.target.value as CoverTitleAlign)}
+                value={stampHeaderTitleAlign}
+                onChange={(e) => setStampHeaderTitleAlign(e.target.value as CoverTitleAlign)}
                 disabled={!stampHeaderTripTitle}
                 aria-label="Stamped header title alignment"
               >
@@ -311,15 +345,14 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
           {uploadedPdf ? <p className="pdfStampFileName">Selected: {uploadedPdf.name}</p> : null}
           {stampError ? <p className="pdfStampError">{stampError}</p> : null}
         </div>
+        ) : null}
       </div>
       {printHtml ? (
         <JournalPrintSheet
           title={`${trip.title} — Journal`}
           html={printHtml}
-          onClose={() => {
-            setPrintHtml(null);
-            onCloseExport?.();
-          }}
+          onClose={handleClosePrintPreview}
+          onAfterPrint={handlePrintFinished}
         />
       ) : null}
     </>

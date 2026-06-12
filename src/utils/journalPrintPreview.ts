@@ -14,6 +14,7 @@ function esc(s: string): string {
 }
 
 export type JournalExportFontSize = 'small' | 'medium' | 'large';
+export type CoverTitleFontSize = JournalExportFontSize;
 export type CoverTitleAlign = 'center' | 'left';
 
 const FONT_SIZE_PX: Record<JournalExportFontSize, number> = {
@@ -21,6 +22,48 @@ const FONT_SIZE_PX: Record<JournalExportFontSize, number> = {
   medium: 16,
   large: 18
 };
+
+const COVER_TITLE_H1_REM: Record<CoverTitleFontSize, { inline: string; overlay: string }> = {
+  small: { inline: '1.35rem', overlay: '1.45rem' },
+  medium: { inline: '1.75rem', overlay: '1.85rem' },
+  large: { inline: '2.35rem', overlay: '2.5rem' }
+};
+
+const COVER_TITLE_P_REM: Record<CoverTitleFontSize, string> = {
+  small: '0.875rem',
+  medium: '1rem',
+  large: '1.125rem'
+};
+
+function coverTitleSizeClass(size: CoverTitleFontSize): string {
+  return `cover-title-size-${size}`;
+}
+
+function readCoverTitleFontSize(doc: Document): CoverTitleFontSize {
+  const root = doc.querySelector('.print-root');
+  if (root?.classList.contains('cover-title-size-small')) return 'small';
+  if (root?.classList.contains('cover-title-size-large')) return 'large';
+  return 'medium';
+}
+
+function buildCoverTitleSizeCss(size: CoverTitleFontSize): string {
+  const h1 = COVER_TITLE_H1_REM[size];
+  const p = COVER_TITLE_P_REM[size];
+  return `.print-root.${coverTitleSizeClass(size)} .print-cover-content h1 {
+  font-size: ${h1.inline};
+  line-height: 1.15;
+}
+.print-root.${coverTitleSizeClass(size)} .print-cover-content p {
+  font-size: ${p};
+}
+.print-root.${coverTitleSizeClass(size)}.separate-cover-page .print-cover-overlay .print-cover-content h1 {
+  font-size: ${h1.overlay};
+  line-height: 1.15;
+}
+.print-root.${coverTitleSizeClass(size)}.separate-cover-page .print-cover-overlay .print-cover-content p {
+  font-size: ${p};
+}`;
+}
 
 /** A4 page with 22mm top/bottom and 19mm left/right @page margins (mm). */
 const A4_WIDTH_MM = 210;
@@ -181,10 +224,14 @@ export function prepareJournalCoverForPrint(doc: Document): void {
     }
   }
 
+  const coverTitleSize = readCoverTitleFontSize(doc);
+  const coverH1 = COVER_TITLE_H1_REM[coverTitleSize].overlay;
+  const coverP = COVER_TITLE_P_REM[coverTitleSize];
+
   stage.querySelectorAll<HTMLElement>('.print-cover-overlay .print-cover-content h1').forEach((el) => {
     el.style.margin = '0';
     el.style.color = '#ffffff';
-    el.style.fontSize = '1.85rem';
+    el.style.fontSize = coverH1;
     el.style.lineHeight = '1.15';
     el.style.fontWeight = '700';
     el.style.textShadow = '0 1px 4px rgba(0, 0, 0, 0.75)';
@@ -194,7 +241,7 @@ export function prepareJournalCoverForPrint(doc: Document): void {
     el.style.margin = '0';
     el.style.color = '#ffffff';
     el.style.lineHeight = '1.35';
-    el.style.fontSize = '1rem';
+    el.style.fontSize = coverP;
     el.style.textShadow = '0 1px 4px rgba(0, 0, 0, 0.75)';
   });
 }
@@ -203,9 +250,11 @@ function buildJournalPrintStyles(
   oneDayPerPage: boolean,
   fontSize: JournalExportFontSize,
   separateCoverPage: boolean,
-  coverTitleAlign: CoverTitleAlign
+  coverTitleAlign: CoverTitleAlign,
+  coverTitleFontSize: CoverTitleFontSize
 ): string {
   const basePx = FONT_SIZE_PX[fontSize];
+  const coverTitleSizeCss = buildCoverTitleSizeCss(coverTitleFontSize);
   const coverTitleCss =
     coverTitleAlign === 'left'
       ? `.print-root.cover-title-left .print-cover-content {
@@ -307,7 +356,6 @@ function buildJournalPrintStyles(
 .print-root.separate-cover-page .print-cover-overlay .print-cover-content h1 {
   margin: 0;
   color: #fff;
-  font-size: 1.85rem;
   line-height: 1.15;
   font-weight: 700;
 }
@@ -315,7 +363,6 @@ function buildJournalPrintStyles(
   margin: 0;
   color: rgba(255, 255, 255, 0.96);
   line-height: 1.35;
-  font-size: 1rem;
 }
 .print-root.separate-cover-page .print-cover-hero-stage.noHero {
   display: flex;
@@ -368,7 +415,8 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-
 .print-cover-hero { width: 100%; max-height: 9rem; object-fit: cover; object-position: center; }
 .print-cover-content { display: grid; gap: 4px; padding: 8px 16px 4px; }
 ${coverTitleCss}
-.print-cover-content h1 { margin: 0; font-size: 1.75rem; line-height: 1.2; }
+${coverTitleSizeCss}
+.print-cover-content h1 { margin: 0; line-height: 1.2; }
 .print-cover-content p { margin: 0; line-height: 1.35; }
 .print-cover-summary { margin-top: 8px; width: min(36rem, 100%); border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
 .print-cover-summary > div { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
@@ -512,6 +560,7 @@ export interface JournalPrintPreviewParams {
   oneDayPerPage: boolean;
   separateCoverPage?: boolean;
   coverTitleAlign?: CoverTitleAlign;
+  coverTitleFontSize?: CoverTitleFontSize;
   fontSize?: JournalExportFontSize;
   /** Same ordering as journal entry cards (incl. drag-reorder). */
   photosForEntry?: (entryId: string) => JournalPhoto[];
@@ -555,6 +604,7 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
     oneDayPerPage,
     separateCoverPage = false,
     coverTitleAlign = 'center',
+    coverTitleFontSize = 'medium',
     fontSize = 'medium',
     photosForEntry
   } = params;
@@ -657,7 +707,8 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
 
   const useSeparateCover = separateCoverPage && showCover;
   const titleAlignClass = showCover ? (coverTitleAlign === 'left' ? ' cover-title-left' : ' cover-title-center') : '';
-  const rootClass = `print-root th-journal-print${showCover ? ' has-cover' : ''}${useSeparateCover ? ' separate-cover-page' : ''}${oneDayPerPage ? ' one-day-per-page' : ''}${titleAlignClass}`;
-  const styles = buildJournalPrintStyles(oneDayPerPage, fontSize, useSeparateCover, coverTitleAlign);
+  const titleSizeClass = showCover ? ` ${coverTitleSizeClass(coverTitleFontSize)}` : '';
+  const rootClass = `print-root th-journal-print${showCover ? ' has-cover' : ''}${useSeparateCover ? ' separate-cover-page' : ''}${oneDayPerPage ? ' one-day-per-page' : ''}${titleAlignClass}${titleSizeClass}`;
+  const styles = buildJournalPrintStyles(oneDayPerPage, fontSize, useSeparateCover, coverTitleAlign, coverTitleFontSize);
   return `<!DOCTYPE html><html class="font-size-${fontSize}"><head><meta charset="utf-8"/><title></title><style>${styles}</style></head><body><div class="${rootClass}">${body}</div></body></html>`;
 }
