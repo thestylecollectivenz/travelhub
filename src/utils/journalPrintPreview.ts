@@ -29,11 +29,22 @@ const COVER_TITLE_H1_REM: Record<CoverTitleFontSize, { inline: string; overlay: 
   large: { inline: '2.35rem', overlay: '2.5rem' }
 };
 
-const COVER_TITLE_P_REM: Record<CoverTitleFontSize, string> = {
-  small: '0.875rem',
-  medium: '1rem',
-  large: '1.125rem'
-};
+/** Location + dates scale with title (medium overlay title 1.85rem → subtitle 1rem). */
+const COVER_SUBTITLE_TO_TITLE_RATIO = 1 / 1.85;
+
+function coverSubtitleRem(titleRem: string): string {
+  const titlePx = parseFloat(titleRem);
+  const subtitlePx = Math.round(titlePx * COVER_SUBTITLE_TO_TITLE_RATIO * 1000) / 1000;
+  return `${subtitlePx}rem`;
+}
+
+function coverSubtitleSizes(size: CoverTitleFontSize): { inline: string; overlay: string } {
+  const h1 = COVER_TITLE_H1_REM[size];
+  return {
+    inline: coverSubtitleRem(h1.inline),
+    overlay: coverSubtitleRem(h1.overlay)
+  };
+}
 
 function coverTitleSizeClass(size: CoverTitleFontSize): string {
   return `cover-title-size-${size}`;
@@ -48,20 +59,22 @@ function readCoverTitleFontSize(doc: Document): CoverTitleFontSize {
 
 function buildCoverTitleSizeCss(size: CoverTitleFontSize): string {
   const h1 = COVER_TITLE_H1_REM[size];
-  const p = COVER_TITLE_P_REM[size];
+  const p = coverSubtitleSizes(size);
   return `.print-root.${coverTitleSizeClass(size)} .print-cover-content h1 {
   font-size: ${h1.inline};
   line-height: 1.15;
 }
 .print-root.${coverTitleSizeClass(size)} .print-cover-content p {
-  font-size: ${p};
+  font-size: ${p.inline};
+  line-height: 1.35;
 }
 .print-root.${coverTitleSizeClass(size)}.separate-cover-page .print-cover-overlay .print-cover-content h1 {
   font-size: ${h1.overlay};
   line-height: 1.15;
 }
 .print-root.${coverTitleSizeClass(size)}.separate-cover-page .print-cover-overlay .print-cover-content p {
-  font-size: ${p};
+  font-size: ${p.overlay};
+  line-height: 1.35;
 }`;
 }
 
@@ -226,7 +239,7 @@ export function prepareJournalCoverForPrint(doc: Document): void {
 
   const coverTitleSize = readCoverTitleFontSize(doc);
   const coverH1 = COVER_TITLE_H1_REM[coverTitleSize].overlay;
-  const coverP = COVER_TITLE_P_REM[coverTitleSize];
+  const coverP = coverSubtitleSizes(coverTitleSize).overlay;
 
   stage.querySelectorAll<HTMLElement>('.print-cover-overlay .print-cover-content h1').forEach((el) => {
     el.style.margin = '0';
