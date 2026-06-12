@@ -2,6 +2,8 @@ import * as React from 'react';
 import { embedCoverHeroForPrint, prepareJournalCoverForPrint } from '../../utils/journalPrintPreview';
 import styles from '../itinerary/DayPlannerPrintSheet.module.css';
 
+const PRINT_IMAGE_TIMEOUT_MS = 12000;
+
 export interface JournalPrintSheetProps {
   title: string;
   html: string;
@@ -27,11 +29,18 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({ title, htm
       images.map(
         (img) =>
           new Promise<void>((resolve) => {
-            if (img.complete) {
+            if (img.complete && img.naturalWidth > 0) {
               resolve();
               return;
             }
-            const finish = (): void => resolve();
+            let settled = false;
+            const finish = (): void => {
+              if (settled) return;
+              settled = true;
+              window.clearTimeout(timer);
+              resolve();
+            };
+            const timer = window.setTimeout(finish, PRINT_IMAGE_TIMEOUT_MS);
             img.addEventListener('load', finish, { once: true });
             img.addEventListener('error', finish, { once: true });
           })

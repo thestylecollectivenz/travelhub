@@ -10,4 +10,7 @@ export interface JournalPhoto {
   likedByUsers: string;
   /** Display order within a journal entry (lower = earlier). */
   sortOrder: number;
+  /** Square-crop focal point (0–100). Default centre when 50. */
+  focalX: number;
+  focalY: number;
 }

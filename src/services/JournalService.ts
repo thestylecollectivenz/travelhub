@@ -2,6 +2,7 @@ import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 import type { JournalComment, JournalEntry, JournalPhoto } from '../models';
 import { ensureFolderChain, uploadFileToFolder } from '../utils/spFileUpload';
+import { parsePhotoFocalPoint, formatPhotoFocalPoint } from '../utils/journalPhotoFocal';
 import { resolveSharePointMediaSrc } from '../utils/sharePointUrl';
 
 const ENTRIES_LIST = 'JournalEntries';
@@ -75,6 +76,7 @@ export class JournalService {
 
   private mapJournalPhotoItem(item: Record<string, unknown>): JournalPhoto {
     const raw = String(item.FileUrl ?? '');
+    const focal = parsePhotoFocalPoint(String(item.FocalPoint ?? ''));
     return {
       id: String(item.ID),
       title: String(item.Title ?? ''),
@@ -85,16 +87,24 @@ export class JournalService {
       caption: String(item.Caption ?? ''),
       likeCount: typeof item.LikeCount === 'number' ? item.LikeCount : Number(item.LikeCount ?? 0) || 0,
       likedByUsers: String(item.LikedByUsers ?? ''),
-      sortOrder: typeof item.SortOrder === 'number' ? item.SortOrder : Number(item.SortOrder ?? 0) || 0
+      sortOrder: typeof item.SortOrder === 'number' ? item.SortOrder : Number(item.SortOrder ?? 0) || 0,
+      focalX: focal.x,
+      focalY: focal.y
     };
   }
 
+  private static readonly PHOTO_SELECT_WITH_FOCAL =
+    'ID,Title,JournalEntryId,TripId,DayId,FileUrl,Caption,LikeCount,LikedByUsers,SortOrder,FocalPoint';
   private static readonly PHOTO_SELECT_WITH_SORT = 'ID,Title,JournalEntryId,TripId,DayId,FileUrl,Caption,LikeCount,LikedByUsers,SortOrder';
   private static readonly PHOTO_SELECT_CORE = 'ID,Title,JournalEntryId,TripId,DayId,FileUrl,Caption,LikeCount,LikedByUsers';
 
   /** SharePoint rejects $select when SortOrder is not provisioned yet — fall back gracefully. */
   private async getPhotosWithSelectFallback(baseUrl: string): Promise<JournalPhoto[]> {
-    const selects = [JournalService.PHOTO_SELECT_WITH_SORT, JournalService.PHOTO_SELECT_CORE];
+    const selects = [
+      JournalService.PHOTO_SELECT_WITH_FOCAL,
+      JournalService.PHOTO_SELECT_WITH_SORT,
+      JournalService.PHOTO_SELECT_CORE
+    ];
     let lastStatus = 0;
     for (const fields of selects) {
       const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}$select=${fields}`;
@@ -268,7 +278,7 @@ export class JournalService {
     return this.getPhotosWithSelectFallback(url);
   }
 
-  private buildPhotoCreateItem(photo: Omit<JournalPhoto, 'id'>, includeSortOrder: boolean): Record<string, unknown> {
+  private buildPhotoCreateItem(photo: Omit<JournalPhoto, 'id'>, includeSortOrder: boolean, includeFocal = true): Record<string, unknown> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const item: Record<string, any> = {
       Title: photo.title,
@@ -285,11 +295,18 @@ export class JournalService {
     if (photo.journalEntryId && photo.journalEntryId.trim() !== '') {
       item.JournalEntryId = photo.journalEntryId;
     }
+    if (includeFocal) {
+      item.FocalPoint = formatPhotoFocalPoint({ x: photo.focalX ?? 50, y: photo.focalY ?? 50 });
+    }
     return item;
   }
 
   async createPhoto(photo: Omit<JournalPhoto, 'id'>): Promise<JournalPhoto> {
-    const payloads = [this.buildPhotoCreateItem(photo, true), this.buildPhotoCreateItem(photo, false)];
+    const payloads = [
+      this.buildPhotoCreateItem(photo, true, true),
+      this.buildPhotoCreateItem(photo, true, false),
+      this.buildPhotoCreateItem(photo, false, false)
+    ];
     let lastStatus = 0;
     for (const item of payloads) {
       const body = JSON.stringify(item);
@@ -349,14 +366,19 @@ export class JournalService {
       caption: caption ?? '',
       likeCount: 0,
       likedByUsers: '',
-      sortOrder: typeof sortOrder === 'number' ? sortOrder : Date.now()
+      sortOrder: typeof sortOrder === 'number' ? sortOrder : Date.now(),
+      focalX: 50,
+      focalY: 50
     });
   }
 
   async updatePhoto(
     id: string,
     partial: Partial<
-      Pick<JournalPhoto, 'caption' | 'title' | 'fileUrl' | 'likeCount' | 'likedByUsers' | 'dayId' | 'journalEntryId' | 'sortOrder'>
+      Pick<
+        JournalPhoto,
+        'caption' | 'title' | 'fileUrl' | 'likeCount' | 'likedByUsers' | 'dayId' | 'journalEntryId' | 'sortOrder' | 'focalX' | 'focalY'
+      >
     >
   ): Promise<void> {
     const url = `${this.photosUrl}(${id})`;
@@ -370,10 +392,23 @@ export class JournalService {
     if (partial.likeCount !== undefined) item.LikeCount = partial.likeCount;
     if (partial.likedByUsers !== undefined) item.LikedByUsers = partial.likedByUsers;
     if (partial.sortOrder !== undefined) item.SortOrder = partial.sortOrder;
+    if (partial.focalX !== undefined || partial.focalY !== undefined) {
+      const focalX = partial.focalX ?? 50;
+      const focalY = partial.focalY ?? 50;
+      item.FocalPoint = formatPhotoFocalPoint({ x: focalX, y: focalY });
+    }
 
-    const withoutSort = { ...item };
-    delete withoutSort.SortOrder;
-    const payloads = partial.sortOrder !== undefined ? [item, withoutSort] : [item];
+    const payloads = [item];
+    if (partial.sortOrder !== undefined) {
+      const noSort = { ...item };
+      delete noSort.SortOrder;
+      if (Object.keys(noSort).length) payloads.push(noSort);
+    }
+    if (partial.focalX !== undefined || partial.focalY !== undefined) {
+      const noFocal = { ...item };
+      delete noFocal.FocalPoint;
+      if (Object.keys(noFocal).length) payloads.push(noFocal);
+    }
     let lastStatus = 0;
     for (const payload of payloads) {
       if (!Object.keys(payload).length) continue;

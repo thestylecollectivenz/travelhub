@@ -3,6 +3,8 @@ import { SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sort
 import { CSS } from '@dnd-kit/utilities';
 import type { JournalPhoto } from '../../models';
 import { toPhotoSortId } from '../../utils/journalPhotoSortId';
+import { photoObjectPositionStyle } from '../../utils/journalPhotoFocal';
+import { journalPhotoThumbUrl } from '../../utils/journalPhotoDisplayUrl';
 import styles from './JournalPhotoBoard.module.css';
 
 export interface JournalPhotoBoardProps {
@@ -50,6 +52,7 @@ function PhotoTile({
 }: PhotoTileProps): React.ReactElement {
   const footer = renderFooter ? renderFooter(photo) : null;
   const showFooter = footerOptional ? Boolean(footer) : Boolean(renderFooter);
+  const thumbStyle = photoObjectPositionStyle(photo);
 
   return (
     <figure
@@ -79,9 +82,11 @@ function PhotoTile({
       >
         <img
           className={styles.thumb}
-          src={photo.fileUrl}
+          src={journalPhotoThumbUrl(photo.fileUrl)}
           alt={photo.caption?.trim() ? photo.caption : ''}
+          style={thumbStyle}
           loading="lazy"
+          decoding="async"
           draggable={false}
         />
       </button>
@@ -153,8 +158,11 @@ export const JournalPhotoBoard: React.FC<JournalPhotoBoardProps> = ({
             >
               <img
                 className={styles.compactThumb}
-                src={photo.fileUrl}
+                src={journalPhotoThumbUrl(photo.fileUrl, 240)}
                 alt={photo.caption?.trim() ? photo.caption : ''}
+                style={photoObjectPositionStyle(photo)}
+                loading="lazy"
+                decoding="async"
                 draggable={false}
               />
             </button>

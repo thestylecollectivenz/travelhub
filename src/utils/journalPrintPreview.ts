@@ -2,6 +2,8 @@ import type { Trip } from '../models/Trip';
 import type { TripDay } from '../models/TripDay';
 import type { JournalEntry, JournalPhoto, JournalComment } from '../models';
 import { compareJournalPhotos } from './compareJournalPhotos';
+import { photoObjectPosition } from './journalPhotoFocal';
+import { journalPhotoPrintUrl } from './journalPhotoDisplayUrl';
 import { formatOrdinalDayDate, formatOrdinalDateRange } from './formatTripDayDate';
 import { formatJournalDayTitle } from './formatDayHeadingLabel';
 
@@ -445,7 +447,7 @@ ${coverTitleSizeCss}
 .print-entry-body { text-align: left; }
 .photoGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 0.75rem; }
 .photoGrid figure { margin: 0; display: flex; flex-direction: column; gap: 4px; }
-.photoGrid img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; border-radius: 4px; }
+.photoGrid img { width: 100%; aspect-ratio: 1; object-fit: cover; object-position: center center; display: block; border-radius: 4px; }
 .photoGrid figcaption { font-size: 0.6875rem; color: #475569; margin: 0; text-align: left; }
 .print-album-photos { margin-top: 1rem; }
 .print-album-heading { font-size: 1rem; color: #475569; margin: 0 0 0.5rem; text-align: left; }
@@ -582,7 +584,9 @@ function renderPhotoGrid(
   const sorted = preserveOrder ? items : [...items].sort(compareJournalPhotos);
   let html = `<div class="photoGrid">`;
   for (const p of sorted) {
-    html += `<figure><img src="${esc(p.fileUrl)}" alt="${esc(p.caption?.trim() ? p.caption : 'Journal photo')}" crossorigin="anonymous" />`;
+    const pos = photoObjectPosition(p);
+    const src = journalPhotoPrintUrl(p.fileUrl);
+    html += `<figure><img src="${esc(src)}" alt="${esc(p.caption?.trim() ? p.caption : 'Journal photo')}" style="object-position:${pos}" loading="lazy" decoding="async" />`;
     if (includePhotoCaptions && p.caption?.trim()) {
       html += `<figcaption>${esc(p.caption.trim())}</figcaption>`;
     }

@@ -4,7 +4,10 @@ import { useJournal } from '../../context/JournalContext';
 import { useJournalMediaSelection } from '../../context/JournalMediaSelectionContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { JournalPhotoBoard } from '../journal/JournalPhotoBoard';
+import { JournalPhotoFocalPicker } from '../journal/JournalPhotoFocalPicker';
 import { compareJournalPhotos } from '../../utils/compareJournalPhotos';
+import { photoObjectPositionStyle } from '../../utils/journalPhotoFocal';
+import { journalPhotoThumbUrl } from '../../utils/journalPhotoDisplayUrl';
 import { confirmUserAction } from '../../utils/confirmAction';
 import styles from './RightPaneJournalMedia.module.css';
 
@@ -15,7 +18,7 @@ export interface RightPaneJournalMediaProps {
 }
 
 export const RightPaneJournalMedia: React.FC<RightPaneJournalMediaProps> = ({ journalDays }) => {
-  const { allTripPhotos, allEntries, photosForEntry, assignPhotoToEntry, deletePhoto, updatePhotoCaption } = useJournal();
+  const { allTripPhotos, allEntries, photosForEntry, assignPhotoToEntry, deletePhoto, updatePhotoCaption, updatePhotoFocal } = useJournal();
   const { selectedPhotoId, setSelectedPhotoId, setSelectedEntryId, clearMediaSelection } = useJournalMediaSelection();
   const { trip, sharedPreview } = useTripWorkspace();
 
@@ -106,7 +109,23 @@ export const RightPaneJournalMedia: React.FC<RightPaneJournalMediaProps> = ({ jo
 
       {photo ? (
         <>
-          <img className={styles.preview} src={photo.fileUrl} alt="" />
+          <img
+            className={styles.preview}
+            src={journalPhotoThumbUrl(photo.fileUrl, 640)}
+            alt=""
+            style={photoObjectPositionStyle(photo)}
+            loading="lazy"
+            decoding="async"
+          />
+          <label className={styles.field}>
+            <span>Square crop focus</span>
+            <JournalPhotoFocalPicker
+              photo={photo}
+              onSave={async (focal) => {
+                await updatePhotoFocal(photo.id, focal.x, focal.y);
+              }}
+            />
+          </label>
           <label className={styles.field}>
             <span>Caption</span>
             {editingCap ? (

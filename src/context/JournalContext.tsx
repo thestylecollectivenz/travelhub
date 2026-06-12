@@ -35,6 +35,7 @@ export interface JournalContextValue {
   reorderPhotoInEntry: (entryId: string, activePhotoId: string, overPhotoId: string) => Promise<void>;
   deletePhoto: (id: string) => Promise<void>;
   updatePhotoCaption: (photoId: string, caption: string) => Promise<void>;
+  updatePhotoFocal: (photoId: string, focalX: number, focalY: number) => Promise<void>;
   togglePhotoLike: (photoId: string) => Promise<void>;
   toggleLike: (entryId: string) => Promise<void>;
   addComment: (journalEntryId: string, text: string) => Promise<void>;
@@ -106,21 +107,31 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     [entries]
   );
 
+  const photosByEntryMap = React.useMemo(() => {
+    const grouped = new Map<string, JournalPhoto[]>();
+    const seenByEntry = new Map<string, Set<string>>();
+    for (const p of photos) {
+      const entryId = p.journalEntryId?.trim();
+      if (!entryId) continue;
+      if (!grouped.has(entryId)) {
+        grouped.set(entryId, []);
+        seenByEntry.set(entryId, new Set());
+      }
+      const seen = seenByEntry.get(entryId)!;
+      if (seen.has(p.id)) continue;
+      seen.add(p.id);
+      grouped.get(entryId)!.push(p);
+    }
+    for (const [entryId, list] of Array.from(grouped.entries())) {
+      const order = photoOrderByEntry[entryId];
+      grouped.set(entryId, order?.length ? applyPhotoOrder(list, order) : [...list].sort(compareJournalPhotos));
+    }
+    return grouped;
+  }, [photos, photoOrderByEntry]);
+
   const photosForEntry = React.useCallback(
-    (journalEntryId: string) => {
-      const seen = new Set<string>();
-      const list = photos
-        .filter((p) => p.journalEntryId === journalEntryId)
-        .filter((p) => {
-          if (seen.has(p.id)) return false;
-          seen.add(p.id);
-          return true;
-        });
-      const order = photoOrderByEntry[journalEntryId];
-      if (order?.length) return applyPhotoOrder(list, order);
-      return list.sort(compareJournalPhotos);
-    },
-    [photos, photoOrderByEntry]
+    (journalEntryId: string) => photosByEntryMap.get(journalEntryId) ?? [],
+    [photosByEntryMap]
   );
 
   const commentCountForEntry = React.useCallback(
@@ -420,6 +431,24 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     [photos, spContext]
   );
 
+  const updatePhotoFocal = React.useCallback(
+    async (photoId: string, focalX: number, focalY: number): Promise<void> => {
+      const prev = photos.find((p) => p.id === photoId);
+      if (!prev) return;
+      setPhotos((x) => x.map((p) => (p.id === photoId ? { ...p, focalX, focalY } : p)));
+      try {
+        const svc = new JournalService(spContext);
+        await svc.updatePhoto(photoId, { focalX, focalY });
+      } catch (err) {
+        if (prev) setPhotos((x) => x.map((p) => (p.id === photoId ? prev : p)));
+        // eslint-disable-next-line no-console
+        console.error('JournalProvider.updatePhotoFocal', err);
+        throw err;
+      }
+    },
+    [photos, spContext]
+  );
+
   const assignPhotoToEntry = React.useCallback(
     async (photoId: string, dayId: string, journalEntryId: string): Promise<void> => {
       const prev = photos.find((p) => p.id === photoId);
@@ -701,6 +730,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       reorderPhotoInEntry,
       deletePhoto,
       updatePhotoCaption,
+      updatePhotoFocal,
       togglePhotoLike,
       toggleLike,
       addComment,
@@ -727,6 +757,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       reorderPhotoInEntry,
       deletePhoto,
       updatePhotoCaption,
+      updatePhotoFocal,
       togglePhotoLike,
       toggleLike,
       addComment,

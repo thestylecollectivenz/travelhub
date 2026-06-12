@@ -236,6 +236,16 @@ export const TripJournalFeed: React.FC = () => {
     return { order, map };
   }, [filteredEntries, trip, tripDays, sortOrder, hidePreTripJournal, layout, scopeDayId]);
 
+  const entryPhotosById = React.useMemo(() => {
+    const photosMap = new Map<string, ReturnType<typeof photosForEntry>>();
+    for (const entries of Array.from(groupedByDay.map.values())) {
+      for (const entry of entries) {
+        photosMap.set(entry.id, photosForEntry(entry.id));
+      }
+    }
+    return photosMap;
+  }, [groupedByDay.map, photosForEntry]);
+
   const selectedDayEntryCount = React.useMemo(
     () => (selectedDayId ? (groupedByDay.map.get(selectedDayId) ?? []).length : 0),
     [groupedByDay.map, selectedDayId]
@@ -341,7 +351,7 @@ export const TripJournalFeed: React.FC = () => {
             <div key={e.id} className={styles.block}>
               <JournalEntryCard
                 entry={e}
-                photos={photosForEntry(e.id)}
+                photos={entryPhotosById.get(e.id) ?? []}
                 journalDays={journalDays}
                 canModerate={false}
                 isUnread={isUnread(e)}
@@ -351,7 +361,7 @@ export const TripJournalFeed: React.FC = () => {
             <JournalEntrySortable
               key={e.id}
               entry={e}
-              photos={photosForEntry(e.id)}
+              photos={entryPhotosById.get(e.id) ?? []}
               journalDays={journalDays}
               canModerate
               isUnread={isUnread(e)}

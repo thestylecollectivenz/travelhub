@@ -303,6 +303,7 @@ Add-ListFieldIfMissing -ListTitle 'JournalPhotos' -InternalName 'DayId' -FieldTy
 Add-ListFieldIfMissing -ListTitle 'JournalPhotos' -InternalName 'FileUrl' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'JournalPhotos' -InternalName 'Caption' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'JournalPhotos' -InternalName 'SortOrder' -FieldType 'Number'
+Add-ListFieldIfMissing -ListTitle 'JournalPhotos' -InternalName 'FocalPoint' -FieldType 'Text'
 
 # --- JournalLikes ---
 Ensure-CustomList -Title 'JournalLikes'
