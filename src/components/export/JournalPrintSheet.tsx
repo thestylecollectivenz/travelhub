@@ -34,13 +34,14 @@ export const JournalPrintSheet: React.FC<JournalPrintSheetProps> = ({ title, htm
               return;
             }
             let settled = false;
+            let timer = 0;
             const finish = (): void => {
               if (settled) return;
               settled = true;
               window.clearTimeout(timer);
               resolve();
             };
-            const timer = window.setTimeout(finish, PRINT_IMAGE_TIMEOUT_MS);
+            timer = window.setTimeout(finish, PRINT_IMAGE_TIMEOUT_MS);
             img.addEventListener('load', finish, { once: true });
             img.addEventListener('error', finish, { once: true });
           })
