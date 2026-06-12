@@ -398,17 +398,15 @@ html { font-size: ${basePx}px; }
 @page { size: A4 portrait; margin: ${PAGE_MARGIN_Y_MM}mm ${PAGE_MARGIN_X_MM}mm; }
 @page cover { size: A4 portrait; margin: 0; }
 body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color: #0f172a; background: #fff; }
-.print-day-head { break-inside: avoid; page-break-inside: avoid; break-after: avoid; page-break-after: avoid; }
+/* Heading orphans only: keep headings with the content that follows; allow body text and photos to flow naturally */
+.print-day-head { break-inside: avoid; page-break-inside: avoid; }
 .print-day-head .print-day-heading { margin-bottom: 0.35rem; }
+.print-day-heading,
+.print-album-heading,
+.print-entry-heading { break-after: avoid; page-break-after: avoid; }
 .print-day-head + .print-entry,
 .print-day-head + .print-album-photos { break-before: avoid; page-break-before: avoid; }
-.print-entry > .print-entry-meta { break-after: avoid; page-break-after: avoid; }
-.print-entry > .print-entry-body { break-before: avoid; page-break-before: avoid; orphans: 3; widows: 3; }
-.print-entry-body + .photoGrid,
-.print-entry-meta + .photoGrid { break-before: avoid; page-break-before: avoid; }
-.print-album-heading { break-after: avoid; page-break-after: avoid; }
 .print-album-heading + .photoGrid { break-before: avoid; page-break-before: avoid; }
-.photoGrid figure { break-inside: avoid; page-break-inside: avoid; }
 .th-journal-print { padding: 16px 20px 32px; max-width: 46rem; margin: 0 auto; }
 .print-front-matter { page-break-inside: avoid; margin-bottom: 0.5rem; }
 .print-cover-page { display: grid; grid-template-rows: auto auto; page-break-after: avoid; min-height: auto; }
@@ -427,7 +425,7 @@ ${coverTitleSizeCss}
 .print-root.separate-cover-page.has-cover .print-day-block:first-of-type { margin-top: 0; }
 .print-root:not(.has-cover) .print-day-block:first-of-type { margin-top: 0; }
 .print-day-block + .print-day-block { margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px solid #ddd; }
-.print-day-heading { margin-bottom: 0.75rem; font-size: 1.35rem; break-after: avoid; page-break-after: avoid; }
+.print-day-heading { margin-bottom: 0.75rem; font-size: 1.35rem; }
 .print-entry { margin-bottom: 1.5rem; }
 .print-entry-meta { margin-bottom: 0.5rem; color: #64748b; font-size: 0.85rem; text-align: left; }
 .print-entry-heading { margin: 0 0 0.35rem; font-size: 1rem; text-align: left; }
@@ -478,17 +476,13 @@ ${coverBreak}
     padding-top: 0 !important;
     page-break-before: auto !important;
   }
-  .print-day-head {
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-    break-after: avoid !important;
-    page-break-after: avoid !important;
-  }
+  .print-day-head { break-inside: avoid !important; page-break-inside: avoid !important; }
+  .print-day-heading,
+  .print-album-heading,
+  .print-entry-heading { break-after: avoid !important; page-break-after: avoid !important; }
   .print-day-head + .print-entry,
   .print-day-head + .print-album-photos { break-before: avoid !important; page-break-before: avoid !important; }
-  .print-entry > .print-entry-meta { break-after: avoid !important; page-break-after: avoid !important; }
-  .print-entry > .print-entry-body { break-before: avoid !important; page-break-before: avoid !important; }
-  .print-entry-body + .photoGrid { break-before: avoid !important; page-break-before: avoid !important; }
+  .print-album-heading + .photoGrid { break-before: avoid !important; page-break-before: avoid !important; }
   .print-root.separate-cover-page .print-cover-hero-stage.hasHero .print-cover-hero-full {
     display: block !important;
     position: absolute !important;
