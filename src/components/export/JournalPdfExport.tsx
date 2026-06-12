@@ -20,6 +20,7 @@ export interface JournalPdfExportProps {
   tripDays: TripDay[];
   entries: JournalEntry[];
   photos: JournalPhoto[];
+  photosForEntry?: (entryId: string) => JournalPhoto[];
   commentsForEntry: (entryId: string) => JournalComment[];
   /** Called when the print preview sheet is closed (also closes export dialog). */
   onCloseExport?: () => void;
@@ -30,6 +31,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
   tripDays,
   entries,
   photos,
+  photosForEntry,
   commentsForEntry,
   onCloseExport
 }) => {
@@ -88,7 +90,8 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
       oneDayPerPage,
       separateCoverPage,
       coverTitleAlign,
-      fontSize
+      fontSize,
+      photosForEntry
     });
     setPrintHtml(html);
   }, [
@@ -109,7 +112,8 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
     oneDayPerPage,
     separateCoverPage,
     coverTitleAlign,
-    fontSize
+    fontSize,
+    photosForEntry
   ]);
 
   const handlePdfSelected = React.useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
@@ -138,6 +142,7 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
         includePageNumbers: stampPageNumbers,
         includeHeaderTripTitle: stampHeaderTripTitle,
         tripTitle: trip.title,
+        headerTripTitleAlign: coverTitleAlign,
         includeHeaderDate: stampHeaderDate,
         skipCoverPageStamp: stampSkipCoverPage
       });
@@ -155,7 +160,8 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
     stampHeaderTripTitle,
     stampHeaderDate,
     trip.title,
-    stampSkipCoverPage
+    stampSkipCoverPage,
+    coverTitleAlign
   ]);
 
   return (
@@ -255,7 +261,19 @@ export const JournalPdfExport: React.FC<JournalPdfExportProps> = ({
               <input type="checkbox" checked={stampFooterUrl} onChange={(e) => setStampFooterUrl(e.target.checked)} /> Page URL (footer left)
             </label>
             <label>
-              <input type="checkbox" checked={stampHeaderTripTitle} onChange={(e) => setStampHeaderTripTitle(e.target.checked)} /> Trip title (header left)
+              <input type="checkbox" checked={stampHeaderTripTitle} onChange={(e) => setStampHeaderTripTitle(e.target.checked)} /> Trip title (header)
+            </label>
+            <label className="fontSizeControl">
+              Header title{' '}
+              <select
+                value={coverTitleAlign}
+                onChange={(e) => setCoverTitleAlign(e.target.value as CoverTitleAlign)}
+                disabled={!stampHeaderTripTitle}
+                aria-label="Stamped header title alignment"
+              >
+                <option value="center">Centred</option>
+                <option value="left">Left aligned</option>
+              </select>
             </label>
             <label>
               <input type="checkbox" checked={stampHeaderDate} onChange={(e) => setStampHeaderDate(e.target.checked)} /> Export date (header right)

@@ -1,3 +1,5 @@
+import type { CoverTitleAlign } from './journalPrintPreview';
+
 export interface JournalPdfStampOptions {
   /** Footer left — page URL */
   includeFooterUrl: boolean;
@@ -7,6 +9,8 @@ export interface JournalPdfStampOptions {
   /** Header left — trip title */
   includeHeaderTripTitle: boolean;
   tripTitle: string;
+  /** Header trip title — centred or left within the page */
+  headerTripTitleAlign?: CoverTitleAlign;
   /** Header right — export date */
   includeHeaderDate: boolean;
   /** Omit stamping on PDF page 1 (separate cover page) */
@@ -63,8 +67,11 @@ export async function stampJournalPdf(file: File, options: JournalPdfStampOption
 
     if (options.includeHeaderTripTitle && options.tripTitle.trim()) {
       const text = truncateText(options.tripTitle.trim(), 72);
+      const textWidth = font.widthOfTextAtSize(text, STAMP_FONT_SIZE);
+      const titleAlign = options.headerTripTitleAlign === 'left' ? 'left' : 'center';
+      const titleX = titleAlign === 'center' ? (width - textWidth) / 2 : MARGIN_X_PT;
       page.drawText(text, {
-        x: MARGIN_X_PT,
+        x: titleX,
         y: height - HEADER_Y_OFFSET_PT,
         size: STAMP_FONT_SIZE,
         font,

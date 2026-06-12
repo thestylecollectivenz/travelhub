@@ -57,7 +57,8 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
     setMainWorkspaceTab
   } = useTripWorkspace();
   const { config } = useConfig();
-  const { allEntries: journalEntries, allTripPhotos, commentsForEntry, reassignDayContent } = useJournal();
+  const { allEntries: journalEntries, allTripPhotos, photosForEntry, commentsForEntry, reassignDayContent } =
+    useJournal();
   const { documents, links, setHighlightedDocumentId, setHighlightedLinkId } = useAttachments();
   const [editOpen, setEditOpen] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
@@ -585,6 +586,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
                 tripDays={tripDays}
                 entries={journalEntries}
                 photos={allTripPhotos}
+                photosForEntry={photosForEntry}
                 commentsForEntry={commentsForEntry}
                 onCloseExport={() => setExportOpen(false)}
               />

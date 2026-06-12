@@ -513,11 +513,17 @@ export interface JournalPrintPreviewParams {
   separateCoverPage?: boolean;
   coverTitleAlign?: CoverTitleAlign;
   fontSize?: JournalExportFontSize;
+  /** Same ordering as journal entry cards (incl. drag-reorder). */
+  photosForEntry?: (entryId: string) => JournalPhoto[];
 }
 
-function renderPhotoGrid(items: JournalPhoto[], includePhotoCaptions: boolean): string {
+function renderPhotoGrid(
+  items: JournalPhoto[],
+  includePhotoCaptions: boolean,
+  preserveOrder = false
+): string {
   if (!items.length) return '';
-  const sorted = [...items].sort(compareJournalPhotos);
+  const sorted = preserveOrder ? items : [...items].sort(compareJournalPhotos);
   let html = `<div class="photoGrid">`;
   for (const p of sorted) {
     html += `<figure><img src="${esc(p.fileUrl)}" alt="${esc(p.caption?.trim() ? p.caption : 'Journal photo')}" crossorigin="anonymous" />`;
@@ -549,7 +555,8 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
     oneDayPerPage,
     separateCoverPage = false,
     coverTitleAlign = 'center',
-    fontSize = 'medium'
+    fontSize = 'medium',
+    photosForEntry
   } = params;
 
   const showEntryTimestamps = includeEntryTimestamps && trip.showJournalEntryDate !== false;
@@ -609,7 +616,9 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
     }
     body += `</div>`;
     for (const entry of dayEntries) {
-      const entryPhotos = photos.filter((p) => p.journalEntryId === entry.id);
+      const entryPhotos = photosForEntry
+        ? photosForEntry(entry.id)
+        : photos.filter((p) => p.journalEntryId === entry.id).sort(compareJournalPhotos);
       const comments = commentsForEntry(entry.id);
       const locLine = entry.location?.trim() ? `<div class="print-entry-meta">📍 ${esc(entry.location)}</div>` : '';
       const authorLine =
@@ -625,7 +634,7 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
       if (includeLikes) {
         body += `<div class="print-entry-meta">Likes: ${entry.likeCount}</div>`;
       }
-      body += renderPhotoGrid(entryPhotos, includePhotoCaptions);
+      body += renderPhotoGrid(entryPhotos, includePhotoCaptions, Boolean(photosForEntry));
       if (includeComments && comments.length) {
         body += `<div style="margin-top:8px">`;
         for (const c of comments) {
