@@ -76,6 +76,12 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   const attachDocs = docsForEntry(draft.id);
   const attachLinks = linksForEntry(draft.id);
 
+  React.useEffect(() => {
+    if (attachDocs.length + attachLinks.length > 0) {
+      setAttachOpen(true);
+    }
+  }, [draft.id, attachDocs.length, attachLinks.length]);
+
   const syncDraftId = React.useCallback((nextId: string) => {
     if (nextId !== draft.id) {
       setDraft((d) => ({ ...d, id: nextId }));

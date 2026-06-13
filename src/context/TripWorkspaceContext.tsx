@@ -22,6 +22,11 @@ import type { WorkspaceReturnState } from '../types/workspaceReturn';
 
 export type MainWorkspaceTab = 'itinerary' | 'journal' | 'photos' | 'files' | 'map' | 'plan' | 'budget';
 
+export interface EditingSubItemRef {
+  parentEntryId: string;
+  subItemId: string;
+}
+
 function newTempId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return `temp-${crypto.randomUUID()}`;
@@ -59,6 +64,9 @@ export interface TripWorkspaceContextValue {
   setSelectedDayId: (id: string) => void;
   editingCardId: string | null;
   setEditingCardId: (id: string | null) => void;
+  /** Option/sub-item open in the right-hand edit panel. */
+  editingSubItem: EditingSubItemRef | null;
+  setEditingSubItem: (ref: EditingSubItemRef | null) => void;
   /** Scroll/highlight an itinerary card in read mode (not edit). */
   focusedEntryId: string | null;
   setFocusedEntryId: (id: string | null) => void;
@@ -131,6 +139,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
   const pendingSubItemCreatesRef = React.useRef<Map<string, Promise<ItinerarySubItem>>>(new Map());
   const [selectedDayId, setSelectedDayId] = React.useState<string>('');
   const [editingCardId, setEditingCardId] = React.useState<string | null>(null);
+  const [editingSubItem, setEditingSubItem] = React.useState<EditingSubItemRef | null>(null);
   const [focusedEntryId, setFocusedEntryId] = React.useState<string | null>(null);
   const [mainWorkspaceTab, setMainWorkspaceTab] = React.useState<MainWorkspaceTab>('itinerary');
   const [selectedBudgetCategory, setSelectedBudgetCategory] = React.useState<BudgetCategoryKey | null>(null);
@@ -411,6 +420,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       const reminderEntryIds = new Set<string>([entryId, ...childIds]);
 
       setEditingCardId((prev) => (prev === entryId ? null : prev));
+      setEditingSubItem((prev) => (prev?.parentEntryId === entryId ? null : prev));
       setLocalEntries((prev) => prev.filter((e) => e.id !== entryId && e.parentEntryId !== entryId));
 
       const entrySvc = new ItineraryService(spContext);
@@ -720,6 +730,9 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
           entry.id === entryId ? { ...entry, subItems: entry.subItems?.filter((s) => s.id !== subItemId) } : entry
         )
       );
+      setEditingSubItem((prev) =>
+        prev?.parentEntryId === entryId && prev.subItemId === subItemId ? null : prev
+      );
       const svc = new ItineraryService(spContext);
       const reminderSvc = new ReminderService(spContext);
       svc
@@ -761,6 +774,8 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       setSelectedDayId,
       editingCardId,
       setEditingCardId,
+      editingSubItem,
+      setEditingSubItem,
       focusedEntryId,
       setFocusedEntryId,
       localEntries,
@@ -823,6 +838,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       tripDays,
       selectedDayId,
       editingCardId,
+      editingSubItem,
       focusedEntryId,
       localEntries,
       loading,

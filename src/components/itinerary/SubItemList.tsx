@@ -7,8 +7,6 @@ import styles from './SubItemList.module.css';
 export interface SubItemListProps {
   subItems: ItinerarySubItem[];
   entryId: string;
-  autoEditSubItemId?: string | null;
-  onAutoEditConsumed?: () => void;
 }
 
 interface SubItemGroup {
@@ -47,12 +45,7 @@ function groupSubItems(subItems: ItinerarySubItem[]): SubItemGroup[] {
   return groups;
 }
 
-export const SubItemList: React.FC<SubItemListProps> = ({
-  subItems,
-  entryId,
-  autoEditSubItemId,
-  onAutoEditConsumed
-}) => {
+export const SubItemList: React.FC<SubItemListProps> = ({ subItems, entryId }) => {
   const groups = React.useMemo(() => groupSubItems(subItems), [subItems]);
 
   return (
@@ -66,13 +59,7 @@ export const SubItemList: React.FC<SubItemListProps> = ({
           ) : null}
           <div className={styles.items}>
             {group.items.map((item) => (
-              <SubItem
-                key={item.id}
-                item={item}
-                parentEntryId={entryId}
-                startInEditMode={item.id === autoEditSubItemId}
-                onEditModeConsumed={item.id === autoEditSubItemId ? onAutoEditConsumed : undefined}
-              />
+              <SubItem key={item.id} item={item} parentEntryId={entryId} />
             ))}
           </div>
         </div>

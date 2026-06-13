@@ -1,7 +1,5 @@
 .fab {
   position: fixed;
-  right: 1.25rem;
-  bottom: 1.25rem;
   z-index: 1200;
   width: 3rem;
   height: 3rem;
@@ -10,17 +8,18 @@
   background: var(--color-primary, #1e3a5f);
   color: #fff;
   font-size: 1.35rem;
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.28);
+}
+
+.fab:active {
+  cursor: grabbing;
 }
 
 .panel {
   position: fixed;
-  right: 1.25rem;
-  bottom: 4.75rem;
   z-index: 1200;
-  width: min(22rem, calc(100vw - 2rem));
-  max-height: min(28rem, 70vh);
   display: flex;
   flex-direction: column;
   background: var(--color-surface, #fff);

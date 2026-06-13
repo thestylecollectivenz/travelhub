@@ -199,16 +199,15 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const openTaskTarget =
     manualTasks.find((t) => t.reminderId === openTaskReminderId) ?? linkedEntryTask ?? manualTasks[0];
   const spContext = useSpContext();
-  const { trip, addSubItem, convertToHomeCurrency, setSelectedDayId, setMainWorkspaceTab, tripDays, updateEntry, persistEntry } =
+  const { trip, addSubItem, convertToHomeCurrency, setSelectedDayId, setMainWorkspaceTab, tripDays, updateEntry, persistEntry, editingSubItem, setEditingSubItem } =
     useTripWorkspace();
   const planView = usePlanView();
   const { config } = useConfig();
   const { docsForEntry, linksForEntry, addDocument, updateDocument, deleteDocument, addLink, updateLink, deleteLink } = useAttachments();
   const [menuOpen, setMenuOpen] = React.useState(false);
-  const [notesOpen, setNotesOpen] = React.useState(false);
+  const [notesOpen, setNotesOpen] = React.useState(() => Boolean(entry.notes?.trim()));
   const [attachmentsOpen, setAttachmentsOpen] = React.useState(false);
   const [subItemsOpen, setSubItemsOpen] = React.useState(false);
-  const [autoEditSubItemId, setAutoEditSubItemId] = React.useState<string | null>(null);
   const [docType, setDocType] = React.useState<EntryDocumentType>('Other');
   const [docNotes, setDocNotes] = React.useState('');
   const [docBusy, setDocBusy] = React.useState(false);
@@ -262,6 +261,10 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, [menuOpen]);
+
+  React.useEffect(() => {
+    setNotesOpen(Boolean(entry.notes?.trim()));
+  }, [entry.id, entry.notes]);
 
   React.useEffect(() => {
     setTaskPromptOpen(false);
@@ -425,15 +428,21 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const subOwing = subTotal - subPaid;
   const hasSubTotal = subTotal > 0;
   const cardTotalHome = displayAmountHome + subTotal;
-  const showSubItemContent = hasSubItems || autoEditSubItemId !== null;
+  const showSubItemContent = hasSubItems || editingSubItem?.parentEntryId === entry.id;
   const docs = docsForEntry(entry.id);
   const links = linksForEntry(entry.id);
+
+  React.useEffect(() => {
+    if (docs.length + links.length > 0) {
+      setAttachmentsOpen(true);
+    }
+  }, [entry.id, docs.length, links.length]);
 
   const handleStartAddSubItem = React.useCallback(() => {
     setSubItemsOpen(true);
     const tempId = addSubItem(entry.id, emptySubItem());
-    setAutoEditSubItemId(tempId);
-  }, [addSubItem, entry.id]);
+    setEditingSubItem({ parentEntryId: entry.id, subItemId: tempId });
+  }, [addSubItem, entry.id, setEditingSubItem]);
 
   const handleDocumentPick = React.useCallback(
     async (ev: React.ChangeEvent<HTMLInputElement>) => {
@@ -1420,13 +1429,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       ) : null}
 
       {showSubItemContent ? (
-        <div className={`${styles.relatedContent} ${subItemsOpen || autoEditSubItemId ? styles.relatedContentOpen : ''}`}>
-          <SubItemList
-            subItems={subItems}
-            entryId={entry.id}
-            autoEditSubItemId={autoEditSubItemId}
-            onAutoEditConsumed={() => setAutoEditSubItemId(null)}
-          />
+        <div className={`${styles.relatedContent} ${subItemsOpen || editingSubItem?.parentEntryId === entry.id ? styles.relatedContentOpen : ''}`}>
+          <SubItemList subItems={subItems} entryId={entry.id} />
         </div>
       ) : null}
     </div>

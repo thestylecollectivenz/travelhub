@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import type { ItinerarySubItem } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { confirmUserAction } from '../../utils/confirmAction';
@@ -7,16 +8,16 @@ import { useAttachments } from '../../context/AttachmentsContext';
 import { ReminderService } from '../../services/ReminderService';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../../utils/googleMapsLink';
+import { isPendingSubItemId } from '../../utils/itineraryEntryIds';
 import { SubItemDetailLines } from './SubItemDetailLines';
 import { CurrencySelect } from '../shared/CurrencySelect';
 import { useConfig } from '../../context/ConfigContext';
+import cardStyles from './ItineraryCard.module.css';
 import styles from './SubItem.module.css';
 
 export interface SubItemProps {
   item: ItinerarySubItem;
   parentEntryId: string;
-  startInEditMode?: boolean;
-  onEditModeConsumed?: () => void;
 }
 
 function EditIcon(): React.ReactElement {
@@ -45,18 +46,23 @@ function TaskIcon(): React.ReactElement {
   );
 }
 
-export const SubItem: React.FC<SubItemProps> = ({
-  item,
-  parentEntryId,
-  startInEditMode = false,
-  onEditModeConsumed
-}) => {
+export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
   const spContext = useSpContext();
   const { config } = useConfig();
-  const { trip, localEntries, updateSubItem, deleteSubItem, persistSubItem, usedCurrencies, usedLocations } =
-    useTripWorkspace();
+  const {
+    trip,
+    localEntries,
+    updateSubItem,
+    deleteSubItem,
+    persistSubItem,
+    usedCurrencies,
+    usedLocations,
+    editingSubItem,
+    setEditingSubItem
+  } = useTripWorkspace();
   const { docsForEntry, linksForEntry, addDocument, addLink, updateLink, deleteLink } = useAttachments();
-  const [isEditing, setIsEditing] = React.useState(startInEditMode);
+  const isEditing =
+    editingSubItem?.parentEntryId === parentEntryId && editingSubItem?.subItemId === item.id;
   const [draft, setDraft] = React.useState<ItinerarySubItem>({ ...item });
   const [taskBusy, setTaskBusy] = React.useState(false);
   const [taskPanelOpen, setTaskPanelOpen] = React.useState(false);
@@ -76,17 +82,16 @@ export const SubItem: React.FC<SubItemProps> = ({
   const mapsDirectionsUrl = googleMapsDirectionsUrl(draft.streetAddress || item.streetAddress || '');
 
   React.useEffect(() => {
-    if (startInEditMode) {
-      setIsEditing(true);
-      onEditModeConsumed?.();
-    }
-  }, [startInEditMode, onEditModeConsumed]);
-
-  React.useEffect(() => {
-    if (!isEditing) {
+    if (isEditing) {
       setDraft({ ...item });
     }
   }, [item, isEditing]);
+
+  React.useEffect(() => {
+    if (docs.length + links.length > 0) {
+      setAttachOpen(true);
+    }
+  }, [item.id, docs.length, links.length]);
 
   const hasUnsavedLinkDraft = linkTitle.trim() !== '' || linkUrl.trim() !== '';
 
@@ -94,6 +99,22 @@ export const SubItem: React.FC<SubItemProps> = ({
     if (!hasUnsavedLinkDraft) return true;
     return confirmUserAction('You have an unsaved link. Discard it?');
   }, [hasUnsavedLinkDraft]);
+
+  const closeEditPanel = React.useCallback(
+    async (discardChanges: boolean): Promise<void> => {
+      if (!(await confirmDiscardUnsavedLink())) return;
+      if (discardChanges && isPendingSubItemId(item.id) && !draft.title.trim()) {
+        deleteSubItem(parentEntryId, item.id);
+      }
+      setEditingSubItem(null);
+      setLinkTitle('');
+      setLinkUrl('');
+      if (discardChanges) {
+        setDraft({ ...item });
+      }
+    },
+    [confirmDiscardUnsavedLink, deleteSubItem, draft.title, item, parentEntryId, setEditingSubItem]
+  );
 
   const submitOptionTask = React.useCallback(() => {
     if (!trip?.id || !parentEntry) return;
@@ -120,8 +141,7 @@ export const SubItem: React.FC<SubItemProps> = ({
       .then(() => setTaskBusy(false));
   }, [spContext, trip?.id, parentEntry, item.id, item.title, taskDesc]);
 
-  if (isEditing) {
-    return (
+  const editPanel = isEditing ? (
       <div className={styles.editForm}>
         <input
           className={styles.field}
@@ -378,7 +398,7 @@ export const SubItem: React.FC<SubItemProps> = ({
               void (async () => {
                 if (!(await confirmDiscardUnsavedLink())) return;
                 updateSubItem(parentEntryId, draft);
-                setIsEditing(false);
+                setEditingSubItem(null);
                 setLinkTitle('');
                 setLinkUrl('');
               })();
@@ -390,27 +410,21 @@ export const SubItem: React.FC<SubItemProps> = ({
             type="button"
             className={styles.actionButtonMuted}
             onClick={() => {
-              void (async () => {
-                if (!(await confirmDiscardUnsavedLink())) return;
-                setDraft({ ...item });
-                setIsEditing(false);
-                setLinkTitle('');
-                setLinkUrl('');
-              })();
+              void closeEditPanel(true);
             }}
           >
             Cancel
           </button>
         </div>
       </div>
-    );
-  }
+  ) : null;
 
   const viewMapsPlaceUrl = googleMapsPlaceUrl(item.streetAddress || '');
   const viewMapsDirectionsUrl = googleMapsDirectionsUrl(item.streetAddress || '');
 
   return (
-    <div className={styles.row}>
+    <>
+    <div className={`${styles.row} ${isEditing ? styles.rowEditing : ''}`}>
       <div className={styles.detailWrap}>
         {taskPanelOpen ? (
           <div className={styles.taskPanel}>
@@ -557,7 +571,12 @@ export const SubItem: React.FC<SubItemProps> = ({
         >
           <TaskIcon />
         </button>
-        <button type="button" className={styles.editButton} onClick={() => setIsEditing(true)} aria-label="Edit sub-item">
+        <button
+          type="button"
+          className={styles.editButton}
+          onClick={() => setEditingSubItem({ parentEntryId, subItemId: item.id })}
+          aria-label="Edit sub-item"
+        >
           <EditIcon />
         </button>
         <button
@@ -575,5 +594,17 @@ export const SubItem: React.FC<SubItemProps> = ({
         </button>
       </div>
     </div>
+    {isEditing && editPanel && typeof document !== 'undefined'
+      ? ReactDOM.createPortal(
+          <div className={cardStyles.portalEditRoot} role="presentation">
+            <div className={cardStyles.portalEditInner}>
+              <h3 className={styles.portalHeading}>Edit option</h3>
+              {editPanel}
+            </div>
+          </div>,
+          document.body
+        )
+      : null}
+    </>
   );
 };
