@@ -109,4 +109,6 @@ export interface ItineraryEntry {
   transportFrom?: string;
   transportTo?: string;
   transportMode?: string;
+  /** Train / bus — number of transfers (0 = direct). */
+  transportTransfers?: number;
 }

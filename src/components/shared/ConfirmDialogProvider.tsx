@@ -30,6 +30,8 @@ export function useConfirm(): ConfirmFn {
 
 export const ConfirmDialogProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = React.useState<ConfirmState | null>(null);
+  const stateRef = React.useRef<ConfirmState | null>(null);
+  stateRef.current = state;
 
   const confirm = React.useCallback((message: string, detail?: string): Promise<boolean> => {
     return new Promise((resolve) => {
@@ -44,14 +46,12 @@ export const ConfirmDialogProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, [confirm]);
 
-  const close = React.useCallback(
-    (confirmed: boolean) => {
-      if (!state) return;
-      state.resolve(confirmed);
-      setState(null);
-    },
-    [state]
-  );
+  const close = React.useCallback((confirmed: boolean) => {
+    const current = stateRef.current;
+    if (!current) return;
+    current.resolve(confirmed);
+    setState(null);
+  }, []);
 
   return (
     <ConfirmContext.Provider value={confirm}>
@@ -74,7 +74,7 @@ export const ConfirmDialogProvider: React.FC<{ children: React.ReactNode }> = ({
               <button type="button" className={styles.cancelBtn} onClick={() => close(false)}>
                 Cancel
               </button>
-              <button type="button" className={styles.confirmBtn} onClick={() => close(true)}>
+              <button type="button" className={styles.confirmBtn} onMouseDown={(e) => e.stopPropagation()} onClick={() => close(true)}>
                 Confirm
               </button>
             </div>

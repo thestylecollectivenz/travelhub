@@ -226,14 +226,15 @@ export function placeNameAndCountry(place: Pick<Place, 'title' | 'country'>): { 
   };
 }
 
-export function linesToCheckItems(text: string): LocationInfoCheckItem[] {
+export function linesToCheckItems(text: string, kind?: LocationHighlightKind): LocationInfoCheckItem[] {
   const lines = (text || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const items: LocationInfoCheckItem[] = [];
+  const prefix = kind ? `${kind}-` : '';
   for (let i = 0; i < lines.length; i++) {
     const label = lines[i].replace(/^[-*•]\s*/, '').trim();
     if (!label) continue;
     items.push({
-      id: `item-${i}-${label.slice(0, 12).replace(/\W/g, '')}`,
+      id: `${prefix}item-${i}-${label.slice(0, 12).replace(/\W/g, '')}`,
       label,
       done: false,
       source: 'user'
@@ -248,12 +249,12 @@ export function checkItemsToText(items: LocationInfoCheckItem[] | undefined): st
 
 export function getIconicSightsItems(data: LocationInfoNotes): LocationInfoCheckItem[] {
   if (data.iconicSightsItems !== undefined) return data.iconicSightsItems;
-  return linesToCheckItems(data.iconicSights);
+  return linesToCheckItems(data.iconicSights, 'sight');
 }
 
 export function getFoodDrinkItems(data: LocationInfoNotes): LocationInfoCheckItem[] {
   if (data.foodDrinkItems !== undefined) return data.foodDrinkItems;
-  return linesToCheckItems(data.foodDrink);
+  return linesToCheckItems(data.foodDrink, 'food');
 }
 
 export type LocationHighlightKind = 'sight' | 'food' | 'drink' | 'souvenir';
@@ -278,13 +279,46 @@ export function splitHighlightRows(rows: LocationHighlightRow[]): Pick<LocationI
   };
 }
 
-export function normalizeLocationInfoNotes(data: LocationInfoNotes): LocationInfoNotes {
-  const iconicSightsItems = getIconicSightsItems(data);
-  const foodDrinkItems = getFoodDrinkItems(data);
-  const drinkItems = data.drinkItems ?? [];
-  const souvenirItems = data.souvenirItems ?? [];
+/** Ensure highlight IDs are unique per category (fixes legacy cross-category collisions). */
+export function ensureUniqueHighlightIds(data: LocationInfoNotes): LocationInfoNotes {
+  const fix = (items: LocationInfoCheckItem[], kind: LocationHighlightKind): LocationInfoCheckItem[] => {
+    const seen = new Set<string>();
+    return items.map((item, index) => {
+      const prefix = `${kind}-`;
+      let id = item.id?.trim() || `${prefix}item-${index}`;
+      if (!id.startsWith(prefix)) {
+        id = `${prefix}${id}`;
+      }
+      while (seen.has(id)) {
+        id = `${prefix}item-${index}-${seen.size}`;
+      }
+      seen.add(id);
+      return id === item.id ? item : { ...item, id };
+    });
+  };
+
+  const iconicSightsItems = fix(getIconicSightsItems(data), 'sight');
+  const foodDrinkItems = fix(getFoodDrinkItems(data), 'food');
+  const drinkItems = fix(data.drinkItems ?? [], 'drink');
+  const souvenirItems = fix(data.souvenirItems ?? [], 'souvenir');
+
   return {
     ...data,
+    iconicSightsItems,
+    foodDrinkItems,
+    drinkItems,
+    souvenirItems
+  };
+}
+
+export function normalizeLocationInfoNotes(data: LocationInfoNotes): LocationInfoNotes {
+  const withIds = ensureUniqueHighlightIds(data);
+  const iconicSightsItems = getIconicSightsItems(withIds);
+  const foodDrinkItems = getFoodDrinkItems(withIds);
+  const drinkItems = withIds.drinkItems ?? [];
+  const souvenirItems = withIds.souvenirItems ?? [];
+  return {
+    ...withIds,
     iconicSightsItems,
     foodDrinkItems,
     drinkItems,

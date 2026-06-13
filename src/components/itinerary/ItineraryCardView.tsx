@@ -83,7 +83,8 @@ function emptySubItem(): ItinerarySubItem {
     paymentStatus: 'Not paid',
     bookingRequired: false,
     amount: 0,
-    currency: 'NZD'
+    currency: 'NZD',
+    costCertainty: 'Estimated'
   };
 }
 
@@ -207,7 +208,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [notesOpen, setNotesOpen] = React.useState(Boolean(entry.notes && entry.notes.trim()));
   const [attachmentsOpen, setAttachmentsOpen] = React.useState(false);
-  const [subItemsOpen, setSubItemsOpen] = React.useState(true);
+  const [subItemsOpen, setSubItemsOpen] = React.useState(false);
   const [addingSubItem, setAddingSubItem] = React.useState(false);
   const [newSub, setNewSub] = React.useState<ItinerarySubItem>(emptySubItem);
   const [docType, setDocType] = React.useState<EntryDocumentType>('Other');
@@ -302,7 +303,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const location = formatLocationText((entry.location ?? '').trim());
   const isLocationInfo = isLocationInfoEntry(entry);
   const { placeById } = usePlaces();
-  const [locationInfoExpanded, setLocationInfoExpanded] = React.useState(true);
+  const [locationInfoExpanded, setLocationInfoExpanded] = React.useState(false);
   const locationInfoData = isLocationInfo
     ? (() => {
         const parsed = parseLocationInfoNotes(entry.notes);
@@ -680,6 +681,10 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             data={locationInfoData}
             geminiApiKey={config.geminiApiKey}
             onOpenSettings={() => window.dispatchEvent(new Event('travelhub-open-settings'))}
+            onThreadChange={(thread) => {
+              const next = normalizeLocationInfoNotes({ ...locationInfoData, aiQaThread: thread });
+              updateEntry({ ...entry, notes: serializeLocationInfoNotes(next) });
+            }}
           />
         </div>
       ) : null}
@@ -806,12 +811,16 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       (entry.transportFrom?.trim() ||
         entry.transportTo?.trim() ||
         entry.transportMode?.trim() ||
+        (entry.transportTransfers !== undefined && entry.transportTransfers > 0) ||
         entry.journeyType ||
         (entry.journeyType === 'return' && (entry.returnDate || entry.returnTime))) ? (
         <div className={styles.detailBlock}>
           {entry.transportFrom?.trim() ? <div>From {entry.transportFrom.trim()}</div> : null}
           {entry.transportTo?.trim() ? <div>To {entry.transportTo.trim()}</div> : null}
           {entry.transportMode?.trim() ? <div>Mode {entry.transportMode.trim()}</div> : null}
+          {entry.transportTransfers !== undefined && entry.transportTransfers > 0 ? (
+            <div>Transfers {entry.transportTransfers}</div>
+          ) : null}
           {entry.journeyType ? <div>Journey {entry.journeyType === 'return' ? 'Return' : 'One way'}</div> : null}
           {entry.journeyType === 'return' && entry.returnDate ? <div>Return date {formatYmd(entry.returnDate)}</div> : null}
           {entry.journeyType === 'return' && entry.returnTime ? <div>Return dep. {formatTimeHHMM(entry.returnTime)}</div> : null}

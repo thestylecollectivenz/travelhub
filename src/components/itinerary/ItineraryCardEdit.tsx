@@ -6,7 +6,7 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
 import { flightPlaceOptionsForDay } from '../../utils/flightPlaceOptions';
 import { parseAdditionalPlaceRefs } from '../../utils/tripDayPlaces';
-import { durationFromDateTimes } from '../../utils/durationFromTimes';
+import { durationFromDateTimes, arrivalTimeFromDuration } from '../../utils/durationFromTimes';
 import { useConfig } from '../../context/ConfigContext';
 import { CurrencySelect } from '../shared/CurrencySelect';
 import { useAttachments } from '../../context/AttachmentsContext';
@@ -110,6 +110,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   }, [draft.dayId, tripDays, placeById, isFlights]);
 
   React.useEffect(() => {
+    if (!isFlights && !isTransport) return;
     const auto = durationFromDateTimes({
       startDate: draft.dateStart || calendarDate,
       startTime: draft.timeStart,
@@ -117,7 +118,10 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       endTime: isFlights || isTransport ? draft.arrivalTime : draft.checkOutTime
     });
     if (!auto) return;
-    setDraft((d) => (d.duration?.trim() ? d : { ...d, duration: auto }));
+    setDraft((d) => {
+      if (d.duration?.trim()) return d;
+      return { ...d, duration: auto };
+    });
   }, [
     draft.dateStart,
     draft.dateEnd,
@@ -129,6 +133,27 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
     isFlights,
     isTransport
   ]);
+
+  React.useEffect(() => {
+    if (!isFlights && !isTransport) return;
+    if (!draft.duration?.trim() || !draft.timeStart?.trim()) return;
+    const computed = arrivalTimeFromDuration({
+      startDate: draft.dateStart || calendarDate,
+      startTime: draft.timeStart,
+      duration: draft.duration
+    });
+    if (!computed) return;
+    setDraft((d) => {
+      const curArr = formatTimeHHMM(d.arrivalTime ?? '');
+      const curDate = (d.arrivalDate || d.dateStart || calendarDate).slice(0, 10);
+      if (curArr === computed.arrivalTime && curDate === computed.arrivalDate) return d;
+      return {
+        ...d,
+        arrivalTime: computed.arrivalTime,
+        arrivalDate: isFlights ? computed.arrivalDate : d.arrivalDate || computed.arrivalDate
+      };
+    });
+  }, [draft.duration, draft.timeStart, draft.dateStart, calendarDate, isFlights, isTransport]);
 
   React.useEffect(() => {
     if (!isAccommodation) return;
@@ -208,7 +233,8 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       packageInclusions: draft.packageInclusions?.trim() || undefined,
       transportFrom: draft.transportFrom?.trim() || undefined,
       transportTo: draft.transportTo?.trim() || undefined,
-      transportMode: draft.transportMode?.trim() || undefined
+      transportMode: draft.transportMode?.trim() || undefined,
+      transportTransfers: draft.transportTransfers
     };
     if (saved.category === 'Transport') {
       saved.journeyType = saved.journeyType ?? 'oneway';
@@ -627,6 +653,22 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
               <option value="Walking">Walking</option>
               <option value="Other">Other</option>
             </select>
+            {(draft.transportMode === 'Train' || draft.transportMode === 'Bus / Coach') ? (
+              <>
+                <label className={styles.label} htmlFor={`tx-${draft.id}`}>
+                  Transfers
+                </label>
+                <input
+                  id={`tx-${draft.id}`}
+                  className={styles.input}
+                  type="number"
+                  min={0}
+                  max={20}
+                  value={draft.transportTransfers ?? 0}
+                  onChange={(e) => patch({ transportTransfers: Math.max(0, Number(e.target.value) || 0) })}
+                />
+              </>
+            ) : null}
             <label className={styles.label} htmlFor={`jt-${draft.id}`}>
               Journey type
             </label>
@@ -982,7 +1024,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
             <select
               id={`cost-certainty-${draft.id}`}
               className={styles.select}
-              value={draft.costCertainty || 'Confirmed'}
+              value={draft.costCertainty || 'Estimated'}
               onChange={(e) =>
                 patch({ costCertainty: e.target.value as ItineraryEntry['costCertainty'] })
               }

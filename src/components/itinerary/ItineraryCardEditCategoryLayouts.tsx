@@ -156,7 +156,7 @@ function BookingPaymentFields({
           <select
             id={`cost-certainty-${draft.id}`}
             className={styles.select}
-            value={draft.costCertainty || 'Confirmed'}
+            value={draft.costCertainty || 'Estimated'}
             onChange={(e) => patch({ costCertainty: e.target.value as ItineraryEntry['costCertainty'] })}
           >
             <option value="Confirmed">Confirmed</option>
@@ -654,6 +654,7 @@ export const LocationInfoEditLayout: React.FC<CategoryEditLayoutProps> = ({ draf
           data={data}
           geminiApiKey={config.geminiApiKey}
           onOpenSettings={openSettings}
+          onThreadChange={(thread) => updateNotes({ aiQaThread: thread })}
         />
       </div>
     </div>

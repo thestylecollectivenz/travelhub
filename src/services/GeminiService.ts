@@ -346,3 +346,66 @@ export async function generateLocationInfo(
   }
   throw lastErr ?? new GeminiServiceError('API_ERROR', 'No Gemini models available.');
 }
+
+export interface TravelChatMessage {
+  role: 'user' | 'assistant';
+  text: string;
+}
+
+/** General trip-planning chat (not location-card specific). */
+export async function answerTravelChat(
+  apiKey: string,
+  messages: TravelChatMessage[],
+  tripContext?: string,
+  options?: { model?: string }
+): Promise<{ answer: string; model: string }> {
+  const key = (apiKey || '').trim();
+  if (!key) throw new GeminiServiceError('NO_KEY', 'Add a Gemini API key in User settings.');
+
+  const transcript = messages
+    .map((m) => `${m.role === 'user' ? 'Traveller' : 'Assistant'}: ${m.text}`)
+    .join('\n');
+  const prompt = `You are a helpful travel planning assistant. Answer clearly and practically. Ask a brief clarifying question when the request is ambiguous (e.g. which station or neighbourhood they mean).
+
+${tripContext?.trim() ? `Trip context:\n${tripContext.trim()}\n\n` : ''}Conversation:
+${transcript}
+
+Reply as plain text (no JSON). Keep answers concise unless detail is needed.`;
+
+  const models: string[] = options?.model
+    ? [options.model, ...GEMINI_MODEL_FALLBACK_CHAIN.filter((m) => m !== options.model)]
+    : [...GEMINI_MODEL_FALLBACK_CHAIN];
+
+  let lastErr: GeminiServiceError | undefined;
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.6, maxOutputTokens: 900 }
+        })
+      });
+      if (!resp.ok) {
+        throw new GeminiServiceError('API_ERROR', `Gemini API returned ${resp.status}`, resp.status);
+      }
+      const data = await resp.json();
+      const text = extractResponseText(data).trim();
+      if (!text) throw new GeminiServiceError('PARSE_ERROR', 'Gemini returned an empty response.');
+      return { answer: text, model };
+    } catch (err) {
+      if (!(err instanceof GeminiServiceError)) {
+        throw new GeminiServiceError('API_ERROR', err instanceof Error ? err.message : 'Gemini request failed.');
+      }
+      lastErr = err;
+      if (err.code === 'NO_KEY') throw err;
+      const hasAnother = i < models.length - 1;
+      if (hasAnother && isQuotaOrModelBlockedError(err)) continue;
+      throw err;
+    }
+  }
+  throw lastErr ?? new GeminiServiceError('API_ERROR', 'No Gemini models available.');
+}

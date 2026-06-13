@@ -430,17 +430,23 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
         if (idx < 0) return prev;
         const orig = prev[idx];
         const daySiblings = prev.filter((e) => e.dayId === orig.dayId && !e.parentEntryId);
-        const maxSort = daySiblings.reduce((acc, e) => Math.max(acc, e.sortOrder), 0);
+        const copySortOrder = orig.sortOrder + 1;
+        const bumped = prev.map((e) =>
+          e.dayId === orig.dayId && !e.parentEntryId && e.sortOrder >= copySortOrder
+            ? { ...e, sortOrder: e.sortOrder + 1 }
+            : e
+        );
         const tempId = newTempId();
-        const copy: ItineraryEntry = { ...orig, id: tempId, sortOrder: maxSort + 1, subItems: [] };
-        const next = [...prev];
-        next.splice(idx + 1, 0, copy);
+        const copy: ItineraryEntry = { ...orig, id: tempId, sortOrder: copySortOrder, subItems: orig.subItems ?? [] };
+        const insertAt = bumped.findIndex((e) => e.id === entryId);
+        const next = [...bumped];
+        next.splice(insertAt + 1, 0, copy);
         // Persist to SP and replace temp ID with real ID
         const svc = new ItineraryService(spContext);
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { id: _omitId, subItems: _omitSub, ...createPayload } = copy;
         svc
-          .create({ ...createPayload, sortOrder: maxSort + 1 })
+          .create({ ...createPayload, sortOrder: copySortOrder })
           .then((created) => {
             setLocalEntries((current) => current.map((e) => (e.id === tempId ? { ...e, id: created.id } : e)));
             void syncEntryCancellationDeadlineReminder(spContext, created)

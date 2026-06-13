@@ -28,6 +28,7 @@ import { useConfig } from '../../context/ConfigContext';
 import { JournalPdfExport } from '../export/JournalPdfExport';
 import { SOLUTION_VERSION } from '../../appVersion';
 import { LocationInfoTripOpenBackfill } from '../itinerary/LocationInfoTripOpenBackfill';
+import { AiAssistantFab } from './AiAssistantFab';
 import styles from './TripWorkspace.module.css';
 
 export interface ITripWorkspaceProps {
@@ -623,6 +624,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
           }}
         />
       ) : null}
+      <AiAssistantFab />
     </div>
   );
 };

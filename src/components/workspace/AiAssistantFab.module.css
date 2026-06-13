@@ -1,0 +1,130 @@
+.fab {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 1200;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-primary, #1e3a5f);
+  color: #fff;
+  font-size: 1.35rem;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.28);
+}
+
+.panel {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 4.75rem;
+  z-index: 1200;
+  width: min(22rem, calc(100vw - 2rem));
+  max-height: min(28rem, 70vh);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface, #fff);
+  border: var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--border-default);
+  font-size: var(--font-size-sm);
+}
+
+.closeBtn {
+  border: none;
+  background: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.thread {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-sand-600);
+  line-height: 1.4;
+}
+
+.userMsg,
+.aiMsg {
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.userMsg {
+  align-self: flex-end;
+  background: var(--color-blue-50, #eff6ff);
+  max-width: 92%;
+}
+
+.aiMsg {
+  align-self: flex-start;
+  background: var(--color-sand-50, #f8fafc);
+  max-width: 100%;
+}
+
+.aiMsg a,
+.userMsg a {
+  color: var(--color-primary, #1e3a5f);
+}
+
+.compose {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border-top: var(--border-default);
+}
+
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  resize: vertical;
+}
+
+.sendBtn {
+  align-self: end;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-primary, #1e3a5f);
+  color: #fff;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.sendBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error {
+  margin: 0 var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--color-danger, #b42318);
+}

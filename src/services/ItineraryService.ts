@@ -278,7 +278,8 @@ function mapToEntry(item: any): ItineraryEntry {
     packageInclusions: item.PackageInclusions ? String(item.PackageInclusions) : undefined,
     transportFrom: item.TransportFrom ?? undefined,
     transportTo: item.TransportTo ?? undefined,
-    transportMode: item.TransportMode ?? undefined
+    transportMode: item.TransportMode ?? undefined,
+    transportTransfers: typeof item.TransportTransfers === 'number' ? item.TransportTransfers : Number(item.TransportTransfers ?? 0) || 0
   };
 }
 
@@ -376,6 +377,7 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   if (entry.transportFrom !== undefined) item.TransportFrom = entry.transportFrom || null;
   if (entry.transportTo !== undefined) item.TransportTo = entry.transportTo || null;
   if (entry.transportMode !== undefined) item.TransportMode = entry.transportMode || null;
+  if (entry.transportTransfers !== undefined) item.TransportTransfers = entry.transportTransfers;
   return item;
 }
 

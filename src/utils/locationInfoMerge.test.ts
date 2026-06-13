@@ -1,5 +1,6 @@
 import {
   defaultLocationInfoNotes,
+  ensureUniqueHighlightIds,
   locationHighlightRows,
   mergeAIResult,
   recordSuppressedHighlightLabels,
@@ -69,5 +70,19 @@ describe('locationInfo merge preserves user content', () => {
     const next = locationHighlightRows(data);
     const keys = recordSuppressedHighlightLabels(data, prev, next);
     expect(keys).toContain('removed item');
+  });
+
+  it('assigns unique highlight ids per category', () => {
+    const data = ensureUniqueHighlightIds({
+      ...defaultLocationInfoNotes('place-1'),
+      iconicSightsItems: [{ id: 'item-0-Marketvisit', label: 'Market', done: false }],
+      foodDrinkItems: [{ id: 'item-0-Marketvisit', label: 'Market food', done: false }]
+    });
+    const rows = locationHighlightRows(data);
+    const sight = rows.find((r) => r.kind === 'sight');
+    const food = rows.find((r) => r.kind === 'food');
+    expect(sight?.id).not.toBe(food?.id);
+    expect(sight?.id.startsWith('sight-')).toBe(true);
+    expect(food?.id.startsWith('food-')).toBe(true);
   });
 });

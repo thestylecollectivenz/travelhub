@@ -168,7 +168,7 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
             <>
               <select
                 className={styles.field}
-                value={draft.costCertainty || 'Confirmed'}
+                value={draft.costCertainty || 'Estimated'}
                 onChange={(e) =>
                   setDraft((prev) => ({
                     ...prev,

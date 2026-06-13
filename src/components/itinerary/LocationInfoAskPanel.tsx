@@ -1,10 +1,12 @@
 import * as React from 'react';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import type { Place } from '../../models/Place';
-import type { LocationInfoNotes } from '../../utils/locationInfoEntry';
+import type { LocationInfoNotes, LocationInfoQaEntry } from '../../utils/locationInfoEntry';
 import { useSpContext } from '../../context/SpContext';
 import { subscribeLocationInfoAIStatus } from '../../utils/locationInfoAIEvents';
 import { scheduleLocationInfoQuestion } from '../../utils/locationInfoGeneration';
+import { LinkifiedText } from '../shared/LinkifiedText';
+import { confirmUserAction } from '../../utils/confirmAction';
 import styles from './LocationInfoAskPanel.module.css';
 
 export interface LocationInfoAskPanelProps {
@@ -14,6 +16,7 @@ export interface LocationInfoAskPanelProps {
   geminiApiKey: string;
   readOnly?: boolean;
   onOpenSettings?: () => void;
+  onThreadChange?: (thread: LocationInfoQaEntry[]) => void;
 }
 
 export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
@@ -22,12 +25,15 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
   data,
   geminiApiKey,
   readOnly = false,
-  onOpenSettings
+  onOpenSettings,
+  onThreadChange
 }) => {
   const spContext = useSpContext();
   const [question, setQuestion] = React.useState('');
   const [asking, setAsking] = React.useState(false);
   const [askError, setAskError] = React.useState<string | undefined>();
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [editDraft, setEditDraft] = React.useState('');
 
   const hasKey = Boolean((geminiApiKey || '').trim());
   const thread = data.aiQaThread ?? [];
@@ -44,6 +50,10 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
       }
     });
   }, [entry.id]);
+
+  const updateThread = (next: LocationInfoQaEntry[]): void => {
+    onThreadChange?.(next);
+  };
 
   const submitQuestion = (): void => {
     if (!place || !hasKey || readOnly) return;
@@ -74,7 +84,66 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
           {thread.map((item) => (
             <div key={item.id} className={styles.qaBlock}>
               <div className={styles.question}>Q: {item.question}</div>
-              <div className={styles.answer}>{item.answer}</div>
+              {editingId === item.id ? (
+                <textarea
+                  className={styles.editArea}
+                  rows={4}
+                  value={editDraft}
+                  onChange={(e) => setEditDraft(e.target.value)}
+                />
+              ) : (
+                <div className={styles.answer}>
+                  <LinkifiedText text={item.answer} />
+                </div>
+              )}
+              {!readOnly && onThreadChange ? (
+                <div className={styles.qaActions}>
+                  {editingId === item.id ? (
+                    <>
+                      <button
+                        type="button"
+                        className={styles.qaBtn}
+                        onClick={() => {
+                          const answer = editDraft.trim();
+                          if (!answer) return;
+                          updateThread(thread.map((t) => (t.id === item.id ? { ...t, answer } : t)));
+                          setEditingId(null);
+                        }}
+                      >
+                        Save
+                      </button>
+                      <button type="button" className={styles.qaBtn} onClick={() => setEditingId(null)}>
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className={styles.qaBtn}
+                        onClick={() => {
+                          setEditingId(item.id);
+                          setEditDraft(item.answer);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.qaBtnDanger}
+                        onClick={() => {
+                          void (async () => {
+                            if (!(await confirmUserAction('Delete this Q&A entry?'))) return;
+                            updateThread(thread.filter((t) => t.id !== item.id));
+                          })();
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : null}
             </div>
           ))}
         </div>

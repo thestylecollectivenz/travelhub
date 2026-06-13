@@ -30,6 +30,10 @@ const SECTION_TO_MERGE: Record<LocationHighlightKind, 'sights' | 'food' | 'drink
   souvenir: 'souvenirs'
 };
 
+function highlightRowKey(row: LocationHighlightRow): string {
+  return `${row.kind}::${row.id}`;
+}
+
 export interface LocationInfoHighlightsProps {
   rows: LocationHighlightRow[];
   onChange: (rows: LocationHighlightRow[]) => void;
@@ -96,12 +100,12 @@ export const LocationInfoHighlights: React.FC<LocationInfoHighlightsProps> = ({
     return map;
   }, [rows]);
 
-  const toggle = (id: string): void => {
-    onChange(rows.map((x) => (x.id === id ? { ...x, done: !x.done } : x)));
+  const toggle = (key: string): void => {
+    onChange(rows.map((x) => (highlightRowKey(x) === key ? { ...x, done: !x.done } : x)));
   };
 
-  const remove = (id: string): void => {
-    onChange(rows.filter((x) => x.id !== id));
+  const remove = (key: string): void => {
+    onChange(rows.filter((x) => highlightRowKey(x) !== key));
   };
 
   const addLine = (): void => {
@@ -109,7 +113,7 @@ export const LocationInfoHighlights: React.FC<LocationInfoHighlightsProps> = ({
     if (!label) return;
     onChange([
       ...rows,
-      { id: `item-${Date.now()}`, label, done: false, kind: draftKind, source: 'user' }
+      { id: `item-${draftKind}-${Date.now()}`, label, done: false, kind: draftKind, source: 'user' }
     ]);
     setDraftLine('');
   };
@@ -179,18 +183,18 @@ export const LocationInfoHighlights: React.FC<LocationInfoHighlightsProps> = ({
             {sectionRows.length ? (
               <ul className={styles.list}>
                 {sectionRows.map((item) => (
-                  <li key={item.id} className={styles.row}>
+                  <li key={highlightRowKey(item)} className={styles.row}>
                     <label className={styles.checkLabel}>
                       <input
                         type="checkbox"
                         checked={item.done}
                         disabled={readOnly}
-                        onChange={() => toggle(item.id)}
+                        onChange={() => toggle(highlightRowKey(item))}
                       />
                       <span className={item.done ? styles.labelDone : undefined}>{item.label}</span>
                     </label>
                     {!readOnly ? (
-                      <button type="button" className={styles.removeBtn} onClick={() => remove(item.id)} aria-label="Remove">
+                      <button type="button" className={styles.removeBtn} onClick={() => remove(highlightRowKey(item))} aria-label="Remove">
                         ×
                       </button>
                     ) : null}

@@ -128,6 +128,10 @@ function compareBySortOrderThenTimeForDay(
   tripDays?: TripDay[]
 ): (a: ItineraryEntry, b: ItineraryEntry) => number {
   return (a, b): number => {
+    const aCont = isMultiDayContinuationOnDay(a, calendarDate, tripDays);
+    const bCont = isMultiDayContinuationOnDay(b, calendarDate, tripDays);
+    if (aCont !== bCont) return aCont ? 1 : -1;
+
     const ao = a.sortOrder ?? 0;
     const bo = b.sortOrder ?? 0;
     if (ao !== bo) return ao - bo;
@@ -138,6 +142,21 @@ function compareBySortOrderThenTimeForDay(
     if (bMin !== undefined) return 1;
     return (a.title || '').localeCompare(b.title || '');
   };
+}
+
+function isMultiDaySpanCategory(category: string): boolean {
+  return category === 'Accommodation' || category === 'Cruise';
+}
+
+/** Hotel / cruise continuation rows on later days — default to bottom of the column. */
+function isMultiDayContinuationOnDay(entry: ItineraryEntry, calendarDate: string, tripDays?: TripDay[]): boolean {
+  if (!isMultiDaySpanCategory(entry.category) || !tripDays?.length) return false;
+  const homeDay = tripDays.find((d) => d.id === entry.dayId);
+  if (!homeDay) return false;
+  const homeCal = homeDay.calendarDate.slice(0, 10);
+  const viewCal = calendarDate.slice(0, 10);
+  if (viewCal <= homeCal) return false;
+  return isEntryOnCalendarDate(entry, calendarDate, homeDay.dayType, { viewingDayId: homeDay.id });
 }
 
 /**
