@@ -21,6 +21,8 @@ import styles from './ItineraryCardEdit.module.css';
 export interface ItineraryCardEditProps {
   entry: ItineraryEntry;
   calendarDate: string;
+  /** When option, edits a related option using the same form chrome as a day card. */
+  variant?: 'entry' | 'option';
   onSave: (entry: ItineraryEntry) => void;
   onCancel: () => void;
   onDelete: () => void;
@@ -29,6 +31,7 @@ export interface ItineraryCardEditProps {
 export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   entry,
   calendarDate,
+  variant = 'entry',
   onSave,
   onCancel,
   onDelete
@@ -351,13 +354,16 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
     usedCurrencies
   };
 
+  const isOption = variant === 'option';
+
   return (
     <div className={styles.form}>
+      {isOption ? <h3 className={styles.optionEditHeading}>Edit option</h3> : null}
       {isFlights ? (
         <FlightEditLayout {...layoutProps} />
       ) : isAccommodation ? (
         <AccommodationEditLayout {...layoutProps} />
-      ) : isLocationInfo ? (
+      ) : isLocationInfo && !isOption ? (
         <>
           <div className={styles.grid}>
             <label className={styles.label} htmlFor={`cat-${draft.id}`}>
@@ -396,21 +402,30 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
         </>
       ) : (
       <div className={styles.grid}>
-        <label className={styles.label} htmlFor={`cat-${draft.id}`}>
-          Category
-        </label>
-        <select
-          id={`cat-${draft.id}`}
-          className={styles.select}
-          value={draft.category}
-          onChange={(e) => patch({ category: e.target.value })}
-        >
-          {CATEGORY_LIST.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+        {!isOption ? (
+          <>
+            <label className={styles.label} htmlFor={`cat-${draft.id}`}>
+              Category
+            </label>
+            <select
+              id={`cat-${draft.id}`}
+              className={styles.select}
+              value={draft.category}
+              onChange={(e) => patch({ category: e.target.value })}
+            >
+              {CATEGORY_LIST.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </>
+        ) : (
+          <>
+            <span className={styles.label}>Category</span>
+            <div className={styles.readOnlyValue}>{draft.category}</div>
+          </>
+        )}
 
         <label className={styles.label} htmlFor={`time-${draft.id}`}>
           Time
@@ -1231,14 +1246,9 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
         <button
           type="button"
           className={styles.deleteBtn}
-          onClick={() => {
-            void (async () => {
-              if (!(await confirmUserAction('Delete this itinerary item?'))) return;
-              onDelete();
-            })();
-          }}
+          onClick={onDelete}
         >
-          Delete
+          {isOption ? 'Delete option' : 'Delete'}
         </button>
         <div className={styles.actionsRight}>
           <button type="button" className={styles.btnSecondary} onClick={onCancel}>

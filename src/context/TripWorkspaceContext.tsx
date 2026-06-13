@@ -16,6 +16,11 @@ import { repairPreTripCalendarIfCollidingWithFirstDay } from '../utils/tripPreTr
 import { calendarDayBefore, planChronologicalRenumber, ymdSlice } from '../utils/tripDateRangeSync';
 import { isPreTripDayRow } from '../utils/itineraryDayEntries';
 import { isPendingItineraryEntryId, isPendingSubItemId } from '../utils/itineraryEntryIds';
+import {
+  insertAfterInDayViewEntryOrder,
+  removeFromDayViewEntryOrder,
+  replaceIdInDayViewEntryOrder
+} from '../utils/dayViewEntryOrder';
 import { useConfig } from './ConfigContext';
 import type { BudgetCategoryKey } from '../utils/financialUtils';
 import type { WorkspaceReturnState } from '../types/workspaceReturn';
@@ -459,51 +464,68 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
 
   const duplicateEntry = React.useCallback(
     (entryId: string) => {
-      setLocalEntries((prev) => {
-        const idx = prev.findIndex((e) => e.id === entryId);
-        if (idx < 0) return prev;
-        const orig = prev[idx];
-        const daySiblings = prev.filter((e) => e.dayId === orig.dayId && !e.parentEntryId);
-        const copySortOrder = orig.sortOrder + 1;
-        const bumped = prev.map((e) =>
-          e.dayId === orig.dayId && !e.parentEntryId && e.sortOrder >= copySortOrder
-            ? { ...e, sortOrder: e.sortOrder + 1 }
-            : e
-        );
-        const tempId = newTempId();
-        const copy: ItineraryEntry = { ...orig, id: tempId, sortOrder: copySortOrder, subItems: orig.subItems ?? [] };
-        const insertAt = bumped.findIndex((e) => e.id === entryId);
-        const next = [...bumped];
+      const prev = localEntriesRef.current;
+      const idx = prev.findIndex((e) => e.id === entryId);
+      if (idx < 0) return;
+      const orig = prev[idx];
+      if (orig.parentEntryId) return;
+
+      const copySortOrder = orig.sortOrder + 1;
+      const bumped = prev.map((e) =>
+        e.dayId === orig.dayId && !e.parentEntryId && e.sortOrder >= copySortOrder
+          ? { ...e, sortOrder: e.sortOrder + 1 }
+          : e
+      );
+      const tempId = newTempId();
+      const copy: ItineraryEntry = {
+        ...orig,
+        id: tempId,
+        sortOrder: copySortOrder,
+        subItems: []
+      };
+      const insertAt = bumped.findIndex((e) => e.id === entryId);
+      const next = [...bumped];
+      if (insertAt >= 0) {
         next.splice(insertAt + 1, 0, copy);
-        // Persist to SP and replace temp ID with real ID
-        const svc = new ItineraryService(spContext);
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { id: _omitId, subItems: _omitSub, ...createPayload } = copy;
-        svc
-          .create({ ...createPayload, sortOrder: copySortOrder })
-          .then((created) => {
-            setLocalEntries((current) => current.map((e) => (e.id === tempId ? { ...e, id: created.id } : e)));
-            void syncEntryCancellationDeadlineReminder(spContext, created)
-              .then(
-                () => undefined,
-                (syncErr) => {
-                  // eslint-disable-next-line no-console
-                  console.error('duplicateEntry: cancellation reminder sync failed', syncErr);
-                }
-              )
-              .then(() => {
-                window.dispatchEvent(new Event('trip-reminders-updated'));
-              });
-          })
-          .catch((err) => {
-            // eslint-disable-next-line no-console
-            console.error('duplicateEntry: SP persist failed', err);
-            setLocalEntries((current) => current.filter((e) => e.id !== tempId));
+      } else {
+        next.push(copy);
+      }
+
+      setLocalEntries(next);
+      setFocusedEntryId(tempId);
+      insertAfterInDayViewEntryOrder(orig.tripId, orig.dayId, entryId, tempId);
+
+      const sortUpdates = bumped
+        .filter(
+          (e) =>
+            e.dayId === orig.dayId &&
+            !e.parentEntryId &&
+            e.id !== entryId &&
+            e.id !== tempId &&
+            (e.sortOrder ?? 0) > (orig.sortOrder ?? 0)
+        )
+        .map((e) => ({ id: e.id, sortOrder: e.sortOrder }));
+
+      void (async () => {
+        try {
+          const created = await persistEntry(copy);
+          replaceIdInDayViewEntryOrder(orig.tripId, orig.dayId, tempId, created.id);
+          setFocusedEntryId(created.id);
+          const svc = new ItineraryService(spContext);
+          await runBatched(sortUpdates, 5, async ({ id, sortOrder }) => {
+            await svc.update(id, { sortOrder });
           });
-        return next;
-      });
+          await syncEntryCancellationDeadlineReminder(spContext, created);
+          window.dispatchEvent(new Event('trip-reminders-updated'));
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('duplicateEntry: SP persist failed', err);
+          removeFromDayViewEntryOrder(orig.tripId, orig.dayId, tempId);
+          setFocusedEntryId((focused) => (focused === tempId ? null : focused));
+        }
+      })();
     },
-    [spContext]
+    [spContext, persistEntry]
   );
 
   const reorderEntries = React.useCallback(

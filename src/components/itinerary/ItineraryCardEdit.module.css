@@ -4,6 +4,13 @@
   gap: var(--space-3);
 }
 
+.optionEditHeading {
+  margin: 0;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-800);
+}
+
 .grid {
   display: grid;
   grid-template-columns: minmax(100px, 140px) 1fr;

@@ -8,6 +8,29 @@
   border-radius: var(--radius-sm);
 }
 
+.optionInline {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
+  border-left: 2px solid var(--color-sand-200);
+  background: color-mix(in srgb, var(--color-sand-50) 70%, transparent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.optionInlineActive {
+  border-left-color: var(--color-primary);
+  background: var(--color-blue-50);
+}
+
+.optionBody {
+  flex: 1;
+  min-width: 0;
+}
+
 .detailWrap {
   flex: 1;
   min-width: 0;
@@ -24,6 +47,10 @@
 
 .row:hover {
   background: var(--color-sand-50);
+}
+
+.optionInline:hover {
+  background: color-mix(in srgb, var(--color-sand-100) 80%, transparent);
 }
 
 .rowEditing {
@@ -127,6 +154,7 @@
 }
 
 .row:hover .editButton,
+.optionInline:hover .editButton,
 .actionCol:hover .editButton {
   opacity: 1;
 }
@@ -146,6 +174,7 @@
 }
 
 .row:hover .deleteButton,
+.optionInline:hover .deleteButton,
 .actionCol:hover .deleteButton {
   opacity: 1;
 }

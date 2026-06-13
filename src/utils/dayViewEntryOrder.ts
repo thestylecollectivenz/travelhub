@@ -15,6 +15,61 @@ export function saveDayViewEntryOrder(tripId: string, viewDayId: string, ordered
   }
 }
 
+function readDayViewEntryOrder(tripId: string, viewDayId: string): string[] {
+  try {
+    const s = window.localStorage.getItem(storageKey(tripId, viewDayId));
+    if (!s) return [];
+    const rawIds = JSON.parse(s) as string[];
+    return Array.isArray(rawIds) ? rawIds : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Insert a new card id immediately after another in a saved column order (duplicate). */
+export function insertAfterInDayViewEntryOrder(
+  tripId: string,
+  viewDayId: string,
+  afterId: string,
+  newId: string
+): void {
+  const rawIds = readDayViewEntryOrder(tripId, viewDayId);
+  if (rawIds.length === 0) return;
+  const idx = rawIds.indexOf(afterId);
+  const next = [...rawIds];
+  if (idx < 0) {
+    next.push(newId);
+  } else {
+    next.splice(idx + 1, 0, newId);
+  }
+  saveDayViewEntryOrder(tripId, viewDayId, next);
+}
+
+/** Swap a pending id for the persisted SharePoint id in saved column order. */
+export function replaceIdInDayViewEntryOrder(
+  tripId: string,
+  viewDayId: string,
+  fromId: string,
+  toId: string
+): void {
+  const rawIds = readDayViewEntryOrder(tripId, viewDayId);
+  if (rawIds.length === 0) return;
+  const idx = rawIds.indexOf(fromId);
+  if (idx < 0) return;
+  const next = [...rawIds];
+  next[idx] = toId;
+  saveDayViewEntryOrder(tripId, viewDayId, next);
+}
+
+/** Remove an id from saved column order (rollback). */
+export function removeFromDayViewEntryOrder(tripId: string, viewDayId: string, entryId: string): void {
+  const rawIds = readDayViewEntryOrder(tripId, viewDayId);
+  if (rawIds.length === 0) return;
+  const next = rawIds.filter((id) => id !== entryId);
+  if (next.length === rawIds.length) return;
+  saveDayViewEntryOrder(tripId, viewDayId, next);
+}
+
 /**
  * Apply a saved per-column order (drag-drop) on top of the default sort for that calendar column.
  * Entries not listed in storage are appended in default (time / sortOrder) order.

@@ -1,5 +1,4 @@
 import * as React from 'react';
-import * as ReactDOM from 'react-dom';
 import type { ItinerarySubItem } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { confirmUserAction } from '../../utils/confirmAction';
@@ -8,11 +7,7 @@ import { useAttachments } from '../../context/AttachmentsContext';
 import { ReminderService } from '../../services/ReminderService';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../../utils/googleMapsLink';
-import { isPendingSubItemId } from '../../utils/itineraryEntryIds';
 import { SubItemDetailLines } from './SubItemDetailLines';
-import { CurrencySelect } from '../shared/CurrencySelect';
-import { useConfig } from '../../context/ConfigContext';
-import cardStyles from './ItineraryCard.module.css';
 import styles from './SubItem.module.css';
 
 export interface SubItemProps {
@@ -48,73 +43,26 @@ function TaskIcon(): React.ReactElement {
 
 export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
   const spContext = useSpContext();
-  const { config } = useConfig();
-  const {
-    trip,
-    localEntries,
-    updateSubItem,
-    deleteSubItem,
-    persistSubItem,
-    usedCurrencies,
-    usedLocations,
-    editingSubItem,
-    setEditingSubItem
-  } = useTripWorkspace();
-  const { docsForEntry, linksForEntry, addDocument, addLink, updateLink, deleteLink } = useAttachments();
-  const isEditing =
-    editingSubItem?.parentEntryId === parentEntryId && editingSubItem?.subItemId === item.id;
-  const [draft, setDraft] = React.useState<ItinerarySubItem>({ ...item });
+  const { trip, localEntries, deleteSubItem, setEditingSubItem, editingSubItem } = useTripWorkspace();
+  const { docsForEntry, linksForEntry, updateLink, deleteLink } = useAttachments();
   const [taskBusy, setTaskBusy] = React.useState(false);
   const [taskPanelOpen, setTaskPanelOpen] = React.useState(false);
   const [taskDesc, setTaskDesc] = React.useState('');
-  const [linkTitle, setLinkTitle] = React.useState('');
-  const [linkUrl, setLinkUrl] = React.useState('');
-  const [uploadBusy, setUploadBusy] = React.useState(false);
   const [attachOpen, setAttachOpen] = React.useState(false);
   const [editingLinkId, setEditingLinkId] = React.useState<string | null>(null);
   const [linkEditDraft, setLinkEditDraft] = React.useState({ linkTitle: '', url: '' });
-  const fileRef = React.useRef<HTMLInputElement | null>(null);
 
   const parentEntry = React.useMemo(() => localEntries.find((e) => e.id === parentEntryId), [localEntries, parentEntryId]);
   const docs = docsForEntry(item.id);
   const links = linksForEntry(item.id);
-  const mapsPlaceUrl = googleMapsPlaceUrl(draft.streetAddress || item.streetAddress || '');
-  const mapsDirectionsUrl = googleMapsDirectionsUrl(draft.streetAddress || item.streetAddress || '');
-
-  React.useEffect(() => {
-    if (isEditing) {
-      setDraft({ ...item });
-    }
-  }, [item, isEditing]);
+  const isEditingInPanel =
+    editingSubItem?.parentEntryId === parentEntryId && editingSubItem?.subItemId === item.id;
 
   React.useEffect(() => {
     if (docs.length + links.length > 0) {
       setAttachOpen(true);
     }
   }, [item.id, docs.length, links.length]);
-
-  const hasUnsavedLinkDraft = linkTitle.trim() !== '' || linkUrl.trim() !== '';
-
-  const confirmDiscardUnsavedLink = React.useCallback(async (): Promise<boolean> => {
-    if (!hasUnsavedLinkDraft) return true;
-    return confirmUserAction('You have an unsaved link. Discard it?');
-  }, [hasUnsavedLinkDraft]);
-
-  const closeEditPanel = React.useCallback(
-    async (discardChanges: boolean): Promise<void> => {
-      if (!(await confirmDiscardUnsavedLink())) return;
-      if (discardChanges && isPendingSubItemId(item.id) && !draft.title.trim()) {
-        deleteSubItem(parentEntryId, item.id);
-      }
-      setEditingSubItem(null);
-      setLinkTitle('');
-      setLinkUrl('');
-      if (discardChanges) {
-        setDraft({ ...item });
-      }
-    },
-    [confirmDiscardUnsavedLink, deleteSubItem, draft.title, item, parentEntryId, setEditingSubItem]
-  );
 
   const submitOptionTask = React.useCallback(() => {
     if (!trip?.id || !parentEntry) return;
@@ -141,291 +89,12 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
       .then(() => setTaskBusy(false));
   }, [spContext, trip?.id, parentEntry, item.id, item.title, taskDesc]);
 
-  const editPanel = isEditing ? (
-      <div className={styles.editForm}>
-        <input
-          className={styles.field}
-          type="text"
-          value={draft.title}
-          onChange={(e) => setDraft((prev) => ({ ...prev, title: e.target.value }))}
-          placeholder="Option title"
-        />
-        <div className={styles.editRow}>
-          <input
-            className={styles.field}
-            type="time"
-            value={draft.startTime ?? ''}
-            onChange={(e) => setDraft((prev) => ({ ...prev, startTime: e.target.value || undefined }))}
-            placeholder="Start time"
-          />
-          <input
-            className={styles.field}
-            type="time"
-            value={draft.endTime ?? ''}
-            onChange={(e) => setDraft((prev) => ({ ...prev, endTime: e.target.value || undefined }))}
-            placeholder="End time"
-          />
-        </div>
-        <input
-          className={styles.field}
-          type="text"
-          list={`opt-loc-${item.id}`}
-          placeholder="Location"
-          value={draft.location ?? ''}
-          onChange={(e) => setDraft((prev) => ({ ...prev, location: e.target.value }))}
-        />
-        <datalist id={`opt-loc-${item.id}`}>
-          {usedLocations.map((loc) => (
-            <option key={loc} value={loc} />
-          ))}
-        </datalist>
-        <input
-          className={styles.field}
-          type="text"
-          placeholder="Street address (for maps)"
-          value={draft.streetAddress ?? ''}
-          onChange={(e) => setDraft((prev) => ({ ...prev, streetAddress: e.target.value }))}
-        />
-        {mapsPlaceUrl ? (
-          <div className={styles.editRow}>
-            <a className={styles.actionButton} href={mapsPlaceUrl} target="_blank" rel="noopener noreferrer">
-              Open in Maps
-            </a>
-            {mapsDirectionsUrl ? (
-              <a className={styles.actionButtonMuted} href={mapsDirectionsUrl} target="_blank" rel="noopener noreferrer">
-                Directions
-              </a>
-            ) : null}
-          </div>
-        ) : null}
-        <textarea
-          className={styles.field}
-          rows={2}
-          placeholder="Notes for this option"
-          value={draft.notes ?? ''}
-          onChange={(e) => setDraft((prev) => ({ ...prev, notes: e.target.value }))}
-        />
-        <div className={styles.checkboxRow}>
-          <input
-            id={`br-${item.id}`}
-            type="checkbox"
-            checked={draft.bookingRequired === true}
-            onChange={(e) => setDraft((prev) => ({ ...prev, bookingRequired: e.target.checked }))}
-          />
-          <label htmlFor={`br-${item.id}`}>Booking required</label>
-        </div>
-        <div className={styles.costRow}>
-          <select
-            className={styles.field}
-            value={draft.decisionStatus}
-            onChange={(e) =>
-              setDraft((prev) => ({ ...prev, decisionStatus: e.target.value as ItinerarySubItem['decisionStatus'] }))
-            }
-          >
-            <option value="Idea">Idea</option>
-            <option value="Planned">Planned</option>
-            <option value="Confirmed">Confirmed</option>
-          </select>
-          <select
-            className={styles.field}
-            value={draft.paymentStatus}
-            onChange={(e) => {
-              const value = e.target.value as ItinerarySubItem['paymentStatus'];
-              setDraft((prev) => ({
-                ...prev,
-                paymentStatus: value,
-                amount: value === 'Free' ? 0 : prev.amount,
-                amountPaid: value === 'Part paid' ? prev.amountPaid : undefined
-              }));
-            }}
-          >
-            <option value="Not paid">Not paid</option>
-            <option value="Part paid">Part paid</option>
-            <option value="Fully paid">Fully paid</option>
-            <option value="Free">Free</option>
-          </select>
-          {draft.paymentStatus !== 'Free' ? (
-            <>
-              <select
-                className={styles.field}
-                value={draft.costCertainty || 'Estimated'}
-                onChange={(e) =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    costCertainty: e.target.value as ItinerarySubItem['costCertainty']
-                  }))
-                }
-                aria-label="Cost certainty"
-              >
-                <option value="Estimated">Estimated</option>
-                <option value="Confirmed">Confirmed</option>
-              </select>
-              <input
-                className={`${styles.field} ${styles.costAmount}`}
-                type="number"
-                min={0}
-                step={0.01}
-                value={draft.amount}
-                onChange={(e) => setDraft((prev) => ({ ...prev, amount: Number(e.target.value) || 0 }))}
-                aria-label="Amount"
-              />
-              <div className={styles.costCurrency}>
-                <CurrencySelect
-                  value={draft.currency || config.homeCurrency || 'NZD'}
-                  onChange={(code) => setDraft((prev) => ({ ...prev, currency: code }))}
-                  priorityCodes={usedCurrencies}
-                />
-              </div>
-            </>
-          ) : null}
-        </div>
-        {draft.paymentStatus === 'Part paid' ? (
-          <div className={styles.editRowSingle}>
-            <input
-              className={styles.field}
-              type="number"
-              min={0}
-              max={draft.amount}
-              step={0.01}
-              placeholder="Amount paid so far"
-              value={draft.amountPaid ?? ''}
-              onChange={(e) =>
-                setDraft((prev) => ({
-                  ...prev,
-                  amountPaid: e.target.value === '' ? undefined : Math.min(prev.amount, Number(e.target.value) || 0)
-                }))
-              }
-            />
-          </div>
-        ) : null}
-        {parentEntry ? (
-          <div className={styles.attachBlock}>
-            <div className={styles.attachToolbar}>
-              <button type="button" className={styles.actionButton} disabled={uploadBusy} onClick={() => fileRef.current?.click()}>
-                {uploadBusy ? 'Upload…' : 'Add file'}
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                className={styles.fileHidden}
-                onChange={(ev) => {
-                  const f = ev.target.files?.[0];
-                  if (!f || !parentEntry) return;
-                  setUploadBusy(true);
-                  void persistSubItem(parentEntryId, item)
-                    .then((resolved) =>
-                      addDocument({
-                        file: f,
-                        dayId: parentEntry.dayId,
-                        entryId: resolved.id,
-                        documentType: 'Other',
-                        notes: ''
-                      })
-                    )
-                    .catch(console.error)
-                    .then(() => {
-                      setUploadBusy(false);
-                      ev.target.value = '';
-                    });
-                }}
-              />
-            </div>
-            <div className={styles.linkRow}>
-              <input
-                className={styles.field}
-                placeholder="Link title"
-                value={linkTitle}
-                onChange={(e) => setLinkTitle(e.target.value)}
-              />
-              <input
-                className={styles.field}
-                placeholder="URL"
-                value={linkUrl}
-                onChange={(e) => setLinkUrl(e.target.value)}
-              />
-              <button
-                type="button"
-                className={styles.actionButton}
-                onClick={() => {
-                  const t = linkTitle.trim();
-                  const u = linkUrl.trim();
-                  if (!t || !u || !parentEntry) return;
-                  void persistSubItem(parentEntryId, item)
-                    .then((resolved) =>
-                      addLink({
-                        dayId: parentEntry.dayId,
-                        entryId: resolved.id,
-                        linkType: 'Url',
-                        url: u,
-                        linkTitle: t
-                      })
-                    )
-                    .then(() => {
-                      setLinkTitle('');
-                      setLinkUrl('');
-                    })
-                    .catch(console.error);
-                }}
-              >
-                Add link
-              </button>
-            </div>
-            {(docs.length > 0 || links.length > 0) ? (
-              <ul className={styles.attachList}>
-                {docs.map((d) => (
-                  <li key={d.id}>
-                    <button type="button" className={styles.miniLink} onClick={() => openDocumentUrl(d.fileUrl)}>
-                      {d.title || 'File'}
-                    </button>
-                  </li>
-                ))}
-                {links.map((l) => (
-                  <li key={l.id}>
-                    <button type="button" className={styles.miniLink} onClick={() => openDocumentUrl(l.url)}>
-                      {l.linkTitle || l.url}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        ) : null}
-        <div className={styles.editFooter}>
-          <button
-            type="button"
-            className={styles.actionButton}
-            onClick={() => {
-              void (async () => {
-                if (!(await confirmDiscardUnsavedLink())) return;
-                updateSubItem(parentEntryId, draft);
-                setEditingSubItem(null);
-                setLinkTitle('');
-                setLinkUrl('');
-              })();
-            }}
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            className={styles.actionButtonMuted}
-            onClick={() => {
-              void closeEditPanel(true);
-            }}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-  ) : null;
-
   const viewMapsPlaceUrl = googleMapsPlaceUrl(item.streetAddress || '');
   const viewMapsDirectionsUrl = googleMapsDirectionsUrl(item.streetAddress || '');
 
   return (
-    <>
-    <div className={`${styles.row} ${isEditing ? styles.rowEditing : ''}`}>
-      <div className={styles.detailWrap}>
+    <div className={`${styles.optionInline} ${isEditingInPanel ? styles.optionInlineActive : ''}`}>
+      <div className={styles.optionBody}>
         {taskPanelOpen ? (
           <div className={styles.taskPanel}>
             <label className={styles.taskLabel} htmlFor={`opt-task-${item.id}`}>
@@ -575,7 +244,7 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
           type="button"
           className={styles.editButton}
           onClick={() => setEditingSubItem({ parentEntryId, subItemId: item.id })}
-          aria-label="Edit sub-item"
+          aria-label="Edit option"
         >
           <EditIcon />
         </button>
@@ -588,23 +257,11 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
               deleteSubItem(parentEntryId, item.id);
             })();
           }}
-          aria-label="Delete sub-item"
+          aria-label="Delete option"
         >
           <DeleteIcon />
         </button>
       </div>
     </div>
-    {isEditing && editPanel && typeof document !== 'undefined'
-      ? ReactDOM.createPortal(
-          <div className={cardStyles.portalEditRoot} role="presentation">
-            <div className={cardStyles.portalEditInner}>
-              <h3 className={styles.portalHeading}>Edit option</h3>
-              {editPanel}
-            </div>
-          </div>,
-          document.body
-        )
-      : null}
-    </>
   );
 };

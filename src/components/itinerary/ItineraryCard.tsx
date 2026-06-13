@@ -135,12 +135,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
           hasCancellationDeadlineReminder={hasCancellationDeadlineReminder}
           onEdit={() => setEditingCardId(entry.id)}
           onDuplicate={() => duplicateEntry(entry.id)}
-          onDelete={() => {
-            void (async () => {
-              if (!(await confirmUserAction('Delete this itinerary item?'))) return;
-              deleteEntry(entry.id);
-            })();
-          }}
+          onDelete={handleDelete}
         />
       )}
       {showEdit && useEditPortal && typeof document !== 'undefined'

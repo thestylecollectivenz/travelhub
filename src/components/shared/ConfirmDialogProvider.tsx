@@ -31,10 +31,12 @@ export function useConfirm(): ConfirmFn {
 export const ConfirmDialogProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = React.useState<ConfirmState | null>(null);
   const stateRef = React.useRef<ConfirmState | null>(null);
+  const confirmingRef = React.useRef(false);
   stateRef.current = state;
 
   const confirm = React.useCallback((message: string, detail?: string): Promise<boolean> => {
     return new Promise((resolve) => {
+      confirmingRef.current = false;
       setState({ message, detail, resolve });
     });
   }, []);
@@ -47,8 +49,10 @@ export const ConfirmDialogProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [confirm]);
 
   const close = React.useCallback((confirmed: boolean) => {
+    if (confirmingRef.current) return;
     const current = stateRef.current;
     if (!current) return;
+    confirmingRef.current = true;
     current.resolve(confirmed);
     setState(null);
   }, []);
@@ -64,7 +68,13 @@ export const ConfirmDialogProvider: React.FC<{ children: React.ReactNode }> = ({
             if (e.target === e.currentTarget) close(false);
           }}
         >
-          <div className={styles.dialog} role="alertdialog" aria-modal="true" aria-labelledby="th-confirm-title">
+          <div
+            className={styles.dialog}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="th-confirm-title"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
             <h2 id="th-confirm-title" className={styles.title}>
               Confirm
             </h2>
@@ -74,7 +84,15 @@ export const ConfirmDialogProvider: React.FC<{ children: React.ReactNode }> = ({
               <button type="button" className={styles.cancelBtn} onClick={() => close(false)}>
                 Cancel
               </button>
-              <button type="button" className={styles.confirmBtn} onMouseDown={(e) => e.stopPropagation()} onClick={() => close(true)}>
+              <button
+                type="button"
+                className={styles.confirmBtn}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  close(true);
+                }}
+              >
                 Confirm
               </button>
             </div>

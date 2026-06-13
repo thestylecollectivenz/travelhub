@@ -527,10 +527,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                 role="menuitem"
                 onClick={() => {
                   setMenuOpen(false);
-                  void (async () => {
-                    if (!(await confirmUserAction('Delete this itinerary item?'))) return;
-                    onDelete();
-                  })();
+                  onDelete();
                 }}
               >
                 Delete
@@ -1092,36 +1089,38 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                 value={linkDraft.notes}
                 onChange={(e) => setLinkDraft((prev) => ({ ...prev, notes: e.target.value }))}
               />
-              <button
-                type="button"
-                className={styles.newSubActionBtn}
-                disabled={linkBusy || linkDraft.linkTitle.trim() === '' || linkDraft.url.trim() === ''}
-                onClick={() => {
-                  setLinkBusy(true);
-                  void persistEntry(entry)
-                    .then((resolved) =>
-                      addLink({
-                        dayId: resolved.dayId,
-                        entryId: resolved.id,
-                        linkTitle: linkDraft.linkTitle.trim(),
-                        url: linkDraft.url.trim(),
-                        linkType: linkDraft.linkType,
-                        notes: linkDraft.notes.trim()
+              <div className={styles.attachAddActions}>
+                <button
+                  type="button"
+                  className={styles.attachSaveBtn}
+                  disabled={linkBusy || linkDraft.linkTitle.trim() === '' || linkDraft.url.trim() === ''}
+                  onClick={() => {
+                    setLinkBusy(true);
+                    void persistEntry(entry)
+                      .then((resolved) =>
+                        addLink({
+                          dayId: resolved.dayId,
+                          entryId: resolved.id,
+                          linkTitle: linkDraft.linkTitle.trim(),
+                          url: linkDraft.url.trim(),
+                          linkType: linkDraft.linkType,
+                          notes: linkDraft.notes.trim()
+                        })
+                      )
+                      .then(() => {
+                        resetLinkDraft();
+                        setAttachAddMode('none');
+                        setLinkBusy(false);
                       })
-                    )
-                    .then(() => {
-                      resetLinkDraft();
-                      setAttachAddMode('none');
-                      setLinkBusy(false);
-                    })
-                    .catch((err) => {
-                      setLinkBusy(false);
-                      console.error(err);
-                    });
-                }}
-              >
-                {linkBusy ? 'Saving…' : 'Save link'}
-              </button>
+                      .catch((err) => {
+                        setLinkBusy(false);
+                        console.error(err);
+                      });
+                  }}
+                >
+                  {linkBusy ? 'Saving…' : 'Save link'}
+                </button>
+              </div>
             </div>
           ) : null}
         </div>
