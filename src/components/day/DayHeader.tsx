@@ -5,7 +5,7 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
 import { useSpContext } from '../../context/SpContext';
 import { syncLocationInfoCards } from '../../utils/locationInfoCardSync';
-import type { PlaceCandidate } from '../../models/Place';
+import type { Place, PlaceCandidate } from '../../models/Place';
 import { formatDayDate } from '../../utils/dateUtils';
 import { compareTripDaysChronological } from '../../utils/tripDateRangeSync';
 import { parseAdditionalPlaceRefs, serializeAdditionalPlaceRef } from '../../utils/tripDayPlaces';
@@ -46,7 +46,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
 }) => {
   const { updateDay, reloadItineraryEntries, trip, tripDays, localEntries } = useTripWorkspace();
   const { config } = useConfig();
-  const { searchPlaces, createOrReusePlace, placeById } = usePlaces();
+  const { searchPlaces, createOrReusePlace, placeById, ensurePlacesLoaded } = usePlaces();
   const spContext = useSpContext();
   const isShared = variant === 'shared';
   const [isEditingTitle, setIsEditingTitle] = React.useState(false);
@@ -59,18 +59,23 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
   const [copyDaysCount, setCopyDaysCount] = React.useState(1);
   const [locationMessage, setLocationMessage] = React.useState('');
   const additionalRefs = React.useMemo(() => parseAdditionalPlaceRefs(day.additionalPlaceIds), [day.additionalPlaceIds]);
+
+  React.useEffect(() => {
+    const ids = [day.primaryPlaceId, ...additionalRefs.map((ref) => ref.placeId)].filter(Boolean) as string[];
+    if (ids.length > 0) {
+      ensurePlacesLoaded(ids).catch(console.error);
+    }
+  }, [day.primaryPlaceId, additionalRefs, ensurePlacesLoaded]);
+
   const dayLocations = React.useMemo(() => {
     const primary = day.primaryPlaceId ? placeById(day.primaryPlaceId) : undefined;
-    const additional = additionalRefs
-      .map((ref) => {
-        const p = placeById(ref.placeId);
-        if (!p) return undefined;
-        return { placeId: ref.placeId, place: p, returnToPrimary: ref.returnToPrimary };
-      })
-      .filter(Boolean) as Array<{ placeId: string; place: NonNullable<ReturnType<typeof placeById>>; returnToPrimary: boolean }>;
+    const additional = additionalRefs.map((ref) => {
+      const p = placeById(ref.placeId);
+      return { placeId: ref.placeId, place: p, returnToPrimary: ref.returnToPrimary };
+    });
     return { primary, additional };
   }, [day.primaryPlaceId, additionalRefs, placeById]);
-  const firstPlaceInfoId = dayLocations.primary?.id ?? dayLocations.additional[0]?.place.id ?? '';
+  const firstPlaceInfoId = dayLocations.primary?.id ?? dayLocations.additional[0]?.placeId ?? '';
   const activePlaceInfoId = controlledActivePlaceInfoId ?? activePlaceInfoIdState;
   const setActivePlaceInfoId = onActivePlaceInfoChange ?? setActivePlaceInfoIdState;
 
@@ -305,7 +310,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
                         createOrReusePlace(p).then((saved) => {
                           const existingIds = [
                             ...(dayLocations.primary ? [dayLocations.primary.id] : []),
-                            ...dayLocations.additional.map((x) => x.place.id)
+                            ...dayLocations.additional.map((x) => x.placeId)
                           ];
                           const alreadyById = existingIds.indexOf(saved.id) >= 0;
                           const alreadyByTitle =
@@ -344,28 +349,41 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
             </div>
           ) : null}
           <div className={styles.additionalList}>
-            {(dayLocations.primary ? [{ place: dayLocations.primary, primary: true, returnToPrimary: true }] : [])
-              .concat(dayLocations.additional.map((a) => ({ place: a.place, primary: false, returnToPrimary: a.returnToPrimary })))
+            {(
+              [
+                ...(dayLocations.primary
+                  ? [{ placeId: dayLocations.primary.id, place: dayLocations.primary as Place | undefined, primary: true, returnToPrimary: true }]
+                  : []),
+                ...dayLocations.additional.map((a) => ({
+                  placeId: a.placeId,
+                  place: a.place,
+                  primary: false as const,
+                  returnToPrimary: a.returnToPrimary
+                }))
+              ] as Array<{ placeId: string; place: Place | undefined; primary: boolean; returnToPrimary: boolean }>
+            )
               .map((row, idx) => {
-              const isInfoTarget = activePlaceInfoId === row.place.id;
+              const isInfoTarget = row.place ? activePlaceInfoId === row.place.id : activePlaceInfoId === row.placeId;
+              const placeLabel = row.place ? placeDisplayLabel(row.place) : 'Loading place…';
               return (
               <div
-                key={row.place.id}
+                key={row.placeId}
                 className={`${styles.locationRow} ${isInfoTarget ? styles.locationRowActive : ''}`}
               >
                 <div className={styles.locationRowHead}>
                   <button
                     type="button"
                     className={styles.locationSelectBtn}
-                    onClick={() => setActivePlaceInfoId(row.place.id)}
+                    onClick={() => setActivePlaceInfoId(row.place?.id ?? row.placeId)}
                     aria-pressed={isInfoTarget}
+                    disabled={!row.place}
                   >
                     <span className={styles.placePill}>
-                      <span aria-hidden>📍</span> {placeDisplayLabel(row.place)}
+                      <span aria-hidden>📍</span> {placeLabel}
                       {row.primary ? <span className={styles.placeMeta}>Primary</span> : null}
                     </span>
                   </button>
-                  {!isShared ? (
+                  {!isShared && row.place ? (
                     <div className={styles.locationInlineActions}>
                         {!row.primary ? (
                           <button
@@ -395,7 +413,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
                                 .filter((_, i) => i !== addIdx)
                                 .map((x) => ({ ...x }));
                               remaining.unshift({ placeId: dayLocations.primary.id, place: dayLocations.primary, returnToPrimary: true });
-                              updateLocations(nextPrimary.place.id, remaining.map((x) => ({ placeId: x.placeId, returnToPrimary: x.returnToPrimary })));
+                              updateLocations(nextPrimary.placeId, remaining.map((x) => ({ placeId: x.placeId, returnToPrimary: x.returnToPrimary })));
                             }}
                             title="Set as primary"
                           >
@@ -412,8 +430,9 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
                                 updateLocations('', []);
                                 return;
                               }
+                              if (!firstAdditional?.place) return;
                               updateLocations(
-                                firstAdditional.place.id,
+                                firstAdditional.placeId,
                                 dayLocations.additional.slice(1).map((x) => ({ placeId: x.placeId, returnToPrimary: x.returnToPrimary }))
                               );
                             } else {
@@ -466,11 +485,12 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
                         </button>
                     </div>
                   ) : null}
+                  {row.place ? (
                   <div className={styles.locationLinkGroup}>
                     <button
                       type="button"
                       className={`${styles.locationInfoBtn} ${isInfoTarget ? styles.locationInfoBtnActive : ''}`}
-                      onClick={() => setActivePlaceInfoId(row.place.id)}
+                      onClick={() => setActivePlaceInfoId(row.place!.id)}
                     >
                       Place info
                     </button>
@@ -483,6 +503,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
                       Map
                     </a>
                   </div>
+                  ) : null}
                 </div>
                 {!isShared && row.primary && followingDayOptions.length ? (
                   <div className={styles.locationCopyRow}>

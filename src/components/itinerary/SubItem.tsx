@@ -6,6 +6,7 @@ import { useSpContext } from '../../context/SpContext';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { ReminderService } from '../../services/ReminderService';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
+import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../../utils/googleMapsLink';
 import { SubItemDetailLines } from './SubItemDetailLines';
 import { CurrencySelect } from '../shared/CurrencySelect';
 import { useConfig } from '../../context/ConfigContext';
@@ -14,6 +15,8 @@ import styles from './SubItem.module.css';
 export interface SubItemProps {
   item: ItinerarySubItem;
   parentEntryId: string;
+  startInEditMode?: boolean;
+  onEditModeConsumed?: () => void;
 }
 
 function EditIcon(): React.ReactElement {
@@ -42,12 +45,18 @@ function TaskIcon(): React.ReactElement {
   );
 }
 
-export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
+export const SubItem: React.FC<SubItemProps> = ({
+  item,
+  parentEntryId,
+  startInEditMode = false,
+  onEditModeConsumed
+}) => {
   const spContext = useSpContext();
   const { config } = useConfig();
-  const { trip, localEntries, updateSubItem, deleteSubItem } = useTripWorkspace();
-  const { docsForEntry, linksForEntry, addDocument, addLink } = useAttachments();
-  const [isEditing, setIsEditing] = React.useState(false);
+  const { trip, localEntries, updateSubItem, deleteSubItem, persistSubItem, usedCurrencies, usedLocations } =
+    useTripWorkspace();
+  const { docsForEntry, linksForEntry, addDocument, addLink, updateLink, deleteLink } = useAttachments();
+  const [isEditing, setIsEditing] = React.useState(startInEditMode);
   const [draft, setDraft] = React.useState<ItinerarySubItem>({ ...item });
   const [taskBusy, setTaskBusy] = React.useState(false);
   const [taskPanelOpen, setTaskPanelOpen] = React.useState(false);
@@ -55,17 +64,36 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
   const [linkTitle, setLinkTitle] = React.useState('');
   const [linkUrl, setLinkUrl] = React.useState('');
   const [uploadBusy, setUploadBusy] = React.useState(false);
+  const [attachOpen, setAttachOpen] = React.useState(false);
+  const [editingLinkId, setEditingLinkId] = React.useState<string | null>(null);
+  const [linkEditDraft, setLinkEditDraft] = React.useState({ linkTitle: '', url: '' });
   const fileRef = React.useRef<HTMLInputElement | null>(null);
 
   const parentEntry = React.useMemo(() => localEntries.find((e) => e.id === parentEntryId), [localEntries, parentEntryId]);
   const docs = docsForEntry(item.id);
   const links = linksForEntry(item.id);
+  const mapsPlaceUrl = googleMapsPlaceUrl(draft.streetAddress || item.streetAddress || '');
+  const mapsDirectionsUrl = googleMapsDirectionsUrl(draft.streetAddress || item.streetAddress || '');
+
+  React.useEffect(() => {
+    if (startInEditMode) {
+      setIsEditing(true);
+      onEditModeConsumed?.();
+    }
+  }, [startInEditMode, onEditModeConsumed]);
 
   React.useEffect(() => {
     if (!isEditing) {
       setDraft({ ...item });
     }
   }, [item, isEditing]);
+
+  const hasUnsavedLinkDraft = linkTitle.trim() !== '' || linkUrl.trim() !== '';
+
+  const confirmDiscardUnsavedLink = React.useCallback(async (): Promise<boolean> => {
+    if (!hasUnsavedLinkDraft) return true;
+    return confirmUserAction('You have an unsaved link. Discard it?');
+  }, [hasUnsavedLinkDraft]);
 
   const submitOptionTask = React.useCallback(() => {
     if (!trip?.id || !parentEntry) return;
@@ -100,7 +128,7 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
           type="text"
           value={draft.title}
           onChange={(e) => setDraft((prev) => ({ ...prev, title: e.target.value }))}
-          placeholder="Sub-item title"
+          placeholder="Option title"
         />
         <div className={styles.editRow}>
           <input
@@ -118,6 +146,38 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
             placeholder="End time"
           />
         </div>
+        <input
+          className={styles.field}
+          type="text"
+          list={`opt-loc-${item.id}`}
+          placeholder="Location"
+          value={draft.location ?? ''}
+          onChange={(e) => setDraft((prev) => ({ ...prev, location: e.target.value }))}
+        />
+        <datalist id={`opt-loc-${item.id}`}>
+          {usedLocations.map((loc) => (
+            <option key={loc} value={loc} />
+          ))}
+        </datalist>
+        <input
+          className={styles.field}
+          type="text"
+          placeholder="Street address (for maps)"
+          value={draft.streetAddress ?? ''}
+          onChange={(e) => setDraft((prev) => ({ ...prev, streetAddress: e.target.value }))}
+        />
+        {mapsPlaceUrl ? (
+          <div className={styles.editRow}>
+            <a className={styles.actionButton} href={mapsPlaceUrl} target="_blank" rel="noopener noreferrer">
+              Open in Maps
+            </a>
+            {mapsDirectionsUrl ? (
+              <a className={styles.actionButtonMuted} href={mapsDirectionsUrl} target="_blank" rel="noopener noreferrer">
+                Directions
+              </a>
+            ) : null}
+          </div>
+        ) : null}
         <textarea
           className={styles.field}
           rows={2}
@@ -193,6 +253,7 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
                 <CurrencySelect
                   value={draft.currency || config.homeCurrency || 'NZD'}
                   onChange={(code) => setDraft((prev) => ({ ...prev, currency: code }))}
+                  priorityCodes={usedCurrencies}
                 />
               </div>
             </>
@@ -231,7 +292,16 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
                   const f = ev.target.files?.[0];
                   if (!f || !parentEntry) return;
                   setUploadBusy(true);
-                  void addDocument({ file: f, dayId: parentEntry.dayId, entryId: item.id, documentType: 'Other', notes: '' })
+                  void persistSubItem(parentEntryId, item)
+                    .then((resolved) =>
+                      addDocument({
+                        file: f,
+                        dayId: parentEntry.dayId,
+                        entryId: resolved.id,
+                        documentType: 'Other',
+                        notes: ''
+                      })
+                    )
                     .catch(console.error)
                     .then(() => {
                       setUploadBusy(false);
@@ -260,7 +330,16 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
                   const t = linkTitle.trim();
                   const u = linkUrl.trim();
                   if (!t || !u || !parentEntry) return;
-                  addLink({ dayId: parentEntry.dayId, entryId: item.id, linkType: 'Url', url: u, linkTitle: t })
+                  void persistSubItem(parentEntryId, item)
+                    .then((resolved) =>
+                      addLink({
+                        dayId: parentEntry.dayId,
+                        entryId: resolved.id,
+                        linkType: 'Url',
+                        url: u,
+                        linkTitle: t
+                      })
+                    )
                     .then(() => {
                       setLinkTitle('');
                       setLinkUrl('');
@@ -271,6 +350,24 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
                 Add link
               </button>
             </div>
+            {(docs.length > 0 || links.length > 0) ? (
+              <ul className={styles.attachList}>
+                {docs.map((d) => (
+                  <li key={d.id}>
+                    <button type="button" className={styles.miniLink} onClick={() => openDocumentUrl(d.fileUrl)}>
+                      {d.title || 'File'}
+                    </button>
+                  </li>
+                ))}
+                {links.map((l) => (
+                  <li key={l.id}>
+                    <button type="button" className={styles.miniLink} onClick={() => openDocumentUrl(l.url)}>
+                      {l.linkTitle || l.url}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
         ) : null}
         <div className={styles.editFooter}>
@@ -278,8 +375,13 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
             type="button"
             className={styles.actionButton}
             onClick={() => {
-              updateSubItem(parentEntryId, draft);
-              setIsEditing(false);
+              void (async () => {
+                if (!(await confirmDiscardUnsavedLink())) return;
+                updateSubItem(parentEntryId, draft);
+                setIsEditing(false);
+                setLinkTitle('');
+                setLinkUrl('');
+              })();
             }}
           >
             Save
@@ -288,8 +390,13 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
             type="button"
             className={styles.actionButtonMuted}
             onClick={() => {
-              setDraft({ ...item });
-              setIsEditing(false);
+              void (async () => {
+                if (!(await confirmDiscardUnsavedLink())) return;
+                setDraft({ ...item });
+                setIsEditing(false);
+                setLinkTitle('');
+                setLinkUrl('');
+              })();
             }}
           >
             Cancel
@@ -298,6 +405,9 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
       </div>
     );
   }
+
+  const viewMapsPlaceUrl = googleMapsPlaceUrl(item.streetAddress || '');
+  const viewMapsDirectionsUrl = googleMapsDirectionsUrl(item.streetAddress || '');
 
   return (
     <div className={styles.row}>
@@ -333,19 +443,99 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
           </div>
         ) : null}
         <SubItemDetailLines item={item} docCount={docs.length} linkCount={links.length} />
-        {(docs.length > 0 || links.length > 0) ? (
-          <div className={styles.quickLinks}>
-            {docs.map((d) => (
-              <button key={d.id} type="button" className={styles.miniLink} onClick={() => openDocumentUrl(d.fileUrl)} title={d.title}>
-                File
-              </button>
-            ))}
-            {links.map((l) => (
-              <button key={l.id} type="button" className={styles.miniLink} onClick={() => openDocumentUrl(l.url)} title={l.linkTitle}>
-                Link
-              </button>
-            ))}
+        {item.location?.trim() ? <div className={styles.locationLine}>{item.location.trim()}</div> : null}
+        {viewMapsPlaceUrl ? (
+          <div className={styles.mapsRow}>
+            <a href={viewMapsPlaceUrl} target="_blank" rel="noopener noreferrer">
+              Open in Maps
+            </a>
+            {viewMapsDirectionsUrl ? (
+              <a href={viewMapsDirectionsUrl} target="_blank" rel="noopener noreferrer">
+                Directions
+              </a>
+            ) : null}
           </div>
+        ) : null}
+        {(docs.length > 0 || links.length > 0) ? (
+          <>
+            <button type="button" className={styles.attachToggle} onClick={() => setAttachOpen((o) => !o)}>
+              {attachOpen ? 'Hide files & links ▴' : `Files & links (${docs.length + links.length}) ▾`}
+            </button>
+            {attachOpen ? (
+              <div className={styles.quickLinks}>
+                {docs.map((d) => (
+                  <button key={d.id} type="button" className={styles.miniLink} onClick={() => openDocumentUrl(d.fileUrl)} title={d.title}>
+                    {d.title || 'File'}
+                  </button>
+                ))}
+                {links.map((l) =>
+                  editingLinkId === l.id ? (
+                    <div key={l.id} className={styles.linkEditRow}>
+                      <input
+                        className={styles.field}
+                        value={linkEditDraft.linkTitle}
+                        onChange={(e) => setLinkEditDraft((prev) => ({ ...prev, linkTitle: e.target.value }))}
+                        placeholder="Link title"
+                      />
+                      <input
+                        className={styles.field}
+                        value={linkEditDraft.url}
+                        onChange={(e) => setLinkEditDraft((prev) => ({ ...prev, url: e.target.value }))}
+                        placeholder="URL"
+                      />
+                      <button
+                        type="button"
+                        className={styles.actionButton}
+                        onClick={() => {
+                          updateLink(l.id, {
+                            linkTitle: linkEditDraft.linkTitle.trim(),
+                            url: linkEditDraft.url.trim()
+                          })
+                            .then(() => setEditingLinkId(null))
+                            .catch(console.error);
+                        }}
+                      >
+                        Save
+                      </button>
+                      <button type="button" className={styles.actionButtonMuted} onClick={() => setEditingLinkId(null)}>
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <span key={l.id} className={styles.linkChip}>
+                      <button type="button" className={styles.miniLink} onClick={() => openDocumentUrl(l.url)} title={l.url}>
+                        {l.linkTitle || l.url}
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.linkChipAction}
+                        aria-label="Edit link"
+                        onClick={() => {
+                          setEditingLinkId(l.id);
+                          setLinkEditDraft({ linkTitle: l.linkTitle, url: l.url });
+                        }}
+                      >
+                        ✎
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.linkChipAction}
+                        aria-label="Delete link"
+                        onClick={() => {
+                          void (async () => {
+                            if (!(await confirmUserAction('Remove this link?'))) return;
+                            deleteLink(l.id).catch(console.error);
+                          })();
+                        }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )
+                )}
+              </div>
+            ) : null}
+          </>
         ) : null}
       </div>
       <div className={styles.actionCol}>

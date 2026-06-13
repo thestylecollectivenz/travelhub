@@ -9,6 +9,8 @@ interface PlacesContextValue {
   searchPlaces: (query: string) => Promise<PlaceCandidate[]>;
   createOrReusePlace: (candidate: PlaceCandidate) => Promise<Place>;
   placeById: (id?: string) => Place | undefined;
+  /** Fetch any place rows referenced by id but not yet in memory. */
+  ensurePlacesLoaded: (ids: string[]) => Promise<void>;
   refreshPlaces: () => Promise<void>;
 }
 
@@ -77,6 +79,36 @@ export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     [places]
   );
 
+  const ensurePlacesLoaded = React.useCallback(
+    async (ids: string[]): Promise<void> => {
+      const unique = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)));
+      const missing = unique.filter((id) => !places.some((p) => p.id === id));
+      if (missing.length === 0) return;
+      const svc = new PlaceService(spContext);
+      const loaded = await Promise.all(
+        missing.map((id) =>
+          svc.getById(id).catch((err) => {
+            // eslint-disable-next-line no-console
+            console.error('ensurePlacesLoaded', id, err);
+            return undefined;
+          })
+        )
+      );
+      const found = loaded.filter((p): p is Place => p !== undefined);
+      if (found.length === 0) return;
+      setPlaces((prev) => {
+        const next = [...prev];
+        for (const place of found) {
+          if (!next.some((p) => p.id === place.id)) {
+            next.push(place);
+          }
+        }
+        return next;
+      });
+    },
+    [places, spContext]
+  );
+
   const value = React.useMemo<PlacesContextValue>(
     () => ({
       places,
@@ -84,9 +116,10 @@ export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       searchPlaces,
       createOrReusePlace,
       placeById,
+      ensurePlacesLoaded,
       refreshPlaces
     }),
-    [places, loading, searchPlaces, createOrReusePlace, placeById, refreshPlaces]
+    [places, loading, searchPlaces, createOrReusePlace, placeById, ensurePlacesLoaded, refreshPlaces]
   );
 
   return <PlacesContext.Provider value={value}>{children}</PlacesContext.Provider>;

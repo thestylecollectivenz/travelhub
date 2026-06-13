@@ -75,9 +75,8 @@ export interface ItineraryCardViewProps {
   onDelete: () => void;
 }
 
-function emptySubItem(): ItinerarySubItem {
+function emptySubItem(): Omit<ItinerarySubItem, 'id'> {
   return {
-    id: `sub-${Date.now()}`,
     title: '',
     decisionStatus: 'Idea',
     paymentStatus: 'Not paid',
@@ -200,17 +199,16 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const openTaskTarget =
     manualTasks.find((t) => t.reminderId === openTaskReminderId) ?? linkedEntryTask ?? manualTasks[0];
   const spContext = useSpContext();
-  const { trip, addSubItem, convertToHomeCurrency, setSelectedDayId, setMainWorkspaceTab, tripDays, updateEntry } =
+  const { trip, addSubItem, convertToHomeCurrency, setSelectedDayId, setMainWorkspaceTab, tripDays, updateEntry, persistEntry } =
     useTripWorkspace();
   const planView = usePlanView();
   const { config } = useConfig();
   const { docsForEntry, linksForEntry, addDocument, updateDocument, deleteDocument, addLink, updateLink, deleteLink } = useAttachments();
   const [menuOpen, setMenuOpen] = React.useState(false);
-  const [notesOpen, setNotesOpen] = React.useState(Boolean(entry.notes && entry.notes.trim()));
+  const [notesOpen, setNotesOpen] = React.useState(false);
   const [attachmentsOpen, setAttachmentsOpen] = React.useState(false);
   const [subItemsOpen, setSubItemsOpen] = React.useState(false);
-  const [addingSubItem, setAddingSubItem] = React.useState(false);
-  const [newSub, setNewSub] = React.useState<ItinerarySubItem>(emptySubItem);
+  const [autoEditSubItemId, setAutoEditSubItemId] = React.useState<string | null>(null);
   const [docType, setDocType] = React.useState<EntryDocumentType>('Other');
   const [docNotes, setDocNotes] = React.useState('');
   const [docBusy, setDocBusy] = React.useState(false);
@@ -266,10 +264,6 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   }, [menuOpen]);
 
   React.useEffect(() => {
-    setNotesOpen(Boolean(entry.notes && entry.notes.trim()));
-  }, [entry.notes]);
-
-  React.useEffect(() => {
     setTaskPromptOpen(false);
     setTaskDueDate('');
     setTaskDescription('');
@@ -323,6 +317,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   }, [locationInfoData, entry.location, placeById]);
   const isAccommodation = entry.category === 'Accommodation' && !!entry.dateStart && !!entry.dateEnd;
   const isCruise = entry.category === 'Cruise' && !!entry.embarksDate && !!entry.disembarksDate;
+  const isCruisePort = entry.category === 'Cruise port';
   const isFlights = entry.category === 'Flights';
   const isTransport = entry.category === 'Transport';
   const isActivities = entry.category === 'Activities';
@@ -430,29 +425,15 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const subOwing = subTotal - subPaid;
   const hasSubTotal = subTotal > 0;
   const cardTotalHome = displayAmountHome + subTotal;
-  const showSubItemContent = hasSubItems || addingSubItem;
+  const showSubItemContent = hasSubItems || autoEditSubItemId !== null;
   const docs = docsForEntry(entry.id);
   const links = linksForEntry(entry.id);
 
   const handleStartAddSubItem = React.useCallback(() => {
     setSubItemsOpen(true);
-    setAddingSubItem(true);
-    setNewSub(emptySubItem());
-  }, []);
-
-  const handleSaveNewSubItem = React.useCallback(() => {
-    const title = newSub.title.trim();
-    if (!title) {
-      return;
-    }
-    addSubItem(entry.id, {
-      ...newSub,
-      title
-    });
-    setNewSub(emptySubItem());
-    setAddingSubItem(false);
-    setSubItemsOpen(true);
-  }, [addSubItem, entry.id, newSub]);
+    const tempId = addSubItem(entry.id, emptySubItem());
+    setAutoEditSubItemId(tempId);
+  }, [addSubItem, entry.id]);
 
   const handleDocumentPick = React.useCallback(
     async (ev: React.ChangeEvent<HTMLInputElement>) => {
@@ -461,10 +442,11 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       if (!file) return;
       setDocBusy(true);
       try {
+        const resolved = await persistEntry(entry);
         await addDocument({
           file,
-          dayId: entry.dayId,
-          entryId: entry.id,
+          dayId: resolved.dayId,
+          entryId: resolved.id,
           documentType: docType,
           notes: docNotes.trim()
         });
@@ -474,7 +456,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         inputEl.value = '';
       }
     },
-    [addDocument, docNotes, docType, entry.dayId, entry.id]
+    [addDocument, docNotes, docType, entry, persistEntry]
   );
 
   const resetLinkDraft = React.useCallback(() => {
@@ -609,6 +591,13 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       {(entry.category === 'Flights' && (entry.arrivalTime || entry.arrivalDate)) ? (
         <div className={styles.metaRow}>
           <span>Arrives {entry.arrivalDate ? formatYmd(entry.arrivalDate) : ''}{entry.arrivalDate && entry.arrivalTime ? ' · ' : ''}{entry.arrivalTime ? formatTimeHHMM(entry.arrivalTime) : ''}</span>
+        </div>
+      ) : null}
+      {isCruisePort && (entry.timeStart || entry.arrivalTime) ? (
+        <div className={styles.metaRow}>
+          {entry.timeStart ? <span>Arrives {formatTimeHHMM(entry.timeStart)}</span> : null}
+          {entry.timeStart && entry.arrivalTime ? <span aria-hidden> · </span> : null}
+          {entry.arrivalTime ? <span>Departs {formatTimeHHMM(entry.arrivalTime)}</span> : null}
         </div>
       ) : null}
       {isCruise ? (
@@ -1100,14 +1089,17 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                 disabled={linkBusy || linkDraft.linkTitle.trim() === '' || linkDraft.url.trim() === ''}
                 onClick={() => {
                   setLinkBusy(true);
-                  addLink({
-                    dayId: entry.dayId,
-                    entryId: entry.id,
-                    linkTitle: linkDraft.linkTitle.trim(),
-                    url: linkDraft.url.trim(),
-                    linkType: linkDraft.linkType,
-                    notes: linkDraft.notes.trim()
-                  })
+                  void persistEntry(entry)
+                    .then((resolved) =>
+                      addLink({
+                        dayId: resolved.dayId,
+                        entryId: resolved.id,
+                        linkTitle: linkDraft.linkTitle.trim(),
+                        url: linkDraft.url.trim(),
+                        linkType: linkDraft.linkType,
+                        notes: linkDraft.notes.trim()
+                      })
+                    )
                     .then(() => {
                       resetLinkDraft();
                       setAttachAddMode('none');
@@ -1428,74 +1420,13 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       ) : null}
 
       {showSubItemContent ? (
-        <div className={`${styles.relatedContent} ${subItemsOpen || addingSubItem ? styles.relatedContentOpen : ''}`}>
-          <SubItemList subItems={subItems} entryId={entry.id} />
-          {addingSubItem ? (
-            <div className={styles.newSubItemForm}>
-              <input
-                className={styles.newSubField}
-                type="text"
-                placeholder="Option title"
-                value={newSub.title}
-                onChange={(e) => setNewSub((prev) => ({ ...prev, title: e.target.value }))}
-              />
-              <div className={styles.newSubRow}>
-                <select
-                  className={styles.newSubField}
-                  value={newSub.decisionStatus}
-                  onChange={(e) =>
-                    setNewSub((prev) => ({ ...prev, decisionStatus: e.target.value as ItinerarySubItem['decisionStatus'] }))
-                  }
-                >
-                  <option value="Idea">Idea</option>
-                  <option value="Planned">Planned</option>
-                  <option value="Confirmed">Confirmed</option>
-                </select>
-                <select
-                  className={styles.newSubField}
-                  value={newSub.paymentStatus}
-                  onChange={(e) => {
-                    const value = e.target.value as ItinerarySubItem['paymentStatus'];
-                    setNewSub((prev) => ({
-                      ...prev,
-                      paymentStatus: value,
-                      amount: value === 'Free' ? 0 : prev.amount
-                    }));
-                  }}
-                >
-                  <option value="Not paid">Not paid</option>
-                  <option value="Part paid">Part paid</option>
-                  <option value="Fully paid">Fully paid</option>
-                  <option value="Free">Free</option>
-                </select>
-                {newSub.paymentStatus !== 'Free' ? (
-                  <input
-                    className={styles.newSubField}
-                    type="number"
-                    min={0}
-                    placeholder="Amount"
-                    value={newSub.amount}
-                    onChange={(e) => setNewSub((prev) => ({ ...prev, amount: Number(e.target.value) || 0 }))}
-                  />
-                ) : null}
-              </div>
-              <div className={styles.newSubActions}>
-                <button type="button" className={styles.newSubActionBtn} onClick={handleSaveNewSubItem}>
-                  Add
-                </button>
-                <button
-                  type="button"
-                  className={styles.newSubActionBtn}
-                  onClick={() => {
-                    setAddingSubItem(false);
-                    setNewSub(emptySubItem());
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : null}
+        <div className={`${styles.relatedContent} ${subItemsOpen || autoEditSubItemId ? styles.relatedContentOpen : ''}`}>
+          <SubItemList
+            subItems={subItems}
+            entryId={entry.id}
+            autoEditSubItemId={autoEditSubItemId}
+            onAutoEditConsumed={() => setAutoEditSubItemId(null)}
+          />
         </div>
       ) : null}
     </div>

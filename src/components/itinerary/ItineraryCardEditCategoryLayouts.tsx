@@ -34,6 +34,7 @@ export interface CategoryEditLayoutProps {
   nights: number;
   perNight: number;
   homeCurrency: string;
+  usedCurrencies?: string[];
 }
 
 function StatusFields({ draft, patch }: Pick<CategoryEditLayoutProps, 'draft' | 'patch'>): React.ReactElement {
@@ -60,8 +61,9 @@ function BookingPaymentFields({
   draft,
   patch,
   homeCurrency,
+  usedCurrencies,
   amountLabel
-}: Pick<CategoryEditLayoutProps, 'draft' | 'patch' | 'homeCurrency'> & { amountLabel: string }): React.ReactElement {
+}: Pick<CategoryEditLayoutProps, 'draft' | 'patch' | 'homeCurrency' | 'usedCurrencies'> & { amountLabel: string }): React.ReactElement {
   return (
     <>
       <div className={`${styles.checkboxRow} ${styles.fullRow}`}>
@@ -149,6 +151,7 @@ function BookingPaymentFields({
             className={styles.select}
             value={draft.currency}
             onChange={(code) => patch({ currency: code })}
+            priorityCodes={usedCurrencies}
           />
           <label className={styles.label} htmlFor={`cost-certainty-${draft.id}`}>
             Cost certainty

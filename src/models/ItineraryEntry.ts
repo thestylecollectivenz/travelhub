@@ -28,6 +28,10 @@ export interface ItinerarySubItem {
   costCertainty?: CostCertainty;
   notes?: string;
   groupLabel?: string;
+  /** Place or venue name for this option. */
+  location?: string;
+  /** Street address for maps links. */
+  streetAddress?: string;
   /** When true, surfaced on the option row and in previews (P7-9). */
   bookingRequired?: boolean;
 }

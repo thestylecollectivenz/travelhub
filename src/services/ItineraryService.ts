@@ -301,6 +301,8 @@ function mapToSubItem(item: any): ItinerarySubItem {
         : undefined,
     notes: item.Notes ?? '',
     groupLabel: item.GroupLabel ?? undefined,
+    location: item.Location ?? undefined,
+    streetAddress: item.StreetAddress ?? undefined,
     bookingRequired: item.BookingRequired === true
   };
 }
@@ -629,10 +631,12 @@ export class ItineraryService {
       DecisionStatus: subItem.decisionStatus,
       PaymentStatus: subItem.paymentStatus,
       Amount: subItem.amount,
-      CostCertainty: subItem.costCertainty ?? 'Confirmed',
+      CostCertainty: subItem.costCertainty ?? 'Estimated',
       AmountPaid: subItem.amountPaid ?? null,
       Currency: subItem.currency,
       Notes: subItem.notes ?? '',
+      Location: subItem.location ?? '',
+      StreetAddress: subItem.streetAddress ?? '',
       GroupLabel: subItem.groupLabel ?? '',
       SortOrder: 0,
       BookingRequired: subItem.bookingRequired === true,
