@@ -4,6 +4,11 @@ import type { TripDay } from '../../models/TripDay';
 import { useConfig } from '../../context/ConfigContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { formatCurrency } from '../../utils/financialUtils';
+import {
+  loadDayPlanningStatus,
+  saveDayPlanningStatus,
+  type DayPlanningStatus
+} from '../../utils/tripDayPlanningStatus';
 import styles from './SidebarDayItem.module.css';
 
 export interface SidebarDayItemProps {
@@ -29,7 +34,10 @@ function dayTypeLabel(dayType: TripDay['dayType']): string {
 
 export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected, onSelect, dayTotal }) => {
   const { config } = useConfig();
-  const { updateDay } = useTripWorkspace();
+  const { trip, updateDay } = useTripWorkspace();
+  const [planningStatus, setPlanningStatus] = React.useState<DayPlanningStatus>(() =>
+    trip?.id ? loadDayPlanningStatus(trip.id, day.id) : 'NotStarted'
+  );
   const { setNodeRef, isOver } = useDroppable({
     id: day.id,
     data: { type: 'day' }
@@ -41,6 +49,19 @@ export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected,
   React.useEffect(() => {
     setTitleDraft(day.displayTitle);
   }, [day.displayTitle]);
+
+  React.useEffect(() => {
+    if (!trip?.id) return;
+    setPlanningStatus(loadDayPlanningStatus(trip.id, day.id));
+    const onStatus = (ev: Event): void => {
+      const detail = (ev as CustomEvent<{ tripId?: string; dayId?: string; status?: DayPlanningStatus }>).detail;
+      if (detail?.tripId === trip.id && detail?.dayId === day.id && detail.status) {
+        setPlanningStatus(detail.status);
+      }
+    };
+    window.addEventListener('travelhub-day-planning-status', onStatus as EventListener);
+    return () => window.removeEventListener('travelhub-day-planning-status', onStatus as EventListener);
+  }, [trip?.id, day.id]);
 
   const saveTitle = React.useCallback(() => {
     const next = titleDraft.trim();
@@ -153,6 +174,24 @@ export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected,
             </span>
           )}
           <span className={styles.dayTotal}>{formatCurrency(dayTotal, config.homeCurrency)}</span>
+        </div>
+        <div className={styles.row3} onClick={(e) => e.stopPropagation()}>
+          <label className={styles.planningLabel}>
+            Planning
+            <select
+              className={styles.planningSelect}
+              value={planningStatus}
+              onChange={(e) => {
+                const next = e.target.value as DayPlanningStatus;
+                setPlanningStatus(next);
+                if (trip?.id) saveDayPlanningStatus(trip.id, day.id, next);
+              }}
+            >
+              <option value="NotStarted">Not started</option>
+              <option value="InProgress">In progress</option>
+              <option value="Complete">Complete</option>
+            </select>
+          </label>
         </div>
       </button>
     </li>

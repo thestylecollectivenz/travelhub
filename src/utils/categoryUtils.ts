@@ -13,6 +13,11 @@ export const CATEGORY_LIST = [
   'Other'
 ] as const;
 
+/** Categories available for related options inside a trip card. */
+export const OPTION_CATEGORY_LIST = CATEGORY_LIST.filter(
+  (c) => c !== 'Location info' && c !== 'Cruise port' && c !== 'Cruise at sea'
+);
+
 export type CategoryName = (typeof CATEGORY_LIST)[number];
 
 export function getCategoryColor(category: string): string {

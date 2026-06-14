@@ -7,7 +7,7 @@ export function subItemToEditableEntry(parent: ItineraryEntry, sub: ItinerarySub
     dayId: parent.dayId,
     tripId: parent.tripId,
     title: sub.title,
-    category: parent.category,
+    category: sub.category?.trim() || 'Other',
     timeStart: sub.startTime ?? '',
     arrivalTime: sub.endTime,
     duration: '',
@@ -29,10 +29,11 @@ export function subItemToEditableEntry(parent: ItineraryEntry, sub: ItinerarySub
 }
 
 /** Map ItineraryCardEdit draft back to a related option row. */
-export function editableEntryToSubItem(entry: ItineraryEntry): ItinerarySubItem {
+export function editableEntryToSubItem(entry: ItineraryEntry, prior?: ItinerarySubItem): ItinerarySubItem {
   return {
     id: entry.id,
     title: entry.title,
+    category: entry.category?.trim() || 'Other',
     startTime: entry.timeStart?.trim() || undefined,
     endTime: entry.arrivalTime?.trim() || undefined,
     location: entry.location?.trim() || undefined,
@@ -44,6 +45,7 @@ export function editableEntryToSubItem(entry: ItineraryEntry): ItinerarySubItem 
     amountPaid: entry.amountPaid,
     currency: entry.currency,
     costCertainty: entry.costCertainty,
-    bookingRequired: entry.bookingRequired === true
+    bookingRequired: entry.bookingRequired === true,
+    groupLabel: prior?.groupLabel
   };
 }

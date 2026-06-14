@@ -7,7 +7,7 @@ import { useAttachments } from '../../context/AttachmentsContext';
 import { ReminderService } from '../../services/ReminderService';
 import type { EntryDocumentType, EntryLinkType } from '../../models';
 import { CategoryIcon } from '../shared/CategoryIcon';
-import { getCategorySlug } from '../../utils/categoryUtils';
+import { getCategorySlug, CATEGORY_LIST } from '../../utils/categoryUtils';
 import { formatCurrency } from '../../utils/financialUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { SubItemList } from './SubItemList';
@@ -16,7 +16,7 @@ import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
 import { requestViewTask, scrollToReminderRow } from '../../utils/viewTaskFocus';
 import { loadTripAssignees, rememberTripAssignee } from '../../utils/tripAssignees';
 import { usePlanView } from '../../context/PlanViewContext';
-import { CATEGORY_LIST } from '../../utils/categoryUtils';
+import { paymentDueActionLabel } from '../../utils/paymentDueLabels';
 import { confirmUserAction } from '../../utils/confirmAction';
 import type { LinkedEntryTask } from '../../utils/linkedEntryTask';
 import { linkedTaskDisplayText, linkedTaskNoteDisplay } from '../../utils/linkedEntryTask';
@@ -78,6 +78,7 @@ export interface ItineraryCardViewProps {
 function emptySubItem(): Omit<ItinerarySubItem, 'id'> {
   return {
     title: '',
+    category: 'Other',
     decisionStatus: 'Idea',
     paymentStatus: 'Not paid',
     bookingRequired: false,
@@ -207,7 +208,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [notesOpen, setNotesOpen] = React.useState(() => Boolean(entry.notes?.trim()));
   const [attachmentsOpen, setAttachmentsOpen] = React.useState(false);
-  const [subItemsOpen, setSubItemsOpen] = React.useState(false);
+  const [subItemsOpen, setSubItemsOpen] = React.useState(() => (entry.subItems?.length ?? 0) > 0);
   const [docType, setDocType] = React.useState<EntryDocumentType>('Other');
   const [docNotes, setDocNotes] = React.useState('');
   const [docBusy, setDocBusy] = React.useState(false);
@@ -265,6 +266,12 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   React.useEffect(() => {
     setNotesOpen(Boolean(entry.notes?.trim()));
   }, [entry.id, entry.notes]);
+
+  React.useEffect(() => {
+    if ((entry.subItems?.length ?? 0) > 0) {
+      setSubItemsOpen(true);
+    }
+  }, [entry.id, entry.subItems?.length]);
 
   React.useEffect(() => {
     setTaskPromptOpen(false);
@@ -690,7 +697,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         <span className={`${styles.statusPill} ${styles.paymentPill} ${paymentClass}`}>
           {entry.paymentStatus}
           {(entry.paymentStatus === 'Not paid' || entry.paymentStatus === 'Part paid') && entry.paymentDueDate
-            ? ` · by ${entry.paymentDueDate.slice(0, 10)}`
+            ? ` · ${paymentDueActionLabel(entry)} ${entry.paymentDueDate.slice(0, 10)}`
             : ''}
         </span>
         {entry.bookingRequired ? (

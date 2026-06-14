@@ -145,3 +145,26 @@
   font-weight: var(--font-weight-bold);
   color: var(--color-blue-600);
 }
+
+.row3 {
+  margin-top: var(--space-2);
+}
+
+.planningLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-600);
+}
+
+.planningSelect {
+  flex: 1;
+  min-width: 0;
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  font-size: var(--font-size-xs);
+  color: var(--color-blue-800);
+  padding: 2px var(--space-1);
+}

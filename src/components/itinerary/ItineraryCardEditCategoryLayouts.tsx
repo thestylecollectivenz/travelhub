@@ -127,6 +127,18 @@ function BookingPaymentFields({
             value={draft.paymentDueDate?.slice(0, 10) || ''}
             onChange={(e) => patch({ paymentDueDate: e.target.value || undefined })}
           />
+          <label className={styles.label} htmlFor={`paydue-type-${draft.id}`}>
+            Payment timing
+          </label>
+          <select
+            id={`paydue-type-${draft.id}`}
+            className={styles.select}
+            value={draft.paymentDueType || 'Manual'}
+            onChange={(e) => patch({ paymentDueType: e.target.value as ItineraryEntry['paymentDueType'] })}
+          >
+            <option value="Manual">Manual — I need to pay by this date</option>
+            <option value="Automatic">Automatic — charged on this date</option>
+          </select>
         </>
       ) : null}
       {draft.paymentStatus !== 'Free' ? (

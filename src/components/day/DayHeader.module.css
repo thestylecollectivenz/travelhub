@@ -179,6 +179,24 @@
   color: var(--color-sand-600);
 }
 
+.planningRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-600);
+}
+
+.planningSelect {
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  font-size: var(--font-size-xs);
+  color: var(--color-blue-800);
+  padding: var(--space-1) var(--space-2);
+}
+
 .placeSection {
   margin-top: var(--space-2);
   display: grid;

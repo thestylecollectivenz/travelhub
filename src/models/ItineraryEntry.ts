@@ -7,6 +7,9 @@ export type ItineraryPaymentStatus = 'Not paid' | 'Part paid' | 'Fully paid' | '
 /** Whether the entered cost is an estimate or confirmed figure. */
 export type CostCertainty = 'Estimated' | 'Confirmed';
 
+/** Whether payment must be made manually or will be charged automatically. */
+export type PaymentDueType = 'Manual' | 'Automatic';
+
 export type ItineraryUnitType = 'PerPerson' | 'PerNight' | 'PerDay';
 
 export type CabinClass = 'economy' | 'premium_economy' | 'business';
@@ -16,6 +19,8 @@ export type TransportJourneyType = 'oneway' | 'return';
 export interface ItinerarySubItem {
   id: string;
   title: string;
+  /** Option category (Food & Dining, Transport, Activities, etc.) — independent of parent card. */
+  category?: string;
   /** Optional HH:MM start time used by Day Planner plotting. */
   startTime?: string;
   /** Optional HH:MM end time used by Day Planner plotting. */
@@ -104,6 +109,8 @@ export interface ItineraryEntry {
   bookingDueDate?: string;
   /** YYYY-MM-DD — when payment should be made by. */
   paymentDueDate?: string;
+  /** Manual = pay by date; Automatic = card/provider charges on date. */
+  paymentDueType?: PaymentDueType;
   cruiseReference?: string;
   cruiseLineName?: string;
   shipName?: string;

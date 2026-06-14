@@ -65,6 +65,7 @@ const SELECT_PHASE7 = [
   'CancellationDeadline',
   'BookingDueDate',
   'PaymentDueDate',
+  'PaymentDueType',
   'CruiseReference',
   'CruiseLineName',
   'ShipName',
@@ -100,6 +101,7 @@ const SP_PHASE7_FIELD_KEYS = new Set([
   'CancellationDeadline',
   'BookingDueDate',
   'PaymentDueDate',
+  'PaymentDueType',
   'CruiseReference',
   'CruiseLineName',
   'ShipName',
@@ -270,6 +272,10 @@ function mapToEntry(item: any): ItineraryEntry {
     cancellationDeadline: item.CancellationDeadline ? String(item.CancellationDeadline) : undefined,
     bookingDueDate: parseDate(item.BookingDueDate),
     paymentDueDate: parseDate(item.PaymentDueDate),
+    paymentDueType:
+      item.PaymentDueType === 'Automatic' || item.PaymentDueType === 'Manual'
+        ? item.PaymentDueType
+        : undefined,
     cruiseReference: item.CruiseReference ?? undefined,
     cruiseLineName: item.CruiseLineName ?? undefined,
     shipName: item.ShipName ?? undefined,
@@ -288,6 +294,7 @@ function mapToSubItem(item: any): ItinerarySubItem {
   return {
     id: String(item.ID),
     title: item.Title ?? '',
+    category: item.Category ?? undefined,
     startTime: parseTime(item.TimeStart),
     endTime: parseTime(item.ArrivalTime),
     decisionStatus: (item.DecisionStatus as ItineraryDecisionStatus) ?? 'Planned',
@@ -370,6 +377,7 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   }
   if (entry.bookingDueDate !== undefined) item.BookingDueDate = serializeDate(entry.bookingDueDate);
   if (entry.paymentDueDate !== undefined) item.PaymentDueDate = serializeDate(entry.paymentDueDate);
+  if (entry.paymentDueType !== undefined) item.PaymentDueType = entry.paymentDueType;
   if (entry.cruiseReference !== undefined) item.CruiseReference = entry.cruiseReference || null;
   if (entry.cruiseLineName !== undefined) item.CruiseLineName = entry.cruiseLineName || null;
   if (entry.shipName !== undefined) item.ShipName = entry.shipName || null;
@@ -624,7 +632,7 @@ export class ItineraryService {
       Title: subItem.title,
       TripId: parentEntry.tripId,
       DayId: parentEntry.dayId,
-      Category: parentEntry.category,
+      Category: subItem.category?.trim() || 'Other',
       ParentEntryId: parentEntry.id,
       TimeStart: serializeTime(subItem.startTime),
       ArrivalTime: serializeTime(subItem.endTime),

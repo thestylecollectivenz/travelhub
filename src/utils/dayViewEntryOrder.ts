@@ -31,9 +31,14 @@ export function insertAfterInDayViewEntryOrder(
   tripId: string,
   viewDayId: string,
   afterId: string,
-  newId: string
+  newId: string,
+  /** Seed order when nothing saved yet (current visible card ids). */
+  fallbackOrderedIds?: string[]
 ): void {
-  const rawIds = readDayViewEntryOrder(tripId, viewDayId);
+  let rawIds = readDayViewEntryOrder(tripId, viewDayId);
+  if (rawIds.length === 0 && fallbackOrderedIds && fallbackOrderedIds.length > 0) {
+    rawIds = [...fallbackOrderedIds];
+  }
   if (rawIds.length === 0) return;
   const idx = rawIds.indexOf(afterId);
   const next = [...rawIds];

@@ -101,10 +101,7 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
   const [forecastScroll, setForecastScroll] = React.useState(0);
   const forecastStripRef = React.useRef<HTMLDivElement | null>(null);
 
-  const monthIndex = React.useMemo(() => {
-    const d = new Date(`${weatherAnchorDate}T00:00:00.000Z`);
-    return Number.isNaN(d.getTime()) ? 0 : d.getUTCMonth();
-  }, [weatherAnchorDate]);
+  const monthIndex = React.useMemo(() => new Date().getMonth(), []);
 
   const seasonal = React.useMemo(() => {
     if (!countryData) return undefined;
@@ -121,8 +118,15 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
       setWeather(null);
       return;
     }
+    const lat = Number(place.latitude);
+    const lng = Number(place.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      setWeather(null);
+      return;
+    }
     const units = config.temperatureUnit === 'Fahrenheit' ? 'us' : 'metric';
-    const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${place.latitude},${place.longitude}?key=${encodeURIComponent(config.weatherApiKey.trim())}&unitGroup=${units}&include=current,days&contentType=json`;
+    const today = todayYmd();
+    const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${lat},${lng}/${today}?key=${encodeURIComponent(config.weatherApiKey.trim())}&unitGroup=${units}&include=current,days&contentType=json`;
     fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Weather ${r.status}`))))
       .then((data) => {
@@ -155,25 +159,31 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
       setForecastDays([]);
       return;
     }
+    const lat = Number(place.latitude);
+    const lng = Number(place.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      setForecastDays([]);
+      return;
+    }
     const units = config.temperatureUnit === 'Fahrenheit' ? 'us' : 'metric';
     const today = todayYmd();
     const apiStart = today;
     const apiEnd = datesForForecast[datesForForecast.length - 1];
     const range = apiStart === apiEnd ? apiStart : `${apiStart}/${apiEnd}`;
-    const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${place.latitude},${place.longitude}/${range}?key=${encodeURIComponent(config.weatherApiKey.trim())}&include=days&elements=tempmax,tempmin,conditions,icon&unitGroup=${units}&contentType=json`;
+    const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${lat},${lng}/${range}?key=${encodeURIComponent(config.weatherApiKey.trim())}&include=days&unitGroup=${units}&contentType=json`;
     fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Forecast ${r.status}`))))
       .then((data) => {
-        const byDate = new Map<string, { icon?: string; tempmax?: number; tempmin?: number; conditions?: string }>();
+        const byDate = new Map<string, { icon?: string; tempmax?: number; tempmin?: number; temp?: number; conditions?: string }>();
         for (const d of data.days ?? []) {
-          const dt = String(d.datetime ?? '').slice(0, 10);
+          const dt = String(d.datetime ?? d.date ?? '').slice(0, 10);
           if (dt) byDate.set(dt, d);
         }
         setForecastDays(
           datesForForecast.map((date) => {
             const row = byDate.get(date) ?? {};
-            const tempMax = Number(row.tempmax);
-            const tempMin = Number(row.tempmin);
+            const tempMax = Number(row.tempmax ?? row.temp);
+            const tempMin = Number(row.tempmin ?? row.temp);
             const hasTemps = Number.isFinite(tempMax) || Number.isFinite(tempMin);
             return {
               date,
@@ -249,8 +259,8 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
   };
 
   const typicalLabel = (() => {
-    const d = new Date(`${weatherAnchorDate}T00:00:00.000Z`);
-    const dayOfMonth = d.getUTCDate();
+    const d = new Date();
+    const dayOfMonth = d.getDate();
     const part = dayOfMonth <= 10 ? 'early' : dayOfMonth <= 20 ? 'mid' : 'late';
     return `${part} ${d.toLocaleString('en-NZ', { month: 'long' })}`;
   })();

@@ -49,18 +49,24 @@ export function datesWherePlaceAppears(tripDays: TripDay[], placeId: string): st
 
 /**
  * Forecast strip from actual today forward (not trip calendar dates).
- * Box count follows how many days this place appears on the trip, capped at MAX_FORECAST_DAYS.
+ * Always shows up to MAX_FORECAST_DAYS boxes labelled Today, Tomorrow, etc.
  */
-export function forecastDatesForPlaceStay(stayDates: string[], today = todayYmd()): string[] {
-  const stayCount = stayDates.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).length;
-  const count = Math.max(1, Math.min(MAX_FORECAST_DAYS, stayCount > 0 ? stayCount : MAX_FORECAST_DAYS));
+export function forecastDatesFromToday(count = MAX_FORECAST_DAYS, today = todayYmd()): string[] {
+  const n = Math.max(1, Math.min(MAX_FORECAST_DAYS, count));
   const out: string[] = [];
   let cursor = today;
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < n; i++) {
     out.push(cursor);
     cursor = addDaysYmd(cursor, 1);
   }
   return out;
+}
+
+/**
+ * @deprecated Prefer forecastDatesFromToday — trip stay length should not drive forecast dates.
+ */
+export function forecastDatesForPlaceStay(stayDates: string[], today = todayYmd()): string[] {
+  return forecastDatesFromToday(MAX_FORECAST_DAYS, today);
 }
 
 export function forecastDayLabelFromToday(date: string, today = todayYmd()): string {

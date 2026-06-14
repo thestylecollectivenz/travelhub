@@ -1,5 +1,6 @@
 import * as React from 'react';
 import type { ItinerarySubItem } from '../../models/ItineraryEntry';
+import { getCategorySlug } from '../../utils/categoryUtils';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
 import { formatCurrency } from '../../utils/financialUtils';
@@ -49,6 +50,9 @@ export const SubItemDetailLines: React.FC<SubItemDetailLinesProps> = ({ item, do
       <div className={styles.title}>{item.title || 'Untitled option'}</div>
       {timeLine ? <div className={styles.timeLine}>{timeLine}</div> : null}
       <div className={styles.badges}>
+        {item.category?.trim() ? (
+          <span className={`${styles.badge} th-cat-badge th-cat-${getCategorySlug(item.category)}`}>{item.category}</span>
+        ) : null}
         <span className={`${styles.badge} ${decisionBadgeClass(item.decisionStatus)}`}>{item.decisionStatus}</span>
         <span className={`${styles.payBadge} ${paymentBadgeClass(item.paymentStatus)}`}>{item.paymentStatus}</span>
         {item.bookingRequired ? <span className={styles.bookingFlag}>Booking required</span> : null}

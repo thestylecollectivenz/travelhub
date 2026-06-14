@@ -326,7 +326,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       try {
         const svc = new ItineraryService(spContext);
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { id: _id, subItems, ...payload } = latest;
+        const { id: _id, subItems, amountPaidConverted: _apc, ...payload } = latest;
         const created = await svc.create(payload);
         const merged = { ...created, subItems: subItems ?? [] };
         setLocalEntries((prev) => prev.map((e) => (e.id === tempId ? merged : e)));
@@ -477,11 +477,14 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
           : e
       );
       const tempId = newTempId();
+      const copyTitle = orig.title?.trim() ? `${orig.title.trim()} (copy)` : 'Untitled (copy)';
       const copy: ItineraryEntry = {
         ...orig,
         id: tempId,
+        title: copyTitle,
         sortOrder: copySortOrder,
-        subItems: []
+        subItems: [],
+        amountPaidConverted: undefined
       };
       const insertAt = bumped.findIndex((e) => e.id === entryId);
       const next = [...bumped];
@@ -493,7 +496,8 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
 
       setLocalEntries(next);
       setFocusedEntryId(tempId);
-      insertAfterInDayViewEntryOrder(orig.tripId, orig.dayId, entryId, tempId);
+      const fallbackOrder = next.filter((e) => e.dayId === orig.dayId && !e.parentEntryId).map((e) => e.id);
+      insertAfterInDayViewEntryOrder(orig.tripId, orig.dayId, entryId, tempId, fallbackOrder);
 
       const sortUpdates = bumped
         .filter(
@@ -646,6 +650,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       svc
         .update(updatedSubItem.id, {
           title: updatedSubItem.title,
+          category: updatedSubItem.category,
           timeStart: updatedSubItem.startTime,
           arrivalTime: updatedSubItem.endTime,
           decisionStatus: updatedSubItem.decisionStatus,

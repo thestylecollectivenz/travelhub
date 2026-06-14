@@ -1,9 +1,8 @@
 import * as React from 'react';
 import type { TripDay } from '../../models/TripDay';
-import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
 import { PlaceInfoPanel } from './PlaceInfoPanel';
-import { datesWherePlaceAppears, forecastDatesForPlaceStay } from '../../utils/placeForecastDates';
+import { forecastDatesFromToday, todayYmd } from '../../utils/placeForecastDates';
 import { parseAdditionalPlaceRefs } from '../../utils/tripDayPlaces';
 import styles from './DayHeader.module.css';
 
@@ -13,7 +12,6 @@ export interface DayPlaceInfoSectionProps {
 }
 
 export const DayPlaceInfoSection: React.FC<DayPlaceInfoSectionProps> = ({ day, activePlaceInfoId }) => {
-  const { trip, tripDays } = useTripWorkspace();
   const { placeById } = usePlaces();
 
   const additionalRefs = React.useMemo(() => parseAdditionalPlaceRefs(day.additionalPlaceIds), [day.additionalPlaceIds]);
@@ -44,14 +42,9 @@ export const DayPlaceInfoSection: React.FC<DayPlaceInfoSectionProps> = ({ day, a
   const activePlaceInfo =
     allPlacesForInfo.find((p) => p.id === activePlaceInfoId) ?? allPlacesForInfo[0];
 
-  const weatherAnchorDate =
-    day.dayType === 'PreTrip' && trip?.dateStart ? trip.dateStart.split('T')[0] : day.calendarDate;
+  const weatherAnchorDate = todayYmd();
 
-  const activeForecastDates = React.useMemo(() => {
-    if (!activePlaceInfo?.place?.id) return [weatherAnchorDate?.slice(0, 10) || ''].filter(Boolean);
-    const stayDates = datesWherePlaceAppears(tripDays, activePlaceInfo.place.id);
-    return forecastDatesForPlaceStay(stayDates);
-  }, [activePlaceInfo?.place?.id, tripDays, weatherAnchorDate]);
+  const activeForecastDates = React.useMemo(() => forecastDatesFromToday(), []);
 
   return (
     <div className={styles.placeInfoCard}>

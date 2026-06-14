@@ -14,6 +14,7 @@ import {
   loadDismissedMissingAmountIds,
   restoreMissingAmountEntry
 } from '../../utils/missingAmountDismissed';
+import { paymentDueTaskTitle, paymentDueDateHint } from '../../utils/paymentDueLabels';
 import { CATEGORY_LIST } from '../../utils/categoryUtils';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { loadTripAssignees, rememberTripAssignee } from '../../utils/tripAssignees';
@@ -348,7 +349,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
         out.push({
           id: `pay-${e.id}`,
           date: e.paymentDueDate,
-          title: `Pay: ${e.title || 'Untitled'}`,
+          title: paymentDueTaskTitle(e),
           kind: 'payment',
           entryId: e.id,
           dayId: e.dayId
@@ -889,8 +890,10 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                 />
                 <div className={styles.itemBody}>
                   <div>
-                    {entry.paymentStatus === 'Part paid' ? `Pay balance: ${entry.title}` : `Pay: ${entry.title}`} (
-                    {Math.max(0, entry.amount - (entry.amountPaid || 0)).toFixed(2)})
+                    {entry.paymentStatus === 'Part paid'
+                      ? `Pay balance: ${entry.title}`
+                      : paymentDueTaskTitle(entry)}{' '}
+                    ({Math.max(0, entry.amount - (entry.amountPaid || 0)).toFixed(2)})
                   </div>
                   <div className={styles.meta}>{dayName(entry.dayId)}</div>
                   <label className={styles.dueLabel}>
@@ -902,6 +905,23 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                       onChange={(e) => updateEntry({ ...entry, paymentDueDate: e.target.value || undefined })}
                     />
                   </label>
+                  <label className={styles.dueLabel}>
+                    Payment timing{' '}
+                    <select
+                      className={styles.input}
+                      value={entry.paymentDueType || 'Manual'}
+                      onChange={(e) =>
+                        updateEntry({
+                          ...entry,
+                          paymentDueType: e.target.value as typeof entry.paymentDueType
+                        })
+                      }
+                    >
+                      <option value="Manual">Manual payment</option>
+                      <option value="Automatic">Auto-charge</option>
+                    </select>
+                  </label>
+                  <div className={styles.meta}>{paymentDueDateHint(entry)}</div>
                 </div>
                 <div className={`${styles.iconActions} ${styles.noPrint}`}>
                   <button

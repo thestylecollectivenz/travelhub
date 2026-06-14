@@ -1,6 +1,6 @@
 import * as React from 'react';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
-import { CATEGORY_LIST } from '../../utils/categoryUtils';
+import { CATEGORY_LIST, OPTION_CATEGORY_LIST } from '../../utils/categoryUtils';
 import { combineDayAndTime, formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
@@ -422,8 +422,21 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           </>
         ) : (
           <>
-            <span className={styles.label}>Category</span>
-            <div className={styles.readOnlyValue}>{draft.category}</div>
+            <label className={styles.label} htmlFor={`cat-${draft.id}`}>
+              Category
+            </label>
+            <select
+              id={`cat-${draft.id}`}
+              className={styles.select}
+              value={draft.category}
+              onChange={(e) => patch({ category: e.target.value })}
+            >
+              {OPTION_CATEGORY_LIST.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
           </>
         )}
 
@@ -1005,6 +1018,18 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
               value={draft.paymentDueDate?.slice(0, 10) || ''}
               onChange={(e) => patch({ paymentDueDate: e.target.value || undefined })}
             />
+            <label className={styles.label} htmlFor={`paydue-type-${draft.id}`}>
+              Payment timing
+            </label>
+            <select
+              id={`paydue-type-${draft.id}`}
+              className={styles.select}
+              value={draft.paymentDueType || 'Manual'}
+              onChange={(e) => patch({ paymentDueType: e.target.value as ItineraryEntry['paymentDueType'] })}
+            >
+              <option value="Manual">Manual — I need to pay by this date</option>
+              <option value="Automatic">Automatic — charged on this date</option>
+            </select>
           </>
         ) : null}
 
@@ -1071,6 +1096,16 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
               value={Number.isNaN(draft.amount) ? '' : draft.amount}
               onChange={(e) => patch({ amount: e.target.value === '' ? 0 : Number(e.target.value) })}
             />
+            <label className={styles.label} htmlFor={`cur-${draft.id}`}>
+              Currency
+            </label>
+            <CurrencySelect
+              id={`cur-${draft.id}`}
+              className={styles.select}
+              value={draft.currency}
+              onChange={(code) => patch({ currency: code })}
+              priorityCodes={usedCurrencies}
+            />
             <label className={styles.label} htmlFor={`cost-certainty-${draft.id}`}>
               Cost certainty
             </label>
@@ -1094,17 +1129,6 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
             <div className={styles.readOnlyValue}>{nights > 0 ? perNight.toFixed(2) : '—'}</div>
           </>
         ) : null}
-
-        <label className={styles.label} htmlFor={`cur-${draft.id}`}>
-          Currency
-        </label>
-        <CurrencySelect
-          id={`cur-${draft.id}`}
-          className={styles.select}
-          value={draft.currency}
-          onChange={(code) => patch({ currency: code })}
-          priorityCodes={usedCurrencies}
-        />
       </div>
       )}
 
