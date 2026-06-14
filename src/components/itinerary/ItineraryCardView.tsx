@@ -18,6 +18,7 @@ import { loadTripAssignees, rememberTripAssignee } from '../../utils/tripAssigne
 import { usePlanView } from '../../context/PlanViewContext';
 import { paymentDueActionLabel } from '../../utils/paymentDueLabels';
 import { confirmUserAction } from '../../utils/confirmAction';
+import { swapLinkOrderIds } from '../../utils/linkEntryOrder';
 import type { LinkedEntryTask } from '../../utils/linkedEntryTask';
 import { linkedTaskDisplayText, linkedTaskNoteDisplay } from '../../utils/linkedEntryTask';
 import { effectivePlannerTimeStart, isTransportReturnOnCalendarDate } from '../../utils/itineraryDayEntries';
@@ -75,10 +76,11 @@ export interface ItineraryCardViewProps {
   onDelete: () => void;
 }
 
-function emptySubItem(): Omit<ItinerarySubItem, 'id'> {
+function emptySubItem(parent?: ItineraryEntry): Omit<ItinerarySubItem, 'id'> {
   return {
     title: '',
     category: 'Other',
+    location: parent?.location?.trim() || undefined,
     decisionStatus: 'Idea',
     paymentStatus: 'Not paid',
     bookingRequired: false,
@@ -204,7 +206,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
     useTripWorkspace();
   const planView = usePlanView();
   const { config } = useConfig();
-  const { docsForEntry, linksForEntry, addDocument, updateDocument, deleteDocument, addLink, updateLink, deleteLink } = useAttachments();
+  const { docsForEntry, linksForEntry, addDocument, updateDocument, deleteDocument, addLink, updateLink, deleteLink, reorderEntryLinks } = useAttachments();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [notesOpen, setNotesOpen] = React.useState(() => Boolean(entry.notes?.trim()));
   const [attachmentsOpen, setAttachmentsOpen] = React.useState(false);
@@ -447,9 +449,21 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
 
   const handleStartAddSubItem = React.useCallback(() => {
     setSubItemsOpen(true);
-    const tempId = addSubItem(entry.id, emptySubItem());
+    const tempId = addSubItem(entry.id, emptySubItem(entry));
     setEditingSubItem({ parentEntryId: entry.id, subItemId: tempId });
-  }, [addSubItem, entry.id, setEditingSubItem]);
+  }, [addSubItem, entry, setEditingSubItem]);
+
+  const moveCardLink = React.useCallback(
+    (linkId: string, direction: -1 | 1) => {
+      const next = swapLinkOrderIds(
+        links.map((l) => l.id),
+        linkId,
+        direction
+      );
+      if (next) reorderEntryLinks(entry.id, next);
+    },
+    [entry.id, links, reorderEntryLinks]
+  );
 
   const handleDocumentPick = React.useCallback(
     async (ev: React.ChangeEvent<HTMLInputElement>) => {
@@ -969,6 +983,24 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                   </>
                 ) : (
                   <>
+                    <button
+                      type="button"
+                      className={styles.newSubActionBtn}
+                      disabled={links[0]?.id === link.id}
+                      aria-label="Move link up"
+                      onClick={() => moveCardLink(link.id, -1)}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.newSubActionBtn}
+                      disabled={links[links.length - 1]?.id === link.id}
+                      aria-label="Move link down"
+                      onClick={() => moveCardLink(link.id, 1)}
+                    >
+                      ↓
+                    </button>
                     <button
                       type="button"
                       className={styles.attachmentTitle}

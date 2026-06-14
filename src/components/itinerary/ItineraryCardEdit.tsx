@@ -5,7 +5,7 @@ import { combineDayAndTime, formatTimeHHMM } from '../../utils/itineraryTimeUtil
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
 import { flightPlaceOptionsForDay } from '../../utils/flightPlaceOptions';
-import { parseAdditionalPlaceRefs } from '../../utils/tripDayPlaces';
+import { buildDayLocationOptions } from '../../utils/dayLocationOptions';
 import { durationFromDateTimes, arrivalTimeFromDuration } from '../../utils/durationFromTimes';
 import { useConfig } from '../../context/ConfigContext';
 import { CurrencySelect } from '../shared/CurrencySelect';
@@ -109,20 +109,15 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
     if (isFlights) {
       return flightPlaceOptionsForDay(draft.dayId, tripDays, placeById);
     }
-    const day = tripDays.find((d) => d.id === draft.dayId);
-    if (!day) return [];
-    const names = new Set<string>();
-    const primary = day.primaryPlaceId ? placeById(day.primaryPlaceId) : undefined;
-    if (primary?.title?.trim()) names.add(primary.title.trim());
-    for (const ref of parseAdditionalPlaceRefs(day.additionalPlaceIds)) {
-      const p = placeById(ref.placeId);
-      if (p?.title?.trim()) names.add(p.title.trim());
-    }
-    for (const loc of usedLocations) {
-      if (loc.trim()) names.add(loc.trim());
-    }
-    return Array.from(names);
-  }, [draft.dayId, tripDays, placeById, isFlights, usedLocations]);
+    return buildDayLocationOptions({
+      dayId: draft.dayId,
+      tripDays,
+      placeById,
+      usedLocations,
+      currentLocation: draft.location,
+      includeNextDay: false
+    });
+  }, [draft.dayId, draft.location, tripDays, placeById, isFlights, usedLocations]);
 
   React.useEffect(() => {
     if (!isFlights && !isTransport) return;

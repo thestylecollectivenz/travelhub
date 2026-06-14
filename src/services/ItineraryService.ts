@@ -310,7 +310,8 @@ function mapToSubItem(item: any): ItinerarySubItem {
     groupLabel: item.GroupLabel ?? undefined,
     location: item.Location ?? undefined,
     streetAddress: item.StreetAddress ?? undefined,
-    bookingRequired: item.BookingRequired === true
+    bookingRequired: item.BookingRequired === true,
+    sortOrder: item.SortOrder ?? 0
   };
 }
 
@@ -409,7 +410,10 @@ function assembleTree(rows: any[]): ItineraryEntry[] {
   }
 
   return parents
-    .map((p) => ({ ...p, subItems: childMap.get(p.id) ?? [] }))
+    .map((p) => ({
+      ...p,
+      subItems: (childMap.get(p.id) ?? []).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    }))
     .sort((a, b) => {
       if (a.dayId !== b.dayId) return a.dayId.localeCompare(b.dayId, undefined, { numeric: true });
       return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
@@ -646,7 +650,7 @@ export class ItineraryService {
       Location: subItem.location ?? '',
       StreetAddress: subItem.streetAddress ?? '',
       GroupLabel: subItem.groupLabel ?? '',
-      SortOrder: 0,
+      SortOrder: subItem.sortOrder ?? 0,
       BookingRequired: subItem.bookingRequired === true,
       BookingStatus: 'Not booked'
     });

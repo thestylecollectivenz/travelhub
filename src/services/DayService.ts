@@ -9,8 +9,19 @@ import {
   ymdSlice
 } from '../utils/tripDateRangeSync';
 import { parseAdditionalPlaceRef, serializeAdditionalPlaceRef } from '../utils/tripDayPlaces';
+import type { DayPlanningStatus } from '../models/TripDay';
+import { normalizeDayPlanningStatus } from '../utils/tripDayPlanningStatus';
 
 const LIST = 'TripDays';
+
+const SELECT_WITH_PLANNING =
+  'ID,Title,TripId,DayNumber,CalendarDate,DisplayTitle,DayType,PrimaryPlaceId,AdditionalPlaceIds,PlanningStatus';
+const SELECT_WITHOUT_PLANNING =
+  'ID,Title,TripId,DayNumber,CalendarDate,DisplayTitle,DayType,PrimaryPlaceId,AdditionalPlaceIds';
+
+function isHttp400(err: unknown): boolean {
+  return String(err).includes('400');
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapToDay(item: any): TripDay {
@@ -28,7 +39,8 @@ function mapToDay(item: any): TripDay {
     displayTitle: item.DisplayTitle ?? item.Title ?? '',
     dayType: (item.DayType as TripDayType) ?? 'PlacePort',
     primaryPlaceId: item.PrimaryPlaceId ? String(item.PrimaryPlaceId) : undefined,
-    additionalPlaceIds
+    additionalPlaceIds,
+    planningStatus: normalizeDayPlanningStatus(item.PlanningStatus)
   };
 }
 
@@ -46,6 +58,7 @@ function mapToSpItem(day: Partial<TripDay>): Record<string, any> {
   if (day.dayType !== undefined) item.DayType = day.dayType;
   if (day.primaryPlaceId !== undefined) item.PrimaryPlaceId = day.primaryPlaceId || null;
   if (day.additionalPlaceIds !== undefined) item.AdditionalPlaceIds = day.additionalPlaceIds.join(',');
+  if (day.planningStatus !== undefined) item.PlanningStatus = day.planningStatus;
   return item;
 }
 
@@ -59,35 +72,49 @@ export class DayService {
   }
 
   async getAll(tripId: string): Promise<TripDay[]> {
-    const select = '$select=ID,Title,TripId,DayNumber,CalendarDate,DisplayTitle,DayType,PrimaryPlaceId,AdditionalPlaceIds';
-    const filter = `$filter=TripId eq '${tripId}'`;
-    const orderby = '$orderby=DayNumber asc';
-    const url = `${this.baseUrl}?${select}&${filter}&${orderby}`;
     try {
-      const resp: SPHttpClientResponse = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
-      if (!resp.ok) throw new Error(`DayService.getAll failed: ${resp.status}`);
-      const data = await resp.json();
-      return (data.value ?? []).map(mapToDay);
+      return await this.fetchAll(tripId, true);
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('DayService.getAll', err);
+      if (isHttp400(err)) {
+        // eslint-disable-next-line no-console
+        console.warn('DayService.getAll: PlanningStatus unavailable, retrying without');
+        return this.fetchAll(tripId, false);
+      }
       throw err;
     }
   }
 
+  private async fetchAll(tripId: string, includePlanning: boolean): Promise<TripDay[]> {
+    const select = `$select=${includePlanning ? SELECT_WITH_PLANNING : SELECT_WITHOUT_PLANNING}`;
+    const filter = `$filter=TripId eq '${tripId}'`;
+    const orderby = '$orderby=DayNumber asc';
+    const url = `${this.baseUrl}?${select}&${filter}&${orderby}`;
+    const resp: SPHttpClientResponse = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
+    if (!resp.ok) throw new Error(`DayService.getAll failed: ${resp.status}`);
+    const data = await resp.json();
+    return (data.value ?? []).map(mapToDay);
+  }
+
   async getById(id: string): Promise<TripDay> {
-    const select = '$select=ID,Title,TripId,DayNumber,CalendarDate,DisplayTitle,DayType,PrimaryPlaceId,AdditionalPlaceIds';
-    const url = `${this.baseUrl}(${id})?${select}`;
     try {
-      const resp: SPHttpClientResponse = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
-      if (!resp.ok) throw new Error(`DayService.getById failed: ${resp.status}`);
-      const item = await resp.json();
-      return mapToDay(item);
+      return await this.fetchById(id, true);
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('DayService.getById', err);
+      if (isHttp400(err)) {
+        // eslint-disable-next-line no-console
+        console.warn('DayService.getById: PlanningStatus unavailable, retrying without');
+        return this.fetchById(id, false);
+      }
       throw err;
     }
+  }
+
+  private async fetchById(id: string, includePlanning: boolean): Promise<TripDay> {
+    const select = `$select=${includePlanning ? SELECT_WITH_PLANNING : SELECT_WITHOUT_PLANNING}`;
+    const url = `${this.baseUrl}(${id})?${select}`;
+    const resp: SPHttpClientResponse = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
+    if (!resp.ok) throw new Error(`DayService.getById failed: ${resp.status}`);
+    const item = await resp.json();
+    return mapToDay(item);
   }
 
   async create(day: Omit<TripDay, 'id'>): Promise<TripDay> {
@@ -226,25 +253,36 @@ export class DayService {
   }
 
   async update(id: string, day: Partial<TripDay>): Promise<void> {
-    const url = `${this.baseUrl}(${id})`;
-    const body = JSON.stringify(mapToSpItem(day));
     try {
-      const resp: SPHttpClientResponse = await this.ctx.spHttpClient.fetch(url, SPHttpClient.configurations.v1, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json;odata.metadata=minimal',
-          Accept: 'application/json;odata.metadata=minimal',
-          'IF-MATCH': '*',
-          'X-HTTP-Method': 'MERGE'
-        },
-        body
-      });
-      if (!resp.ok && resp.status !== 204) throw new Error(`DayService.update failed: ${resp.status}`);
+      await this.patch(id, day);
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('DayService.update', err);
+      if (day.planningStatus !== undefined && isHttp400(err)) {
+        // eslint-disable-next-line no-console
+        console.warn('DayService.update: PlanningStatus unavailable, retrying without');
+        const { planningStatus: _planningStatus, ...rest } = day;
+        if (Object.keys(rest).length > 0) {
+          await this.patch(id, rest);
+        }
+        return;
+      }
       throw err;
     }
+  }
+
+  private async patch(id: string, day: Partial<TripDay>): Promise<void> {
+    const url = `${this.baseUrl}(${id})`;
+    const body = JSON.stringify(mapToSpItem(day));
+    const resp: SPHttpClientResponse = await this.ctx.spHttpClient.fetch(url, SPHttpClient.configurations.v1, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json;odata.metadata=minimal',
+        Accept: 'application/json;odata.metadata=minimal',
+        'IF-MATCH': '*',
+        'X-HTTP-Method': 'MERGE'
+      },
+      body
+    });
+    if (!resp.ok && resp.status !== 204) throw new Error(`DayService.update failed: ${resp.status}`);
   }
 
   async delete(id: string): Promise<void> {

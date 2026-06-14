@@ -124,6 +124,9 @@ Add-ListFieldIfMissing -ListTitle 'TripDays' -InternalName 'DayType' -FieldType 
     'PlacePort', 'Sea', 'TravelTransit'
 )
 # If upgrading an existing site, add the 'PreTrip' value to the TripDays.DayType choice column in list settings.
+Add-ListFieldIfMissing -ListTitle 'TripDays' -InternalName 'PlanningStatus' -FieldType 'Choice' -Choices @(
+    'NotStarted', 'InProgress', 'Complete'
+)
 
 # --- Places ---
 Ensure-CustomList -Title 'Places'

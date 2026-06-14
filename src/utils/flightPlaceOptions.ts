@@ -1,7 +1,14 @@
-import type { TripDay } from '../models/TripDay';
 import type { Place } from '../models/Place';
+import type { TripDay } from '../models/TripDay';
+import { placeDisplayLabel } from './placeDisplayLabel';
 import { parseAdditionalPlaceRefs } from './tripDayPlaces';
 import { isPreTripDayRow } from './itineraryDayEntries';
+
+function addPlaceLabel(names: Set<string>, place: Place | undefined): void {
+  if (!place) return;
+  const label = placeDisplayLabel(place);
+  if (label) names.add(label);
+}
 
 /** Place names for the entry day and the next calendar day (overnight flights). */
 export function flightPlaceOptionsForDay(
@@ -16,15 +23,13 @@ export function flightPlaceOptionsForDay(
   const names = new Set<string>();
   const collect = (day: TripDay | undefined): void => {
     if (!day) return;
-    const primary = day.primaryPlaceId ? placeById(day.primaryPlaceId) : undefined;
-    if (primary?.title?.trim()) names.add(primary.title.trim());
+    addPlaceLabel(names, day.primaryPlaceId ? placeById(day.primaryPlaceId) : undefined);
     for (const ref of parseAdditionalPlaceRefs(day.additionalPlaceIds)) {
-      const p = placeById(ref.placeId);
-      if (p?.title?.trim()) names.add(p.title.trim());
+      addPlaceLabel(names, placeById(ref.placeId));
     }
   };
 
   collect(ordered[idx]);
   collect(ordered[idx + 1]);
-  return Array.from(names).sort((a, b) => a.localeCompare(b));
+  return Array.from(names).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 }

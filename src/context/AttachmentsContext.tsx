@@ -2,6 +2,7 @@ import * as React from 'react';
 import type { EntryDocument, EntryDocumentType, EntryLink } from '../models';
 import { DocumentService } from '../services/DocumentService';
 import { LinkService } from '../services/LinkService';
+import { applyLinkOrder, saveLinkOrder } from '../utils/linkEntryOrder';
 import { useSpContext } from './SpContext';
 import { useTripWorkspace } from './TripWorkspaceContext';
 
@@ -31,6 +32,7 @@ export interface AttachmentsContextValue {
   }) => Promise<EntryLink>;
   updateLink: (id: string, partial: Partial<Omit<EntryLink, 'id'>>) => Promise<void>;
   deleteLink: (id: string) => Promise<void>;
+  reorderEntryLinks: (entryId: string, orderedLinkIds: string[]) => void;
   highlightedDocumentId: string | null;
   setHighlightedDocumentId: (id: string | null) => void;
   highlightedLinkId: string | null;
@@ -84,8 +86,11 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   );
 
   const linksForEntry = React.useCallback(
-    (entryId: string) => links.filter((l) => l.entryId === entryId),
-    [links]
+    (entryId: string) => {
+      const filtered = links.filter((l) => l.entryId === entryId);
+      return tripId ? applyLinkOrder(tripId, entryId, filtered) : filtered;
+    },
+    [links, tripId]
   );
 
   const addDocument = React.useCallback(
@@ -203,6 +208,15 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [links, spContext]
   );
 
+  const reorderEntryLinks = React.useCallback(
+    (entryId: string, orderedLinkIds: string[]): void => {
+      if (!tripId) return;
+      saveLinkOrder(tripId, entryId, orderedLinkIds);
+      setLinks((prev) => [...prev]);
+    },
+    [tripId]
+  );
+
   const value = React.useMemo(
     (): AttachmentsContextValue => ({
       documents,
@@ -217,6 +231,7 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       addLink,
       updateLink,
       deleteLink,
+      reorderEntryLinks,
       highlightedDocumentId,
       setHighlightedDocumentId,
       highlightedLinkId,
@@ -235,6 +250,7 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       addLink,
       updateLink,
       deleteLink,
+      reorderEntryLinks,
       highlightedDocumentId,
       highlightedLinkId
     ]

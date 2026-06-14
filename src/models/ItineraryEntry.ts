@@ -33,6 +33,8 @@ export interface ItinerarySubItem {
   costCertainty?: CostCertainty;
   notes?: string;
   groupLabel?: string;
+  /** Display order within parent card (SharePoint SortOrder on child row). */
+  sortOrder?: number;
   /** Place or venue name for this option. */
   location?: string;
   /** Street address for maps links. */

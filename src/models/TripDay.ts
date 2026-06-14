@@ -1,5 +1,7 @@
 export type TripDayType = 'PlacePort' | 'Sea' | 'TravelTransit' | 'PreTrip';
 
+export type DayPlanningStatus = 'NotStarted' | 'InProgress' | 'Complete';
+
 export interface TripDay {
   id: string;
   tripId: string;
@@ -9,4 +11,5 @@ export interface TripDay {
   dayType: TripDayType;
   primaryPlaceId?: string;
   additionalPlaceIds?: string[];
+  planningStatus?: DayPlanningStatus;
 }

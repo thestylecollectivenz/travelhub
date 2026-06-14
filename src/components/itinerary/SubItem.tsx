@@ -7,6 +7,7 @@ import { useAttachments } from '../../context/AttachmentsContext';
 import { ReminderService } from '../../services/ReminderService';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../../utils/googleMapsLink';
+import { swapLinkOrderIds } from '../../utils/linkEntryOrder';
 import { SubItemDetailLines } from './SubItemDetailLines';
 import styles from './SubItem.module.css';
 
@@ -41,10 +42,28 @@ function TaskIcon(): React.ReactElement {
   );
 }
 
+function DuplicateIcon(): React.ReactElement {
+  return (
+    <svg width={12} height={12} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <rect x="5.5" y="5.5" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M3.5 10.5V3.5a1 1 0 0 1 1-1H10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
   const spContext = useSpContext();
-  const { trip, localEntries, deleteSubItem, setEditingSubItem, editingSubItem } = useTripWorkspace();
-  const { docsForEntry, linksForEntry, updateLink, deleteLink } = useAttachments();
+  const {
+    trip,
+    localEntries,
+    deleteSubItem,
+    setEditingSubItem,
+    editingSubItem,
+    duplicateSubItem,
+    reorderSubItems,
+    moveSubItem
+  } = useTripWorkspace();
+  const { docsForEntry, linksForEntry, updateLink, deleteLink, reorderEntryLinks } = useAttachments();
   const [taskBusy, setTaskBusy] = React.useState(false);
   const [taskPanelOpen, setTaskPanelOpen] = React.useState(false);
   const [taskDesc, setTaskDesc] = React.useState('');
@@ -53,6 +72,22 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
   const [linkEditDraft, setLinkEditDraft] = React.useState({ linkTitle: '', url: '' });
 
   const parentEntry = React.useMemo(() => localEntries.find((e) => e.id === parentEntryId), [localEntries, parentEntryId]);
+  const orderedSubIds = React.useMemo(() => {
+    const subs = [...(parentEntry?.subItems ?? [])].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    return subs.map((s) => s.id);
+  }, [parentEntry?.subItems]);
+  const subIndex = orderedSubIds.indexOf(item.id);
+  const moveTargets = React.useMemo(
+    () =>
+      localEntries.filter(
+        (e) =>
+          e.dayId === parentEntry?.dayId &&
+          !e.parentEntryId &&
+          e.id !== parentEntryId &&
+          e.id !== item.id
+      ),
+    [localEntries, parentEntry?.dayId, parentEntryId, item.id]
+  );
   const docs = docsForEntry(item.id);
   const links = linksForEntry(item.id);
   const isEditingInPanel =
@@ -88,6 +123,18 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
       .catch(console.error)
       .then(() => setTaskBusy(false));
   }, [spContext, trip?.id, parentEntry, item.id, item.title, taskDesc]);
+
+  const moveLink = React.useCallback(
+    (linkId: string, direction: -1 | 1) => {
+      const next = swapLinkOrderIds(
+        links.map((l) => l.id),
+        linkId,
+        direction
+      );
+      if (next) reorderEntryLinks(item.id, next);
+    },
+    [item.id, links, reorderEntryLinks]
+  );
 
   const viewMapsPlaceUrl = googleMapsPlaceUrl(item.streetAddress || '');
   const viewMapsDirectionsUrl = googleMapsDirectionsUrl(item.streetAddress || '');
@@ -186,6 +233,18 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
                     </div>
                   ) : (
                     <span key={l.id} className={styles.linkChip}>
+                      <button type="button" className={styles.linkChipAction} aria-label="Move link up" disabled={links[0]?.id === l.id} onClick={() => moveLink(l.id, -1)}>
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.linkChipAction}
+                        aria-label="Move link down"
+                        disabled={links[links.length - 1]?.id === l.id}
+                        onClick={() => moveLink(l.id, 1)}
+                      >
+                        ↓
+                      </button>
                       <button type="button" className={styles.miniLink} onClick={() => openDocumentUrl(l.url)} title={l.url}>
                         {l.linkTitle || l.url}
                       </button>
@@ -222,6 +281,66 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
         ) : null}
       </div>
       <div className={styles.actionCol}>
+        <button
+          type="button"
+          className={styles.reorderButton}
+          disabled={subIndex <= 0}
+          aria-label="Move option up"
+          title="Move up"
+          onClick={() => {
+            if (subIndex <= 0) return;
+            const next = [...orderedSubIds];
+            [next[subIndex - 1], next[subIndex]] = [next[subIndex], next[subIndex - 1]];
+            reorderSubItems(parentEntryId, next);
+          }}
+        >
+          ↑
+        </button>
+        <button
+          type="button"
+          className={styles.reorderButton}
+          disabled={subIndex < 0 || subIndex >= orderedSubIds.length - 1}
+          aria-label="Move option down"
+          title="Move down"
+          onClick={() => {
+            if (subIndex < 0 || subIndex >= orderedSubIds.length - 1) return;
+            const next = [...orderedSubIds];
+            [next[subIndex + 1], next[subIndex]] = [next[subIndex], next[subIndex + 1]];
+            reorderSubItems(parentEntryId, next);
+          }}
+        >
+          ↓
+        </button>
+        {moveTargets.length > 0 ? (
+          <select
+            className={styles.moveSelect}
+            value=""
+            aria-label="Move option to another card"
+            title="Move to card"
+            onChange={(e) => {
+              const toId = e.target.value;
+              if (!toId) return;
+              moveSubItem(parentEntryId, item.id, toId);
+              e.target.value = '';
+            }}
+          >
+            <option value="">Move…</option>
+            {moveTargets.map((target) => (
+              <option key={target.id} value={target.id}>
+                {target.title?.trim() || target.category || 'Card'}
+              </option>
+            ))}
+          </select>
+        ) : null}
+        <button
+          type="button"
+          className={styles.editButton}
+          onClick={() => duplicateSubItem(parentEntryId, item.id)}
+          aria-label="Duplicate option"
+          title="Duplicate"
+        >
+          <DuplicateIcon />
+        </button>
         <button
           type="button"
           className={styles.taskButton}

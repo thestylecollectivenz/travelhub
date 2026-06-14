@@ -19,6 +19,8 @@ function groupSubItems(subItems: ItinerarySubItem[]): SubItemGroup[] {
   const groups: SubItemGroup[] = [];
   const indexByKey = new Map<string, number>();
   const sorted = [...subItems].sort((a, b) => {
+    const sortDiff = (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+    if (sortDiff !== 0) return sortDiff;
     const am = minutesFromTimeStart(a.startTime || '');
     const bm = minutesFromTimeStart(b.startTime || '');
     if (am === undefined && bm === undefined) return 0;

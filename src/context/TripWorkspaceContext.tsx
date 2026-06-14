@@ -16,6 +16,11 @@ import { repairPreTripCalendarIfCollidingWithFirstDay } from '../utils/tripPreTr
 import { calendarDayBefore, planChronologicalRenumber, ymdSlice } from '../utils/tripDateRangeSync';
 import { isPreTripDayRow } from '../utils/itineraryDayEntries';
 import { isPendingItineraryEntryId, isPendingSubItemId } from '../utils/itineraryEntryIds';
+import { itineraryEntryCreatePayload } from '../utils/itineraryCreatePayload';
+import {
+  clearLegacyDayPlanningStatus,
+  loadLegacyDayPlanningStatus
+} from '../utils/tripDayPlanningStatus';
 import {
   insertAfterInDayViewEntryOrder,
   removeFromDayViewEntryOrder,
@@ -101,6 +106,9 @@ export interface TripWorkspaceContextValue {
   persistSubItem: (entryId: string, subItem: ItinerarySubItem) => Promise<ItinerarySubItem>;
   addSubItem: (entryId: string, subItem: Omit<ItinerarySubItem, 'id'> & { id?: string }) => string;
   deleteSubItem: (entryId: string, subItemId: string) => void;
+  duplicateSubItem: (entryId: string, subItemId: string) => void;
+  reorderSubItems: (entryId: string, orderedSubItemIds: string[]) => void;
+  moveSubItem: (fromEntryId: string, subItemId: string, toEntryId: string) => void;
   convertToHomeCurrency: (amount: number, currency: string) => number;
   mainWorkspaceTab: MainWorkspaceTab;
   setMainWorkspaceTab: (tab: MainWorkspaceTab) => void;
@@ -177,6 +185,18 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
 
       setTrip(mergeTripDisplayPrefs(loadedTrip));
       let anchoredDays = await repairPreTripCalendarIfCollidingWithFirstDay(daySvc, loadedTrip, loadedDays);
+      for (const day of anchoredDays) {
+        const legacy = loadLegacyDayPlanningStatus(tripId, day.id);
+        if (legacy && legacy !== 'NotStarted' && day.planningStatus !== legacy) {
+          try {
+            await daySvc.update(day.id, { planningStatus: legacy });
+            day.planningStatus = legacy;
+          } catch {
+            /* PlanningStatus column may not exist yet */
+          }
+        }
+      }
+      clearLegacyDayPlanningStatus(tripId);
       if (planChronologicalRenumber(anchoredDays).length) {
         anchoredDays = await daySvc.renumberDaysChronologically(tripId, anchoredDays);
       }
@@ -325,10 +345,8 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       const tempId = latest.id;
       try {
         const svc = new ItineraryService(spContext);
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { id: _id, subItems, amountPaidConverted: _apc, ...payload } = latest;
-        const created = await svc.create(payload);
-        const merged = { ...created, subItems: subItems ?? [] };
+        const created = await svc.create(itineraryEntryCreatePayload(latest));
+        const merged = { ...created, subItems: latest.subItems ?? [] };
         setLocalEntries((prev) => prev.map((e) => (e.id === tempId ? merged : e)));
         pendingEntryCreatesRef.current.delete(tempId);
         void syncEntryCancellationDeadlineReminder(spContext, merged)
@@ -496,7 +514,9 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
 
       setLocalEntries(next);
       setFocusedEntryId(tempId);
-      const fallbackOrder = next.filter((e) => e.dayId === orig.dayId && !e.parentEntryId).map((e) => e.id);
+      const fallbackOrder = bumped
+        .filter((e) => e.dayId === orig.dayId && !e.parentEntryId)
+        .map((e) => e.id);
       insertAfterInDayViewEntryOrder(orig.tripId, orig.dayId, entryId, tempId, fallbackOrder);
 
       const sortUpdates = bumped
@@ -636,42 +656,6 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
     [localEntries, spContext]
   );
 
-  const updateSubItem = React.useCallback(
-    (entryId: string, updatedSubItem: ItinerarySubItem) => {
-      setLocalEntries((prev) =>
-        prev.map((entry) =>
-          entry.id === entryId
-            ? { ...entry, subItems: entry.subItems?.map((s) => (s.id === updatedSubItem.id ? updatedSubItem : s)) }
-            : entry
-        )
-      );
-      // Sub-items are ItineraryEntries in SP — update via ItineraryService
-      const svc = new ItineraryService(spContext);
-      svc
-        .update(updatedSubItem.id, {
-          title: updatedSubItem.title,
-          category: updatedSubItem.category,
-          timeStart: updatedSubItem.startTime,
-          arrivalTime: updatedSubItem.endTime,
-          decisionStatus: updatedSubItem.decisionStatus,
-          paymentStatus: updatedSubItem.paymentStatus,
-          amount: updatedSubItem.amount,
-          amountPaid: updatedSubItem.amountPaid,
-          currency: updatedSubItem.currency,
-          costCertainty: updatedSubItem.costCertainty,
-          notes: updatedSubItem.notes,
-          location: updatedSubItem.location,
-          streetAddress: updatedSubItem.streetAddress,
-          bookingRequired: updatedSubItem.bookingRequired === true
-        } as Partial<ItineraryEntry>)
-        .catch((err) => {
-          // eslint-disable-next-line no-console
-          console.error('updateSubItem: SP persist failed', err);
-        });
-    },
-    [spContext]
-  );
-
   const persistSubItem = React.useCallback(
     async (entryId: string, subItem: ItinerarySubItem): Promise<ItinerarySubItem> => {
       if (!isPendingSubItemId(subItem.id)) {
@@ -729,22 +713,72 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
     [spContext, persistEntry]
   );
 
+  const updateSubItem = React.useCallback(
+    (entryId: string, updatedSubItem: ItinerarySubItem) => {
+      void (async () => {
+        const sub = await (async (): Promise<ItinerarySubItem | null> => {
+          if (isPendingSubItemId(updatedSubItem.id)) {
+            try {
+              return await persistSubItem(entryId, updatedSubItem);
+            } catch (err) {
+              // eslint-disable-next-line no-console
+              console.error('updateSubItem: persist failed', err);
+              return null;
+            }
+          }
+          return updatedSubItem;
+        })();
+        if (!sub) return;
+        setLocalEntries((prev) =>
+          prev.map((entry) =>
+            entry.id === entryId
+              ? { ...entry, subItems: entry.subItems?.map((s) => (s.id === sub.id ? sub : s)) }
+              : entry
+          )
+        );
+        const svc = new ItineraryService(spContext);
+        svc
+          .update(sub.id, {
+            title: sub.title,
+            category: sub.category,
+            timeStart: sub.startTime,
+            arrivalTime: sub.endTime,
+            decisionStatus: sub.decisionStatus,
+            paymentStatus: sub.paymentStatus,
+            amount: sub.amount,
+            amountPaid: sub.amountPaid,
+            currency: sub.currency,
+            costCertainty: sub.costCertainty,
+            notes: sub.notes,
+            location: sub.location,
+            streetAddress: sub.streetAddress,
+            bookingRequired: sub.bookingRequired === true,
+            sortOrder: sub.sortOrder
+          } as Partial<ItineraryEntry>)
+          .catch((err) => {
+            // eslint-disable-next-line no-console
+            console.error('updateSubItem: SP persist failed', err);
+          });
+      })();
+    },
+    [spContext, persistSubItem]
+  );
+
   const addSubItem = React.useCallback(
     (entryId: string, subItem: Omit<ItinerarySubItem, 'id'> & { id?: string }): string => {
       const tempId = subItem.id && isPendingSubItemId(subItem.id) ? subItem.id : newTempId();
-      const subItemWithTempId: ItinerarySubItem = { ...subItem, id: tempId };
       setLocalEntries((prev) =>
-        prev.map((entry) =>
-          entry.id === entryId ? { ...entry, subItems: [...(entry.subItems ?? []), subItemWithTempId] } : entry
-        )
+        prev.map((entry) => {
+          if (entry.id !== entryId) return entry;
+          const subs = entry.subItems ?? [];
+          const maxSort = subs.reduce((m, s) => Math.max(m, s.sortOrder ?? 0), -1);
+          const subItemWithTempId: ItinerarySubItem = { ...subItem, id: tempId, sortOrder: maxSort + 1 };
+          return { ...entry, subItems: [...subs, subItemWithTempId] };
+        })
       );
-      void persistSubItem(entryId, subItemWithTempId).catch((err) => {
-        // eslint-disable-next-line no-console
-        console.error('addSubItem: SP persist failed', err);
-      });
       return tempId;
     },
-    [persistSubItem]
+    []
   );
 
   const deleteSubItem = React.useCallback(
@@ -774,6 +808,105 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
         });
     },
     [spContext, localEntries]
+  );
+
+  const reorderSubItems = React.useCallback(
+    (entryId: string, orderedSubItemIds: string[]) => {
+      setLocalEntries((prev) =>
+        prev.map((entry) => {
+          if (entry.id !== entryId || !entry.subItems?.length) return entry;
+          const byId = new Map(entry.subItems.map((s) => [s.id, s]));
+          const reordered = orderedSubItemIds
+            .map((id, index) => {
+              const sub = byId.get(id);
+              return sub ? { ...sub, sortOrder: index } : null;
+            })
+            .filter(Boolean) as ItinerarySubItem[];
+          const used = new Set(reordered.map((s) => s.id));
+          for (const sub of entry.subItems) {
+            if (!used.has(sub.id)) {
+              reordered.push({ ...sub, sortOrder: reordered.length });
+            }
+          }
+          return { ...entry, subItems: reordered };
+        })
+      );
+      const svc = new ItineraryService(spContext);
+      orderedSubItemIds.forEach((id, index) => {
+        svc.update(id, { sortOrder: index } as Partial<ItineraryEntry>).catch(console.error);
+      });
+    },
+    [spContext]
+  );
+
+  const duplicateSubItem = React.useCallback(
+    (entryId: string, subItemId: string) => {
+      const parent = localEntriesRef.current.find((e) => e.id === entryId);
+      const orig = parent?.subItems?.find((s) => s.id === subItemId);
+      if (!parent || !orig) return;
+      const tempId = newTempId();
+      const copy: ItinerarySubItem = {
+        ...orig,
+        id: tempId,
+        title: orig.title?.trim() ? `${orig.title.trim()} (copy)` : 'Untitled (copy)',
+        sortOrder: (orig.sortOrder ?? 0) + 1
+      };
+      setLocalEntries((prev) =>
+        prev.map((entry) => {
+          if (entry.id !== entryId) return entry;
+          const subs = [...(entry.subItems ?? [])];
+          const idx = subs.findIndex((s) => s.id === subItemId);
+          if (idx < 0) return entry;
+          subs.splice(idx + 1, 0, copy);
+          return {
+            ...entry,
+            subItems: subs.map((s, i) => ({ ...s, sortOrder: i }))
+          };
+        })
+      );
+      setEditingSubItem({ parentEntryId: entryId, subItemId: tempId });
+      void persistSubItem(entryId, copy).catch(console.error);
+    },
+    [persistSubItem]
+  );
+
+  const moveSubItem = React.useCallback(
+    (fromEntryId: string, subItemId: string, toEntryId: string) => {
+      if (fromEntryId === toEntryId) return;
+      const fromParent = localEntriesRef.current.find((e) => e.id === fromEntryId);
+      const toParent = localEntriesRef.current.find((e) => e.id === toEntryId);
+      const sub = fromParent?.subItems?.find((s) => s.id === subItemId);
+      if (!fromParent || !toParent || !sub) return;
+
+      const nextSort =
+        (toParent.subItems ?? []).reduce((m, s) => Math.max(m, s.sortOrder ?? 0), -1) + 1;
+      const moved = { ...sub, sortOrder: nextSort };
+
+      setLocalEntries((prev) =>
+        prev.map((entry) => {
+          if (entry.id === fromEntryId) {
+            return { ...entry, subItems: entry.subItems?.filter((s) => s.id !== subItemId) };
+          }
+          if (entry.id === toEntryId) {
+            return { ...entry, subItems: [...(entry.subItems ?? []), moved] };
+          }
+          return entry;
+        })
+      );
+      setEditingSubItem((prev) =>
+        prev?.subItemId === subItemId ? { parentEntryId: toEntryId, subItemId } : prev
+      );
+
+      const svc = new ItineraryService(spContext);
+      svc
+        .update(subItemId, {
+          parentEntryId: toEntryId,
+          dayId: toParent.dayId,
+          sortOrder: nextSort
+        } as Partial<ItineraryEntry>)
+        .catch(console.error);
+    },
+    [spContext]
   );
 
   const convertToHomeCurrency = React.useCallback((amount: number, currency: string): number => {
@@ -830,6 +963,9 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       persistSubItem,
       addSubItem,
       deleteSubItem,
+      duplicateSubItem,
+      reorderSubItems,
+      moveSubItem,
       convertToHomeCurrency,
       mainWorkspaceTab,
       setMainWorkspaceTab,
@@ -890,6 +1026,9 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       persistSubItem,
       addSubItem,
       deleteSubItem,
+      duplicateSubItem,
+      reorderSubItems,
+      moveSubItem,
       convertToHomeCurrency,
       mainWorkspaceTab,
       selectedBudgetCategory,

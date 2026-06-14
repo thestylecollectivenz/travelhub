@@ -40,6 +40,10 @@ export function insertAfterInDayViewEntryOrder(
     rawIds = [...fallbackOrderedIds];
   }
   if (rawIds.length === 0) return;
+  if (rawIds.indexOf(newId) >= 0) {
+    saveDayViewEntryOrder(tripId, viewDayId, rawIds);
+    return;
+  }
   const idx = rawIds.indexOf(afterId);
   const next = [...rawIds];
   if (idx < 0) {

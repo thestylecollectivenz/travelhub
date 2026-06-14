@@ -11,7 +11,7 @@ import { compareTripDaysChronological } from '../../utils/tripDateRangeSync';
 import { parseAdditionalPlaceRefs, serializeAdditionalPlaceRef } from '../../utils/tripDayPlaces';
 import { CollapsibleSummaryBar } from '../shared/CollapsibleSummaryBar';
 import { placeDisplayLabel } from '../../utils/placeDisplayLabel';
-import { loadDayPlanningStatus, saveDayPlanningStatus, type DayPlanningStatus } from '../../utils/tripDayPlanningStatus';
+import type { DayPlanningStatus } from '../../models/TripDay';
 import styles from './DayHeader.module.css';
 
 export interface DayHeaderProps {
@@ -59,9 +59,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
   const [activePlaceInfoIdState, setActivePlaceInfoIdState] = React.useState('');
   const [copyDaysCount, setCopyDaysCount] = React.useState(1);
   const [locationMessage, setLocationMessage] = React.useState('');
-  const [planningStatus, setPlanningStatus] = React.useState<DayPlanningStatus>(() =>
-    trip?.id ? loadDayPlanningStatus(trip.id, day.id) : 'NotStarted'
-  );
+  const planningStatus: DayPlanningStatus = day.planningStatus ?? 'NotStarted';
   const additionalRefs = React.useMemo(() => parseAdditionalPlaceRefs(day.additionalPlaceIds), [day.additionalPlaceIds]);
 
   React.useEffect(() => {
@@ -123,11 +121,6 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
   React.useEffect(() => {
     setTitleDraft(day.displayTitle);
   }, [day.displayTitle]);
-
-  React.useEffect(() => {
-    if (!trip?.id) return;
-    setPlanningStatus(loadDayPlanningStatus(trip.id, day.id));
-  }, [trip?.id, day.id]);
 
   React.useEffect(() => {
     if (!locationSearch.trim()) {
@@ -291,9 +284,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
               className={styles.planningSelect}
               value={planningStatus}
               onChange={(e) => {
-                const next = e.target.value as DayPlanningStatus;
-                setPlanningStatus(next);
-                saveDayPlanningStatus(trip.id, day.id, next);
+                updateDay(day.id, { planningStatus: e.target.value as DayPlanningStatus });
               }}
             >
               <option value="NotStarted">Not started</option>

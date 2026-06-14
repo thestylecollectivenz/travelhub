@@ -1,4 +1,6 @@
-export type DayPlanningStatus = 'NotStarted' | 'InProgress' | 'Complete';
+import type { DayPlanningStatus } from '../models/TripDay';
+
+export type { DayPlanningStatus };
 
 const STORAGE_PREFIX = 'travelHub.dayPlanningStatus';
 
@@ -6,35 +8,28 @@ function storageKey(tripId: string): string {
   return `${STORAGE_PREFIX}.${tripId}`;
 }
 
-export function loadDayPlanningStatusMap(tripId: string): Record<string, DayPlanningStatus> {
-  if (!tripId) return {};
+/** One-time migration from legacy browser storage. */
+export function loadLegacyDayPlanningStatus(tripId: string, dayId: string): DayPlanningStatus | undefined {
+  if (!tripId) return undefined;
   try {
     const raw = window.localStorage.getItem(storageKey(tripId));
-    if (!raw) return {};
+    if (!raw) return undefined;
     const parsed = JSON.parse(raw) as Record<string, DayPlanningStatus>;
-    return parsed && typeof parsed === 'object' ? parsed : {};
+    return parsed?.[dayId];
   } catch {
-    return {};
+    return undefined;
   }
 }
 
-export function loadDayPlanningStatus(tripId: string, dayId: string): DayPlanningStatus {
-  return loadDayPlanningStatusMap(tripId)[dayId] ?? 'NotStarted';
-}
-
-export function saveDayPlanningStatus(tripId: string, dayId: string, status: DayPlanningStatus): void {
-  if (!tripId || !dayId) return;
+export function clearLegacyDayPlanningStatus(tripId: string): void {
   try {
-    const map = loadDayPlanningStatusMap(tripId);
-    map[dayId] = status;
-    window.localStorage.setItem(storageKey(tripId), JSON.stringify(map));
-    window.dispatchEvent(new CustomEvent('travelhub-day-planning-status', { detail: { tripId, dayId, status } }));
+    window.localStorage.removeItem(storageKey(tripId));
   } catch {
     /* ignore */
   }
 }
 
-export function dayPlanningStatusLabel(status: DayPlanningStatus): string {
+export function dayPlanningStatusLabel(status: DayPlanningStatus | undefined): string {
   switch (status) {
     case 'Complete':
       return 'Complete';
@@ -43,4 +38,9 @@ export function dayPlanningStatusLabel(status: DayPlanningStatus): string {
     default:
       return 'Not started';
   }
+}
+
+export function normalizeDayPlanningStatus(value: string | undefined): DayPlanningStatus {
+  if (value === 'Complete' || value === 'InProgress' || value === 'NotStarted') return value;
+  return 'NotStarted';
 }
