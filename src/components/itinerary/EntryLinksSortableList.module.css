@@ -1,0 +1,27 @@
+.dragHandle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: var(--color-sand-400);
+  cursor: grab;
+  padding: 0 2px;
+  margin-right: var(--space-1);
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+.dragHandle:hover {
+  color: var(--color-blue-600);
+}
+
+.dragHandleSlot {
+  display: inline-flex;
+  align-items: center;
+  width: 1rem;
+  flex-shrink: 0;
+}

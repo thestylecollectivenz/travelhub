@@ -1,3 +1,6 @@
+import type { EntryLink } from '../models';
+import { sortEntryLinks } from './entryLinkSort';
+
 const PREFIX = 'travelHub.linkOrder';
 
 function storageKey(tripId: string, entryId: string): string {
@@ -16,40 +19,63 @@ export function readLinkOrder(tripId: string, entryId: string): string[] {
   }
 }
 
-export function saveLinkOrder(tripId: string, entryId: string, orderedIds: string[]): void {
-  if (!tripId || !entryId) return;
+export function clearLinkOrder(tripId: string, entryId: string): void {
   try {
-    window.localStorage.setItem(storageKey(tripId, entryId), JSON.stringify(orderedIds));
+    window.localStorage.removeItem(storageKey(tripId, entryId));
   } catch {
     /* ignore */
   }
 }
 
-export function applyLinkOrder<T extends { id: string }>(tripId: string, entryId: string, links: T[]): T[] {
-  const order = readLinkOrder(tripId, entryId);
-  if (!order.length) return links;
-  const byId = new Map(links.map((l) => [l.id, l]));
-  const out: T[] = [];
-  const used = new Set<string>();
-  for (const id of order) {
-    const link = byId.get(id);
-    if (link) {
-      out.push(link);
-      used.add(id);
-    }
-  }
-  for (const link of links) {
-    if (!used.has(link.id)) out.push(link);
-  }
-  return out;
-}
+/** One-time migration from legacy browser order when SharePoint SortOrder is unset. */
+export function migrateLegacyLinkOrder(
+  tripId: string,
+  links: EntryLink[]
+): { links: EntryLink[]; persist: Array<{ id: string; sortOrder: number }> } {
+  if (!tripId || !links.length) return { links, persist: [] };
 
-/** Swap one link up or down within an ordered id list. Returns null when move is not possible. */
-export function swapLinkOrderIds(orderedIds: string[], linkId: string, direction: -1 | 1): string[] | null {
-  const idx = orderedIds.indexOf(linkId);
-  const swapIdx = idx + direction;
-  if (idx < 0 || swapIdx < 0 || swapIdx >= orderedIds.length) return null;
-  const next = [...orderedIds];
-  [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
-  return next;
+  const byEntry = new Map<string, EntryLink[]>();
+  for (const link of links) {
+    const group = byEntry.get(link.entryId) ?? [];
+    group.push(link);
+    byEntry.set(link.entryId, group);
+  }
+
+  const updatedById = new Map<string, EntryLink>();
+  const persist: Array<{ id: string; sortOrder: number }> = [];
+
+  Array.from(byEntry.entries()).forEach(([entryId, group]) => {
+    const allUnset = group.every((l) => (l.sortOrder ?? 0) === 0);
+    const legacy = readLinkOrder(tripId, entryId);
+    if (!allUnset || legacy.length === 0) {
+      group.forEach((link) => updatedById.set(link.id, link));
+      return;
+    }
+
+    const byId = new Map(group.map((l) => [l.id, l] as [string, EntryLink]));
+    const ordered: EntryLink[] = [];
+    const used = new Set<string>();
+    legacy.forEach((id, index) => {
+      const link = byId.get(id);
+      if (link) {
+        const next: EntryLink = { ...link, sortOrder: index };
+        ordered.push(next);
+        updatedById.set(link.id, next);
+        persist.push({ id: link.id, sortOrder: index });
+        used.add(link.id);
+      }
+    });
+    group.forEach((link) => {
+      if (!used.has(link.id)) {
+        const next: EntryLink = { ...link, sortOrder: ordered.length };
+        ordered.push(next);
+        updatedById.set(link.id, next);
+        persist.push({ id: link.id, sortOrder: next.sortOrder ?? ordered.length });
+      }
+    });
+    clearLinkOrder(tripId, entryId);
+  });
+
+  const merged = links.map((l) => updatedById.get(l.id) ?? l);
+  return { links: sortEntryLinks(merged), persist };
 }

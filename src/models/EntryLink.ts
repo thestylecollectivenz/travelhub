@@ -10,4 +10,5 @@ export interface EntryLink {
   url: string;
   linkTitle: string;
   notes: string;
+  sortOrder?: number;
 }

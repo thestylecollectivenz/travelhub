@@ -288,6 +288,18 @@ Add-ListFieldIfMissing -ListTitle 'EntryLinks' -InternalName 'Url' -FieldType 'T
 Add-ListFieldIfMissing -ListTitle 'EntryLinks' -InternalName 'LinkType' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'EntryLinks' -InternalName 'DayId' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'EntryLinks' -InternalName 'Category' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'EntryLinks' -InternalName 'SortOrder' -FieldType 'Number'
+
+# --- TripLinks (app storage for itinerary/option links) ---
+Ensure-CustomList -Title 'TripLinks'
+Add-ListFieldIfMissing -ListTitle 'TripLinks' -InternalName 'TripId' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'TripLinks' -InternalName 'DayId' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'TripLinks' -InternalName 'EntryId' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'TripLinks' -InternalName 'LinkType' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'TripLinks' -InternalName 'Url' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'TripLinks' -InternalName 'LinkTitle0' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'TripLinks' -InternalName 'Notes' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'TripLinks' -InternalName 'SortOrder' -FieldType 'Number'
 
 # --- JournalEntries ---
 Ensure-CustomList -Title 'JournalEntries'

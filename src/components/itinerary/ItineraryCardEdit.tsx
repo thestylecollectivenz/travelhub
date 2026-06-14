@@ -14,6 +14,7 @@ import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { rememberTripBookingMechanism } from '../../utils/tripBookingMechanisms';
 import { AccommodationEditLayout, FlightEditLayout, LocationInfoEditLayout } from './ItineraryCardEditCategoryLayouts';
+import { EntryLinksSortableList } from './EntryLinksSortableList';
 import { isLocationInfoEntry } from '../../utils/locationInfoEntry';
 import { isPendingItineraryEntryId } from '../../utils/itineraryEntryIds';
 import styles from './ItineraryCardEdit.module.css';
@@ -1217,9 +1218,9 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
                 Add link
               </button>
             </div>
-            <ul className={styles.attachList}>
+            <div className={styles.attachList}>
               {attachDocs.map((d) => (
-                <li key={d.id} className={styles.attachRow}>
+                <div key={d.id} className={styles.attachRow}>
                   <button type="button" className={styles.attachLink} onClick={() => openDocumentUrl(d.fileUrl)}>
                     {d.title || 'Document'}
                   </button>
@@ -1235,28 +1236,31 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
                   >
                     Remove
                   </button>
-                </li>
+                </div>
               ))}
-              {attachLinks.map((l) => (
-                <li key={l.id} className={styles.attachRow}>
-                  <button type="button" className={styles.attachLink} onClick={() => openDocumentUrl(l.url)}>
-                    {l.linkTitle || l.url}
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.attachRemove}
-                    onClick={() => {
-                      void (async () => {
-                        if (!(await confirmUserAction('Remove this link?'))) return;
-                        deleteLink(l.id).catch(console.error);
-                      })();
-                    }}
-                  >
-                    Remove
-                  </button>
-                </li>
-              ))}
-            </ul>
+              <EntryLinksSortableList entryId={draft.id} links={attachLinks}>
+                {(l, dragHandle) => (
+                  <div className={styles.attachRow}>
+                    {dragHandle}
+                    <button type="button" className={styles.attachLink} onClick={() => openDocumentUrl(l.url)}>
+                      {l.linkTitle || l.url}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.attachRemove}
+                      onClick={() => {
+                        void (async () => {
+                          if (!(await confirmUserAction('Remove this link?'))) return;
+                          deleteLink(l.id).catch(console.error);
+                        })();
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </EntryLinksSortableList>
+            </div>
           </div>
         ) : null}
       </div>

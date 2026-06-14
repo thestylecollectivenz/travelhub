@@ -7,8 +7,9 @@ import { useAttachments } from '../../context/AttachmentsContext';
 import { ReminderService } from '../../services/ReminderService';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../../utils/googleMapsLink';
-import { swapLinkOrderIds } from '../../utils/linkEntryOrder';
 import { SubItemDetailLines } from './SubItemDetailLines';
+import { EntryLinksSortableList } from './EntryLinksSortableList';
+import linkSortStyles from './EntryLinksSortableList.module.css';
 import styles from './SubItem.module.css';
 
 export interface SubItemProps {
@@ -63,7 +64,7 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
     reorderSubItems,
     moveSubItem
   } = useTripWorkspace();
-  const { docsForEntry, linksForEntry, updateLink, deleteLink, reorderEntryLinks } = useAttachments();
+  const { docsForEntry, linksForEntry, updateLink, deleteLink } = useAttachments();
   const [taskBusy, setTaskBusy] = React.useState(false);
   const [taskPanelOpen, setTaskPanelOpen] = React.useState(false);
   const [taskDesc, setTaskDesc] = React.useState('');
@@ -123,18 +124,6 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
       .catch(console.error)
       .then(() => setTaskBusy(false));
   }, [spContext, trip?.id, parentEntry, item.id, item.title, taskDesc]);
-
-  const moveLink = React.useCallback(
-    (linkId: string, direction: -1 | 1) => {
-      const next = swapLinkOrderIds(
-        links.map((l) => l.id),
-        linkId,
-        direction
-      );
-      if (next) reorderEntryLinks(item.id, next);
-    },
-    [item.id, links, reorderEntryLinks]
-  );
 
   const viewMapsPlaceUrl = googleMapsPlaceUrl(item.streetAddress || '');
   const viewMapsDirectionsUrl = googleMapsDirectionsUrl(item.streetAddress || '');
@@ -198,83 +187,75 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
                     {d.title || 'File'}
                   </button>
                 ))}
-                {links.map((l) =>
-                  editingLinkId === l.id ? (
-                    <div key={l.id} className={styles.linkEditRow}>
-                      <input
-                        className={styles.field}
-                        value={linkEditDraft.linkTitle}
-                        onChange={(e) => setLinkEditDraft((prev) => ({ ...prev, linkTitle: e.target.value }))}
-                        placeholder="Link title"
-                      />
-                      <input
-                        className={styles.field}
-                        value={linkEditDraft.url}
-                        onChange={(e) => setLinkEditDraft((prev) => ({ ...prev, url: e.target.value }))}
-                        placeholder="URL"
-                      />
-                      <button
-                        type="button"
-                        className={styles.actionButton}
-                        onClick={() => {
-                          updateLink(l.id, {
-                            linkTitle: linkEditDraft.linkTitle.trim(),
-                            url: linkEditDraft.url.trim()
-                          })
-                            .then(() => setEditingLinkId(null))
-                            .catch(console.error);
-                        }}
-                      >
-                        Save
-                      </button>
-                      <button type="button" className={styles.actionButtonMuted} onClick={() => setEditingLinkId(null)}>
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <span key={l.id} className={styles.linkChip}>
-                      <button type="button" className={styles.linkChipAction} aria-label="Move link up" disabled={links[0]?.id === l.id} onClick={() => moveLink(l.id, -1)}>
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.linkChipAction}
-                        aria-label="Move link down"
-                        disabled={links[links.length - 1]?.id === l.id}
-                        onClick={() => moveLink(l.id, 1)}
-                      >
-                        ↓
-                      </button>
-                      <button type="button" className={styles.miniLink} onClick={() => openDocumentUrl(l.url)} title={l.url}>
-                        {l.linkTitle || l.url}
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.linkChipAction}
-                        aria-label="Edit link"
-                        onClick={() => {
-                          setEditingLinkId(l.id);
-                          setLinkEditDraft({ linkTitle: l.linkTitle, url: l.url });
-                        }}
-                      >
-                        ✎
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.linkChipAction}
-                        aria-label="Delete link"
-                        onClick={() => {
-                          void (async () => {
-                            if (!(await confirmUserAction('Remove this link?'))) return;
-                            deleteLink(l.id).catch(console.error);
-                          })();
-                        }}
-                      >
-                        ×
-                      </button>
-                    </span>
-                  )
-                )}
+                <EntryLinksSortableList entryId={item.id} links={links} className={styles.quickLinks}>
+                  {(l, dragHandle) =>
+                    editingLinkId === l.id ? (
+                      <div key={l.id} className={styles.linkEditRow}>
+                        {dragHandle ? <span className={linkSortStyles.dragHandleSlot}>{dragHandle}</span> : null}
+                        <input
+                          className={styles.field}
+                          value={linkEditDraft.linkTitle}
+                          onChange={(e) => setLinkEditDraft((prev) => ({ ...prev, linkTitle: e.target.value }))}
+                          placeholder="Link title"
+                        />
+                        <input
+                          className={styles.field}
+                          value={linkEditDraft.url}
+                          onChange={(e) => setLinkEditDraft((prev) => ({ ...prev, url: e.target.value }))}
+                          placeholder="URL"
+                        />
+                        <button
+                          type="button"
+                          className={styles.actionButton}
+                          onClick={() => {
+                            updateLink(l.id, {
+                              linkTitle: linkEditDraft.linkTitle.trim(),
+                              url: linkEditDraft.url.trim()
+                            })
+                              .then(() => setEditingLinkId(null))
+                              .catch(console.error);
+                          }}
+                        >
+                          Save
+                        </button>
+                        <button type="button" className={styles.actionButtonMuted} onClick={() => setEditingLinkId(null)}>
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <span key={l.id} className={styles.linkChip}>
+                        {dragHandle}
+                        <button type="button" className={styles.miniLink} onClick={() => openDocumentUrl(l.url)} title={l.url}>
+                          {l.linkTitle || l.url}
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.linkChipAction}
+                          aria-label="Edit link"
+                          onClick={() => {
+                            setEditingLinkId(l.id);
+                            setLinkEditDraft({ linkTitle: l.linkTitle, url: l.url });
+                          }}
+                        >
+                          ✎
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.linkChipAction}
+                          aria-label="Delete link"
+                          onClick={() => {
+                            void (async () => {
+                              if (!(await confirmUserAction('Remove this link?'))) return;
+                              deleteLink(l.id).catch(console.error);
+                            })();
+                          }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    )
+                  }
+                </EntryLinksSortableList>
               </div>
             ) : null}
           </>

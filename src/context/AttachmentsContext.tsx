@@ -2,7 +2,8 @@ import * as React from 'react';
 import type { EntryDocument, EntryDocumentType, EntryLink } from '../models';
 import { DocumentService } from '../services/DocumentService';
 import { LinkService } from '../services/LinkService';
-import { applyLinkOrder, saveLinkOrder } from '../utils/linkEntryOrder';
+import { sortEntryLinks } from '../utils/entryLinkSort';
+import { migrateLegacyLinkOrder } from '../utils/linkEntryOrder';
 import { useSpContext } from './SpContext';
 import { useTripWorkspace } from './TripWorkspaceContext';
 
@@ -67,8 +68,14 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const linkSvc = new LinkService(spContext);
     Promise.all([docSvc.getAll(tripId), linkSvc.getAll(tripId)])
       .then(([docs, allLinks]) => {
+        const migrated = migrateLegacyLinkOrder(tripId, allLinks);
+        if (migrated.persist.length) {
+          migrated.persist.forEach(({ id, sortOrder }) => {
+            linkSvc.update(id, { sortOrder }).catch(console.error);
+          });
+        }
         setDocuments(docs);
-        setLinks(allLinks);
+        setLinks(migrated.links);
         setLoading(false);
       })
       .catch((err) => {
@@ -86,11 +93,8 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   );
 
   const linksForEntry = React.useCallback(
-    (entryId: string) => {
-      const filtered = links.filter((l) => l.entryId === entryId);
-      return tripId ? applyLinkOrder(tripId, entryId, filtered) : filtered;
-    },
-    [links, tripId]
+    (entryId: string) => sortEntryLinks(links.filter((l) => l.entryId === entryId)),
+    [links]
   );
 
   const addDocument = React.useCallback(
@@ -161,6 +165,8 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }): Promise<EntryLink> => {
       if (!tripId) throw new Error('No trip loaded');
       const svc = new LinkService(spContext);
+      const entryLinks = links.filter((l) => l.entryId === input.entryId);
+      const nextSort = entryLinks.reduce((max, l) => Math.max(max, l.sortOrder ?? 0), -1) + 1;
       const created = await svc.create({
         title: input.linkTitle,
         tripId,
@@ -169,12 +175,13 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         linkType: input.linkType,
         url: input.url,
         linkTitle: input.linkTitle,
-        notes: input.notes ?? ''
+        notes: input.notes ?? '',
+        sortOrder: nextSort
       });
       setLinks((prev) => [...prev, created]);
       return created;
     },
-    [spContext, tripId]
+    [spContext, tripId, links]
   );
 
   const updateLink = React.useCallback(
@@ -210,11 +217,23 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const reorderEntryLinks = React.useCallback(
     (entryId: string, orderedLinkIds: string[]): void => {
-      if (!tripId) return;
-      saveLinkOrder(tripId, entryId, orderedLinkIds);
-      setLinks((prev) => [...prev]);
+      setLinks((prev) =>
+        prev.map((link) => {
+          if (link.entryId !== entryId) return link;
+          const nextOrder = orderedLinkIds.indexOf(link.id);
+          if (nextOrder < 0) return link;
+          return { ...link, sortOrder: nextOrder };
+        })
+      );
+      const svc = new LinkService(spContext);
+      orderedLinkIds.forEach((id, index) => {
+        svc.update(id, { sortOrder: index }).catch((err) => {
+          // eslint-disable-next-line no-console
+          console.error('reorderEntryLinks: SP persist failed', err);
+        });
+      });
     },
-    [tripId]
+    [spContext]
   );
 
   const value = React.useMemo(
