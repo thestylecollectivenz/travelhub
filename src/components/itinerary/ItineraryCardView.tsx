@@ -19,6 +19,7 @@ import { usePlanView } from '../../context/PlanViewContext';
 import { paymentDueActionLabel } from '../../utils/paymentDueLabels';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { EntryLinksSortableList } from './EntryLinksSortableList';
+import { EntryDocumentsSortableList } from './EntryDocumentsSortableList';
 import type { LinkedEntryTask } from '../../utils/linkedEntryTask';
 import { linkedTaskDisplayText, linkedTaskNoteDisplay } from '../../utils/linkedEntryTask';
 import { effectivePlannerTimeStart, isTransportReturnOnCalendarDate } from '../../utils/itineraryDayEntries';
@@ -860,10 +861,13 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       {attachmentsOpen ? (
         <div className={styles.attachmentsPanel}>
           <div className={styles.attachmentsList}>
-            {docs.map((doc) => (
-              <div key={doc.id} className={styles.attachmentRow}>
-                <span className={styles.attachmentIcon}><DocumentTypeIcon type={doc.documentType} /></span>
-                {editingDocId === doc.id ? (
+            {docs.length > 0 ? (
+              <EntryDocumentsSortableList entryId={entry.id} documents={docs}>
+                {(doc, dragHandle) => (
+                  <div className={styles.attachmentRow}>
+                    {dragHandle}
+                    <span className={styles.attachmentIcon}><DocumentTypeIcon type={doc.documentType} /></span>
+                    {editingDocId === doc.id ? (
                   <>
                     <input className={styles.newSubField} value={docDraft.title} onChange={(e) => setDocDraft((prev) => ({ ...prev, title: e.target.value }))} />
                     <select className={styles.newSubField} value={docDraft.documentType} onChange={(e) => setDocDraft((prev) => ({ ...prev, documentType: e.target.value as EntryDocumentType }))}>
@@ -931,8 +935,10 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                     {doc.notes?.trim() ? <span className={styles.attachmentType}>{doc.notes}</span> : null}
                   </>
                 )}
-              </div>
-            ))}
+                  </div>
+                )}
+              </EntryDocumentsSortableList>
+            ) : null}
             <EntryLinksSortableList entryId={entry.id} links={links}>
               {(link, dragHandle) => (
                 <div className={styles.attachmentRow}>

@@ -2,6 +2,8 @@ import * as React from 'react';
 import type { EntryDocument, EntryDocumentType, EntryLink } from '../models';
 import { DocumentService } from '../services/DocumentService';
 import { LinkService } from '../services/LinkService';
+import { sortEntryDocuments } from '../utils/entryDocumentSort';
+import { migrateLegacyDocumentOrder } from '../utils/documentEntryOrder';
 import { sortEntryLinks } from '../utils/entryLinkSort';
 import { migrateLegacyLinkOrder } from '../utils/linkEntryOrder';
 import { useSpContext } from './SpContext';
@@ -23,6 +25,7 @@ export interface AttachmentsContextValue {
   }) => Promise<EntryDocument>;
   updateDocument: (id: string, partial: Partial<Omit<EntryDocument, 'id'>>) => Promise<void>;
   deleteDocument: (id: string) => Promise<void>;
+  reorderEntryDocuments: (entryId: string, orderedDocumentIds: string[]) => void;
   addLink: (input: {
     dayId: string;
     entryId: string;
@@ -68,14 +71,20 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const linkSvc = new LinkService(spContext);
     Promise.all([docSvc.getAll(tripId), linkSvc.getAll(tripId)])
       .then(([docs, allLinks]) => {
-        const migrated = migrateLegacyLinkOrder(tripId, allLinks);
-        if (migrated.persist.length) {
-          migrated.persist.forEach(({ id, sortOrder }) => {
+        const migratedLinks = migrateLegacyLinkOrder(tripId, allLinks);
+        if (migratedLinks.persist.length) {
+          migratedLinks.persist.forEach(({ id, sortOrder }) => {
             linkSvc.update(id, { sortOrder }).catch(console.error);
           });
         }
-        setDocuments(docs);
-        setLinks(migrated.links);
+        const migratedDocs = migrateLegacyDocumentOrder(tripId, docs);
+        if (migratedDocs.persist.length) {
+          migratedDocs.persist.forEach(({ id, sortOrder }) => {
+            docSvc.update(id, { sortOrder }).catch(console.error);
+          });
+        }
+        setDocuments(migratedDocs.documents);
+        setLinks(migratedLinks.links);
         setLoading(false);
       })
       .catch((err) => {
@@ -88,7 +97,7 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [spContext, tripId]);
 
   const docsForEntry = React.useCallback(
-    (entryId: string) => documents.filter((d) => d.entryId === entryId),
+    (entryId: string) => sortEntryDocuments(documents.filter((d) => d.entryId === entryId)),
     [documents]
   );
 
@@ -107,6 +116,8 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }): Promise<EntryDocument> => {
       if (!tripId) throw new Error('No trip loaded');
       const svc = new DocumentService(spContext);
+      const entryDocs = documents.filter((d) => d.entryId === input.entryId);
+      const nextSort = entryDocs.reduce((max, d) => Math.max(max, d.sortOrder ?? 0), -1) + 1;
       const created = await svc.uploadAndCreate(
         input.file,
         tripId,
@@ -115,12 +126,13 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         input.documentType,
         input.notes ?? '',
         webAbsoluteUrl,
-        serverRelativeUrl
+        serverRelativeUrl,
+        nextSort
       );
       setDocuments((prev) => [...prev, created]);
       return created;
     },
-    [spContext, tripId, webAbsoluteUrl, serverRelativeUrl]
+    [spContext, tripId, webAbsoluteUrl, serverRelativeUrl, documents]
   );
 
   const deleteDocument = React.useCallback(
@@ -236,6 +248,27 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [spContext]
   );
 
+  const reorderEntryDocuments = React.useCallback(
+    (entryId: string, orderedDocumentIds: string[]): void => {
+      setDocuments((prev) =>
+        prev.map((doc) => {
+          if (doc.entryId !== entryId) return doc;
+          const nextOrder = orderedDocumentIds.indexOf(doc.id);
+          if (nextOrder < 0) return doc;
+          return { ...doc, sortOrder: nextOrder };
+        })
+      );
+      const svc = new DocumentService(spContext);
+      orderedDocumentIds.forEach((id, index) => {
+        svc.update(id, { sortOrder: index }).catch((err) => {
+          // eslint-disable-next-line no-console
+          console.error('reorderEntryDocuments: SP persist failed', err);
+        });
+      });
+    },
+    [spContext]
+  );
+
   const value = React.useMemo(
     (): AttachmentsContextValue => ({
       documents,
@@ -247,6 +280,7 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       addDocument,
       updateDocument,
       deleteDocument,
+      reorderEntryDocuments,
       addLink,
       updateLink,
       deleteLink,
@@ -266,6 +300,7 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       addDocument,
       updateDocument,
       deleteDocument,
+      reorderEntryDocuments,
       addLink,
       updateLink,
       deleteLink,

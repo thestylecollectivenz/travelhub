@@ -580,6 +580,19 @@
   vertical-align: middle;
 }
 
+.blockParentBadge {
+  display: inline-block;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-sand-700);
+  background: color-mix(in srgb, var(--color-sand-200) 65%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--color-sand-400) 45%, transparent);
+  vertical-align: middle;
+  margin-right: 2px;
+}
+
 .previewActions {
   margin-top: var(--space-4);
   display: flex;

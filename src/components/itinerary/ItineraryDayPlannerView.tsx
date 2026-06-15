@@ -19,6 +19,8 @@ import { formatCurrency } from '../../utils/financialUtils';
 import { ItineraryCard } from './ItineraryCard';
 import { SubItemDetailLines } from './SubItemDetailLines';
 import { applyDayViewEntryOrder } from '../../utils/dayViewEntryOrder';
+import { expandPlannerTimedItems, parsePlannerDurationMinutes } from '../../utils/plannerCalendarItems';
+import type { PlannerTimedItem } from '../../utils/plannerCalendarItems';
 import type { DayPlannerPrintDay } from '../../utils/dayPlannerPrint';
 import { DayPlannerPrintSheet, buildPlannerPrintHtml } from './DayPlannerPrintSheet';
 import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../../utils/googleMapsLink';
@@ -82,6 +84,28 @@ function dayLabel(day: TripDay): string {
   return day.dayType === 'PreTrip' ? 'Pre-trip' : `Day ${day.dayNumber} — ${day.displayTitle}`;
 }
 
+function entryHasTimedSubs(entry: ItineraryEntry): boolean {
+  return (entry.subItems ?? []).some((s) => minutesFromTimeStart(s.startTime || '') !== undefined);
+}
+
+function isPlannerUnscheduledEntry(entry: ItineraryEntry, calendarDate: string, tripDays: TripDay[]): boolean {
+  if (minutesFromTimeStart(effectivePlannerTimeStart(entry, calendarDate, tripDays)) !== undefined) {
+    return false;
+  }
+  return !entryHasTimedSubs(entry);
+}
+
+function plannerBlockMeta(item: PlannerTimedItem, calendarDate: string, tripDays: TripDay[]): string {
+  if (item.subItem) {
+    const t0 = formatTimeHHMM(item.subItem.startTime || '');
+    const t1 = formatTimeHHMM(item.subItem.endTime || '');
+    if (t0 && t1) return `${t0}–${t1}`;
+    if (t0) return t0;
+    return '—';
+  }
+  return `${formatTimeHHMM(effectivePlannerTimeStart(item.entry, calendarDate, tripDays))} · ${item.entry.duration?.trim() || '1h'}`;
+}
+
 function DocGlyph(): React.ReactElement {
   return (
     <svg width={12} height={12} viewBox="0 0 16 16" fill="none" aria-hidden>
@@ -140,7 +164,16 @@ function plannerStorageKeys(tripId: string): { rangeStart: string; rangeEnd: str
 }
 
 export const ItineraryDayPlannerView: React.FC = () => {
-  const { trip, tripDays, localEntries, editingCardId, setEditingCardId, setSelectedDayId } = useTripWorkspace();
+  const {
+    trip,
+    tripDays,
+    localEntries,
+    editingCardId,
+    setEditingCardId,
+    editingSubItem,
+    setEditingSubItem,
+    setSelectedDayId
+  } = useTripWorkspace();
   const { docsForEntry, linksForEntry } = useAttachments();
   const [filter, setFilter] = React.useState<PlannerFilter>('entire_trip');
   const [customStart, setCustomStart] = React.useState('');
@@ -411,16 +444,14 @@ export const ItineraryDayPlannerView: React.FC = () => {
   const rangeForDay = React.useCallback((day: TripDay): { start: number; end: number } => {
     const cal = day.calendarDate || '';
     const list = entriesForPlannerColumn(day);
+    const expanded = expandPlannerTimedItems(list, cal, tripDays);
     let minM = 24 * 60;
     let maxM = 0;
     let any = false;
-    for (const e of list) {
-      const sm = minutesFromTimeStart(effectivePlannerTimeStart(e, cal, tripDays));
-      if (sm === undefined) continue;
+    for (const item of expanded) {
       any = true;
-      const dur = parseDurationMinutes(e.duration);
-      minM = Math.min(minM, sm);
-      maxM = Math.max(maxM, sm + dur);
+      minM = Math.min(minM, item.startMinutes);
+      maxM = Math.max(maxM, item.startMinutes + item.durationMinutes);
     }
     if (!any) return { start: 8 * 60, end: 22 * 60 };
     minM = Math.max(0, minM - 30);
@@ -468,7 +499,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
       const cal = d.calendarDate || '';
       const list = entriesForPlannerColumn(d);
       for (const e of list) {
-        if (minutesFromTimeStart(effectivePlannerTimeStart(e, cal, tripDays)) === undefined) return true;
+        if (isPlannerUnscheduledEntry(e, cal, tripDays)) return true;
       }
     }
     return false;
@@ -494,7 +525,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
       for (const d of visibleDays) {
         const cal = d.calendarDate || '';
         const list = entriesForPlannerColumn(d);
-        const has = list.some((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal, tripDays)) === undefined);
+        const has = list.some((e) => isPlannerUnscheduledEntry(e, cal, tripDays));
         if (has) next[d.id] = true;
       }
       return next;
@@ -537,12 +568,18 @@ export const ItineraryDayPlannerView: React.FC = () => {
   );
 
   const openEdit = React.useCallback(
-    (dayId: string, entryId: string): void => {
+    (dayId: string, entryId: string, subItemId?: string): void => {
       setPreviewEntryId(null);
       focusDay(dayId);
-      setEditingCardId(entryId);
+      if (subItemId) {
+        setEditingCardId(null);
+        setEditingSubItem({ parentEntryId: entryId, subItemId });
+      } else {
+        setEditingSubItem(null);
+        setEditingCardId(entryId);
+      }
     },
-    [focusDay, setEditingCardId]
+    [focusDay, setEditingCardId, setEditingSubItem]
   );
 
   // Avoid min() inside repeat() — some embedded / older engines reject the track list and drop
@@ -687,9 +724,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
           {displayDays.map((day) => {
             const cal = day.calendarDate || '';
             const list = entriesForPlannerColumn(day);
-            const timed = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal, tripDays)) !== undefined);
-            const unsched = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal, tripDays)) === undefined);
-            const slugFor = (e: ItineraryEntry): string => getCategorySlug(e.category);
+            const timed = expandPlannerTimedItems(list, cal, tripDays);
+            const unsched = list.filter((e) => isPlannerUnscheduledEntry(e, cal, tripDays));
             const collapsed = Boolean(unschedCollapsed[day.id]);
             return (
               <div key={day.id} className={styles.mobileDayStack}>
@@ -763,25 +799,26 @@ export const ItineraryDayPlannerView: React.FC = () => {
                     className={styles.dayTrack}
                     style={{ height: `${trackHeight}px`, ['--hour-band' as string]: `${hourBandPx}px` }}
                   >
-                    {timed.map((e) => {
-                      const sm = minutesFromTimeStart(effectivePlannerTimeStart(e, cal, tripDays))!;
-                      const dur = parseDurationMinutes(e.duration);
+                    {timed.map((item) => {
+                      const e = item.entry;
+                      const sub = item.subItem;
+                      const sm = item.startMinutes;
+                      const dur = item.durationMinutes;
                       const top = ((sm - globalRange.start) / (globalRange.end - globalRange.start)) * trackHeight;
                       const h = (dur / (globalRange.end - globalRange.start)) * trackHeight;
-                      const docs = docsForEntry(e.id);
-                      const links = linksForEntry(e.id);
-                      const cat = slugFor(e);
-                      const subs = [...(e.subItems ?? [])].sort((a, b) => {
-                        const am = minutesFromTimeStart(a.startTime || '');
-                        const bm = minutesFromTimeStart(b.startTime || '');
-                        if (am === undefined && bm === undefined) return 0;
-                        if (am === undefined) return 1;
-                        if (bm === undefined) return -1;
-                        return am - bm;
-                      });
+                      const attachId = sub?.id ?? e.id;
+                      const docs = docsForEntry(attachId);
+                      const links = linksForEntry(attachId);
+                      const cat = getCategorySlug(item.category);
+                      const isEditingParent = !sub && editingCardId === e.id;
+                      const isEditingSub =
+                        Boolean(sub) &&
+                        editingSubItem?.parentEntryId === e.id &&
+                        editingSubItem?.subItemId === sub!.id;
+                      const blockZ = isEditingParent || isEditingSub ? 50 : undefined;
                       return (
-                        <div key={e.id} style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: editingCardId === e.id ? 50 : undefined }}>
-                          {editingCardId === e.id ? (
+                        <div key={item.key} style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: blockZ }}>
+                          {isEditingParent ? (
                             <div className={styles.editOverlay}>
                               <ItineraryCard entry={e} calendarDate={cal} suppressCarryoverUi={day.dayType === 'PreTrip'} draggable={false} useEditPortal />
                             </div>
@@ -789,10 +826,13 @@ export const ItineraryDayPlannerView: React.FC = () => {
                             <div className={`${styles.block} th-cat-${cat} th-cat-border`} style={{ position: 'static', height: '100%' }}>
                               <div className={styles.blockTitleRow}>
                                 <div className={styles.blockTitle}>
-                                  {isTransportReturnOnCalendarDate(e, cal) ? (
+                                  {!sub && isTransportReturnOnCalendarDate(e, cal) ? (
                                     <span className={styles.returnBadge}>Return</span>
                                   ) : null}{' '}
-                                  {e.title || 'Untitled'}
+                                  {sub && item.parentTitle ? (
+                                    <span className={styles.blockParentBadge}>↳ {item.parentTitle}</span>
+                                  ) : null}{' '}
+                                  {item.title}
                                 </div>
                                 <div className={styles.blockActions}>
                                   <button
@@ -807,20 +847,18 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                   <button
                                     type="button"
                                     className={styles.iconBtn}
-                                    aria-label="Edit entry"
+                                    aria-label={sub ? 'Edit option' : 'Edit entry'}
                                     title="Edit"
-                                    onClick={() => openEdit(day.id, e.id)}
+                                    onClick={() => openEdit(day.id, e.id, sub?.id)}
                                   >
                                     <PencilGlyph />
                                   </button>
                                 </div>
                               </div>
-                              <div className={styles.blockMeta}>
-                                {formatTimeHHMM(effectivePlannerTimeStart(e, cal, tripDays))} · {e.duration?.trim() || '1h'}
-                              </div>
-                              {subs.length ? (
+                              <div className={styles.blockMeta}>{plannerBlockMeta(item, cal, tripDays)}</div>
+                              {item.inlineSubs?.length ? (
                                 <div className={styles.blockOptions}>
-                                  {subs.map((s) => (
+                                  {item.inlineSubs.map((s) => (
                                     <div key={s.id} className={styles.blockOptionLine}>
                                       {subItemLine(s)}
                                     </div>
@@ -889,7 +927,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
             {displayDays.map((day) => {
               const cal = day.calendarDate || '';
               const list = entriesForPlannerColumn(day);
-              const unsched = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal, tripDays)) === undefined);
+              const unsched = list.filter((e) => isPlannerUnscheduledEntry(e, cal, tripDays));
               const collapsed = Boolean(unschedCollapsed[day.id]);
               if (!unsched.length) {
                 return <div key={`u-${day.id}`} className={styles.unschedCell} />;
@@ -967,33 +1005,33 @@ export const ItineraryDayPlannerView: React.FC = () => {
                 {displayDays.map((day) => {
                   const cal = day.calendarDate || '';
                   const list = entriesForPlannerColumn(day);
-                  const timed = list.filter((e) => minutesFromTimeStart(effectivePlannerTimeStart(e, cal, tripDays)) !== undefined);
-                  const slugFor = (e: ItineraryEntry): string => getCategorySlug(e.category);
+                  const timed = expandPlannerTimedItems(list, cal, tripDays);
                   return (
                     <div
                       key={`t-${day.id}`}
                       className={styles.dayTrack}
                       style={{ height: `${trackHeight}px`, ['--hour-band' as string]: `${hourBandPx}px` }}
                     >
-                      {timed.map((e) => {
-                        const sm = minutesFromTimeStart(effectivePlannerTimeStart(e, cal, tripDays))!;
-                        const dur = parseDurationMinutes(e.duration);
+                      {timed.map((item) => {
+                        const e = item.entry;
+                        const sub = item.subItem;
+                        const sm = item.startMinutes;
+                        const dur = item.durationMinutes;
                         const top = ((sm - globalRange.start) / (globalRange.end - globalRange.start)) * trackHeight;
                         const h = (dur / (globalRange.end - globalRange.start)) * trackHeight;
-                        const docs = docsForEntry(e.id);
-                        const links = linksForEntry(e.id);
-                        const cat = slugFor(e);
-                        const subs = [...(e.subItems ?? [])].sort((a, b) => {
-                          const am = minutesFromTimeStart(a.startTime || '');
-                          const bm = minutesFromTimeStart(b.startTime || '');
-                          if (am === undefined && bm === undefined) return 0;
-                          if (am === undefined) return 1;
-                          if (bm === undefined) return -1;
-                          return am - bm;
-                        });
+                        const attachId = sub?.id ?? e.id;
+                        const docs = docsForEntry(attachId);
+                        const links = linksForEntry(attachId);
+                        const cat = getCategorySlug(item.category);
+                        const isEditingParent = !sub && editingCardId === e.id;
+                        const isEditingSub =
+                          Boolean(sub) &&
+                          editingSubItem?.parentEntryId === e.id &&
+                          editingSubItem?.subItemId === sub!.id;
+                        const blockZ = isEditingParent || isEditingSub ? 50 : undefined;
                         return (
-                          <div key={e.id} style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: editingCardId === e.id ? 50 : undefined }}>
-                            {editingCardId === e.id ? (
+                          <div key={item.key} style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: blockZ }}>
+                            {isEditingParent ? (
                               <div className={styles.editOverlay}>
                                 <ItineraryCard entry={e} calendarDate={cal} suppressCarryoverUi={day.dayType === 'PreTrip'} draggable={false} useEditPortal />
                               </div>
@@ -1001,11 +1039,14 @@ export const ItineraryDayPlannerView: React.FC = () => {
                               <div className={`${styles.block} th-cat-${cat} th-cat-border`} style={{ position: 'static', height: '100%' }}>
                                 <div className={styles.blockTitleRow}>
                                   <div className={styles.blockTitle}>
-                                  {isTransportReturnOnCalendarDate(e, cal) ? (
-                                    <span className={styles.returnBadge}>Return</span>
-                                  ) : null}{' '}
-                                  {e.title || 'Untitled'}
-                                </div>
+                                    {!sub && isTransportReturnOnCalendarDate(e, cal) ? (
+                                      <span className={styles.returnBadge}>Return</span>
+                                    ) : null}{' '}
+                                    {sub && item.parentTitle ? (
+                                      <span className={styles.blockParentBadge}>↳ {item.parentTitle}</span>
+                                    ) : null}{' '}
+                                    {item.title}
+                                  </div>
                                   <div className={styles.blockActions}>
                                     <button
                                       type="button"
@@ -1019,20 +1060,18 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                     <button
                                       type="button"
                                       className={styles.iconBtn}
-                                      aria-label="Edit entry"
+                                      aria-label={sub ? 'Edit option' : 'Edit entry'}
                                       title="Edit"
-                                      onClick={() => openEdit(day.id, e.id)}
+                                      onClick={() => openEdit(day.id, e.id, sub?.id)}
                                     >
                                       <PencilGlyph />
                                     </button>
                                   </div>
                                 </div>
-                                <div className={styles.blockMeta}>
-                                  {formatTimeHHMM(effectivePlannerTimeStart(e, cal, tripDays))} · {e.duration?.trim() || '1h'}
-                                </div>
-                                {subs.length ? (
+                                <div className={styles.blockMeta}>{plannerBlockMeta(item, cal, tripDays)}</div>
+                                {item.inlineSubs?.length ? (
                                   <div className={styles.blockOptions}>
-                                    {subs.map((s) => (
+                                    {item.inlineSubs.map((s) => (
                                       <div key={s.id} className={styles.blockOptionLine}>
                                         {subItemLine(s)}
                                       </div>

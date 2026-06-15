@@ -15,4 +15,5 @@ export interface EntryDocument {
   fileUrl: string;
   fileName: string;
   notes: string;
+  sortOrder?: number;
 }

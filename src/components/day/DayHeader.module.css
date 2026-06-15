@@ -23,8 +23,8 @@
   top: 0;
   z-index: 8;
   background: var(--color-surface);
-  padding: var(--space-2) 0 var(--space-3);
-  margin: calc(-1 * var(--space-2)) 0 0;
+  padding: var(--space-1) 0 var(--space-2);
+  margin: calc(-1 * var(--space-1)) 0 0;
   box-shadow: 0 1px 0 var(--color-sand-200);
 }
 
@@ -38,14 +38,14 @@
   border: var(--border-default);
   box-shadow: var(--shadow-card);
   border-radius: var(--radius-lg);
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-2) var(--space-4);
   box-sizing: border-box;
 }
 
 .locationsSummaryBar {
-  margin-bottom: var(--space-3);
-  border-bottom: var(--border-default);
-  padding-bottom: var(--space-2);
+  margin-bottom: 0;
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .sectionHead {
@@ -81,7 +81,7 @@
 
 .title {
   margin-left: var(--space-2);
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
   color: var(--color-blue-800);
   min-width: 0;
@@ -599,15 +599,15 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  width: 3.25rem;
-  min-width: 3.25rem;
-  min-height: 3.75rem;
-  padding: 2px var(--space-1);
+  gap: 3px;
+  width: 3.5rem;
+  min-width: 3.5rem;
+  min-height: 4.25rem;
+  padding: 4px var(--space-1);
   border: var(--border-default);
   border-radius: var(--radius-md);
   background: var(--color-sand-50);
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   box-sizing: border-box;
   flex-shrink: 0;
 }
@@ -616,7 +616,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 1.75rem;
+  min-height: 2.25rem;
 }
 
 .forecastDayLabel {
@@ -630,8 +630,16 @@
 
 .placeInfoGrid {
   display: grid;
-  gap: var(--space-1);
+  gap: var(--space-2);
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.placeInfoForecastRow {
+  grid-column: 1 / -1;
+}
+
+.placeInfoCurrencyRow {
+  grid-column: 1 / -1;
 }
 
 .infoTile {

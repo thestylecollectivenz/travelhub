@@ -259,6 +259,7 @@ Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'PackageInclu
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'TransportFrom' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'TransportTo' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'TransportMode' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'TransportTransfers' -FieldType 'Number'
 
 # --- TripReminders ---
 Ensure-CustomList -Title 'TripReminders'
@@ -279,6 +280,7 @@ Add-ListFieldIfMissing -ListTitle 'EntryDocuments' -InternalName 'FileUrl' -Fiel
 Add-ListFieldIfMissing -ListTitle 'EntryDocuments' -InternalName 'DocumentType' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'EntryDocuments' -InternalName 'DayId' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'EntryDocuments' -InternalName 'Category' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'EntryDocuments' -InternalName 'SortOrder' -FieldType 'Number'
 
 # --- EntryLinks ---
 Ensure-CustomList -Title 'EntryLinks'

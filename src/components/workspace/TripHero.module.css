@@ -1,8 +1,8 @@
 .hero {
   position: relative;
   width: 100%;
-  min-height: 170px;
-  height: 170px;
+  min-height: 108px;
+  height: 108px;
   overflow: hidden;
   box-sizing: border-box;
   margin: 0;
@@ -64,12 +64,12 @@
 
 .badge {
   position: absolute;
-  top: var(--space-3);
-  left: var(--space-5);
-  padding: var(--space-1) var(--space-3);
+  top: var(--space-2);
+  left: var(--space-4);
+  padding: 2px var(--space-2);
   border-radius: var(--radius-full);
   background-color: color-mix(in srgb, var(--color-primary) 85%, transparent);
-  font-size: var(--font-size-xs);
+  font-size: 0.65rem;
   font-weight: var(--font-weight-bold);
   color: var(--color-surface-raised);
   letter-spacing: 0.08em;
@@ -79,8 +79,8 @@
 
 .statusChip {
   position: absolute;
-  top: calc(var(--space-3) + 2.6rem);
-  right: var(--space-5);
+  top: calc(var(--space-2) + 2rem);
+  right: var(--space-4);
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -96,13 +96,13 @@
 
 .editButton {
   position: absolute;
-  top: var(--space-3);
-  right: var(--space-5);
+  top: var(--space-2);
+  right: var(--space-4);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
+  width: 1.75rem;
+  height: 1.75rem;
   border-radius: var(--radius-full);
   border: 1px solid rgba(255, 255, 255, 0.3);
   background: rgba(255, 255, 255, 0.12);
@@ -126,15 +126,15 @@
 .heroBody {
   position: absolute;
   top: 50%;
-  transform: translateY(-38%);
-  left: var(--space-5);
-  right: var(--space-5);
+  transform: translateY(-42%);
+  left: var(--space-4);
+  right: var(--space-4);
   pointer-events: auto;
 }
 
 .title {
-  margin: 0 0 var(--space-1) 0;
-  font-size: var(--font-size-xl);
+  margin: 0 0 2px 0;
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
   color: var(--color-surface-raised);
   line-height: 1.15;
@@ -142,8 +142,8 @@
 }
 
 .meta {
-  margin: 0 0 var(--space-1) 0;
-  font-size: var(--font-size-xs);
+  margin: 0 0 2px 0;
+  font-size: 0.7rem;
   font-weight: var(--font-weight-normal);
   color: var(--color-surface-raised);
   opacity: 0.85;

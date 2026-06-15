@@ -1,4 +1,4 @@
-import type { ItineraryEntry } from '../models/ItineraryEntry';
+import type { ItineraryEntry, ItinerarySubItem } from '../models/ItineraryEntry';
 import type { TripDay } from '../models/TripDay';
 import {
   BUDGET_CATEGORY_ORDER,
@@ -11,8 +11,10 @@ export type CostCertainty = 'Estimated' | 'Confirmed';
 export interface BudgetDetailLine {
   id: string;
   entryId: string;
+  subItemId?: string;
   title: string;
   dateLines: string[];
+  locationLine?: string;
   spanLabel?: string;
   avgPerDay?: number;
   total: number;
@@ -20,6 +22,8 @@ export interface BudgetDetailLine {
   remaining: number;
   costCertainty: CostCertainty;
   isSubItem?: boolean;
+  parentTitle?: string;
+  transportSubtype?: string;
   sortKey: string;
 }
 
@@ -69,16 +73,20 @@ function sortKeyForEntry(entry: ItineraryEntry, tripDays: TripDay[]): string {
 
 function dateLinesForEntry(entry: ItineraryEntry, dayLabel: string): string[] {
   const range = dateRangeLabel(entry);
-  if (range) {
-    const lines: string[] = [range];
-    return lines;
-  }
+  if (range) return [range];
   if (dayLabel) return [dayLabel];
   return [];
 }
 
-function normalizeCostCertainty(v?: string): CostCertainty {
+function normalizeEntryCostCertainty(v?: string): CostCertainty {
   return v === 'Estimated' ? 'Estimated' : 'Confirmed';
+}
+
+function normalizeSubCostCertainty(v?: string, decisionStatus?: string): CostCertainty {
+  if (v === 'Confirmed') return 'Confirmed';
+  if (v === 'Estimated') return 'Estimated';
+  if (decisionStatus === 'Idea' || decisionStatus === 'Planned') return 'Estimated';
+  return 'Estimated';
 }
 
 export function buildBudgetDetailLines(
@@ -86,9 +94,11 @@ export function buildBudgetDetailLines(
   category: BudgetCategoryKey,
   convertToHomeCurrency: (amount: number, currency: string) => number,
   dayLabelFor: (dayId: string) => string,
-  tripDays: TripDay[]
+  tripDays: TripDay[],
+  locationFor: (entry: ItineraryEntry, subItem?: ItinerarySubItem) => string
 ): BudgetDetailLine[] {
   const lines: BudgetDetailLine[] = [];
+
   for (const entry of entries) {
     if (bucketCategory(entry.category) !== category) continue;
     const total = convertToHomeCurrency(entry.amount ?? 0, entry.currency || 'NZD');
@@ -100,40 +110,55 @@ export function buildBudgetDetailLines(
           : undefined;
       const spent = settledAmount(total, paid, entry.paymentStatus);
       const dayLabel = dayLabelFor(entry.dayId);
+      const locationLine = locationFor(entry);
       lines.push({
         id: entry.id,
         entryId: entry.id,
         title: entry.title || 'Untitled',
         dateLines: dateLinesForEntry(entry, dayLabel),
+        locationLine: locationLine || undefined,
         spanLabel: span.spanLabel,
         avgPerDay: span.avgPerDay,
         total,
         spent,
         remaining: Math.max(0, total - spent),
-        costCertainty: normalizeCostCertainty(entry.costCertainty),
+        costCertainty: normalizeEntryCostCertainty(entry.costCertainty),
+        transportSubtype: entry.transportMode?.trim() || undefined,
         sortKey: sortKeyForEntry(entry, tripDays)
       });
     }
+  }
+
+  for (const entry of entries) {
     for (const sub of entry.subItems ?? []) {
+      const subCategory = bucketCategory((sub.category || 'Other').trim());
+      if (subCategory !== category) continue;
       const subTotal = convertToHomeCurrency(sub.amount ?? 0, sub.currency || 'NZD');
-      if (subTotal > 0 || (sub.amount ?? 0) > 0) {
-        const subPaid = sub.amountPaid !== undefined ? convertToHomeCurrency(sub.amountPaid, sub.currency || 'NZD') : undefined;
-        const subSpent = settledAmount(subTotal, subPaid, sub.paymentStatus);
-        lines.push({
-          id: `${entry.id}-${sub.id}`,
-          entryId: entry.id,
-          title: sub.title || 'Option',
-          dateLines: dateLinesForEntry(entry, dayLabelFor(entry.dayId)),
-          total: subTotal,
-          spent: subSpent,
-          remaining: Math.max(0, subTotal - subSpent),
-          costCertainty: normalizeCostCertainty(sub.costCertainty),
-          isSubItem: true,
-          sortKey: sortKeyForEntry(entry, tripDays)
-        });
-      }
+      if (subTotal <= 0 && (sub.amount ?? 0) <= 0) continue;
+      const subPaid =
+        sub.amountPaid !== undefined ? convertToHomeCurrency(sub.amountPaid, sub.currency || 'NZD') : undefined;
+      const subSpent = settledAmount(subTotal, subPaid, sub.paymentStatus);
+      const dayLabel = dayLabelFor(entry.dayId);
+      const locationLine = locationFor(entry, sub);
+      lines.push({
+        id: `${entry.id}-${sub.id}`,
+        entryId: entry.id,
+        subItemId: sub.id,
+        title: sub.title || 'Option',
+        dateLines: dateLinesForEntry(entry, dayLabel),
+        locationLine: locationLine || undefined,
+        total: subTotal,
+        spent: subSpent,
+        remaining: Math.max(0, subTotal - subSpent),
+        costCertainty: normalizeSubCostCertainty(sub.costCertainty, sub.decisionStatus),
+        isSubItem: true,
+        parentTitle: entry.title || 'Untitled',
+        transportSubtype: subCategory === 'Transport' ? entry.transportMode?.trim() || undefined : undefined,
+        sortKey: sortKeyForEntry(entry, tripDays)
+      });
     }
   }
+
   return lines.sort((a, b) => a.sortKey.localeCompare(b.sortKey) || a.title.localeCompare(b.title));
 }
 

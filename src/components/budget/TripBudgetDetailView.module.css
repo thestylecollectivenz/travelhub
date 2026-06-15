@@ -178,6 +178,32 @@
   font-size: var(--font-size-sm);
 }
 
+.subtypeFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-sand-200);
+  background: var(--color-sand-50);
+}
+
+.subtypeChip {
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-default);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-raised);
+  color: var(--color-blue-800);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.subtypeChipActive {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
 .lineList {
   border: var(--border-default);
   border-radius: var(--radius-lg);

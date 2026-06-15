@@ -7,32 +7,91 @@ import { placeDisplayLabel } from '../../utils/placeDisplayLabel';
 import { forecastDayLabelFromToday, todayYmd } from '../../utils/placeForecastDates';
 import styles from './DayHeader.module.css';
 
-function WeatherIcon({ iconCode, size = 14 }: { iconCode: string; size?: number }): React.ReactElement {
+function formatPlaceLocalDateTime(date: Date, timeZone: string): string {
+  try {
+    const datePart = new Intl.DateTimeFormat('en-NZ', {
+      timeZone,
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short'
+    }).format(date);
+    const timePart = new Intl.DateTimeFormat('en-NZ', {
+      timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    }).format(date);
+    const compactTime = timePart.replace(/\s/g, '').toLowerCase();
+    return `${datePart.replace(/,/g, '')} ${compactTime}`;
+  } catch {
+    return '';
+  }
+}
+
+function WeatherIcon({ iconCode, size = 20 }: { iconCode: string; size?: number }): React.ReactElement {
   const code = (iconCode || '').toLowerCase();
-  if (code.includes('clear-night')) {
+  const stroke = 'var(--color-blue-700)';
+  const fillSun = 'var(--color-amber-500)';
+  const fillCloud = 'var(--color-blue-300)';
+  const fillRain = 'var(--color-blue-500)';
+
+  if (code.includes('clear-night') || code.includes('moon')) {
     return (
-      <svg viewBox="0 0 16 16" width={size} height={size} aria-hidden>
-        <path d="M10.8 2.2a5.2 5.2 0 1 0 3 8.7 5 5 0 1 1-3-8.7Z" fill="var(--color-blue-400)" />
+      <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden>
+        <path d="M14.5 3.8a7.5 7.5 0 1 0 6.7 11.2A6.5 6.5 0 1 1 14.5 3.8Z" fill={fillSun} stroke={stroke} strokeWidth="0.5" />
       </svg>
     );
   }
-  if (code.includes('clear-day')) {
+  if (code.includes('clear-day') || code === 'clear') {
     return (
-      <svg viewBox="0 0 16 16" width={size} height={size} aria-hidden>
-        <circle cx="8" cy="8" r="3.2" fill="var(--color-amber-400)" />
+      <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden>
+        <circle cx="12" cy="12" r="5" fill={fillSun} stroke={stroke} strokeWidth="0.5" />
+        <g stroke={fillSun} strokeWidth="1.5" strokeLinecap="round">
+          <line x1="12" y1="2" x2="12" y2="5" />
+          <line x1="12" y1="19" x2="12" y2="22" />
+          <line x1="2" y1="12" x2="5" y2="12" />
+          <line x1="19" y1="12" x2="22" y2="12" />
+        </g>
       </svg>
     );
   }
-  if (code.includes('rain')) {
+  if (code.includes('snow')) {
     return (
-      <svg viewBox="0 0 16 16" width={size} height={size} aria-hidden>
-        <path d="M4.3 9h7.2a2.4 2.4 0 0 0 0-4.8A3.3 3.3 0 0 0 5 3 2.8 2.8 0 0 0 4.3 9Z" fill="var(--color-blue-200)" />
+      <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden>
+        <path d="M12 3v18M7 7l10 10M17 7 7 17M5 12h14" stroke={fillRain} strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (code.includes('rain') || code.includes('drizzle') || code.includes('showers')) {
+    return (
+      <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden>
+        <path d="M6.5 11h11a3 3 0 0 0 0-6 4 4 0 0 0-7.6-1.2A3 3 0 0 0 6.5 11Z" fill={fillCloud} />
+        <g stroke={fillRain} strokeWidth="1.5" strokeLinecap="round">
+          <line x1="8" y1="15" x2="7" y2="19" />
+          <line x1="12" y1="15" x2="12" y2="20" />
+          <line x1="16" y1="15" x2="17" y2="19" />
+        </g>
+      </svg>
+    );
+  }
+  if (code.includes('wind') || code.includes('fog') || code.includes('haze')) {
+    return (
+      <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden>
+        <path d="M4 9h11a3 3 0 1 0-3-3M4 15h14a3 3 0 1 1-3 3" fill="none" stroke={stroke} strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (code.includes('partly') || code.includes('cloudy')) {
+    return (
+      <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden>
+        <circle cx="8" cy="10" r="3.5" fill={fillSun} />
+        <path d="M7 16h11a3.5 3.5 0 0 0 0-7 4 4 0 0 0-7.5-1.5A3 3 0 0 0 7 16Z" fill={fillCloud} stroke={stroke} strokeWidth="0.4" />
       </svg>
     );
   }
   return (
-    <svg viewBox="0 0 16 16" width={size} height={size} aria-hidden>
-      <path d="M4.3 12h7.2a2 2 0 0 0 0-4 2.8 2.8 0 0 0-5.2-.8A2 2 0 0 0 6.2 12.5Z" fill="var(--color-blue-200)" />
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden>
+      <path d="M6.5 14h11a3.5 3.5 0 0 0 0-7 4 4 0 0 0-7.6-1.4A3 3 0 0 0 6.5 14Z" fill={fillCloud} stroke={stroke} strokeWidth="0.4" />
     </svg>
   );
 }
@@ -228,11 +287,7 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
     }
     const tick = (): void => {
       try {
-        setCurrentLocalTime(
-          new Intl.DateTimeFormat('en-NZ', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: true }).format(
-            new Date()
-          )
-        );
+        setCurrentLocalTime(formatPlaceLocalDateTime(new Date(), tz));
       } catch {
         setCurrentLocalTime('');
       }
@@ -279,7 +334,7 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
         </div>
       ) : null}
       {config.weatherApiKey.trim() && forecastDays.length ? (
-        <div className={styles.forecastStripWrap}>
+        <div className={`${styles.forecastStripWrap} ${styles.placeInfoForecastRow}`}>
           {forecastDays.length > FORECAST_SCROLL_THRESHOLD ? (
             <button
               type="button"
@@ -302,7 +357,7 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
               <div key={fd.date} className={styles.forecastDay} role="listitem" title={fd.conditions}>
                 <span className={styles.forecastDayLabel}>{fd.label}</span>
                 <span className={styles.forecastDayIcon}>
-                  <WeatherIcon iconCode={fd.iconCode} size={28} />
+                  <WeatherIcon iconCode={fd.iconCode} size={32} />
                 </span>
                 <span className={styles.forecastDayTemp}>
                   {Number.isFinite(fd.tempMin) && Number.isFinite(fd.tempMax)
@@ -337,7 +392,7 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
         {config.weatherApiKey.trim() && weather ? (
           <>
             <div className={styles.infoLine}>
-              <WeatherIcon iconCode={weather.iconCode} />
+              <WeatherIcon iconCode={weather.iconCode} size={22} />
               {Math.round(weather.temp)}°{config.temperatureUnit === 'Fahrenheit' ? 'F' : 'C'} · {weather.description}
             </div>
             {currentSeason ? (
@@ -376,7 +431,7 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
           <div className={styles.infoSub}>Typical weather unavailable.</div>
         )}
       </div>
-      <div className={styles.infoTile}>
+      <div className={`${styles.infoTile} ${styles.placeInfoCurrencyRow}`}>
         <div className={styles.infoTitle}>Currency and tipping</div>
         {countryData ? (
           <>

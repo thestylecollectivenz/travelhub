@@ -74,7 +74,8 @@ const SELECT_PHASE7 = [
   'PackageInclusions',
   'TransportFrom',
   'TransportTo',
-  'TransportMode'
+  'TransportMode',
+  'TransportTransfers'
 ];
 
 const SELECT = [...SELECT_BASE, ...SELECT_PHASE7].join(',');
@@ -110,7 +111,8 @@ const SP_PHASE7_FIELD_KEYS = new Set([
   'PackageInclusions',
   'TransportFrom',
   'TransportTo',
-  'TransportMode'
+  'TransportMode',
+  'TransportTransfers'
 ]);
 
 function stripPhase7SpFields(item: Record<string, unknown>): Record<string, unknown> {
@@ -388,7 +390,9 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   if (entry.transportFrom !== undefined) item.TransportFrom = entry.transportFrom || null;
   if (entry.transportTo !== undefined) item.TransportTo = entry.transportTo || null;
   if (entry.transportMode !== undefined) item.TransportMode = entry.transportMode || null;
-  if (entry.transportTransfers !== undefined) item.TransportTransfers = entry.transportTransfers;
+  if (entry.transportTransfers !== undefined && entry.transportTransfers > 0) {
+    item.TransportTransfers = entry.transportTransfers;
+  }
   return item;
 }
 

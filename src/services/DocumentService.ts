@@ -6,6 +6,10 @@ import { resolveSharePointMediaSrc } from '../utils/sharePointUrl';
 
 const DOCUMENTS_LIST = 'TripDocuments';
 
+const SELECT_WITH_SORT =
+  'ID,Title,TripId,DayId,EntryId,DocumentType,FileUrl,FileName,Notes,SortOrder';
+const SELECT_CORE = 'ID,Title,TripId,DayId,EntryId,DocumentType,FileUrl,FileName,Notes';
+
 function odataEscapeString(value: string): string {
   return value.replace(/'/g, "''");
 }
@@ -21,7 +25,8 @@ function mapItem(item: Record<string, unknown>, webAbsoluteUrl: string, webServe
     documentType: (String(item.DocumentType ?? 'Other') as EntryDocumentType) || 'Other',
     fileUrl: resolveSharePointMediaSrc(raw, webAbsoluteUrl, webServerRelativeUrl) ?? raw,
     fileName: String(item.FileName ?? ''),
-    notes: String(item.Notes ?? '')
+    notes: String(item.Notes ?? ''),
+    sortOrder: typeof item.SortOrder === 'number' ? item.SortOrder : Number(item.SortOrder ?? 0) || 0
   };
 }
 
@@ -35,34 +40,62 @@ export class DocumentService {
     this.itemsUrl = `${web}/_api/web/lists/getbytitle('${DOCUMENTS_LIST}')/items`;
   }
 
+  private webPaths(): { web: string; sr: string } {
+    return {
+      web: this.ctx.pageContext.web.absoluteUrl.replace(/\/$/, ''),
+      sr: this.ctx.pageContext.web.serverRelativeUrl.replace(/\/$/, '')
+    };
+  }
+
+  private async fetchWithSelect(baseUrl: string, includeSortOrder: boolean): Promise<EntryDocument[]> {
+    const select = `$select=${includeSortOrder ? SELECT_WITH_SORT : SELECT_CORE}`;
+    const separator = baseUrl.indexOf('?') >= 0 ? '&' : '?';
+    const url = `${baseUrl}${separator}${select}`;
+    const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
+    if (!resp.ok) throw new Error(`DocumentService fetch failed: ${resp.status}`);
+    const data = await resp.json();
+    const { web, sr } = this.webPaths();
+    return (data.value ?? []).map((item: Record<string, unknown>) => mapItem(item, web, sr));
+  }
+
+  private async fetchWithSelectFallback(baseUrl: string): Promise<EntryDocument[]> {
+    try {
+      return await this.fetchWithSelect(baseUrl, true);
+    } catch (err) {
+      if (String(err).indexOf('400') >= 0) {
+        return this.fetchWithSelect(baseUrl, false);
+      }
+      throw err;
+    }
+  }
+
   async getAll(tripId: string): Promise<EntryDocument[]> {
     const safeTrip = odataEscapeString(tripId);
-    const select = '$select=ID,Title,TripId,DayId,EntryId,DocumentType,FileUrl,FileName,Notes';
     const filter = `$filter=TripId eq '${safeTrip}'`;
-    const url = `${this.itemsUrl}?${select}&${filter}`;
-    const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
-    if (!resp.ok) throw new Error(`DocumentService.getAll failed: ${resp.status}`);
-    const data = await resp.json();
-    const web = this.ctx.pageContext.web.absoluteUrl.replace(/\/$/, '');
-    const sr = this.ctx.pageContext.web.serverRelativeUrl.replace(/\/$/, '');
-    return (data.value ?? []).map((item: Record<string, unknown>) => mapItem(item, web, sr));
+    const url = `${this.itemsUrl}?${filter}`;
+    return this.fetchWithSelectFallback(url);
   }
 
   async getForEntry(entryId: string): Promise<EntryDocument[]> {
     const safeEntry = odataEscapeString(entryId);
-    const select = '$select=ID,Title,TripId,DayId,EntryId,DocumentType,FileUrl,FileName,Notes';
     const filter = `$filter=EntryId eq '${safeEntry}'`;
-    const url = `${this.itemsUrl}?${select}&${filter}`;
-    const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
-    if (!resp.ok) throw new Error(`DocumentService.getForEntry failed: ${resp.status}`);
-    const data = await resp.json();
-    const web = this.ctx.pageContext.web.absoluteUrl.replace(/\/$/, '');
-    const sr = this.ctx.pageContext.web.serverRelativeUrl.replace(/\/$/, '');
-    return (data.value ?? []).map((item: Record<string, unknown>) => mapItem(item, web, sr));
+    const url = `${this.itemsUrl}?${filter}`;
+    return this.fetchWithSelectFallback(url);
   }
 
   async create(doc: Omit<EntryDocument, 'id'>): Promise<EntryDocument> {
-    const body = JSON.stringify({
+    const bodyWithSort = JSON.stringify({
+      Title: doc.fileName || doc.title || 'Document',
+      TripId: doc.tripId,
+      DayId: doc.dayId,
+      EntryId: doc.entryId,
+      DocumentType: doc.documentType,
+      FileUrl: doc.fileUrl,
+      FileName: doc.fileName,
+      Notes: doc.notes ?? '',
+      SortOrder: typeof doc.sortOrder === 'number' ? doc.sortOrder : 0
+    });
+    const bodyWithoutSort = JSON.stringify({
       Title: doc.fileName || doc.title || 'Document',
       TripId: doc.tripId,
       DayId: doc.dayId,
@@ -72,24 +105,31 @@ export class DocumentService {
       FileName: doc.fileName,
       Notes: doc.notes ?? ''
     });
-    const resp: SPHttpClientResponse = await this.ctx.spHttpClient.post(this.itemsUrl, SPHttpClient.configurations.v1, {
+
+    let resp: SPHttpClientResponse = await this.ctx.spHttpClient.post(this.itemsUrl, SPHttpClient.configurations.v1, {
       headers: {
         'Content-Type': 'application/json;odata.metadata=minimal',
         Accept: 'application/json;odata.metadata=minimal'
       },
-      body
+      body: bodyWithSort
     });
+    if (!resp.ok && resp.status === 400) {
+      resp = await this.ctx.spHttpClient.post(this.itemsUrl, SPHttpClient.configurations.v1, {
+        headers: {
+          'Content-Type': 'application/json;odata.metadata=minimal',
+          Accept: 'application/json;odata.metadata=minimal'
+        },
+        body: bodyWithoutSort
+      });
+    }
     if (!resp.ok) throw new Error(`DocumentService.create failed: ${resp.status}`);
     const created = await resp.json();
-    const web = this.ctx.pageContext.web.absoluteUrl.replace(/\/$/, '');
-    const sr = this.ctx.pageContext.web.serverRelativeUrl.replace(/\/$/, '');
+    const { web, sr } = this.webPaths();
     return mapItem(created, web, sr);
   }
 
   async update(id: string, partial: Partial<Omit<EntryDocument, 'id'>>): Promise<void> {
-    const url = `${this.itemsUrl}(${id})`;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const item: Record<string, any> = {};
+    const item: Record<string, unknown> = {};
     if (partial.title !== undefined) item.Title = partial.title;
     if (partial.tripId !== undefined) item.TripId = partial.tripId;
     if (partial.dayId !== undefined) item.DayId = partial.dayId;
@@ -101,16 +141,27 @@ export class DocumentService {
       item.Title = partial.fileName;
     }
     if (partial.notes !== undefined) item.Notes = partial.notes;
-    const body = JSON.stringify(item);
-    const resp = await this.ctx.spHttpClient.fetch(url, SPHttpClient.configurations.v1, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json;odata.metadata=minimal',
-        Accept: 'application/json;odata.metadata=minimal',
-        'IF-MATCH': '*'
-      },
-      body
-    });
+    if (partial.sortOrder !== undefined) item.SortOrder = partial.sortOrder;
+
+    const url = `${this.itemsUrl}(${id})`;
+    const attempt = async (body: Record<string, unknown>): Promise<SPHttpClientResponse> =>
+      this.ctx.spHttpClient.fetch(url, SPHttpClient.configurations.v1, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json;odata.metadata=minimal',
+          Accept: 'application/json;odata.metadata=minimal',
+          'IF-MATCH': '*'
+        },
+        body: JSON.stringify(body)
+      });
+
+    let resp = await attempt(item);
+    if (!resp.ok && resp.status === 400 && item.SortOrder !== undefined) {
+      const { SortOrder: _sortOrder, ...rest } = item;
+      if (Object.keys(rest).length > 0) {
+        resp = await attempt(rest);
+      }
+    }
     if (!resp.ok && resp.status !== 204) throw new Error(`DocumentService.update failed: ${resp.status}`);
   }
 
@@ -131,7 +182,8 @@ export class DocumentService {
     documentType: EntryDocumentType,
     notes: string,
     webAbsoluteUrl: string,
-    serverRelativeUrl: string
+    serverRelativeUrl: string,
+    sortOrder = 0
   ): Promise<EntryDocument> {
     const webRoot = serverRelativeUrl.replace(/\/$/, '');
     const rootFolder = `${webRoot}/TravelHubAssets/documents`;
@@ -146,8 +198,8 @@ export class DocumentService {
       documentType,
       fileUrl,
       fileName: file.name,
-      notes: notes ?? ''
+      notes: notes ?? '',
+      sortOrder
     });
   }
 }
-

@@ -2,7 +2,10 @@ import * as React from 'react';
 import { CategoryIcon } from '../shared/CategoryIcon';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
+import { usePlaces } from '../../context/PlacesContext';
+import type { ItineraryEntry, ItinerarySubItem } from '../../models/ItineraryEntry';
 import { getCategorySlug } from '../../utils/categoryUtils';
+import { placeDisplayLabel } from '../../utils/placeDisplayLabel';
 import {
   avgPerDay,
   BUDGET_CATEGORY_ORDER,
@@ -25,18 +28,58 @@ type BudgetViewMode = 'category' | 'all';
 function BudgetLineTable({
   lines,
   homeCurrency,
+  category,
+  transportSubtypeFilter,
+  onTransportSubtypeFilter,
   onEditEntry
 }: {
   lines: BudgetDetailLine[];
   homeCurrency: string;
-  onEditEntry: (entryId: string) => void;
+  category?: string;
+  transportSubtypeFilter: string | null;
+  onTransportSubtypeFilter: (value: string | null) => void;
+  onEditEntry: (entryId: string, subItemId?: string) => void;
 }): React.ReactElement {
-  const totals = sumBudgetLines(lines);
+  const transportSubtypes = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const line of lines) {
+      if (line.transportSubtype) set.add(line.transportSubtype);
+    }
+    return Array.from(set).sort();
+  }, [lines]);
+
+  const visibleLines = React.useMemo(() => {
+    if (!transportSubtypeFilter) return lines;
+    return lines.filter((line) => line.transportSubtype === transportSubtypeFilter);
+  }, [lines, transportSubtypeFilter]);
+
+  const totals = sumBudgetLines(visibleLines);
   if (!lines.length) {
     return <p className={styles.emptyHint}>No line items with amounts in this category yet.</p>;
   }
   return (
     <div className={styles.lineList}>
+      {category === 'Transport' && transportSubtypes.length > 1 ? (
+        <div className={styles.subtypeFilters} role="group" aria-label="Transport mode filter">
+          <button
+            type="button"
+            className={`${styles.subtypeChip} ${transportSubtypeFilter === null ? styles.subtypeChipActive : ''}`}
+            onClick={() => onTransportSubtypeFilter(null)}
+          >
+            All modes
+          </button>
+          {transportSubtypes.map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              className={`${styles.subtypeChip} ${transportSubtypeFilter === mode ? styles.subtypeChipActive : ''}`}
+              onClick={() => onTransportSubtypeFilter(mode)}
+            >
+              {mode}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <div className={styles.lineHeader}>
         <span>Details</span>
         <span className={styles.colMoney}>Total budget</span>
@@ -49,7 +92,7 @@ function BudgetLineTable({
         <span className={`${styles.lineAmount} ${styles.colMoney}`}>{formatCurrency(totals.spent, homeCurrency)}</span>
         <span className={`${styles.lineAmount} ${styles.colMoney}`}>{formatCurrency(totals.remaining, homeCurrency)}</span>
       </div>
-      {lines.map((line) => (
+      {visibleLines.map((line) => (
         <div
           key={line.id}
           className={`${styles.lineRow} ${line.costCertainty === 'Estimated' ? styles.lineEstimated : styles.lineConfirmed}`}
@@ -57,10 +100,15 @@ function BudgetLineTable({
           <div className={styles.lineMain}>
             <span className={styles.lineTitle}>
               {line.isSubItem ? `→ ${line.title}` : line.title}
-              <button type="button" className={styles.editLink} onClick={() => onEditEntry(line.entryId)}>
+              <button
+                type="button"
+                className={styles.editLink}
+                onClick={() => onEditEntry(line.entryId, line.subItemId)}
+              >
                 Edit
               </button>
             </span>
+            {line.locationLine ? <span className={styles.lineMeta}>{line.locationLine}</span> : null}
             {line.dateLines.map((d) => (
               <span key={d} className={styles.lineMeta}>
                 {d}
@@ -90,18 +138,36 @@ export const TripBudgetDetailView: React.FC = () => {
     setSelectedBudgetCategory,
     setSelectedDayId,
     setEditingCardId,
+    setEditingSubItem,
     setFocusedEntryId,
     setMainWorkspaceTab
   } = useTripWorkspace();
   const { config } = useConfig();
+  const { placeById } = usePlaces();
   const [viewMode, setViewMode] = React.useState<BudgetViewMode>('category');
   const [printHtml, setPrintHtml] = React.useState<string | null>(null);
+  const [transportSubtypeFilter, setTransportSubtypeFilter] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (selectedBudgetCategory) {
       setViewMode('category');
     }
+    setTransportSubtypeFilter(null);
   }, [selectedBudgetCategory]);
+
+  const locationFor = React.useCallback(
+    (entry: ItineraryEntry, sub?: ItinerarySubItem): string => {
+      const direct = (sub?.location || entry.location || '').trim();
+      if (direct) return direct;
+      const day = tripDays.find((d) => d.id === entry.dayId);
+      if (day?.primaryPlaceId) {
+        const place = placeById(day.primaryPlaceId);
+        if (place) return placeDisplayLabel(place);
+      }
+      return '';
+    },
+    [tripDays, placeById]
+  );
 
   const entries = React.useMemo(
     () => (trip ? localEntries.filter((e) => e.tripId === trip.id) : []),
@@ -125,21 +191,27 @@ export const TripBudgetDetailView: React.FC = () => {
   );
 
   const openEntryForEdit = React.useCallback(
-    (entryId: string): void => {
+    (entryId: string, subItemId?: string): void => {
       const entry = localEntries.find((e) => e.id === entryId);
       if (!entry) return;
       setMainWorkspaceTab('itinerary');
       setSelectedDayId(entry.dayId);
       setFocusedEntryId(null);
-      setEditingCardId(entryId);
+      setEditingCardId(null);
+      if (subItemId) {
+        setEditingSubItem({ parentEntryId: entryId, subItemId });
+      } else {
+        setEditingSubItem(null);
+        setEditingCardId(entryId);
+      }
     },
-    [localEntries, setEditingCardId, setFocusedEntryId, setMainWorkspaceTab, setSelectedDayId]
+    [localEntries, setEditingCardId, setEditingSubItem, setFocusedEntryId, setMainWorkspaceTab, setSelectedDayId]
   );
 
   const category = selectedBudgetCategory ?? BUDGET_CATEGORY_ORDER[0];
   const categoryLines = React.useMemo(
-    () => buildBudgetDetailLines(entries, category, convertToHomeCurrency, dayLabelFor, tripDays),
-    [entries, category, convertToHomeCurrency, dayLabelFor, tripDays]
+    () => buildBudgetDetailLines(entries, category, convertToHomeCurrency, dayLabelFor, tripDays, locationFor),
+    [entries, category, convertToHomeCurrency, dayLabelFor, tripDays, locationFor]
   );
   const categorySlug = getCategorySlug(category);
 
@@ -156,7 +228,8 @@ export const TripBudgetDetailView: React.FC = () => {
       entries,
       tripDays,
       convertToHomeCurrency,
-      dayLabelFor
+      dayLabelFor,
+      locationFor
     });
     setPrintHtml(html);
   }, [
@@ -170,7 +243,8 @@ export const TripBudgetDetailView: React.FC = () => {
     entries,
     tripDays,
     convertToHomeCurrency,
-    dayLabelFor
+    dayLabelFor,
+    locationFor
   ]);
 
   const exportExcel = React.useCallback((): void => {
@@ -181,9 +255,10 @@ export const TripBudgetDetailView: React.FC = () => {
       tripDays,
       homeCurrency: config.homeCurrency,
       convertToHomeCurrency,
-      dayLabelFor
+      dayLabelFor,
+      locationFor
     });
-  }, [trip, entries, tripDays, config.homeCurrency, convertToHomeCurrency, dayLabelFor]);
+  }, [trip, entries, tripDays, config.homeCurrency, convertToHomeCurrency, dayLabelFor, locationFor]);
 
   return (
     <section className={styles.root} aria-label="Trip budget detail">
@@ -262,12 +337,19 @@ export const TripBudgetDetailView: React.FC = () => {
             </span>
             <h2 className={styles.sectionTitle}>{category}</h2>
           </header>
-          <BudgetLineTable lines={categoryLines} homeCurrency={config.homeCurrency} onEditEntry={openEntryForEdit} />
+          <BudgetLineTable
+            lines={categoryLines}
+            homeCurrency={config.homeCurrency}
+            category={category}
+            transportSubtypeFilter={transportSubtypeFilter}
+            onTransportSubtypeFilter={setTransportSubtypeFilter}
+            onEditEntry={openEntryForEdit}
+          />
         </>
       ) : (
         <div className={styles.allCategories}>
           {BUDGET_CATEGORY_ORDER.map((cat) => {
-            const lines = buildBudgetDetailLines(entries, cat, convertToHomeCurrency, dayLabelFor, tripDays);
+            const lines = buildBudgetDetailLines(entries, cat, convertToHomeCurrency, dayLabelFor, tripDays, locationFor);
             if (!lines.length) return null;
             const slug = getCategorySlug(cat);
             return (
@@ -278,7 +360,14 @@ export const TripBudgetDetailView: React.FC = () => {
                   </span>
                   <h2 className={styles.sectionTitle}>{cat}</h2>
                 </header>
-                <BudgetLineTable lines={lines} homeCurrency={config.homeCurrency} onEditEntry={openEntryForEdit} />
+                <BudgetLineTable
+                  lines={lines}
+                  homeCurrency={config.homeCurrency}
+                  category={cat}
+                  transportSubtypeFilter={null}
+                  onTransportSubtypeFilter={() => undefined}
+                  onEditEntry={openEntryForEdit}
+                />
               </section>
             );
           })}
