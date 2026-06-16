@@ -319,8 +319,7 @@
   border: var(--border-default);
   padding: var(--space-1) var(--space-2);
   cursor: default;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
   box-sizing: border-box;
   display: grid;
   gap: 2px;
@@ -578,19 +577,6 @@
   background: var(--color-sand-100);
   border: var(--border-default);
   vertical-align: middle;
-}
-
-.blockParentBadge {
-  display: inline-block;
-  padding: 1px var(--space-2);
-  border-radius: var(--radius-sm);
-  font-size: 10px;
-  font-weight: var(--font-weight-medium);
-  color: var(--color-sand-700);
-  background: color-mix(in srgb, var(--color-sand-200) 65%, var(--color-surface));
-  border: 1px solid color-mix(in srgb, var(--color-sand-400) 45%, transparent);
-  vertical-align: middle;
-  margin-right: 2px;
 }
 
 .previewActions {

@@ -35,17 +35,17 @@
 .placeName {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .secondaryPlaces {
   font-size: 10px;
   color: var(--color-sand-600);
-  white-space: nowrap;
+  line-height: 1.2;
+  max-height: 2.4em;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .range {

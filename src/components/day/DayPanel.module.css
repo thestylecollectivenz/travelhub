@@ -20,8 +20,8 @@
 .root {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4);
+  gap: var(--space-2);
+  padding: var(--space-3);
   box-sizing: border-box;
   width: 100%;
   min-height: 0;
@@ -31,11 +31,11 @@
 
 .dayToolbarSticky {
   position: sticky;
-  top: 0;
+  top: 3.9rem;
   z-index: 11;
   background: var(--color-surface);
-  padding: var(--space-1) 0 var(--space-2);
-  margin: 0 0 var(--space-1);
+  padding: 2px 0 var(--space-1);
+  margin: 0;
   padding-left: var(--space-2);
   padding-right: var(--space-2);
   box-shadow: 0 2px 0 var(--color-sand-200);

@@ -152,7 +152,7 @@ export function buildBudgetDetailLines(
         remaining: Math.max(0, subTotal - subSpent),
         costCertainty: normalizeSubCostCertainty(sub.costCertainty, sub.decisionStatus),
         isSubItem: true,
-        parentTitle: entry.title || 'Untitled',
+        parentTitle: entry.category === 'Cruise port' ? 'Cruise port' : entry.title || 'Untitled',
         transportSubtype: subCategory === 'Transport' ? entry.transportMode?.trim() || undefined : undefined,
         sortKey: sortKeyForEntry(entry, tripDays)
       });

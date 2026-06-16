@@ -88,6 +88,11 @@ function entryHasTimedSubs(entry: ItineraryEntry): boolean {
   return (entry.subItems ?? []).some((s) => minutesFromTimeStart(s.startTime || '') !== undefined);
 }
 
+function shouldRenderPlannerItem(item: PlannerTimedItem): boolean {
+  if (item.subItem) return true;
+  return !entryHasTimedSubs(item.entry);
+}
+
 function isPlannerUnscheduledEntry(entry: ItineraryEntry, calendarDate: string, tripDays: TripDay[]): boolean {
   if (minutesFromTimeStart(effectivePlannerTimeStart(entry, calendarDate, tripDays)) !== undefined) {
     return false;
@@ -724,7 +729,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
           {displayDays.map((day) => {
             const cal = day.calendarDate || '';
             const list = entriesForPlannerColumn(day);
-            const timed = expandPlannerTimedItems(list, cal, tripDays);
+            const timed = expandPlannerTimedItems(list, cal, tripDays).filter(shouldRenderPlannerItem);
             const unsched = list.filter((e) => isPlannerUnscheduledEntry(e, cal, tripDays));
             const collapsed = Boolean(unschedCollapsed[day.id]);
             return (
@@ -829,10 +834,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                   {!sub && isTransportReturnOnCalendarDate(e, cal) ? (
                                     <span className={styles.returnBadge}>Return</span>
                                   ) : null}{' '}
-                                  {sub && item.parentTitle ? (
-                                    <span className={styles.blockParentBadge}>↳ {item.parentTitle}</span>
-                                  ) : null}{' '}
-                                  {item.title}
+                                  {sub && item.parentTitle ? `${item.title} (${item.parentTitle})` : item.title}
                                 </div>
                                 <div className={styles.blockActions}>
                                   <button
@@ -1005,7 +1007,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                 {displayDays.map((day) => {
                   const cal = day.calendarDate || '';
                   const list = entriesForPlannerColumn(day);
-                  const timed = expandPlannerTimedItems(list, cal, tripDays);
+                  const timed = expandPlannerTimedItems(list, cal, tripDays).filter(shouldRenderPlannerItem);
                   return (
                     <div
                       key={`t-${day.id}`}
@@ -1042,10 +1044,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                     {!sub && isTransportReturnOnCalendarDate(e, cal) ? (
                                       <span className={styles.returnBadge}>Return</span>
                                     ) : null}{' '}
-                                    {sub && item.parentTitle ? (
-                                      <span className={styles.blockParentBadge}>↳ {item.parentTitle}</span>
-                                    ) : null}{' '}
-                                    {item.title}
+                                    {sub && item.parentTitle ? `${item.title} (${item.parentTitle})` : item.title}
                                   </div>
                                   <div className={styles.blockActions}>
                                     <button

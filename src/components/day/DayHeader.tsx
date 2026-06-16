@@ -280,7 +280,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
                 onClick={() => setLocationsExpanded((v) => !v)}
                 aria-expanded={locationsExpanded}
               >
-                <span className={styles.locationsInlineLabel}>Locations</span>
+                <span className={styles.locationsInlineLabel}>Edit locations</span>
                 <span className={styles.locationsInlineSummary}>{locationsSummary}</span>
               </button>
             </div>

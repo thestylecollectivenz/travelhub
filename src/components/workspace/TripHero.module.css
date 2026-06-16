@@ -10,8 +10,8 @@
 }
 
 .heroCollapsed {
-  min-height: 74px;
-  height: 74px;
+  min-height: 92px;
+  height: 92px;
 }
 
 .heroNoImage {
@@ -156,6 +156,14 @@
   left: var(--space-5);
   right: var(--space-5);
   pointer-events: auto;
+}
+
+.heroCollapsed .heroBody {
+  transform: translateY(-34%);
+}
+
+.heroCollapsed .statusChip {
+  display: none;
 }
 
 .title {

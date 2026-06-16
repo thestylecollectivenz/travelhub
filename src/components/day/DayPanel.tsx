@@ -63,7 +63,7 @@ export const DayPanel: React.FC<DayPanelProps> = ({
           onActivePlaceInfoChange={onActivePlaceInfoChange}
         />
       )}
-      <div className={hideHeader ? styles.dayToolbarSticky : undefined}>
+      <div className={styles.dayToolbarSticky}>
         <DayItineraryToolbar
           day={day}
           trip={trip}
