@@ -15,6 +15,7 @@ import styles from './SubItem.module.css';
 export interface SubItemProps {
   item: ItinerarySubItem;
   parentEntryId: string;
+  dragHandle?: React.ReactNode;
 }
 
 function EditIcon(): React.ReactElement {
@@ -52,7 +53,7 @@ function DuplicateIcon(): React.ReactElement {
   );
 }
 
-export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
+export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId, dragHandle }) => {
   const spContext = useSpContext();
   const {
     trip,
@@ -61,7 +62,6 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
     setEditingSubItem,
     editingSubItem,
     duplicateSubItem,
-    reorderSubItems,
     moveSubItem
   } = useTripWorkspace();
   const { docsForEntry, linksForEntry, updateLink, deleteLink } = useAttachments();
@@ -73,11 +73,6 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
   const [linkEditDraft, setLinkEditDraft] = React.useState({ linkTitle: '', url: '' });
 
   const parentEntry = React.useMemo(() => localEntries.find((e) => e.id === parentEntryId), [localEntries, parentEntryId]);
-  const orderedSubIds = React.useMemo(() => {
-    const subs = [...(parentEntry?.subItems ?? [])].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-    return subs.map((s) => s.id);
-  }, [parentEntry?.subItems]);
-  const subIndex = orderedSubIds.indexOf(item.id);
   const moveTargets = React.useMemo(
     () =>
       localEntries.filter(
@@ -262,36 +257,7 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId }) => {
         ) : null}
       </div>
       <div className={styles.actionCol}>
-        <button
-          type="button"
-          className={styles.reorderButton}
-          disabled={subIndex <= 0}
-          aria-label="Move option up"
-          title="Move up"
-          onClick={() => {
-            if (subIndex <= 0) return;
-            const next = [...orderedSubIds];
-            [next[subIndex - 1], next[subIndex]] = [next[subIndex], next[subIndex - 1]];
-            reorderSubItems(parentEntryId, next);
-          }}
-        >
-          ↑
-        </button>
-        <button
-          type="button"
-          className={styles.reorderButton}
-          disabled={subIndex < 0 || subIndex >= orderedSubIds.length - 1}
-          aria-label="Move option down"
-          title="Move down"
-          onClick={() => {
-            if (subIndex < 0 || subIndex >= orderedSubIds.length - 1) return;
-            const next = [...orderedSubIds];
-            [next[subIndex + 1], next[subIndex]] = [next[subIndex], next[subIndex + 1]];
-            reorderSubItems(parentEntryId, next);
-          }}
-        >
-          ↓
-        </button>
+        {dragHandle ? <span className={styles.dragHandleSlot}>{dragHandle}</span> : null}
         {moveTargets.length > 0 ? (
           <select
             className={styles.moveSelect}

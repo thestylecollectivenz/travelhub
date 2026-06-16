@@ -225,6 +225,9 @@ Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'BookingStatu
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'PaymentStatus' -FieldType 'Choice' -Choices @(
     'Not paid', 'Part paid', 'Fully paid'
 )
+Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'CostCertainty' -FieldType 'Choice' -Choices @(
+  'Estimated', 'Confirmed'
+)
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'Amount' -FieldType 'Number'
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'Currency' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'UnitType' -FieldType 'Text'

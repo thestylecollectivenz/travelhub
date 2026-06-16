@@ -91,6 +91,7 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit, showEditButton
     [heroImageUrl, webAbsoluteUrl, webServerRelativeUrl]
   );
   const [heroImageFailed, setHeroImageFailed] = React.useState(false);
+  const [collapsed, setCollapsed] = React.useState(false);
 
   React.useEffect(() => {
     setHeroImageFailed(false);
@@ -164,7 +165,10 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit, showEditButton
   }, [tripDays, trip.id, placeById, places, localEntries, config.distanceUnit]);
 
   return (
-    <section className={`${styles.hero} ${hasHeroImage ? styles.heroWithImage : styles.heroNoImage}`} aria-label="Trip hero">
+    <section
+      className={`${styles.hero} ${collapsed ? styles.heroCollapsed : ''} ${hasHeroImage ? styles.heroWithImage : styles.heroNoImage}`}
+      aria-label="Trip hero"
+    >
       {hasHeroImage ? (
         <img
           className={styles.heroImageLayer}
@@ -182,6 +186,14 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit, showEditButton
       <div className={`${styles.heroOverlay} ${hasHeroImage ? styles.heroOverlayWithImage : styles.heroOverlayNoImage}`} role="presentation" />
       <div className={`${styles.heroForeground} ${hasHeroImage ? styles.heroForegroundImage : ''}`}>
         <div className={styles.badge}>✦ Travel Hub</div>
+        <button
+          type="button"
+          className={styles.collapseBtn}
+          onClick={() => setCollapsed((v) => !v)}
+          aria-label={collapsed ? 'Expand trip hero' : 'Collapse trip hero'}
+        >
+          {collapsed ? '▾' : '▴'}
+        </button>
         {showEditButton ? (
           <button type="button" className={styles.editButton} onClick={onEdit} aria-label="Edit trip details">
             <svg viewBox="0 0 16 16" width={12} height={12} fill="none" aria-hidden>
@@ -197,9 +209,13 @@ export const TripHero: React.FC<TripHeroProps> = ({ trip, onEdit, showEditButton
         <div className={styles.heroBody}>
           <h1 className={styles.title}>{trip.title}</h1>
           <p className={styles.meta}>{metaLine}</p>
-          {distanceLine ? <p className={styles.meta}>{distanceLine}</p> : null}
-          {countdown ? <span className={`${styles.countdownChip} ${countdownClass}`}>{countdown}</span> : null}
-          {showDescription ? <p className={styles.description}>{trip.description}</p> : null}
+          {!collapsed ? (
+            <>
+              {distanceLine ? <p className={styles.meta}>{distanceLine}</p> : null}
+              {countdown ? <span className={`${styles.countdownChip} ${countdownClass}`}>{countdown}</span> : null}
+              {showDescription ? <p className={styles.description}>{trip.description}</p> : null}
+            </>
+          ) : null}
         </div>
       </div>
     </section>

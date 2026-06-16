@@ -535,6 +535,17 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
           const created = await persistEntry(copy);
           replaceIdInDayViewEntryOrder(orig.tripId, orig.dayId, tempId, created.id);
           setFocusedEntryId(created.id);
+          window.dispatchEvent(
+            new CustomEvent('trip-entry-duplicated', {
+              detail: {
+                sourceEntryId: entryId,
+                sourceDayId: orig.dayId,
+                targetEntryId: created.id,
+                targetDayId: created.dayId,
+                tripId: created.tripId
+              }
+            })
+          );
           const svc = new ItineraryService(spContext);
           await runBatched(sortUpdates, 5, async ({ id, sortOrder }) => {
             await svc.update(id, { sortOrder });

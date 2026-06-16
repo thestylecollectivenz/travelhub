@@ -44,7 +44,7 @@ export function exportFullBudgetToExcel(options: {
     for (const line of lines) {
       rows.push({
         Category: category,
-        Item: line.isSubItem ? `  → ${line.title}` : line.title,
+        Item: line.isSubItem ? `${line.title} (${line.parentTitle || 'Card'})` : line.title,
         Location: line.locationLine ?? '',
         Dates: [...line.dateLines, line.spanLabel].filter(Boolean).join(' · '),
         'Total budget': line.total,
@@ -102,7 +102,8 @@ export function buildBudgetPrintHtml(options: {
       const certainty = line.costCertainty === 'Estimated' ? ' (est.)' : '';
       const rowClass = line.costCertainty === 'Estimated' ? 'row-estimated' : '';
       const meta = [line.locationLine, ...line.dateLines, line.spanLabel].filter(Boolean).join(' · ');
-      body += `<tr class="${rowClass}"><td class="td-details"><strong>${line.isSubItem ? '→ ' : ''}${line.title}</strong>${certainty}<br/><small>${meta}</small></td>`;
+      const displayTitle = line.isSubItem ? `${line.title} (${line.parentTitle || 'Card'})` : line.title;
+      body += `<tr class="${rowClass}"><td class="td-details"><strong>${displayTitle}</strong>${certainty}<br/><small>${meta}</small></td>`;
       body += `<td class="td-money">${fmt(line.total)}</td><td class="td-money">${fmt(line.spent)}</td><td class="td-money">${fmt(line.remaining)}</td></tr>`;
     }
     body += '</tbody></table>';

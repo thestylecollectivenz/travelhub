@@ -99,7 +99,7 @@ function BudgetLineTable({
         >
           <div className={styles.lineMain}>
             <span className={styles.lineTitle}>
-              {line.isSubItem ? `→ ${line.title}` : line.title}
+              {line.isSubItem ? `${line.title} (${line.parentTitle || 'Card'})` : line.title}
               <button
                 type="button"
                 className={styles.editLink}

@@ -96,6 +96,86 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     ;
   }, [spContext, tripId]);
 
+  React.useEffect(() => {
+    const onEntryDuplicated = (evt: Event): void => {
+      const custom = evt as CustomEvent<{
+        sourceEntryId?: string;
+        sourceDayId?: string;
+        targetEntryId?: string;
+        targetDayId?: string;
+        tripId?: string;
+      }>;
+      const sourceEntryId = custom.detail?.sourceEntryId?.trim();
+      const targetEntryId = custom.detail?.targetEntryId?.trim();
+      const sourceDayId = custom.detail?.sourceDayId?.trim();
+      const targetDayId = custom.detail?.targetDayId?.trim();
+      const eventTripId = custom.detail?.tripId?.trim();
+      if (!sourceEntryId || !targetEntryId || !sourceDayId || !targetDayId || !eventTripId) return;
+      if (!tripId || eventTripId !== tripId) return;
+      if (sourceEntryId === targetEntryId) return;
+
+      const sourceLinks = links.filter((l) => l.entryId === sourceEntryId);
+      const sourceDocs = documents.filter((d) => d.entryId === sourceEntryId);
+      if (!sourceLinks.length && !sourceDocs.length) return;
+
+      const linkSvc = new LinkService(spContext);
+      const docSvc = new DocumentService(spContext);
+
+      void (async () => {
+        try {
+          const clonedLinks = await Promise.all(
+            sourceLinks
+              .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+              .map((link, index) =>
+                linkSvc.create({
+                  title: link.linkTitle || link.title || 'Link',
+                  tripId,
+                  dayId: targetDayId,
+                  entryId: targetEntryId,
+                  linkType: link.linkType,
+                  url: link.url,
+                  linkTitle: link.linkTitle,
+                  notes: link.notes,
+                  sortOrder: index
+                })
+              )
+          );
+          const clonedDocs = await Promise.all(
+            sourceDocs
+              .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+              .map((doc, index) =>
+                docSvc.create({
+                  title: doc.fileName || doc.title || 'Document',
+                  tripId,
+                  dayId: targetDayId,
+                  entryId: targetEntryId,
+                  documentType: doc.documentType,
+                  fileUrl: doc.fileUrl,
+                  fileName: doc.fileName,
+                  notes: doc.notes,
+                  sortOrder: index
+                })
+              )
+          );
+          if (clonedLinks.length) {
+            setLinks((prev) => [...prev, ...clonedLinks]);
+          }
+          if (clonedDocs.length) {
+            setDocuments((prev) => [...prev, ...clonedDocs]);
+          }
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('AttachmentsProvider: clone attachments after duplicate failed', err);
+        }
+      })();
+    };
+
+    window.addEventListener('trip-entry-duplicated', onEntryDuplicated as EventListener);
+    return () => {
+      window.removeEventListener('trip-entry-duplicated', onEntryDuplicated as EventListener);
+    };
+  }, [tripId, links, documents, spContext]);
+
   const docsForEntry = React.useCallback(
     (entryId: string) => sortEntryDocuments(documents.filter((d) => d.entryId === entryId)),
     [documents]

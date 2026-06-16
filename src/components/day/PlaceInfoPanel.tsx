@@ -30,10 +30,10 @@ function formatPlaceLocalDateTime(date: Date, timeZone: string): string {
 
 function WeatherIcon({ iconCode, size = 20 }: { iconCode: string; size?: number }): React.ReactElement {
   const code = (iconCode || '').toLowerCase();
-  const stroke = 'var(--color-blue-700)';
-  const fillSun = 'var(--color-amber-500)';
-  const fillCloud = 'var(--color-blue-300)';
-  const fillRain = 'var(--color-blue-500)';
+  const stroke = '#1f4f78';
+  const fillSun = '#f0b429';
+  const fillCloud = '#8ec5ea';
+  const fillRain = '#2f80c8';
 
   if (code.includes('clear-night') || code.includes('moon')) {
     return (

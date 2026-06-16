@@ -134,6 +134,11 @@ export const RouteStrip: React.FC = () => {
                 }}
               >
                 <span className={styles.placeName}>📍 {compactPlaceLabel(s.title)}</span>
+                {s.additionalTitles.length ? (
+                  <span className={styles.secondaryPlaces} title={s.additionalTitles.join(' · ')}>
+                    +{s.additionalTitles.length} secondary
+                  </span>
+                ) : null}
                 <span className={styles.range}>Day {s.startDay}</span>
               </button>
               {next ? (

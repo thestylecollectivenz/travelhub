@@ -9,7 +9,6 @@ import type { Place, PlaceCandidate } from '../../models/Place';
 import { formatDayDate } from '../../utils/dateUtils';
 import { compareTripDaysChronological } from '../../utils/tripDateRangeSync';
 import { parseAdditionalPlaceRefs, serializeAdditionalPlaceRef } from '../../utils/tripDayPlaces';
-import { CollapsibleSummaryBar } from '../shared/CollapsibleSummaryBar';
 import { placeDisplayLabel } from '../../utils/placeDisplayLabel';
 import type { DayPlanningStatus } from '../../models/TripDay';
 import styles from './DayHeader.module.css';
@@ -273,6 +272,19 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
               </>
             )}
           </div>
+          {!stickyTitleOnly ? (
+            <div className={styles.line1Right}>
+              <button
+                type="button"
+                className={styles.locationsInlineBtn}
+                onClick={() => setLocationsExpanded((v) => !v)}
+                aria-expanded={locationsExpanded}
+              >
+                <span className={styles.locationsInlineLabel}>Locations</span>
+                <span className={styles.locationsInlineSummary}>{locationsSummary}</span>
+              </button>
+            </div>
+          ) : null}
         </div>
         <div className={styles.date}>
           {day.dayType === 'PreTrip' ? 'Before trip starts' : formatDayDate(day.calendarDate)}
@@ -295,19 +307,9 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
         ) : null}
       </div>
       )}
+      {locationsExpanded ? (
       <section className={styles.locationsColumn}>
-        <div className={styles.locationsTile}>
-          <CollapsibleSummaryBar
-            expanded={locationsExpanded}
-            onToggle={() => setLocationsExpanded((v) => !v)}
-            collapsedTitle="Locations"
-            collapsedSummary={locationsSummary}
-            ariaLabel="Locations"
-            className={styles.locationsSummaryBar}
-          >
-            <h2 className={styles.sectionTitle}>Locations</h2>
-          </CollapsibleSummaryBar>
-          {locationsExpanded ? (
+        <div className={styles.locationsPanel}>
         <div className={styles.placeSection}>
           {!isShared ? (
             <div className={styles.searchWrap}>
@@ -553,9 +555,9 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
           </div>
           {locationMessage ? <div className={styles.infoSub}>{locationMessage}</div> : null}
         </div>
-          ) : null}
         </div>
       </section>
+      ) : null}
     </header>
   );
 };
