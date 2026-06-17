@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import type { ItineraryEntry, ItinerarySubItem } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
@@ -238,7 +239,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
     notes: ''
   });
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
-  const menuRef = React.useRef<HTMLDivElement>(null);
+  const menuButtonRef = React.useRef<HTMLButtonElement | null>(null);
+  const menuPortalRef = React.useRef<HTMLDivElement | null>(null);
+  const [menuAnchor, setMenuAnchor] = React.useState({ top: 0, left: 0, width: 140 });
   const [taskPromptOpen, setTaskPromptOpen] = React.useState(false);
   const [taskEditOpen, setTaskEditOpen] = React.useState(false);
   const [taskDueDate, setTaskDueDate] = React.useState('');
@@ -258,15 +261,26 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
     onMenuOpenChange?.(menuOpen);
   }, [menuOpen, onMenuOpenChange]);
 
+  React.useLayoutEffect(() => {
+    if (!menuOpen || !menuButtonRef.current) return;
+    const rect = menuButtonRef.current.getBoundingClientRect();
+    const width = 140;
+    setMenuAnchor({
+      top: rect.bottom + 4,
+      left: Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8)),
+      width
+    });
+  }, [menuOpen]);
+
   React.useEffect(() => {
     if (!menuOpen) {
       return undefined;
     }
     const onDoc = (ev: MouseEvent): void => {
-      const el = menuRef.current;
-      if (el && !el.contains(ev.target as Node)) {
-        setMenuOpen(false);
-      }
+      const target = ev.target as Node;
+      if (menuButtonRef.current?.contains(target)) return;
+      if (menuPortalRef.current?.contains(target)) return;
+      setMenuOpen(false);
     };
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
@@ -488,6 +502,52 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
     setLinkDraft({ linkTitle: '', url: '', linkType: 'Url', notes: '' });
   }, []);
 
+  const entryMenuPortal =
+    menuOpen && typeof document !== 'undefined'
+      ? ReactDOM.createPortal(
+          <div
+            ref={menuPortalRef}
+            className={styles.dropdownPortal}
+            role="menu"
+            style={{ top: menuAnchor.top, left: menuAnchor.left, minWidth: menuAnchor.width }}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                setSelectedDayId(entry.dayId);
+                requestSidebarDayFocus(entry.dayId);
+                onEdit();
+              }}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                onDuplicate();
+              }}
+            >
+              Duplicate
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                onDelete();
+              }}
+            >
+              Delete
+            </button>
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
     <div className={isLocationInfo ? styles.locationInfoView : undefined}>
       {!isLocationInfo ? (
@@ -504,8 +564,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             {entry.category}
           </span>
         </div>
-        <div className={styles.menuWrap} ref={menuRef}>
+        <div className={styles.menuWrap}>
           <button
+            ref={menuButtonRef}
             type="button"
             className={styles.menuButton}
             aria-expanded={menuOpen}
@@ -515,42 +576,6 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           >
             ⋯
           </button>
-          {menuOpen ? (
-            <div className={styles.dropdown} role="menu">
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setSelectedDayId(entry.dayId);
-                  requestSidebarDayFocus(entry.dayId);
-                  onEdit();
-                }}
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onDuplicate();
-                }}
-              >
-                Duplicate
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onDelete();
-                }}
-              >
-                Delete
-              </button>
-            </div>
-          ) : null}
         </div>
       </div>
       ) : null}
@@ -563,8 +588,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             <span>{locationInfoPlaceLabel || 'Location'}</span>
           </h3>
           <div className={styles.locationInfoTitleActions}>
-            <div className={styles.menuWrap} ref={menuRef}>
+            <div className={styles.menuWrap}>
               <button
+                ref={menuButtonRef}
                 type="button"
                 className={styles.menuButton}
                 aria-expanded={menuOpen}
@@ -574,42 +600,6 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
               >
                 ⋯
               </button>
-              {menuOpen ? (
-                <div className={styles.dropdown} role="menu">
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      setSelectedDayId(entry.dayId);
-                      requestSidebarDayFocus(entry.dayId);
-                      onEdit();
-                    }}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onDuplicate();
-                    }}
-                  >
-                    Duplicate
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onDelete();
-                    }}
-                  >
-                    Delete
-                  </button>
-                </div>
-              ) : null}
             </div>
             <button
               type="button"
@@ -1545,6 +1535,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           <SubItemList subItems={subItems} entryId={entry.id} />
         </div>
       ) : null}
+      {entryMenuPortal}
     </div>
   );
 };

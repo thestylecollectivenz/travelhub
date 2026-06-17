@@ -133,12 +133,14 @@ export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeD
               >
                 {r.title}
               </button>
-              <span className={styles.meta}>{r.meta}</span>
-              <span className={styles.meta}>{r.dayId ? dayLabel(r.dayId) : ''}</span>
-              <span className={styles.meta}>{entryTitleFor(r.entryId)}</span>
+              <span className={styles.metaLine}>
+                {[r.meta, r.dayId ? dayLabel(r.dayId) : '', entryTitleFor(r.entryId)]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
               <button
                 type="button"
-                className={styles.button}
+                className={styles.deleteBtn}
                 onClick={() => {
                   void (async () => {
                     const label = r.kind === 'document' ? 'document' : 'link';

@@ -126,6 +126,10 @@
   background: var(--color-cat-other);
 }
 
+.row:has(.cardMenuOpen) {
+  z-index: 50;
+}
+
 .cardCell {
   flex: 1;
   min-width: 0;

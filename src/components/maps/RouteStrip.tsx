@@ -4,13 +4,17 @@ import { usePlaces } from '../../context/PlacesContext';
 import { parseAdditionalPlaceRefs } from '../../utils/tripDayPlaces';
 import styles from './RouteStrip.module.css';
 
+type SecondaryPlace = {
+  label: string;
+  returnToPrimary: boolean;
+};
+
 type Stop = {
   placeId: string;
   title: string;
   startDay: number;
   dayId: string;
-  additionalTitles: string[];
-  hasReturnVisit: boolean;
+  additionalPlaces: SecondaryPlace[];
   calendarDate: string;
 };
 
@@ -80,8 +84,13 @@ export const RouteStrip: React.FC = () => {
         startDay: day.dayNumber,
         dayId: day.id,
         calendarDate: day.calendarDate,
-        additionalTitles: refs.map((r) => placeById(r.placeId)?.title).filter(Boolean) as string[],
-        hasReturnVisit: refs.some((r) => r.returnToPrimary)
+        additionalPlaces: refs
+          .map((r) => {
+            const title = placeById(r.placeId)?.title;
+            if (!title) return undefined;
+            return { label: title, returnToPrimary: r.returnToPrimary };
+          })
+          .filter(Boolean) as SecondaryPlace[]
       });
     }
     return out;
@@ -151,9 +160,20 @@ export const RouteStrip: React.FC = () => {
                 >
                   <div className={styles.stopBtnBody}>
                     <span className={styles.placeName}>📍 {compactPlaceLabel(s.title)}</span>
-                    {s.additionalTitles.length ? (
-                      <span className={styles.secondaryPlaces} title={s.additionalTitles.join(' · ')}>
-                        {s.additionalTitles.map((name) => compactPlaceLabel(name)).join(' · ')}
+                    {s.additionalPlaces.length ? (
+                      <span className={styles.secondaryPlaces}>
+                        {s.additionalPlaces.map((place, idx) => (
+                          <span
+                            key={`${place.label}-${idx}`}
+                            className={styles.secondaryLine}
+                            title={place.returnToPrimary ? 'Return to primary' : 'One way'}
+                          >
+                            <span className={styles.secondaryArrow} aria-hidden>
+                              {place.returnToPrimary ? '↩' : '→'}
+                            </span>
+                            {compactPlaceLabel(place.label)}
+                          </span>
+                        ))}
                       </span>
                     ) : null}
                   </div>
