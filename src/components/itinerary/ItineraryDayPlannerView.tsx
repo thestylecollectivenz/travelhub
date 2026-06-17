@@ -93,6 +93,18 @@ function shouldRenderPlannerItem(item: PlannerTimedItem): boolean {
   return !entryHasTimedSubs(item.entry);
 }
 
+function plannerBlockZIndex(
+  item: PlannerTimedItem,
+  timed: PlannerTimedItem[],
+  frontBlockKey: string | null,
+  isEditing: boolean
+): number {
+  if (isEditing) return 60;
+  if (frontBlockKey === item.key) return 55;
+  const maxDur = Math.max(...timed.map((t) => t.durationMinutes), 1);
+  return 2 + Math.round((1 - item.durationMinutes / maxDur) * 24);
+}
+
 function isPlannerUnscheduledEntry(entry: ItineraryEntry, calendarDate: string, tripDays: TripDay[]): boolean {
   if (minutesFromTimeStart(effectivePlannerTimeStart(entry, calendarDate, tripDays)) !== undefined) {
     return false;
@@ -177,6 +189,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
     setEditingCardId,
     editingSubItem,
     setEditingSubItem,
+    selectedDayId,
     setSelectedDayId
   } = useTripWorkspace();
   const { docsForEntry, linksForEntry } = useAttachments();
@@ -191,6 +204,9 @@ export const ItineraryDayPlannerView: React.FC = () => {
   const [previewEntryId, setPreviewEntryId] = React.useState<string | null>(null);
   const [printPreviewOpen, setPrintPreviewOpen] = React.useState(false);
   const [plannerPrintHtml, setPlannerPrintHtml] = React.useState<string | null>(null);
+  const [frontBlockKey, setFrontBlockKey] = React.useState<string | null>(null);
+  const plannerFrameRef = React.useRef<HTMLDivElement | null>(null);
+  const syncingFromSidebarRef = React.useRef(false);
 
   React.useEffect(() => {
     const mq = window.matchMedia('(max-width: 640px)');
@@ -373,6 +389,52 @@ export const ItineraryDayPlannerView: React.FC = () => {
     }
     return visibleDays;
   }, [visibleDays, isMobile, mobileDayIndex]);
+
+  React.useEffect(() => {
+    if (!selectedDayId || !plannerFrameRef.current || isMobile) return;
+    const col = plannerFrameRef.current.querySelector(`[data-planner-day-id="${selectedDayId}"]`);
+    if (!(col instanceof HTMLElement)) return;
+    syncingFromSidebarRef.current = true;
+    col.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    const t = window.setTimeout(() => {
+      syncingFromSidebarRef.current = false;
+    }, 450);
+    return () => window.clearTimeout(t);
+  }, [selectedDayId, displayDays, isMobile]);
+
+  React.useEffect(() => {
+    if (!selectedDayId || !visibleDays.length) return;
+    const idx = visibleDays.findIndex((d) => d.id === selectedDayId);
+    if (idx >= 0) setMobileDayIndex(idx);
+  }, [selectedDayId, visibleDays]);
+
+  React.useEffect(() => {
+    const root = plannerFrameRef.current;
+    if (!root || isMobile || displayDays.length <= 1) return undefined;
+
+    const onScroll = (): void => {
+      if (syncingFromSidebarRef.current) return;
+      const rect = root.getBoundingClientRect();
+      const center = rect.left + rect.width / 2;
+      let bestId = '';
+      let bestDist = Infinity;
+      for (const day of displayDays) {
+        const el = root.querySelector(`[data-planner-day-id="${day.id}"]`);
+        if (!(el instanceof HTMLElement)) continue;
+        const r = el.getBoundingClientRect();
+        const mid = r.left + r.width / 2;
+        const dist = Math.abs(mid - center);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestId = day.id;
+        }
+      }
+      if (bestId && bestId !== selectedDayId) setSelectedDayId(bestId);
+    };
+
+    root.addEventListener('scroll', onScroll, { passive: true });
+    return () => root.removeEventListener('scroll', onScroll);
+  }, [displayDays, isMobile, selectedDayId, setSelectedDayId]);
 
   const buildPlannerPrintDays = React.useCallback((): DayPlannerPrintDay[] => {
     const daysSource = printPreviewOpen ? visibleDays : displayDays;
@@ -725,7 +787,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
           No days in this range. Adjust filters.
         </div>
       ) : isMobile ? (
-        <div className={styles.plannerFrame}>
+        <div className={styles.plannerFrame} ref={plannerFrameRef}>
           {displayDays.map((day) => {
             const cal = day.calendarDate || '';
             const list = entriesForPlannerColumn(day);
@@ -820,9 +882,13 @@ export const ItineraryDayPlannerView: React.FC = () => {
                         Boolean(sub) &&
                         editingSubItem?.parentEntryId === e.id &&
                         editingSubItem?.subItemId === sub!.id;
-                      const blockZ = isEditingParent || isEditingSub ? 50 : undefined;
+                      const blockZ = plannerBlockZIndex(item, timed, frontBlockKey, isEditingParent || isEditingSub);
                       return (
-                        <div key={item.key} style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: blockZ }}>
+                        <div
+                          key={item.key}
+                          style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: blockZ }}
+                          onMouseDown={() => setFrontBlockKey(item.key)}
+                        >
                           {isEditingParent ? (
                             <div className={styles.editOverlay}>
                               <ItineraryCard entry={e} calendarDate={cal} suppressCarryoverUi={day.dayType === 'PreTrip'} draggable={false} useEditPortal />
@@ -911,7 +977,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
           })}
         </div>
       ) : (
-        <div className={styles.plannerFrame}>
+        <div className={styles.plannerFrame} ref={plannerFrameRef}>
           <div
             className={styles.plannerGrid}
             style={{
@@ -920,7 +986,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
           >
             <div className={styles.cornerCell} aria-hidden />
             {displayDays.map((day) => (
-              <div key={`h-${day.id}`} className={styles.dayHead}>
+              <div key={`h-${day.id}`} className={styles.dayHead} data-planner-day-id={day.id}>
                 {dayLabel(day)}
               </div>
             ))}
@@ -1012,6 +1078,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                     <div
                       key={`t-${day.id}`}
                       className={styles.dayTrack}
+                      data-planner-day-id={day.id}
                       style={{ height: `${trackHeight}px`, ['--hour-band' as string]: `${hourBandPx}px` }}
                     >
                       {timed.map((item) => {
@@ -1030,9 +1097,13 @@ export const ItineraryDayPlannerView: React.FC = () => {
                           Boolean(sub) &&
                           editingSubItem?.parentEntryId === e.id &&
                           editingSubItem?.subItemId === sub!.id;
-                        const blockZ = isEditingParent || isEditingSub ? 50 : undefined;
+                        const blockZ = plannerBlockZIndex(item, timed, frontBlockKey, isEditingParent || isEditingSub);
                         return (
-                          <div key={item.key} style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: blockZ }}>
+                          <div
+                            key={item.key}
+                            style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: blockZ }}
+                            onMouseDown={() => setFrontBlockKey(item.key)}
+                          >
                             {isEditingParent ? (
                               <div className={styles.editOverlay}>
                                 <ItineraryCard entry={e} calendarDate={cal} suppressCarryoverUi={day.dayType === 'PreTrip'} draggable={false} useEditPortal />

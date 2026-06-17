@@ -483,19 +483,21 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   }, []);
 
   return (
-    <div>
+    <div className={isLocationInfo ? styles.locationInfoView : undefined}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          {timeChip ? (
+          {timeChip && !isLocationInfo ? (
             <span className={styles.timeChip}>
               <ClockIcon />
               {timeChip}
             </span>
           ) : null}
+          {!isLocationInfo ? (
           <span className={`${styles.categoryBadge} th-cat-${categorySlug} th-cat-badge`}>
             <CategoryIcon category={entry.category} size={12} color="currentColor" />
             {entry.category}
           </span>
+          ) : null}
         </div>
         <div className={styles.menuWrap} ref={menuRef}>
           <button
@@ -550,6 +552,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       {isLocationInfo ? (
         <div className={styles.locationInfoTitleRow}>
           <h3 className={styles.locationInfoTitle}>
+            <span className={styles.locationInfoKind}>Location info</span>
             <PinIcon />
             <span>{locationInfoPlaceLabel || 'Location'}</span>
           </h3>
@@ -853,11 +856,47 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         </>
       ) : null}
 
+      {isLocationInfo && !locationInfoExpanded ? (
+        <div className={styles.locationInfoCollapsedBar}>
+          <button type="button" className={styles.relatedToggle} onClick={() => setAttachmentsOpen((o) => !o)}>
+            {attachmentsOpen
+              ? 'Hide attachments ▴'
+              : `${docs.length} document${docs.length === 1 ? '' : 's'} · ${links.length} link${links.length === 1 ? '' : 's'} ▾`}
+          </button>
+          {!attachmentsOpen ? (
+            <div className={styles.locationInfoInlineActions}>
+              <button type="button" className={styles.addSubItemBtn} onClick={onEdit}>
+                Edit
+              </button>
+              <button
+                type="button"
+                className={styles.addSubItemBtn}
+                onClick={() => {
+                  setTaskPromptOpen((v) => {
+                    const next = !v;
+                    if (!v) {
+                      setTaskDescription('');
+                      setTaskCategory(entry.category || 'Other');
+                      setTaskAssignee('');
+                      setTaskNoteDraft('');
+                      setTaskDueDate('');
+                    }
+                    return next;
+                  });
+                }}
+              >
+                {manualTasks.length > 0 ? 'Create another task' : 'Create task'}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : (
       <button type="button" className={styles.relatedToggle} onClick={() => setAttachmentsOpen((o) => !o)}>
         {attachmentsOpen
           ? 'Hide attachments ▴'
           : `${docs.length} document${docs.length === 1 ? '' : 's'} · ${links.length} link${links.length === 1 ? '' : 's'} ▾`}
       </button>
+      )}
       {attachmentsOpen ? (
         <div className={styles.attachmentsPanel}>
           <div className={styles.attachmentsList}>
@@ -1161,7 +1200,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           ) : null}
         </div>
       ) : null}
-      <div className={styles.subItemActionsRow}>
+      <div className={`${styles.subItemActionsRow} ${isLocationInfo && !locationInfoExpanded && !attachmentsOpen ? styles.subItemActionsRowHidden : ''}`}>
         {manualTasks.length > 0 && openTaskTarget ? (
           <>
             {manualTasks.length > 1 ? (

@@ -140,6 +140,16 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
     return () => window.clearTimeout(t);
   }, [locationMessage]);
 
+  React.useEffect(() => {
+    const onExpandLocations = (ev: Event): void => {
+      const dayId = (ev as CustomEvent<{ dayId?: string }>).detail?.dayId;
+      if (!dayId || dayId !== day.id) return;
+      setLocationsExpanded(true);
+    };
+    window.addEventListener('travelhub-expand-day-locations', onExpandLocations as EventListener);
+    return () => window.removeEventListener('travelhub-expand-day-locations', onExpandLocations as EventListener);
+  }, [day.id]);
+
   const applyPrimaryToFollowingDays = React.useCallback(
     (dayCount: number) => {
       if (!dayLocations.primary || !trip || dayCount < 1) return;

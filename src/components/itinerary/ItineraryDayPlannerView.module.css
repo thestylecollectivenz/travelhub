@@ -215,9 +215,9 @@
 
 .trackScroll {
   grid-column: 1 / -1;
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: visible;
   min-height: 260px;
-  border-top: var(--border-default);
   background: var(--color-surface-raised);
 }
 
@@ -379,13 +379,27 @@
 
 .blockIcons {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
-  margin-top: 2px;
+  margin-top: auto;
+  padding-top: 2px;
 }
 
 .blockIcons a {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  min-height: 1.35rem;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
   color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--color-primary) 35%, transparent);
+}
+
+.blockIcons a:hover {
+  background: color-mix(in srgb, var(--color-primary) 18%, var(--color-surface));
 }
 
 .blockOptions {

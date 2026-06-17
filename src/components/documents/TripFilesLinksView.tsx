@@ -11,7 +11,7 @@ export interface TripFilesLinksViewProps {
 
 export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeDocuments = true }) => {
   const { documents, links } = useAttachments();
-  const { tripDays, selectedDayId, setSelectedDayId, mainWorkspaceTab } = useTripWorkspace();
+  const { tripDays, selectedDayId, setSelectedDayId, mainWorkspaceTab, localEntries } = useTripWorkspace();
   const [kind, setKind] = React.useState<KindFilter>('all');
   const [dayFilter, setDayFilter] = React.useState('all');
 
@@ -29,17 +29,51 @@ export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeD
     return `Day ${d.dayNumber} — ${d.displayTitle}`;
   }, [tripDays]);
 
+  const entryTitleFor = React.useCallback((entryId: string): string => {
+    if (!entryId) return '';
+    for (const e of localEntries) {
+      if (e.id === entryId) return e.title || 'Untitled';
+      const sub = (e.subItems ?? []).find((s) => s.id === entryId);
+      if (sub) return `${sub.title || 'Option'} (${e.title || 'Card'})`;
+    }
+    return '';
+  }, [localEntries]);
+
   const rows = React.useMemo(() => {
     const q = search.trim().toLowerCase();
-    const out: Array<{ id: string; kind: 'document' | 'link'; title: string; url: string; dayId: string; meta: string }> = [];
+    const out: Array<{
+      id: string;
+      kind: 'document' | 'link';
+      title: string;
+      url: string;
+      dayId: string;
+      entryId: string;
+      meta: string;
+    }> = [];
     if (includeDocuments && (kind === 'all' || kind === 'documents')) {
       for (const d of documents) {
-        out.push({ id: d.id, kind: 'document', title: d.fileName || d.title, url: d.fileUrl, dayId: d.dayId, meta: d.documentType });
+        out.push({
+          id: d.id,
+          kind: 'document',
+          title: d.fileName || d.title,
+          url: d.fileUrl,
+          dayId: d.dayId,
+          entryId: d.entryId,
+          meta: d.documentType
+        });
       }
     }
     if (kind === 'all' || kind === 'links') {
       for (const l of links) {
-        out.push({ id: l.id, kind: 'link', title: l.linkTitle, url: l.url, dayId: l.dayId, meta: l.linkType });
+        out.push({
+          id: l.id,
+          kind: 'link',
+          title: l.linkTitle,
+          url: l.url,
+          dayId: l.dayId,
+          entryId: l.entryId,
+          meta: l.linkType
+        });
       }
     }
     return out.filter((r) => {
@@ -96,6 +130,7 @@ export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeD
               </button>
               <span className={styles.meta}>{r.meta}</span>
               <span className={styles.meta}>{r.dayId ? dayLabel(r.dayId) : 'No day'}</span>
+              <span className={styles.meta}>{entryTitleFor(r.entryId) || 'No card'}</span>
             </div>
           ))}
         </div>

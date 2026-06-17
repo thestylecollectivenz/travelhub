@@ -348,8 +348,7 @@
   top: 0;
   z-index: 12;
   background: var(--color-surface);
-  border-bottom: var(--border-default);
-  padding: var(--space-2) var(--space-6) var(--space-3);
+  padding: var(--space-1) var(--space-4) var(--space-1);
   box-sizing: border-box;
 }
 

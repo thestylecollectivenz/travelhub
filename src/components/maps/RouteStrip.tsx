@@ -125,22 +125,41 @@ export const RouteStrip: React.FC = () => {
             orderedDays.find((d) => d.id === selectedDayId)?.dayNumber === s.startDay;
           return (
             <React.Fragment key={`${s.placeId}-${s.startDay}`}>
-              <button
-                type="button"
-                className={`${styles.stopBtn} ${isActive ? styles.stopBtnActive : ''}`}
-                onClick={() => {
-                  setMainWorkspaceTab('itinerary');
-                  setSelectedDayId(s.dayId);
-                }}
-              >
-                <span className={styles.placeName}>📍 {compactPlaceLabel(s.title)}</span>
-                {s.additionalTitles.length ? (
-                  <span className={styles.secondaryPlaces} title={s.additionalTitles.join(' · ')}>
-                    {s.additionalTitles.map((name) => compactPlaceLabel(name)).join(' · ')}
-                  </span>
-                ) : null}
-                <span className={styles.range}>Day {s.startDay}</span>
-              </button>
+              <div className={styles.stopCell}>
+                <button
+                  type="button"
+                  className={styles.locationsEditBtn}
+                  title="Edit day locations"
+                  aria-label={`Edit locations for day ${s.startDay}`}
+                  onClick={() => {
+                    setMainWorkspaceTab('itinerary');
+                    setSelectedDayId(s.dayId);
+                    window.dispatchEvent(
+                      new CustomEvent('travelhub-expand-day-locations', { detail: { dayId: s.dayId } })
+                    );
+                  }}
+                >
+                  ✎
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.stopBtn} ${isActive ? styles.stopBtnActive : ''}`}
+                  onClick={() => {
+                    setMainWorkspaceTab('itinerary');
+                    setSelectedDayId(s.dayId);
+                  }}
+                >
+                  <div className={styles.stopBtnBody}>
+                    <span className={styles.placeName}>📍 {compactPlaceLabel(s.title)}</span>
+                    {s.additionalTitles.length ? (
+                      <span className={styles.secondaryPlaces} title={s.additionalTitles.join(' · ')}>
+                        {s.additionalTitles.map((name) => compactPlaceLabel(name)).join(' · ')}
+                      </span>
+                    ) : null}
+                  </div>
+                  <span className={styles.range}>Day {s.startDay}</span>
+                </button>
+              </div>
               {next ? (
                 <span className={styles.connector}>
                   {kinds.map((kind, idx) => <TransportIcon key={`${kind}-${idx}`} kind={kind} />)}
