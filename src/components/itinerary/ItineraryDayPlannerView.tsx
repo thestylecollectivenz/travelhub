@@ -635,6 +635,11 @@ export const ItineraryDayPlannerView: React.FC = () => {
   }, [visibleDays, entriesForPlannerColumn, tripDays]);
 
   const previewEntry = previewEntryId ? localEntries.find((e) => e.id === previewEntryId) : undefined;
+  const previewCalendarDate = React.useMemo(() => {
+    if (!previewEntry) return '';
+    const day = tripDays.find((d) => d.id === previewEntry.dayId);
+    return day?.calendarDate?.slice(0, 10) ?? '';
+  }, [previewEntry, tripDays]);
 
   const previewSubItemsSorted = React.useMemo(() => {
     if (!previewEntry) return [];
@@ -1385,7 +1390,12 @@ export const ItineraryDayPlannerView: React.FC = () => {
                 <div className={styles.previewSubList}>
                   {previewSubItemsSorted.map((s) => (
                     <div key={s.id} className={styles.previewSubBlock}>
-                      <SubItemDetailLines item={s} docCount={docsForEntry(s.id).length} linkCount={linksForEntry(s.id).length} />
+                      <SubItemDetailLines
+                        item={s}
+                        calendarDate={previewCalendarDate}
+                        docCount={docsForEntry(s.id).length}
+                        linkCount={linksForEntry(s.id).length}
+                      />
                     </div>
                   ))}
                 </div>

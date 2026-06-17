@@ -688,7 +688,8 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
         }
         const parentId = parent.id;
         const latestParent = localEntriesRef.current.find((e) => e.id === parentId) ?? parent;
-        const currentSub = latestParent.subItems?.find((s) => s.id === subItem.id) ?? subItem;
+        const existingSub = latestParent.subItems?.find((s) => s.id === subItem.id);
+        const currentSub = existingSub ? { ...existingSub, ...subItem } : subItem;
         if (!isPendingSubItemId(currentSub.id)) {
           pendingSubItemCreatesRef.current.delete(subItem.id);
           return currentSub;
@@ -698,15 +699,16 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
           const svc = new ItineraryService(spContext);
           const { id: _id, ...payload } = currentSub;
           const created = await svc.createSubItem(latestParent, payload);
+          const merged = { ...created, ...currentSub, id: created.id };
           setLocalEntries((prev) =>
             prev.map((entry) =>
               entry.id === parentId
-                ? { ...entry, subItems: entry.subItems?.map((s) => (s.id === subItem.id ? { ...s, ...created } : s)) }
+                ? { ...entry, subItems: entry.subItems?.map((s) => (s.id === subItem.id ? merged : s)) }
                 : entry
             )
           );
           pendingSubItemCreatesRef.current.delete(subItem.id);
-          return created;
+          return merged;
         } catch (err) {
           pendingSubItemCreatesRef.current.delete(subItem.id);
           setLocalEntries((prev) =>
@@ -740,31 +742,33 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
           return updatedSubItem;
         })();
         if (!sub) return;
+        const merged = { ...sub, ...updatedSubItem, id: sub.id };
         setLocalEntries((prev) =>
           prev.map((entry) =>
             entry.id === entryId
-              ? { ...entry, subItems: entry.subItems?.map((s) => (s.id === sub.id ? sub : s)) }
+              ? { ...entry, subItems: entry.subItems?.map((s) => (s.id === merged.id ? merged : s)) }
               : entry
           )
         );
         const svc = new ItineraryService(spContext);
         svc
-          .update(sub.id, {
-            title: sub.title,
-            category: sub.category,
-            timeStart: sub.startTime,
-            arrivalTime: sub.endTime,
-            decisionStatus: sub.decisionStatus,
-            paymentStatus: sub.paymentStatus,
-            amount: sub.amount,
-            amountPaid: sub.amountPaid,
-            currency: sub.currency,
-            costCertainty: sub.costCertainty,
-            notes: sub.notes,
-            location: sub.location,
-            streetAddress: sub.streetAddress,
-            bookingRequired: sub.bookingRequired === true,
-            sortOrder: sub.sortOrder
+          .update(merged.id, {
+            title: merged.title,
+            category: merged.category,
+            timeStart: merged.startTime,
+            arrivalTime: merged.endTime,
+            duration: merged.duration,
+            decisionStatus: merged.decisionStatus,
+            paymentStatus: merged.paymentStatus,
+            amount: merged.amount,
+            amountPaid: merged.amountPaid,
+            currency: merged.currency,
+            costCertainty: merged.costCertainty,
+            notes: merged.notes,
+            location: merged.location,
+            streetAddress: merged.streetAddress,
+            bookingRequired: merged.bookingRequired === true,
+            sortOrder: merged.sortOrder
           } as Partial<ItineraryEntry>)
           .catch((err) => {
             // eslint-disable-next-line no-console

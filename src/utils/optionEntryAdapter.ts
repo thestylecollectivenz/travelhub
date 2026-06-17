@@ -1,4 +1,5 @@
 import type { ItineraryEntry, ItinerarySubItem } from '../models/ItineraryEntry';
+import { arrivalTimeFromDuration } from './durationFromTimes';
 
 /** Map a related option to a full entry shape for ItineraryCardEdit. */
 export function subItemToEditableEntry(parent: ItineraryEntry, sub: ItinerarySubItem): ItineraryEntry {
@@ -10,7 +11,7 @@ export function subItemToEditableEntry(parent: ItineraryEntry, sub: ItinerarySub
     category: sub.category?.trim() || 'Other',
     timeStart: sub.startTime ?? '',
     arrivalTime: sub.endTime,
-    duration: '',
+    duration: sub.duration?.trim() || '',
     supplier: '',
     location: sub.location,
     streetAddress: sub.streetAddress,
@@ -29,13 +30,29 @@ export function subItemToEditableEntry(parent: ItineraryEntry, sub: ItinerarySub
 }
 
 /** Map ItineraryCardEdit draft back to a related option row. */
-export function editableEntryToSubItem(entry: ItineraryEntry, prior?: ItinerarySubItem): ItinerarySubItem {
+export function editableEntryToSubItem(
+  entry: ItineraryEntry,
+  prior?: ItinerarySubItem,
+  calendarDate?: string
+): ItinerarySubItem {
+  const duration = entry.duration?.trim() || undefined;
+  let endTime = entry.arrivalTime?.trim() || undefined;
+  if (duration && entry.timeStart?.trim() && !endTime && calendarDate) {
+    const computed = arrivalTimeFromDuration({
+      startDate: calendarDate,
+      startTime: entry.timeStart,
+      duration
+    });
+    if (computed) endTime = computed.arrivalTime;
+  }
+
   return {
     id: entry.id,
     title: entry.title,
     category: entry.category?.trim() || 'Other',
     startTime: entry.timeStart?.trim() || undefined,
-    endTime: entry.arrivalTime?.trim() || undefined,
+    endTime,
+    duration,
     location: entry.location?.trim() || undefined,
     streetAddress: entry.streetAddress?.trim() || undefined,
     notes: entry.notes?.trim() || undefined,
@@ -46,6 +63,7 @@ export function editableEntryToSubItem(entry: ItineraryEntry, prior?: ItineraryS
     currency: entry.currency,
     costCertainty: entry.costCertainty,
     bookingRequired: entry.bookingRequired === true,
-    groupLabel: prior?.groupLabel
+    groupLabel: prior?.groupLabel,
+    sortOrder: prior?.sortOrder
   };
 }

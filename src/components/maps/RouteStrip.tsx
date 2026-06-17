@@ -66,6 +66,15 @@ function compactPlaceLabel(rawTitle: string): string {
 export const RouteStrip: React.FC = () => {
   const { trip, tripDays, selectedDayId, setSelectedDayId, setMainWorkspaceTab, localEntries } = useTripWorkspace();
   const { placeById } = usePlaces();
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!selectedDayId || !scrollRef.current) return;
+    const el = scrollRef.current.querySelector(`[data-day-id="${selectedDayId}"]`);
+    if (el instanceof HTMLElement) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [selectedDayId]);
 
   const orderedDays = React.useMemo(() => {
     if (!trip) return [];
@@ -125,7 +134,7 @@ export const RouteStrip: React.FC = () => {
 
   return (
     <section className={styles.root} aria-label="Trip route strip">
-      <div className={styles.scroll}>
+      <div className={styles.scroll} ref={scrollRef}>
         {stops.map((s, i) => {
           const next = stops[i + 1];
           const kinds = iconsForLeg(s, next);
@@ -152,6 +161,7 @@ export const RouteStrip: React.FC = () => {
                 </button>
                 <button
                   type="button"
+                  data-day-id={s.dayId}
                   className={`${styles.stopBtn} ${isActive ? styles.stopBtnActive : ''}`}
                   onClick={() => {
                     setMainWorkspaceTab('itinerary');

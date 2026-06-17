@@ -51,7 +51,7 @@ export const OptionEditPortal: React.FC = () => {
           calendarDate={calendarDate}
           variant="option"
           onSave={(saved) => {
-            updateSubItem(parent.id, editableEntryToSubItem(saved, sub));
+            updateSubItem(parent.id, editableEntryToSubItem(saved, sub, calendarDate));
             setEditingSubItem(null);
           }}
           onCancel={handleCancel}

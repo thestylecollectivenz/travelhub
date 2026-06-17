@@ -25,6 +25,8 @@ export interface ItinerarySubItem {
   startTime?: string;
   /** Optional HH:MM end time used by Day Planner plotting. */
   endTime?: string;
+  /** Duration label (e.g. 3h) — used for activity options. */
+  duration?: string;
   decisionStatus: ItineraryDecisionStatus;
   paymentStatus: ItineraryPaymentStatus;
   amount: number;

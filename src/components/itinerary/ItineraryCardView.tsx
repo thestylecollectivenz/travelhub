@@ -24,6 +24,7 @@ import { EntryDocumentsSortableList } from './EntryDocumentsSortableList';
 import type { LinkedEntryTask } from '../../utils/linkedEntryTask';
 import { linkedTaskDisplayText, linkedTaskNoteDisplay } from '../../utils/linkedEntryTask';
 import { effectivePlannerTimeStart, isTransportReturnOnCalendarDate } from '../../utils/itineraryDayEntries';
+import { formatActivityScheduleLabel } from '../../utils/activityScheduleLabel';
 import {
   isLocationInfoEntry,
   locationInfoIsPopulated,
@@ -311,20 +312,27 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       ? entry.amountPaid
       : convertToHomeCurrency(entry.amountPaid, paidCurrency))
     : undefined;
+  const isActivities = entry.category === 'Activities';
   const hhmm = formatTimeHHMM(effectivePlannerTimeStart(entry, calendarDate, tripDays));
-  // Guard: if duration is a bare number (legacy Number column value) hide it
-  const durationDisplay = (() => {
-    const d = entry.duration?.trim() ?? '';
-    if (!d) return '';
-    // If it's purely numeric (old Number column artifact) suppress it
-    if (/^\d+(\.\d+)?$/.test(d)) return '';
-    return d;
-  })();
-
-  const timeChip =
-    hhmm !== ''
-      ? `${hhmm}${durationDisplay ? ` · ${durationDisplay}` : ''}`
-      : durationDisplay || null;
+  const timeChip = isActivities
+    ? formatActivityScheduleLabel({
+        calendarDate,
+        timeStart: effectivePlannerTimeStart(entry, calendarDate, tripDays),
+        duration: entry.duration,
+        arrivalTime: entry.arrivalTime
+      }) ?? null
+    : (() => {
+        const durationDisplay = (() => {
+          const d = entry.duration?.trim() ?? '';
+          if (!d) return '';
+          if (/^\d+(\.\d+)?$/.test(d)) return '';
+          return d;
+        })();
+        if (hhmm !== '') {
+          return `${hhmm}${durationDisplay ? ` · ${durationDisplay}` : ''}`;
+        }
+        return durationDisplay || null;
+      })();
 
   const supplier = entry.supplier.trim();
   const location = formatLocationText((entry.location ?? '').trim());
@@ -353,7 +361,6 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const isCruisePort = entry.category === 'Cruise port';
   const isFlights = entry.category === 'Flights';
   const isTransport = entry.category === 'Transport';
-  const isActivities = entry.category === 'Activities';
   const transportReturnHere = isTransport && isTransportReturnOnCalendarDate(entry, calendarDate);
   const mapsPlaceUrl = googleMapsPlaceUrl(entry.streetAddress || '');
   const mapsDirectionsUrl = googleMapsDirectionsUrl(entry.streetAddress || '');
@@ -844,9 +851,10 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           {entry.bagCheckClosesTime ? <div>Bag check closes {formatTimeHHMM(entry.bagCheckClosesTime)}</div> : null}
         </div>
       ) : null}
-      {isActivities && (entry.streetAddress?.trim() || mapsPlaceUrl) ? (
+      {isActivities && (entry.streetAddress?.trim() || entry.cancellationPolicy?.trim() || mapsPlaceUrl) ? (
         <div className={styles.detailBlock}>
           {entry.streetAddress?.trim() ? <div>{entry.streetAddress.trim()}</div> : null}
+          {entry.cancellationPolicy?.trim() ? <div>Cancellation: {entry.cancellationPolicy.trim()}</div> : null}
           {mapsPlaceUrl ? (
             <div className={styles.mapsLinks}>
               <a className={styles.mapsLink} href={mapsPlaceUrl} target="_blank" rel="noopener noreferrer">

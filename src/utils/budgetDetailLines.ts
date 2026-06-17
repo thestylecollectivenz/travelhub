@@ -24,6 +24,7 @@ export interface BudgetDetailLine {
   isSubItem?: boolean;
   parentTitle?: string;
   transportSubtype?: string;
+  supplier?: string;
   sortKey: string;
 }
 
@@ -124,6 +125,7 @@ export function buildBudgetDetailLines(
         remaining: Math.max(0, total - spent),
         costCertainty: normalizeEntryCostCertainty(entry.costCertainty),
         transportSubtype: entry.transportMode?.trim() || undefined,
+        supplier: entry.supplier?.trim() || undefined,
         sortKey: sortKeyForEntry(entry, tripDays)
       });
     }
@@ -154,6 +156,7 @@ export function buildBudgetDetailLines(
         isSubItem: true,
         parentTitle: entry.category === 'Cruise port' ? 'Cruise port' : entry.title || 'Untitled',
         transportSubtype: subCategory === 'Transport' ? entry.transportMode?.trim() || undefined : undefined,
+        supplier: entry.supplier?.trim() || undefined,
         sortKey: sortKeyForEntry(entry, tripDays)
       });
     }

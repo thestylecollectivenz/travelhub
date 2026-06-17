@@ -16,7 +16,8 @@ import { rememberTripBookingMechanism } from '../../utils/tripBookingMechanisms'
 import { AccommodationEditLayout, FlightEditLayout, LocationInfoEditLayout } from './ItineraryCardEditCategoryLayouts';
 import { EntryLinksSortableList } from './EntryLinksSortableList';
 import { isLocationInfoEntry } from '../../utils/locationInfoEntry';
-import { isPendingItineraryEntryId } from '../../utils/itineraryEntryIds';
+import { isPendingItineraryEntryId, isPendingSubItemId } from '../../utils/itineraryEntryIds';
+import { editableEntryToSubItem } from '../../utils/optionEntryAdapter';
 import styles from './ItineraryCardEdit.module.css';
 
 export interface ItineraryCardEditProps {
@@ -37,7 +38,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   onCancel,
   onDelete
 }) => {
-  const { trip, tripDays, usedSuppliers, usedBookingMechanisms, usedLocations, usedCurrencies, persistEntry } = useTripWorkspace();
+  const { trip, tripDays, usedSuppliers, usedBookingMechanisms, usedLocations, usedCurrencies, persistEntry, persistSubItem } = useTripWorkspace();
   const { placeById } = usePlaces();
   const { config } = useConfig();
   const [draft, setDraft] = React.useState<ItineraryEntry>(() => ({ ...entry }));
@@ -91,6 +92,21 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       setDraft((d) => ({ ...d, id: nextId }));
     }
   }, [draft.id]);
+
+  const resolveAttachmentTarget = React.useCallback(
+    async (d: ItineraryEntry): Promise<{ id: string; dayId: string }> => {
+      if (variant === 'option' && d.parentEntryId) {
+        if (isPendingSubItemId(d.id)) {
+          const persisted = await persistSubItem(d.parentEntryId, editableEntryToSubItem(d, undefined, calendarDate));
+          return { id: persisted.id, dayId: d.dayId };
+        }
+        return { id: d.id, dayId: d.dayId };
+      }
+      const resolved = await persistEntry(d);
+      return { id: resolved.id, dayId: resolved.dayId };
+    },
+    [variant, calendarDate, persistEntry, persistSubItem]
+  );
 
   const nights = React.useMemo(() => {
     if (!draft.dateStart || !draft.dateEnd) return 0;
@@ -146,7 +162,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   ]);
 
   React.useEffect(() => {
-    if (!isFlights && !isTransport) return;
+    if (!isFlights && !isTransport && !isActivities) return;
     if (!draft.duration?.trim() || !draft.timeStart?.trim()) return;
     const computed = arrivalTimeFromDuration({
       startDate: draft.dateStart || calendarDate,
@@ -164,7 +180,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
         arrivalDate: isFlights ? computed.arrivalDate : d.arrivalDate || computed.arrivalDate
       };
     });
-  }, [draft.duration, draft.timeStart, draft.dateStart, calendarDate, isFlights, isTransport]);
+  }, [draft.duration, draft.timeStart, draft.dateStart, calendarDate, isFlights, isTransport, isActivities]);
 
   React.useEffect(() => {
     if (!isAccommodation) return;
@@ -919,6 +935,16 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
               value={draft.streetAddress ?? ''}
               onChange={(e) => patch({ streetAddress: e.target.value })}
             />
+            <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`cancelpol-act-${draft.id}`}>
+              Cancellation policy
+            </label>
+            <textarea
+              id={`cancelpol-act-${draft.id}`}
+              className={`${styles.textarea} ${styles.fullRow}`}
+              rows={2}
+              value={draft.cancellationPolicy ?? ''}
+              onChange={(e) => patch({ cancellationPolicy: e.target.value })}
+            />
           </>
         ) : null}
 
@@ -1153,7 +1179,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
                   if (!f) return;
                   setDocBusy(true);
                   setAttachError('');
-                  void persistEntry(draft)
+                  void resolveAttachmentTarget(draft)
                     .then((resolved) => {
                       syncDraftId(resolved.id);
                       return addDocument({
@@ -1194,7 +1220,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
                   const u = linkUrl.trim();
                   if (!t || !u) return;
                   setAttachError('');
-                  void persistEntry(draft)
+                  void resolveAttachmentTarget(draft)
                     .then((resolved) => {
                       syncDraftId(resolved.id);
                       return addLink({

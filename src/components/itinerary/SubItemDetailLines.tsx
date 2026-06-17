@@ -1,5 +1,6 @@
 import * as React from 'react';
 import type { ItinerarySubItem } from '../../models/ItineraryEntry';
+import { formatActivityScheduleLabel } from '../../utils/activityScheduleLabel';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
@@ -9,6 +10,7 @@ import styles from './SubItemDetailLines.module.css';
 
 export interface SubItemDetailLinesProps {
   item: ItinerarySubItem;
+  calendarDate?: string;
   docCount?: number;
   linkCount?: number;
 }
@@ -26,7 +28,17 @@ function paymentBadgeClass(status: ItinerarySubItem['paymentStatus']): string {
   return styles.payUnpaid;
 }
 
-function timeRangeLabel(s: ItinerarySubItem): string | undefined {
+function timeRangeLabel(s: ItinerarySubItem, calendarDate?: string): string | undefined {
+  const activitySchedule =
+    (s.category || '').trim() === 'Activities' || s.duration?.trim()
+      ? formatActivityScheduleLabel({
+          calendarDate,
+          timeStart: s.startTime,
+          duration: s.duration,
+          arrivalTime: s.endTime
+        })
+      : undefined;
+  if (activitySchedule) return activitySchedule;
   const t0 = formatTimeHHMM(s.startTime || '');
   const t1 = formatTimeHHMM(s.endTime || '');
   if (t0 && t1) return `${t0}–${t1}`;
@@ -35,11 +47,16 @@ function timeRangeLabel(s: ItinerarySubItem): string | undefined {
   return undefined;
 }
 
-export const SubItemDetailLines: React.FC<SubItemDetailLinesProps> = ({ item, docCount = 0, linkCount = 0 }) => {
+export const SubItemDetailLines: React.FC<SubItemDetailLinesProps> = ({
+  item,
+  calendarDate,
+  docCount = 0,
+  linkCount = 0
+}) => {
   const { config } = useConfig();
   const { convertToHomeCurrency } = useTripWorkspace();
   const home = config.homeCurrency || 'NZD';
-  const timeLine = timeRangeLabel(item);
+  const timeLine = timeRangeLabel(item, calendarDate);
   const cur = (item.currency || 'NZD').toUpperCase();
   const homeAmount = convertToHomeCurrency(item.amount, cur);
   const showCost = item.paymentStatus !== 'Free';

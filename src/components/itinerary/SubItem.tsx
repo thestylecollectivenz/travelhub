@@ -58,6 +58,7 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId, dragHandl
   const {
     trip,
     localEntries,
+    tripDays,
     deleteSubItem,
     setEditingSubItem,
     editingSubItem,
@@ -73,6 +74,10 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId, dragHandl
   const [linkEditDraft, setLinkEditDraft] = React.useState({ linkTitle: '', url: '' });
 
   const parentEntry = React.useMemo(() => localEntries.find((e) => e.id === parentEntryId), [localEntries, parentEntryId]);
+  const calendarDate = React.useMemo(() => {
+    const day = tripDays.find((d) => d.id === parentEntry?.dayId);
+    return day?.calendarDate?.slice(0, 10) ?? '';
+  }, [tripDays, parentEntry?.dayId]);
   const moveTargets = React.useMemo(
     () =>
       localEntries.filter(
@@ -156,7 +161,7 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId, dragHandl
             </div>
           </div>
         ) : null}
-        <SubItemDetailLines item={item} docCount={docs.length} linkCount={links.length} />
+        <SubItemDetailLines item={item} calendarDate={calendarDate} docCount={docs.length} linkCount={links.length} />
         {item.location?.trim() ? <div className={styles.locationLine}>{item.location.trim()}</div> : null}
         {viewMapsPlaceUrl ? (
           <div className={styles.mapsRow}>

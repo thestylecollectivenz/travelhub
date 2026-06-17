@@ -29,6 +29,8 @@ function BudgetLineTable({
   lines,
   homeCurrency,
   category,
+  supplierFilter,
+  onSupplierFilter,
   transportSubtypeFilter,
   onTransportSubtypeFilter,
   onEditEntry
@@ -36,10 +38,20 @@ function BudgetLineTable({
   lines: BudgetDetailLine[];
   homeCurrency: string;
   category?: string;
+  supplierFilter: string | null;
+  onSupplierFilter: (value: string | null) => void;
   transportSubtypeFilter: string | null;
   onTransportSubtypeFilter: (value: string | null) => void;
   onEditEntry: (entryId: string, subItemId?: string) => void;
 }): React.ReactElement {
+  const suppliers = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const line of lines) {
+      if (line.supplier) set.add(line.supplier);
+    }
+    return Array.from(set).sort();
+  }, [lines]);
+
   const transportSubtypes = React.useMemo(() => {
     const set = new Set<string>();
     for (const line of lines) {
@@ -49,9 +61,11 @@ function BudgetLineTable({
   }, [lines]);
 
   const visibleLines = React.useMemo(() => {
-    if (!transportSubtypeFilter) return lines;
-    return lines.filter((line) => line.transportSubtype === transportSubtypeFilter);
-  }, [lines, transportSubtypeFilter]);
+    let out = lines;
+    if (supplierFilter) out = out.filter((line) => line.supplier === supplierFilter);
+    if (transportSubtypeFilter) out = out.filter((line) => line.transportSubtype === transportSubtypeFilter);
+    return out;
+  }, [lines, supplierFilter, transportSubtypeFilter]);
 
   const totals = sumBudgetLines(visibleLines);
   if (!lines.length) {
@@ -59,6 +73,27 @@ function BudgetLineTable({
   }
   return (
     <div className={styles.lineList}>
+      {suppliers.length > 1 ? (
+        <div className={styles.subtypeFilters} role="group" aria-label="Supplier filter">
+          <button
+            type="button"
+            className={`${styles.subtypeChip} ${supplierFilter === null ? styles.subtypeChipActive : ''}`}
+            onClick={() => onSupplierFilter(null)}
+          >
+            All suppliers
+          </button>
+          {suppliers.map((supplier) => (
+            <button
+              key={supplier}
+              type="button"
+              className={`${styles.subtypeChip} ${supplierFilter === supplier ? styles.subtypeChipActive : ''}`}
+              onClick={() => onSupplierFilter(supplier)}
+            >
+              {supplier}
+            </button>
+          ))}
+        </div>
+      ) : null}
       {category === 'Transport' && transportSubtypes.length > 1 ? (
         <div className={styles.subtypeFilters} role="group" aria-label="Transport mode filter">
           <button
@@ -147,12 +182,14 @@ export const TripBudgetDetailView: React.FC = () => {
   const [viewMode, setViewMode] = React.useState<BudgetViewMode>('category');
   const [printHtml, setPrintHtml] = React.useState<string | null>(null);
   const [transportSubtypeFilter, setTransportSubtypeFilter] = React.useState<string | null>(null);
+  const [supplierFilter, setSupplierFilter] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (selectedBudgetCategory) {
       setViewMode('category');
     }
     setTransportSubtypeFilter(null);
+    setSupplierFilter(null);
   }, [selectedBudgetCategory]);
 
   const locationFor = React.useCallback(
@@ -341,6 +378,8 @@ export const TripBudgetDetailView: React.FC = () => {
             lines={categoryLines}
             homeCurrency={config.homeCurrency}
             category={category}
+            supplierFilter={supplierFilter}
+            onSupplierFilter={setSupplierFilter}
             transportSubtypeFilter={transportSubtypeFilter}
             onTransportSubtypeFilter={setTransportSubtypeFilter}
             onEditEntry={openEntryForEdit}
@@ -364,6 +403,8 @@ export const TripBudgetDetailView: React.FC = () => {
                   lines={lines}
                   homeCurrency={config.homeCurrency}
                   category={cat}
+                  supplierFilter={null}
+                  onSupplierFilter={() => undefined}
                   transportSubtypeFilter={null}
                   onTransportSubtypeFilter={() => undefined}
                   onEditEntry={openEntryForEdit}
