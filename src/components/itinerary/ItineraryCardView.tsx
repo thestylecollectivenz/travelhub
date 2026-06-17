@@ -75,6 +75,7 @@ export interface ItineraryCardViewProps {
   onEdit: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  onMenuOpenChange?: (open: boolean) => void;
 }
 
 function emptySubItem(parent?: ItineraryEntry): Omit<ItinerarySubItem, 'id'> {
@@ -191,7 +192,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   hasCancellationDeadlineReminder = false,
   onEdit,
   onDuplicate,
-  onDelete
+  onDelete,
+  onMenuOpenChange
 }) => {
   const manualTasks = linkedEntryTasks?.length ? linkedEntryTasks : linkedEntryTask ? [linkedEntryTask] : [];
   const [openTaskReminderId, setOpenTaskReminderId] = React.useState(
@@ -251,6 +253,10 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
     () => (trip?.id ? loadTripAssignees(trip.id) : []),
     [trip?.id, manualTasks.length]
   );
+
+  React.useEffect(() => {
+    onMenuOpenChange?.(menuOpen);
+  }, [menuOpen, onMenuOpenChange]);
 
   React.useEffect(() => {
     if (!menuOpen) {
@@ -484,20 +490,19 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
 
   return (
     <div className={isLocationInfo ? styles.locationInfoView : undefined}>
+      {!isLocationInfo ? (
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          {timeChip && !isLocationInfo ? (
+          {timeChip ? (
             <span className={styles.timeChip}>
               <ClockIcon />
               {timeChip}
             </span>
           ) : null}
-          {!isLocationInfo ? (
           <span className={`${styles.categoryBadge} th-cat-${categorySlug} th-cat-badge`}>
             <CategoryIcon category={entry.category} size={12} color="currentColor" />
             {entry.category}
           </span>
-          ) : null}
         </div>
         <div className={styles.menuWrap} ref={menuRef}>
           <button
@@ -548,6 +553,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           ) : null}
         </div>
       </div>
+      ) : null}
 
       {isLocationInfo ? (
         <div className={styles.locationInfoTitleRow}>
@@ -556,14 +562,64 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             <PinIcon />
             <span>{locationInfoPlaceLabel || 'Location'}</span>
           </h3>
-          <button
-            type="button"
-            className={styles.locationInfoCollapseBtn}
-            aria-expanded={locationInfoExpanded}
-            onClick={() => setLocationInfoExpanded((v) => !v)}
-          >
-            {locationInfoExpanded ? '▾' : '▸'}
-          </button>
+          <div className={styles.locationInfoTitleActions}>
+            <div className={styles.menuWrap} ref={menuRef}>
+              <button
+                type="button"
+                className={styles.menuButton}
+                aria-expanded={menuOpen}
+                aria-haspopup="menu"
+                aria-label="Entry actions"
+                onClick={() => setMenuOpen((o) => !o)}
+              >
+                ⋯
+              </button>
+              {menuOpen ? (
+                <div className={styles.dropdown} role="menu">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setSelectedDayId(entry.dayId);
+                      requestSidebarDayFocus(entry.dayId);
+                      onEdit();
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onDuplicate();
+                    }}
+                  >
+                    Duplicate
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onDelete();
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              className={styles.locationInfoCollapseBtn}
+              aria-expanded={locationInfoExpanded}
+              onClick={() => setLocationInfoExpanded((v) => !v)}
+            >
+              {locationInfoExpanded ? '▾' : '▸'}
+            </button>
+          </div>
         </div>
       ) : (
         <h3 className={styles.title}>

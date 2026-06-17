@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
+import { confirmUserAction } from '../../utils/confirmAction';
 import styles from './TripDocumentsView.module.css';
 
 type KindFilter = 'all' | 'documents' | 'links';
@@ -10,7 +11,7 @@ export interface TripFilesLinksViewProps {
 }
 
 export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeDocuments = true }) => {
-  const { documents, links } = useAttachments();
+  const { documents, links, deleteDocument, deleteLink } = useAttachments();
   const { tripDays, selectedDayId, setSelectedDayId, mainWorkspaceTab, localEntries } = useTripWorkspace();
   const [kind, setKind] = React.useState<KindFilter>('all');
   const [dayFilter, setDayFilter] = React.useState('all');
@@ -32,9 +33,13 @@ export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeD
   const entryTitleFor = React.useCallback((entryId: string): string => {
     if (!entryId) return '';
     for (const e of localEntries) {
-      if (e.id === entryId) return e.title || 'Untitled';
+      if (e.id === entryId) return e.title || '';
       const sub = (e.subItems ?? []).find((s) => s.id === entryId);
-      if (sub) return `${sub.title || 'Option'} (${e.title || 'Card'})`;
+      if (sub) {
+        const parentTitle = (e.title || '').trim();
+        const subTitle = sub.title || 'Option';
+        return parentTitle ? `${subTitle} (${parentTitle})` : subTitle;
+      }
     }
     return '';
   }, [localEntries]);
@@ -129,8 +134,22 @@ export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeD
                 {r.title}
               </button>
               <span className={styles.meta}>{r.meta}</span>
-              <span className={styles.meta}>{r.dayId ? dayLabel(r.dayId) : 'No day'}</span>
-              <span className={styles.meta}>{entryTitleFor(r.entryId) || 'No card'}</span>
+              <span className={styles.meta}>{r.dayId ? dayLabel(r.dayId) : ''}</span>
+              <span className={styles.meta}>{entryTitleFor(r.entryId)}</span>
+              <button
+                type="button"
+                className={styles.button}
+                onClick={() => {
+                  void (async () => {
+                    const label = r.kind === 'document' ? 'document' : 'link';
+                    if (!(await confirmUserAction(`Delete this ${label}?`))) return;
+                    if (r.kind === 'document') deleteDocument(r.id).catch(console.error);
+                    else deleteLink(r.id).catch(console.error);
+                  })();
+                }}
+              >
+                Delete
+              </button>
             </div>
           ))}
         </div>

@@ -191,11 +191,32 @@
   border: var(--border-default);
   border-radius: var(--radius-lg);
   background: var(--color-surface-raised);
-  /* Let the page scroll naturally to full content height. */
   max-height: none;
-  /* Single overflow avoids "visible" coercing to "auto" and odd clipping in nested flex hosts. */
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   min-height: 0;
+}
+
+.plannerScrollTop {
+  position: sticky;
+  top: 0;
+  z-index: 13;
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 10px;
+  margin-bottom: -10px;
+  scrollbar-width: thin;
+  background: color-mix(in srgb, var(--color-surface-raised) 92%, transparent);
+}
+
+.plannerScrollGhost {
+  height: 1px;
+}
+
+.plannerHScroll {
+  overflow-x: auto;
+  overflow-y: visible;
+  scrollbar-width: thin;
 }
 
 .plannerGrid {
@@ -215,8 +236,7 @@
 
 .trackScroll {
   grid-column: 1 / -1;
-  overflow-x: auto;
-  overflow-y: visible;
+  overflow: visible;
   min-height: 260px;
   background: var(--color-surface-raised);
 }
@@ -284,16 +304,27 @@
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
   color: var(--color-blue-800);
-  min-height: 3.4rem;
-  max-height: 3.4rem;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
+  min-height: 3.75rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
   line-height: 1.15;
   position: sticky;
   top: 0;
   z-index: 11;
+}
+
+.dayHeadTitle {
+  display: block;
+  font-weight: var(--font-weight-bold);
+}
+
+.dayHeadDate {
+  display: block;
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-sand-600);
 }
 
 .dayTrack {

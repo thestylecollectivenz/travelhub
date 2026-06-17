@@ -24,6 +24,7 @@ import type { PlannerTimedItem } from '../../utils/plannerCalendarItems';
 import type { DayPlannerPrintDay } from '../../utils/dayPlannerPrint';
 import { DayPlannerPrintSheet, buildPlannerPrintHtml } from './DayPlannerPrintSheet';
 import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../../utils/googleMapsLink';
+import { formatDayDateOrdinal } from '../../utils/dateUtils';
 import styles from './ItineraryDayPlannerView.module.css';
 
 export type PlannerFilter =
@@ -82,6 +83,17 @@ function formatYmdPreview(d?: string): string {
 
 function dayLabel(day: TripDay): string {
   return day.dayType === 'PreTrip' ? 'Pre-trip' : `Day ${day.dayNumber} — ${day.displayTitle}`;
+}
+
+function PlannerDayHead({ day, className }: { day: TripDay; className: string }): React.ReactElement {
+  return (
+    <div className={className} data-planner-day-id={day.id}>
+      <span className={styles.dayHeadTitle}>{dayLabel(day)}</span>
+      {day.dayType !== 'PreTrip' && day.calendarDate ? (
+        <span className={styles.dayHeadDate}>{formatDayDateOrdinal(day.calendarDate)}</span>
+      ) : null}
+    </div>
+  );
 }
 
 function entryHasTimedSubs(entry: ItineraryEntry): boolean {
@@ -206,6 +218,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
   const [plannerPrintHtml, setPlannerPrintHtml] = React.useState<string | null>(null);
   const [frontBlockKey, setFrontBlockKey] = React.useState<string | null>(null);
   const plannerFrameRef = React.useRef<HTMLDivElement | null>(null);
+  const plannerHScrollRef = React.useRef<HTMLDivElement | null>(null);
+  const plannerScrollTopRef = React.useRef<HTMLDivElement | null>(null);
   const syncingFromSidebarRef = React.useRef(false);
 
   React.useEffect(() => {
@@ -391,8 +405,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
   }, [visibleDays, isMobile, mobileDayIndex]);
 
   React.useEffect(() => {
-    if (!selectedDayId || !plannerFrameRef.current || isMobile) return;
-    const col = plannerFrameRef.current.querySelector(`[data-planner-day-id="${selectedDayId}"]`);
+    if (!selectedDayId || !plannerHScrollRef.current || isMobile) return;
+    const col = plannerHScrollRef.current.querySelector(`[data-planner-day-id="${selectedDayId}"]`);
     if (!(col instanceof HTMLElement)) return;
     syncingFromSidebarRef.current = true;
     col.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
@@ -403,13 +417,61 @@ export const ItineraryDayPlannerView: React.FC = () => {
   }, [selectedDayId, displayDays, isMobile]);
 
   React.useEffect(() => {
+    const main = plannerHScrollRef.current;
+    const top = plannerScrollTopRef.current;
+    if (!main || !top || isMobile) return undefined;
+    const syncToTop = (): void => {
+      if (top.scrollLeft !== main.scrollLeft) top.scrollLeft = main.scrollLeft;
+    };
+    const syncToMain = (): void => {
+      if (main.scrollLeft !== top.scrollLeft) main.scrollLeft = top.scrollLeft;
+    };
+    main.addEventListener('scroll', syncToTop, { passive: true });
+    top.addEventListener('scroll', syncToMain, { passive: true });
+    return () => {
+      main.removeEventListener('scroll', syncToTop);
+      top.removeEventListener('scroll', syncToMain);
+    };
+  }, [displayDays, isMobile]);
+
+  React.useEffect(() => {
+    const main = plannerHScrollRef.current;
+    const top = plannerScrollTopRef.current;
+    if (!main || !top || isMobile) return undefined;
+    const measure = (): void => {
+      const grid = main.querySelector(`.${styles.plannerGrid}`);
+      const ghost = top.firstElementChild;
+      if (grid instanceof HTMLElement && ghost instanceof HTMLElement) {
+        ghost.style.width = `${grid.scrollWidth}px`;
+      }
+    };
+    measure();
+    const t = window.requestAnimationFrame(measure);
+    return () => window.cancelAnimationFrame(t);
+  }, [displayDays, isMobile]);
+
+  React.useEffect(() => {
+    const frame = plannerFrameRef.current;
+    const main = plannerHScrollRef.current;
+    if (!frame || !main || isMobile) return undefined;
+    const onWheel = (ev: WheelEvent): void => {
+      if (main.scrollWidth <= main.clientWidth) return;
+      if (Math.abs(ev.deltaX) > Math.abs(ev.deltaY)) return;
+      ev.preventDefault();
+      main.scrollLeft += ev.deltaY;
+    };
+    frame.addEventListener('wheel', onWheel, { passive: false });
+    return () => frame.removeEventListener('wheel', onWheel);
+  }, [displayDays, isMobile]);
+
+  React.useEffect(() => {
     if (!selectedDayId || !visibleDays.length) return;
     const idx = visibleDays.findIndex((d) => d.id === selectedDayId);
     if (idx >= 0) setMobileDayIndex(idx);
   }, [selectedDayId, visibleDays]);
 
   React.useEffect(() => {
-    const root = plannerFrameRef.current;
+    const root = plannerHScrollRef.current;
     if (!root || isMobile || displayDays.length <= 1) return undefined;
 
     const onScroll = (): void => {
@@ -796,7 +858,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
             const collapsed = Boolean(unschedCollapsed[day.id]);
             return (
               <div key={day.id} className={styles.mobileDayStack}>
-                <div className={styles.dayHead}>{dayLabel(day)}</div>
+                <PlannerDayHead day={day} className={styles.dayHead} />
                 {unsched.length ? (
                   <div className={styles.unscheduled}>
                     <button
@@ -978,6 +1040,10 @@ export const ItineraryDayPlannerView: React.FC = () => {
         </div>
       ) : (
         <div className={styles.plannerFrame} ref={plannerFrameRef}>
+          <div className={styles.plannerScrollTop} ref={plannerScrollTopRef} aria-hidden>
+            <div className={styles.plannerScrollGhost} />
+          </div>
+          <div className={styles.plannerHScroll} ref={plannerHScrollRef}>
           <div
             className={styles.plannerGrid}
             style={{
@@ -986,9 +1052,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
           >
             <div className={styles.cornerCell} aria-hidden />
             {displayDays.map((day) => (
-              <div key={`h-${day.id}`} className={styles.dayHead} data-planner-day-id={day.id}>
-                {dayLabel(day)}
-              </div>
+              <PlannerDayHead key={`h-${day.id}`} day={day} className={styles.dayHead} />
             ))}
 
             <div className={styles.cornerCell} aria-hidden />
@@ -1190,6 +1254,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                 })}
               </div>
             </div>
+          </div>
           </div>
         </div>
       )}

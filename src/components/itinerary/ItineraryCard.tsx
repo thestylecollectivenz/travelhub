@@ -56,6 +56,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
 
   const isEditing = editingCardId === entry.id;
   const isDraftNew = entry.id.startsWith('new-') && editingCardId === 'new';
+  const [menuOpen, setMenuOpen] = React.useState(false);
 
   const showEdit = isEditing || isDraftNew;
   const isFocused = focusedEntryId === entry.id && !showEdit;
@@ -104,7 +105,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
     <div
       ref={setNodeRef}
       id={`itinerary-entry-${entry.id}`}
-      className={`${styles.card} ${isLocationInfoEntry(entry) ? styles.cardLocationInfo : ''} ${showEdit ? styles.cardEditing : ''} ${isFocused ? styles.cardFocused : ''}`}
+      className={`${styles.card} ${isLocationInfoEntry(entry) ? styles.cardLocationInfo : ''} ${showEdit ? styles.cardEditing : ''} ${isFocused ? styles.cardFocused : ''} ${menuOpen ? styles.cardMenuOpen : ''}`}
       data-category={categorySlug}
       data-entry-id={entry.id}
       style={dragStyle}
@@ -136,6 +137,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
           onEdit={() => setEditingCardId(entry.id)}
           onDuplicate={() => duplicateEntry(entry.id)}
           onDelete={handleDelete}
+          onMenuOpenChange={setMenuOpen}
         />
       )}
       {showEdit && useEditPortal && typeof document !== 'undefined'

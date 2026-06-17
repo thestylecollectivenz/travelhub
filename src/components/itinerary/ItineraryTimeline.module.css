@@ -1,6 +1,6 @@
 .timeline {
   position: relative;
-  margin-top: var(--space-4);
+  margin-top: var(--space-1);
   padding-bottom: var(--space-2);
 }
 

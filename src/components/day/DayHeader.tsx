@@ -320,6 +320,21 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
       {locationsExpanded ? (
       <section className={styles.locationsColumn}>
         <div className={styles.locationsPanel}>
+        <div className={styles.locationsPanelHead}>
+          <span className={styles.locationsPanelTitle}>Day locations</span>
+          <span className={styles.locationsPanelHint}>Changes save automatically</span>
+          <button
+            type="button"
+            className={styles.locationsDoneBtn}
+            onClick={() => {
+              setLocationsExpanded(false);
+              setLocationSearch('');
+              setLocationResults([]);
+            }}
+          >
+            Done
+          </button>
+        </div>
         <div className={styles.placeSection}>
           {!isShared ? (
             <div className={styles.searchWrap}>

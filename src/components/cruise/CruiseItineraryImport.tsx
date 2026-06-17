@@ -607,7 +607,7 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
   }, []);
 
   return (
-    <div className={styles.root}>
+    <>
       {importReport ? (
         <CopyableReportModal
           title="Cruise import summary"
@@ -623,6 +623,7 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
         />
       ) : null}
       {open ? (
+        <div className={styles.root}>
         <div className={styles.panel} role="region" aria-label="Import cruise itinerary">
           <div className={styles.row}>
             <textarea
@@ -681,7 +682,8 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
             </div>
           ) : null}
         </div>
+        </div>
       ) : null}
-    </div>
+    </>
   );
 };

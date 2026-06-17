@@ -76,7 +76,7 @@
   border: var(--border-default);
   box-shadow: var(--shadow-elevated);
   border-radius: var(--radius-md);
-  z-index: 20;
+  z-index: 100;
 }
 
 .dropdown button {
@@ -642,6 +642,13 @@
   justify-content: space-between;
   gap: var(--space-2);
   margin-top: 0;
+}
+
+.locationInfoTitleActions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
 }
 
 .locationInfoTitle {
