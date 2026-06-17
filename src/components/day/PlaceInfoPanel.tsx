@@ -160,12 +160,19 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
   const [forecastScroll, setForecastScroll] = React.useState(0);
   const forecastStripRef = React.useRef<HTMLDivElement | null>(null);
 
-  const monthIndex = React.useMemo(() => new Date().getMonth(), []);
+  const typicalDate = React.useMemo(() => {
+    const anchor = (weatherAnchorDate || '').slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(anchor)) {
+      return new Date(`${anchor}T00:00:00.000Z`);
+    }
+    return new Date();
+  }, [weatherAnchorDate]);
+  const typicalMonthIndex = typicalDate.getUTCMonth();
 
   const seasonal = React.useMemo(() => {
     if (!countryData) return undefined;
-    return SEASONAL_BY_REGION[countryData.region]?.[monthIndex];
-  }, [countryData, monthIndex]);
+    return SEASONAL_BY_REGION[countryData.region]?.[typicalMonthIndex];
+  }, [countryData, typicalMonthIndex]);
 
   const currentSeason = React.useMemo(() => {
     if (!Number.isFinite(place.latitude)) return '';
@@ -314,10 +321,10 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
   };
 
   const typicalLabel = (() => {
-    const d = new Date();
-    const dayOfMonth = d.getDate();
+    const d = typicalDate;
+    const dayOfMonth = d.getUTCDate();
     const part = dayOfMonth <= 10 ? 'early' : dayOfMonth <= 20 ? 'mid' : 'late';
-    return `${part} ${d.toLocaleString('en-NZ', { month: 'long' })}`;
+    return `${part} ${d.toLocaleString('en-NZ', { month: 'long', timeZone: 'UTC' })}`;
   })();
 
   const tempSuffix = config.temperatureUnit === 'Fahrenheit' ? 'F' : 'C';

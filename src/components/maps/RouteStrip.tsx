@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
 import { parseAdditionalPlaceRefs } from '../../utils/tripDayPlaces';
+import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
 import styles from './RouteStrip.module.css';
 
 type SecondaryPlace = {
@@ -152,6 +153,7 @@ export const RouteStrip: React.FC = () => {
                   onClick={() => {
                     setMainWorkspaceTab('itinerary');
                     setSelectedDayId(s.dayId);
+                    requestSidebarDayFocus(s.dayId);
                     window.dispatchEvent(
                       new CustomEvent('travelhub-expand-day-locations', { detail: { dayId: s.dayId } })
                     );
@@ -166,6 +168,7 @@ export const RouteStrip: React.FC = () => {
                   onClick={() => {
                     setMainWorkspaceTab('itinerary');
                     setSelectedDayId(s.dayId);
+                    requestSidebarDayFocus(s.dayId);
                   }}
                 >
                   <div className={styles.stopBtnBody}>
