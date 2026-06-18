@@ -100,6 +100,9 @@ export const SubItemDetailLines: React.FC<SubItemDetailLinesProps> = ({
       ) : (
         <div className={styles.freeLine}>No charge</div>
       )}
+      {item.cancellationPolicy?.trim() ? (
+        <div className={styles.cancelLine}>Cancellation: {item.cancellationPolicy.trim()}</div>
+      ) : null}
       {item.notes?.trim() ? <div className={styles.notes}>{item.notes.trim()}</div> : null}
     </div>
   );

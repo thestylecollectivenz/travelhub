@@ -363,7 +363,8 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
     nights,
     perNight,
     homeCurrency: config.homeCurrency,
-    usedCurrencies
+    usedCurrencies,
+    usedSuppliers
   };
 
   const isOption = variant === 'option';
@@ -1090,6 +1091,21 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
                 Will be converted to {config.homeCurrency} at current FX rate
               </div>
             ) : null}
+          </>
+        ) : null}
+
+        {isOption ? (
+          <>
+            <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`cancelpol-opt-${draft.id}`}>
+              Cancellation policy
+            </label>
+            <textarea
+              id={`cancelpol-opt-${draft.id}`}
+              className={`${styles.textarea} ${styles.fullRow}`}
+              rows={2}
+              value={draft.cancellationPolicy ?? ''}
+              onChange={(e) => patch({ cancellationPolicy: e.target.value })}
+            />
           </>
         ) : null}
 

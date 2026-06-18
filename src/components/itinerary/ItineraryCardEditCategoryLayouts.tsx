@@ -35,6 +35,7 @@ export interface CategoryEditLayoutProps {
   perNight: number;
   homeCurrency: string;
   usedCurrencies?: string[];
+  usedSuppliers?: string[];
 }
 
 function StatusFields({ draft, patch }: Pick<CategoryEditLayoutProps, 'draft' | 'patch'>): React.ReactElement {
@@ -358,7 +359,7 @@ export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
 };
 
 export const AccommodationEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
-  const { draft, calendarDate, dayPlaceOptions, bookingMechanismOptions, patch, nights, perNight } = props;
+  const { draft, calendarDate, dayPlaceOptions, bookingMechanismOptions, patch, nights, perNight, usedSuppliers } = props;
 
   return (
     <div className={styles.grid}>
@@ -402,6 +403,22 @@ export const AccommodationEditLayout: React.FC<CategoryEditLayoutProps> = (props
         value={draft.title}
         onChange={(e) => patch({ title: e.target.value })}
       />
+      <label className={styles.label} htmlFor={`sup-a-${draft.id}`}>
+        Supplier
+      </label>
+      <input
+        id={`sup-a-${draft.id}`}
+        className={styles.input}
+        type="text"
+        list={`supplier-list-a-${draft.id}`}
+        value={draft.supplier}
+        onChange={(e) => patch({ supplier: e.target.value })}
+      />
+      <datalist id={`supplier-list-a-${draft.id}`}>
+        {(usedSuppliers ?? []).map((value) => (
+          <option key={value} value={value} />
+        ))}
+      </datalist>
       <label className={styles.label} htmlFor={`checkin-${draft.id}`}>
         Check-in date
       </label>

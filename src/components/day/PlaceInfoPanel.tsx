@@ -265,13 +265,26 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
       .catch(() => setForecastDays([]));
   }, [place.latitude, place.longitude, config.weatherApiKey, config.temperatureUnit, datesForForecast]);
 
+  const typicalWeatherQueryDate = React.useMemo(() => {
+    const anchor = (weatherAnchorDate || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(anchor)) return anchor;
+    const today = todayYmd();
+    if (anchor <= today) return anchor;
+    const [, mm, dd] = anchor.split('-');
+    return `2020-${mm}-${dd}`;
+  }, [weatherAnchorDate]);
+
   React.useEffect(() => {
     if (!config.weatherApiKey.trim()) {
       setTypicalWeather(null);
       return;
     }
+    if (!typicalWeatherQueryDate) {
+      setTypicalWeather(null);
+      return;
+    }
     const units = config.temperatureUnit === 'Fahrenheit' ? 'us' : 'metric';
-    const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${place.latitude},${place.longitude}/${weatherAnchorDate}?key=${encodeURIComponent(config.weatherApiKey.trim())}&include=days&elements=tempmax,tempmin,sunrise,sunset,conditions&unitGroup=${units}&contentType=json`;
+    const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${place.latitude},${place.longitude}/${typicalWeatherQueryDate}?key=${encodeURIComponent(config.weatherApiKey.trim())}&include=days&elements=tempmax,tempmin,sunrise,sunset,conditions&unitGroup=${units}&contentType=json`;
     fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Weather ${r.status}`))))
       .then((data) => {
@@ -284,7 +297,7 @@ export const PlaceInfoPanel: React.FC<PlaceInfoPanelProps> = ({ place, weatherAn
         });
       })
       .catch(() => setTypicalWeather(null));
-  }, [place.latitude, place.longitude, weatherAnchorDate, config.weatherApiKey, config.temperatureUnit]);
+  }, [place.latitude, place.longitude, typicalWeatherQueryDate, config.weatherApiKey, config.temperatureUnit]);
 
   React.useEffect(() => {
     const tz = (place.timeZone?.trim() || weather?.timezoneName?.trim() || '').trim();

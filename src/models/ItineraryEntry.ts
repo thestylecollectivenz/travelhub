@@ -43,6 +43,7 @@ export interface ItinerarySubItem {
   streetAddress?: string;
   /** When true, surfaced on the option row and in previews (P7-9). */
   bookingRequired?: boolean;
+  cancellationPolicy?: string;
 }
 
 export interface ItineraryEntry {

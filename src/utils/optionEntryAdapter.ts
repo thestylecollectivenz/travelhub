@@ -24,6 +24,7 @@ export function subItemToEditableEntry(parent: ItineraryEntry, sub: ItinerarySub
     amountPaid: sub.amountPaid,
     currency: sub.currency || parent.currency || 'NZD',
     costCertainty: sub.costCertainty,
+    cancellationPolicy: sub.cancellationPolicy,
     sortOrder: 0,
     parentEntryId: parent.id
   };
@@ -63,6 +64,7 @@ export function editableEntryToSubItem(
     currency: entry.currency,
     costCertainty: entry.costCertainty,
     bookingRequired: entry.bookingRequired === true,
+    cancellationPolicy: entry.cancellationPolicy?.trim() || undefined,
     groupLabel: prior?.groupLabel,
     sortOrder: prior?.sortOrder
   };

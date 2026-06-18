@@ -2,7 +2,7 @@ import * as React from 'react';
 import type { TripDay } from '../../models/TripDay';
 import { usePlaces } from '../../context/PlacesContext';
 import { PlaceInfoPanel } from './PlaceInfoPanel';
-import { forecastDatesFromToday, todayYmd } from '../../utils/placeForecastDates';
+import { forecastDatesFromToday } from '../../utils/placeForecastDates';
 import { parseAdditionalPlaceRefs } from '../../utils/tripDayPlaces';
 import styles from './DayHeader.module.css';
 
@@ -42,7 +42,7 @@ export const DayPlaceInfoSection: React.FC<DayPlaceInfoSectionProps> = ({ day, a
   const activePlaceInfo =
     allPlacesForInfo.find((p) => p.id === activePlaceInfoId) ?? allPlacesForInfo[0];
 
-  const weatherAnchorDate = todayYmd();
+  const weatherAnchorDate = (day.calendarDate || '').slice(0, 10);
 
   const activeForecastDates = React.useMemo(() => forecastDatesFromToday(), []);
 

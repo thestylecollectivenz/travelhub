@@ -132,6 +132,13 @@
   color: var(--color-green-600);
 }
 
+.cancelLine {
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-700);
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
 .notes {
   margin-top: var(--space-1);
   font-size: var(--font-size-sm);

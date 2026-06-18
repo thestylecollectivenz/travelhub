@@ -314,7 +314,8 @@ function mapToSubItem(item: any): ItinerarySubItem {
     location: item.Location ?? undefined,
     streetAddress: item.StreetAddress ?? undefined,
     bookingRequired: item.BookingRequired === true,
-    sortOrder: item.SortOrder ?? 0
+    sortOrder: item.SortOrder ?? 0,
+    cancellationPolicy: item.CancellationPolicy ? String(item.CancellationPolicy) : undefined
   };
 }
 
@@ -658,7 +659,8 @@ export class ItineraryService {
       GroupLabel: subItem.groupLabel ?? '',
       SortOrder: subItem.sortOrder ?? 0,
       BookingRequired: subItem.bookingRequired === true,
-      BookingStatus: 'Not booked'
+      BookingStatus: 'Not booked',
+      CancellationPolicy: subItem.cancellationPolicy?.trim() || null
     });
     try {
       const resp: SPHttpClientResponse = await this.ctx.spHttpClient.post(

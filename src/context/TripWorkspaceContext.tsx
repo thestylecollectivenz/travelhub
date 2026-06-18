@@ -768,7 +768,8 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
             location: merged.location,
             streetAddress: merged.streetAddress,
             bookingRequired: merged.bookingRequired === true,
-            sortOrder: merged.sortOrder
+            sortOrder: merged.sortOrder,
+            cancellationPolicy: merged.cancellationPolicy
           } as Partial<ItineraryEntry>)
           .catch((err) => {
             // eslint-disable-next-line no-console

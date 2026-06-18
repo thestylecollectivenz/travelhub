@@ -19,7 +19,12 @@ import { formatCurrency } from '../../utils/financialUtils';
 import { ItineraryCard } from './ItineraryCard';
 import { SubItemDetailLines } from './SubItemDetailLines';
 import { applyDayViewEntryOrder } from '../../utils/dayViewEntryOrder';
-import { expandPlannerTimedItems, parsePlannerDurationMinutes } from '../../utils/plannerCalendarItems';
+import {
+  expandPlannerTimedItems,
+  expandPlannerUnscheduledItems,
+  shouldRenderPlannerItem,
+  isCruisePortEntry
+} from '../../utils/plannerCalendarItems';
 import type { PlannerTimedItem } from '../../utils/plannerCalendarItems';
 import type { DayPlannerPrintDay } from '../../utils/dayPlannerPrint';
 import { DayPlannerPrintSheet, buildPlannerPrintHtml } from './DayPlannerPrintSheet';
@@ -96,15 +101,6 @@ function PlannerDayHead({ day, className }: { day: TripDay; className: string })
   );
 }
 
-function entryHasTimedSubs(entry: ItineraryEntry): boolean {
-  return (entry.subItems ?? []).some((s) => minutesFromTimeStart(s.startTime || '') !== undefined);
-}
-
-function shouldRenderPlannerItem(item: PlannerTimedItem): boolean {
-  if (item.subItem) return true;
-  return !entryHasTimedSubs(item.entry);
-}
-
 function plannerBlockZIndex(
   item: PlannerTimedItem,
   timed: PlannerTimedItem[],
@@ -117,13 +113,6 @@ function plannerBlockZIndex(
   return 2 + Math.round((1 - item.durationMinutes / maxDur) * 24);
 }
 
-function isPlannerUnscheduledEntry(entry: ItineraryEntry, calendarDate: string, tripDays: TripDay[]): boolean {
-  if (minutesFromTimeStart(effectivePlannerTimeStart(entry, calendarDate, tripDays)) !== undefined) {
-    return false;
-  }
-  return !entryHasTimedSubs(entry);
-}
-
 function plannerBlockMeta(item: PlannerTimedItem, calendarDate: string, tripDays: TripDay[]): string {
   if (item.subItem) {
     const t0 = formatTimeHHMM(item.subItem.startTime || '');
@@ -132,7 +121,24 @@ function plannerBlockMeta(item: PlannerTimedItem, calendarDate: string, tripDays
     if (t0) return t0;
     return '—';
   }
+  if (isCruisePortEntry(item.entry)) {
+    const arrive = formatTimeHHMM(item.entry.timeStart || '');
+    const depart = formatTimeHHMM(item.entry.arrivalTime || '');
+    if (arrive && depart) return `${arrive}–${depart}`;
+    if (arrive) return `Arrives ${arrive}`;
+    if (depart) return `Departs ${depart}`;
+    return '—';
+  }
   return `${formatTimeHHMM(effectivePlannerTimeStart(item.entry, calendarDate, tripDays))} · ${item.entry.duration?.trim() || '1h'}`;
+}
+
+function cancellationSnippet(entry: ItineraryEntry, sub?: ItinerarySubItem): string | undefined {
+  const policy = (sub?.cancellationPolicy || entry.cancellationPolicy || '').trim();
+  return policy || undefined;
+}
+
+function toggleFrontBlock(key: string, setFrontBlockKey: React.Dispatch<React.SetStateAction<string | null>>): void {
+  setFrontBlockKey((prev) => (prev === key ? null : key));
 }
 
 function DocGlyph(): React.ReactElement {
@@ -627,9 +633,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
     for (const d of visibleDays) {
       const cal = d.calendarDate || '';
       const list = entriesForPlannerColumn(d);
-      for (const e of list) {
-        if (isPlannerUnscheduledEntry(e, cal, tripDays)) return true;
-      }
+      if (expandPlannerUnscheduledItems(list, cal, tripDays).length) return true;
     }
     return false;
   }, [visibleDays, entriesForPlannerColumn, tripDays]);
@@ -659,7 +663,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
       for (const d of visibleDays) {
         const cal = d.calendarDate || '';
         const list = entriesForPlannerColumn(d);
-        const has = list.some((e) => isPlannerUnscheduledEntry(e, cal, tripDays));
+        const has = expandPlannerUnscheduledItems(list, cal, tripDays).length > 0;
         if (has) next[d.id] = true;
       }
       return next;
@@ -683,15 +687,6 @@ export const ItineraryDayPlannerView: React.FC = () => {
     },
     [setSelectedDayId]
   );
-
-  const subItemLine = React.useCallback((s: ItinerarySubItem): string => {
-    const t0 = formatTimeHHMM(s.startTime || '');
-    const t1 = formatTimeHHMM(s.endTime || '');
-    const title = s.title || '';
-    if (t0 && t1) return `${t0}–${t1} ${title}`.trim();
-    if (t0) return `${t0} ${title}`.trim();
-    return title;
-  }, []);
 
   const openPreview = React.useCallback(
     (dayId: string, entryId: string): void => {
@@ -859,7 +854,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
             const cal = day.calendarDate || '';
             const list = entriesForPlannerColumn(day);
             const timed = expandPlannerTimedItems(list, cal, tripDays).filter(shouldRenderPlannerItem);
-            const unsched = list.filter((e) => isPlannerUnscheduledEntry(e, cal, tripDays));
+            const unsched = expandPlannerUnscheduledItems(list, cal, tripDays);
             const collapsed = Boolean(unschedCollapsed[day.id]);
             return (
               <div key={day.id} className={styles.mobileDayStack}>
@@ -879,15 +874,23 @@ export const ItineraryDayPlannerView: React.FC = () => {
                     </button>
                     {!collapsed ? (
                       <div className={styles.unschedBody}>
-                        {unsched.map((e) => (
-                          <div key={e.id} className={styles.unschedCard}>
-                            {editingCardId === e.id ? (
+                        {unsched.map((item) => {
+                          const e = item.entry;
+                          const sub = item.subItem;
+                          const cancel = cancellationSnippet(e, sub);
+                          const label = sub ? `${item.title} (${e.title || 'Untitled'})` : item.title;
+                          return (
+                          <div key={item.key} className={styles.unschedCard}>
+                            {!sub && editingCardId === e.id ? (
                               <ItineraryCard entry={e} calendarDate={cal} suppressCarryoverUi={day.dayType === 'PreTrip'} draggable={false} useEditPortal />
                             ) : (
                               <div className={styles.unschedRow}>
-                                <button type="button" className={styles.unschedTitleBtn} onClick={() => openPreview(day.id, e.id)}>
-                                  {e.title || 'Untitled'}
-                                </button>
+                                <div className={styles.unschedTitleBlock}>
+                                  <button type="button" className={styles.unschedTitleBtn} onClick={() => openPreview(day.id, e.id)}>
+                                    {label}
+                                  </button>
+                                  {cancel ? <div className={styles.blockCancel}>{cancel}</div> : null}
+                                </div>
                                 <div className={styles.blockActions}>
                                   <button
                                     type="button"
@@ -901,9 +904,9 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                   <button
                                     type="button"
                                     className={styles.iconBtn}
-                                    aria-label="Edit entry"
+                                    aria-label={sub ? 'Edit option' : 'Edit entry'}
                                     title="Edit"
-                                    onClick={() => openEdit(day.id, e.id)}
+                                    onClick={() => openEdit(day.id, e.id, sub?.id)}
                                   >
                                     <PencilGlyph />
                                   </button>
@@ -911,7 +914,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
                               </div>
                             )}
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : null}
                   </div>
@@ -954,7 +958,10 @@ export const ItineraryDayPlannerView: React.FC = () => {
                         <div
                           key={item.key}
                           style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: blockZ }}
-                          onMouseDown={() => setFrontBlockKey(item.key)}
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                            toggleFrontBlock(item.key, setFrontBlockKey);
+                          }}
                         >
                           {isEditingParent ? (
                             <div className={styles.editOverlay}>
@@ -991,14 +998,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                 </div>
                               </div>
                               <div className={styles.blockMeta}>{plannerBlockMeta(item, cal, tripDays)}</div>
-                              {item.inlineSubs?.length ? (
-                                <div className={styles.blockOptions}>
-                                  {item.inlineSubs.map((s) => (
-                                    <div key={s.id} className={styles.blockOptionLine}>
-                                      {subItemLine(s)}
-                                    </div>
-                                  ))}
-                                </div>
+                              {cancellationSnippet(e, sub) ? (
+                                <div className={styles.blockCancel}>{cancellationSnippet(e, sub)}</div>
                               ) : null}
                               <div className={styles.blockIcons}>
                                 {docs.map((d) => (
@@ -1064,7 +1065,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
             {displayDays.map((day) => {
               const cal = day.calendarDate || '';
               const list = entriesForPlannerColumn(day);
-              const unsched = list.filter((e) => isPlannerUnscheduledEntry(e, cal, tripDays));
+              const unsched = expandPlannerUnscheduledItems(list, cal, tripDays);
               const collapsed = Boolean(unschedCollapsed[day.id]);
               if (!unsched.length) {
                 return <div key={`u-${day.id}`} className={styles.unschedCell} />;
@@ -1085,15 +1086,23 @@ export const ItineraryDayPlannerView: React.FC = () => {
                     </button>
                     {!collapsed ? (
                       <div className={styles.unschedBody}>
-                        {unsched.map((e) => (
-                          <div key={e.id} className={styles.unschedCard}>
-                            {editingCardId === e.id ? (
+                        {unsched.map((item) => {
+                          const e = item.entry;
+                          const sub = item.subItem;
+                          const cancel = cancellationSnippet(e, sub);
+                          const label = sub ? `${item.title} (${e.title || 'Untitled'})` : item.title;
+                          return (
+                          <div key={item.key} className={styles.unschedCard}>
+                            {!sub && editingCardId === e.id ? (
                               <ItineraryCard entry={e} calendarDate={cal} suppressCarryoverUi={day.dayType === 'PreTrip'} draggable={false} useEditPortal />
                             ) : (
                               <div className={styles.unschedRow}>
-                                <button type="button" className={styles.unschedTitleBtn} onClick={() => openPreview(day.id, e.id)}>
-                                  {e.title || 'Untitled'}
-                                </button>
+                                <div className={styles.unschedTitleBlock}>
+                                  <button type="button" className={styles.unschedTitleBtn} onClick={() => openPreview(day.id, e.id)}>
+                                    {label}
+                                  </button>
+                                  {cancel ? <div className={styles.blockCancel}>{cancel}</div> : null}
+                                </div>
                                 <div className={styles.blockActions}>
                                   <button
                                     type="button"
@@ -1107,9 +1116,9 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                   <button
                                     type="button"
                                     className={styles.iconBtn}
-                                    aria-label="Edit entry"
+                                    aria-label={sub ? 'Edit option' : 'Edit entry'}
                                     title="Edit"
-                                    onClick={() => openEdit(day.id, e.id)}
+                                    onClick={() => openEdit(day.id, e.id, sub?.id)}
                                   >
                                     <PencilGlyph />
                                   </button>
@@ -1117,7 +1126,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
                               </div>
                             )}
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : null}
                   </div>
@@ -1171,7 +1181,10 @@ export const ItineraryDayPlannerView: React.FC = () => {
                           <div
                             key={item.key}
                             style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: blockZ }}
-                            onMouseDown={() => setFrontBlockKey(item.key)}
+                            onMouseDown={(e) => {
+                            e.stopPropagation();
+                            toggleFrontBlock(item.key, setFrontBlockKey);
+                          }}
                           >
                             {isEditingParent ? (
                               <div className={styles.editOverlay}>
@@ -1208,14 +1221,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                   </div>
                                 </div>
                                 <div className={styles.blockMeta}>{plannerBlockMeta(item, cal, tripDays)}</div>
-                                {item.inlineSubs?.length ? (
-                                  <div className={styles.blockOptions}>
-                                    {item.inlineSubs.map((s) => (
-                                      <div key={s.id} className={styles.blockOptionLine}>
-                                        {subItemLine(s)}
-                                      </div>
-                                    ))}
-                                  </div>
+                                {cancellationSnippet(e, sub) ? (
+                                  <div className={styles.blockCancel}>{cancellationSnippet(e, sub)}</div>
                                 ) : null}
                                 <div className={styles.blockIcons}>
                                   {docs.map((d) => (

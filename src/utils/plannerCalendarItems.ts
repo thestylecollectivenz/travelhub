@@ -12,42 +12,45 @@ export interface PlannerTimedItem {
   category: string;
   startMinutes: number;
   durationMinutes: number;
-  /** Untimed options still nested inside a timed parent card. */
-  inlineSubs?: ItinerarySubItem[];
 }
 
-function ymdSlice(value: string): string {
-  return value.slice(0, 10);
+export interface PlannerUnscheduledItem {
+  key: string;
+  entry: ItineraryEntry;
+  subItem?: ItinerarySubItem;
+  title: string;
 }
 
-type CruiseDayKind = 'embark' | 'disembark' | 'at-sea';
-
-function cruiseDayKind(entry: ItineraryEntry, calendarDate: string): CruiseDayKind | null {
-  if (entry.category !== 'Cruise' || !entry.embarksDate || !entry.disembarksDate) return null;
-  const day = ymdSlice(calendarDate);
-  const emb = ymdSlice(entry.embarksDate);
-  const dis = ymdSlice(entry.disembarksDate);
-  if (day < emb || day > dis) return null;
-  if (day === emb) return 'embark';
-  if (day === dis) return 'disembark';
-  return 'at-sea';
+export function isWholeCruiseEntry(entry: ItineraryEntry): boolean {
+  return entry.category === 'Cruise' && !!entry.embarksDate?.trim() && !!entry.disembarksDate?.trim();
 }
 
-function cruisePlannerBlock(
-  entry: ItineraryEntry,
-  calendarDate: string,
-  kind: CruiseDayKind
-): { title: string; startMinutes: number; durationMinutes: number } {
-  const base = entry.title?.trim() || 'Cruise';
-  if (kind === 'embark') {
-    const start = minutesFromTimeStart(entry.timeStart || '') ?? 8 * 60;
-    return { title: `${base} · Embark`, startMinutes: start, durationMinutes: 120 };
+export function isCruisePortEntry(entry: ItineraryEntry): boolean {
+  const cat = entry.category?.trim();
+  return cat === 'Cruise port' || cat === 'Cruise at sea';
+}
+
+export function cruisePortTimedBlocks(
+  entry: ItineraryEntry
+): Array<{ startMinutes: number; durationMinutes: number; titleSuffix?: string }> {
+  const arrive = minutesFromTimeStart(entry.timeStart || '');
+  const depart = minutesFromTimeStart(entry.arrivalTime || '');
+  if (arrive !== undefined && depart !== undefined && depart > arrive) {
+    return [{ startMinutes: arrive, durationMinutes: depart - arrive }];
   }
-  if (kind === 'disembark') {
-    const start = minutesFromTimeStart(entry.arrivalTime || entry.timeStart || '') ?? 8 * 60;
-    return { title: `${base} · Disembark`, startMinutes: start, durationMinutes: 120 };
+  if (arrive !== undefined) {
+    return [
+      {
+        startMinutes: arrive,
+        durationMinutes: parsePlannerDurationMinutes(entry.duration),
+        titleSuffix: '· Arrives'
+      }
+    ];
   }
-  return { title: `${base} · At sea`, startMinutes: 8 * 60, durationMinutes: 8 * 60 };
+  if (depart !== undefined) {
+    return [{ startMinutes: depart, durationMinutes: 60, titleSuffix: '· Departs' }];
+  }
+  return [];
 }
 
 export function parsePlannerDurationMinutes(duration: string | undefined): number {
@@ -62,6 +65,32 @@ export function parsePlannerDurationMinutes(duration: string | undefined): numbe
   return 60;
 }
 
+export function entryHasTimedSubs(entry: ItineraryEntry): boolean {
+  return (entry.subItems ?? []).some((s) => minutesFromTimeStart(s.startTime || '') !== undefined);
+}
+
+function entryHasParentTimedBlock(entry: ItineraryEntry, calendarDate: string, tripDays: TripDay[]): boolean {
+  if (isWholeCruiseEntry(entry)) return false;
+  if (isCruisePortEntry(entry) && cruisePortTimedBlocks(entry).length > 0) return true;
+  return minutesFromTimeStart(effectivePlannerTimeStart(entry, calendarDate, tripDays)) !== undefined;
+}
+
+export function isPlannerUnscheduledEntry(
+  entry: ItineraryEntry,
+  calendarDate: string,
+  tripDays: TripDay[]
+): boolean {
+  if (isWholeCruiseEntry(entry)) return true;
+  if (entryHasParentTimedBlock(entry, calendarDate, tripDays)) return false;
+  if (entryHasTimedSubs(entry)) return false;
+  return true;
+}
+
+export function shouldRenderPlannerItem(item: PlannerTimedItem): boolean {
+  if (item.subItem) return true;
+  return !entryHasTimedSubs(item.entry);
+}
+
 function subItemDurationMinutes(sub: ItinerarySubItem): number {
   const start = minutesFromTimeStart(sub.startTime || '');
   const end = minutesFromTimeStart(sub.endTime || '');
@@ -71,7 +100,7 @@ function subItemDurationMinutes(sub: ItinerarySubItem): number {
   return 60;
 }
 
-/** Expand day entries into planner blocks — timed options become their own entries. */
+/** Expand day entries into planner blocks — timed options and cruise ports become their own entries. */
 export function expandPlannerTimedItems(
   entries: ItineraryEntry[],
   calendarDate: string,
@@ -79,42 +108,64 @@ export function expandPlannerTimedItems(
 ): PlannerTimedItem[] {
   const items: PlannerTimedItem[] = [];
   for (const entry of entries) {
-    const entryStart = minutesFromTimeStart(effectivePlannerTimeStart(entry, calendarDate, tripDays));
     const subs = [...(entry.subItems ?? [])].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
     const timedSubs = subs.filter((s) => minutesFromTimeStart(s.startTime || '') !== undefined);
-    const untimedSubs = subs.filter((s) => minutesFromTimeStart(s.startTime || '') === undefined);
 
-    if (entryStart !== undefined) {
-      const cruiseKind = cruiseDayKind(entry, calendarDate);
-      const title =
-        cruiseKind === 'embark'
-          ? `${entry.title || 'Cruise'} · Embark`
-          : cruiseKind === 'disembark'
-            ? `${entry.title || 'Cruise'} · Disembark`
-            : entry.title || 'Untitled';
+    if (isWholeCruiseEntry(entry)) {
+      for (const sub of timedSubs) {
+        const sm = minutesFromTimeStart(sub.startTime || '')!;
+        items.push({
+          key: `${entry.id}-${sub.id}`,
+          entry,
+          subItem: sub,
+          parentTitle: entry.title || 'Cruise',
+          title: sub.title || 'Untitled',
+          category: (sub.category || entry.category || 'Other').trim(),
+          startMinutes: sm,
+          durationMinutes: subItemDurationMinutes(sub)
+        });
+      }
+      continue;
+    }
+
+    if (isCruisePortEntry(entry)) {
+      const base = entry.title?.trim() || (entry.category === 'Cruise at sea' ? 'At sea' : 'Cruise port');
+      cruisePortTimedBlocks(entry).forEach((block, index) => {
+        items.push({
+          key: `${entry.id}-port-${index}`,
+          entry,
+          title: block.titleSuffix ? `${base} ${block.titleSuffix}` : base,
+          category: entry.category,
+          startMinutes: block.startMinutes,
+          durationMinutes: block.durationMinutes
+        });
+      });
+      for (const sub of timedSubs) {
+        const sm = minutesFromTimeStart(sub.startTime || '')!;
+        items.push({
+          key: `${entry.id}-${sub.id}`,
+          entry,
+          subItem: sub,
+          parentTitle: entry.title || 'Untitled',
+          title: sub.title || 'Untitled',
+          category: (sub.category || entry.category || 'Other').trim(),
+          startMinutes: sm,
+          durationMinutes: subItemDurationMinutes(sub)
+        });
+      }
+      continue;
+    }
+
+    const entryStart = minutesFromTimeStart(effectivePlannerTimeStart(entry, calendarDate, tripDays));
+    if (entryStart !== undefined && !entryHasTimedSubs(entry)) {
       items.push({
         key: entry.id,
         entry,
-        title,
+        title: entry.title || 'Untitled',
         category: entry.category,
         startMinutes: entryStart,
-        durationMinutes: parsePlannerDurationMinutes(entry.duration),
-        inlineSubs: untimedSubs.length ? untimedSubs : undefined
+        durationMinutes: parsePlannerDurationMinutes(entry.duration)
       });
-    } else {
-      const cruiseKind = cruiseDayKind(entry, calendarDate);
-      if (cruiseKind) {
-        const block = cruisePlannerBlock(entry, calendarDate, cruiseKind);
-        items.push({
-          key: `${entry.id}-cruise-${calendarDate}`,
-          entry,
-          title: block.title,
-          category: entry.category,
-          startMinutes: block.startMinutes,
-          durationMinutes: block.durationMinutes,
-          inlineSubs: untimedSubs.length ? untimedSubs : undefined
-        });
-      }
     }
 
     for (const sub of timedSubs) {
@@ -129,6 +180,42 @@ export function expandPlannerTimedItems(
         startMinutes: sm,
         durationMinutes: subItemDurationMinutes(sub)
       });
+    }
+  }
+  return items;
+}
+
+export function expandPlannerUnscheduledItems(
+  entries: ItineraryEntry[],
+  calendarDate: string,
+  tripDays: TripDay[]
+): PlannerUnscheduledItem[] {
+  const items: PlannerUnscheduledItem[] = [];
+  for (const entry of entries) {
+    const untimedSubs = (entry.subItems ?? []).filter(
+      (s) => minutesFromTimeStart(s.startTime || '') === undefined
+    );
+    const parentOnTimeline = expandPlannerTimedItems([entry], calendarDate, tripDays)
+      .filter((item) => shouldRenderPlannerItem(item) && !item.subItem)
+      .some((item) => item.entry.id === entry.id);
+
+    if (isPlannerUnscheduledEntry(entry, calendarDate, tripDays)) {
+      items.push({
+        key: entry.id,
+        entry,
+        title: entry.title || 'Untitled'
+      });
+    }
+
+    if (parentOnTimeline || isWholeCruiseEntry(entry)) {
+      for (const sub of untimedSubs) {
+        items.push({
+          key: `${entry.id}-${sub.id}-opt`,
+          entry,
+          subItem: sub,
+          title: sub.title || 'Untitled option'
+        });
+      }
     }
   }
   return items;
