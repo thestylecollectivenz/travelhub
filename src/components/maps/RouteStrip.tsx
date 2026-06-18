@@ -3,6 +3,7 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
 import { parseAdditionalPlaceRefs } from '../../utils/tripDayPlaces';
 import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
+import { formatRouteStripDayLabel } from '../../utils/formatTripDayDate';
 import styles from './RouteStrip.module.css';
 
 type SecondaryPlace = {
@@ -190,7 +191,7 @@ export const RouteStrip: React.FC = () => {
                       </span>
                     ) : null}
                   </div>
-                  <span className={styles.range}>Day {s.startDay}</span>
+                  <span className={styles.range}>{formatRouteStripDayLabel(s.startDay, s.calendarDate)}</span>
                 </button>
               </div>
               {next ? (

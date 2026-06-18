@@ -4,6 +4,9 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { answerTravelChat } from '../../services/GeminiService';
 import { formatGeminiUserMessage } from '../../services/geminiErrorMessage';
 import { LinkifiedText } from '../shared/LinkifiedText';
+import { RichTextEditor } from '../journal/RichTextEditor';
+import { RichTextContent } from '../shared/RichTextContent';
+import { isLikelyJournalHtml, plainTextToEditorHtml, richTextToPlainText } from '../../utils/journalRichText';
 import styles from './AiAssistantFab.module.css';
 
 const FAB_SIZE = 48;
@@ -99,7 +102,7 @@ export const AiAssistantFab: React.FC = () => {
     : '';
 
   const send = async (): Promise<void> => {
-    const text = input.trim();
+    const text = richTextToPlainText(input);
     if (!text || busy) return;
     if (!config.geminiApiKey?.trim()) {
       setError('Add a Gemini API key in User settings.');
@@ -107,7 +110,7 @@ export const AiAssistantFab: React.FC = () => {
     }
     const nextMessages = [...messages, { role: 'user' as const, text }];
     setMessages(nextMessages);
-    setInput('');
+    setInput(plainTextToEditorHtml(''));
     setError(null);
     setBusy(true);
     try {
@@ -207,27 +210,24 @@ export const AiAssistantFab: React.FC = () => {
             ) : null}
             {messages.map((m, i) => (
               <div key={i} className={m.role === 'user' ? styles.userMsg : styles.aiMsg}>
-                <LinkifiedText text={m.text} />
+                {isLikelyJournalHtml(m.text) ? <RichTextContent html={m.text} /> : <LinkifiedText text={m.text} />}
               </div>
             ))}
           </div>
           {error ? <p className={styles.error}>{error}</p> : null}
           <div className={styles.compose}>
-            <textarea
-              className={styles.input}
-              rows={2}
-              value={input}
-              placeholder="e.g. Which train station for Rotterdam → Den Haag?"
+            <RichTextEditor
+              value={input || plainTextToEditorHtml('')}
+              onChange={setInput}
               disabled={busy}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  void send();
-                }
-              }}
+              minHeight="4.5rem"
             />
-            <button type="button" className={styles.sendBtn} disabled={busy || !input.trim()} onClick={() => void send()}>
+            <button
+              type="button"
+              className={styles.sendBtn}
+              disabled={busy || !richTextToPlainText(input)}
+              onClick={() => void send()}
+            >
               {busy ? '…' : 'Send'}
             </button>
           </div>

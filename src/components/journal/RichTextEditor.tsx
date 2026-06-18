@@ -126,6 +126,28 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
         >
           L
         </button>
+        <button
+          type="button"
+          className={styles.toolBtn}
+          aria-label="Bullet list"
+          disabled={disabled}
+          title="Bullet list"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => run(() => document.execCommand('insertUnorderedList'))}
+        >
+          •
+        </button>
+        <button
+          type="button"
+          className={styles.toolBtn}
+          aria-label="Numbered list"
+          disabled={disabled}
+          title="Numbered list"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => run(() => document.execCommand('insertOrderedList'))}
+        >
+          1.
+        </button>
       </div>
       <div
         ref={ref}

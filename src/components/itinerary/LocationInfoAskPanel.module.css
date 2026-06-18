@@ -73,6 +73,11 @@
   font-size: var(--font-size-sm);
 }
 
+.askRich {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .askRow {
   display: flex;
   flex-direction: column;

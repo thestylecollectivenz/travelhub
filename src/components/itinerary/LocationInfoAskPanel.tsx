@@ -6,6 +6,9 @@ import { useSpContext } from '../../context/SpContext';
 import { subscribeLocationInfoAIStatus } from '../../utils/locationInfoAIEvents';
 import { scheduleLocationInfoQuestion } from '../../utils/locationInfoGeneration';
 import { LinkifiedText } from '../shared/LinkifiedText';
+import { RichTextField } from '../shared/RichTextField';
+import { RichTextContent } from '../shared/RichTextContent';
+import { isLikelyJournalHtml, richTextToPlainText } from '../../utils/journalRichText';
 import { confirmUserAction } from '../../utils/confirmAction';
 import styles from './LocationInfoAskPanel.module.css';
 
@@ -57,7 +60,7 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
 
   const submitQuestion = (): void => {
     if (!place || !hasKey || readOnly) return;
-    const q = question.trim();
+    const q = richTextToPlainText(question);
     if (!q) return;
     setAskError(undefined);
     scheduleLocationInfoQuestion({
@@ -85,12 +88,11 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
             <div key={item.id} className={styles.qaBlock}>
               <div className={styles.question}>Q: {item.question}</div>
               {editingId === item.id ? (
-                <textarea
-                  className={styles.editArea}
-                  rows={4}
-                  value={editDraft}
-                  onChange={(e) => setEditDraft(e.target.value)}
-                />
+                <RichTextField value={editDraft} onChange={setEditDraft} minHeight="5rem" />
+              ) : isLikelyJournalHtml(item.answer) ? (
+                <div className={styles.answer}>
+                  <RichTextContent html={item.answer} />
+                </div>
               ) : (
                 <div className={styles.answer}>
                   <LinkifiedText text={item.answer} />
@@ -105,7 +107,7 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
                         className={styles.qaBtn}
                         onClick={() => {
                           const answer = editDraft.trim();
-                          if (!answer) return;
+                          if (!richTextToPlainText(answer)) return;
                           updateThread(thread.map((t) => (t.id === item.id ? { ...t, answer } : t)));
                           setEditingId(null);
                         }}
@@ -150,25 +152,14 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
       ) : null}
       {!readOnly ? (
         <div className={styles.askRow}>
-          <textarea
-            className={styles.askInput}
-            rows={2}
-            value={question}
-            placeholder="e.g. Best half-day walk with kids? Local SIM or eSIM?"
-            disabled={asking || !hasKey || !place}
-            onChange={(e) => setQuestion(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                submitQuestion();
-              }
-            }}
-          />
+          <div className={styles.askRich}>
+            <RichTextField value={question} onChange={setQuestion} minHeight="4.5rem" />
+          </div>
           <div className={styles.askActions}>
             <button
               type="button"
               className={styles.askBtn}
-              disabled={asking || !hasKey || !place || !question.trim()}
+              disabled={asking || !hasKey || !place || !richTextToPlainText(question)}
               onClick={submitQuestion}
             >
               {asking ? 'Asking…' : 'Ask AI'}

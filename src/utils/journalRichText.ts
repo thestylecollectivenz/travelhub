@@ -24,3 +24,11 @@ export function isRichTextEditorEmpty(html: string): boolean {
   d.innerHTML = html;
   return (d.textContent || '').replace(/\u00a0/g, ' ').trim().length === 0;
 }
+
+/** Strip editor HTML to plain text for APIs / search. */
+export function richTextToPlainText(html: string): string {
+  if (typeof document === 'undefined') return (html || '').trim();
+  const d = document.createElement('div');
+  d.innerHTML = html || '';
+  return (d.textContent || '').replace(/\u00a0/g, ' ').trim();
+}

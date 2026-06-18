@@ -18,6 +18,9 @@ import { EntryLinksSortableList } from './EntryLinksSortableList';
 import { isLocationInfoEntry } from '../../utils/locationInfoEntry';
 import { isPendingItineraryEntryId, isPendingSubItemId } from '../../utils/itineraryEntryIds';
 import { editableEntryToSubItem } from '../../utils/optionEntryAdapter';
+import { RichTextField } from '../shared/RichTextField';
+import { sortEntryDocuments } from '../../utils/entryDocumentSort';
+import { sortEntryLinks } from '../../utils/entryLinkSort';
 import styles from './ItineraryCardEdit.module.css';
 
 export interface ItineraryCardEditProps {
@@ -43,9 +46,13 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   const { config } = useConfig();
   const [draft, setDraft] = React.useState<ItineraryEntry>(() => ({ ...entry }));
   const notesTouchedRef = React.useRef(false);
+  const endTimeManualRef = React.useRef(Boolean(formatTimeHHMM(entry.arrivalTime ?? '')));
+  const [attachmentEntryId, setAttachmentEntryId] = React.useState(entry.id);
 
   React.useEffect(() => {
     notesTouchedRef.current = false;
+    endTimeManualRef.current = Boolean(formatTimeHHMM(entry.arrivalTime ?? ''));
+    setAttachmentEntryId(entry.id);
     setDraft({ ...entry });
   }, [entry.id]);
 
@@ -70,7 +77,9 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   const isCruisePort = draft.category === 'Cruise port';
   const isActivities = draft.category === 'Activities';
   const isLocationInfo = isLocationInfoEntry(draft);
-  const { docsForEntry, linksForEntry, addDocument, deleteDocument, addLink, deleteLink } = useAttachments();
+  const isOption = variant === 'option';
+  const needsComputedEndTime = isFlights || isTransport || isActivities || isOption;
+  const { documents, links, addDocument, deleteDocument, addLink, deleteLink } = useAttachments();
   const [attachOpen, setAttachOpen] = React.useState(false);
   const [linkTitle, setLinkTitle] = React.useState('');
   const [linkUrl, setLinkUrl] = React.useState('');
@@ -78,8 +87,22 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   const [attachError, setAttachError] = React.useState('');
   const fileRef = React.useRef<HTMLInputElement | null>(null);
 
-  const attachDocs = docsForEntry(draft.id);
-  const attachLinks = linksForEntry(draft.id);
+  const knownAttachmentEntryIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    if (attachmentEntryId) ids.add(attachmentEntryId);
+    if (entry.id) ids.add(entry.id);
+    if (draft.id) ids.add(draft.id);
+    return ids;
+  }, [attachmentEntryId, draft.id, entry.id]);
+
+  const attachDocs = React.useMemo(
+    () => sortEntryDocuments(documents.filter((d) => knownAttachmentEntryIds.has(d.entryId))),
+    [documents, knownAttachmentEntryIds]
+  );
+  const attachLinks = React.useMemo(
+    () => sortEntryLinks(links.filter((l) => knownAttachmentEntryIds.has(l.entryId))),
+    [knownAttachmentEntryIds, links]
+  );
 
   React.useEffect(() => {
     if (attachDocs.length + attachLinks.length > 0) {
@@ -88,6 +111,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   }, [draft.id, attachDocs.length, attachLinks.length]);
 
   const syncDraftId = React.useCallback((nextId: string) => {
+    setAttachmentEntryId(nextId);
     if (nextId !== draft.id) {
       setDraft((d) => ({ ...d, id: nextId }));
     }
@@ -162,8 +186,10 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   ]);
 
   React.useEffect(() => {
-    if (!isFlights && !isTransport && !isActivities) return;
+    if (!needsComputedEndTime) return;
     if (!draft.duration?.trim() || !draft.timeStart?.trim()) return;
+    if (endTimeManualRef.current && draft.arrivalTime?.trim()) return;
+    if (draft.arrivalTime?.trim()) return;
     const computed = arrivalTimeFromDuration({
       startDate: draft.dateStart || calendarDate,
       startTime: draft.timeStart,
@@ -172,15 +198,14 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
     if (!computed) return;
     setDraft((d) => {
       const curArr = formatTimeHHMM(d.arrivalTime ?? '');
-      const curDate = (d.arrivalDate || d.dateStart || calendarDate).slice(0, 10);
-      if (curArr === computed.arrivalTime && curDate === computed.arrivalDate) return d;
+      if (curArr) return d;
       return {
         ...d,
         arrivalTime: computed.arrivalTime,
         arrivalDate: isFlights ? computed.arrivalDate : d.arrivalDate || computed.arrivalDate
       };
     });
-  }, [draft.duration, draft.timeStart, draft.dateStart, calendarDate, isFlights, isTransport, isActivities]);
+  }, [draft.duration, draft.timeStart, draft.dateStart, draft.arrivalTime, calendarDate, isFlights, needsComputedEndTime]);
 
   React.useEffect(() => {
     if (!isAccommodation) return;
@@ -367,8 +392,6 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
     usedSuppliers
   };
 
-  const isOption = variant === 'option';
-
   return (
     <div className={styles.form}>
       {isOption ? <h3 className={styles.optionEditHeading}>Edit option</h3> : null}
@@ -475,17 +498,21 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           value={draft.duration}
           onChange={(e) => patch({ duration: e.target.value })}
         />
-        {isFlights || isTransport ? (
+        {isFlights || isTransport || isActivities || isOption ? (
           <>
             <label className={styles.label} htmlFor={`arr-time-${draft.id}`}>
-              Arrival time
+              {isFlights || isTransport ? 'Arrival time' : 'End time'}
             </label>
             <input
               id={`arr-time-${draft.id}`}
               className={styles.input}
               type="time"
               value={arrivalTimeValue}
-              onChange={(e) => patch({ arrivalTime: combineDayAndTime(calendarDate, e.target.value) })}
+              onChange={(e) => {
+                const next = combineDayAndTime(calendarDate, e.target.value);
+                endTimeManualRef.current = Boolean(next.trim());
+                patch({ arrivalTime: next });
+              }}
             />
           </>
         ) : null}
@@ -1109,15 +1136,13 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           </>
         ) : null}
 
-        <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`notes-${draft.id}`}>
-          Notes
-        </label>
-        <textarea
+        <RichTextField
           id={`notes-${draft.id}`}
-          className={`${styles.textarea} ${styles.fullRow}`}
-          rows={3}
+          label="Notes"
           value={draft.notes}
-          onChange={(e) => patch({ notes: e.target.value })}
+          onChange={(html) => patch({ notes: html })}
+          fullRow
+          labelClassName={`${styles.label} ${styles.fullRow}`}
         />
 
         {draft.paymentStatus !== 'Free' ? (
@@ -1280,7 +1305,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
                   </button>
                 </div>
               ))}
-              <EntryLinksSortableList entryId={draft.id} links={attachLinks}>
+              <EntryLinksSortableList entryId={attachmentEntryId} links={attachLinks}>
                 {(l, dragHandle) => (
                   <div className={styles.attachRow}>
                     {dragHandle}

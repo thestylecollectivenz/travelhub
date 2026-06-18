@@ -1,0 +1,23 @@
+.root {
+  display: contents;
+}
+
+.fullRow {
+  grid-column: 1 / -1;
+}
+
+.label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-sand-700);
+  align-self: start;
+  padding-top: var(--space-2);
+}
+
+.editorWrap {
+  min-width: 0;
+}
+
+.editorFullRow {
+  grid-column: 1 / -1;
+}

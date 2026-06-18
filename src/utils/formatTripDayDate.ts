@@ -22,6 +22,16 @@ function parseCalendarDate(calendarDate: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/** Route strip label, e.g. Day 6 — Fri, 30 Oct */
+export function formatRouteStripDayLabel(dayNumber: number, calendarDate: string): string {
+  const d = parseCalendarDate(calendarDate);
+  if (!d) return `Day ${dayNumber}`;
+  const weekday = d.toLocaleDateString('en-NZ', { weekday: 'short' });
+  const month = d.toLocaleDateString('en-NZ', { month: 'short' });
+  const day = d.getDate();
+  return `Day ${dayNumber} - ${weekday}, ${day} ${month}`;
+}
+
 /** Natural language day date, e.g. 29th May 2026 */
 export function formatOrdinalDayDate(calendarDate: string): string {
   const d = parseCalendarDate(calendarDate);
