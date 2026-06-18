@@ -1,4 +1,4 @@
-import { formatTimeHHMM } from './itineraryTimeUtils';
+import { formatTimeHHMM, minutesFromTimeStart } from './itineraryTimeUtils';
 
 /** Parse duration strings like "2h 30m", "45m", "1h" into minutes. */
 export function parseDurationMinutes(duration: string): number {
@@ -6,11 +6,20 @@ export function parseDurationMinutes(duration: string): number {
   if (!t) return 0;
   let total = 0;
   const h = t.match(/(\d+)\s*h/);
-  const m = t.match(/(\d+)\s*m/);
+  const m = t.match(/(\d+)\s*m(?!\w)/);
   if (h) total += Number(h[1]) * 60;
   if (m) total += Number(m[1]);
   if (!h && !m && /^\d+$/.test(t)) total = Number(t);
   return total;
+}
+
+/** Only auto-calculate end times when duration has an explicit unit (avoids "6" → 6 min). */
+export function isDurationExpressionComplete(duration: string): boolean {
+  const t = (duration || '').trim().toLowerCase();
+  if (!t) return false;
+  if (/\d+\s*h|\d+\s*m/.test(t)) return true;
+  if (/^\d{2,}$/.test(t)) return true;
+  return false;
 }
 
 /** Build a human duration string from start/end date+time fields. */
@@ -37,6 +46,10 @@ export function durationFromDateTimes(options: {
   return `${m}m`;
 }
 
+function pad2(n: number): string {
+  return n < 10 ? `0${n}` : String(n);
+}
+
 /** Compute arrival time from departure + duration (supports overnight). */
 export function arrivalTimeFromDuration(options: {
   startDate?: string;
@@ -45,12 +58,19 @@ export function arrivalTimeFromDuration(options: {
 }): { arrivalDate: string; arrivalTime: string } | null {
   const sd = (options.startDate || '').slice(0, 10);
   const st = formatTimeHHMM(options.startTime || '');
-  const mins = parseDurationMinutes(options.duration || '');
+  const duration = options.duration || '';
+  if (!isDurationExpressionComplete(duration)) return null;
+  const mins = parseDurationMinutes(duration);
   if (!sd || !st || mins <= 0) return null;
-  const start = new Date(`${sd}T${st}:00`);
-  if (Number.isNaN(start.getTime())) return null;
-  const end = new Date(start.getTime() + mins * 60000);
-  const arrivalDate = end.toISOString().slice(0, 10);
-  const arrivalTime = formatTimeHHMM(`${end.getHours()}:${end.getMinutes()}`);
+  const startM = minutesFromTimeStart(st);
+  if (startM === undefined) return null;
+  const totalEndM = startM + mins;
+  const dayOffset = Math.floor(totalEndM / (24 * 60));
+  const endM = ((totalEndM % (24 * 60)) + 24 * 60) % (24 * 60);
+  const arrivalTime = `${pad2(Math.floor(endM / 60))}:${pad2(endM % 60)}`;
+  const startDateObj = new Date(`${sd}T12:00:00.000Z`);
+  if (Number.isNaN(startDateObj.getTime())) return null;
+  startDateObj.setUTCDate(startDateObj.getUTCDate() + dayOffset);
+  const arrivalDate = startDateObj.toISOString().slice(0, 10);
   return arrivalDate && arrivalTime ? { arrivalDate, arrivalTime } : null;
 }

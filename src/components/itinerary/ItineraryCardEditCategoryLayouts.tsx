@@ -23,6 +23,7 @@ import { subscribeLocationInfoAIStatus } from '../../utils/locationInfoAIEvents'
 import { scheduleLocationInfoAIGeneration } from '../../utils/locationInfoGeneration';
 import { combineDayAndTime, formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { CurrencySelect } from '../shared/CurrencySelect';
+import { RichTextField } from '../shared/RichTextField';
 import styles from './ItineraryCardEdit.module.css';
 
 export interface CategoryEditLayoutProps {
@@ -627,16 +628,14 @@ export const LocationInfoEditLayout: React.FC<CategoryEditLayoutProps> = ({ draf
 
   return (
     <div className={styles.grid}>
-      <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`loc-overview-${draft.id}`}>
-        Overview — what to see and do
-      </label>
-      <textarea
+      <RichTextField
         id={`loc-overview-${draft.id}`}
-        className={`${styles.textarea} ${styles.fullRow}`}
-        rows={4}
+        label="Overview — what to see and do"
+        fullRow
+        labelClassName={`${styles.label} ${styles.fullRow}`}
+        minHeight="6rem"
         value={data.overview}
-        onChange={(e) => updateNotes({ overview: e.target.value, userEditedOverview: true })}
-        placeholder="Your notes about this place…"
+        onChange={(html) => updateNotes({ overview: html, userEditedOverview: true })}
       />
       <label className={`${styles.label} ${styles.fullRow}`}>
         Highlights (sights, food, drink, souvenirs)

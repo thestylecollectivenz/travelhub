@@ -6,6 +6,7 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
 import { formatCurrency } from '../../utils/financialUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
+import { RichTextContent } from '../shared/RichTextContent';
 import styles from './SubItemDetailLines.module.css';
 
 export interface SubItemDetailLinesProps {
@@ -103,7 +104,11 @@ export const SubItemDetailLines: React.FC<SubItemDetailLinesProps> = ({
       {item.cancellationPolicy?.trim() ? (
         <div className={styles.cancelLine}>Cancellation: {item.cancellationPolicy.trim()}</div>
       ) : null}
-      {item.notes?.trim() ? <div className={styles.notes}>{item.notes.trim()}</div> : null}
+      {item.notes?.trim() ? (
+        <div className={styles.notes}>
+          <RichTextContent html={item.notes.trim()} />
+        </div>
+      ) : null}
     </div>
   );
 };

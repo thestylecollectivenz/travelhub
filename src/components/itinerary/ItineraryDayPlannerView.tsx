@@ -1,5 +1,6 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
+import type { EntryDocument, EntryLink } from '../../models';
 import type { TripDay } from '../../models/TripDay';
 import type { ItineraryEntry, ItinerarySubItem } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
@@ -127,9 +128,28 @@ function plannerBlockMeta(item: PlannerTimedItem, calendarDate: string, tripDays
   if (item.key.includes('-port-')) {
     const arrive = formatTimeHHMM(item.entry.timeStart || '');
     const depart = formatTimeHHMM(item.entry.arrivalTime || '');
+    if (item.key.endsWith('-debark') && arrive) return arrive;
     if (item.key.endsWith('-arrive') && arrive) return arrive;
     if (item.key.endsWith('-depart') && depart) return depart;
     return arrive || depart || '—';
+  }
+  if (item.key.includes('-flt-')) {
+    const dep = formatTimeHHMM(item.entry.timeStart || '');
+    const arr = formatTimeHHMM(item.entry.arrivalTime || '');
+    const dur = item.entry.duration?.trim() || '';
+    if (item.key.endsWith('-inflight')) return 'In flight';
+    if (item.key.endsWith('-depart') && dep) return `${dep} · ${dur || 'overnight'}`.trim();
+    if (item.key.endsWith('-arrive') && arr) return `Arrives ${arr}`;
+    if (dep && dur) return `${dep} · ${dur}`;
+    if (dep && arr) return `${dep}–${arr}`;
+    return dep || arr || '—';
+  }
+  if (item.key.includes('-trn-')) {
+    const out = formatTimeHHMM(item.entry.timeStart || '');
+    const ret = formatTimeHHMM(item.entry.returnTime || '');
+    if (item.key.endsWith('-return') && ret) return `Return ${ret}`;
+    if (out) return out;
+    return '—';
   }
   if (item.key.includes('-acc-')) {
     if (item.key.endsWith('-checkin')) return formatTimeHHMM(item.entry.checkInTime || '') || '—';
@@ -153,6 +173,55 @@ function cancellationSnippet(entry: ItineraryEntry, sub?: ItinerarySubItem): str
 
 function toggleFrontBlock(key: string, setFrontBlockKey: React.Dispatch<React.SetStateAction<string | null>>): void {
   setFrontBlockKey((prev) => (prev === key ? null : key));
+}
+
+function PlannerBlockHoverTip(props: {
+  show: boolean;
+  title: string;
+  docs: EntryDocument[];
+  links: EntryLink[];
+}): React.ReactElement | null {
+  const { show, title, docs, links } = props;
+  if (!show) return null;
+  return (
+    <div className={styles.blockHoverTip} onMouseDown={(e) => e.stopPropagation()}>
+      <div className={styles.blockHoverTitle}>{title}</div>
+      {docs.length || links.length ? (
+        <div className={styles.blockHoverLinks}>
+          {docs.map((d) => (
+            <a
+              key={d.id}
+              href={d.fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={d.title}
+              onClick={(ev) => {
+                ev.stopPropagation();
+                openDocumentUrl(d.fileUrl);
+              }}
+            >
+              <DocGlyph /> {d.title || 'Document'}
+            </a>
+          ))}
+          {links.map((l) => (
+            <a
+              key={l.id}
+              href={l.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={l.linkTitle}
+              onClick={(ev) => {
+                ev.stopPropagation();
+                openDocumentUrl(l.url);
+              }}
+            >
+              <LinkGlyph /> {l.linkTitle || l.url}
+            </a>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function DocGlyph(): React.ReactElement {
@@ -238,6 +307,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
   const [plannerPrintHtml, setPlannerPrintHtml] = React.useState<string | null>(null);
   const [unschedSectionHidden, setUnschedSectionHidden] = React.useState(false);
   const [frontBlockKey, setFrontBlockKey] = React.useState<string | null>(null);
+  const [hoverBlockKey, setHoverBlockKey] = React.useState<string | null>(null);
+  const plannerDragRef = React.useRef<{ pointerId: number; startX: number; scrollLeft: number } | null>(null);
   const plannerFrameRef = React.useRef<HTMLDivElement | null>(null);
   const plannerHScrollRef = React.useRef<HTMLDivElement | null>(null);
   const plannerHeadHScrollRef = React.useRef<HTMLDivElement | null>(null);
@@ -508,6 +579,53 @@ export const ItineraryDayPlannerView: React.FC = () => {
   }, [displayDays, isMobile]);
 
   React.useEffect(() => {
+    const main = plannerHScrollRef.current;
+    const head = plannerHeadHScrollRef.current;
+    if (!main || !head || isMobile) return undefined;
+
+    const bindDrag = (el: HTMLElement): (() => void) => {
+      const onPointerDown = (ev: PointerEvent): void => {
+        if (ev.button !== 0) return;
+        const target = ev.target as HTMLElement;
+        if (target.closest('button, a, input, textarea, select, [contenteditable]')) return;
+        plannerDragRef.current = { pointerId: ev.pointerId, startX: ev.clientX, scrollLeft: main.scrollLeft };
+        el.setPointerCapture(ev.pointerId);
+        el.style.cursor = 'grabbing';
+      };
+      const onPointerMove = (ev: PointerEvent): void => {
+        const drag = plannerDragRef.current;
+        if (!drag || drag.pointerId !== ev.pointerId) return;
+        const dx = ev.clientX - drag.startX;
+        main.scrollLeft = drag.scrollLeft - dx;
+      };
+      const onPointerUp = (ev: PointerEvent): void => {
+        const drag = plannerDragRef.current;
+        if (!drag || drag.pointerId !== ev.pointerId) return;
+        plannerDragRef.current = null;
+        el.style.cursor = '';
+        if (el.hasPointerCapture(ev.pointerId)) el.releasePointerCapture(ev.pointerId);
+      };
+      el.addEventListener('pointerdown', onPointerDown);
+      el.addEventListener('pointermove', onPointerMove);
+      el.addEventListener('pointerup', onPointerUp);
+      el.addEventListener('pointercancel', onPointerUp);
+      return () => {
+        el.removeEventListener('pointerdown', onPointerDown);
+        el.removeEventListener('pointermove', onPointerMove);
+        el.removeEventListener('pointerup', onPointerUp);
+        el.removeEventListener('pointercancel', onPointerUp);
+      };
+    };
+
+    const unbindMain = bindDrag(main);
+    const unbindHead = bindDrag(head);
+    return () => {
+      unbindMain();
+      unbindHead();
+    };
+  }, [displayDays, isMobile]);
+
+  React.useEffect(() => {
     if (!selectedDayId || !visibleDays.length) return;
     const idx = visibleDays.findIndex((d) => d.id === selectedDayId);
     if (idx >= 0) setMobileDayIndex(idx);
@@ -619,7 +737,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
   const rangeForDay = React.useCallback((day: TripDay): { start: number; end: number } => {
     const cal = day.calendarDate || '';
     const list = entriesForPlannerColumn(day);
-    const expanded = expandPlannerTimedItems(list, cal, tripDays);
+    const expanded = expandPlannerTimedItems(list, cal, tripDays, entriesForTrip);
     let minM = 24 * 60;
     let maxM = 0;
     let any = false;
@@ -634,7 +752,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
     maxM = Math.min(25 * 60, maxM + 45);
     if (maxM <= minM) maxM = minM + 60;
     return { start: minM, end: maxM };
-  }, [entriesForPlannerColumn, tripDays]);
+  }, [entriesForPlannerColumn, tripDays, entriesForTrip]);
 
   const globalRange = React.useMemo(() => {
     if (!displayDays.length) return { start: 8 * 60, end: 22 * 60 };
@@ -673,7 +791,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
     for (const d of visibleDays) {
       const cal = d.calendarDate || '';
       const list = entriesForPlannerColumn(d);
-      if (expandPlannerUnscheduledItems(list, cal, tripDays).length) return true;
+      if (expandPlannerUnscheduledItems(list, cal, tripDays, entriesForTrip).length) return true;
     }
     return false;
   }, [visibleDays, entriesForPlannerColumn, tripDays]);
@@ -703,7 +821,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
       for (const d of visibleDays) {
         const cal = d.calendarDate || '';
         const list = entriesForPlannerColumn(d);
-        const has = expandPlannerUnscheduledItems(list, cal, tripDays).length > 0;
+        const has = expandPlannerUnscheduledItems(list, cal, tripDays, entriesForTrip).length > 0;
         if (has) next[d.id] = true;
       }
       return next;
@@ -900,8 +1018,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
           {displayDays.map((day) => {
             const cal = day.calendarDate || '';
             const list = entriesForPlannerColumn(day);
-            const timed = expandPlannerTimedItems(list, cal, tripDays).filter(shouldRenderPlannerItem);
-            const unsched = expandPlannerUnscheduledItems(list, cal, tripDays);
+            const timed = expandPlannerTimedItems(list, cal, tripDays, entriesForTrip).filter(shouldRenderPlannerItem);
+            const unsched = expandPlannerUnscheduledItems(list, cal, tripDays, entriesForTrip);
             const collapsed = Boolean(unschedCollapsed[day.id]);
             return (
               <div key={day.id} className={styles.mobileDayStack}>
@@ -1005,6 +1123,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
                         <div
                           key={item.key}
                           style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: blockZ }}
+                          onMouseEnter={() => setHoverBlockKey(item.key)}
+                          onMouseLeave={() => setHoverBlockKey(null)}
                           onMouseDown={(e) => {
                             e.stopPropagation();
                             toggleFrontBlock(item.key, setFrontBlockKey);
@@ -1015,7 +1135,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                               <ItineraryCard entry={e} calendarDate={cal} suppressCarryoverUi={day.dayType === 'PreTrip'} draggable={false} useEditPortal />
                             </div>
                           ) : (
-                            <div className={`${styles.block} th-cat-${cat} th-cat-border`} style={{ position: 'static', height: '100%' }}>
+                            <div className={`${styles.block} th-cat-${cat} th-cat-border`} style={{ position: 'static', height: '100%' }} title={item.title}>
                               <div className={styles.blockTitleRow}>
                                 <div className={styles.blockTitle}>
                                   {!sub && isTransportReturnOnCalendarDate(e, cal) ? (
@@ -1080,6 +1200,12 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                   </a>
                                 ))}
                               </div>
+                              <PlannerBlockHoverTip
+                                show={hoverBlockKey === item.key}
+                                title={sub && item.parentTitle ? `${item.title} (${item.parentTitle})` : item.title}
+                                docs={docs}
+                                links={links}
+                              />
                             </div>
                           )}
                         </div>
@@ -1116,7 +1242,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                     {displayDays.map((day) => {
               const cal = day.calendarDate || '';
               const list = entriesForPlannerColumn(day);
-              const unsched = expandPlannerUnscheduledItems(list, cal, tripDays);
+              const unsched = expandPlannerUnscheduledItems(list, cal, tripDays, entriesForTrip);
               const collapsed = Boolean(unschedCollapsed[day.id]);
               if (!unsched.length) {
                 return <div key={`u-${day.id}`} className={styles.unschedCell} />;
@@ -1207,7 +1333,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
               {displayDays.map((day) => {
                   const cal = day.calendarDate || '';
                   const list = entriesForPlannerColumn(day);
-                  const timed = expandPlannerTimedItems(list, cal, tripDays).filter(shouldRenderPlannerItem);
+                  const timed = expandPlannerTimedItems(list, cal, tripDays, entriesForTrip).filter(shouldRenderPlannerItem);
                   return (
                     <div
                       key={`t-${day.id}`}
@@ -1236,6 +1362,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
                           <div
                             key={item.key}
                             style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: blockZ }}
+                            onMouseEnter={() => setHoverBlockKey(item.key)}
+                            onMouseLeave={() => setHoverBlockKey(null)}
                             onMouseDown={(e) => {
                             e.stopPropagation();
                             toggleFrontBlock(item.key, setFrontBlockKey);
@@ -1246,7 +1374,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                 <ItineraryCard entry={e} calendarDate={cal} suppressCarryoverUi={day.dayType === 'PreTrip'} draggable={false} useEditPortal />
                               </div>
                             ) : (
-                              <div className={`${styles.block} th-cat-${cat} th-cat-border`} style={{ position: 'static', height: '100%' }}>
+                              <div className={`${styles.block} th-cat-${cat} th-cat-border`} style={{ position: 'static', height: '100%' }} title={item.title}>
                                 <div className={styles.blockTitleRow}>
                                   <div className={styles.blockTitle}>
                                     {!sub && isTransportReturnOnCalendarDate(e, cal) ? (
@@ -1311,6 +1439,12 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                     </a>
                                   ))}
                                 </div>
+                                <PlannerBlockHoverTip
+                                  show={hoverBlockKey === item.key}
+                                  title={sub && item.parentTitle ? `${item.title} (${item.parentTitle})` : item.title}
+                                  docs={docs}
+                                  links={links}
+                                />
                               </div>
                             )}
                           </div>

@@ -1,8 +1,9 @@
 import type { ItineraryEntry, ItinerarySubItem } from '../models/ItineraryEntry';
 import type { TripDay } from '../models/TripDay';
 import { parseDurationMinutes } from './durationFromTimes';
-import { effectivePlannerTimeStart } from './itineraryDayEntries';
-import { minutesFromTimeStart } from './itineraryTimeUtils';
+import { cruisePortPlannerBlocks, isCruiseSeaOrScenicEntry } from './cruisePlannerUtils';
+import { effectivePlannerTimeStart, isTransportReturnOnCalendarDate } from './itineraryDayEntries';
+import { formatTimeHHMM, minutesFromTimeStart } from './itineraryTimeUtils';
 
 export interface PlannerTimedItem {
   key: string;
@@ -23,9 +24,15 @@ export interface PlannerUnscheduledItem {
 }
 
 const PORT_MARKER_MINUTES = 60;
+const MINUTES_PER_DAY = 24 * 60;
 
 function ymdSlice(value: string | undefined): string {
   return (value || '').slice(0, 10);
+}
+
+function entryHomeCalendarYmd(entry: ItineraryEntry, tripDays: TripDay[]): string {
+  const row = tripDays.find((d) => d.id === entry.dayId);
+  return ymdSlice(row?.calendarDate || entry.dateStart);
 }
 
 export function isWholeCruiseEntry(entry: ItineraryEntry): boolean {
@@ -41,7 +48,7 @@ export function isAccommodationEntry(entry: ItineraryEntry): boolean {
   return entry.category === 'Accommodation';
 }
 
-/** Short markers at arrive/depart — avoids one tall block over in-port activities. */
+/** @deprecated Use cruisePortPlannerBlocks — kept for tests/callers expecting simple blocks. */
 export function cruisePortTimedBlocks(
   entry: ItineraryEntry
 ): Array<{ keySuffix: string; startMinutes: number; durationMinutes: number; title: string }> {
@@ -71,12 +78,12 @@ export function cruisePortTimedBlocks(
 export function accommodationPlannerBlocks(
   entry: ItineraryEntry,
   calendarDate: string
-): Array<{ keySuffix: string; startMinutes: number; durationMinutes: number; title: string }> {
+): Array<{ keySuffix: string; startMinutes: number; durationMinutes: number; title: string; checkInFromLabel?: string }> {
   const day = ymdSlice(calendarDate);
   const checkInDay = ymdSlice(entry.dateStart);
   const checkOutDay = ymdSlice(entry.dateEnd);
   const base = entry.title?.trim() || 'Accommodation';
-  const blocks: Array<{ keySuffix: string; startMinutes: number; durationMinutes: number; title: string }> = [];
+  const blocks: Array<{ keySuffix: string; startMinutes: number; durationMinutes: number; title: string; checkInFromLabel?: string }> = [];
   if (day && checkInDay === day) {
     const start = minutesFromTimeStart(entry.checkInTime || '');
     if (start !== undefined) {
@@ -84,7 +91,8 @@ export function accommodationPlannerBlocks(
         keySuffix: 'checkin',
         startMinutes: start,
         durationMinutes: PORT_MARKER_MINUTES,
-        title: `${base} · Check-in`
+        title: `${base} · Check-in`,
+        checkInFromLabel: formatTimeHHMM(entry.checkInTime || '')
       });
     }
   }
@@ -102,6 +110,94 @@ export function accommodationPlannerBlocks(
   return blocks;
 }
 
+interface FlightPlannerBlock {
+  keySuffix: string;
+  startMinutes: number;
+  durationMinutes: number;
+  title: string;
+}
+
+function flightPlannerBlocks(
+  entry: ItineraryEntry,
+  calendarDate: string,
+  tripDays: TripDay[]
+): FlightPlannerBlock[] {
+  if (entry.category !== 'Flights') return [];
+  const viewYmd = ymdSlice(calendarDate);
+  const depYmd = ymdSlice(entry.dateStart || entryHomeCalendarYmd(entry, tripDays));
+  const arrYmd = ymdSlice(entry.arrivalDate || depYmd);
+  const depM = minutesFromTimeStart(entry.timeStart || '');
+  const arrM = minutesFromTimeStart(entry.arrivalTime || '');
+  const title = entry.title?.trim() || 'Flight';
+  const blocks: FlightPlannerBlock[] = [];
+
+  if (viewYmd === depYmd && depM !== undefined) {
+    if (depYmd === arrYmd && arrM !== undefined && arrM > depM) {
+      blocks.push({ keySuffix: 'leg', startMinutes: depM, durationMinutes: arrM - depM, title });
+    } else if (depYmd !== arrYmd) {
+      blocks.push({
+        keySuffix: 'depart',
+        startMinutes: depM,
+        durationMinutes: MINUTES_PER_DAY - depM,
+        title
+      });
+    } else {
+      const parsed = parseDurationMinutes(entry.duration || '');
+      blocks.push({
+        keySuffix: 'leg',
+        startMinutes: depM,
+        durationMinutes: parsed > 0 ? parsed : 60,
+        title
+      });
+    }
+  } else if (viewYmd === arrYmd && depYmd !== arrYmd) {
+    if (arrM !== undefined) {
+      blocks.push({ keySuffix: 'arrive', startMinutes: 0, durationMinutes: Math.max(arrM, PORT_MARKER_MINUTES), title });
+    }
+  } else if (viewYmd > depYmd && viewYmd < arrYmd) {
+    blocks.push({ keySuffix: 'inflight', startMinutes: 0, durationMinutes: MINUTES_PER_DAY, title: `${title} (in flight)` });
+  }
+  return blocks;
+}
+
+function transportPlannerBlocks(
+  entry: ItineraryEntry,
+  calendarDate: string,
+  tripDays: TripDay[]
+): FlightPlannerBlock[] {
+  if (entry.category !== 'Transport') return [];
+  const viewYmd = ymdSlice(calendarDate);
+  const homeYmd = entryHomeCalendarYmd(entry, tripDays);
+  const blocks: FlightPlannerBlock[] = [];
+  const title = entry.title?.trim() || 'Transport';
+
+  if (viewYmd === homeYmd && !isTransportReturnOnCalendarDate(entry, calendarDate)) {
+    const start = minutesFromTimeStart(entry.timeStart || '');
+    if (start !== undefined) {
+      const end = minutesFromTimeStart(entry.arrivalTime || '');
+      const dur =
+        end !== undefined && end > start
+          ? end - start
+          : parseDurationMinutes(entry.duration || '') || 60;
+      blocks.push({ keySuffix: 'outbound', startMinutes: start, durationMinutes: dur, title });
+    }
+  }
+
+  if (entry.journeyType === 'return' && isTransportReturnOnCalendarDate(entry, calendarDate)) {
+    const start = minutesFromTimeStart(entry.returnTime || '');
+    if (start !== undefined) {
+      const dur = parseDurationMinutes(entry.duration || '') || 60;
+      blocks.push({
+        keySuffix: 'return',
+        startMinutes: start,
+        durationMinutes: dur,
+        title: `${title} (return)`
+      });
+    }
+  }
+  return blocks;
+}
+
 export function parsePlannerDurationMinutes(duration: string | undefined): number {
   const parsed = parseDurationMinutes(duration || '');
   return parsed > 0 ? parsed : 60;
@@ -111,27 +207,39 @@ export function entryHasTimedSubs(entry: ItineraryEntry): boolean {
   return (entry.subItems ?? []).some((s) => minutesFromTimeStart(s.startTime || '') !== undefined);
 }
 
-function entryHasParentTimedBlock(entry: ItineraryEntry, calendarDate: string, tripDays: TripDay[]): boolean {
+function entryHasParentTimedBlock(
+  entry: ItineraryEntry,
+  calendarDate: string,
+  tripDays: TripDay[],
+  tripEntries: ItineraryEntry[]
+): boolean {
   if (isWholeCruiseEntry(entry)) return false;
-  if (isCruisePortEntry(entry) && cruisePortTimedBlocks(entry).length > 0) return true;
+  if (isCruisePortEntry(entry) && cruisePortPlannerBlocks(entry, calendarDate, tripDays, tripEntries).length > 0) {
+    return true;
+  }
   if (isAccommodationEntry(entry) && accommodationPlannerBlocks(entry, calendarDate).length > 0) return true;
+  if (entry.category === 'Flights' && flightPlannerBlocks(entry, calendarDate, tripDays).length > 0) return true;
+  if (entry.category === 'Transport' && transportPlannerBlocks(entry, calendarDate, tripDays).length > 0) return true;
   return minutesFromTimeStart(effectivePlannerTimeStart(entry, calendarDate, tripDays)) !== undefined;
 }
 
 export function isPlannerUnscheduledEntry(
   entry: ItineraryEntry,
   calendarDate: string,
-  tripDays: TripDay[]
+  tripDays: TripDay[],
+  tripEntries?: ItineraryEntry[]
 ): boolean {
   if (isWholeCruiseEntry(entry)) return true;
-  if (entryHasParentTimedBlock(entry, calendarDate, tripDays)) return false;
+  if (isCruiseSeaOrScenicEntry(entry)) return true;
+  const all = tripEntries ?? [];
+  if (entryHasParentTimedBlock(entry, calendarDate, tripDays, all)) return false;
   if (entryHasTimedSubs(entry)) return false;
   return true;
 }
 
 export function shouldRenderPlannerItem(item: PlannerTimedItem): boolean {
   if (item.subItem) return true;
-  if (item.key.includes('-port-') || item.key.includes('-acc-')) return true;
+  if (item.key.includes('-port-') || item.key.includes('-acc-') || item.key.includes('-flt-') || item.key.includes('-trn-')) return true;
   return !entryHasTimedSubs(item.entry);
 }
 
@@ -175,12 +283,40 @@ function pushTimedSubs(
   }
 }
 
+/** Defer hotel check-in until after same-day flights/transport when wall-clock time is earlier. */
+export function adjustPlannerAccommodationOrder(items: PlannerTimedItem[]): void {
+  let latestJourneyEnd = -1;
+  for (const item of items) {
+    if (item.key.includes('-acc-')) continue;
+    if (item.category === 'Flights' || item.category === 'Transport') {
+      latestJourneyEnd = Math.max(latestJourneyEnd, item.startMinutes + item.durationMinutes);
+    }
+  }
+  if (latestJourneyEnd < 0) return;
+
+  for (const item of items) {
+    if (!item.key.endsWith('-acc-checkin')) continue;
+    const originalStart = item.startMinutes;
+    if (originalStart >= latestJourneyEnd) continue;
+    const fromLabel = formatTimeHHMM(
+      item.entry.checkInTime || `${Math.floor(originalStart / 60)}:${originalStart % 60}`
+    );
+    item.startMinutes = Math.min(latestJourneyEnd + 5, MINUTES_PER_DAY - PORT_MARKER_MINUTES);
+    if (fromLabel) {
+      const base = item.entry.title?.trim() || 'Accommodation';
+      item.title = `${base} · Check-in from ${fromLabel}`;
+    }
+  }
+}
+
 /** Expand day entries into planner blocks — timed options and cruise ports become their own entries. */
 export function expandPlannerTimedItems(
   entries: ItineraryEntry[],
   calendarDate: string,
-  tripDays: TripDay[]
+  tripDays: TripDay[],
+  tripEntries?: ItineraryEntry[]
 ): PlannerTimedItem[] {
+  const allTripEntries = tripEntries ?? entries;
   const items: PlannerTimedItem[] = [];
   for (const entry of entries) {
     const subs = [...(entry.subItems ?? [])].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
@@ -192,15 +328,60 @@ export function expandPlannerTimedItems(
     }
 
     if (isCruisePortEntry(entry)) {
-      for (const block of cruisePortTimedBlocks(entry)) {
+      if (!isCruiseSeaOrScenicEntry(entry)) {
+        for (const block of cruisePortPlannerBlocks(entry, calendarDate, tripDays, allTripEntries)) {
+          items.push({
+            key: `${entry.id}-port-${block.keySuffix}`,
+            entry,
+            title: block.title,
+            category: entry.category,
+            startMinutes: block.startMinutes,
+            durationMinutes: block.durationMinutes
+          });
+        }
+      }
+      pushTimedSubs(items, entry, timedSubs, entry.title || 'Untitled');
+      continue;
+    }
+
+    if (entry.category === 'Flights') {
+      for (const block of flightPlannerBlocks(entry, calendarDate, tripDays)) {
         items.push({
-          key: `${entry.id}-port-${block.keySuffix}`,
+          key: `${entry.id}-flt-${block.keySuffix}`,
           entry,
           title: block.title,
           category: entry.category,
           startMinutes: block.startMinutes,
           durationMinutes: block.durationMinutes
         });
+      }
+      pushTimedSubs(items, entry, timedSubs, entry.title || 'Untitled');
+      continue;
+    }
+
+    if (entry.category === 'Transport') {
+      for (const block of transportPlannerBlocks(entry, calendarDate, tripDays)) {
+        items.push({
+          key: `${entry.id}-trn-${block.keySuffix}`,
+          entry,
+          title: block.title,
+          category: entry.category,
+          startMinutes: block.startMinutes,
+          durationMinutes: block.durationMinutes
+        });
+      }
+      if (!transportPlannerBlocks(entry, calendarDate, tripDays).length) {
+        const entryStart = minutesFromTimeStart(effectivePlannerTimeStart(entry, calendarDate, tripDays));
+        if (entryStart !== undefined && !entryHasTimedSubs(entry)) {
+          items.push({
+            key: entry.id,
+            entry,
+            title: entry.title || 'Untitled',
+            category: entry.category,
+            startMinutes: entryStart,
+            durationMinutes: timedBlockDurationMinutes(entryStart, entry.arrivalTime, entry.duration)
+          });
+        }
       }
       pushTimedSubs(items, entry, timedSubs, entry.title || 'Untitled');
       continue;
@@ -220,13 +401,8 @@ export function expandPlannerTimedItems(
     }
 
     const entryStart = minutesFromTimeStart(effectivePlannerTimeStart(entry, calendarDate, tripDays));
-    if (entryStart !== undefined && !entryHasTimedSubs(entry)) {
-      const endField =
-        entry.category === 'Flights' || entry.category === 'Transport'
-          ? entry.arrivalTime
-          : entry.category === 'Accommodation'
-            ? undefined
-            : entry.arrivalTime;
+    if (entryStart !== undefined && !entryHasTimedSubs(entry) && !isAccommodationEntry(entry)) {
+      const endField = entry.arrivalTime;
       items.push({
         key: entry.id,
         entry,
@@ -239,24 +415,29 @@ export function expandPlannerTimedItems(
 
     pushTimedSubs(items, entry, timedSubs, entry.title || 'Untitled');
   }
+
+  adjustPlannerAccommodationOrder(items);
+  items.sort((a, b) => a.startMinutes - b.startMinutes || a.title.localeCompare(b.title));
   return items;
 }
 
 export function expandPlannerUnscheduledItems(
   entries: ItineraryEntry[],
   calendarDate: string,
-  tripDays: TripDay[]
+  tripDays: TripDay[],
+  tripEntries?: ItineraryEntry[]
 ): PlannerUnscheduledItem[] {
+  const all = tripEntries ?? entries;
   const items: PlannerUnscheduledItem[] = [];
   for (const entry of entries) {
     const untimedSubs = (entry.subItems ?? []).filter(
       (s) => minutesFromTimeStart(s.startTime || '') === undefined
     );
-    const parentOnTimeline = expandPlannerTimedItems([entry], calendarDate, tripDays)
+    const parentOnTimeline = expandPlannerTimedItems([entry], calendarDate, tripDays, all)
       .filter((item) => shouldRenderPlannerItem(item) && !item.subItem)
       .some((item) => item.entry.id === entry.id);
 
-    if (isPlannerUnscheduledEntry(entry, calendarDate, tripDays)) {
+    if (isPlannerUnscheduledEntry(entry, calendarDate, tripDays, all)) {
       items.push({
         key: entry.id,
         entry,

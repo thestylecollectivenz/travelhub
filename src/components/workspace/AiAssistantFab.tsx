@@ -4,9 +4,8 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { answerTravelChat } from '../../services/GeminiService';
 import { formatGeminiUserMessage } from '../../services/geminiErrorMessage';
 import { LinkifiedText } from '../shared/LinkifiedText';
-import { RichTextEditor } from '../journal/RichTextEditor';
 import { RichTextContent } from '../shared/RichTextContent';
-import { isLikelyJournalHtml, plainTextToEditorHtml, richTextToPlainText } from '../../utils/journalRichText';
+import { markdownToHtml } from '../../utils/markdownToHtml';
 import styles from './AiAssistantFab.module.css';
 
 const FAB_SIZE = 48;
@@ -102,7 +101,7 @@ export const AiAssistantFab: React.FC = () => {
     : '';
 
   const send = async (): Promise<void> => {
-    const text = richTextToPlainText(input);
+    const text = input.trim();
     if (!text || busy) return;
     if (!config.geminiApiKey?.trim()) {
       setError('Add a Gemini API key in User settings.');
@@ -110,7 +109,7 @@ export const AiAssistantFab: React.FC = () => {
     }
     const nextMessages = [...messages, { role: 'user' as const, text }];
     setMessages(nextMessages);
-    setInput(plainTextToEditorHtml(''));
+    setInput('');
     setError(null);
     setBusy(true);
     try {
@@ -210,22 +209,28 @@ export const AiAssistantFab: React.FC = () => {
             ) : null}
             {messages.map((m, i) => (
               <div key={i} className={m.role === 'user' ? styles.userMsg : styles.aiMsg}>
-                {isLikelyJournalHtml(m.text) ? <RichTextContent html={m.text} /> : <LinkifiedText text={m.text} />}
+                {m.role === 'assistant' ? (
+                  <RichTextContent html={markdownToHtml(m.text)} />
+                ) : (
+                  <LinkifiedText text={m.text} />
+                )}
               </div>
             ))}
           </div>
           {error ? <p className={styles.error}>{error}</p> : null}
           <div className={styles.compose}>
-            <RichTextEditor
-              value={input || plainTextToEditorHtml('')}
-              onChange={setInput}
+            <textarea
+              className={styles.input}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
               disabled={busy}
-              minHeight="4.5rem"
+              rows={3}
+              placeholder="Ask about this trip…"
             />
             <button
               type="button"
               className={styles.sendBtn}
-              disabled={busy || !richTextToPlainText(input)}
+              disabled={busy || !input.trim()}
               onClick={() => void send()}
             >
               {busy ? '…' : 'Send'}

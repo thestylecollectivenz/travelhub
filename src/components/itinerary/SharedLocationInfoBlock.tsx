@@ -6,6 +6,7 @@ import {
   parseLocationInfoNotes
 } from '../../utils/locationInfoEntry';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
+import { RichTextContent } from '../shared/RichTextContent';
 import { LocationInfoHighlights } from './LocationInfoHighlights';
 import styles from './SharedItinerarySummary.module.css';
 
@@ -22,7 +23,11 @@ export const SharedLocationInfoBlock: React.FC<SharedLocationInfoBlockProps> = (
   return (
     <div className={styles.locationInfoBlock}>
       <div className={styles.locationInfoTitle}>{entry.title || 'Location'}</div>
-      {normalized.overview.trim() ? <p className={styles.locationInfoOverview}>{normalized.overview.trim()}</p> : null}
+      {normalized.overview.trim() ? (
+        <div className={styles.locationInfoOverview}>
+          <RichTextContent html={normalized.overview.trim()} />
+        </div>
+      ) : null}
       <LocationInfoHighlights rows={locationHighlightRows(normalized)} onChange={() => undefined} readOnly />
     </div>
   );

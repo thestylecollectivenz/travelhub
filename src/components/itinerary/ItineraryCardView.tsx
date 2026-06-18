@@ -21,6 +21,9 @@ import { paymentDueActionLabel } from '../../utils/paymentDueLabels';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { EntryLinksSortableList } from './EntryLinksSortableList';
 import { EntryDocumentsSortableList } from './EntryDocumentsSortableList';
+import { sortEntryDocuments } from '../../utils/entryDocumentSort';
+import { sortEntryLinks } from '../../utils/entryLinkSort';
+import { RichTextContent } from '../shared/RichTextContent';
 import type { LinkedEntryTask } from '../../utils/linkedEntryTask';
 import { linkedTaskDisplayText, linkedTaskNoteDisplay } from '../../utils/linkedEntryTask';
 import { effectivePlannerTimeStart, isTransportReturnOnCalendarDate } from '../../utils/itineraryDayEntries';
@@ -211,8 +214,20 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
     useTripWorkspace();
   const planView = usePlanView();
   const { config } = useConfig();
-  const { docsForEntry, linksForEntry, addDocument, updateDocument, deleteDocument, addLink, updateLink, deleteLink } = useAttachments();
+  const { documents, links: allLinks, addDocument, updateDocument, deleteDocument, addLink, updateLink, deleteLink } = useAttachments();
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [attachmentEntryId, setAttachmentEntryId] = React.useState(entry.id);
+
+  React.useEffect(() => {
+    setAttachmentEntryId(entry.id);
+  }, [entry.id]);
+
+  const knownAttachmentEntryIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    if (entry.id) ids.add(entry.id);
+    if (attachmentEntryId) ids.add(attachmentEntryId);
+    return ids;
+  }, [attachmentEntryId, entry.id]);
   const [notesOpen, setNotesOpen] = React.useState(() => Boolean(entry.notes?.trim()));
   const [attachmentsOpen, setAttachmentsOpen] = React.useState(false);
   const [subItemsOpen, setSubItemsOpen] = React.useState(() => (entry.subItems?.length ?? 0) > 0);
@@ -466,8 +481,14 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const hasSubTotal = subTotal > 0;
   const cardTotalHome = displayAmountHome + subTotal;
   const showSubItemContent = hasSubItems || editingSubItem?.parentEntryId === entry.id;
-  const docs = docsForEntry(entry.id);
-  const links = linksForEntry(entry.id);
+  const docs = React.useMemo(
+    () => sortEntryDocuments(documents.filter((d) => knownAttachmentEntryIds.has(d.entryId))),
+    [documents, knownAttachmentEntryIds]
+  );
+  const links = React.useMemo(
+    () => sortEntryLinks(allLinks.filter((l) => knownAttachmentEntryIds.has(l.entryId))),
+    [allLinks, knownAttachmentEntryIds]
+  );
 
   React.useEffect(() => {
     if (docs.length + links.length > 0) {
@@ -703,7 +724,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           {locationInfoData.overview.trim() ? (
             <section className={styles.locationInfoSection}>
               <h4 className={styles.locationInfoHeading}>Overview</h4>
-              <p className={styles.locationInfoText}>{locationInfoData.overview.trim()}</p>
+              <div className={styles.locationInfoText}>
+                <RichTextContent html={locationInfoData.overview.trim()} />
+              </div>
             </section>
           ) : null}
           <section className={styles.locationInfoSection}>
@@ -886,6 +909,12 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           {entry.journeyType ? <div>Journey {entry.journeyType === 'return' ? 'Return' : 'One way'}</div> : null}
           {entry.journeyType === 'return' && entry.returnDate ? <div>Return date {formatYmd(entry.returnDate)}</div> : null}
           {entry.journeyType === 'return' && entry.returnTime ? <div>Return dep. {formatTimeHHMM(entry.returnTime)}</div> : null}
+          {entry.journeyType === 'return' && entry.timeStart ? (
+            <div>Outbound dep. {formatTimeHHMM(entry.timeStart)}</div>
+          ) : null}
+          {entry.journeyType === 'return' && entry.arrivalTime ? (
+            <div>Outbound arr. {formatTimeHHMM(entry.arrivalTime)}</div>
+          ) : null}
         </div>
       ) : null}
       {isCruise &&
@@ -906,7 +935,11 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           <button type="button" className={styles.notesToggle} onClick={() => setNotesOpen((o) => !o)}>
             {notesOpen ? 'Notes ▴' : 'Notes ▾'}
           </button>
-          {notesOpen ? <div className={styles.notesBody}>{entry.notes}</div> : null}
+          {notesOpen ? (
+            <div className={styles.notesBody}>
+              <RichTextContent html={entry.notes} />
+            </div>
+          ) : null}
         </>
       ) : null}
 
@@ -1032,7 +1065,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                 )}
               </EntryDocumentsSortableList>
             ) : null}
-            <EntryLinksSortableList entryId={entry.id} links={links}>
+            <EntryLinksSortableList entryId={attachmentEntryId} links={links}>
               {(link, dragHandle) => (
                 <div className={styles.attachmentRow}>
                   {dragHandle}
@@ -1208,16 +1241,17 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                   onClick={() => {
                     setLinkBusy(true);
                     void persistEntry(entry)
-                      .then((resolved) =>
-                        addLink({
+                      .then((resolved) => {
+                        setAttachmentEntryId(resolved.id);
+                        return addLink({
                           dayId: resolved.dayId,
                           entryId: resolved.id,
                           linkTitle: linkDraft.linkTitle.trim(),
                           url: linkDraft.url.trim(),
                           linkType: linkDraft.linkType,
                           notes: linkDraft.notes.trim()
-                        })
-                      )
+                        });
+                      })
                       .then(() => {
                         resetLinkDraft();
                         setAttachAddMode('none');

@@ -43,6 +43,20 @@ export function isFlightArrivalOnCalendarDate(entry: ItineraryEntry, calendarDat
   return ymdSlice(entry.arrivalDate) === ymdSlice(calendarDate);
 }
 
+/** Multi-day flights also appear on calendar days between departure and arrival. */
+export function isFlightInTransitOnCalendarDate(
+  entry: ItineraryEntry,
+  calendarDate: string,
+  tripDays?: TripDay[]
+): boolean {
+  if (entry.category !== 'Flights' || !calendarDate) return false;
+  const viewYmd = ymdSlice(calendarDate);
+  const depYmd = ymdSlice(entry.dateStart || entryHomeCalendarYmd(entry, tripDays));
+  const arrYmd = ymdSlice(entry.arrivalDate || depYmd);
+  if (!depYmd || !arrYmd || depYmd === arrYmd) return false;
+  return viewYmd > depYmd && viewYmd < arrYmd;
+}
+
 function entryHomeCalendarYmd(entry: ItineraryEntry, tripDays: TripDay[] | undefined): string | undefined {
   if (!tripDays?.length) return undefined;
   const row = tripDays.find((d) => d.id === entry.dayId);
@@ -88,7 +102,8 @@ export function isEntryOnCalendarDate(
   entry: ItineraryEntry,
   calendarDate: string,
   dayType?: string,
-  ctx?: EntryCalendarMatchContext
+  ctx?: EntryCalendarMatchContext,
+  tripDays?: TripDay[]
 ): boolean {
   if (isPreTripDayType(dayType)) return false;
   if (ctx?.preTripDayId && ctx?.viewingDayId && ctx.viewingDayId === ctx.preTripDayId) {
@@ -110,6 +125,9 @@ export function isEntryOnCalendarDate(
     return day.getTime() >= start.getTime() && day.getTime() <= end.getTime();
   }
   if (isFlightArrivalOnCalendarDate(entry, calendarDate)) {
+    return true;
+  }
+  if (isFlightInTransitOnCalendarDate(entry, calendarDate, tripDays)) {
     return true;
   }
   return false;
@@ -156,7 +174,7 @@ function isMultiDayContinuationOnDay(entry: ItineraryEntry, calendarDate: string
   const homeCal = homeDay.calendarDate.slice(0, 10);
   const viewCal = calendarDate.slice(0, 10);
   if (viewCal <= homeCal) return false;
-  return isEntryOnCalendarDate(entry, calendarDate, homeDay.dayType, { viewingDayId: homeDay.id });
+  return isEntryOnCalendarDate(entry, calendarDate, homeDay.dayType, { viewingDayId: homeDay.id }, tripDays);
 }
 
 /**
@@ -190,7 +208,7 @@ export function sortEntriesForDay(
   const map = new Map<string, ItineraryEntry>();
   for (const e of entries) {
     if (e.parentEntryId) continue;
-    if (e.dayId === dayId || isEntryOnCalendarDate(e, calendarDate, dayType, spanCtx)) {
+    if (e.dayId === dayId || isEntryOnCalendarDate(e, calendarDate, dayType, spanCtx, tripDays)) {
       map.set(e.id, e);
     }
   }

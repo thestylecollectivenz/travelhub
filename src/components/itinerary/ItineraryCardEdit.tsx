@@ -6,7 +6,7 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
 import { flightPlaceOptionsForDay } from '../../utils/flightPlaceOptions';
 import { buildDayLocationOptions } from '../../utils/dayLocationOptions';
-import { durationFromDateTimes, arrivalTimeFromDuration } from '../../utils/durationFromTimes';
+import { durationFromDateTimes, arrivalTimeFromDuration, isDurationExpressionComplete } from '../../utils/durationFromTimes';
 import { useConfig } from '../../context/ConfigContext';
 import { CurrencySelect } from '../shared/CurrencySelect';
 import { useAttachments } from '../../context/AttachmentsContext';
@@ -187,9 +187,9 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
 
   React.useEffect(() => {
     if (!needsComputedEndTime) return;
-    if (!draft.duration?.trim() || !draft.timeStart?.trim()) return;
-    if (endTimeManualRef.current && draft.arrivalTime?.trim()) return;
-    if (draft.arrivalTime?.trim()) return;
+    if (!isDurationExpressionComplete(draft.duration || '')) return;
+    if (!draft.timeStart?.trim()) return;
+    if (endTimeManualRef.current) return;
     const computed = arrivalTimeFromDuration({
       startDate: draft.dateStart || calendarDate,
       startTime: draft.timeStart,
@@ -198,7 +198,8 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
     if (!computed) return;
     setDraft((d) => {
       const curArr = formatTimeHHMM(d.arrivalTime ?? '');
-      if (curArr) return d;
+      const nextArr = computed.arrivalTime;
+      if (curArr === nextArr) return d;
       return {
         ...d,
         arrivalTime: computed.arrivalTime,
@@ -496,7 +497,10 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           type="text"
           placeholder="e.g. 2h 30m"
           value={draft.duration}
-          onChange={(e) => patch({ duration: e.target.value })}
+          onChange={(e) => {
+            endTimeManualRef.current = false;
+            patch({ duration: e.target.value });
+          }}
         />
         {isFlights || isTransport || isActivities || isOption ? (
           <>

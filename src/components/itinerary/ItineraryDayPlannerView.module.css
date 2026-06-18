@@ -225,6 +225,11 @@
   overflow-x: auto;
   overflow-y: visible;
   scrollbar-width: thin;
+  cursor: grab;
+}
+
+.plannerTrackHScroll:active {
+  cursor: grabbing;
 }
 
 .plannerHScroll {
@@ -264,6 +269,13 @@
   align-items: stretch;
   width: 100%;
   min-width: 0;
+}
+
+.trackInner .timeAxis {
+  position: sticky;
+  left: 0;
+  z-index: 11;
+  box-shadow: 1px 0 0 color-mix(in srgb, var(--color-sand-300) 55%, transparent);
 }
 
 .unschedCell {
@@ -372,12 +384,53 @@
   border: var(--border-default);
   padding: var(--space-1) var(--space-2);
   cursor: default;
-  overflow: hidden;
+  overflow: visible;
   box-sizing: border-box;
   display: grid;
   gap: 2px;
   align-content: start;
   background: color-mix(in srgb, var(--cat-bg, var(--color-surface-raised)) 38%, var(--color-surface));
+}
+
+.blockHoverTip {
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  top: calc(100% + 2px);
+  z-index: 90;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  border: var(--border-default);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  font-size: var(--font-size-xs);
+  color: var(--color-blue-900);
+  pointer-events: auto;
+}
+
+.blockHoverTitle {
+  font-weight: var(--font-weight-bold);
+  line-height: 1.35;
+  margin-bottom: var(--space-1);
+}
+
+.blockHoverLinks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.blockHoverLinks a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-blue-700);
+  text-decoration: none;
+  font-size: 11px;
+}
+
+.blockHoverLinks a:hover {
+  text-decoration: underline;
 }
 
 .blockTitle {

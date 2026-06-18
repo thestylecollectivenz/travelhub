@@ -1,5 +1,5 @@
 import type { ItineraryEntry, ItinerarySubItem } from '../models/ItineraryEntry';
-import { arrivalTimeFromDuration } from './durationFromTimes';
+import { arrivalTimeFromDuration, isDurationExpressionComplete } from './durationFromTimes';
 
 /** Map a related option to a full entry shape for ItineraryCardEdit. */
 export function subItemToEditableEntry(parent: ItineraryEntry, sub: ItinerarySubItem): ItineraryEntry {
@@ -38,7 +38,7 @@ export function editableEntryToSubItem(
 ): ItinerarySubItem {
   const duration = entry.duration?.trim() || undefined;
   let endTime = entry.arrivalTime?.trim() || undefined;
-  if (duration && entry.timeStart?.trim() && !endTime && calendarDate) {
+  if (duration && entry.timeStart?.trim() && !endTime && calendarDate && isDurationExpressionComplete(duration)) {
     const computed = arrivalTimeFromDuration({
       startDate: calendarDate,
       startTime: entry.timeStart,
