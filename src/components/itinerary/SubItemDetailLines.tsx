@@ -6,6 +6,7 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
 import { formatCurrency } from '../../utils/financialUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
+import { formatLocationText } from '../../utils/placeDisplayLabel';
 import { RichTextContent } from '../shared/RichTextContent';
 import styles from './SubItemDetailLines.module.css';
 
@@ -58,6 +59,7 @@ export const SubItemDetailLines: React.FC<SubItemDetailLinesProps> = ({
   const { convertToHomeCurrency } = useTripWorkspace();
   const home = config.homeCurrency || 'NZD';
   const timeLine = timeRangeLabel(item, calendarDate);
+  const locationLine = formatLocationText((item.location || '').trim());
   const cur = (item.currency || 'NZD').toUpperCase();
   const homeAmount = convertToHomeCurrency(item.amount, cur);
   const showCost = item.paymentStatus !== 'Free';
@@ -66,6 +68,7 @@ export const SubItemDetailLines: React.FC<SubItemDetailLinesProps> = ({
     <div className={styles.root}>
       {item.groupLabel?.trim() ? <div className={styles.groupLabel}>{item.groupLabel.trim()}</div> : null}
       <div className={styles.title}>{item.title || 'Untitled option'}</div>
+      {locationLine ? <div className={styles.locationLine}>{locationLine}</div> : null}
       {timeLine ? <div className={styles.timeLine}>{timeLine}</div> : null}
       <div className={styles.badges}>
         {item.category?.trim() ? (

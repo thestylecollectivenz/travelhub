@@ -162,7 +162,6 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId, dragHandl
           </div>
         ) : null}
         <SubItemDetailLines item={item} calendarDate={calendarDate} docCount={docs.length} linkCount={links.length} />
-        {item.location?.trim() ? <div className={styles.locationLine}>{item.location.trim()}</div> : null}
         {viewMapsPlaceUrl ? (
           <div className={styles.mapsRow}>
             <a href={viewMapsPlaceUrl} target="_blank" rel="noopener noreferrer">

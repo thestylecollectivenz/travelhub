@@ -24,6 +24,13 @@
   max-width: 100%;
 }
 
+.locationLine {
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-700);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
 .timeLine {
   font-size: var(--font-size-xs);
   color: var(--color-blue-600);

@@ -645,6 +645,14 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           {isTransport ? deriveTransportDisplayTitle(entry, calendarDate) : entry.title || 'Untitled'}
         </h3>
       )}
+      {isActivities && location ? (
+        <div className={styles.metaRow}>
+          <span>
+            <PinIcon />
+            {location}
+          </span>
+        </div>
+      ) : null}
       {entry.category === 'Accommodation' && (entry.checkInTime || entry.bookingReference?.trim()) ? (
         <div className={styles.categorySummary}>
           {entry.checkInTime ? <span>Check-in {formatTimeHHMM(entry.checkInTime)}</span> : null}
@@ -703,16 +711,17 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         </div>
       ) : null}
 
-      {!isLocationInfo && (supplier || location) ? (
+      {!isLocationInfo && supplier ? (
         <div className={styles.metaRow}>
           {supplier ? <span>{supplier}</span> : null}
-          {supplier && location ? <span aria-hidden> · </span> : null}
-          {location ? (
-            <span>
-              <PinIcon />
-              {location}
-            </span>
-          ) : null}
+        </div>
+      ) : null}
+      {!isLocationInfo && !isActivities && location ? (
+        <div className={styles.metaRow}>
+          <span>
+            <PinIcon />
+            {location}
+          </span>
         </div>
       ) : null}
 

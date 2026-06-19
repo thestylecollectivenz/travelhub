@@ -2,7 +2,7 @@ import type { ItineraryEntry, ItinerarySubItem } from '../models/ItineraryEntry'
 import type { TripDay } from '../models/TripDay';
 import { parseDurationMinutes } from './durationFromTimes';
 import { cruisePortPlannerBlocks, isCruiseSeaOrScenicEntry } from './cruisePlannerUtils';
-import { effectivePlannerTimeStart, isTransportReturnOnCalendarDate } from './itineraryDayEntries';
+import { effectivePlannerTimeStart } from './itineraryDayEntries';
 import { formatTimeHHMM, minutesFromTimeStart } from './itineraryTimeUtils';
 
 export interface PlannerTimedItem {
@@ -168,10 +168,12 @@ function transportPlannerBlocks(
   if (entry.category !== 'Transport') return [];
   const viewYmd = ymdSlice(calendarDate);
   const homeYmd = entryHomeCalendarYmd(entry, tripDays);
+  const depYmd = ymdSlice(entry.dateStart || homeYmd);
+  const retYmd = ymdSlice(entry.returnDate || '');
   const blocks: FlightPlannerBlock[] = [];
   const title = entry.title?.trim() || 'Transport';
 
-  if (viewYmd === homeYmd && !isTransportReturnOnCalendarDate(entry, calendarDate)) {
+  if (depYmd && viewYmd === depYmd) {
     const start = minutesFromTimeStart(entry.timeStart || '');
     if (start !== undefined) {
       const end = minutesFromTimeStart(entry.arrivalTime || '');
@@ -183,7 +185,7 @@ function transportPlannerBlocks(
     }
   }
 
-  if (entry.journeyType === 'return' && isTransportReturnOnCalendarDate(entry, calendarDate)) {
+  if (entry.journeyType === 'return' && retYmd && viewYmd === retYmd) {
     const start = minutesFromTimeStart(entry.returnTime || '');
     if (start !== undefined) {
       const dur = parseDurationMinutes(entry.duration || '') || 60;
@@ -240,6 +242,7 @@ export function isPlannerUnscheduledEntry(
 export function shouldRenderPlannerItem(item: PlannerTimedItem): boolean {
   if (item.subItem) return true;
   if (item.key.includes('-port-') || item.key.includes('-acc-') || item.key.includes('-flt-') || item.key.includes('-trn-')) return true;
+  if (item.key.includes('-opt')) return true;
   return !entryHasTimedSubs(item.entry);
 }
 
@@ -262,6 +265,32 @@ function subItemDurationMinutes(sub: ItinerarySubItem): number {
   return parsed > 0 ? parsed : 60;
 }
 
+function pushUntimedSubs(
+  items: PlannerTimedItem[],
+  entry: ItineraryEntry,
+  untimedSubs: ItinerarySubItem[],
+  parentTitle: string
+): void {
+  if (!untimedSubs.length) return;
+  const related = items.filter((i) => i.entry.id === entry.id);
+  let slot =
+    related.length > 0
+      ? Math.max(...related.map((i) => i.startMinutes + i.durationMinutes)) + 10
+      : 9 * 60;
+  for (const sub of untimedSubs) {
+    items.push({
+      key: `${entry.id}-${sub.id}-opt`,
+      entry,
+      subItem: sub,
+      parentTitle,
+      title: sub.title || 'Untitled option',
+      category: (sub.category || entry.category || 'Other').trim(),
+      startMinutes: Math.min(slot, 23 * 60),
+      durationMinutes: 45
+    });
+    slot += 50;
+  }
+}
 function pushTimedSubs(
   items: PlannerTimedItem[],
   entry: ItineraryEntry,
@@ -321,9 +350,11 @@ export function expandPlannerTimedItems(
   for (const entry of entries) {
     const subs = [...(entry.subItems ?? [])].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
     const timedSubs = subs.filter((s) => minutesFromTimeStart(s.startTime || '') !== undefined);
+    const untimedSubs = subs.filter((s) => minutesFromTimeStart(s.startTime || '') === undefined);
 
     if (isWholeCruiseEntry(entry)) {
       pushTimedSubs(items, entry, timedSubs, entry.title || 'Cruise');
+      pushUntimedSubs(items, entry, untimedSubs, entry.title || 'Cruise');
       continue;
     }
 
@@ -341,6 +372,7 @@ export function expandPlannerTimedItems(
         }
       }
       pushTimedSubs(items, entry, timedSubs, entry.title || 'Untitled');
+      pushUntimedSubs(items, entry, untimedSubs, entry.title || 'Untitled');
       continue;
     }
 
@@ -356,6 +388,7 @@ export function expandPlannerTimedItems(
         });
       }
       pushTimedSubs(items, entry, timedSubs, entry.title || 'Untitled');
+      pushUntimedSubs(items, entry, untimedSubs, entry.title || 'Untitled');
       continue;
     }
 
@@ -384,6 +417,7 @@ export function expandPlannerTimedItems(
         }
       }
       pushTimedSubs(items, entry, timedSubs, entry.title || 'Untitled');
+      pushUntimedSubs(items, entry, untimedSubs, entry.title || 'Untitled');
       continue;
     }
 
@@ -414,6 +448,7 @@ export function expandPlannerTimedItems(
     }
 
     pushTimedSubs(items, entry, timedSubs, entry.title || 'Untitled');
+    pushUntimedSubs(items, entry, untimedSubs, entry.title || 'Untitled');
   }
 
   adjustPlannerAccommodationOrder(items);

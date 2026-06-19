@@ -1,5 +1,6 @@
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { TripDay } from '../models/TripDay';
+import { formatLocationText } from './placeDisplayLabel';
 import { minutesFromTimeStart } from './itineraryTimeUtils';
 
 export function isCruiseSeaOrScenicEntry(entry: ItineraryEntry): boolean {
@@ -38,24 +39,47 @@ function calendarDateForEntry(entry: ItineraryEntry, tripDays: TripDay[]): strin
   return ymdSlice(row?.calendarDate);
 }
 
-export function cruisePortEntriesChronological(entries: ItineraryEntry[], tripDays: TripDay[]): ItineraryEntry[] {
-  return entries
-    .filter((e) => e.category === 'Cruise port' && !e.parentEntryId && !isCruiseSeaOrScenicEntry(e))
-    .sort((a, b) => {
-      const ad = calendarDateForEntry(a, tripDays);
-      const bd = calendarDateForEntry(b, tripDays);
-      if (ad && bd && ad !== bd) return ad.localeCompare(bd);
-      return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
-    });
+function portPlaceKey(entry: ItineraryEntry): string {
+  return normalizePlace(formatLocationText((entry.location || entry.title || '').trim()));
 }
 
-function previousCalendarYmd(ymd: string, tripDays: TripDay[]): string | undefined {
+/** Whole-cruise row that spans this port calendar day (embark through disembark). */
+export function parentCruiseForPortDay(
+  portEntry: ItineraryEntry,
+  tripDays: TripDay[],
+  allEntries: ItineraryEntry[]
+): ItineraryEntry | undefined {
+  const portYmd = calendarDateForEntry(portEntry, tripDays);
+  if (!portYmd) return undefined;
+  let best: ItineraryEntry | undefined;
+  for (const e of allEntries) {
+    if (e.category !== 'Cruise' || !e.embarksDate?.trim() || !e.disembarksDate?.trim()) continue;
+    const emb = ymdSlice(e.embarksDate);
+    const dis = ymdSlice(e.disembarksDate);
+    if (!emb || !dis || portYmd < emb || portYmd > dis) continue;
+    if (!best) {
+      best = e;
+      continue;
+    }
+    const bestSpan =
+      new Date(`${ymdSlice(best.disembarksDate)}T00:00:00.000Z`).getTime() -
+      new Date(`${ymdSlice(best.embarksDate)}T00:00:00.000Z`).getTime();
+    const nextSpan =
+      new Date(`${dis}T00:00:00.000Z`).getTime() - new Date(`${emb}T00:00:00.000Z`).getTime();
+    if (nextSpan <= bestSpan) best = e;
+  }
+  return best;
+}
+
+function adjacentCalendarYmd(ymd: string, tripDays: TripDay[], offset: -1 | 1): string | undefined {
   const ordered = tripDays
     .map((d) => ymdSlice(d.calendarDate))
     .filter(Boolean)
     .sort();
   const idx = ordered.indexOf(ymd);
-  return idx > 0 ? ordered[idx - 1] : undefined;
+  if (idx < 0) return undefined;
+  const next = ordered[idx + offset];
+  return next || undefined;
 }
 
 function cruisePortOnCalendarDate(
@@ -83,7 +107,7 @@ export function cruisePortPlannerBlocks(
   entry: ItineraryEntry,
   calendarDate: string,
   tripDays: TripDay[],
-  tripPortEntries: ItineraryEntry[]
+  tripEntries: ItineraryEntry[]
 ): CruisePortPlannerBlock[] {
   if (entry.category !== 'Cruise port' || isCruiseSeaOrScenicEntry(entry)) return [];
 
@@ -93,34 +117,36 @@ export function cruisePortPlannerBlocks(
 
   const arrive = minutesFromTimeStart(entry.timeStart || '');
   const depart = minutesFromTimeStart(entry.arrivalTime || '');
-  const place = (entry.location || entry.title || 'port').trim();
+  const place = formatLocationText((entry.location || entry.title || 'port').trim());
   const ship = cruiseShipLabel(entry);
   const markerMinutes = 60;
 
-  const chron = cruisePortEntriesChronological(tripPortEntries, tripDays);
-  const firstPort = chron[0];
-  const lastPort = chron[chron.length - 1];
-  const isEmbark = firstPort?.id === entry.id;
-  const isDebark = lastPort?.id === entry.id && chron.length > 1;
+  const parentCruise = parentCruiseForPortDay(entry, tripDays, tripEntries);
+  const embarkYmd = parentCruise ? ymdSlice(parentCruise.embarksDate) : '';
+  const disembarkYmd = parentCruise ? ymdSlice(parentCruise.disembarksDate) : '';
+  const isEmbark = embarkYmd && entryYmd === embarkYmd;
+  const isDisembark = disembarkYmd && entryYmd === disembarkYmd && !isEmbark;
 
-  const prevYmd = previousCalendarYmd(viewYmd, tripDays);
-  const prevPort = prevYmd ? cruisePortOnCalendarDate(tripPortEntries, tripDays, prevYmd) : undefined;
-  const samePortAsPrev =
-    prevPort && normalizePlace(prevPort.location || prevPort.title) === normalizePlace(place);
+  const prevYmd = adjacentCalendarYmd(viewYmd, tripDays, -1);
+  const nextYmd = adjacentCalendarYmd(viewYmd, tripDays, 1);
+  const prevPort = prevYmd ? cruisePortOnCalendarDate(tripEntries, tripDays, prevYmd) : undefined;
+  const nextPort = nextYmd ? cruisePortOnCalendarDate(tripEntries, tripDays, nextYmd) : undefined;
+  const samePortAsPrev = prevPort && portPlaceKey(prevPort) === portPlaceKey(entry);
+  const samePortAsNext = nextPort && portPlaceKey(nextPort) === portPlaceKey(entry);
 
   const departLabel = ship ? `${ship} departs ${place}` : `Departs ${place}`;
   const embarkLabel = ship ? `${ship} departs from ${place}` : `Departs from ${place}`;
-  const debarkLabel = ship ? `${ship} debarks at ${place}` : `Debarks at ${place}`;
+  const disembarkLabel = ship ? `${ship} · Disembark ${place}` : `Disembark ${place}`;
 
   const blocks: CruisePortPlannerBlock[] = [];
 
-  if (isDebark && !isEmbark) {
+  if (isDisembark) {
     if (arrive !== undefined) {
       blocks.push({
-        keySuffix: 'debark',
+        keySuffix: 'disembark',
         startMinutes: arrive,
         durationMinutes: markerMinutes,
-        title: debarkLabel
+        title: disembarkLabel
       });
     }
     return blocks;
@@ -138,10 +164,24 @@ export function cruisePortPlannerBlocks(
     return blocks;
   }
 
-  if (samePortAsPrev) {
-    const prevDepart = formatTimeForCompare(prevPort?.arrivalTime);
-    const curDepart = formatTimeForCompare(entry.arrivalTime);
-    if (depart !== undefined && prevDepart !== curDepart) {
+  if (samePortAsPrev && samePortAsNext) {
+    return blocks;
+  }
+
+  if (!samePortAsPrev && samePortAsNext) {
+    if (arrive !== undefined) {
+      blocks.push({
+        keySuffix: 'arrive',
+        startMinutes: arrive,
+        durationMinutes: markerMinutes,
+        title: `Arrives in ${place}`
+      });
+    }
+    return blocks;
+  }
+
+  if (samePortAsPrev && !samePortAsNext) {
+    if (depart !== undefined) {
       blocks.push({
         keySuffix: 'depart',
         startMinutes: depart,
@@ -169,9 +209,4 @@ export function cruisePortPlannerBlocks(
     });
   }
   return blocks;
-}
-
-function formatTimeForCompare(value: string | undefined): string {
-  const m = minutesFromTimeStart(value || '');
-  return m === undefined ? '' : String(m);
 }

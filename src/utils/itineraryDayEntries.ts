@@ -37,6 +37,21 @@ export function isTransportReturnOnCalendarDate(entry: ItineraryEntry, calendarD
   return ymdSlice(entry.returnDate) === ymdSlice(calendarDate);
 }
 
+/** Outbound leg of return transport may use dateStart distinct from the entry home day row. */
+export function isTransportDepartureOnCalendarDate(
+  entry: ItineraryEntry,
+  calendarDate: string,
+  tripDays?: TripDay[]
+): boolean {
+  if (entry.category !== 'Transport' || !calendarDate) return false;
+  const viewYmd = ymdSlice(calendarDate);
+  const depYmd = ymdSlice(entry.dateStart);
+  if (depYmd && depYmd === viewYmd) return true;
+  if (!tripDays?.length) return false;
+  const home = tripDays.find((d) => d.id === entry.dayId);
+  return home ? ymdSlice(home.calendarDate) === viewYmd : false;
+}
+
 /** Overnight (or late) flight: show the row on the arrival calendar day as well as the departure day. */
 export function isFlightArrivalOnCalendarDate(entry: ItineraryEntry, calendarDate: string): boolean {
   if (entry.category !== 'Flights' || !entry.arrivalDate || !calendarDate) return false;
@@ -216,6 +231,9 @@ export function sortEntriesForDay(
     if (e.parentEntryId) continue;
     if (!calendarDate) continue;
     if (isTransportReturnOnCalendarDate(e, calendarDate) && !map.has(e.id)) {
+      map.set(e.id, e);
+    }
+    if (isTransportDepartureOnCalendarDate(e, calendarDate, tripDays) && !map.has(e.id)) {
       map.set(e.id, e);
     }
   }
