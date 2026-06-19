@@ -195,9 +195,6 @@
   overflow-x: hidden;
   overflow-y: auto;
   min-height: 0;
-  position: relative;
-  isolation: isolate;
-  z-index: 0;
 }
 
 .plannerScrollTop {
@@ -213,50 +210,18 @@
 .plannerStickyBand {
   position: sticky;
   top: 0;
-  z-index: 40;
+  z-index: 12;
   background: var(--color-surface-raised);
   box-shadow: 0 1px 0 color-mix(in srgb, var(--color-sand-300) 70%, transparent);
 }
 
-.plannerHeadRow {
-  display: flex;
-  align-items: stretch;
-  min-width: 0;
-}
-
-.plannerHeadDays {
-  display: grid;
-  align-items: stretch;
-  width: max-content;
-  min-width: 100%;
-}
-
-.plannerTrackRow {
-  display: flex;
-  align-items: stretch;
-  min-width: 0;
-}
-
-.trackDaysRow {
-  display: grid;
-  align-items: stretch;
-  width: max-content;
-  min-width: 100%;
-  min-height: 260px;
-  background: var(--color-surface-raised);
-}
-
 .plannerHeadHScroll {
-  flex: 1;
-  min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
 }
 
 .plannerTrackHScroll {
-  flex: 1;
-  min-width: 0;
   overflow-x: auto;
   overflow-y: visible;
   scrollbar-width: thin;
@@ -283,7 +248,6 @@
 }
 
 .cornerCell {
-  flex: 0 0 3.5rem;
   border-right: var(--border-default);
   border-bottom: var(--border-default);
   background: var(--color-surface);
@@ -342,14 +306,6 @@
   display: flex;
   gap: 0;
   align-items: stretch;
-}
-
-.timeAxisFixed {
-  flex-shrink: 0;
-  position: sticky;
-  left: 0;
-  z-index: 15;
-  box-shadow: 1px 0 0 color-mix(in srgb, var(--color-sand-300) 55%, transparent);
 }
 
 .timeAxis {
@@ -478,34 +434,13 @@
 }
 
 .blockTitle {
-  font-size: 10px;
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
   color: var(--color-blue-900);
-  line-height: 1.2;
+  line-height: 1.25;
   min-width: 0;
   overflow-wrap: anywhere;
   word-break: break-word;
-}
-
-.blockTextCol {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: grid;
-  gap: 1px;
-}
-
-.blockLocation {
-  font-size: 9px;
-  line-height: 1.2;
-  color: var(--color-sand-700);
-  overflow-wrap: anywhere;
-}
-
-.blockParentHint {
-  font-size: 9px;
-  line-height: 1.2;
-  color: var(--color-sand-600);
-  overflow-wrap: anywhere;
 }
 
 .blockTitleRow {
@@ -521,8 +456,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   padding: 0;
   border-radius: var(--radius-sm);
   border: 1px solid color-mix(in srgb, var(--color-sand-400) 55%, transparent);
@@ -539,13 +474,12 @@
 .blockActions {
   flex: 0 0 auto;
   display: inline-flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
 }
 
 .blockMeta {
-  font-size: 9px;
+  font-size: 10px;
   color: var(--color-sand-700);
 }
 
