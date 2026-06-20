@@ -1,8 +1,11 @@
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { TripDay } from '../models/TripDay';
+import { durationFromDateTimes } from './durationFromTimes';
 import { minutesFromTimeStart } from './itineraryTimeUtils';
 import { dayHasPlaceId, isLocationInfoEntry, locationInfoPlaceId } from './locationInfoEntry';
 import { parseAdditionalPlaceRefs } from './tripDayPlaces';
+
+export type TransportTimelineLeg = 'outbound' | 'return';
 
 export function isPreTripDayType(dayType?: string): boolean {
   const normalized = String(dayType || '')
@@ -156,6 +159,44 @@ export function compareItineraryEntriesForDisplay(
   return compareBySortOrderThenTimeForDay(calendarDate, tripDays);
 }
 
+/** Return transport row on the return calendar day when outbound is on another day. */
+export function isTransportReturnCarryoverOnDay(
+  entry: ItineraryEntry,
+  calendarDate: string,
+  tripDays?: TripDay[]
+): boolean {
+  return (
+    entry.category === 'Transport' &&
+    entry.journeyType === 'return' &&
+    isTransportReturnOnCalendarDate(entry, calendarDate) &&
+    !isTransportDepartureOnCalendarDate(entry, calendarDate, tripDays)
+  );
+}
+
+export function transportLegDurationLabel(
+  entry: ItineraryEntry,
+  calendarDate: string,
+  tripDays: TripDay[] | undefined,
+  leg?: TransportTimelineLeg
+): string {
+  const isReturnLeg =
+    leg === 'return' ||
+    (!leg && isTransportReturnOnCalendarDate(entry, calendarDate));
+  if (isReturnLeg && entry.journeyType === 'return') {
+    return (
+      durationFromDateTimes({
+        startDate: entry.returnDate,
+        startTime: entry.returnTime,
+        endDate: entry.returnDate,
+        endTime: entry.returnArrivalTime
+      }) || ''
+    );
+  }
+  const d = entry.duration?.trim() ?? '';
+  if (!d || /^\d+(\.\d+)?$/.test(d)) return '';
+  return d;
+}
+
 function compareBySortOrderThenTimeForDay(
   calendarDate: string,
   tripDays?: TripDay[]
@@ -164,6 +205,16 @@ function compareBySortOrderThenTimeForDay(
     const aCont = isMultiDayContinuationOnDay(a, calendarDate, tripDays);
     const bCont = isMultiDayContinuationOnDay(b, calendarDate, tripDays);
     if (aCont !== bCont) return aCont ? 1 : -1;
+
+    const aCarry = isTransportReturnCarryoverOnDay(a, calendarDate, tripDays);
+    const bCarry = isTransportReturnCarryoverOnDay(b, calendarDate, tripDays);
+    if (aCarry || bCarry) {
+      const aMin = minutesFromTimeStart(effectivePlannerTimeStart(a, calendarDate, tripDays));
+      const bMin = minutesFromTimeStart(effectivePlannerTimeStart(b, calendarDate, tripDays));
+      if (aMin !== undefined && bMin !== undefined && aMin !== bMin) return aMin - bMin;
+      if (aMin !== undefined && bMin === undefined) return -1;
+      if (aMin === undefined && bMin !== undefined) return 1;
+    }
 
     const ao = a.sortOrder ?? 0;
     const bo = b.sortOrder ?? 0;
@@ -253,8 +304,6 @@ export function sortEntriesForDay(
   return Array.from(map.values()).sort(compareLocationInfoFirst(calendarDate, tripDays));
 }
 
-export type TransportTimelineLeg = 'outbound' | 'return';
-
 export interface TimelineDisplayRow {
   key: string;
   entry: ItineraryEntry;
@@ -279,6 +328,10 @@ export function expandTimelineDisplayRows(
       }
       if (outHere) {
         rows.push({ key: `${entry.id}-outbound`, entry, transportLeg: 'outbound' });
+        continue;
+      }
+      if (retHere) {
+        rows.push({ key: `${entry.id}-return`, entry, transportLeg: 'return' });
         continue;
       }
     }

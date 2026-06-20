@@ -48,11 +48,15 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   const [draft, setDraft] = React.useState<ItineraryEntry>(() => ({ ...entry }));
   const notesTouchedRef = React.useRef(false);
   const endTimeManualRef = React.useRef(Boolean(formatTimeHHMM(entry.arrivalTime ?? '')));
+  const returnEndTimeManualRef = React.useRef(Boolean(formatTimeHHMM(entry.returnArrivalTime ?? '')));
+  const [returnDurationInput, setReturnDurationInput] = React.useState('');
   const [attachmentEntryId, setAttachmentEntryId] = React.useState(entry.id);
 
   React.useEffect(() => {
     notesTouchedRef.current = false;
     endTimeManualRef.current = Boolean(formatTimeHHMM(entry.arrivalTime ?? ''));
+    returnEndTimeManualRef.current = Boolean(formatTimeHHMM(entry.returnArrivalTime ?? ''));
+    setReturnDurationInput('');
     setAttachmentEntryId(entry.id);
     setDraft({ ...entry });
   }, [entry.id]);
@@ -227,6 +231,63 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       dateStart: prev.dateStart || calendarDate
     }));
   }, [isTransport, calendarDate]);
+
+  const returnDurationComputed = React.useMemo(
+    () =>
+      durationFromDateTimes({
+        startDate: draft.returnDate || calendarDate,
+        startTime: draft.returnTime,
+        endDate: draft.returnDate || calendarDate,
+        endTime: draft.returnArrivalTime
+      }) || '',
+    [draft.returnDate, draft.returnTime, draft.returnArrivalTime, calendarDate]
+  );
+
+  React.useEffect(() => {
+    if (!isTransport || draft.journeyType !== 'return') return;
+    if (returnEndTimeManualRef.current) return;
+    if (returnDurationComputed) setReturnDurationInput(returnDurationComputed);
+  }, [isTransport, draft.journeyType, returnDurationComputed]);
+
+  React.useEffect(() => {
+    if (!isTransport || draft.journeyType !== 'return') return;
+    const auto = durationFromDateTimes({
+      startDate: draft.returnDate || calendarDate,
+      startTime: draft.returnTime,
+      endDate: draft.returnDate || calendarDate,
+      endTime: draft.returnArrivalTime
+    });
+    if (!auto) return;
+    if (returnEndTimeManualRef.current) return;
+    setReturnDurationInput((prev) => (prev.trim() ? prev : auto));
+  }, [isTransport, draft.journeyType, draft.returnDate, draft.returnTime, draft.returnArrivalTime, calendarDate]);
+
+  React.useEffect(() => {
+    if (!isTransport || draft.journeyType !== 'return') return;
+    if (!isDurationExpressionComplete(returnDurationInput || '')) return;
+    if (!draft.returnTime?.trim()) return;
+    if (returnEndTimeManualRef.current) return;
+    const computed = arrivalTimeFromDuration({
+      startDate: draft.returnDate || calendarDate,
+      startTime: draft.returnTime,
+      duration: returnDurationInput
+    });
+    if (!computed) return;
+    setDraft((d) => {
+      const curArr = formatTimeHHMM(d.returnArrivalTime ?? '');
+      const nextArr = computed.arrivalTime;
+      if (curArr === nextArr) return d;
+      return { ...d, returnArrivalTime: computed.arrivalTime };
+    });
+  }, [
+    returnDurationInput,
+    draft.returnTime,
+    draft.returnDate,
+    draft.returnArrivalTime,
+    calendarDate,
+    isTransport,
+    draft.journeyType
+  ]);
 
   React.useEffect(() => {
     if (!isFlights) return;
@@ -862,9 +923,24 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
                   className={styles.input}
                   type="time"
                   value={formatTimeHHMM(draft.returnTime ?? '')}
-                  onChange={(e) =>
-                    patch({ returnTime: combineDayAndTime(draft.returnDate || calendarDate, e.target.value) })
-                  }
+                  onChange={(e) => {
+                    returnEndTimeManualRef.current = false;
+                    patch({ returnTime: combineDayAndTime(draft.returnDate || calendarDate, e.target.value) });
+                  }}
+                />
+                <label className={styles.label} htmlFor={`rdur-${draft.id}`}>
+                  Return duration
+                </label>
+                <input
+                  id={`rdur-${draft.id}`}
+                  className={styles.input}
+                  type="text"
+                  placeholder="e.g. 2h 30m"
+                  value={returnDurationInput}
+                  onChange={(e) => {
+                    returnEndTimeManualRef.current = false;
+                    setReturnDurationInput(e.target.value);
+                  }}
                 />
                 <label className={styles.label} htmlFor={`rat-${draft.id}`}>
                   Return arrival time
@@ -874,9 +950,10 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
                   className={styles.input}
                   type="time"
                   value={formatTimeHHMM(draft.returnArrivalTime ?? '')}
-                  onChange={(e) =>
-                    patch({ returnArrivalTime: combineDayAndTime(draft.returnDate || calendarDate, e.target.value) })
-                  }
+                  onChange={(e) => {
+                    returnEndTimeManualRef.current = true;
+                    patch({ returnArrivalTime: combineDayAndTime(draft.returnDate || calendarDate, e.target.value) });
+                  }}
                 />
               </>
             ) : null}

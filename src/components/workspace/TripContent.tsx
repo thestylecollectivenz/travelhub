@@ -13,8 +13,13 @@ import { PackingListView } from '../packing/PackingListView';
 import { PackingTemplatesManager } from '../packing/PackingTemplatesManager';
 import { TripSidebar } from '../sidebar/TripSidebar';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
-import { isPreTripDayRow, resolvePreTripDayId, sortEntriesForDay } from '../../utils/itineraryDayEntries';
-import { applyDayViewEntryOrder, saveDayViewEntryOrder } from '../../utils/dayViewEntryOrder';
+import { isPreTripDayRow, resolvePreTripDayId, sortEntriesForDay, expandTimelineDisplayRows } from '../../utils/itineraryDayEntries';
+import {
+  applyDayViewEntryOrder,
+  entriesFromTimelineRowOrder,
+  saveDayViewEntryOrder,
+  timelineRowKeyToEntryId
+} from '../../utils/dayViewEntryOrder';
 import { orderIdsByHomeDayFromVisualList } from '../../utils/itineraryReorderByDay';
 import { useConfig } from '../../context/ConfigContext';
 import {
@@ -118,11 +123,18 @@ const TripContentInner: React.FC = () => {
     return applyDayViewEntryOrder(trip.id, selectedDayId, raw, cal, tripDays);
   }, [localEntries, selectedDayId, dayPanelDay, trip, preTripDayId, tripDays]);
 
+  const timelineRows = React.useMemo(() => {
+    if (!dayPanelDay) return [];
+    const cal = dayPanelDay.calendarDate ?? '';
+    return expandTimelineDisplayRows(dayEntries, cal, tripDays);
+  }, [dayEntries, dayPanelDay, tripDays]);
+
   const activeEntry = React.useMemo(() => {
     if (!activeId) {
       return undefined;
     }
-    return localEntries.find((entry) => entry.id === activeId);
+    const entryId = timelineRowKeyToEntryId(String(activeId));
+    return localEntries.find((entry) => entry.id === entryId);
   }, [activeId, localEntries]);
 
   const handleDragStart = React.useCallback((event: DragStartEvent): void => {
@@ -138,21 +150,22 @@ const TripContentInner: React.FC = () => {
       }
 
       if (over.data.current?.type === 'day') {
-        moveEntryToDay(String(active.id), String(over.id));
+        moveEntryToDay(timelineRowKeyToEntryId(String(active.id)), String(over.id));
         return;
       }
 
       if (active.id !== over.id) {
-        const oldIndex = dayEntries.findIndex((e) => e.id === active.id);
-        const newIndex = dayEntries.findIndex((e) => e.id === over.id);
+        const oldIndex = timelineRows.findIndex((r) => r.key === String(active.id));
+        const newIndex = timelineRows.findIndex((r) => r.key === String(over.id));
         if (oldIndex < 0 || newIndex < 0) {
           return;
         }
         if (!trip || !selectedDayId) {
           return;
         }
-        let reordered = arrayMove(dayEntries, oldIndex, newIndex);
-        const movingEntry = localEntries.find((e) => e.id === String(active.id));
+        const reorderedRows = arrayMove(timelineRows, oldIndex, newIndex);
+        const reorderedEntries = entriesFromTimelineRowOrder(reorderedRows);
+        const movingEntry = localEntries.find((e) => e.id === timelineRowKeyToEntryId(String(active.id)));
         if (
           movingEntry &&
           movingEntry.category === 'Accommodation' &&
@@ -160,18 +173,24 @@ const TripContentInner: React.FC = () => {
           movingEntry.dayId !== selectedDayId
         ) {
           moveEntryToDay(movingEntry.id, selectedDayId);
-          reordered = reordered.map((entry) =>
+          const patched = reorderedEntries.map((entry) =>
             entry.id === movingEntry.id ? { ...entry, dayId: selectedDayId } : entry
           );
+          saveDayViewEntryOrder(trip.id, selectedDayId, patched.map((e) => e.id));
+          const byDay = orderIdsByHomeDayFromVisualList(patched);
+          for (const [dayId, ids] of Array.from(byDay.entries())) {
+            reorderEntries(dayId, ids);
+          }
+          return;
         }
-        saveDayViewEntryOrder(trip.id, selectedDayId, reordered.map((e) => e.id));
-        const byDay = orderIdsByHomeDayFromVisualList(reordered);
+        saveDayViewEntryOrder(trip.id, selectedDayId, reorderedEntries.map((e) => e.id));
+        const byDay = orderIdsByHomeDayFromVisualList(reorderedEntries);
         for (const [dayId, ids] of Array.from(byDay.entries())) {
           reorderEntries(dayId, ids);
         }
       }
     },
-    [dayEntries, localEntries, moveEntryToDay, reorderEntries, selectedDayId, trip]
+    [dayEntries, localEntries, moveEntryToDay, reorderEntries, selectedDayId, trip, timelineRows]
   );
 
   const startSidebarResize = React.useCallback(

@@ -25,6 +25,8 @@ export interface ItineraryCardProps {
   useEditPortal?: boolean;
   /** When set, show a single outbound or return leg of a return transport entry. */
   transportLeg?: TransportTimelineLeg;
+  /** Unique id for drag-sort (defaults to entry.id; timeline legs use row keys). */
+  sortableId?: string;
 }
 
 function GripIcon(): React.ReactElement {
@@ -50,11 +52,13 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
   linkedEntryTasks,
   hasCancellationDeadlineReminder = false,
   useEditPortal = true,
-  transportLeg
+  transportLeg,
+  sortableId
 }) => {
   const { editingCardId, setEditingCardId, focusedEntryId, updateEntry, deleteEntry, duplicateEntry } = useTripWorkspace();
+  const dragId = sortableId ?? entry.id;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: entry.id,
+    id: dragId,
     disabled: !draggable
   });
 

@@ -228,7 +228,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
           </div>
         </div>
       ) : null}
-      <SortableContext items={sorted.filter((r) => !r.transportLeg).map((row) => row.entry.id)} strategy={verticalListSortingStrategy}>
+      <SortableContext items={sorted.map((row) => row.key)} strategy={verticalListSortingStrategy}>
         {sorted.map((row) => {
           const entry = row.entry;
           const categorySlug = getCategorySlug(entry.category);
@@ -250,7 +250,8 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
                   entry={entry}
                   calendarDate={calendarDate}
                   suppressCarryoverUi={suppressCarryoverUi}
-                  draggable={!row.transportLeg}
+                  draggable
+                  sortableId={row.key}
                   transportLeg={row.transportLeg}
                   hasTask={taskEntryIds.has(entry.id)}
                   linkedEntryTask={entryLinkedTask.get(entry.id)}

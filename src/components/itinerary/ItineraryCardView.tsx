@@ -29,7 +29,8 @@ import { linkedTaskDisplayText, linkedTaskNoteDisplay } from '../../utils/linked
 import {
   effectivePlannerTimeStart,
   effectiveTransportLegTime,
-  isTransportReturnOnCalendarDate
+  isTransportReturnOnCalendarDate,
+  transportLegDurationLabel
 } from '../../utils/itineraryDayEntries';
 import type { TransportTimelineLeg } from '../../utils/itineraryDayEntries';
 import { formatActivityScheduleLabel } from '../../utils/activityScheduleLabel';
@@ -336,6 +337,12 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       : convertToHomeCurrency(entry.amountPaid, paidCurrency))
     : undefined;
   const isActivities = entry.category === 'Activities';
+  const isTransport = entry.category === 'Transport';
+  const transportReturnHere =
+    isTransport &&
+    (transportLeg === 'return' || (!transportLeg && isTransportReturnOnCalendarDate(entry, calendarDate)));
+  const transportOutboundHere = isTransport && !transportReturnHere && transportLeg !== 'return';
+  const legDurationLabel = transportLegDurationLabel(entry, calendarDate, tripDays, transportLeg);
   const hhmm = formatTimeHHMM(effectiveTransportLegTime(entry, calendarDate, tripDays, transportLeg));
   const timeChip = isActivities
     ? formatActivityScheduleLabel({
@@ -345,12 +352,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         arrivalTime: entry.arrivalTime
       }) ?? null
     : (() => {
-        const durationDisplay = (() => {
-          const d = entry.duration?.trim() ?? '';
-          if (!d) return '';
-          if (/^\d+(\.\d+)?$/.test(d)) return '';
-          return d;
-        })();
+        const durationDisplay = legDurationLabel;
         if (hhmm !== '') {
           return `${hhmm}${durationDisplay ? ` · ${durationDisplay}` : ''}`;
         }
@@ -383,10 +385,6 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const isCruise = entry.category === 'Cruise' && !!entry.embarksDate && !!entry.disembarksDate;
   const isCruisePort = entry.category === 'Cruise port';
   const isFlights = entry.category === 'Flights';
-  const isTransport = entry.category === 'Transport';
-  const transportReturnHere =
-    isTransport &&
-    (transportLeg === 'return' || (!transportLeg && isTransportReturnOnCalendarDate(entry, calendarDate)));
   const mapsPlaceUrl = googleMapsPlaceUrl(entry.streetAddress || '');
   const mapsDirectionsUrl = googleMapsDirectionsUrl(entry.streetAddress || '');
   const cabinLabel =
@@ -916,8 +914,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         entry.transportTo?.trim() ||
         entry.transportMode?.trim() ||
         (entry.transportTransfers !== undefined && entry.transportTransfers > 0) ||
-        entry.journeyType ||
-        (entry.journeyType === 'return' && (entry.returnDate || entry.returnTime))) ? (
+        (entry.journeyType === 'oneway' && entry.journeyType) ||
+        (transportOutboundHere && (entry.timeStart || entry.arrivalTime)) ||
+        (transportReturnHere && (entry.returnDate || entry.returnTime || entry.returnArrivalTime))) ? (
         <div className={styles.detailBlock}>
           {entry.transportFrom?.trim() ? <div>From {entry.transportFrom.trim()}</div> : null}
           {entry.transportTo?.trim() ? <div>To {entry.transportTo.trim()}</div> : null}
@@ -925,17 +924,17 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           {entry.transportTransfers !== undefined && entry.transportTransfers > 0 ? (
             <div>Transfers {entry.transportTransfers}</div>
           ) : null}
-          {entry.journeyType ? <div>Journey {entry.journeyType === 'return' ? 'Return' : 'One way'}</div> : null}
-          {entry.journeyType === 'return' && entry.returnDate ? <div>Return date {formatYmd(entry.returnDate)}</div> : null}
-          {entry.journeyType === 'return' && entry.returnTime ? <div>Return dep. {formatTimeHHMM(entry.returnTime)}</div> : null}
-          {entry.journeyType === 'return' && entry.returnArrivalTime ? (
+          {entry.journeyType === 'oneway' ? <div>Journey One way</div> : null}
+          {transportOutboundHere && entry.timeStart ? (
+            <div>Departs {formatTimeHHMM(entry.timeStart)}</div>
+          ) : null}
+          {transportOutboundHere && entry.arrivalTime ? (
+            <div>Arrives {formatTimeHHMM(entry.arrivalTime)}</div>
+          ) : null}
+          {transportReturnHere && entry.returnDate ? <div>Return date {formatYmd(entry.returnDate)}</div> : null}
+          {transportReturnHere && entry.returnTime ? <div>Return dep. {formatTimeHHMM(entry.returnTime)}</div> : null}
+          {transportReturnHere && entry.returnArrivalTime ? (
             <div>Return arr. {formatTimeHHMM(entry.returnArrivalTime)}</div>
-          ) : null}
-          {entry.journeyType === 'return' && entry.timeStart ? (
-            <div>Outbound dep. {formatTimeHHMM(entry.timeStart)}</div>
-          ) : null}
-          {entry.journeyType === 'return' && entry.arrivalTime ? (
-            <div>Outbound arr. {formatTimeHHMM(entry.arrivalTime)}</div>
           ) : null}
         </div>
       ) : null}

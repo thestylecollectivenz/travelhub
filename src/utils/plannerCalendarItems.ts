@@ -1,6 +1,6 @@
 import type { ItineraryEntry, ItinerarySubItem } from '../models/ItineraryEntry';
 import type { TripDay } from '../models/TripDay';
-import { parseDurationMinutes } from './durationFromTimes';
+import { parseDurationMinutes, durationFromDateTimes } from './durationFromTimes';
 import { cruisePortPlannerBlocks, isCruiseSeaOrScenicEntry } from './cruisePlannerUtils';
 import { effectivePlannerTimeStart } from './itineraryDayEntries';
 import { formatTimeHHMM, minutesFromTimeStart } from './itineraryTimeUtils';
@@ -189,10 +189,20 @@ function transportPlannerBlocks(
     const start = minutesFromTimeStart(entry.returnTime || '');
     if (start !== undefined) {
       const end = minutesFromTimeStart(entry.returnArrivalTime || '');
+      const returnDur = parseDurationMinutes(
+        durationFromDateTimes({
+          startDate: entry.returnDate,
+          startTime: entry.returnTime,
+          endDate: entry.returnDate,
+          endTime: entry.returnArrivalTime
+        }) || ''
+      );
       const dur =
         end !== undefined && end > start
           ? end - start
-          : parseDurationMinutes(entry.duration || '') || 60;
+          : returnDur > 0
+            ? returnDur
+            : 60;
       blocks.push({
         keySuffix: 'return',
         startMinutes: start,

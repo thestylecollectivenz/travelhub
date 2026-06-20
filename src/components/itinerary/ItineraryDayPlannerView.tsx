@@ -33,6 +33,7 @@ import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../../utils/googleM
 import { formatActivityScheduleLabel } from '../../utils/activityScheduleLabel';
 import { formatDayDateOrdinal } from '../../utils/dateUtils';
 import { formatLocationText } from '../../utils/placeDisplayLabel';
+import { durationFromDateTimes } from '../../utils/durationFromTimes';
 import styles from './ItineraryDayPlannerView.module.css';
 
 /** Fixed day column width keeps unscheduled headers aligned with timed tracks. */
@@ -150,13 +151,26 @@ function plannerBlockMeta(item: PlannerTimedItem, calendarDate: string, tripDays
     return dep || arr || '—';
   }
   if (item.key.includes('-trn-')) {
-    const out = formatTimeHHMM(item.entry.timeStart || '');
-    const ret = formatTimeHHMM(item.entry.returnTime || '');
-    if (item.key.endsWith('-return') && ret) {
+    if (item.key.endsWith('-return')) {
+      const ret = formatTimeHHMM(item.entry.returnTime || '');
       const retArr = formatTimeHHMM(item.entry.returnArrivalTime || '');
-      if (retArr) return `Return ${ret}–${retArr}`;
-      return `Return ${ret}`;
+      const retDur =
+        durationFromDateTimes({
+          startDate: item.entry.returnDate,
+          startTime: item.entry.returnTime,
+          endDate: item.entry.returnDate,
+          endTime: item.entry.returnArrivalTime
+        }) || '';
+      if (ret && retArr) return `Return ${ret}–${retArr}`;
+      if (ret && retDur) return `Return ${ret} · ${retDur}`;
+      if (ret) return `Return ${ret}`;
+      return '—';
     }
+    const out = formatTimeHHMM(item.entry.timeStart || '');
+    const arr = formatTimeHHMM(item.entry.arrivalTime || '');
+    const dur = item.entry.duration?.trim() || '';
+    if (out && arr) return `${out}–${arr}`;
+    if (out && dur) return `${out} · ${dur}`;
     if (out) return out;
     return '—';
   }
@@ -322,7 +336,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
   const [rangeStartOverride, setRangeStartOverride] = React.useState('');
   const [rangeEndOverride, setRangeEndOverride] = React.useState('');
   const [previewEntryId, setPreviewEntryId] = React.useState<string | null>(null);
-  const [printPreviewOpen, setPrintPreviewOpen] = React.useState(false);
+  const [plannerFullscreen, setPlannerFullscreen] = React.useState(false);
   const [plannerPrintHtml, setPlannerPrintHtml] = React.useState<string | null>(null);
   const [unschedSectionHidden, setUnschedSectionHidden] = React.useState(false);
   const [frontBlockKey, setFrontBlockKey] = React.useState<string | null>(null);
@@ -496,17 +510,17 @@ export const ItineraryDayPlannerView: React.FC = () => {
   }, [filter, customStart, customEnd, orderedDays.length]);
 
   React.useEffect(() => {
-    if (!printPreviewOpen) return undefined;
+    if (!plannerFullscreen) return undefined;
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') setPrintPreviewOpen(false);
+      if (e.key === 'Escape') setPlannerFullscreen(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [printPreviewOpen]);
+  }, [plannerFullscreen]);
 
   const openPlannerFullScreen = React.useCallback((): void => {
     setPreviewEntryId(null);
-    setPrintPreviewOpen(true);
+    setPlannerFullscreen(true);
   }, []);
 
   React.useEffect(() => {
@@ -517,12 +531,13 @@ export const ItineraryDayPlannerView: React.FC = () => {
 
   const displayDays = React.useMemo(() => {
     if (!visibleDays.length) return [];
+    if (plannerFullscreen && !isMobile) return visibleDays;
     if (isMobile && visibleDays.length > 1) {
       const i = Math.min(Math.max(0, mobileDayIndex), visibleDays.length - 1);
       return [visibleDays[i]];
     }
     return visibleDays;
-  }, [visibleDays, isMobile, mobileDayIndex]);
+  }, [visibleDays, isMobile, mobileDayIndex, plannerFullscreen]);
 
   React.useEffect(() => {
     if (!selectedDayId || !plannerHScrollRef.current || isMobile) return;
@@ -703,7 +718,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
   }, [displayDays, isMobile, selectedDayId, setSelectedDayId]);
 
   const buildPlannerPrintDays = React.useCallback((): DayPlannerPrintDay[] => {
-    const daysSource = printPreviewOpen ? visibleDays : displayDays;
+    const daysSource = plannerFullscreen ? visibleDays : displayDays;
     return daysSource.map((day) => {
       const cal = day.calendarDate || '';
       const list = entriesForPlannerColumn(day);
@@ -752,7 +767,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
         unscheduled
       };
     });
-  }, [printPreviewOpen, visibleDays, displayDays, entriesForPlannerColumn, tripDays]);
+  }, [plannerFullscreen, visibleDays, displayDays, entriesForPlannerColumn, tripDays]);
 
   const openPlannerPrintSheet = React.useCallback((): void => {
     const days = buildPlannerPrintDays();
@@ -766,13 +781,13 @@ export const ItineraryDayPlannerView: React.FC = () => {
   }, [buildPlannerPrintDays, trip?.title]);
 
   React.useEffect(() => {
-    if (!printPreviewOpen) return undefined;
+    if (!plannerFullscreen) return undefined;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [printPreviewOpen]);
+  }, [plannerFullscreen]);
 
   const rangeForDay = React.useCallback((day: TripDay): { start: number; end: number } => {
     const cal = day.calendarDate || '';
@@ -933,7 +948,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
 
   return (
     <>
-    <div className={`${styles.root} ${printPreviewOpen ? styles.rootFullscreen : ''}`} id="th-print-root">
+    <div className={`${styles.root} ${plannerFullscreen ? styles.rootFullscreen : ''}`} id="th-print-root">
       <div className={styles.filterBar}>
         {filters.map((f) => (
           <button
@@ -992,7 +1007,16 @@ export const ItineraryDayPlannerView: React.FC = () => {
               </button>
             </>
           ) : null}
-          {!printPreviewOpen ? (
+          {plannerFullscreen ? (
+            <button
+              type="button"
+              className={styles.rangeReset}
+              onClick={() => setPlannerFullscreen(false)}
+              aria-label="Exit day planner full screen"
+            >
+              Exit full screen
+            </button>
+          ) : (
             <button
               type="button"
               className={styles.rangeReset}
@@ -1001,20 +1025,18 @@ export const ItineraryDayPlannerView: React.FC = () => {
             >
               Full screen
             </button>
-          ) : null}
+          )}
         </div>
-        {!printPreviewOpen ? (
-          <button
-            type="button"
-            className={styles.printPlannerBtn}
-            onClick={openPlannerPrintSheet}
-            aria-label="Print day planner"
-            title="Opens print preview"
-          >
-            <PrintGlyph />
-            Print / Save
-          </button>
-        ) : null}
+        <button
+          type="button"
+          className={styles.printPlannerBtn}
+          onClick={openPlannerPrintSheet}
+          aria-label="Print day planner"
+          title="Opens print preview"
+        >
+          <PrintGlyph />
+          Print / Save
+        </button>
       </div>
       {filter === 'custom_range' ? (
         <div className={styles.customRange}>
@@ -1665,13 +1687,13 @@ export const ItineraryDayPlannerView: React.FC = () => {
         </div>
       ) : null}
     </div>
-      {typeof document !== 'undefined' && printPreviewOpen
+      {typeof document !== 'undefined' && plannerFullscreen
         ? ReactDOM.createPortal(
             <div className={styles.fullscreenChrome} role="toolbar" aria-label="Full screen controls">
               <button type="button" className={styles.printPlannerBtn} onClick={openPlannerPrintSheet}>
                 Print / Save
               </button>
-              <button type="button" className={styles.printPlannerBtn} onClick={() => setPrintPreviewOpen(false)}>
+              <button type="button" className={styles.printPlannerBtn} onClick={() => setPlannerFullscreen(false)}>
                 Close
               </button>
             </div>,

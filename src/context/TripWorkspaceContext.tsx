@@ -14,7 +14,7 @@ import { useSpContext } from './SpContext';
 import { minutesFromTimeStart } from '../utils/itineraryTimeUtils';
 import { repairPreTripCalendarIfCollidingWithFirstDay } from '../utils/tripPreTripCalendarAnchor';
 import { calendarDayBefore, planChronologicalRenumber, ymdSlice } from '../utils/tripDateRangeSync';
-import { isPreTripDayRow } from '../utils/itineraryDayEntries';
+import { isPreTripDayRow, resolvePreTripDayId } from '../utils/itineraryDayEntries';
 import { isPendingItineraryEntryId, isPendingSubItemId } from '../utils/itineraryEntryIds';
 import { itineraryEntryCreatePayload } from '../utils/itineraryCreatePayload';
 import {
@@ -23,6 +23,7 @@ import {
 } from '../utils/tripDayPlanningStatus';
 import {
   insertAfterInDayViewEntryOrder,
+  insertEntryInDayViewOrderByTime,
   removeFromDayViewEntryOrder,
   replaceIdInDayViewEntryOrder
 } from '../utils/dayViewEntryOrder';
@@ -433,7 +434,30 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
           console.error('updateEntry (update): SP persist or cancellation reminder sync failed', err);
         });
     }
-  }, [spContext, persistEntry]);
+
+    if (updated.category === 'Transport' && updated.journeyType === 'return' && updated.returnDate?.trim()) {
+      const returnDay = tripDays.find(
+        (d) => d.tripId === updated.tripId && ymdSlice(d.calendarDate) === ymdSlice(updated.returnDate)
+      );
+      if (returnDay) {
+        const entries = localEntriesRef.current.map((e) => (e.id === updated.id ? updated : e));
+        if (!entries.some((e) => e.id === updated.id)) {
+          entries.push(updated);
+        }
+        insertEntryInDayViewOrderByTime(
+          updated.tripId,
+          returnDay.id,
+          updated.id,
+          entries,
+          returnDay.calendarDate,
+          tripDays,
+          returnDay.dayType,
+          resolvePreTripDayId(tripDays, updated.tripId),
+          isPreTripDayRow(returnDay)
+        );
+      }
+    }
+  }, [spContext, persistEntry, tripDays]);
 
   const deleteEntry = React.useCallback(
     (entryId: string) => {

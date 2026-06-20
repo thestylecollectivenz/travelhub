@@ -1,6 +1,6 @@
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { TripDay } from '../models/TripDay';
-import { compareItineraryEntriesForDisplay } from './itineraryDayEntries';
+import { compareItineraryEntriesForDisplay, sortEntriesForDay } from './itineraryDayEntries';
 
 function storageKey(tripId: string, viewDayId: string): string {
   return `travelHub.dayColumnOrder.${tripId}.${viewDayId}`;
@@ -13,6 +13,59 @@ export function saveDayViewEntryOrder(tripId: string, viewDayId: string, ordered
   } catch {
     /* ignore quota / private mode */
   }
+}
+
+/** Insert an entry into saved column order by time when it is not already listed (e.g. return transport leg). */
+export function insertEntryInDayViewOrderByTime(
+  tripId: string,
+  viewDayId: string,
+  entryId: string,
+  entries: ItineraryEntry[],
+  calendarDate: string,
+  tripDays?: TripDay[],
+  dayType?: string,
+  preTripDayId?: string | null,
+  preTripRowStrict?: boolean
+): void {
+  let rawIds: string[] = [];
+  try {
+    const s = window.localStorage.getItem(storageKey(tripId, viewDayId));
+    if (s) rawIds = JSON.parse(s) as string[];
+  } catch {
+    rawIds = [];
+  }
+  if (Array.isArray(rawIds) && rawIds.indexOf(entryId) >= 0) return;
+
+  const sorted = sortEntriesForDay(
+    entries,
+    viewDayId,
+    calendarDate,
+    dayType,
+    preTripDayId,
+    preTripRowStrict,
+    tripDays
+  );
+  saveDayViewEntryOrder(tripId, viewDayId, sorted.map((e) => e.id));
+}
+
+/** Collapse expanded timeline rows to unique entries in visual order. */
+export function entriesFromTimelineRowOrder(
+  rows: Array<{ entry: ItineraryEntry }>
+): ItineraryEntry[] {
+  const seen = new Set<string>();
+  const out: ItineraryEntry[] = [];
+  for (const row of rows) {
+    if (!seen.has(row.entry.id)) {
+      seen.add(row.entry.id);
+      out.push(row.entry);
+    }
+  }
+  return out;
+}
+
+/** Strip outbound/return suffix from a timeline sortable id. */
+export function timelineRowKeyToEntryId(rowKey: string): string {
+  return rowKey.replace(/-(outbound|return)$/, '');
 }
 
 function readDayViewEntryOrder(tripId: string, viewDayId: string): string[] {

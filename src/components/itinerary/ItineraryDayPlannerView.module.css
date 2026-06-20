@@ -12,6 +12,19 @@
   overflow: auto;
   padding: var(--space-4);
   box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: var(--space-3);
+}
+
+.rootFullscreen .plannerFrame {
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.rootFullscreen .plannerTrackVScroll {
+  min-height: calc(100vh - 14rem);
 }
 
 .fullscreenChrome {
