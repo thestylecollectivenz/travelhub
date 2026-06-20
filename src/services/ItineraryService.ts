@@ -60,6 +60,7 @@ const SELECT_PHASE7 = [
   'JourneyType',
   'ReturnDate',
   'ReturnTime',
+  'ReturnArrivalTime',
   'PerksIncluded',
   'CancellationPolicy',
   'CancellationDeadline',
@@ -97,6 +98,7 @@ const SP_PHASE7_FIELD_KEYS = new Set([
   'JourneyType',
   'ReturnDate',
   'ReturnTime',
+  'ReturnArrivalTime',
   'PerksIncluded',
   'CancellationPolicy',
   'CancellationDeadline',
@@ -269,6 +271,7 @@ function mapToEntry(item: any): ItineraryEntry {
     journeyType: parseJourneyType(item.JourneyType),
     returnDate: parseDate(item.ReturnDate),
     returnTime: parseTime(item.ReturnTime),
+    returnArrivalTime: parseTime(item.ReturnArrivalTime),
     perksIncluded: item.PerksIncluded ? String(item.PerksIncluded) : undefined,
     cancellationPolicy: item.CancellationPolicy ? String(item.CancellationPolicy) : undefined,
     cancellationDeadline: item.CancellationDeadline ? String(item.CancellationDeadline) : undefined,
@@ -367,6 +370,7 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   if (entry.journeyType !== undefined) item.JourneyType = entry.journeyType ?? null;
   if (entry.returnDate !== undefined) item.ReturnDate = serializeDate(entry.returnDate);
   if (entry.returnTime !== undefined) item.ReturnTime = serializeTime(entry.returnTime);
+  if (entry.returnArrivalTime !== undefined) item.ReturnArrivalTime = serializeTime(entry.returnArrivalTime);
   if (entry.perksIncluded !== undefined) item.PerksIncluded = entry.perksIncluded || null;
   if (entry.cancellationPolicy !== undefined) item.CancellationPolicy = entry.cancellationPolicy || null;
   if (entry.cancellationDeadline !== undefined) {

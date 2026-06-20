@@ -6,7 +6,8 @@ import { useSpContext } from '../../context/SpContext';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import {
-  effectivePlannerTimeStart,
+  effectiveTransportLegTime,
+  expandTimelineDisplayRows,
   isPreTripDayRow,
   resolvePreTripDayId,
   sortEntriesForDay
@@ -121,7 +122,8 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
       dayMeta ? isPreTripDayRow(dayMeta) : false,
       tripDays
     );
-    return trip ? applyDayViewEntryOrder(trip.id, dayId, raw, calendarDate, tripDays) : raw;
+    const ordered = trip ? applyDayViewEntryOrder(trip.id, dayId, raw, calendarDate, tripDays) : raw;
+    return expandTimelineDisplayRows(ordered, calendarDate, tripDays);
   }, [localEntries, dayId, calendarDate, dayType, preTripDayId, dayMeta, trip, tripDays]);
 
   const loadEntryTasks = React.useCallback((): void => {
@@ -226,13 +228,16 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
           </div>
         </div>
       ) : null}
-      <SortableContext items={sorted.map((entry) => entry.id)} strategy={verticalListSortingStrategy}>
-        {sorted.map((entry) => {
+      <SortableContext items={sorted.filter((r) => !r.transportLeg).map((row) => row.entry.id)} strategy={verticalListSortingStrategy}>
+        {sorted.map((row) => {
+          const entry = row.entry;
           const categorySlug = getCategorySlug(entry.category);
           const editing = editingCardId === entry.id;
-          const timeLabel = formatTimeHHMM(effectivePlannerTimeStart(entry, calendarDate, tripDays));
+          const timeLabel = formatTimeHHMM(
+            effectiveTransportLegTime(entry, calendarDate, tripDays, row.transportLeg)
+          );
           return (
-            <div key={entry.id} className={styles.row}>
+            <div key={row.key} className={styles.row}>
               <div className={styles.timeCell}>{timeLabel}</div>
               <div className={styles.nodeWrap}>
                 <div
@@ -245,7 +250,8 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
                   entry={entry}
                   calendarDate={calendarDate}
                   suppressCarryoverUi={suppressCarryoverUi}
-                  draggable
+                  draggable={!row.transportLeg}
+                  transportLeg={row.transportLeg}
                   hasTask={taskEntryIds.has(entry.id)}
                   linkedEntryTask={entryLinkedTask.get(entry.id)}
                   linkedEntryTasks={entryLinkedTasks.get(entry.id)}

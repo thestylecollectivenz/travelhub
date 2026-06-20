@@ -253,6 +253,51 @@ export function sortEntriesForDay(
   return Array.from(map.values()).sort(compareLocationInfoFirst(calendarDate, tripDays));
 }
 
+export type TransportTimelineLeg = 'outbound' | 'return';
+
+export interface TimelineDisplayRow {
+  key: string;
+  entry: ItineraryEntry;
+  transportLeg?: TransportTimelineLeg;
+}
+
+/** Split return transport into separate outbound/return timeline rows when both legs fall on this day. */
+export function expandTimelineDisplayRows(
+  entries: ItineraryEntry[],
+  calendarDate: string,
+  tripDays?: TripDay[]
+): TimelineDisplayRow[] {
+  const rows: TimelineDisplayRow[] = [];
+  for (const entry of entries) {
+    if (entry.category === 'Transport' && entry.journeyType === 'return') {
+      const retHere = isTransportReturnOnCalendarDate(entry, calendarDate);
+      const outHere = isTransportDepartureOnCalendarDate(entry, calendarDate, tripDays);
+      if (outHere && retHere) {
+        rows.push({ key: `${entry.id}-outbound`, entry, transportLeg: 'outbound' });
+        rows.push({ key: `${entry.id}-return`, entry, transportLeg: 'return' });
+        continue;
+      }
+      if (outHere) {
+        rows.push({ key: `${entry.id}-outbound`, entry, transportLeg: 'outbound' });
+        continue;
+      }
+    }
+    rows.push({ key: entry.id, entry });
+  }
+  return rows;
+}
+
+export function effectiveTransportLegTime(
+  entry: ItineraryEntry,
+  calendarDate: string,
+  tripDays: TripDay[] | undefined,
+  leg?: TransportTimelineLeg
+): string {
+  if (leg === 'return' && entry.returnTime?.trim()) return entry.returnTime.trim();
+  if (leg === 'outbound' && entry.timeStart?.trim()) return entry.timeStart.trim();
+  return effectivePlannerTimeStart(entry, calendarDate, tripDays);
+}
+
 function collectPlaceIdsOnDay(day: TripDay): string[] {
   const ids: string[] = [];
   if (day.primaryPlaceId) ids.push(day.primaryPlaceId);

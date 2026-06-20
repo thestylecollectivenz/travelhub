@@ -32,7 +32,11 @@ import { DayPlannerPrintSheet, buildPlannerPrintHtml } from './DayPlannerPrintSh
 import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../../utils/googleMapsLink';
 import { formatActivityScheduleLabel } from '../../utils/activityScheduleLabel';
 import { formatDayDateOrdinal } from '../../utils/dateUtils';
+import { formatLocationText } from '../../utils/placeDisplayLabel';
 import styles from './ItineraryDayPlannerView.module.css';
+
+/** Fixed day column width keeps unscheduled headers aligned with timed tracks. */
+const PLANNER_DAY_COL = '13.5rem';
 
 export type PlannerFilter =
   | 'today'
@@ -128,7 +132,8 @@ function plannerBlockMeta(item: PlannerTimedItem, calendarDate: string, tripDays
   if (item.key.includes('-port-')) {
     const arrive = formatTimeHHMM(item.entry.timeStart || '');
     const depart = formatTimeHHMM(item.entry.arrivalTime || '');
-    if (item.key.endsWith('-disembark') && arrive) return arrive;
+    if (item.key.includes('-disembark') && arrive) return arrive;
+    if (item.key.includes('-embark') && depart) return depart;
     if (item.key.endsWith('-arrive') && arrive) return arrive;
     if (item.key.endsWith('-depart') && depart) return depart;
     return arrive || depart || '—';
@@ -147,7 +152,11 @@ function plannerBlockMeta(item: PlannerTimedItem, calendarDate: string, tripDays
   if (item.key.includes('-trn-')) {
     const out = formatTimeHHMM(item.entry.timeStart || '');
     const ret = formatTimeHHMM(item.entry.returnTime || '');
-    if (item.key.endsWith('-return') && ret) return `Return ${ret}`;
+    if (item.key.endsWith('-return') && ret) {
+      const retArr = formatTimeHHMM(item.entry.returnArrivalTime || '');
+      if (retArr) return `Return ${ret}–${retArr}`;
+      return `Return ${ret}`;
+    }
     if (out) return out;
     return '—';
   }
@@ -169,6 +178,16 @@ function plannerBlockMeta(item: PlannerTimedItem, calendarDate: string, tripDays
 function cancellationSnippet(entry: ItineraryEntry, sub?: ItinerarySubItem): string | undefined {
   const policy = (sub?.cancellationPolicy || entry.cancellationPolicy || '').trim();
   return policy || undefined;
+}
+
+function plannerBlockLocation(
+  entry: ItineraryEntry,
+  sub: ItinerarySubItem | undefined,
+  day: TripDay
+): string {
+  const fromEntry = formatLocationText((sub?.location || entry.location || '').trim());
+  if (fromEntry) return fromEntry;
+  return formatLocationText((day.displayTitle || '').trim());
 }
 
 function toggleFrontBlock(key: string, setFrontBlockKey: React.Dispatch<React.SetStateAction<string | null>>): void {
@@ -308,7 +327,13 @@ export const ItineraryDayPlannerView: React.FC = () => {
   const [unschedSectionHidden, setUnschedSectionHidden] = React.useState(false);
   const [frontBlockKey, setFrontBlockKey] = React.useState<string | null>(null);
   const [hoverBlockKey, setHoverBlockKey] = React.useState<string | null>(null);
-  const plannerDragRef = React.useRef<{ pointerId: number; startX: number; scrollLeft: number } | null>(null);
+  const plannerDragRef = React.useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    scrollLeft: number;
+    scrollTop: number;
+  } | null>(null);
   const plannerFrameRef = React.useRef<HTMLDivElement | null>(null);
   const plannerHScrollRef = React.useRef<HTMLDivElement | null>(null);
   const plannerHeadHScrollRef = React.useRef<HTMLDivElement | null>(null);
@@ -554,9 +579,14 @@ export const ItineraryDayPlannerView: React.FC = () => {
     if (!main || !head || !top || isMobile) return undefined;
     const measure = (): void => {
       const grid = head.querySelector(`.${styles.plannerGrid}`);
+      const track = main.querySelector(`.${styles.trackInner}`);
       const ghost = top.firstElementChild;
-      if (grid instanceof HTMLElement && ghost instanceof HTMLElement) {
-        ghost.style.width = `${grid.scrollWidth}px`;
+      const scrollW = Math.max(
+        grid instanceof HTMLElement ? grid.scrollWidth : 0,
+        track instanceof HTMLElement ? track.scrollWidth : 0
+      );
+      if (ghost instanceof HTMLElement && scrollW > 0) {
+        ghost.style.width = `${scrollW}px`;
       }
     };
     measure();
@@ -579,16 +609,23 @@ export const ItineraryDayPlannerView: React.FC = () => {
   }, [displayDays, isMobile]);
 
   React.useEffect(() => {
+    const frame = plannerFrameRef.current;
     const main = plannerHScrollRef.current;
     const head = plannerHeadHScrollRef.current;
     if (!main || !head || isMobile) return undefined;
 
-    const bindDrag = (el: HTMLElement): (() => void) => {
+    const bindDrag = (el: HTMLElement, allowVertical: boolean): (() => void) => {
       const onPointerDown = (ev: PointerEvent): void => {
         if (ev.button !== 0) return;
         const target = ev.target as HTMLElement;
         if (target.closest('button, a, input, textarea, select, [contenteditable]')) return;
-        plannerDragRef.current = { pointerId: ev.pointerId, startX: ev.clientX, scrollLeft: main.scrollLeft };
+        plannerDragRef.current = {
+          pointerId: ev.pointerId,
+          startX: ev.clientX,
+          startY: ev.clientY,
+          scrollLeft: main.scrollLeft,
+          scrollTop: frame?.scrollTop ?? 0
+        };
         el.setPointerCapture(ev.pointerId);
         el.style.cursor = 'grabbing';
       };
@@ -596,7 +633,9 @@ export const ItineraryDayPlannerView: React.FC = () => {
         const drag = plannerDragRef.current;
         if (!drag || drag.pointerId !== ev.pointerId) return;
         const dx = ev.clientX - drag.startX;
+        const dy = ev.clientY - drag.startY;
         main.scrollLeft = drag.scrollLeft - dx;
+        if (allowVertical && frame) frame.scrollTop = drag.scrollTop - dy;
       };
       const onPointerUp = (ev: PointerEvent): void => {
         const drag = plannerDragRef.current;
@@ -617,8 +656,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
       };
     };
 
-    const unbindMain = bindDrag(main);
-    const unbindHead = bindDrag(head);
+    const unbindMain = bindDrag(main, true);
+    const unbindHead = bindDrag(head, false);
     return () => {
       unbindMain();
       unbindHead();
@@ -871,7 +910,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
 
   // Avoid min() inside repeat() — some embedded / older engines reject the track list and drop
   // grid-template-columns entirely, which collapses the planner to a single column (broken layout).
-  const gridColTemplate = `3.5rem repeat(${displayDays.length}, minmax(11rem, 1fr))`;
+  const gridColTemplate = `3.5rem repeat(${displayDays.length}, ${PLANNER_DAY_COL})`;
+  const plannerGridMinWidth = `calc(3.5rem + ${displayDays.length} * ${PLANNER_DAY_COL})`;
 
   if (!trip) return null;
 
@@ -1164,6 +1204,9 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                   </button>
                                 </div>
                               </div>
+                              {plannerBlockLocation(e, sub, day) ? (
+                                <div className={styles.blockLocation}>{plannerBlockLocation(e, sub, day)}</div>
+                              ) : null}
                               <div className={styles.blockMeta}>{plannerBlockMeta(item, cal, tripDays)}</div>
                               {cancellationSnippet(e, sub) ? (
                                 <div className={styles.blockCancel}>{cancellationSnippet(e, sub)}</div>
@@ -1228,7 +1271,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
                 className={styles.plannerGrid}
                 style={{
                   gridTemplateColumns: gridColTemplate,
-                  gridTemplateRows: unschedSectionHidden ? 'auto' : 'auto auto'
+                  gridTemplateRows: unschedSectionHidden ? 'auto' : 'auto auto',
+                  minWidth: plannerGridMinWidth
                 }}
               >
                 <div className={styles.cornerCell} aria-hidden />
@@ -1317,7 +1361,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
             </div>
           </div>
           <div className={styles.plannerTrackHScroll} ref={plannerHScrollRef}>
-            <div className={styles.trackInner} style={{ gridTemplateColumns: gridColTemplate }}>
+            <div className={styles.trackInner} style={{ gridTemplateColumns: gridColTemplate, minWidth: plannerGridMinWidth }}>
               <div className={styles.timeAxis} style={{ height: `${trackHeight}px` }}>
                 {hoursTicks.map((h) => {
                   const m = h * 60;
@@ -1403,6 +1447,9 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                     </button>
                                   </div>
                                 </div>
+                                {plannerBlockLocation(e, sub, day) ? (
+                                  <div className={styles.blockLocation}>{plannerBlockLocation(e, sub, day)}</div>
+                                ) : null}
                                 <div className={styles.blockMeta}>{plannerBlockMeta(item, cal, tripDays)}</div>
                                 {cancellationSnippet(e, sub) ? (
                                   <div className={styles.blockCancel}>{cancellationSnippet(e, sub)}</div>
@@ -1575,6 +1622,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                   {previewEntry.returnDate ? `Return date ${formatYmdPreview(previewEntry.returnDate)}` : ''}
                   {previewEntry.returnDate && previewEntry.returnTime ? ' · ' : ''}
                   {previewEntry.returnTime ? `Departs ${formatTimeHHMM(previewEntry.returnTime)}` : ''}
+                  {previewEntry.returnArrivalTime ? ` · Arrives ${formatTimeHHMM(previewEntry.returnArrivalTime)}` : ''}
                 </p>
               </div>
             ) : null}

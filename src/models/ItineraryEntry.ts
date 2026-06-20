@@ -105,6 +105,8 @@ export interface ItineraryEntry {
   returnDate?: string;
   /** Return leg departure time (HH:MM). */
   returnTime?: string;
+  /** Return leg arrival time (HH:MM). */
+  returnArrivalTime?: string;
   /** Accommodation — multi-line (SharePoint Note). */
   perksIncluded?: string;
   cancellationPolicy?: string;

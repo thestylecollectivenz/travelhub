@@ -23,7 +23,7 @@ export function cruiseShipLabel(entry: ItineraryEntry): string | undefined {
     if (m) return m;
   }
   const supplier = entry.supplier?.trim();
-  return supplier || undefined;
+  return supplier || entry.shipName?.trim() || undefined;
 }
 
 function ymdSlice(value: string | undefined): string {
@@ -43,32 +43,16 @@ function portPlaceKey(entry: ItineraryEntry): string {
   return normalizePlace(formatLocationText((entry.location || entry.title || '').trim()));
 }
 
-/** Whole-cruise row that spans this port calendar day (embark through disembark). */
-export function parentCruiseForPortDay(
-  portEntry: ItineraryEntry,
-  tripDays: TripDay[],
-  allEntries: ItineraryEntry[]
-): ItineraryEntry | undefined {
-  const portYmd = calendarDateForEntry(portEntry, tripDays);
-  if (!portYmd) return undefined;
-  let best: ItineraryEntry | undefined;
-  for (const e of allEntries) {
-    if (e.category !== 'Cruise' || !e.embarksDate?.trim() || !e.disembarksDate?.trim()) continue;
-    const emb = ymdSlice(e.embarksDate);
-    const dis = ymdSlice(e.disembarksDate);
-    if (!emb || !dis || portYmd < emb || portYmd > dis) continue;
-    if (!best) {
-      best = e;
-      continue;
-    }
-    const bestSpan =
-      new Date(`${ymdSlice(best.disembarksDate)}T00:00:00.000Z`).getTime() -
-      new Date(`${ymdSlice(best.embarksDate)}T00:00:00.000Z`).getTime();
-    const nextSpan =
-      new Date(`${dis}T00:00:00.000Z`).getTime() - new Date(`${emb}T00:00:00.000Z`).getTime();
-    if (nextSpan <= bestSpan) best = e;
-  }
-  return best;
+function cruisesDisembarkingOn(ymd: string, tripEntries: ItineraryEntry[]): ItineraryEntry[] {
+  return tripEntries.filter(
+    (e) => e.category === 'Cruise' && !!e.disembarksDate?.trim() && ymdSlice(e.disembarksDate) === ymd
+  );
+}
+
+function cruisesEmbarkingOn(ymd: string, tripEntries: ItineraryEntry[]): ItineraryEntry[] {
+  return tripEntries.filter(
+    (e) => e.category === 'Cruise' && !!e.embarksDate?.trim() && ymdSlice(e.embarksDate) === ymd
+  );
 }
 
 function adjacentCalendarYmd(ymd: string, tripDays: TripDay[], offset: -1 | 1): string | undefined {
@@ -118,14 +102,40 @@ export function cruisePortPlannerBlocks(
   const arrive = minutesFromTimeStart(entry.timeStart || '');
   const depart = minutesFromTimeStart(entry.arrivalTime || '');
   const place = formatLocationText((entry.location || entry.title || 'port').trim());
-  const ship = cruiseShipLabel(entry);
   const markerMinutes = 60;
 
-  const parentCruise = parentCruiseForPortDay(entry, tripDays, tripEntries);
-  const embarkYmd = parentCruise ? ymdSlice(parentCruise.embarksDate) : '';
-  const disembarkYmd = parentCruise ? ymdSlice(parentCruise.disembarksDate) : '';
-  const isEmbark = embarkYmd && entryYmd === embarkYmd;
-  const isDisembark = disembarkYmd && entryYmd === disembarkYmd && !isEmbark;
+  const disembarkCruises = cruisesDisembarkingOn(entryYmd, tripEntries);
+  const embarkCruises = cruisesEmbarkingOn(entryYmd, tripEntries);
+
+  const blocks: CruisePortPlannerBlock[] = [];
+
+  for (const cruise of disembarkCruises) {
+    if (arrive === undefined) continue;
+    const ship = cruiseShipLabel(cruise);
+    const title = ship ? `${ship} · Disembark ${place}` : `Disembark ${place}`;
+    blocks.push({
+      keySuffix: `disembark-${cruise.id}`,
+      startMinutes: arrive,
+      durationMinutes: markerMinutes,
+      title
+    });
+  }
+
+  for (const cruise of embarkCruises) {
+    if (depart === undefined) continue;
+    const ship = cruiseShipLabel(cruise);
+    const title = ship ? `${ship} departs from ${place}` : `Departs from ${place}`;
+    blocks.push({
+      keySuffix: `embark-${cruise.id}`,
+      startMinutes: depart,
+      durationMinutes: markerMinutes,
+      title
+    });
+  }
+
+  if (blocks.length > 0) {
+    return blocks;
+  }
 
   const prevYmd = adjacentCalendarYmd(viewYmd, tripDays, -1);
   const nextYmd = adjacentCalendarYmd(viewYmd, tripDays, 1);
@@ -134,35 +144,8 @@ export function cruisePortPlannerBlocks(
   const samePortAsPrev = prevPort && portPlaceKey(prevPort) === portPlaceKey(entry);
   const samePortAsNext = nextPort && portPlaceKey(nextPort) === portPlaceKey(entry);
 
+  const ship = cruiseShipLabel(entry);
   const departLabel = ship ? `${ship} departs ${place}` : `Departs ${place}`;
-  const embarkLabel = ship ? `${ship} departs from ${place}` : `Departs from ${place}`;
-  const disembarkLabel = ship ? `${ship} · Disembark ${place}` : `Disembark ${place}`;
-
-  const blocks: CruisePortPlannerBlock[] = [];
-
-  if (isDisembark) {
-    if (arrive !== undefined) {
-      blocks.push({
-        keySuffix: 'disembark',
-        startMinutes: arrive,
-        durationMinutes: markerMinutes,
-        title: disembarkLabel
-      });
-    }
-    return blocks;
-  }
-
-  if (isEmbark) {
-    if (depart !== undefined) {
-      blocks.push({
-        keySuffix: 'depart',
-        startMinutes: depart,
-        durationMinutes: markerMinutes,
-        title: embarkLabel
-      });
-    }
-    return blocks;
-  }
 
   if (samePortAsPrev && samePortAsNext) {
     return blocks;

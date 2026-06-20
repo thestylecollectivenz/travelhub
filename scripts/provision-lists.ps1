@@ -250,6 +250,7 @@ Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'CabinClass' 
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'JourneyType' -FieldType 'Choice' -Choices @('oneway', 'return')
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'ReturnDate' -FieldType 'DateTime'
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'ReturnTime' -FieldType 'DateTime'
+Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'ReturnArrivalTime' -FieldType 'DateTime'
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'PerksIncluded' -FieldType 'Note'
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'CancellationPolicy' -FieldType 'Note'
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'CancellationDeadline' -FieldType 'DateTime'

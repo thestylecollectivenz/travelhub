@@ -218,7 +218,11 @@
 .plannerHeadHScroll {
   overflow-x: auto;
   overflow-y: hidden;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+}
+
+.plannerHeadHScroll::-webkit-scrollbar {
+  display: none;
 }
 
 .plannerTrackHScroll {
@@ -240,11 +244,10 @@
 
 .plannerGrid {
   display: grid;
-  /* Do not use 1fr for the track row: with an indefinite grid height, some hosts shrink it to zero. */
-  grid-template-rows: auto auto auto;
+  grid-template-rows: auto auto;
   align-items: stretch;
-  width: 100%;
-  min-width: 0;
+  width: max-content;
+  min-width: 100%;
 }
 
 .cornerCell {
@@ -267,8 +270,8 @@
 .trackInner {
   display: grid;
   align-items: stretch;
-  width: 100%;
-  min-width: 0;
+  width: max-content;
+  min-width: 100%;
 }
 
 .trackInner .timeAxis {
@@ -284,6 +287,8 @@
   background: var(--color-surface);
   padding: var(--space-2);
   vertical-align: top;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .mobileDayStack {
@@ -347,6 +352,8 @@
   justify-content: center;
   gap: 2px;
   line-height: 1.15;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .dayHeadTitle {
@@ -363,9 +370,10 @@
 
 .dayTrack {
   position: relative;
-  flex: 1;
   min-height: 320px;
   border-right: var(--border-default);
+  min-width: 0;
+  overflow: hidden;
   /* Hour bands: --hour-band is set inline from px-per-minute so lines align with tick marks. */
   background: repeating-linear-gradient(
     to bottom,
@@ -483,6 +491,13 @@
   color: var(--color-sand-700);
 }
 
+.blockLocation {
+  font-size: 9px;
+  line-height: 1.2;
+  color: var(--color-sand-700);
+  overflow-wrap: anywhere;
+}
+
 .blockCancel {
   font-size: 10px;
   line-height: 1.25;
@@ -557,6 +572,8 @@
   border: var(--border-default);
   border-radius: var(--radius-md);
   background: var(--color-surface);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .unschedToggle {

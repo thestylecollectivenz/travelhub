@@ -188,7 +188,11 @@ function transportPlannerBlocks(
   if (entry.journeyType === 'return' && retYmd && viewYmd === retYmd) {
     const start = minutesFromTimeStart(entry.returnTime || '');
     if (start !== undefined) {
-      const dur = parseDurationMinutes(entry.duration || '') || 60;
+      const end = minutesFromTimeStart(entry.returnArrivalTime || '');
+      const dur =
+        end !== undefined && end > start
+          ? end - start
+          : parseDurationMinutes(entry.duration || '') || 60;
       blocks.push({
         keySuffix: 'return',
         startMinutes: start,

@@ -275,6 +275,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       journeyType: draft.journeyType,
       returnDate: draft.returnDate?.trim() || undefined,
       returnTime: draft.returnTime?.trim() || undefined,
+      returnArrivalTime: draft.returnArrivalTime?.trim() || undefined,
       perksIncluded: draft.perksIncluded?.trim() || undefined,
       cancellationPolicy: draft.cancellationPolicy?.trim() || undefined,
       cancellationDeadline: draft.cancellationDeadline?.trim() || undefined,
@@ -294,6 +295,9 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       if (saved.journeyType !== 'return') {
         saved.returnDate = undefined;
         saved.returnTime = undefined;
+        saved.returnArrivalTime = undefined;
+      } else {
+        saved.returnDate = saved.returnDate || calendarDate;
       }
     }
     if (saved.category === 'Flights') {
@@ -785,15 +789,33 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
               id={`jt-${draft.id}`}
               className={styles.select}
               value={draft.journeyType ?? 'oneway'}
-              onChange={(e) =>
-                patch({ journeyType: e.target.value as ItineraryEntry['journeyType'] })
-              }
+              onChange={(e) => {
+                const next = e.target.value as ItineraryEntry['journeyType'];
+                if (next === 'return') {
+                  patch({
+                    journeyType: next,
+                    returnDate: draft.returnDate?.trim() || calendarDate
+                  });
+                } else {
+                  patch({ journeyType: next });
+                }
+              }}
             >
               <option value="oneway">One way</option>
               <option value="return">Return</option>
             </select>
             {draft.journeyType === 'return' ? (
               <>
+                <label className={styles.label} htmlFor={`od-${draft.id}`}>
+                  Outbound date
+                </label>
+                <input
+                  id={`od-${draft.id}`}
+                  className={styles.input}
+                  type="date"
+                  value={draft.dateStart ?? ''}
+                  onChange={(e) => patch({ dateStart: e.target.value })}
+                />
                 <label className={styles.label} htmlFor={`rd-${draft.id}`}>
                   Return date
                 </label>
@@ -801,7 +823,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
                   id={`rd-${draft.id}`}
                   className={styles.input}
                   type="date"
-                  value={draft.returnDate ?? ''}
+                  value={draft.returnDate ?? calendarDate}
                   onChange={(e) => patch({ returnDate: e.target.value })}
                 />
                 <label className={styles.label} htmlFor={`rt-${draft.id}`}>
@@ -812,7 +834,21 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
                   className={styles.input}
                   type="time"
                   value={formatTimeHHMM(draft.returnTime ?? '')}
-                  onChange={(e) => patch({ returnTime: combineDayAndTime(calendarDate, e.target.value) })}
+                  onChange={(e) =>
+                    patch({ returnTime: combineDayAndTime(draft.returnDate || calendarDate, e.target.value) })
+                  }
+                />
+                <label className={styles.label} htmlFor={`rat-${draft.id}`}>
+                  Return arrival time
+                </label>
+                <input
+                  id={`rat-${draft.id}`}
+                  className={styles.input}
+                  type="time"
+                  value={formatTimeHHMM(draft.returnArrivalTime ?? '')}
+                  onChange={(e) =>
+                    patch({ returnArrivalTime: combineDayAndTime(draft.returnDate || calendarDate, e.target.value) })
+                  }
                 />
               </>
             ) : null}

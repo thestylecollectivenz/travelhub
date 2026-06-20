@@ -5,6 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { getCategorySlug } from '../../utils/categoryUtils';
+import type { TransportTimelineLeg } from '../../utils/itineraryDayEntries';
 import { isLocationInfoEntry } from '../../utils/locationInfoEntry';
 import { ItineraryCardEdit } from './ItineraryCardEdit';
 import { ItineraryCardView } from './ItineraryCardView';
@@ -22,6 +23,8 @@ export interface ItineraryCardProps {
   hasCancellationDeadlineReminder?: boolean;
   /** Portals the edit form to document.body (Day Planner columns are too narrow). */
   useEditPortal?: boolean;
+  /** When set, show a single outbound or return leg of a return transport entry. */
+  transportLeg?: TransportTimelineLeg;
 }
 
 function GripIcon(): React.ReactElement {
@@ -46,7 +49,8 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
   linkedEntryTask,
   linkedEntryTasks,
   hasCancellationDeadlineReminder = false,
-  useEditPortal = true
+  useEditPortal = true,
+  transportLeg
 }) => {
   const { editingCardId, setEditingCardId, focusedEntryId, updateEntry, deleteEntry, duplicateEntry } = useTripWorkspace();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -130,6 +134,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
           entry={entry}
           calendarDate={calendarDate}
           suppressCarryoverUi={suppressCarryoverUi}
+          transportLeg={transportLeg}
           hasTask={hasTask}
           linkedEntryTask={linkedEntryTask}
           linkedEntryTasks={linkedEntryTasks}

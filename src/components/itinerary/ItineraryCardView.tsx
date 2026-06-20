@@ -26,7 +26,12 @@ import { sortEntryLinks } from '../../utils/entryLinkSort';
 import { RichTextContent } from '../shared/RichTextContent';
 import type { LinkedEntryTask } from '../../utils/linkedEntryTask';
 import { linkedTaskDisplayText, linkedTaskNoteDisplay } from '../../utils/linkedEntryTask';
-import { effectivePlannerTimeStart, isTransportReturnOnCalendarDate } from '../../utils/itineraryDayEntries';
+import {
+  effectivePlannerTimeStart,
+  effectiveTransportLegTime,
+  isTransportReturnOnCalendarDate
+} from '../../utils/itineraryDayEntries';
+import type { TransportTimelineLeg } from '../../utils/itineraryDayEntries';
 import { formatActivityScheduleLabel } from '../../utils/activityScheduleLabel';
 import {
   isLocationInfoEntry,
@@ -72,6 +77,8 @@ export interface ItineraryCardViewProps {
   calendarDate: string;
   /** When true (e.g. pre-trip day), hide multi-day accommodation / cruise continuation labels. */
   suppressCarryoverUi?: boolean;
+  /** Show a single outbound or return leg of a return transport entry on the timeline. */
+  transportLeg?: TransportTimelineLeg;
   hasTask?: boolean;
   linkedEntryTask?: LinkedEntryTask;
   linkedEntryTasks?: LinkedEntryTask[];
@@ -191,6 +198,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   entry,
   calendarDate,
   suppressCarryoverUi = false,
+  transportLeg,
   hasTask = false,
   linkedEntryTask,
   linkedEntryTasks,
@@ -328,11 +336,11 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       : convertToHomeCurrency(entry.amountPaid, paidCurrency))
     : undefined;
   const isActivities = entry.category === 'Activities';
-  const hhmm = formatTimeHHMM(effectivePlannerTimeStart(entry, calendarDate, tripDays));
+  const hhmm = formatTimeHHMM(effectiveTransportLegTime(entry, calendarDate, tripDays, transportLeg));
   const timeChip = isActivities
     ? formatActivityScheduleLabel({
         calendarDate,
-        timeStart: effectivePlannerTimeStart(entry, calendarDate, tripDays),
+        timeStart: effectiveTransportLegTime(entry, calendarDate, tripDays, transportLeg),
         duration: entry.duration,
         arrivalTime: entry.arrivalTime
       }) ?? null
@@ -376,7 +384,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const isCruisePort = entry.category === 'Cruise port';
   const isFlights = entry.category === 'Flights';
   const isTransport = entry.category === 'Transport';
-  const transportReturnHere = isTransport && isTransportReturnOnCalendarDate(entry, calendarDate);
+  const transportReturnHere =
+    isTransport &&
+    (transportLeg === 'return' || (!transportLeg && isTransportReturnOnCalendarDate(entry, calendarDate)));
   const mapsPlaceUrl = googleMapsPlaceUrl(entry.streetAddress || '');
   const mapsDirectionsUrl = googleMapsDirectionsUrl(entry.streetAddress || '');
   const cabinLabel =
@@ -918,6 +928,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           {entry.journeyType ? <div>Journey {entry.journeyType === 'return' ? 'Return' : 'One way'}</div> : null}
           {entry.journeyType === 'return' && entry.returnDate ? <div>Return date {formatYmd(entry.returnDate)}</div> : null}
           {entry.journeyType === 'return' && entry.returnTime ? <div>Return dep. {formatTimeHHMM(entry.returnTime)}</div> : null}
+          {entry.journeyType === 'return' && entry.returnArrivalTime ? (
+            <div>Return arr. {formatTimeHHMM(entry.returnArrivalTime)}</div>
+          ) : null}
           {entry.journeyType === 'return' && entry.timeStart ? (
             <div>Outbound dep. {formatTimeHHMM(entry.timeStart)}</div>
           ) : null}
