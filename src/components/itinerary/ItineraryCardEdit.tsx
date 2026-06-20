@@ -21,6 +21,7 @@ import { editableEntryToSubItem } from '../../utils/optionEntryAdapter';
 import { RichTextField } from '../shared/RichTextField';
 import { sortEntryDocuments } from '../../utils/entryDocumentSort';
 import { sortEntryLinks } from '../../utils/entryLinkSort';
+import { ymdSlice } from '../../utils/tripListSort';
 import styles from './ItineraryCardEdit.module.css';
 
 export interface ItineraryCardEditProps {
@@ -220,6 +221,14 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   }, [isAccommodation, calendarDate, nights, perNight]);
 
   React.useEffect(() => {
+    if (!isTransport) return;
+    setDraft((prev) => ({
+      ...prev,
+      dateStart: prev.dateStart || calendarDate
+    }));
+  }, [isTransport, calendarDate]);
+
+  React.useEffect(() => {
     if (!isFlights) return;
     setDraft((prev) => ({
       ...prev,
@@ -292,6 +301,15 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
     };
     if (saved.category === 'Transport') {
       saved.journeyType = saved.journeyType ?? 'oneway';
+      saved.dateStart = saved.dateStart || calendarDate;
+      if (saved.dateStart && trip) {
+        const outboundDay = tripDays.find(
+          (d) => d.tripId === trip.id && ymdSlice(d.calendarDate) === ymdSlice(saved.dateStart)
+        );
+        if (outboundDay) {
+          saved.dayId = outboundDay.id;
+        }
+      }
       if (saved.journeyType !== 'return') {
         saved.returnDate = undefined;
         saved.returnTime = undefined;
@@ -460,6 +478,26 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
                 </option>
               ))}
             </select>
+            {isTransport ? (
+              <>
+                <label className={styles.label} htmlFor={`od-${draft.id}`}>
+                  Outbound date
+                </label>
+                <input
+                  id={`od-${draft.id}`}
+                  className={styles.input}
+                  type="date"
+                  value={draft.dateStart ?? calendarDate}
+                  onChange={(e) => {
+                    const date = e.target.value;
+                    const day = tripDays.find(
+                      (d) => d.tripId === trip?.id && ymdSlice(d.calendarDate) === ymdSlice(date)
+                    );
+                    patch({ dateStart: date, ...(day ? { dayId: day.id } : {}) });
+                  }}
+                />
+              </>
+            ) : null}
           </>
         ) : (
           <>
@@ -806,16 +844,6 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
             </select>
             {draft.journeyType === 'return' ? (
               <>
-                <label className={styles.label} htmlFor={`od-${draft.id}`}>
-                  Outbound date
-                </label>
-                <input
-                  id={`od-${draft.id}`}
-                  className={styles.input}
-                  type="date"
-                  value={draft.dateStart ?? ''}
-                  onChange={(e) => patch({ dateStart: e.target.value })}
-                />
                 <label className={styles.label} htmlFor={`rd-${draft.id}`}>
                   Return date
                 </label>

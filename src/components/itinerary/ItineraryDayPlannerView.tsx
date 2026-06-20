@@ -335,6 +335,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
     scrollTop: number;
   } | null>(null);
   const plannerFrameRef = React.useRef<HTMLDivElement | null>(null);
+  const plannerVScrollRef = React.useRef<HTMLDivElement | null>(null);
   const plannerHScrollRef = React.useRef<HTMLDivElement | null>(null);
   const plannerHeadHScrollRef = React.useRef<HTMLDivElement | null>(null);
   const plannerScrollTopRef = React.useRef<HTMLDivElement | null>(null);
@@ -595,21 +596,21 @@ export const ItineraryDayPlannerView: React.FC = () => {
   }, [displayDays, isMobile, unschedSectionHidden]);
 
   React.useEffect(() => {
-    const frame = plannerFrameRef.current;
+    const head = plannerHeadHScrollRef.current;
     const main = plannerHScrollRef.current;
-    if (!frame || !main || isMobile) return undefined;
+    if (!head || !main || isMobile) return undefined;
     const onWheel = (ev: WheelEvent): void => {
       if (main.scrollWidth <= main.clientWidth) return;
       if (Math.abs(ev.deltaX) > Math.abs(ev.deltaY)) return;
       ev.preventDefault();
       main.scrollLeft += ev.deltaY;
     };
-    frame.addEventListener('wheel', onWheel, { passive: false });
-    return () => frame.removeEventListener('wheel', onWheel);
+    head.addEventListener('wheel', onWheel, { passive: false });
+    return () => head.removeEventListener('wheel', onWheel);
   }, [displayDays, isMobile]);
 
   React.useEffect(() => {
-    const frame = plannerFrameRef.current;
+    const vScroll = plannerVScrollRef.current;
     const main = plannerHScrollRef.current;
     const head = plannerHeadHScrollRef.current;
     if (!main || !head || isMobile) return undefined;
@@ -624,7 +625,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
           startX: ev.clientX,
           startY: ev.clientY,
           scrollLeft: main.scrollLeft,
-          scrollTop: frame?.scrollTop ?? 0
+          scrollTop: vScroll?.scrollTop ?? 0
         };
         el.setPointerCapture(ev.pointerId);
         el.style.cursor = 'grabbing';
@@ -635,7 +636,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
         const dx = ev.clientX - drag.startX;
         const dy = ev.clientY - drag.startY;
         main.scrollLeft = drag.scrollLeft - dx;
-        if (allowVertical && frame) frame.scrollTop = drag.scrollTop - dy;
+        if (allowVertical && vScroll) vScroll.scrollTop = drag.scrollTop - dy;
       };
       const onPointerUp = (ev: PointerEvent): void => {
         const drag = plannerDragRef.current;
@@ -1054,7 +1055,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
           No days in this range. Adjust filters.
         </div>
       ) : isMobile ? (
-        <div className={styles.plannerFrame} ref={plannerFrameRef}>
+        <div className={`${styles.plannerFrame} ${styles.plannerFrameMobile}`} ref={plannerFrameRef}>
           {displayDays.map((day) => {
             const cal = day.calendarDate || '';
             const list = entriesForPlannerColumn(day);
@@ -1360,6 +1361,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
               </div>
             </div>
           </div>
+          <div className={styles.plannerTrackVScroll} ref={plannerVScrollRef}>
           <div className={styles.plannerTrackHScroll} ref={plannerHScrollRef}>
             <div className={styles.trackInner} style={{ gridTemplateColumns: gridColTemplate, minWidth: plannerGridMinWidth }}>
               <div className={styles.timeAxis} style={{ height: `${trackHeight}px` }}>
@@ -1501,6 +1503,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                   );
                 })}
             </div>
+          </div>
           </div>
         </div>
       )}

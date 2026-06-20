@@ -591,24 +591,37 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       if (!moving || moving.dayId === targetDayId) {
         return;
       }
+      const targetDay = tripDays.find((d) => d.id === targetDayId);
       const targetMaxSort = localEntries
         .filter((e) => e.dayId === targetDayId && !e.parentEntryId)
         .reduce((max, e) => Math.max(max, e.sortOrder), -1);
       const nextSort = targetMaxSort + 1;
+      const transportDateStart =
+        moving.category === 'Transport' && targetDay?.calendarDate
+          ? ymdSlice(targetDay.calendarDate)
+          : undefined;
 
       setLocalEntries((prev) =>
         prev.map((entry) =>
-          entry.id === entryId ? { ...entry, dayId: targetDayId, sortOrder: nextSort } : entry
+          entry.id === entryId
+            ? {
+                ...entry,
+                dayId: targetDayId,
+                sortOrder: nextSort,
+                ...(transportDateStart ? { dateStart: transportDateStart } : {})
+              }
+            : entry
         )
       );
 
       const svc = new ItineraryService(spContext);
-      svc.moveToDay(entryId, targetDayId, nextSort).catch((err) => {
+      const extra: Partial<ItineraryEntry> = transportDateStart ? { dateStart: transportDateStart } : {};
+      svc.moveToDay(entryId, targetDayId, nextSort, extra).catch((err) => {
         // eslint-disable-next-line no-console
         console.error('moveEntryToDay: SP persist failed', err);
       });
     },
-    [spContext, localEntries]
+    [spContext, localEntries, tripDays]
   );
 
   const syncTripCalendarDaysForRange = React.useCallback(

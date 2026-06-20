@@ -273,9 +273,11 @@ function pushUntimedSubs(
   items: PlannerTimedItem[],
   entry: ItineraryEntry,
   untimedSubs: ItinerarySubItem[],
-  parentTitle: string
+  parentTitle: string,
+  timedSubsCount = 0
 ): void {
   if (!untimedSubs.length) return;
+  if (timedSubsCount > 0) return;
   const related = items.filter((i) => i.entry.id === entry.id);
   let slot =
     related.length > 0
@@ -358,7 +360,7 @@ export function expandPlannerTimedItems(
 
     if (isWholeCruiseEntry(entry)) {
       pushTimedSubs(items, entry, timedSubs, entry.title || 'Cruise');
-      pushUntimedSubs(items, entry, untimedSubs, entry.title || 'Cruise');
+      pushUntimedSubs(items, entry, untimedSubs, entry.title || 'Cruise', timedSubs.length);
       continue;
     }
 
@@ -376,7 +378,7 @@ export function expandPlannerTimedItems(
         }
       }
       pushTimedSubs(items, entry, timedSubs, entry.title || 'Untitled');
-      pushUntimedSubs(items, entry, untimedSubs, entry.title || 'Untitled');
+      pushUntimedSubs(items, entry, untimedSubs, entry.title || 'Untitled', timedSubs.length);
       continue;
     }
 
@@ -392,7 +394,7 @@ export function expandPlannerTimedItems(
         });
       }
       pushTimedSubs(items, entry, timedSubs, entry.title || 'Untitled');
-      pushUntimedSubs(items, entry, untimedSubs, entry.title || 'Untitled');
+      pushUntimedSubs(items, entry, untimedSubs, entry.title || 'Untitled', timedSubs.length);
       continue;
     }
 
@@ -421,7 +423,7 @@ export function expandPlannerTimedItems(
         }
       }
       pushTimedSubs(items, entry, timedSubs, entry.title || 'Untitled');
-      pushUntimedSubs(items, entry, untimedSubs, entry.title || 'Untitled');
+      pushUntimedSubs(items, entry, untimedSubs, entry.title || 'Untitled', timedSubs.length);
       continue;
     }
 
@@ -452,7 +454,7 @@ export function expandPlannerTimedItems(
     }
 
     pushTimedSubs(items, entry, timedSubs, entry.title || 'Untitled');
-    pushUntimedSubs(items, entry, untimedSubs, entry.title || 'Untitled');
+    pushUntimedSubs(items, entry, untimedSubs, entry.title || 'Untitled', timedSubs.length);
   }
 
   adjustPlannerAccommodationOrder(items);
