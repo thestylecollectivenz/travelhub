@@ -26,6 +26,10 @@ export interface AttachmentsContextValue {
   updateDocument: (id: string, partial: Partial<Omit<EntryDocument, 'id'>>) => Promise<void>;
   deleteDocument: (id: string) => Promise<void>;
   reorderEntryDocuments: (entryId: string, orderedDocumentIds: string[]) => void;
+  reorderEntryAttachments: (
+    entryId: string,
+    ordered: Array<{ kind: 'doc'; id: string } | { kind: 'link'; id: string }>
+  ) => void;
   addLink: (input: {
     dayId: string;
     entryId: string;
@@ -349,6 +353,46 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [spContext]
   );
 
+  const reorderEntryAttachments = React.useCallback(
+    (
+      entryId: string,
+      ordered: Array<{ kind: 'doc'; id: string } | { kind: 'link'; id: string }>
+    ): void => {
+      setDocuments((prev) =>
+        prev.map((doc) => {
+          if (doc.entryId !== entryId) return doc;
+          const nextOrder = ordered.findIndex((item) => item.kind === 'doc' && item.id === doc.id);
+          if (nextOrder < 0) return doc;
+          return { ...doc, sortOrder: nextOrder };
+        })
+      );
+      setLinks((prev) =>
+        prev.map((link) => {
+          if (link.entryId !== entryId) return link;
+          const nextOrder = ordered.findIndex((item) => item.kind === 'link' && item.id === link.id);
+          if (nextOrder < 0) return link;
+          return { ...link, sortOrder: nextOrder };
+        })
+      );
+      const docSvc = new DocumentService(spContext);
+      const linkSvc = new LinkService(spContext);
+      ordered.forEach((item, index) => {
+        if (item.kind === 'doc') {
+          docSvc.update(item.id, { sortOrder: index }).catch((err) => {
+            // eslint-disable-next-line no-console
+            console.error('reorderEntryAttachments: doc persist failed', err);
+          });
+        } else {
+          linkSvc.update(item.id, { sortOrder: index }).catch((err) => {
+            // eslint-disable-next-line no-console
+            console.error('reorderEntryAttachments: link persist failed', err);
+          });
+        }
+      });
+    },
+    [spContext]
+  );
+
   const value = React.useMemo(
     (): AttachmentsContextValue => ({
       documents,
@@ -361,6 +405,7 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       updateDocument,
       deleteDocument,
       reorderEntryDocuments,
+      reorderEntryAttachments,
       addLink,
       updateLink,
       deleteLink,
@@ -381,6 +426,7 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       updateDocument,
       deleteDocument,
       reorderEntryDocuments,
+      reorderEntryAttachments,
       addLink,
       updateLink,
       deleteLink,

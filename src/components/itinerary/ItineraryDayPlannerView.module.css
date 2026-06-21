@@ -481,22 +481,30 @@
   color: var(--color-blue-900);
   line-height: 1.25;
   min-width: 0;
+  grid-column: 1;
+  grid-row: 1;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 
 .blockTitleRow {
-  display: flow-root;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto;
+  gap: 2px 4px;
+  align-items: start;
   min-width: 0;
 }
 
 .blockActions {
-  float: right;
   display: inline-flex;
   flex-direction: row;
   align-items: center;
   gap: 2px;
-  margin: 0 0 2px 4px;
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  flex-shrink: 0;
 }
 
 .iconBtn {
@@ -562,10 +570,11 @@
 }
 
 .unschedTitleBlock {
+  grid-column: 1;
+  grid-row: 1;
   display: grid;
   gap: 2px;
   min-width: 0;
-  flex: 1 1 auto;
 }
 
 .blockIcons {
@@ -681,17 +690,23 @@
 }
 
 .unschedRow {
-  display: flow-root;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto;
+  gap: 2px 4px;
+  align-items: start;
   min-width: 0;
 }
 
 .unschedRow .blockActions {
-  float: right;
   display: inline-flex;
   flex-direction: row;
   align-items: center;
   gap: 2px;
-  margin: 0 0 2px 4px;
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  flex-shrink: 0;
 }
 
 .unschedTitleBtn {

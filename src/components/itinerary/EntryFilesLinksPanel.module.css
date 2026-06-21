@@ -67,8 +67,10 @@
   border-radius: var(--radius-sm);
   font-size: var(--font-size-xs);
   color: var(--color-blue-800);
-  padding: var(--space-1) var(--space-2);
+  padding: 2px var(--space-2);
+  line-height: 1.35;
   background: var(--color-surface-raised);
+  box-sizing: border-box;
 }
 
 .actionButton {
@@ -119,6 +121,33 @@
   gap: var(--space-1);
   margin-top: var(--space-1);
   width: 100%;
+}
+
+.addFormRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  align-items: center;
+  width: 100%;
+}
+
+.fieldCompact {
+  flex: 1 1 6rem;
+  min-width: 0;
+  max-width: 100%;
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-blue-800);
+  padding: 2px var(--space-2);
+  line-height: 1.35;
+  background: var(--color-surface-raised);
+  box-sizing: border-box;
+}
+
+.fieldCompact[type='file'] {
+  padding: 0;
 }
 
 .fileHidden {

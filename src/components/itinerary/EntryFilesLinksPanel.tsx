@@ -3,8 +3,7 @@ import type { EntryDocument, EntryDocumentType, EntryLink, EntryLinkType } from 
 import { useAttachments } from '../../context/AttachmentsContext';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
-import { EntryDocumentsSortableList } from './EntryDocumentsSortableList';
-import { EntryLinksSortableList } from './EntryLinksSortableList';
+import { EntryAttachmentsSortableList } from './EntryAttachmentsSortableList';
 import linkSortStyles from './EntryLinksSortableList.module.css';
 import styles from './EntryFilesLinksPanel.module.css';
 
@@ -44,6 +43,12 @@ export const EntryFilesLinksPanel: React.FC<EntryFilesLinksPanelProps> = ({
   const [linkBusy, setLinkBusy] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
+  const closeAddMode = React.useCallback(() => {
+    setAttachAddMode('none');
+    setDocNotes('');
+    setLinkDraft({ linkTitle: '', url: '', linkType: 'Url', notes: '' });
+  }, []);
+
   React.useEffect(() => {
     if (docs.length + links.length > 0) {
       setOpen(true);
@@ -66,93 +71,95 @@ export const EntryFilesLinksPanel: React.FC<EntryFilesLinksPanelProps> = ({
       </button>
       {open ? (
         <div className={styles.quickLinks}>
-          <EntryDocumentsSortableList entryId={entryId} documents={docs} className={styles.quickLinks}>
-            {(doc, dragHandle) =>
-              editingDocId === doc.id ? (
-                <div key={doc.id} className={styles.editRow}>
-                  {dragHandle ? <span className={linkSortStyles.dragHandleSlot}>{dragHandle}</span> : null}
-                  <input
-                    className={styles.field}
-                    value={docDraft.title}
-                    onChange={(e) => setDocDraft((prev) => ({ ...prev, title: e.target.value }))}
-                    placeholder="Title"
-                  />
-                  <select
-                    className={styles.field}
-                    value={docDraft.documentType}
-                    onChange={(e) => setDocDraft((prev) => ({ ...prev, documentType: e.target.value as EntryDocumentType }))}
-                  >
-                    <option value="Ticket">Ticket</option>
-                    <option value="Confirmation">Confirmation</option>
-                    <option value="Image">Image</option>
-                    <option value="PDF">PDF</option>
-                    <option value="Other">Other</option>
-                  </select>
-                  <button
-                    type="button"
-                    className={styles.actionButton}
-                    onClick={() => {
-                      updateDocument(doc.id, {
-                        title: docDraft.title.trim(),
-                        documentType: docDraft.documentType,
-                        notes: docDraft.notes.trim()
-                      })
-                        .then(() => setEditingDocId(null))
-                        .catch(console.error);
-                    }}
-                  >
-                    Save
-                  </button>
-                  <button type="button" className={styles.actionButtonMuted} onClick={() => setEditingDocId(null)}>
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <span key={doc.id} className={styles.linkChip}>
-                  {dragHandle}
-                  <button
-                    type="button"
-                    className={styles.miniLink}
-                    onClick={() => openDocumentUrl(doc.fileUrl)}
-                    title={doc.title || doc.fileName}
-                  >
-                    {doc.title || doc.fileName || 'File'}
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.linkChipAction}
-                    aria-label="Edit document"
-                    onClick={() => {
-                      setEditingDocId(doc.id);
-                      setDocDraft({
-                        title: doc.title || doc.fileName || '',
-                        documentType: doc.documentType,
-                        notes: doc.notes || ''
-                      });
-                    }}
-                  >
-                    ✎
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.linkChipAction}
-                    aria-label="Delete document"
-                    onClick={() => {
-                      void (async () => {
-                        if (!(await confirmUserAction('Remove this document?'))) return;
-                        deleteDocument(doc.id).catch(console.error);
-                      })();
-                    }}
-                  >
-                    ×
-                  </button>
-                </span>
-              )
-            }
-          </EntryDocumentsSortableList>
-          <EntryLinksSortableList entryId={entryId} links={links} className={styles.quickLinks}>
-            {(link, dragHandle) =>
-              editingLinkId === link.id ? (
+          <EntryAttachmentsSortableList entryId={entryId} documents={docs} links={links} className={styles.quickLinks}>
+            {(row, dragHandle) => {
+              if (row.kind === 'doc') {
+                const doc = row.item;
+                return editingDocId === doc.id ? (
+                  <div key={doc.id} className={styles.editRow}>
+                    {dragHandle ? <span className={linkSortStyles.dragHandleSlot}>{dragHandle}</span> : null}
+                    <input
+                      className={styles.field}
+                      value={docDraft.title}
+                      onChange={(e) => setDocDraft((prev) => ({ ...prev, title: e.target.value }))}
+                      placeholder="Title"
+                    />
+                    <select
+                      className={styles.field}
+                      value={docDraft.documentType}
+                      onChange={(e) => setDocDraft((prev) => ({ ...prev, documentType: e.target.value as EntryDocumentType }))}
+                    >
+                      <option value="Ticket">Ticket</option>
+                      <option value="Confirmation">Confirmation</option>
+                      <option value="Image">Image</option>
+                      <option value="PDF">PDF</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    <button
+                      type="button"
+                      className={styles.actionButton}
+                      onClick={() => {
+                        updateDocument(doc.id, {
+                          title: docDraft.title.trim(),
+                          documentType: docDraft.documentType,
+                          notes: docDraft.notes.trim()
+                        })
+                          .then(() => setEditingDocId(null))
+                          .catch(console.error);
+                      }}
+                    >
+                      Save
+                    </button>
+                    <button type="button" className={styles.actionButtonMuted} onClick={() => setEditingDocId(null)}>
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <span key={doc.id} className={styles.linkChip}>
+                    {dragHandle}
+                    <button
+                      type="button"
+                      className={styles.miniLink}
+                      onClick={() => openDocumentUrl(doc.fileUrl)}
+                      title={doc.title || doc.fileName}
+                    >
+                      {doc.title || doc.fileName || 'File'}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.linkChipAction}
+                      aria-label="Edit document"
+                      onClick={() => {
+                        setEditingDocId(doc.id);
+                        setEditingLinkId(null);
+                        setDocDraft({
+                          title: doc.title || doc.fileName || '',
+                          documentType: doc.documentType,
+                          notes: doc.notes || ''
+                        });
+                      }}
+                    >
+                      ✎
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.linkChipAction}
+                      aria-label="Delete document"
+                      onClick={() => {
+                        void (async () => {
+                          if (!(await confirmUserAction('Remove this document?'))) return;
+                          deleteDocument(doc.id).catch(console.error);
+                        })();
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                );
+              }
+
+              const link = row.item;
+              return editingLinkId === link.id ? (
                 <div key={link.id} className={styles.editRow}>
                   {dragHandle ? <span className={linkSortStyles.dragHandleSlot}>{dragHandle}</span> : null}
                   <input
@@ -197,6 +204,7 @@ export const EntryFilesLinksPanel: React.FC<EntryFilesLinksPanelProps> = ({
                     aria-label="Edit link"
                     onClick={() => {
                       setEditingLinkId(link.id);
+                      setEditingDocId(null);
                       setLinkDraft({ linkTitle: link.linkTitle, url: link.url, linkType: link.linkType, notes: link.notes || '' });
                     }}
                   >
@@ -216,9 +224,9 @@ export const EntryFilesLinksPanel: React.FC<EntryFilesLinksPanelProps> = ({
                     ×
                   </button>
                 </span>
-              )
-            }
-          </EntryLinksSortableList>
+              );
+            }}
+          </EntryAttachmentsSortableList>
         </div>
       ) : null}
       {open && allowAdd ? (
@@ -240,8 +248,8 @@ export const EntryFilesLinksPanel: React.FC<EntryFilesLinksPanelProps> = ({
             </button>
           </div>
           {attachAddMode === 'document' && onUploadDocument ? (
-            <div className={styles.addForm}>
-              <select className={styles.field} value={docType} onChange={(e) => setDocType(e.target.value as EntryDocumentType)}>
+            <div className={styles.addFormRow}>
+              <select className={styles.fieldCompact} value={docType} onChange={(e) => setDocType(e.target.value as EntryDocumentType)}>
                 <option value="Ticket">Ticket</option>
                 <option value="Confirmation">Confirmation</option>
                 <option value="Image">Image</option>
@@ -249,7 +257,7 @@ export const EntryFilesLinksPanel: React.FC<EntryFilesLinksPanelProps> = ({
                 <option value="Other">Other</option>
               </select>
               <input
-                className={styles.field}
+                className={styles.fieldCompact}
                 value={docNotes}
                 onChange={(e) => setDocNotes(e.target.value)}
                 placeholder="Notes (optional)"
@@ -262,6 +270,9 @@ export const EntryFilesLinksPanel: React.FC<EntryFilesLinksPanelProps> = ({
               >
                 {docBusy ? 'Uploading…' : 'Choose file'}
               </button>
+              <button type="button" className={styles.actionButtonMuted} onClick={closeAddMode}>
+                Cancel
+              </button>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -272,8 +283,7 @@ export const EntryFilesLinksPanel: React.FC<EntryFilesLinksPanelProps> = ({
                   setDocBusy(true);
                   void onUploadDocument(file, docType, docNotes.trim())
                     .then(() => {
-                      setDocNotes('');
-                      setAttachAddMode('none');
+                      closeAddMode();
                     })
                     .catch(console.error)
                     .then(() => {
@@ -285,15 +295,15 @@ export const EntryFilesLinksPanel: React.FC<EntryFilesLinksPanelProps> = ({
             </div>
           ) : null}
           {attachAddMode === 'link' ? (
-            <div className={styles.addForm}>
+            <div className={styles.addFormRow}>
               <input
-                className={styles.field}
+                className={styles.fieldCompact}
                 placeholder="Link title"
                 value={linkDraft.linkTitle}
                 onChange={(e) => setLinkDraft((prev) => ({ ...prev, linkTitle: e.target.value }))}
               />
               <input
-                className={styles.field}
+                className={styles.fieldCompact}
                 placeholder="URL"
                 value={linkDraft.url}
                 onChange={(e) => setLinkDraft((prev) => ({ ...prev, url: e.target.value }))}
@@ -312,14 +322,16 @@ export const EntryFilesLinksPanel: React.FC<EntryFilesLinksPanelProps> = ({
                     notes: linkDraft.notes.trim()
                   })
                     .then(() => {
-                      setLinkDraft({ linkTitle: '', url: '', linkType: 'Url', notes: '' });
-                      setAttachAddMode('none');
+                      closeAddMode();
                     })
                     .catch(console.error)
                     .then(() => setLinkBusy(false));
                 }}
               >
                 Save link
+              </button>
+              <button type="button" className={styles.actionButtonMuted} onClick={closeAddMode}>
+                Cancel
               </button>
             </div>
           ) : null}
