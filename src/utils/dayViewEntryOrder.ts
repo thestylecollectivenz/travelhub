@@ -1,9 +1,53 @@
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { TripDay } from '../models/TripDay';
-import { compareItineraryEntriesForDisplay, sortEntriesForDay } from './itineraryDayEntries';
+import { compareItineraryEntriesForDisplay, expandTimelineDisplayRows, sortEntriesForDay } from './itineraryDayEntries';
 
 function storageKey(tripId: string, viewDayId: string): string {
   return `travelHub.dayColumnOrder.${tripId}.${viewDayId}`;
+}
+
+function timelineRowStorageKey(tripId: string, viewDayId: string): string {
+  return `travelHub.dayTimelineRowOrder.${tripId}.${viewDayId}`;
+}
+
+/** Persist visual order of expanded timeline rows (supports outbound/return legs separately). */
+export function saveDayViewTimelineRowOrder(tripId: string, viewDayId: string, rowKeys: string[]): void {
+  try {
+    window.localStorage.setItem(timelineRowStorageKey(tripId, viewDayId), JSON.stringify(rowKeys));
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+/** Apply saved timeline row order after expandTimelineDisplayRows. */
+export function applyDayViewTimelineRowOrder<T extends { key: string }>(
+  tripId: string,
+  viewDayId: string,
+  rows: T[]
+): T[] {
+  let rawKeys: string[] = [];
+  try {
+    const s = window.localStorage.getItem(timelineRowStorageKey(tripId, viewDayId));
+    if (s) rawKeys = JSON.parse(s) as string[];
+  } catch {
+    rawKeys = [];
+  }
+  if (!Array.isArray(rawKeys) || rawKeys.length === 0) return rows;
+
+  const byKey = new Map(rows.map((r) => [r.key, r]));
+  const used = new Set<string>();
+  const out: T[] = [];
+  for (const key of rawKeys) {
+    const row = byKey.get(key);
+    if (row) {
+      out.push(row);
+      used.add(key);
+    }
+  }
+  for (const row of rows) {
+    if (!used.has(row.key)) out.push(row);
+  }
+  return out;
 }
 
 /** Persist the visual order of itinerary cards for one trip day column (includes carryovers). */
@@ -46,6 +90,8 @@ export function insertEntryInDayViewOrderByTime(
     tripDays
   );
   saveDayViewEntryOrder(tripId, viewDayId, sorted.map((e) => e.id));
+  const rows = expandTimelineDisplayRows(sorted, calendarDate, tripDays);
+  saveDayViewTimelineRowOrder(tripId, viewDayId, rows.map((r) => r.key));
 }
 
 /** Collapse expanded timeline rows to unique entries in visual order. */

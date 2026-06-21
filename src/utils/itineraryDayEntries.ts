@@ -1,7 +1,7 @@
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { TripDay } from '../models/TripDay';
 import { durationFromDateTimes } from './durationFromTimes';
-import { minutesFromTimeStart } from './itineraryTimeUtils';
+import { formatTimeHHMM, minutesFromTimeStart } from './itineraryTimeUtils';
 import { dayHasPlaceId, isLocationInfoEntry, locationInfoPlaceId } from './locationInfoEntry';
 import { parseAdditionalPlaceRefs } from './tripDayPlaces';
 
@@ -195,6 +195,37 @@ export function transportLegDurationLabel(
   const d = entry.duration?.trim() ?? '';
   if (!d || /^\d+(\.\d+)?$/.test(d)) return '';
   return d;
+}
+
+/** Prominent schedule line for transport cards and previews (departure, duration, arrival). */
+export function formatTransportScheduleHero(
+  entry: ItineraryEntry,
+  calendarDate: string,
+  tripDays: TripDay[] | undefined,
+  leg?: TransportTimelineLeg
+): string | null {
+  if (entry.category !== 'Transport') return null;
+  const isReturnLeg =
+    leg === 'return' ||
+    (!leg && isTransportReturnOnCalendarDate(entry, calendarDate));
+  if (isReturnLeg && entry.journeyType === 'return') {
+    const dep = formatTimeHHMM(entry.returnTime || '');
+    const arr = formatTimeHHMM(entry.returnArrivalTime || '');
+    const dur = transportLegDurationLabel(entry, calendarDate, tripDays, 'return');
+    const parts: string[] = [];
+    if (dep) parts.push(`Departs ${dep}`);
+    if (dur) parts.push(dur);
+    if (arr) parts.push(`Arrives ${arr}`);
+    return parts.length ? parts.join(' · ') : null;
+  }
+  const dep = formatTimeHHMM(entry.timeStart || '');
+  const arr = formatTimeHHMM(entry.arrivalTime || '');
+  const dur = transportLegDurationLabel(entry, calendarDate, tripDays, 'outbound');
+  const parts: string[] = [];
+  if (dep) parts.push(`Departs ${dep}`);
+  if (dur) parts.push(dur);
+  if (arr) parts.push(`Arrives ${arr}`);
+  return parts.length ? parts.join(' · ') : null;
 }
 
 function compareBySortOrderThenTimeForDay(

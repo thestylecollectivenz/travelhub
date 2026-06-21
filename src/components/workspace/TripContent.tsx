@@ -13,11 +13,18 @@ import { PackingListView } from '../packing/PackingListView';
 import { PackingTemplatesManager } from '../packing/PackingTemplatesManager';
 import { TripSidebar } from '../sidebar/TripSidebar';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
-import { isPreTripDayRow, resolvePreTripDayId, sortEntriesForDay, expandTimelineDisplayRows } from '../../utils/itineraryDayEntries';
+import {
+  expandTimelineDisplayRows,
+  isPreTripDayRow,
+  resolvePreTripDayId,
+  sortEntriesForDay
+} from '../../utils/itineraryDayEntries';
 import {
   applyDayViewEntryOrder,
+  applyDayViewTimelineRowOrder,
   entriesFromTimelineRowOrder,
   saveDayViewEntryOrder,
+  saveDayViewTimelineRowOrder,
   timelineRowKeyToEntryId
 } from '../../utils/dayViewEntryOrder';
 import { orderIdsByHomeDayFromVisualList } from '../../utils/itineraryReorderByDay';
@@ -124,10 +131,11 @@ const TripContentInner: React.FC = () => {
   }, [localEntries, selectedDayId, dayPanelDay, trip, preTripDayId, tripDays]);
 
   const timelineRows = React.useMemo(() => {
-    if (!dayPanelDay) return [];
+    if (!dayPanelDay || !trip) return [];
     const cal = dayPanelDay.calendarDate ?? '';
-    return expandTimelineDisplayRows(dayEntries, cal, tripDays);
-  }, [dayEntries, dayPanelDay, tripDays]);
+    const rows = expandTimelineDisplayRows(dayEntries, cal, tripDays);
+    return applyDayViewTimelineRowOrder(trip.id, selectedDayId ?? '', rows);
+  }, [dayEntries, dayPanelDay, trip, tripDays, selectedDayId]);
 
   const activeEntry = React.useMemo(() => {
     if (!activeId) {
@@ -183,6 +191,11 @@ const TripContentInner: React.FC = () => {
           }
           return;
         }
+        saveDayViewTimelineRowOrder(
+          trip.id,
+          selectedDayId,
+          reorderedRows.map((r) => r.key)
+        );
         saveDayViewEntryOrder(trip.id, selectedDayId, reorderedEntries.map((e) => e.id));
         const byDay = orderIdsByHomeDayFromVisualList(reorderedEntries);
         for (const [dayId, ids] of Array.from(byDay.entries())) {

@@ -30,7 +30,8 @@ import {
   effectivePlannerTimeStart,
   effectiveTransportLegTime,
   isTransportReturnOnCalendarDate,
-  transportLegDurationLabel
+  transportLegDurationLabel,
+  formatTransportScheduleHero
 } from '../../utils/itineraryDayEntries';
 import type { TransportTimelineLeg } from '../../utils/itineraryDayEntries';
 import { formatActivityScheduleLabel } from '../../utils/activityScheduleLabel';
@@ -343,6 +344,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
     (transportLeg === 'return' || (!transportLeg && isTransportReturnOnCalendarDate(entry, calendarDate)));
   const transportOutboundHere = isTransport && !transportReturnHere && transportLeg !== 'return';
   const legDurationLabel = transportLegDurationLabel(entry, calendarDate, tripDays, transportLeg);
+  const transportScheduleHero = isTransport
+    ? formatTransportScheduleHero(entry, calendarDate, tripDays, transportLeg)
+    : null;
   const hhmm = formatTimeHHMM(effectiveTransportLegTime(entry, calendarDate, tripDays, transportLeg));
   const timeChip = isActivities
     ? formatActivityScheduleLabel({
@@ -589,7 +593,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       {!isLocationInfo ? (
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          {timeChip ? (
+          {!isTransport && timeChip ? (
             <span className={styles.timeChip}>
               <ClockIcon />
               {timeChip}
@@ -653,6 +657,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           {isTransport ? deriveTransportDisplayTitle(entry, calendarDate) : entry.title || 'Untitled'}
         </h3>
       )}
+      {transportScheduleHero ? (
+        <div className={styles.scheduleHero}>{transportScheduleHero}</div>
+      ) : null}
       {isActivities && location ? (
         <div className={styles.metaRow}>
           <span>
@@ -682,7 +689,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           {entry.shipName?.trim() ? <span>{entry.shipName.trim()}</span> : null}
         </div>
       ) : null}
-      {isTransport && entry.journeyType === 'return' ? (
+      {transportReturnHere ? (
         <div className={styles.categorySummary}>Return journey</div>
       ) : null}
       {isActivities && entry.bookingReference?.trim() ? (
@@ -925,15 +932,17 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             <div>Transfers {entry.transportTransfers}</div>
           ) : null}
           {entry.journeyType === 'oneway' ? <div>Journey One way</div> : null}
-          {transportOutboundHere && entry.timeStart ? (
+          {!transportScheduleHero && transportOutboundHere && entry.timeStart ? (
             <div>Departs {formatTimeHHMM(entry.timeStart)}</div>
           ) : null}
-          {transportOutboundHere && entry.arrivalTime ? (
+          {!transportScheduleHero && transportOutboundHere && entry.arrivalTime ? (
             <div>Arrives {formatTimeHHMM(entry.arrivalTime)}</div>
           ) : null}
           {transportReturnHere && entry.returnDate ? <div>Return date {formatYmd(entry.returnDate)}</div> : null}
-          {transportReturnHere && entry.returnTime ? <div>Return dep. {formatTimeHHMM(entry.returnTime)}</div> : null}
-          {transportReturnHere && entry.returnArrivalTime ? (
+          {!transportScheduleHero && transportReturnHere && entry.returnTime ? (
+            <div>Return dep. {formatTimeHHMM(entry.returnTime)}</div>
+          ) : null}
+          {!transportScheduleHero && transportReturnHere && entry.returnArrivalTime ? (
             <div>Return arr. {formatTimeHHMM(entry.returnArrivalTime)}</div>
           ) : null}
         </div>

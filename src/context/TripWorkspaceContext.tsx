@@ -14,7 +14,12 @@ import { useSpContext } from './SpContext';
 import { minutesFromTimeStart } from '../utils/itineraryTimeUtils';
 import { repairPreTripCalendarIfCollidingWithFirstDay } from '../utils/tripPreTripCalendarAnchor';
 import { calendarDayBefore, planChronologicalRenumber, ymdSlice } from '../utils/tripDateRangeSync';
-import { isPreTripDayRow, resolvePreTripDayId } from '../utils/itineraryDayEntries';
+import {
+  expandTimelineDisplayRows,
+  isPreTripDayRow,
+  resolvePreTripDayId,
+  sortEntriesForDay
+} from '../utils/itineraryDayEntries';
 import { isPendingItineraryEntryId, isPendingSubItemId } from '../utils/itineraryEntryIds';
 import { itineraryEntryCreatePayload } from '../utils/itineraryCreatePayload';
 import {
@@ -25,7 +30,8 @@ import {
   insertAfterInDayViewEntryOrder,
   insertEntryInDayViewOrderByTime,
   removeFromDayViewEntryOrder,
-  replaceIdInDayViewEntryOrder
+  replaceIdInDayViewEntryOrder,
+  saveDayViewTimelineRowOrder
 } from '../utils/dayViewEntryOrder';
 import { useConfig } from './ConfigContext';
 import type { BudgetCategoryKey } from '../utils/financialUtils';
@@ -455,6 +461,17 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
           resolvePreTripDayId(tripDays, updated.tripId),
           isPreTripDayRow(returnDay)
         );
+        const ordered = sortEntriesForDay(
+          entries,
+          returnDay.id,
+          returnDay.calendarDate,
+          returnDay.dayType,
+          resolvePreTripDayId(tripDays, updated.tripId),
+          isPreTripDayRow(returnDay),
+          tripDays
+        );
+        const rows = expandTimelineDisplayRows(ordered, returnDay.calendarDate, tripDays);
+        saveDayViewTimelineRowOrder(updated.tripId, returnDay.id, rows.map((r) => r.key));
       }
     }
   }, [spContext, persistEntry, tripDays]);

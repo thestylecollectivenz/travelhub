@@ -12,7 +12,7 @@ import {
   resolvePreTripDayId,
   sortEntriesForDay
 } from '../../utils/itineraryDayEntries';
-import { applyDayViewEntryOrder } from '../../utils/dayViewEntryOrder';
+import { applyDayViewEntryOrder, applyDayViewTimelineRowOrder } from '../../utils/dayViewEntryOrder';
 import { ItineraryCard } from './ItineraryCard';
 import { ReminderService } from '../../services/ReminderService';
 import type { LinkedEntryTask } from '../../utils/linkedEntryTask';
@@ -123,7 +123,8 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
       tripDays
     );
     const ordered = trip ? applyDayViewEntryOrder(trip.id, dayId, raw, calendarDate, tripDays) : raw;
-    return expandTimelineDisplayRows(ordered, calendarDate, tripDays);
+    const rows = expandTimelineDisplayRows(ordered, calendarDate, tripDays);
+    return trip ? applyDayViewTimelineRowOrder(trip.id, dayId, rows) : rows;
   }, [localEntries, dayId, calendarDate, dayType, preTripDayId, dayMeta, trip, tripDays]);
 
   const loadEntryTasks = React.useCallback((): void => {

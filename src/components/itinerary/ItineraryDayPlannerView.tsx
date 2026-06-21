@@ -7,11 +7,13 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useAttachments } from '../../context/AttachmentsContext';
 import {
   effectivePlannerTimeStart,
+  formatTransportScheduleHero,
   isTransportReturnOnCalendarDate,
   isPreTripDayRow,
   resolvePreTripDayId,
   sortEntriesForDay
 } from '../../utils/itineraryDayEntries';
+import type { TransportTimelineLeg } from '../../utils/itineraryDayEntries';
 import { formatTimeHHMM, minutesFromTimeStart } from '../../utils/itineraryTimeUtils';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
@@ -208,54 +210,23 @@ function toggleFrontBlock(key: string, setFrontBlockKey: React.Dispatch<React.Se
   setFrontBlockKey((prev) => (prev === key ? null : key));
 }
 
-function PlannerBlockHoverTip(props: {
-  show: boolean;
-  title: string;
-  docs: EntryDocument[];
-  links: EntryLink[];
-}): React.ReactElement | null {
-  const { show, title, docs, links } = props;
-  if (!show) return null;
-  return (
-    <div className={styles.blockHoverTip} onMouseDown={(e) => e.stopPropagation()}>
-      <div className={styles.blockHoverTitle}>{title}</div>
-      {docs.length || links.length ? (
-        <div className={styles.blockHoverLinks}>
-          {docs.map((d) => (
-            <a
-              key={d.id}
-              href={d.fileUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={d.title}
-              onClick={(ev) => {
-                ev.stopPropagation();
-                openDocumentUrl(d.fileUrl);
-              }}
-            >
-              <DocGlyph /> {d.title || 'Document'}
-            </a>
-          ))}
-          {links.map((l) => (
-            <a
-              key={l.id}
-              href={l.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={l.linkTitle}
-              onClick={(ev) => {
-                ev.stopPropagation();
-                openDocumentUrl(l.url);
-              }}
-            >
-              <LinkGlyph /> {l.linkTitle || l.url}
-            </a>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
+function plannerItemTransportLeg(
+  item: { key: string },
+  entry: ItineraryEntry,
+  calendarDate: string
+): TransportTimelineLeg | undefined {
+  if (entry.category !== 'Transport') return undefined;
+  if (item.key.endsWith('-return') || item.key.includes('-trn-return')) return 'return';
+  if (item.key.endsWith('-outbound') || item.key.includes('-trn-outbound')) return 'outbound';
+  if (isTransportReturnOnCalendarDate(entry, calendarDate)) return 'return';
+  return 'outbound';
 }
+
+type PlannerPreviewContext = {
+  dayId: string;
+  calendarDate: string;
+  transportLeg?: TransportTimelineLeg;
+};
 
 function DocGlyph(): React.ReactElement {
   return (
@@ -340,7 +311,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
   const [plannerPrintHtml, setPlannerPrintHtml] = React.useState<string | null>(null);
   const [unschedSectionHidden, setUnschedSectionHidden] = React.useState(false);
   const [frontBlockKey, setFrontBlockKey] = React.useState<string | null>(null);
-  const [hoverBlockKey, setHoverBlockKey] = React.useState<string | null>(null);
+  const [previewContext, setPreviewContext] = React.useState<PlannerPreviewContext | null>(null);
   const plannerDragRef = React.useRef<{
     pointerId: number;
     startX: number;
@@ -520,6 +491,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
 
   const openPlannerFullScreen = React.useCallback((): void => {
     setPreviewEntryId(null);
+    setPreviewContext(null);
     setPlannerFullscreen(true);
   }, []);
 
@@ -870,6 +842,20 @@ export const ItineraryDayPlannerView: React.FC = () => {
     });
   }, [previewEntry]);
 
+  const previewViewCalendarDate = previewContext?.calendarDate || previewCalendarDate;
+  const previewTransportLeg = previewContext?.transportLeg;
+  const previewTransportHero =
+    previewEntry?.category === 'Transport'
+      ? formatTransportScheduleHero(previewEntry, previewViewCalendarDate, tripDays, previewTransportLeg)
+      : null;
+  const previewDocs = previewEntry ? docsForEntry(previewEntry.id) : [];
+  const previewLinks = previewEntry ? linksForEntry(previewEntry.id) : [];
+
+  const closePreview = React.useCallback((): void => {
+    setPreviewEntryId(null);
+    setPreviewContext(null);
+  }, []);
+
   const collapseAllUnscheduled = React.useCallback((): void => {
     setUnschedCollapsed((prev) => {
       const next = { ...prev };
@@ -902,16 +888,27 @@ export const ItineraryDayPlannerView: React.FC = () => {
   );
 
   const openPreview = React.useCallback(
-    (dayId: string, entryId: string): void => {
+    (
+      dayId: string,
+      entryId: string,
+      options?: { calendarDate?: string; transportLeg?: TransportTimelineLeg }
+    ): void => {
       focusDay(dayId);
+      const day = tripDays.find((d) => d.id === dayId);
+      setPreviewContext({
+        dayId,
+        calendarDate: options?.calendarDate || day?.calendarDate || '',
+        transportLeg: options?.transportLeg
+      });
       setPreviewEntryId(entryId);
     },
-    [focusDay]
+    [focusDay, tripDays]
   );
 
   const openEdit = React.useCallback(
     (dayId: string, entryId: string, subItemId?: string): void => {
       setPreviewEntryId(null);
+      setPreviewContext(null);
       focusDay(dayId);
       if (subItemId) {
         setEditingCardId(null);
@@ -1114,7 +1111,16 @@ export const ItineraryDayPlannerView: React.FC = () => {
                             ) : (
                               <div className={styles.unschedRow}>
                                 <div className={styles.unschedTitleBlock}>
-                                  <button type="button" className={styles.unschedTitleBtn} onClick={() => openPreview(day.id, e.id)}>
+                                  <button
+                                    type="button"
+                                    className={styles.unschedTitleBtn}
+                                    onClick={() =>
+                                      openPreview(day.id, e.id, {
+                                        calendarDate: cal,
+                                        transportLeg: plannerItemTransportLeg(item, e, cal)
+                                      })
+                                    }
+                                  >
                                     {label}
                                   </button>
                                   {cancel ? <div className={styles.blockCancel}>{cancel}</div> : null}
@@ -1125,7 +1131,12 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                     className={styles.iconBtn}
                                     aria-label="Preview entry"
                                     title="Preview"
-                                    onClick={() => openPreview(day.id, e.id)}
+                                    onClick={() =>
+                                      openPreview(day.id, e.id, {
+                                        calendarDate: cal,
+                                        transportLeg: plannerItemTransportLeg(item, e, cal)
+                                      })
+                                    }
                                   >
                                     <EyeGlyph />
                                   </button>
@@ -1186,8 +1197,6 @@ export const ItineraryDayPlannerView: React.FC = () => {
                         <div
                           key={item.key}
                           style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: blockZ }}
-                          onMouseEnter={() => setHoverBlockKey(item.key)}
-                          onMouseLeave={() => setHoverBlockKey(null)}
                           onMouseDown={(e) => {
                             e.stopPropagation();
                             toggleFrontBlock(item.key, setFrontBlockKey);
@@ -1212,7 +1221,12 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                     className={styles.iconBtn}
                                     aria-label="Preview entry"
                                     title="Preview"
-                                    onClick={() => openPreview(day.id, e.id)}
+                                    onClick={() =>
+                                      openPreview(day.id, e.id, {
+                                        calendarDate: cal,
+                                        transportLeg: plannerItemTransportLeg(item, e, cal)
+                                      })
+                                    }
                                   >
                                     <EyeGlyph />
                                   </button>
@@ -1266,12 +1280,6 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                   </a>
                                 ))}
                               </div>
-                              <PlannerBlockHoverTip
-                                show={hoverBlockKey === item.key}
-                                title={sub && item.parentTitle ? `${item.title} (${item.parentTitle})` : item.title}
-                                docs={docs}
-                                links={links}
-                              />
                             </div>
                           )}
                         </div>
@@ -1342,7 +1350,16 @@ export const ItineraryDayPlannerView: React.FC = () => {
                             ) : (
                               <div className={styles.unschedRow}>
                                 <div className={styles.unschedTitleBlock}>
-                                  <button type="button" className={styles.unschedTitleBtn} onClick={() => openPreview(day.id, e.id)}>
+                                  <button
+                                    type="button"
+                                    className={styles.unschedTitleBtn}
+                                    onClick={() =>
+                                      openPreview(day.id, e.id, {
+                                        calendarDate: cal,
+                                        transportLeg: plannerItemTransportLeg(item, e, cal)
+                                      })
+                                    }
+                                  >
                                     {label}
                                   </button>
                                   {cancel ? <div className={styles.blockCancel}>{cancel}</div> : null}
@@ -1353,7 +1370,12 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                     className={styles.iconBtn}
                                     aria-label="Preview entry"
                                     title="Preview"
-                                    onClick={() => openPreview(day.id, e.id)}
+                                    onClick={() =>
+                                      openPreview(day.id, e.id, {
+                                        calendarDate: cal,
+                                        transportLeg: plannerItemTransportLeg(item, e, cal)
+                                      })
+                                    }
                                   >
                                     <EyeGlyph />
                                   </button>
@@ -1430,8 +1452,6 @@ export const ItineraryDayPlannerView: React.FC = () => {
                           <div
                             key={item.key}
                             style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: blockZ }}
-                            onMouseEnter={() => setHoverBlockKey(item.key)}
-                            onMouseLeave={() => setHoverBlockKey(null)}
                             onMouseDown={(e) => {
                             e.stopPropagation();
                             toggleFrontBlock(item.key, setFrontBlockKey);
@@ -1456,7 +1476,12 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                       className={styles.iconBtn}
                                       aria-label="Preview entry"
                                       title="Preview"
-                                      onClick={() => openPreview(day.id, e.id)}
+                                      onClick={() =>
+                                      openPreview(day.id, e.id, {
+                                        calendarDate: cal,
+                                        transportLeg: plannerItemTransportLeg(item, e, cal)
+                                      })
+                                    }
                                     >
                                       <EyeGlyph />
                                     </button>
@@ -1510,12 +1535,6 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                     </a>
                                   ))}
                                 </div>
-                                <PlannerBlockHoverTip
-                                  show={hoverBlockKey === item.key}
-                                  title={sub && item.parentTitle ? `${item.title} (${item.parentTitle})` : item.title}
-                                  docs={docs}
-                                  links={links}
-                                />
                               </div>
                             )}
                           </div>
@@ -1534,20 +1553,25 @@ export const ItineraryDayPlannerView: React.FC = () => {
           className={styles.previewBackdrop}
           role="presentation"
           onMouseDown={(ev) => {
-            if (ev.target === ev.currentTarget) setPreviewEntryId(null);
+            if (ev.target === ev.currentTarget) closePreview();
           }}
         >
           <div className={styles.previewDialog} role="dialog" aria-modal="true" aria-labelledby="th-planner-preview-title">
             <h2 id="th-planner-preview-title" className={styles.previewTitle}>
               {previewEntry.title || 'Untitled'}
             </h2>
+            {previewTransportHero ? (
+              <div className={styles.previewScheduleHero}>{previewTransportHero}</div>
+            ) : null}
             <div className={styles.previewMeta}>
               {previewEntry.category ? <span>{previewEntry.category}</span> : null}
-              {previewEntry.category ? <span> · </span> : null}
-              <span>
-                {formatTimeHHMM(previewEntry.timeStart) || 'Unscheduled'}
-                {previewEntry.duration ? ` · ${previewEntry.duration}` : null}
-              </span>
+              {previewEntry.category && !previewTransportHero ? <span> · </span> : null}
+              {!previewTransportHero ? (
+                <span>
+                  {formatTimeHHMM(previewEntry.timeStart) || 'Unscheduled'}
+                  {previewEntry.duration ? ` · ${previewEntry.duration}` : null}
+                </span>
+              ) : null}
               {previewEntry.location ? (
                 <>
                   <span> · </span>
@@ -1555,6 +1579,32 @@ export const ItineraryDayPlannerView: React.FC = () => {
                 </>
               ) : null}
             </div>
+            {previewDocs.length || previewLinks.length ? (
+              <div className={styles.previewSection}>
+                <h3>Documents &amp; links</h3>
+                <div className={styles.previewAttachList}>
+                  {previewDocs.map((d) => (
+                    <a
+                      key={d.id}
+                      href={d.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(ev) => {
+                        ev.preventDefault();
+                        openDocumentUrl(d.fileUrl);
+                      }}
+                    >
+                      {d.title || 'Document'}
+                    </a>
+                  ))}
+                  {previewLinks.map((l) => (
+                    <a key={l.id} href={l.url} target="_blank" rel="noopener noreferrer">
+                      {l.linkTitle || l.url}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             {previewEntry.supplier ? (
               <div className={styles.previewSection}>
                 <h3>Supplier</h3>
@@ -1640,17 +1690,6 @@ export const ItineraryDayPlannerView: React.FC = () => {
                 ) : null}
               </div>
             ) : null}
-            {previewEntry.category === 'Transport' && previewEntry.journeyType === 'return' ? (
-              <div className={styles.previewSection}>
-                <h3>Return journey</h3>
-                <p className={styles.previewBody}>
-                  {previewEntry.returnDate ? `Return date ${formatYmdPreview(previewEntry.returnDate)}` : ''}
-                  {previewEntry.returnDate && previewEntry.returnTime ? ' · ' : ''}
-                  {previewEntry.returnTime ? `Departs ${formatTimeHHMM(previewEntry.returnTime)}` : ''}
-                  {previewEntry.returnArrivalTime ? ` · Arrives ${formatTimeHHMM(previewEntry.returnArrivalTime)}` : ''}
-                </p>
-              </div>
-            ) : null}
             {previewSubItemsSorted.length ? (
               <div className={styles.previewSection}>
                 <h3>Sub-items</h3>
@@ -1669,7 +1708,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
               </div>
             ) : null}
             <div className={styles.previewActions}>
-              <button type="button" className={styles.previewClose} onClick={() => setPreviewEntryId(null)}>
+              <button type="button" className={styles.previewClose} onClick={closePreview}>
                 Close
               </button>
               <button
