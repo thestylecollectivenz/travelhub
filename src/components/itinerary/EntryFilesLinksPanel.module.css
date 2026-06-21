@@ -1,0 +1,126 @@
+.attachToggle {
+  margin-top: var(--space-1);
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.quickLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  align-items: center;
+}
+
+.linkChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+}
+
+.miniLink {
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
+  font-size: var(--font-size-xs);
+  background: var(--color-surface-raised);
+  color: var(--color-primary);
+  cursor: pointer;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linkChipAction {
+  border: none;
+  background: none;
+  color: var(--color-sand-500);
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.linkChipAction:hover {
+  color: var(--color-blue-700);
+}
+
+.editRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  width: 100%;
+  align-items: center;
+}
+
+.field {
+  flex: 1 1 8rem;
+  min-width: 0;
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-blue-800);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-surface-raised);
+}
+
+.actionButton {
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-primary);
+  font-size: var(--font-size-xs);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+}
+
+.actionButtonMuted {
+  border: none;
+  background: transparent;
+  color: var(--color-sand-600);
+  font-size: var(--font-size-xs);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.addBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.addBtn {
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: 10px;
+  color: var(--color-blue-800);
+  padding: 2px var(--space-2);
+  cursor: pointer;
+}
+
+.addBtnActive {
+  border-color: var(--color-primary);
+  background: var(--color-blue-50);
+}
+
+.addForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  width: 100%;
+}
+
+.fileHidden {
+  display: none;
+}

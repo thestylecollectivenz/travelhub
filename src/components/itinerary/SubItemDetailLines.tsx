@@ -1,6 +1,7 @@
 import * as React from 'react';
-import type { ItinerarySubItem } from '../../models/ItineraryEntry';
+import type { ItineraryEntry, ItinerarySubItem } from '../../models/ItineraryEntry';
 import { formatActivityScheduleLabel } from '../../utils/activityScheduleLabel';
+import { formatEntryScheduleHero } from '../../utils/itineraryDayEntries';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
@@ -59,6 +60,12 @@ export const SubItemDetailLines: React.FC<SubItemDetailLinesProps> = ({
   const { convertToHomeCurrency } = useTripWorkspace();
   const home = config.homeCurrency || 'NZD';
   const timeLine = timeRangeLabel(item, calendarDate);
+  const scheduleHero = formatEntryScheduleHero(
+    { id: item.id, category: item.category || 'Activities', dayId: '', title: item.title } as ItineraryEntry,
+    calendarDate || '',
+    undefined,
+    { subItem: item }
+  );
   const locationLine = formatLocationText((item.location || '').trim());
   const cur = (item.currency || 'NZD').toUpperCase();
   const homeAmount = convertToHomeCurrency(item.amount, cur);
@@ -68,8 +75,14 @@ export const SubItemDetailLines: React.FC<SubItemDetailLinesProps> = ({
     <div className={styles.root}>
       {item.groupLabel?.trim() ? <div className={styles.groupLabel}>{item.groupLabel.trim()}</div> : null}
       <div className={styles.title}>{item.title || 'Untitled option'}</div>
+      {scheduleHero ? (
+        <div className={`${styles.scheduleHero} th-cat-${getCategorySlug(item.category || 'Activities')} th-cat-border`}>
+          {scheduleHero}
+        </div>
+      ) : timeLine ? (
+        <div className={styles.timeLine}>{timeLine}</div>
+      ) : null}
       {locationLine ? <div className={styles.locationLine}>{locationLine}</div> : null}
-      {timeLine ? <div className={styles.timeLine}>{timeLine}</div> : null}
       <div className={styles.badges}>
         {item.category?.trim() ? (
           <span className={`${styles.badge} th-cat-badge th-cat-${getCategorySlug(item.category)}`}>{item.category}</span>

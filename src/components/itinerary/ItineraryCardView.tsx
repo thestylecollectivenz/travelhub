@@ -12,15 +12,12 @@ import { getCategorySlug, CATEGORY_LIST } from '../../utils/categoryUtils';
 import { formatCurrency } from '../../utils/financialUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { SubItemList } from './SubItemList';
-import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
 import { requestViewTask, scrollToReminderRow } from '../../utils/viewTaskFocus';
 import { loadTripAssignees, rememberTripAssignee } from '../../utils/tripAssignees';
 import { usePlanView } from '../../context/PlanViewContext';
 import { paymentDueActionLabel } from '../../utils/paymentDueLabels';
-import { confirmUserAction } from '../../utils/confirmAction';
-import { EntryLinksSortableList } from './EntryLinksSortableList';
-import { EntryDocumentsSortableList } from './EntryDocumentsSortableList';
+import { EntryFilesLinksPanel } from './EntryFilesLinksPanel';
 import { sortEntryDocuments } from '../../utils/entryDocumentSort';
 import { sortEntryLinks } from '../../utils/entryLinkSort';
 import { RichTextContent } from '../shared/RichTextContent';
@@ -129,58 +126,6 @@ function PinIcon(): React.ReactElement {
   );
 }
 
-function LinkIcon(): React.ReactElement {
-  return (
-    <svg width={14} height={14} viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path d="M6 10l4-4M5 5h2M9 11h2M3.5 8a2.5 2.5 0 0 1 2.5-2.5M12.5 8A2.5 2.5 0 0 1 10 10.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function DocumentTypeIcon({ type }: { type: EntryDocumentType }): React.ReactElement {
-  if (type === 'PDF') {
-    return (
-      <svg width={14} height={14} viewBox="0 0 16 16" fill="none" aria-hidden>
-        <path d="M4 1.5h5l3 3V14.5H4V1.5Z" stroke="currentColor" strokeWidth="1.2" />
-        <path d="M9 1.5V5h3" stroke="currentColor" strokeWidth="1.2" />
-        <text x="5" y="11.5" fontSize="4" fill="currentColor">PDF</text>
-      </svg>
-    );
-  }
-  if (type === 'Image') {
-    return (
-      <svg width={14} height={14} viewBox="0 0 16 16" fill="none" aria-hidden>
-        <rect x="2" y="2.5" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-        <circle cx="6" cy="6" r="1.1" fill="currentColor" />
-        <path d="M3.8 11l2.4-2.4 2.2 1.8 2.1-2.3L12.2 11" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (type === 'Ticket') {
-    return (
-      <svg width={14} height={14} viewBox="0 0 16 16" fill="none" aria-hidden>
-        <path d="M2 5.2h12v2a1.4 1.4 0 0 0 0 2.8v2H2v-2a1.4 1.4 0 1 0 0-2.8v-2Z" stroke="currentColor" strokeWidth="1.2" />
-        <path d="M8 5.2v6.8" stroke="currentColor" strokeWidth="1.1" strokeDasharray="1.2 1.2" />
-      </svg>
-    );
-  }
-  if (type === 'Confirmation') {
-    return (
-      <svg width={14} height={14} viewBox="0 0 16 16" fill="none" aria-hidden>
-        <rect x="2" y="3" width="12" height="10" rx="1.6" stroke="currentColor" strokeWidth="1.2" />
-        <path d="M2.5 5.2l5.5 3.8 5.5-3.8" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-        <path d="M6.3 10.6l1.1 1.1 2.3-2.2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
-  }
-  return (
-    <svg width={14} height={14} viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path d="M4 1.5h5l3 3V14.5H4V1.5Z" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M9 1.5V5h3" stroke="currentColor" strokeWidth="1.2" />
-    </svg>
-  );
-}
-
 function formatYmdRange(start?: string, end?: string): string {
   if (!start || !end) return '';
   const s = new Date(`${start}T00:00:00.000Z`);
@@ -224,7 +169,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
     useTripWorkspace();
   const planView = usePlanView();
   const { config } = useConfig();
-  const { documents, links: allLinks, addDocument, updateDocument, deleteDocument, addLink, updateLink, deleteLink } = useAttachments();
+  const { documents, links: allLinks, addDocument, addLink } = useAttachments();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [attachmentEntryId, setAttachmentEntryId] = React.useState(entry.id);
 
@@ -239,32 +184,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
     return ids;
   }, [attachmentEntryId, entry.id]);
   const [notesOpen, setNotesOpen] = React.useState(() => Boolean(entry.notes?.trim()));
-  const [attachmentsOpen, setAttachmentsOpen] = React.useState(false);
   const [subItemsOpen, setSubItemsOpen] = React.useState(() => (entry.subItems?.length ?? 0) > 0);
-  const [docType, setDocType] = React.useState<EntryDocumentType>('Other');
-  const [docNotes, setDocNotes] = React.useState('');
-  const [docBusy, setDocBusy] = React.useState(false);
-  const [attachAddMode, setAttachAddMode] = React.useState<'none' | 'document' | 'link'>('none');
-  const [linkBusy, setLinkBusy] = React.useState(false);
-  const [editingDocId, setEditingDocId] = React.useState<string | null>(null);
-  const [editingLinkId, setEditingLinkId] = React.useState<string | null>(null);
-  const [docDraft, setDocDraft] = React.useState<{ title: string; documentType: EntryDocumentType; notes: string }>({
-    title: '',
-    documentType: 'Other',
-    notes: ''
-  });
-  const [linkDraft, setLinkDraft] = React.useState<{
-    linkTitle: string;
-    url: string;
-    linkType: EntryLinkType;
-    notes: string;
-  }>({
-    linkTitle: '',
-    url: '',
-    linkType: 'Url',
-    notes: ''
-  });
-  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const menuButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const menuPortalRef = React.useRef<HTMLDivElement | null>(null);
   const [menuAnchor, setMenuAnchor] = React.useState({ top: 0, left: 0, width: 140 });
@@ -500,11 +420,6 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
     [allLinks, knownAttachmentEntryIds]
   );
 
-  React.useEffect(() => {
-    if (docs.length + links.length > 0) {
-      setAttachmentsOpen(true);
-    }
-  }, [entry.id, docs.length, links.length]);
 
   const handleStartAddSubItem = React.useCallback(() => {
     setSubItemsOpen(true);
@@ -512,33 +427,36 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
     setEditingSubItem({ parentEntryId: entry.id, subItemId: tempId });
   }, [addSubItem, entry, setEditingSubItem]);
 
-  const handleDocumentPick = React.useCallback(
-    async (ev: React.ChangeEvent<HTMLInputElement>) => {
-      const inputEl = ev.currentTarget;
-      const file = ev.target.files?.[0];
-      if (!file) return;
-      setDocBusy(true);
-      try {
-        const resolved = await persistEntry(entry);
-        await addDocument({
-          file,
-          dayId: resolved.dayId,
-          entryId: resolved.id,
-          documentType: docType,
-          notes: docNotes.trim()
-        });
-        setDocNotes('');
-      } finally {
-        setDocBusy(false);
-        inputEl.value = '';
-      }
+  const handleUploadDocument = React.useCallback(
+    async (file: File, documentType: EntryDocumentType, notes: string) => {
+      const resolved = await persistEntry(entry);
+      setAttachmentEntryId(resolved.id);
+      await addDocument({
+        file,
+        dayId: resolved.dayId,
+        entryId: resolved.id,
+        documentType,
+        notes
+      });
     },
-    [addDocument, docNotes, docType, entry, persistEntry]
+    [addDocument, entry, persistEntry]
   );
 
-  const resetLinkDraft = React.useCallback(() => {
-    setLinkDraft({ linkTitle: '', url: '', linkType: 'Url', notes: '' });
-  }, []);
+  const handleAddLink = React.useCallback(
+    async (draft: { linkTitle: string; url: string; linkType: EntryLinkType; notes: string }) => {
+      const resolved = await persistEntry(entry);
+      setAttachmentEntryId(resolved.id);
+      await addLink({
+        dayId: resolved.dayId,
+        entryId: resolved.id,
+        linkTitle: draft.linkTitle,
+        url: draft.url,
+        linkType: draft.linkType,
+        notes: draft.notes
+      });
+    },
+    [addLink, entry, persistEntry]
+  );
 
   const entryMenuPortal =
     menuOpen && typeof document !== 'undefined'
@@ -971,14 +889,17 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         </>
       ) : null}
 
-      {isLocationInfo && !locationInfoExpanded ? (
-        <div className={styles.locationInfoCollapsedBar}>
-          <button type="button" className={styles.relatedToggle} onClick={() => setAttachmentsOpen((o) => !o)}>
-            {attachmentsOpen
-              ? 'Hide attachments ▴'
-              : `${docs.length} document${docs.length === 1 ? '' : 's'} · ${links.length} link${links.length === 1 ? '' : 's'} ▾`}
-          </button>
-          {!attachmentsOpen ? (
+      {(!isLocationInfo || !locationInfoExpanded) ? (
+        <>
+          <EntryFilesLinksPanel
+            entryId={attachmentEntryId}
+            docs={docs}
+            links={links}
+            allowAdd
+            onUploadDocument={handleUploadDocument}
+            onAddLink={handleAddLink}
+          />
+          {isLocationInfo && !locationInfoExpanded ? (
             <div className={styles.locationInfoInlineActions}>
               <button type="button" className={styles.addSubItemBtn} onClick={onEdit}>
                 Edit
@@ -1004,299 +925,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
               </button>
             </div>
           ) : null}
-        </div>
-      ) : (
-      <button type="button" className={styles.relatedToggle} onClick={() => setAttachmentsOpen((o) => !o)}>
-        {attachmentsOpen
-          ? 'Hide attachments ▴'
-          : `${docs.length} document${docs.length === 1 ? '' : 's'} · ${links.length} link${links.length === 1 ? '' : 's'} ▾`}
-      </button>
-      )}
-      {attachmentsOpen ? (
-        <div className={styles.attachmentsPanel}>
-          <div className={styles.attachmentsList}>
-            {docs.length > 0 ? (
-              <EntryDocumentsSortableList entryId={entry.id} documents={docs}>
-                {(doc, dragHandle) => (
-                  <div className={styles.attachmentRow}>
-                    {dragHandle}
-                    <span className={styles.attachmentIcon}><DocumentTypeIcon type={doc.documentType} /></span>
-                    {editingDocId === doc.id ? (
-                  <>
-                    <input className={styles.newSubField} value={docDraft.title} onChange={(e) => setDocDraft((prev) => ({ ...prev, title: e.target.value }))} />
-                    <select className={styles.newSubField} value={docDraft.documentType} onChange={(e) => setDocDraft((prev) => ({ ...prev, documentType: e.target.value as EntryDocumentType }))}>
-                      <option value="Ticket">Ticket</option>
-                      <option value="Confirmation">Confirmation</option>
-                      <option value="Image">Image</option>
-                      <option value="PDF">PDF</option>
-                      <option value="Other">Other</option>
-                    </select>
-                    <input className={styles.newSubField} value={docDraft.notes} onChange={(e) => setDocDraft((prev) => ({ ...prev, notes: e.target.value }))} placeholder="Notes (optional)" />
-                    <button
-                      type="button"
-                      className={styles.newSubActionBtn}
-                      onClick={() => {
-                        updateDocument(doc.id, {
-                          title: docDraft.title.trim(),
-                          documentType: docDraft.documentType,
-                          notes: docDraft.notes.trim()
-                        })
-                          .then(() => setEditingDocId(null))
-                          .catch(console.error);
-                      }}
-                    >
-                      Save
-                    </button>
-                    <button type="button" className={styles.newSubActionBtn} onClick={() => setEditingDocId(null)}>
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      className={styles.attachmentTitle}
-                      onClick={(ev) => {
-                        ev.preventDefault();
-                        openDocumentUrl(doc.fileUrl);
-                      }}
-                    >
-                      {doc.fileName || doc.title}
-                    </button>
-                    <span className={styles.attachmentType}>{doc.documentType}</span>
-                    <button
-                      type="button"
-                      className={styles.attachmentActionBtn}
-                      onClick={() => {
-                        setEditingDocId(doc.id);
-                        setDocDraft({ title: doc.title || doc.fileName || '', documentType: doc.documentType, notes: doc.notes || '' });
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.attachmentActionBtn}
-                      onClick={() => {
-                        void (async () => {
-                          if (!(await confirmUserAction('Remove this document?'))) return;
-                          deleteDocument(doc.id).catch(console.error);
-                        })();
-                      }}
-                    >
-                      Delete
-                    </button>
-                    {doc.notes?.trim() ? <span className={styles.attachmentType}>{doc.notes}</span> : null}
-                  </>
-                )}
-                  </div>
-                )}
-              </EntryDocumentsSortableList>
-            ) : null}
-            <EntryLinksSortableList entryId={attachmentEntryId} links={links}>
-              {(link, dragHandle) => (
-                <div className={styles.attachmentRow}>
-                  {dragHandle}
-                  <span className={styles.attachmentIcon}><LinkIcon /></span>
-                  {editingLinkId === link.id ? (
-                    <>
-                      <input className={styles.newSubField} value={linkDraft.linkTitle} onChange={(e) => setLinkDraft((prev) => ({ ...prev, linkTitle: e.target.value }))} />
-                      <input className={styles.newSubField} value={linkDraft.url} onChange={(e) => setLinkDraft((prev) => ({ ...prev, url: e.target.value }))} />
-                      <select className={styles.newSubField} value={linkDraft.linkType} onChange={(e) => setLinkDraft((prev) => ({ ...prev, linkType: e.target.value as EntryLinkType }))}>
-                        <option value="Url">Url</option>
-                        <option value="Supplier">Supplier</option>
-                        <option value="Booking">Booking</option>
-                        <option value="Email">Email</option>
-                        <option value="Other">Other</option>
-                      </select>
-                      <input className={styles.newSubField} value={linkDraft.notes} onChange={(e) => setLinkDraft((prev) => ({ ...prev, notes: e.target.value }))} placeholder="Notes (optional)" />
-                      <button
-                        type="button"
-                        className={styles.newSubActionBtn}
-                        onClick={() => {
-                          updateLink(link.id, {
-                            title: linkDraft.linkTitle.trim(),
-                            linkTitle: linkDraft.linkTitle.trim(),
-                            url: linkDraft.url.trim(),
-                            linkType: linkDraft.linkType,
-                            notes: linkDraft.notes.trim()
-                          })
-                            .then(() => setEditingLinkId(null))
-                            .catch(console.error);
-                        }}
-                      >
-                        Save
-                      </button>
-                      <button type="button" className={styles.newSubActionBtn} onClick={() => setEditingLinkId(null)}>
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        className={styles.attachmentTitle}
-                        onClick={(ev) => {
-                          ev.preventDefault();
-                          openDocumentUrl(link.url);
-                        }}
-                      >
-                        {link.linkTitle}
-                      </button>
-                      <span className={styles.attachmentType}>{link.linkType}</span>
-                      <button
-                        type="button"
-                        className={styles.attachmentActionBtn}
-                        onClick={() => {
-                          setEditingLinkId(link.id);
-                          setLinkDraft({
-                            linkTitle: link.linkTitle,
-                            url: link.url,
-                            linkType: link.linkType,
-                            notes: link.notes || ''
-                          });
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.attachmentActionBtn}
-                        onClick={() => {
-                          void (async () => {
-                            if (!(await confirmUserAction('Remove this link?'))) return;
-                            deleteLink(link.id).catch(console.error);
-                          })();
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-            </EntryLinksSortableList>
-            {!docs.length && !links.length ? (
-              <p className={styles.attachmentsEmpty}>No files or links yet.</p>
-            ) : null}
-          </div>
-          <div className={styles.attachmentsAddBar} role="group" aria-label="Add attachment">
-            <button
-              type="button"
-              className={`${styles.attachModeBtn} ${attachAddMode === 'document' ? styles.attachModeBtnActive : ''}`}
-              onClick={() => setAttachAddMode((m) => (m === 'document' ? 'none' : 'document'))}
-            >
-              Add document
-            </button>
-            <button
-              type="button"
-              className={`${styles.attachModeBtn} ${attachAddMode === 'link' ? styles.attachModeBtnActive : ''}`}
-              onClick={() => {
-                setAttachAddMode((m) => {
-                  if (m === 'link') return 'none';
-                  resetLinkDraft();
-                  return 'link';
-                });
-              }}
-            >
-              Add link
-            </button>
-          </div>
-          {attachAddMode === 'document' ? (
-            <div className={styles.attachAddForm}>
-              <select className={styles.newSubField} value={docType} onChange={(e) => setDocType(e.target.value as EntryDocumentType)}>
-                <option value="Ticket">Ticket</option>
-                <option value="Confirmation">Confirmation</option>
-                <option value="Image">Image</option>
-                <option value="PDF">PDF</option>
-                <option value="Other">Other</option>
-              </select>
-              <input
-                className={styles.newSubField}
-                value={docNotes}
-                onChange={(e) => setDocNotes(e.target.value)}
-                placeholder="Document notes (optional)"
-              />
-              <button type="button" className={styles.newSubActionBtn} disabled={docBusy} onClick={() => fileInputRef.current?.click()}>
-                {docBusy ? 'Uploading…' : 'Choose file'}
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                style={{ display: 'none' }}
-                onChange={(e) => {
-                  handleDocumentPick(e).catch(console.error);
-                }}
-              />
-            </div>
-          ) : null}
-          {attachAddMode === 'link' ? (
-            <div className={styles.attachAddForm}>
-              <input
-                className={styles.newSubField}
-                placeholder="Link title"
-                value={linkDraft.linkTitle}
-                onChange={(e) => setLinkDraft((prev) => ({ ...prev, linkTitle: e.target.value }))}
-              />
-              <input
-                className={styles.newSubField}
-                placeholder="URL"
-                value={linkDraft.url}
-                onChange={(e) => setLinkDraft((prev) => ({ ...prev, url: e.target.value }))}
-              />
-              <select
-                className={styles.newSubField}
-                value={linkDraft.linkType}
-                onChange={(e) => setLinkDraft((prev) => ({ ...prev, linkType: e.target.value as EntryLinkType }))}
-              >
-                <option value="Url">Url</option>
-                <option value="Supplier">Supplier</option>
-                <option value="Booking">Booking</option>
-                <option value="Email">Email</option>
-                <option value="Other">Other</option>
-              </select>
-              <input
-                className={styles.newSubField}
-                placeholder="Notes (optional)"
-                value={linkDraft.notes}
-                onChange={(e) => setLinkDraft((prev) => ({ ...prev, notes: e.target.value }))}
-              />
-              <div className={styles.attachAddActions}>
-                <button
-                  type="button"
-                  className={styles.attachSaveBtn}
-                  disabled={linkBusy || linkDraft.linkTitle.trim() === '' || linkDraft.url.trim() === ''}
-                  onClick={() => {
-                    setLinkBusy(true);
-                    void persistEntry(entry)
-                      .then((resolved) => {
-                        setAttachmentEntryId(resolved.id);
-                        return addLink({
-                          dayId: resolved.dayId,
-                          entryId: resolved.id,
-                          linkTitle: linkDraft.linkTitle.trim(),
-                          url: linkDraft.url.trim(),
-                          linkType: linkDraft.linkType,
-                          notes: linkDraft.notes.trim()
-                        });
-                      })
-                      .then(() => {
-                        resetLinkDraft();
-                        setAttachAddMode('none');
-                        setLinkBusy(false);
-                      })
-                      .catch((err) => {
-                        setLinkBusy(false);
-                        console.error(err);
-                      });
-                  }}
-                >
-                  {linkBusy ? 'Saving…' : 'Save link'}
-                </button>
-              </div>
-            </div>
-          ) : null}
-        </div>
+        </>
       ) : null}
 
       {manualTasks.length > 0 && openTaskTarget ? (
@@ -1316,7 +945,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           ) : null}
         </div>
       ) : null}
-      <div className={`${styles.subItemActionsRow} ${isLocationInfo && !locationInfoExpanded && !attachmentsOpen ? styles.subItemActionsRowHidden : ''}`}>
+      <div className={`${styles.subItemActionsRow} ${isLocationInfo && !locationInfoExpanded ? styles.subItemActionsRowHidden : ''}`}>
         {manualTasks.length > 0 && openTaskTarget ? (
           <>
             {manualTasks.length > 1 ? (

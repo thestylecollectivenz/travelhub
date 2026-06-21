@@ -8,8 +8,7 @@ import { ReminderService } from '../../services/ReminderService';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../../utils/googleMapsLink';
 import { SubItemDetailLines } from './SubItemDetailLines';
-import { EntryLinksSortableList } from './EntryLinksSortableList';
-import linkSortStyles from './EntryLinksSortableList.module.css';
+import { EntryFilesLinksPanel } from './EntryFilesLinksPanel';
 import styles from './SubItem.module.css';
 
 export interface SubItemProps {
@@ -65,13 +64,10 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId, dragHandl
     duplicateSubItem,
     moveSubItem
   } = useTripWorkspace();
-  const { docsForEntry, linksForEntry, updateLink, deleteLink } = useAttachments();
+  const { docsForEntry, linksForEntry } = useAttachments();
   const [taskBusy, setTaskBusy] = React.useState(false);
   const [taskPanelOpen, setTaskPanelOpen] = React.useState(false);
   const [taskDesc, setTaskDesc] = React.useState('');
-  const [attachOpen, setAttachOpen] = React.useState(false);
-  const [editingLinkId, setEditingLinkId] = React.useState<string | null>(null);
-  const [linkEditDraft, setLinkEditDraft] = React.useState({ linkTitle: '', url: '' });
 
   const parentEntry = React.useMemo(() => localEntries.find((e) => e.id === parentEntryId), [localEntries, parentEntryId]);
   const calendarDate = React.useMemo(() => {
@@ -93,12 +89,6 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId, dragHandl
   const links = linksForEntry(item.id);
   const isEditingInPanel =
     editingSubItem?.parentEntryId === parentEntryId && editingSubItem?.subItemId === item.id;
-
-  React.useEffect(() => {
-    if (docs.length + links.length > 0) {
-      setAttachOpen(true);
-    }
-  }, [item.id, docs.length, links.length]);
 
   const submitOptionTask = React.useCallback(() => {
     if (!trip?.id || !parentEntry) return;
@@ -174,91 +164,7 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId, dragHandl
             ) : null}
           </div>
         ) : null}
-        {(docs.length > 0 || links.length > 0) ? (
-          <>
-            <button type="button" className={styles.attachToggle} onClick={() => setAttachOpen((o) => !o)}>
-              {attachOpen ? 'Hide files & links ▴' : `Files & links (${docs.length + links.length}) ▾`}
-            </button>
-            {attachOpen ? (
-              <div className={styles.quickLinks}>
-                {docs.map((d) => (
-                  <button key={d.id} type="button" className={styles.miniLink} onClick={() => openDocumentUrl(d.fileUrl)} title={d.title}>
-                    {d.title || 'File'}
-                  </button>
-                ))}
-                <EntryLinksSortableList entryId={item.id} links={links} className={styles.quickLinks}>
-                  {(l, dragHandle) =>
-                    editingLinkId === l.id ? (
-                      <div key={l.id} className={styles.linkEditRow}>
-                        {dragHandle ? <span className={linkSortStyles.dragHandleSlot}>{dragHandle}</span> : null}
-                        <input
-                          className={styles.field}
-                          value={linkEditDraft.linkTitle}
-                          onChange={(e) => setLinkEditDraft((prev) => ({ ...prev, linkTitle: e.target.value }))}
-                          placeholder="Link title"
-                        />
-                        <input
-                          className={styles.field}
-                          value={linkEditDraft.url}
-                          onChange={(e) => setLinkEditDraft((prev) => ({ ...prev, url: e.target.value }))}
-                          placeholder="URL"
-                        />
-                        <button
-                          type="button"
-                          className={styles.actionButton}
-                          onClick={() => {
-                            updateLink(l.id, {
-                              linkTitle: linkEditDraft.linkTitle.trim(),
-                              url: linkEditDraft.url.trim()
-                            })
-                              .then(() => setEditingLinkId(null))
-                              .catch(console.error);
-                          }}
-                        >
-                          Save
-                        </button>
-                        <button type="button" className={styles.actionButtonMuted} onClick={() => setEditingLinkId(null)}>
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <span key={l.id} className={styles.linkChip}>
-                        {dragHandle}
-                        <button type="button" className={styles.miniLink} onClick={() => openDocumentUrl(l.url)} title={l.url}>
-                          {l.linkTitle || l.url}
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.linkChipAction}
-                          aria-label="Edit link"
-                          onClick={() => {
-                            setEditingLinkId(l.id);
-                            setLinkEditDraft({ linkTitle: l.linkTitle, url: l.url });
-                          }}
-                        >
-                          ✎
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.linkChipAction}
-                          aria-label="Delete link"
-                          onClick={() => {
-                            void (async () => {
-                              if (!(await confirmUserAction('Remove this link?'))) return;
-                              deleteLink(l.id).catch(console.error);
-                            })();
-                          }}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    )
-                  }
-                </EntryLinksSortableList>
-              </div>
-            ) : null}
-          </>
-        ) : null}
+        <EntryFilesLinksPanel entryId={item.id} docs={docs} links={links} />
       </div>
       <div className={styles.actionCol}>
         {dragHandle ? <span className={styles.dragHandleSlot}>{dragHandle}</span> : null}
