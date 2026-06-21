@@ -1,5 +1,6 @@
-import type { ItineraryEntry } from '../models/ItineraryEntry';
+import type { ItineraryEntry, ItinerarySubItem } from '../models/ItineraryEntry';
 import type { TripDay } from '../models/TripDay';
+import { formatActivityScheduleHero } from './activityScheduleLabel';
 import { durationFromDateTimes } from './durationFromTimes';
 import { formatTimeHHMM, minutesFromTimeStart } from './itineraryTimeUtils';
 import { dayHasPlaceId, isLocationInfoEntry, locationInfoPlaceId } from './locationInfoEntry';
@@ -221,6 +222,126 @@ export function formatTransportScheduleHero(
   const dep = formatTimeHHMM(entry.timeStart || '');
   const arr = formatTimeHHMM(entry.arrivalTime || '');
   const dur = transportLegDurationLabel(entry, calendarDate, tripDays, 'outbound');
+  const parts: string[] = [];
+  if (dep) parts.push(`Departs ${dep}`);
+  if (dur) parts.push(dur);
+  if (arr) parts.push(`Arrives ${arr}`);
+  return parts.length ? parts.join(' · ') : null;
+}
+
+function humanDurationLabel(duration?: string): string {
+  const d = (duration || '').trim();
+  if (!d || /^\d+(\.\d+)?$/.test(d)) return '';
+  return d;
+}
+
+function accommodationNights(entry: ItineraryEntry): number {
+  if (!entry.dateStart || !entry.dateEnd) return 0;
+  const start = new Date(`${entry.dateStart}T00:00:00.000Z`);
+  const end = new Date(`${entry.dateEnd}T00:00:00.000Z`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+  return Math.max(0, Math.floor((end.getTime() - start.getTime()) / 86400000));
+}
+
+/** Prominent schedule line for any itinerary card / planner block. */
+export function formatEntryScheduleHero(
+  entry: ItineraryEntry,
+  calendarDate: string,
+  tripDays: TripDay[] | undefined,
+  options?: { transportLeg?: TransportTimelineLeg; subItem?: ItinerarySubItem }
+): string | null {
+  const sub = options?.subItem;
+  if (sub) {
+    return formatActivityScheduleHero({
+      calendarDate,
+      timeStart: sub.startTime,
+      duration: sub.duration,
+      arrivalTime: sub.endTime
+    });
+  }
+
+  if (entry.category === 'Transport') {
+    return formatTransportScheduleHero(entry, calendarDate, tripDays, options?.transportLeg);
+  }
+
+  if (entry.category === 'Activities') {
+    return formatActivityScheduleHero({
+      calendarDate,
+      timeStart: entry.timeStart,
+      duration: entry.duration,
+      arrivalTime: entry.arrivalTime
+    });
+  }
+
+  if (entry.category === 'Flights') {
+    const dep = formatTimeHHMM(entry.timeStart || '');
+    const arr = formatTimeHHMM(entry.arrivalTime || '');
+    const dur = humanDurationLabel(entry.duration);
+    const parts: string[] = [];
+    if (dep) parts.push(`Departs ${dep}`);
+    if (dur) parts.push(dur);
+    if (arr) parts.push(`Arrives ${arr}`);
+    return parts.length ? parts.join(' · ') : null;
+  }
+
+  if (entry.category === 'Accommodation' && entry.dateStart && entry.dateEnd) {
+    const cal = ymdSlice(calendarDate);
+    const start = ymdSlice(entry.dateStart);
+    const end = ymdSlice(entry.dateEnd);
+    const nights = accommodationNights(entry);
+    if (cal > start && cal < end) {
+      const thisDay = new Date(`${cal}T00:00:00.000Z`);
+      const startDay = new Date(`${start}T00:00:00.000Z`);
+      const nightNum = Math.floor((thisDay.getTime() - startDay.getTime()) / 86400000) + 1;
+      return nights > 0 ? `Night ${nightNum} of ${nights}` : null;
+    }
+    if (cal === start && entry.checkInTime?.trim()) {
+      const checkIn = formatTimeHHMM(entry.checkInTime);
+      return nights > 0 ? `Check-in ${checkIn} · ${nights} night${nights === 1 ? '' : 's'}` : `Check-in ${checkIn}`;
+    }
+    if (cal === end && entry.checkOutTime?.trim()) {
+      return `Check-out ${formatTimeHHMM(entry.checkOutTime)}`;
+    }
+    if (nights > 0) return `${nights} night${nights === 1 ? '' : 's'}`;
+    return null;
+  }
+
+  if (entry.category === 'Cruise' && entry.embarksDate && entry.disembarksDate) {
+    const cal = ymdSlice(calendarDate);
+    const embark = ymdSlice(entry.embarksDate);
+    const disembark = ymdSlice(entry.disembarksDate);
+    const startDay = new Date(`${embark}T00:00:00.000Z`);
+    const endDay = new Date(`${disembark}T00:00:00.000Z`);
+    const thisDay = new Date(`${cal}T00:00:00.000Z`);
+    const totalDays =
+      !Number.isNaN(startDay.getTime()) && !Number.isNaN(endDay.getTime())
+        ? Math.max(1, Math.floor((endDay.getTime() - startDay.getTime()) / 86400000) + 1)
+        : 0;
+    if (cal > embark && cal < disembark && totalDays > 0) {
+      const dayNum = Math.floor((thisDay.getTime() - startDay.getTime()) / 86400000) + 1;
+      return `Day ${dayNum} of ${totalDays}`;
+    }
+    if (cal === embark && entry.timeStart?.trim()) {
+      return `Embarks ${formatTimeHHMM(entry.timeStart)}`;
+    }
+    if (cal === disembark && entry.arrivalTime?.trim()) {
+      return `Disembarks ${formatTimeHHMM(entry.arrivalTime)}`;
+    }
+    return totalDays > 0 ? `${totalDays} day${totalDays === 1 ? '' : 's'}` : null;
+  }
+
+  if (entry.category === 'Cruise port') {
+    const arrive = formatTimeHHMM(entry.timeStart || '');
+    const depart = formatTimeHHMM(entry.arrivalTime || '');
+    const parts: string[] = [];
+    if (arrive) parts.push(`Arrives ${arrive}`);
+    if (depart) parts.push(`Departs ${depart}`);
+    return parts.length ? parts.join(' · ') : null;
+  }
+
+  const dep = formatTimeHHMM(effectivePlannerTimeStart(entry, calendarDate, tripDays));
+  const dur = humanDurationLabel(entry.duration);
+  const arr = formatTimeHHMM(entry.arrivalTime || '');
   const parts: string[] = [];
   if (dep) parts.push(`Departs ${dep}`);
   if (dur) parts.push(dur);

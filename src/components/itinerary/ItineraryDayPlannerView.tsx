@@ -7,7 +7,7 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useAttachments } from '../../context/AttachmentsContext';
 import {
   effectivePlannerTimeStart,
-  formatTransportScheduleHero,
+  formatEntryScheduleHero,
   isTransportReturnOnCalendarDate,
   isPreTripDayRow,
   resolvePreTripDayId,
@@ -118,8 +118,19 @@ function plannerBlockZIndex(
 ): number {
   if (isEditing) return 60;
   if (frontBlockKey === item.key) return 55;
-  const maxDur = Math.max(...timed.map((t) => t.durationMinutes), 1);
-  return 2 + Math.round((1 - item.durationMinutes / maxDur) * 24);
+  return 10 + item.startMinutes;
+}
+
+function plannerBlockScheduleHero(
+  item: PlannerTimedItem,
+  calendarDate: string,
+  tripDays: TripDay[]
+): string | null {
+  const leg = plannerItemTransportLeg(item, item.entry, calendarDate);
+  return formatEntryScheduleHero(item.entry, calendarDate, tripDays, {
+    transportLeg: leg,
+    subItem: item.subItem
+  });
 }
 
 function plannerBlockMeta(item: PlannerTimedItem, calendarDate: string, tripDays: TripDay[]): string {
@@ -844,9 +855,11 @@ export const ItineraryDayPlannerView: React.FC = () => {
 
   const previewViewCalendarDate = previewContext?.calendarDate || previewCalendarDate;
   const previewTransportLeg = previewContext?.transportLeg;
-  const previewTransportHero =
-    previewEntry?.category === 'Transport'
-      ? formatTransportScheduleHero(previewEntry, previewViewCalendarDate, tripDays, previewTransportLeg)
+  const previewScheduleHero =
+    previewEntry
+      ? formatEntryScheduleHero(previewEntry, previewViewCalendarDate, tripDays, {
+          transportLeg: previewTransportLeg
+        })
       : null;
   const previewDocs = previewEntry ? docsForEntry(previewEntry.id) : [];
   const previewLinks = previewEntry ? linksForEntry(previewEntry.id) : [];
@@ -1193,10 +1206,11 @@ export const ItineraryDayPlannerView: React.FC = () => {
                         editingSubItem?.parentEntryId === e.id &&
                         editingSubItem?.subItemId === sub!.id;
                       const blockZ = plannerBlockZIndex(item, timed, frontBlockKey, isEditingParent || isEditingSub);
+                      const blockScheduleHero = plannerBlockScheduleHero(item, cal, tripDays);
                       return (
                         <div
                           key={item.key}
-                          style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: blockZ }}
+                          style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: blockZ, overflow: 'hidden' }}
                           onMouseDown={(e) => {
                             e.stopPropagation();
                             toggleFrontBlock(item.key, setFrontBlockKey);
@@ -1244,7 +1258,11 @@ export const ItineraryDayPlannerView: React.FC = () => {
                               {plannerBlockLocation(e, sub, day) ? (
                                 <div className={styles.blockLocation}>{plannerBlockLocation(e, sub, day)}</div>
                               ) : null}
-                              <div className={styles.blockMeta}>{plannerBlockMeta(item, cal, tripDays)}</div>
+                              {blockScheduleHero ? (
+                                <div className={styles.blockScheduleHero}>{blockScheduleHero}</div>
+                              ) : (
+                                <div className={styles.blockMeta}>{plannerBlockMeta(item, cal, tripDays)}</div>
+                              )}
                               {cancellationSnippet(e, sub) ? (
                                 <div className={styles.blockCancel}>{cancellationSnippet(e, sub)}</div>
                               ) : null}
@@ -1448,10 +1466,11 @@ export const ItineraryDayPlannerView: React.FC = () => {
                           editingSubItem?.parentEntryId === e.id &&
                           editingSubItem?.subItemId === sub!.id;
                         const blockZ = plannerBlockZIndex(item, timed, frontBlockKey, isEditingParent || isEditingSub);
+                        const blockScheduleHero = plannerBlockScheduleHero(item, cal, tripDays);
                         return (
                           <div
                             key={item.key}
-                            style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: blockZ }}
+                            style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: blockZ, overflow: 'hidden' }}
                             onMouseDown={(e) => {
                             e.stopPropagation();
                             toggleFrontBlock(item.key, setFrontBlockKey);
@@ -1499,7 +1518,11 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                 {plannerBlockLocation(e, sub, day) ? (
                                   <div className={styles.blockLocation}>{plannerBlockLocation(e, sub, day)}</div>
                                 ) : null}
-                                <div className={styles.blockMeta}>{plannerBlockMeta(item, cal, tripDays)}</div>
+                                {blockScheduleHero ? (
+                                  <div className={styles.blockScheduleHero}>{blockScheduleHero}</div>
+                                ) : (
+                                  <div className={styles.blockMeta}>{plannerBlockMeta(item, cal, tripDays)}</div>
+                                )}
                                 {cancellationSnippet(e, sub) ? (
                                   <div className={styles.blockCancel}>{cancellationSnippet(e, sub)}</div>
                                 ) : null}
@@ -1560,13 +1583,15 @@ export const ItineraryDayPlannerView: React.FC = () => {
             <h2 id="th-planner-preview-title" className={styles.previewTitle}>
               {previewEntry.title || 'Untitled'}
             </h2>
-            {previewTransportHero ? (
-              <div className={styles.previewScheduleHero}>{previewTransportHero}</div>
+            {previewScheduleHero ? (
+              <div className={`${styles.previewScheduleHero} th-cat-${getCategorySlug(previewEntry.category)} th-cat-border`}>
+                {previewScheduleHero}
+              </div>
             ) : null}
             <div className={styles.previewMeta}>
               {previewEntry.category ? <span>{previewEntry.category}</span> : null}
-              {previewEntry.category && !previewTransportHero ? <span> · </span> : null}
-              {!previewTransportHero ? (
+              {previewEntry.category && !previewScheduleHero ? <span> · </span> : null}
+              {!previewScheduleHero ? (
                 <span>
                   {formatTimeHHMM(previewEntry.timeStart) || 'Unscheduled'}
                   {previewEntry.duration ? ` · ${previewEntry.duration}` : null}

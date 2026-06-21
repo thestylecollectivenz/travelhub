@@ -31,7 +31,7 @@ import {
   effectiveTransportLegTime,
   isTransportReturnOnCalendarDate,
   transportLegDurationLabel,
-  formatTransportScheduleHero
+  formatEntryScheduleHero
 } from '../../utils/itineraryDayEntries';
 import type { TransportTimelineLeg } from '../../utils/itineraryDayEntries';
 import { formatActivityScheduleLabel } from '../../utils/activityScheduleLabel';
@@ -344,9 +344,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
     (transportLeg === 'return' || (!transportLeg && isTransportReturnOnCalendarDate(entry, calendarDate)));
   const transportOutboundHere = isTransport && !transportReturnHere && transportLeg !== 'return';
   const legDurationLabel = transportLegDurationLabel(entry, calendarDate, tripDays, transportLeg);
-  const transportScheduleHero = isTransport
-    ? formatTransportScheduleHero(entry, calendarDate, tripDays, transportLeg)
-    : null;
+  const entryScheduleHero = formatEntryScheduleHero(entry, calendarDate, tripDays, { transportLeg });
   const hhmm = formatTimeHHMM(effectiveTransportLegTime(entry, calendarDate, tripDays, transportLeg));
   const timeChip = isActivities
     ? formatActivityScheduleLabel({
@@ -593,7 +591,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       {!isLocationInfo ? (
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          {!isTransport && timeChip ? (
+          {!entryScheduleHero && timeChip ? (
             <span className={styles.timeChip}>
               <ClockIcon />
               {timeChip}
@@ -657,8 +655,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           {isTransport ? deriveTransportDisplayTitle(entry, calendarDate) : entry.title || 'Untitled'}
         </h3>
       )}
-      {transportScheduleHero ? (
-        <div className={styles.scheduleHero}>{transportScheduleHero}</div>
+      {entryScheduleHero ? (
+        <div className={`${styles.scheduleHero} th-cat-${categorySlug} th-cat-border`}>{entryScheduleHero}</div>
       ) : null}
       {isActivities && location ? (
         <div className={styles.metaRow}>
@@ -668,7 +666,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           </span>
         </div>
       ) : null}
-      {entry.category === 'Accommodation' && (entry.checkInTime || entry.bookingReference?.trim()) ? (
+      {entry.category === 'Accommodation' && !entryScheduleHero && (entry.checkInTime || entry.bookingReference?.trim()) ? (
         <div className={styles.categorySummary}>
           {entry.checkInTime ? <span>Check-in {formatTimeHHMM(entry.checkInTime)}</span> : null}
           {entry.checkInTime && entry.bookingReference?.trim() ? <span aria-hidden> · </span> : null}
@@ -704,12 +702,12 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           <span>{nights} night{nights === 1 ? '' : 's'}</span>
         </div>
       ) : null}
-      {(entry.category === 'Flights' && (entry.arrivalTime || entry.arrivalDate)) ? (
+      {(entry.category === 'Flights' && !entryScheduleHero && (entry.arrivalTime || entry.arrivalDate)) ? (
         <div className={styles.metaRow}>
           <span>Arrives {entry.arrivalDate ? formatYmd(entry.arrivalDate) : ''}{entry.arrivalDate && entry.arrivalTime ? ' · ' : ''}{entry.arrivalTime ? formatTimeHHMM(entry.arrivalTime) : ''}</span>
         </div>
       ) : null}
-      {isCruisePort && (entry.timeStart || entry.arrivalTime) ? (
+      {isCruisePort && !entryScheduleHero && (entry.timeStart || entry.arrivalTime) ? (
         <div className={styles.metaRow}>
           {entry.timeStart ? <span>Arrives {formatTimeHHMM(entry.timeStart)}</span> : null}
           {entry.timeStart && entry.arrivalTime ? <span aria-hidden> · </span> : null}
@@ -932,17 +930,17 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             <div>Transfers {entry.transportTransfers}</div>
           ) : null}
           {entry.journeyType === 'oneway' ? <div>Journey One way</div> : null}
-          {!transportScheduleHero && transportOutboundHere && entry.timeStart ? (
+          {!entryScheduleHero && transportOutboundHere && entry.timeStart ? (
             <div>Departs {formatTimeHHMM(entry.timeStart)}</div>
           ) : null}
-          {!transportScheduleHero && transportOutboundHere && entry.arrivalTime ? (
+          {!entryScheduleHero && transportOutboundHere && entry.arrivalTime ? (
             <div>Arrives {formatTimeHHMM(entry.arrivalTime)}</div>
           ) : null}
           {transportReturnHere && entry.returnDate ? <div>Return date {formatYmd(entry.returnDate)}</div> : null}
-          {!transportScheduleHero && transportReturnHere && entry.returnTime ? (
+          {!entryScheduleHero && transportReturnHere && entry.returnTime ? (
             <div>Return dep. {formatTimeHHMM(entry.returnTime)}</div>
           ) : null}
-          {!transportScheduleHero && transportReturnHere && entry.returnArrivalTime ? (
+          {!entryScheduleHero && transportReturnHere && entry.returnArrivalTime ? (
             <div>Return arr. {formatTimeHHMM(entry.returnArrivalTime)}</div>
           ) : null}
         </div>
@@ -1068,7 +1066,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                     <span className={styles.attachmentType}>{doc.documentType}</span>
                     <button
                       type="button"
-                      className={styles.newSubActionBtn}
+                      className={styles.attachmentActionBtn}
                       onClick={() => {
                         setEditingDocId(doc.id);
                         setDocDraft({ title: doc.title || doc.fileName || '', documentType: doc.documentType, notes: doc.notes || '' });
@@ -1078,7 +1076,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                     </button>
                     <button
                       type="button"
-                      className={styles.newSubActionBtn}
+                      className={styles.attachmentActionBtn}
                       onClick={() => {
                         void (async () => {
                           if (!(await confirmUserAction('Remove this document?'))) return;
@@ -1148,7 +1146,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                       <span className={styles.attachmentType}>{link.linkType}</span>
                       <button
                         type="button"
-                        className={styles.newSubActionBtn}
+                        className={styles.attachmentActionBtn}
                         onClick={() => {
                           setEditingLinkId(link.id);
                           setLinkDraft({
@@ -1163,7 +1161,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                       </button>
                       <button
                         type="button"
-                        className={styles.newSubActionBtn}
+                        className={styles.attachmentActionBtn}
                         onClick={() => {
                           void (async () => {
                             if (!(await confirmUserAction('Remove this link?'))) return;
