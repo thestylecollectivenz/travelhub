@@ -213,8 +213,8 @@
 
 .plannerTrackVScroll {
   flex: 1 1 auto;
-  min-height: 200px;
-  overflow-y: scroll;
+  min-height: 240px;
+  overflow-y: auto;
   overflow-x: hidden;
 }
 
@@ -270,10 +270,19 @@
 
 .plannerGrid {
   display: grid;
-  grid-template-rows: auto auto;
+  grid-template-rows: auto;
   align-items: stretch;
   width: max-content;
   min-width: 100%;
+}
+
+.unschedRowGrid {
+  display: grid;
+  grid-template-rows: auto;
+  align-items: stretch;
+  width: max-content;
+  min-width: 100%;
+  border-bottom: var(--border-default);
 }
 
 .cornerCell {
@@ -668,6 +677,10 @@
   margin-top: var(--space-2);
   display: grid;
   gap: var(--space-2);
+  max-height: min(28vh, 240px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
 }
 
 .unschedCard {

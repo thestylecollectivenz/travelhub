@@ -1,10 +1,13 @@
 import * as React from 'react';
 import { useConfig } from '../../context/ConfigContext';
+import { usePlaces } from '../../context/PlacesContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { answerTravelChat } from '../../services/GeminiService';
 import { formatGeminiUserMessage } from '../../services/geminiErrorMessage';
 import { LinkifiedText } from '../shared/LinkifiedText';
 import { RichTextContent } from '../shared/RichTextContent';
+import { loadAiChatMessages, pruneAiChatHistory, saveAiChatMessages } from '../../utils/aiChatHistory';
+import { buildTripDayAiContext } from '../../utils/buildTripDayAiContext';
 import { markdownToHtml } from '../../utils/markdownToHtml';
 import styles from './AiAssistantFab.module.css';
 
@@ -72,7 +75,8 @@ function panelPosition(fab: FabPosition, panelWidth: number, panelHeight: number
 
 export const AiAssistantFab: React.FC = () => {
   const { config } = useConfig();
-  const { trip } = useTripWorkspace();
+  const { trip, tripDays, selectedDayId, localEntries } = useTripWorkspace();
+  const { placeById } = usePlaces();
   const [open, setOpen] = React.useState(false);
   const [input, setInput] = React.useState('');
   const [busy, setBusy] = React.useState(false);
@@ -96,9 +100,40 @@ export const AiAssistantFab: React.FC = () => {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  const tripContext = trip
-    ? `${trip.title}${trip.destination ? ` — ${trip.destination}` : ''}${trip.dateStart ? ` (${trip.dateStart.slice(0, 10)} to ${trip.dateEnd?.slice(0, 10) ?? ''})` : ''}`
-    : '';
+  React.useEffect(() => {
+    if (!trip?.id) {
+      setMessages([]);
+      return;
+    }
+    pruneAiChatHistory();
+    setMessages(loadAiChatMessages(trip.id));
+  }, [trip?.id]);
+
+  const selectedDay = React.useMemo(
+    () => (selectedDayId ? tripDays.find((d) => d.id === selectedDayId) : undefined),
+    [selectedDayId, tripDays]
+  );
+
+  const tripContext = React.useMemo(() => {
+    if (!trip) return '';
+    const placeTitle = selectedDay?.primaryPlaceId
+      ? placeById(selectedDay.primaryPlaceId)?.title
+      : undefined;
+    return buildTripDayAiContext({
+      trip,
+      day: selectedDay,
+      entries: localEntries,
+      placeTitle
+    });
+  }, [trip, selectedDay, localEntries, placeById]);
+
+  const persistMessages = React.useCallback(
+    (next: Array<{ role: 'user' | 'assistant'; text: string }>) => {
+      if (!trip?.id) return;
+      saveAiChatMessages(trip.id, next);
+    },
+    [trip?.id]
+  );
 
   const send = async (): Promise<void> => {
     const text = input.trim();
@@ -109,15 +144,19 @@ export const AiAssistantFab: React.FC = () => {
     }
     const nextMessages = [...messages, { role: 'user' as const, text }];
     setMessages(nextMessages);
+    persistMessages(nextMessages);
     setInput('');
     setError(null);
     setBusy(true);
     try {
       const { answer } = await answerTravelChat(config.geminiApiKey, nextMessages, tripContext);
-      setMessages((prev) => [...prev, { role: 'assistant', text: answer }]);
+      const withAnswer = [...nextMessages, { role: 'assistant' as const, text: answer }];
+      setMessages(withAnswer);
+      persistMessages(withAnswer);
     } catch (err) {
       setError(formatGeminiUserMessage(err));
       setMessages((prev) => prev.slice(0, -1));
+      persistMessages(messages);
       setInput(text);
     } finally {
       setBusy(false);
@@ -174,6 +213,9 @@ export const AiAssistantFab: React.FC = () => {
   const panelWidth = Math.min(352, (typeof window !== 'undefined' ? window.innerWidth : 352) - 16);
   const panelHeight = Math.min(448, (typeof window !== 'undefined' ? window.innerHeight : 448) * 0.7);
   const panelPos = panelPosition(fabPos, panelWidth, panelHeight);
+  const dayHint = selectedDay
+    ? `Day ${selectedDay.dayNumber}${selectedDay.calendarDate ? ` (${selectedDay.calendarDate})` : ''}`
+    : 'Select a day in the sidebar for date-specific tips';
 
   return (
     <>
@@ -203,9 +245,13 @@ export const AiAssistantFab: React.FC = () => {
               ×
             </button>
           </div>
+          <p className={styles.contextHint}>{dayHint}</p>
           <div className={styles.thread}>
             {!messages.length ? (
-              <p className={styles.hint}>Ask anything about this trip — routes, stations, timing, local tips…</p>
+              <p className={styles.hint}>
+                Ask about this trip — routes, stations, timing, local tips. Answers use the selected day and what is
+                already on your itinerary.
+              </p>
             ) : null}
             {messages.map((m, i) => (
               <div key={i} className={m.role === 'user' ? styles.userMsg : styles.aiMsg}>

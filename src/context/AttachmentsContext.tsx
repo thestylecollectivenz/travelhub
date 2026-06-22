@@ -4,6 +4,7 @@ import { DocumentService } from '../services/DocumentService';
 import { LinkService } from '../services/LinkService';
 import { sortEntryDocuments } from '../utils/entryDocumentSort';
 import { migrateLegacyDocumentOrder } from '../utils/documentEntryOrder';
+import { migrateMixedAttachmentOrder, writeAttachmentOrder } from '../utils/entryAttachmentOrder';
 import { sortEntryLinks } from '../utils/entryLinkSort';
 import { migrateLegacyLinkOrder } from '../utils/linkEntryOrder';
 import { useSpContext } from './SpContext';
@@ -87,8 +88,15 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
             docSvc.update(id, { sortOrder }).catch(console.error);
           });
         }
-        setDocuments(migratedDocs.documents);
-        setLinks(migratedLinks.links);
+        const mixed = migrateMixedAttachmentOrder(tripId, migratedDocs.documents, migratedLinks.links);
+        if (mixed.persist.length) {
+          mixed.persist.forEach(({ kind, id, sortOrder }) => {
+            if (kind === 'doc') docSvc.update(id, { sortOrder }).catch(console.error);
+            else linkSvc.update(id, { sortOrder }).catch(console.error);
+          });
+        }
+        setDocuments(mixed.documents);
+        setLinks(mixed.links);
         setLoading(false);
       })
       .catch((err) => {
@@ -389,8 +397,11 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
           });
         }
       });
+      if (tripId) {
+        writeAttachmentOrder(tripId, entryId, ordered);
+      }
     },
-    [spContext]
+    [spContext, tripId]
   );
 
   const value = React.useMemo(

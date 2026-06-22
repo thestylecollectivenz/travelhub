@@ -578,10 +578,12 @@ export const ItineraryDayPlannerView: React.FC = () => {
     if (!main || !head || !top || isMobile) return undefined;
     const measure = (): void => {
       const grid = head.querySelector(`.${styles.plannerGrid}`);
+      const unschedGrid = main.querySelector(`.${styles.unschedRowGrid}`);
       const track = main.querySelector(`.${styles.trackInner}`);
       const ghost = top.firstElementChild;
       const scrollW = Math.max(
         grid instanceof HTMLElement ? grid.scrollWidth : 0,
+        unschedGrid instanceof HTMLElement ? unschedGrid.scrollWidth : 0,
         track instanceof HTMLElement ? track.scrollWidth : 0
       );
       if (ghost instanceof HTMLElement && scrollW > 0) {
@@ -592,6 +594,12 @@ export const ItineraryDayPlannerView: React.FC = () => {
     const t = window.requestAnimationFrame(measure);
     return () => window.cancelAnimationFrame(t);
   }, [displayDays, isMobile, unschedSectionHidden]);
+
+  React.useEffect(() => {
+    if (isMobile) return;
+    const vScroll = plannerVScrollRef.current;
+    if (vScroll) vScroll.scrollTop = 0;
+  }, [unschedSectionHidden, isMobile]);
 
   React.useEffect(() => {
     const head = plannerHeadHScrollRef.current;
@@ -693,6 +701,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
       if (bestId && bestId !== selectedDayId) {
         selectedDayFromPlannerScrollRef.current = true;
         setSelectedDayId(bestId);
+        requestSidebarDayFocus(bestId);
       }
     };
 
@@ -1320,7 +1329,6 @@ export const ItineraryDayPlannerView: React.FC = () => {
                 className={styles.plannerGrid}
                 style={{
                   gridTemplateColumns: gridColTemplate,
-                  gridTemplateRows: unschedSectionHidden ? 'auto' : 'auto auto',
                   minWidth: plannerGridMinWidth
                 }}
               >
@@ -1328,11 +1336,18 @@ export const ItineraryDayPlannerView: React.FC = () => {
                 {displayDays.map((day) => (
                   <PlannerDayHead key={`h-${day.id}`} day={day} className={styles.dayHead} />
                 ))}
-
-                {!unschedSectionHidden ? (
-                  <>
-                    <div className={styles.cornerCell} aria-hidden />
-                    {displayDays.map((day) => {
+              </div>
+            </div>
+          </div>
+          <div className={styles.plannerTrackVScroll} ref={plannerVScrollRef}>
+          <div className={styles.plannerTrackHScroll} ref={plannerHScrollRef}>
+            {!unschedSectionHidden ? (
+              <div
+                className={styles.unschedRowGrid}
+                style={{ gridTemplateColumns: gridColTemplate, minWidth: plannerGridMinWidth }}
+              >
+                <div className={styles.cornerCell} aria-hidden />
+                {displayDays.map((day) => {
               const cal = day.calendarDate || '';
               const list = entriesForPlannerColumn(day);
               const unsched = expandPlannerUnscheduledItems(list, cal, tripDays, entriesForTrip);
@@ -1418,13 +1433,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
                 </div>
               );
             })}
-                  </>
-                ) : null}
               </div>
-            </div>
-          </div>
-          <div className={styles.plannerTrackVScroll} ref={plannerVScrollRef}>
-          <div className={styles.plannerTrackHScroll} ref={plannerHScrollRef}>
+            ) : null}
             <div className={styles.trackInner} style={{ gridTemplateColumns: gridColTemplate, minWidth: plannerGridMinWidth }}>
               <div className={styles.timeAxis} style={{ height: `${trackHeight}px` }}>
                 {hoursTicks.map((h) => {

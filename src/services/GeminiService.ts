@@ -370,7 +370,7 @@ export async function answerTravelChat(
 ${tripContext?.trim() ? `Trip context:\n${tripContext.trim()}\n\n` : ''}Conversation:
 ${transcript}
 
-Reply as plain text (no JSON). Keep answers concise unless detail is needed.`;
+Reply as plain text or markdown (no HTML). Use [label](url) for links. Keep answers concise unless detail is needed.`;
 
   const models: string[] = options?.model
     ? [options.model, ...GEMINI_MODEL_FALLBACK_CHAIN.filter((m) => m !== options.model)]

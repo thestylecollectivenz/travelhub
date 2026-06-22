@@ -47,6 +47,23 @@ export const SidebarDayList: React.FC = () => {
     return () => window.removeEventListener(TRAVELHUB_SIDEBAR_FOCUS_DAY, onFocusDay as EventListener);
   }, [setSelectedDayId]);
 
+  const sidebarDaySelected = React.useCallback(
+    (dayId: string): boolean => {
+      if (mainWorkspaceTab === 'journal' && journalLayout === 'all') return false;
+      if (mainWorkspaceTab === 'files' && !selectedDayId) return false;
+      return dayId === selectedDayId;
+    },
+    [journalLayout, mainWorkspaceTab, selectedDayId]
+  );
+
+  React.useEffect(() => {
+    if (mainWorkspaceTab !== 'itinerary' || !selectedDayId) return;
+    window.requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>(`[data-sidebar-day-id="${selectedDayId}"]`);
+      el?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+    });
+  }, [mainWorkspaceTab, selectedDayId]);
+
   return (
     <div className={styles.dayListSection}>
       <h2 className={styles.dayListHeading}>Days</h2>
@@ -55,12 +72,7 @@ export const SidebarDayList: React.FC = () => {
           <SidebarDayItem
             key={day.id}
             day={day}
-            isSelected={
-              (mainWorkspaceTab === 'journal' && journalLayout === 'all') ||
-              (mainWorkspaceTab === 'files' && !selectedDayId)
-                ? false
-                : day.id === selectedDayId
-            }
+            isSelected={sidebarDaySelected(day.id)}
             onSelect={() => {
               setSelectedDayId(day.id);
               if (mainWorkspaceTab === 'journal') {

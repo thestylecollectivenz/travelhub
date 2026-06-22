@@ -11,7 +11,8 @@ export const RichTextContent: React.FC<RichTextContentProps> = ({ html, classNam
   const safe = React.useMemo(() => {
     const raw = (html || '').trim();
     if (!raw) return '';
-    return isLikelyJournalHtml(raw) ? raw : plainTextToEditorHtml(raw);
+    const base = isLikelyJournalHtml(raw) ? raw : plainTextToEditorHtml(raw);
+    return base.replace(/<a\s+(?![^>]*\btarget=)/gi, '<a target="_blank" rel="noopener noreferrer" ');
   }, [html]);
 
   if (!safe) return null;
