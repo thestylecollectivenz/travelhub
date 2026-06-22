@@ -8,6 +8,8 @@ export interface RichTextEditorProps {
   minHeight?: string;
 }
 
+const FONT_SIZE_PT = [8, 10, 12, 14] as const;
+
 function readCssColor(varName: string): string {
   if (typeof document === 'undefined') return '#1a365d';
   const v = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
@@ -96,36 +98,21 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
             />
           ))}
         </div>
-        <button
-          type="button"
-          className={styles.sizeBtn}
-          disabled={disabled}
-          title="Small"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => run(() => applyFontSizeToSelection('var(--font-size-sm)'))}
-        >
-          S
-        </button>
-        <button
-          type="button"
-          className={styles.sizeBtn}
-          disabled={disabled}
-          title="Normal"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => run(() => applyFontSizeToSelection('var(--font-size-base)'))}
-        >
-          N
-        </button>
-        <button
-          type="button"
-          className={styles.sizeBtn}
-          disabled={disabled}
-          title="Large"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => run(() => applyFontSizeToSelection('var(--font-size-lg)'))}
-        >
-          L
-        </button>
+        <div className={styles.sizeGroup} aria-label="Font size">
+          {FONT_SIZE_PT.map((pt) => (
+            <button
+              key={pt}
+              type="button"
+              className={styles.sizeBtn}
+              disabled={disabled}
+              title={`${pt} pt`}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => run(() => applyFontSizeToSelection(pt))}
+            >
+              {pt}
+            </button>
+          ))}
+        </div>
         <button
           type="button"
           className={styles.toolBtn}
@@ -164,18 +151,26 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
   );
 };
 
-function applyFontSizeToSelection(fontSize: string): void {
+function applyFontSizeToSelection(fontSizePt: number): void {
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0) return;
   const range = sel.getRangeAt(0);
-  if (range.collapsed) return;
-  const span = document.createElement('span');
-  span.setAttribute('style', `font-size:${fontSize}`);
-  try {
-    range.surroundContents(span);
-  } catch {
-    const contents = range.extractContents();
-    span.appendChild(contents);
-    range.insertNode(span);
+  const size = `${fontSizePt}pt`;
+
+  if (range.collapsed) {
+    document.execCommand('insertHTML', false, `<span style="font-size:${size}">&#8203;</span>`);
+    return;
   }
+
+  const extracted = range.extractContents();
+  const span = document.createElement('span');
+  span.style.fontSize = size;
+  span.appendChild(extracted);
+  range.insertNode(span);
+
+  const next = document.createRange();
+  next.selectNodeContents(span);
+  next.collapse(false);
+  sel.removeAllRanges();
+  sel.addRange(next);
 }

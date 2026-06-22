@@ -82,6 +82,7 @@ export const AiAssistantFab: React.FC = () => {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [messages, setMessages] = React.useState<Array<{ role: 'user' | 'assistant'; text: string }>>([]);
+  const [copyState, setCopyState] = React.useState<'idle' | 'copied' | 'error'>('idle');
   const [fabPos, setFabPos] = React.useState<FabPosition>(() => loadFabPosition());
   const dragRef = React.useRef<{
     pointerId: number;
@@ -213,9 +214,42 @@ export const AiAssistantFab: React.FC = () => {
   const panelWidth = Math.min(352, (typeof window !== 'undefined' ? window.innerWidth : 352) - 16);
   const panelHeight = Math.min(448, (typeof window !== 'undefined' ? window.innerHeight : 448) * 0.7);
   const panelPos = panelPosition(fabPos, panelWidth, panelHeight);
-  const dayHint = selectedDay
-    ? `Day ${selectedDay.dayNumber}${selectedDay.calendarDate ? ` (${selectedDay.calendarDate})` : ''}`
+
+  const placeTitle = selectedDay?.primaryPlaceId
+    ? placeById(selectedDay.primaryPlaceId)?.title?.trim()
+    : undefined;
+
+  const contextHintParts: string[] = [];
+  if (placeTitle) contextHintParts.push(placeTitle);
+  if (selectedDay) {
+    contextHintParts.push(`Day ${selectedDay.dayNumber}`);
+    if (selectedDay.calendarDate) contextHintParts.push(selectedDay.calendarDate);
+  }
+  const contextHint = contextHintParts.length
+    ? contextHintParts.join(' · ')
     : 'Select a day in the sidebar for date-specific tips';
+
+  const latestAssistantIndex = React.useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i].role === 'assistant') return i;
+    }
+    return -1;
+  }, [messages]);
+
+  const copyLatestResponse = React.useCallback(() => {
+    const latest = latestAssistantIndex >= 0 ? messages[latestAssistantIndex] : undefined;
+    if (!latest?.text.trim()) return;
+    void navigator.clipboard
+      .writeText(latest.text.trim())
+      .then(() => {
+        setCopyState('copied');
+        window.setTimeout(() => setCopyState('idle'), 2000);
+      })
+      .catch(() => {
+        setCopyState('error');
+        window.setTimeout(() => setCopyState('idle'), 2000);
+      });
+  }, [latestAssistantIndex, messages]);
 
   return (
     <>
@@ -245,7 +279,7 @@ export const AiAssistantFab: React.FC = () => {
               ×
             </button>
           </div>
-          <p className={styles.contextHint}>{dayHint}</p>
+          <p className={styles.contextHint}>{contextHint}</p>
           <div className={styles.thread}>
             {!messages.length ? (
               <p className={styles.hint}>
@@ -256,10 +290,22 @@ export const AiAssistantFab: React.FC = () => {
             {messages.map((m, i) => (
               <div key={i} className={m.role === 'user' ? styles.userMsg : styles.aiMsg}>
                 {m.role === 'assistant' ? (
-                  <RichTextContent html={markdownToHtml(m.text)} />
+                  <RichTextContent html={markdownToHtml(m.text)} className={styles.aiMsgBody} />
                 ) : (
                   <LinkifiedText text={m.text} />
                 )}
+                {m.role === 'assistant' && i === latestAssistantIndex ? (
+                  <div className={styles.aiMsgActions}>
+                    <button
+                      type="button"
+                      className={styles.copyBtn}
+                      onClick={copyLatestResponse}
+                      aria-label="Copy latest response"
+                    >
+                      {copyState === 'copied' ? 'Copied' : copyState === 'error' ? 'Copy failed' : 'Copy'}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>

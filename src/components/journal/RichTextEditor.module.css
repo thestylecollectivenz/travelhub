@@ -55,14 +55,20 @@
   cursor: not-allowed;
 }
 
+.sizeGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
 .sizeBtn {
-  min-width: 1.75rem;
+  min-width: 1.85rem;
   height: 2rem;
-  padding: 0 var(--space-1);
+  padding: 0 4px;
   border: var(--border-default);
   border-radius: var(--radius-sm);
   background: var(--color-surface-raised);
-  font-size: var(--font-size-xs);
+  font-size: 10px;
   font-weight: var(--font-weight-medium);
   color: var(--color-blue-800);
   cursor: pointer;

@@ -87,9 +87,34 @@
 
 .aiMsg {
   align-self: flex-start;
-  background: var(--color-sand-50, #f8fafc);
+  background: #fff;
+  border: var(--border-default);
   max-width: 100%;
   white-space: normal;
+}
+
+.aiMsgBody {
+  background: #fff;
+}
+
+.aiMsgActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-1);
+}
+
+.copyBtn {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 10px;
+  color: var(--color-sand-600);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.copyBtn:hover {
+  color: var(--color-primary, #1e3a5f);
 }
 
 .aiMsg a,
