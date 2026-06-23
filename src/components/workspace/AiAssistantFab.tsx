@@ -1,13 +1,17 @@
 import * as React from 'react';
 import { useConfig } from '../../context/ConfigContext';
 import { usePlaces } from '../../context/PlacesContext';
+import { usePlanView } from '../../context/PlanViewContext';
+import { useSpContext } from '../../context/SpContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { answerTravelChat } from '../../services/GeminiService';
 import { formatGeminiUserMessage } from '../../services/geminiErrorMessage';
+import { ReminderService, type TripReminder } from '../../services/ReminderService';
 import { LinkifiedText } from '../shared/LinkifiedText';
 import { RichTextContent } from '../shared/RichTextContent';
 import { loadAiChatMessages, pruneAiChatHistory, saveAiChatMessages } from '../../utils/aiChatHistory';
 import { buildTripDayAiContext } from '../../utils/buildTripDayAiContext';
+import { buildTripTasksAiContext } from '../../utils/buildTripTasksAiContext';
 import { markdownToHtml } from '../../utils/markdownToHtml';
 import { placeDisplayLabel } from '../../utils/placeDisplayLabel';
 import styles from './AiAssistantFab.module.css';
@@ -76,8 +80,11 @@ function panelPosition(fab: FabPosition, panelWidth: number, panelHeight: number
 
 export const AiAssistantFab: React.FC = () => {
   const { config } = useConfig();
-  const { trip, tripDays, selectedDayId, localEntries } = useTripWorkspace();
+  const spContext = useSpContext();
+  const planView = usePlanView();
+  const { trip, tripDays, selectedDayId, localEntries, mainWorkspaceTab } = useTripWorkspace();
   const { placeById } = usePlaces();
+  const [reminders, setReminders] = React.useState<TripReminder[]>([]);
   const [open, setOpen] = React.useState(false);
   const [input, setInput] = React.useState('');
   const [busy, setBusy] = React.useState(false);
@@ -112,6 +119,25 @@ export const AiAssistantFab: React.FC = () => {
     setMessages(loadAiChatMessages(trip.id));
   }, [trip?.id]);
 
+  React.useEffect(() => {
+    if (!trip?.id) {
+      setReminders([]);
+      return;
+    }
+    const svc = new ReminderService(spContext);
+    const load = (): void => {
+      svc
+        .getForTrip(trip.id)
+        .then(setReminders)
+        .catch(() => setReminders([]));
+    };
+    load();
+    window.addEventListener('trip-reminders-updated', load);
+    return () => window.removeEventListener('trip-reminders-updated', load);
+  }, [spContext, trip?.id]);
+
+  const isTasksView = mainWorkspaceTab === 'plan' && planView?.planTab === 'tasks';
+
   const selectedDay = React.useMemo(
     () => (selectedDayId ? tripDays.find((d) => d.id === selectedDayId) : undefined),
     [selectedDayId, tripDays]
@@ -119,6 +145,14 @@ export const AiAssistantFab: React.FC = () => {
 
   const tripContext = React.useMemo(() => {
     if (!trip) return '';
+    if (isTasksView) {
+      return buildTripTasksAiContext({
+        trip,
+        tripDays,
+        entries: localEntries,
+        reminders
+      });
+    }
     const place = selectedDay?.primaryPlaceId ? placeById(selectedDay.primaryPlaceId) : undefined;
     const placeTitle = place ? placeDisplayLabel(place) : undefined;
     return buildTripDayAiContext({
@@ -133,7 +167,7 @@ export const AiAssistantFab: React.FC = () => {
       },
       daySpecific: dayScope === 'day'
     });
-  }, [trip, tripDays, selectedDay, localEntries, placeById, dayScope]);
+  }, [trip, tripDays, selectedDay, localEntries, placeById, dayScope, isTasksView, reminders]);
 
   const persistMessages = React.useCallback(
     (next: Array<{ role: 'user' | 'assistant'; text: string }>) => {
@@ -231,9 +265,11 @@ export const AiAssistantFab: React.FC = () => {
     contextHintParts.push(`Day ${selectedDay.dayNumber}`);
     if (selectedDay.calendarDate) contextHintParts.push(selectedDay.calendarDate);
   }
-  const contextHint = contextHintParts.length
-    ? contextHintParts.join(' · ')
-    : 'Select a day in the sidebar for date-specific tips';
+  const contextHint = isTasksView
+    ? 'To-do list — ask what is overdue, due today, or due tomorrow'
+    : contextHintParts.length
+      ? contextHintParts.join(' · ')
+      : 'Select a day in the sidebar for date-specific tips';
 
   const latestAssistantIndex = React.useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -301,26 +337,33 @@ export const AiAssistantFab: React.FC = () => {
           <p className={styles.contextHint}>{contextHint}</p>
           <div className={styles.scopeRow}>
             <span className={styles.scopeLabel}>Context:</span>
-            <button
-              type="button"
-              className={`${styles.scopeBtn} ${dayScope === 'day' ? styles.scopeBtnActive : ''}`}
-              onClick={() => setDayScope('day')}
-            >
-              This day
-            </button>
-            <button
-              type="button"
-              className={`${styles.scopeBtn} ${dayScope === 'general' ? styles.scopeBtnActive : ''}`}
-              onClick={() => setDayScope('general')}
-            >
-              Whole trip
-            </button>
+            {isTasksView ? (
+              <span className={styles.scopeBtnActive}>To-do list</span>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className={`${styles.scopeBtn} ${dayScope === 'day' ? styles.scopeBtnActive : ''}`}
+                  onClick={() => setDayScope('day')}
+                >
+                  This day
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.scopeBtn} ${dayScope === 'general' ? styles.scopeBtnActive : ''}`}
+                  onClick={() => setDayScope('general')}
+                >
+                  Whole trip
+                </button>
+              </>
+            )}
           </div>
           <div className={styles.thread}>
             {!messages.length ? (
               <p className={styles.hint}>
-                Ask about this trip — routes, stations, timing, local tips. Answers use the selected day and what is
-                already on your itinerary.
+                {isTasksView
+                  ? 'Ask what you need to do today, tomorrow, or what is overdue — bookings, payments, and manual tasks.'
+                  : 'Ask about this trip — routes, stations, timing, local tips. Answers use the selected day and what is already on your itinerary.'}
               </p>
             ) : null}
             {messages.map((m, i) => (
@@ -353,7 +396,7 @@ export const AiAssistantFab: React.FC = () => {
               onChange={(e) => setInput(e.target.value)}
               disabled={busy}
               rows={3}
-              placeholder="Ask about this trip…"
+              placeholder={isTasksView ? 'What do I need to do today?' : 'Ask about this trip…'}
             />
             <button
               type="button"

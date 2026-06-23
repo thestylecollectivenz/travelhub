@@ -1,6 +1,13 @@
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { TripDay } from '../models/TripDay';
-import { compareItineraryEntriesForDisplay, expandTimelineDisplayRows, sortEntriesForDay } from './itineraryDayEntries';
+import {
+  compareItineraryEntriesForDisplay,
+  expandTimelineDisplayRows,
+  isEntryOnCalendarDate,
+  isPreTripDayRow,
+  resolvePreTripDayId,
+  sortEntriesForDay
+} from './itineraryDayEntries';
 
 function storageKey(tripId: string, viewDayId: string): string {
   return `travelHub.dayColumnOrder.${tripId}.${viewDayId}`;
@@ -94,6 +101,50 @@ export function insertEntryInDayViewOrderByTime(
   saveDayViewTimelineRowOrder(tripId, viewDayId, rows.map((r) => r.key));
 }
 
+/** Re-slot an entry by time on every day column where it appears (home day, carryovers, checkout). */
+export function syncDayColumnsForEntryTimeOrder(
+  entry: ItineraryEntry,
+  entries: ItineraryEntry[],
+  tripDays: TripDay[],
+  options?: { reposition?: boolean }
+): void {
+  const tripId = (entry.tripId || '').trim();
+  if (!tripId) return;
+  const preTripDayId = resolvePreTripDayId(tripDays, tripId);
+  const reposition = options?.reposition === true;
+
+  for (const day of tripDays) {
+    if (day.tripId !== tripId) continue;
+    const onDay =
+      entry.dayId === day.id ||
+      isEntryOnCalendarDate(entry, day.calendarDate, day.dayType, { viewingDayId: day.id, preTripDayId }, tripDays);
+    if (!onDay) continue;
+
+    const sorted = sortEntriesForDay(
+      entries,
+      day.id,
+      day.calendarDate,
+      day.dayType,
+      preTripDayId,
+      isPreTripDayRow(day),
+      tripDays
+    );
+    const rawIds = readDayViewEntryOrder(tripId, day.id);
+    let nextIds: string[];
+    if (rawIds.length === 0) {
+      nextIds = sorted.map((e) => e.id);
+    } else if (reposition || rawIds.indexOf(entry.id) < 0) {
+      nextIds = insertEntryIdAtTimePosition(rawIds, entry.id, sorted);
+    } else {
+      nextIds = rawIds;
+    }
+    saveDayViewEntryOrder(tripId, day.id, nextIds);
+    const ordered = applyDayViewEntryOrder(tripId, day.id, sorted, day.calendarDate, tripDays);
+    const rows = expandTimelineDisplayRows(ordered, day.calendarDate, tripDays);
+    saveDayViewTimelineRowOrder(tripId, day.id, rows.map((r) => r.key));
+  }
+}
+
 /** Collapse expanded timeline rows to unique entries in visual order. */
 export function entriesFromTimelineRowOrder(
   rows: Array<{ entry: ItineraryEntry }>
@@ -123,6 +174,39 @@ function readDayViewEntryOrder(tripId: string, viewDayId: string): string[] {
   } catch {
     return [];
   }
+}
+
+/** Place one entry at its time-sorted index while preserving other saved positions. */
+function insertEntryIdAtTimePosition(
+  orderedIds: string[],
+  entryId: string,
+  timeSorted: ItineraryEntry[]
+): string[] {
+  const timeIndex = timeSorted.findIndex((e) => e.id === entryId);
+  const without = orderedIds.filter((id) => id !== entryId);
+  if (timeIndex < 0) return [...without, entryId];
+
+  const beforeIds = new Set(timeSorted.slice(0, timeIndex).map((e) => e.id));
+  const afterIds = new Set(timeSorted.slice(timeIndex + 1).map((e) => e.id));
+
+  let insertAt = without.length;
+  for (let i = 0; i < without.length; i++) {
+    if (afterIds.has(without[i])) {
+      insertAt = i;
+      break;
+    }
+  }
+  if (insertAt === without.length) {
+    for (let i = without.length - 1; i >= 0; i--) {
+      if (beforeIds.has(without[i])) {
+        insertAt = i + 1;
+        break;
+      }
+    }
+  }
+  const next = [...without];
+  next.splice(insertAt, 0, entryId);
+  return next;
 }
 
 /** Insert a new card id immediately after another in a saved column order (duplicate). */

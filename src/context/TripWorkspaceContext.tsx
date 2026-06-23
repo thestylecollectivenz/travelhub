@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { WebPartContext } from '@microsoft/sp-webpart-base';
 import type { ItineraryEntry, ItinerarySubItem } from '../models/ItineraryEntry';
 import type { Trip } from '../models/Trip';
 import type { TripDay } from '../models/TripDay';
@@ -11,7 +12,6 @@ import { syncEntryCancellationDeadlineReminder } from '../utils/entryCancellatio
 import { FxService } from '../services/FxService';
 import { mergeTripDisplayPrefs, saveTripDisplayPrefs } from '../utils/tripDisplayPrefs';
 import { useSpContext } from './SpContext';
-import { minutesFromTimeStart } from '../utils/itineraryTimeUtils';
 import { repairPreTripCalendarIfCollidingWithFirstDay } from '../utils/tripPreTripCalendarAnchor';
 import { calendarDayBefore, planChronologicalRenumber, ymdSlice } from '../utils/tripDateRangeSync';
 import {
@@ -31,7 +31,8 @@ import {
   insertEntryInDayViewOrderByTime,
   removeFromDayViewEntryOrder,
   replaceIdInDayViewEntryOrder,
-  saveDayViewTimelineRowOrder
+  saveDayViewTimelineRowOrder,
+  syncDayColumnsForEntryTimeOrder
 } from '../utils/dayViewEntryOrder';
 import { useConfig } from './ConfigContext';
 import type { BudgetCategoryKey } from '../utils/financialUtils';
@@ -147,6 +148,60 @@ async function runBatched<T>(items: T[], batchSize: number, worker: (item: T) =>
   }
 }
 
+function itineraryEntryTimeFieldsChanged(prev: ItineraryEntry, next: ItineraryEntry): boolean {
+  return (
+    (prev.timeStart || '') !== (next.timeStart || '') ||
+    (prev.arrivalTime || '') !== (next.arrivalTime || '') ||
+    (prev.checkOutTime || '') !== (next.checkOutTime || '') ||
+    (prev.returnTime || '') !== (next.returnTime || '') ||
+    ymdSlice(prev.dateStart) !== ymdSlice(next.dateStart) ||
+    ymdSlice(prev.dateEnd) !== ymdSlice(next.dateEnd) ||
+    ymdSlice(prev.returnDate) !== ymdSlice(next.returnDate) ||
+    ymdSlice(prev.arrivalDate) !== ymdSlice(next.arrivalDate)
+  );
+}
+
+async function persistHomeDaySortOrders(
+  spContext: WebPartContext,
+  dayId: string,
+  entries: ItineraryEntry[],
+  tripDays: TripDay[],
+  setLocalEntries: React.Dispatch<React.SetStateAction<ItineraryEntry[]>>
+): Promise<void> {
+  const day = tripDays.find((d) => d.id === dayId);
+  const tripId = day?.tripId;
+  if (!day || !tripId) return;
+
+  const preTripDayId = resolvePreTripDayId(tripDays, tripId);
+  const sorted = sortEntriesForDay(
+    entries,
+    dayId,
+    day.calendarDate,
+    day.dayType,
+    preTripDayId,
+    isPreTripDayRow(day),
+    tripDays
+  );
+  const native = sorted.filter((e) => e.dayId === dayId);
+  const orderMap = new Map(native.map((e, i) => [e.id, i]));
+  const updates = native
+    .map((e, i) => ({ id: e.id, sortOrder: i }))
+    .filter(({ id, sortOrder }) => {
+      const current = entries.find((e) => e.id === id);
+      return (current?.sortOrder ?? -1) !== sortOrder;
+    });
+
+  setLocalEntries((prev) =>
+    prev.map((e) => (orderMap.has(e.id) ? { ...e, sortOrder: orderMap.get(e.id)! } : e))
+  );
+
+  if (!updates.length) return;
+  const svc = new ItineraryService(spContext);
+  await runBatched(updates, 5, async ({ id, sortOrder }) => {
+    await svc.update(id, { sortOrder });
+  });
+}
+
 export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspaceProviderProps): React.ReactElement {
   const spContext = useSpContext();
   const { config } = useConfig();
@@ -155,6 +210,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
   const [tripDays, setTripDays] = React.useState<TripDay[]>([]);
   const [localEntries, setLocalEntries] = React.useState<ItineraryEntry[]>([]);
   const localEntriesRef = React.useRef<ItineraryEntry[]>([]);
+  const tripDaysRef = React.useRef<TripDay[]>([]);
   const pendingEntryCreatesRef = React.useRef<Map<string, Promise<ItineraryEntry>>>(new Map());
   const pendingSubItemCreatesRef = React.useRef<Map<string, Promise<ItinerarySubItem>>>(new Map());
   const [selectedDayId, setSelectedDayId] = React.useState<string>('');
@@ -337,6 +393,10 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
     localEntriesRef.current = localEntries;
   }, [localEntries]);
 
+  React.useEffect(() => {
+    tripDaysRef.current = tripDays;
+  }, [tripDays]);
+
   const persistEntry = React.useCallback(async (entry: ItineraryEntry): Promise<ItineraryEntry> => {
     const latest = localEntriesRef.current.find((e) => e.id === entry.id) ?? entry;
     if (!isPendingItineraryEntryId(latest.id)) {
@@ -356,6 +416,14 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
         const merged = { ...created, subItems: latest.subItems ?? [] };
         setLocalEntries((prev) => prev.map((e) => (e.id === tempId ? merged : e)));
         pendingEntryCreatesRef.current.delete(tempId);
+        const allEntries = localEntriesRef.current.map((e) => (e.id === tempId ? merged : e));
+        syncDayColumnsForEntryTimeOrder(merged, allEntries, tripDaysRef.current);
+        void persistHomeDaySortOrders(spContext, merged.dayId, allEntries, tripDaysRef.current, setLocalEntries).catch(
+          (sortErr) => {
+            // eslint-disable-next-line no-console
+            console.error('persistEntry: sort order sync failed', sortErr);
+          }
+        );
         void syncEntryCancellationDeadlineReminder(spContext, merged)
           .then(
             () => undefined,
@@ -383,49 +451,33 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
     const isNew = isPendingItineraryEntryId(updated.id);
 
     if (isNew) {
-      // Optimistically add with temp ID
       const tempId = updated.id;
-      setLocalEntries((prev) => {
-        const exists = prev.findIndex((e) => e.id === tempId);
-        if (exists >= 0) {
-          const next = [...prev];
-          next[exists] = updated;
-          return next;
-        }
-        // Insert in chronological order within the day if time is set
-        if (!updated.timeStart) {
-          return [...prev, updated];
-        }
-        const updatedMinutes = minutesFromTimeStart(updated.timeStart) ?? Infinity;
-        const dayEntries = prev.filter((e) => e.dayId === updated.dayId && !e.parentEntryId);
-        const lastBefore = dayEntries.reduce<number>((lastIdx, e, i) => {
-          const eMinutes = minutesFromTimeStart(e.timeStart) ?? Infinity;
-          if (eMinutes <= updatedMinutes) return i;
-          return lastIdx;
-        }, -1);
-        const insertAt =
-          lastBefore >= 0
-            ? prev.indexOf(dayEntries[lastBefore]) + 1
-            : Math.max(0, prev.findIndex((e) => e.dayId === updated.dayId));
-        const next = [...prev];
-        next.splice(insertAt, 0, updated);
-        return next;
-      });
+      const prev = localEntriesRef.current;
+      const exists = prev.findIndex((e) => e.id === tempId);
+      const next =
+        exists >= 0
+          ? prev.map((e, i) => (i === exists ? updated : e))
+          : [...prev, updated];
+      setLocalEntries(next);
+      syncDayColumnsForEntryTimeOrder(updated, next, tripDays);
       void persistEntry(updated).catch((err) => {
         // eslint-disable-next-line no-console
         console.error('updateEntry (create): SP persist failed', err);
       });
     } else {
-      // Existing entry - optimistic update then PATCH
-      setLocalEntries((prev) => {
-        const i = prev.findIndex((e) => e.id === updated.id);
-        if (i >= 0) {
-          const next = [...prev];
-          next[i] = updated;
-          return next;
-        }
-        return [...prev, updated];
-      });
+      const prevEntry = localEntriesRef.current.find((e) => e.id === updated.id);
+      const timeChanged = prevEntry ? itineraryEntryTimeFieldsChanged(prevEntry, updated) : false;
+      const prev = localEntriesRef.current;
+      const i = prev.findIndex((e) => e.id === updated.id);
+      const next = i >= 0 ? prev.map((e, idx) => (idx === i ? updated : e)) : [...prev, updated];
+      setLocalEntries(next);
+      if (timeChanged) {
+        syncDayColumnsForEntryTimeOrder(updated, next, tripDays, { reposition: true });
+        void persistHomeDaySortOrders(spContext, updated.dayId, next, tripDays, setLocalEntries).catch((sortErr) => {
+          // eslint-disable-next-line no-console
+          console.error('updateEntry: sort order sync failed', sortErr);
+        });
+      }
       const svc = new ItineraryService(spContext);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars -- strip nested items before PATCH
       const { subItems: _subItems, ...entryWithoutSubItems } = updated;

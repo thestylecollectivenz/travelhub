@@ -181,7 +181,7 @@ export function isEntryOnCalendarDate(
   return false;
 }
 
-/** Sort for a single calendar column: saved order first, then time, then title. */
+/** Sort for a single calendar column: checkout top, timed chronology, untimed bottom; sortOrder breaks ties. */
 export function compareItineraryEntriesForDisplay(
   calendarDate: string,
   tripDays?: TripDay[]
@@ -416,6 +416,12 @@ function compareBySortOrderThenTimeForDay(
   tripDays?: TripDay[]
 ): (a: ItineraryEntry, b: ItineraryEntry) => number {
   return (a, b): number => {
+    const aCheckout =
+      a.category === 'Accommodation' && isAccommodationCheckoutOnCalendarDate(a, calendarDate);
+    const bCheckout =
+      b.category === 'Accommodation' && isAccommodationCheckoutOnCalendarDate(b, calendarDate);
+    if (aCheckout !== bCheckout) return aCheckout ? -1 : 1;
+
     const aCont = isMultiDayContinuationOnDay(a, calendarDate, tripDays);
     const bCont = isMultiDayContinuationOnDay(b, calendarDate, tripDays);
     if (aCont !== bCont) return aCont ? 1 : -1;
@@ -430,14 +436,16 @@ function compareBySortOrderThenTimeForDay(
       if (aMin === undefined && bMin !== undefined) return 1;
     }
 
+    const aMin = minutesFromTimeStart(effectivePlannerTimeStart(a, calendarDate, tripDays));
+    const bMin = minutesFromTimeStart(effectivePlannerTimeStart(b, calendarDate, tripDays));
+    const aHasTime = aMin !== undefined;
+    const bHasTime = bMin !== undefined;
+    if (aHasTime !== bHasTime) return aHasTime ? -1 : 1;
+    if (aHasTime && bHasTime && aMin !== bMin) return aMin - bMin;
+
     const ao = a.sortOrder ?? 0;
     const bo = b.sortOrder ?? 0;
     if (ao !== bo) return ao - bo;
-    const aMin = minutesFromTimeStart(effectivePlannerTimeStart(a, calendarDate, tripDays));
-    const bMin = minutesFromTimeStart(effectivePlannerTimeStart(b, calendarDate, tripDays));
-    if (aMin !== undefined && bMin !== undefined) return aMin - bMin;
-    if (aMin !== undefined) return -1;
-    if (bMin !== undefined) return 1;
     return (a.title || '').localeCompare(b.title || '');
   };
 }

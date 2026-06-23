@@ -1,8 +1,9 @@
-import type { ItineraryEntry } from '../models/ItineraryEntry';
+import type { ItineraryEntry, ItinerarySubItem } from '../models/ItineraryEntry';
 import type { Trip } from '../models/Trip';
 import type { TripDay } from '../models/TripDay';
 import { formatTimeHHMM } from './itineraryTimeUtils';
 import { formatLocationText, placeDisplayLabel } from './placeDisplayLabel';
+import { isPreTripDayRow, resolvePreTripDayId, sortEntriesForDay } from './itineraryDayEntries';
 import type { Place } from '../models/Place';
 
 function seasonLabel(calendarDate: string, hemisphere: 'north' | 'south'): string | undefined {
@@ -41,7 +42,36 @@ function dayTypeLabel(dayType: TripDay['dayType']): string {
   }
 }
 
-/** Schedule-only summary — no costs, notes, booking refs, or other private fields. */
+/** Schedule + planning status — no costs, notes, booking refs, or other private fields. */
+function formatPlanningStatus(entry: Pick<ItineraryEntry, 'decisionStatus' | 'bookingRequired' | 'bookingStatus' | 'paymentStatus' | 'amount'>): string {
+  const parts: string[] = [];
+  const decision = entry.decisionStatus || 'Planned';
+  if (decision === 'Idea') parts.push('idea only');
+  else if (decision === 'Confirmed') parts.push('confirmed');
+  else parts.push('planned');
+  if (entry.bookingRequired) {
+    parts.push(entry.bookingStatus === 'Booked' ? 'booked' : 'needs booking');
+  }
+  if (entry.paymentStatus === 'Part paid' || entry.paymentStatus === 'Fully paid' || entry.paymentStatus === 'Free') {
+    parts.push(`payment: ${entry.paymentStatus}`);
+  } else if (entry.amount > 0) {
+    parts.push('unpaid');
+  }
+  return parts.join(', ');
+}
+
+function formatOptionPlanningStatus(option: ItinerarySubItem): string {
+  const parts: string[] = [];
+  if (option.decisionStatus === 'Idea') parts.push('idea');
+  else if (option.decisionStatus === 'Confirmed') parts.push('confirmed');
+  else parts.push('planned');
+  if (option.bookingRequired) parts.push('booking required');
+  if (option.paymentStatus && option.paymentStatus !== 'Not paid') {
+    parts.push(`payment: ${option.paymentStatus}`);
+  }
+  return parts.join(', ');
+}
+
 function summarizeEntryForAi(entry: ItineraryEntry): string {
   const parts: string[] = [];
   const title = (entry.title || 'Untitled').trim();
@@ -53,7 +83,7 @@ function summarizeEntryForAi(entry: ItineraryEntry): string {
   if (start && end) parts.push(`${start}–${end}`);
   else if (start) parts.push(start);
   if (entry.location?.trim()) parts.push(`@ ${formatLocationText(entry.location.trim())}`);
-  if (entry.decisionStatus) parts.push(entry.decisionStatus);
+  parts.push(formatPlanningStatus(entry));
   const options = (entry.subItems ?? []).filter((s) => (s.title || '').trim());
   if (options.length) {
     parts.push(
@@ -62,7 +92,9 @@ function summarizeEntryForAi(entry: ItineraryEntry): string {
         .map((s) => {
           const t0 = formatTimeHHMM(s.startTime || '');
           const label = (s.title || 'Option').trim();
-          return t0 ? `${t0} ${label}` : label;
+          const status = formatOptionPlanningStatus(s);
+          const core = t0 ? `${t0} ${label}` : label;
+          return `${core} (${status})`;
         })
         .join('; ')}`
     );
@@ -71,13 +103,15 @@ function summarizeEntryForAi(entry: ItineraryEntry): string {
 }
 
 function buildFullItineraryOutline(
+  trip: Trip,
   tripDays: TripDay[],
   entries: ItineraryEntry[],
   placeForDay: (day: TripDay) => Pick<Place, 'title' | 'country'> | undefined
 ): string[] {
   const lines: string[] = [
-    'Full trip outline (days, dates, places, and card titles only — no costs, notes, or booking details):'
+    'Full trip outline (days, dates, places, card titles, and planning/booking status — no costs or notes):'
   ];
+  const preTripDayId = resolvePreTripDayId(tripDays, trip.id);
   const sortedDays = [...tripDays].sort((a, b) => a.dayNumber - b.dayNumber);
   for (const d of sortedDays) {
     const date = d.calendarDate?.slice(0, 10) ?? '';
@@ -89,9 +123,15 @@ function buildFullItineraryOutline(
     if (placeLabel) headerParts.push(placeLabel);
     lines.push(headerParts.join(' · '));
 
-    const dayEntries = entries
-      .filter((e) => e.dayId === d.id && !e.parentEntryId)
-      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    const dayEntries = sortEntriesForDay(
+      entries,
+      d.id,
+      d.calendarDate || '',
+      d.dayType,
+      preTripDayId,
+      isPreTripDayRow(d),
+      tripDays
+    );
 
     if (dayEntries.length) {
       dayEntries.forEach((e) => lines.push(`  - ${summarizeEntryForAi(e)}`));
@@ -132,7 +172,7 @@ export function buildTripDayAiContext(options: {
 
   if (tripDays.length) {
     lines.push('');
-    lines.push(...buildFullItineraryOutline(tripDays, entries, placeForDay ?? (() => undefined)));
+    lines.push(...buildFullItineraryOutline(trip, tripDays, entries, placeForDay ?? (() => undefined)));
   }
 
   if (daySpecific && day) {
@@ -146,9 +186,16 @@ export function buildTripDayAiContext(options: {
     lines.push(`Day type: ${dayTypeLabel(day.dayType)}`);
     if (placeTitle?.trim()) lines.push(`Primary place: ${formatLocationText(placeTitle.trim())}`);
 
-    const dayEntries = entries
-      .filter((e) => e.dayId === day.id && !e.parentEntryId)
-      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    const preTripDayId = resolvePreTripDayId(tripDays, trip.id);
+    const dayEntries = sortEntriesForDay(
+      entries,
+      day.id,
+      day.calendarDate || '',
+      day.dayType,
+      preTripDayId,
+      isPreTripDayRow(day),
+      tripDays
+    );
 
     lines.push('');
     if (dayEntries.length) {

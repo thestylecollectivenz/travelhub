@@ -119,12 +119,8 @@ export function formatCruisePortScheduleHero(
   const samePortAsPrev = prevPort && portPlaceKey(prevPort) === portPlaceKey(entry);
   const samePortAsNext = nextPort && portPlaceKey(nextPort) === portPlaceKey(entry);
 
-  if (samePortAsPrev && samePortAsNext) {
+  if (samePortAsNext) {
     return place ? `Overnight · ${place}` : 'Overnight';
-  }
-  if (!samePortAsPrev && samePortAsNext) {
-    if (arrive) return `Arrives ${arrive}`;
-    return place ? `Arrives · ${place}` : null;
   }
   if (samePortAsPrev && !samePortAsNext) {
     if (depart) return `Departs ${depart}`;
@@ -204,10 +200,10 @@ export function cruisePortPlannerBlocks(
   if (!samePortAsPrev && samePortAsNext) {
     if (arrive !== undefined) {
       blocks.push({
-        keySuffix: 'arrive',
+        keySuffix: 'overnight',
         startMinutes: arrive,
         durationMinutes: markerMinutes,
-        title: `Arrives in ${place}`
+        title: `Overnight · ${place}`
       });
     }
     return blocks;
