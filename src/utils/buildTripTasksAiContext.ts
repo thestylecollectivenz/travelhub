@@ -111,6 +111,22 @@ export function buildTripTasksAiContext(options: {
       ((e.paymentStatus === 'Not paid' && e.amount > 0) || e.paymentStatus === 'Part paid')
   );
 
+  const paymentOverdue: ItineraryEntry[] = [];
+  const paymentDueToday: ItineraryEntry[] = [];
+  const paymentDueTomorrow: ItineraryEntry[] = [];
+  const paymentNoDueDate: ItineraryEntry[] = [];
+
+  for (const e of paymentTasks) {
+    const due = ymdFromIso(e.paymentDueDate);
+    if (!due) {
+      paymentNoDueDate.push(e);
+      continue;
+    }
+    if (due < today) paymentOverdue.push(e);
+    else if (due === today) paymentDueToday.push(e);
+    else if (due === tomorrow) paymentDueTomorrow.push(e);
+  }
+
   const lines: string[] = [];
   lines.push(`Trip: ${trip.title || 'Untitled'}`);
   lines.push(`Today's date (local): ${today}`);
@@ -145,16 +161,37 @@ export function buildTripTasksAiContext(options: {
     })
   );
   pushSection(
-    'Payments outstanding (itinerary)',
-    paymentTasks.map((e) => {
-      const due = e.paymentDueDate ? `due ${e.paymentDueDate.slice(0, 10)}` : undefined;
-      return entryTaskLine(paymentDueTaskTitle(e), e, tripDays, due);
-    })
+    'Payments overdue',
+    paymentOverdue.map((e) => entryTaskLine(paymentDueTaskTitle(e), e, tripDays, `was due ${ymdFromIso(e.paymentDueDate)}`))
+  );
+  pushSection(
+    'Payments due today',
+    paymentDueToday.map((e) => entryTaskLine(paymentDueTaskTitle(e), e, tripDays, `due ${today}`))
+  );
+  pushSection(
+    'Payments due tomorrow',
+    paymentDueTomorrow.map((e) => entryTaskLine(paymentDueTaskTitle(e), e, tripDays, `due ${tomorrow}`))
+  );
+  pushSection(
+    'Payments outstanding (no due date set)',
+    paymentNoDueDate.map((e) => entryTaskLine(paymentDueTaskTitle(e), e, tripDays))
+  );
+  pushSection(
+    'Other payments outstanding (due later)',
+    paymentTasks
+      .filter((e) => {
+        const due = ymdFromIso(e.paymentDueDate);
+        return due && due > tomorrow;
+      })
+      .map((e) => {
+        const due = e.paymentDueDate ? `due ${e.paymentDueDate.slice(0, 10)}` : undefined;
+        return entryTaskLine(paymentDueTaskTitle(e), e, tripDays, due);
+      })
   );
 
   lines.push('');
   lines.push(
-    'When the traveller asks "what do I need to do today/tomorrow" or "what is overdue", prioritise overdue first, then due today, then due tomorrow, then bookings/payments with imminent due dates.'
+    'When the traveller asks "what do I need to do today/tomorrow" or "what is overdue", prioritise overdue tasks and payments first, then due today, then due tomorrow, then bookings with imminent due dates.'
   );
 
   return lines.join('\n');

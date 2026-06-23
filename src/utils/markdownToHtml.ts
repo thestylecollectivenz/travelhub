@@ -1,5 +1,16 @@
 import { plainTextToEditorHtml } from './journalRichText';
 
+/** Undo common entities so we do not double-escape AI text (e.g. &amp; showing literally). */
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -35,7 +46,7 @@ function ensureLinkTargets(html: string): string {
 
 /** Lightweight markdown → HTML for AI replies (bold, links, lists, paragraphs). */
 export function markdownToHtml(text: string): string {
-  const raw = (text || '').trim();
+  const raw = decodeHtmlEntities((text || '').trim());
   if (!raw) return '';
   if (/<[a-z][\s\S]*>/i.test(raw)) return ensureLinkTargets(raw);
 
