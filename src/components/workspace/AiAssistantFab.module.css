@@ -71,6 +71,38 @@
   background: var(--color-sand-50, #f8fafc);
 }
 
+.scopeRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-bottom: var(--border-default);
+  background: var(--color-sand-50, #f8fafc);
+}
+
+.scopeLabel {
+  font-size: 10px;
+  color: var(--color-sand-600);
+}
+
+.scopeBtn {
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  padding: 2px 8px;
+  font-size: 10px;
+  cursor: pointer;
+  color: var(--color-sand-700);
+}
+
+.scopeBtnActive {
+  background: var(--color-blue-50, #eff6ff);
+  border-color: var(--color-primary, #1e3a5f);
+  color: var(--color-primary, #1e3a5f);
+  font-weight: 600;
+}
+
 .userMsg,
 .aiMsg {
   padding: var(--space-2);

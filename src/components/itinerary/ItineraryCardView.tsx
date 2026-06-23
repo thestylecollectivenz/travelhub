@@ -21,6 +21,7 @@ import { EntryFilesLinksPanel } from './EntryFilesLinksPanel';
 import { sortEntryDocuments } from '../../utils/entryDocumentSort';
 import { sortEntryLinks } from '../../utils/entryLinkSort';
 import { RichTextContent } from '../shared/RichTextContent';
+import { isRichTextEditorEmpty } from '../../utils/journalRichText';
 import type { LinkedEntryTask } from '../../utils/linkedEntryTask';
 import { linkedTaskDisplayText, linkedTaskNoteDisplay } from '../../utils/linkedEntryTask';
 import {
@@ -183,7 +184,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
     if (attachmentEntryId) ids.add(attachmentEntryId);
     return ids;
   }, [attachmentEntryId, entry.id]);
-  const [notesOpen, setNotesOpen] = React.useState(() => Boolean(entry.notes?.trim()));
+  const hasNotes = !isRichTextEditorEmpty(entry.notes);
+  const [notesOpen, setNotesOpen] = React.useState(() => hasNotes);
   const [subItemsOpen, setSubItemsOpen] = React.useState(() => (entry.subItems?.length ?? 0) > 0);
   const menuButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const menuPortalRef = React.useRef<HTMLDivElement | null>(null);
@@ -233,7 +235,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   }, [menuOpen]);
 
   React.useEffect(() => {
-    setNotesOpen(Boolean(entry.notes?.trim()));
+    const nextHasNotes = !isRichTextEditorEmpty(entry.notes);
+    setNotesOpen(nextHasNotes);
   }, [entry.id, entry.notes]);
 
   React.useEffect(() => {
@@ -428,7 +431,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   }, [addSubItem, entry, setEditingSubItem]);
 
   const handleUploadDocument = React.useCallback(
-    async (file: File, documentType: EntryDocumentType, notes: string) => {
+    async (file: File, documentType: EntryDocumentType, notes: string, title?: string) => {
       const resolved = await persistEntry(entry);
       setAttachmentEntryId(resolved.id);
       await addDocument({
@@ -436,7 +439,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         dayId: resolved.dayId,
         entryId: resolved.id,
         documentType,
-        notes
+        notes,
+        title
       });
     },
     [addDocument, entry, persistEntry]
@@ -770,22 +774,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         </>
       ) : null}
 
-      {isAccommodation &&
-      (entry.roomType?.trim() ||
-        entry.checkOutTime ||
-        entry.streetAddress?.trim() ||
-        entry.phoneNumber?.trim() ||
-        entry.bookingMechanism?.trim() ||
-        entry.perksIncluded?.trim() ||
-        entry.cancellationPolicy?.trim() ||
-        entry.cancellationDeadline) ? (
-        <div className={styles.detailBlock}>
-          {entry.roomType?.trim() ? <div>Room: {entry.roomType.trim()}</div> : null}
-          {entry.checkOutTime ? <div>Check-out {formatTimeHHMM(entry.checkOutTime)}</div> : null}
-          {entry.streetAddress?.trim() ? <div>{entry.streetAddress.trim()}</div> : null}
-          {entry.phoneNumber?.trim() ? <div>Phone: {entry.phoneNumber.trim()}</div> : null}
-          {entry.bookingMechanism?.trim() ? <div>Booked via: {entry.bookingMechanism.trim()}</div> : null}
-          {entry.perksIncluded?.trim() ? <div>Perks: {entry.perksIncluded.trim()}</div> : null}
+      {!isLocationInfo && (entry.cancellationPolicy?.trim() || entry.cancellationDeadline) ? (
+        <div className={styles.cancellationBlock}>
           {entry.cancellationPolicy?.trim() ? <div>Cancellation: {entry.cancellationPolicy.trim()}</div> : null}
           {entry.cancellationDeadline ? (
             <div>Cancel by {new Date(entry.cancellationDeadline).toLocaleString('en-NZ')}</div>
@@ -793,6 +783,23 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           {entry.cancellationDeadline && hasCancellationDeadlineReminder ? (
             <div className={styles.cancellationTaskNote}>Cancellation task created (see Tasks view).</div>
           ) : null}
+        </div>
+      ) : null}
+
+      {isAccommodation &&
+      (entry.roomType?.trim() ||
+        entry.checkOutTime ||
+        entry.streetAddress?.trim() ||
+        entry.phoneNumber?.trim() ||
+        entry.bookingMechanism?.trim() ||
+        entry.perksIncluded?.trim()) ? (
+        <div className={styles.detailBlock}>
+          {entry.roomType?.trim() ? <div>Room: {entry.roomType.trim()}</div> : null}
+          {entry.checkOutTime ? <div>Check-out {formatTimeHHMM(entry.checkOutTime)}</div> : null}
+          {entry.streetAddress?.trim() ? <div>{entry.streetAddress.trim()}</div> : null}
+          {entry.phoneNumber?.trim() ? <div>Phone: {entry.phoneNumber.trim()}</div> : null}
+          {entry.bookingMechanism?.trim() ? <div>Booked via: {entry.bookingMechanism.trim()}</div> : null}
+          {entry.perksIncluded?.trim() ? <div>Perks: {entry.perksIncluded.trim()}</div> : null}
           {mapsPlaceUrl ? (
             <div className={styles.mapsLinks}>
               <a className={styles.mapsLink} href={mapsPlaceUrl} target="_blank" rel="noopener noreferrer">
@@ -814,10 +821,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           {entry.bagCheckClosesTime ? <div>Bag check closes {formatTimeHHMM(entry.bagCheckClosesTime)}</div> : null}
         </div>
       ) : null}
-      {isActivities && (entry.streetAddress?.trim() || entry.cancellationPolicy?.trim() || mapsPlaceUrl) ? (
+      {isActivities && (entry.streetAddress?.trim() || mapsPlaceUrl) ? (
         <div className={styles.detailBlock}>
           {entry.streetAddress?.trim() ? <div>{entry.streetAddress.trim()}</div> : null}
-          {entry.cancellationPolicy?.trim() ? <div>Cancellation: {entry.cancellationPolicy.trim()}</div> : null}
           {mapsPlaceUrl ? (
             <div className={styles.mapsLinks}>
               <a className={styles.mapsLink} href={mapsPlaceUrl} target="_blank" rel="noopener noreferrer">
@@ -876,12 +882,12 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         </div>
       ) : null}
 
-      {!isLocationInfo && entry.notes.trim() ? (
+      {!isLocationInfo ? (
         <>
           <button type="button" className={styles.notesToggle} onClick={() => setNotesOpen((o) => !o)}>
-            {notesOpen ? 'Notes ▴' : 'Notes ▾'}
+            {notesOpen ? 'Notes ▴' : hasNotes ? 'Notes ▾' : 'Notes (empty) ▾'}
           </button>
-          {notesOpen ? (
+          {notesOpen && hasNotes ? (
             <div className={styles.notesBody}>
               <RichTextContent html={entry.notes} />
             </div>

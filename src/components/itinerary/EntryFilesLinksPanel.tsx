@@ -13,7 +13,7 @@ export interface EntryFilesLinksPanelProps {
   links: EntryLink[];
   /** Show add document / add link controls (day cards). */
   allowAdd?: boolean;
-  onUploadDocument?: (file: File, documentType: EntryDocumentType, notes: string) => Promise<void>;
+  onUploadDocument?: (file: File, documentType: EntryDocumentType, notes: string, title?: string) => Promise<void>;
   onAddLink?: (draft: { linkTitle: string; url: string; linkType: EntryLinkType; notes: string }) => Promise<void>;
 }
 
@@ -38,6 +38,7 @@ export const EntryFilesLinksPanel: React.FC<EntryFilesLinksPanelProps> = ({
   });
   const [attachAddMode, setAttachAddMode] = React.useState<'none' | 'document' | 'link'>('none');
   const [docType, setDocType] = React.useState<EntryDocumentType>('Other');
+  const [docTitle, setDocTitle] = React.useState('');
   const [docNotes, setDocNotes] = React.useState('');
   const [docBusy, setDocBusy] = React.useState(false);
   const [linkBusy, setLinkBusy] = React.useState(false);
@@ -45,6 +46,7 @@ export const EntryFilesLinksPanel: React.FC<EntryFilesLinksPanelProps> = ({
 
   const closeAddMode = React.useCallback(() => {
     setAttachAddMode('none');
+    setDocTitle('');
     setDocNotes('');
     setLinkDraft({ linkTitle: '', url: '', linkType: 'Url', notes: '' });
   }, []);
@@ -95,6 +97,12 @@ export const EntryFilesLinksPanel: React.FC<EntryFilesLinksPanelProps> = ({
                       <option value="PDF">PDF</option>
                       <option value="Other">Other</option>
                     </select>
+                    <input
+                      className={styles.field}
+                      value={docDraft.notes}
+                      onChange={(e) => setDocDraft((prev) => ({ ...prev, notes: e.target.value }))}
+                      placeholder="Notes (optional)"
+                    />
                     <button
                       type="button"
                       className={styles.actionButton}
@@ -249,6 +257,12 @@ export const EntryFilesLinksPanel: React.FC<EntryFilesLinksPanelProps> = ({
           </div>
           {attachAddMode === 'document' && onUploadDocument ? (
             <div className={styles.addFormRow}>
+              <input
+                className={styles.fieldCompact}
+                value={docTitle}
+                onChange={(e) => setDocTitle(e.target.value)}
+                placeholder="Title (optional)"
+              />
               <select className={styles.fieldCompact} value={docType} onChange={(e) => setDocType(e.target.value as EntryDocumentType)}>
                 <option value="Ticket">Ticket</option>
                 <option value="Confirmation">Confirmation</option>
@@ -281,7 +295,7 @@ export const EntryFilesLinksPanel: React.FC<EntryFilesLinksPanelProps> = ({
                   const file = ev.target.files?.[0];
                   if (!file || !onUploadDocument) return;
                   setDocBusy(true);
-                  void onUploadDocument(file, docType, docNotes.trim())
+                  void onUploadDocument(file, docType, docNotes.trim(), docTitle.trim() || undefined)
                     .then(() => {
                       closeAddMode();
                     })

@@ -2,6 +2,7 @@ import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { Trip } from '../models/Trip';
 import type { TripDay } from '../models/TripDay';
 import { formatTimeHHMM } from './itineraryTimeUtils';
+import { formatLocationText } from './placeDisplayLabel';
 
 function seasonLabel(calendarDate: string, hemisphere: 'north' | 'south'): string | undefined {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(calendarDate);
@@ -49,7 +50,7 @@ function summarizeEntry(entry: ItineraryEntry): string {
   const end = formatTimeHHMM(entry.arrivalTime || '');
   if (start && end) parts.push(`${start}–${end}`);
   else if (start) parts.push(start);
-  if (entry.location?.trim()) parts.push(`@ ${entry.location.trim()}`);
+  if (entry.location?.trim()) parts.push(`@ ${formatLocationText(entry.location.trim())}`);
   if (entry.decisionStatus) parts.push(entry.decisionStatus);
   if (entry.bookingRequired && entry.bookingStatus === 'Not booked') parts.push('booking needed');
   const options = (entry.subItems ?? []).filter((s) => (s.title || '').trim());
@@ -74,8 +75,9 @@ export function buildTripDayAiContext(options: {
   entries: ItineraryEntry[];
   placeTitle?: string;
   hemisphere?: 'north' | 'south';
+  daySpecific?: boolean;
 }): string {
-  const { trip, day, entries, placeTitle, hemisphere = 'north' } = options;
+  const { trip, day, entries, placeTitle, hemisphere = 'north', daySpecific = true } = options;
   const lines: string[] = [];
 
   lines.push(`Trip: ${trip.title || 'Untitled'}`);
@@ -84,7 +86,7 @@ export function buildTripDayAiContext(options: {
     lines.push(`Trip dates: ${trip.dateStart.slice(0, 10)} to ${trip.dateEnd.slice(0, 10)}`);
   }
 
-  if (day) {
+  if (daySpecific && day) {
     lines.push('');
     lines.push(`Selected day: Day ${day.dayNumber} — ${day.displayTitle || 'Untitled'}`);
     if (day.calendarDate) {
@@ -93,7 +95,7 @@ export function buildTripDayAiContext(options: {
       if (season) lines.push(`Season (${hemisphere}ern hemisphere): ${season}`);
     }
     lines.push(`Day type: ${dayTypeLabel(day.dayType)}`);
-    if (placeTitle?.trim()) lines.push(`Primary place: ${placeTitle.trim()}`);
+    if (placeTitle?.trim()) lines.push(`Primary place: ${formatLocationText(placeTitle.trim())}`);
 
     const dayEntries = entries
       .filter((e) => e.dayId === day.id && !e.parentEntryId)
@@ -110,7 +112,9 @@ export function buildTripDayAiContext(options: {
 
   lines.push('');
   lines.push(
-    'When answering, tailor advice to this calendar date, season, and what is already planned. Mention gaps or timing conflicts when relevant.'
+    daySpecific
+      ? 'When answering, tailor advice to this calendar date, season, and what is already planned. Mention gaps or timing conflicts when relevant.'
+      : 'Answer at trip level unless the traveller asks about a specific day.'
   );
 
   return lines.join('\n');

@@ -3,6 +3,7 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
 import { parseAdditionalPlaceRefs } from '../../utils/tripDayPlaces';
 import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
+import { compactPlaceLabel } from '../../utils/placeDisplayLabel';
 import { formatRouteStripDayLabel } from '../../utils/formatTripDayDate';
 import styles from './RouteStrip.module.css';
 
@@ -53,17 +54,6 @@ function TransportIcon({ kind }: { kind: 'flight' | 'ground' | 'cruise' | 'arrow
 }
 
 type IconKind = 'flight' | 'ground' | 'cruise' | 'arrow';
-
-function compactPlaceLabel(rawTitle: string): string {
-  const title = (rawTitle || '').trim();
-  if (!title) return '';
-  const parts = title.split(',').map((p) => p.trim()).filter(Boolean);
-  if (parts.length <= 1) return title;
-  const place = parts[0];
-  const country = parts[parts.length - 1];
-  if (!country || place.toLowerCase() === country.toLowerCase()) return place;
-  return `${place}, ${country}`;
-}
 
 export const RouteStrip: React.FC = () => {
   const { trip, tripDays, selectedDayId, setSelectedDayId, setMainWorkspaceTab, localEntries } = useTripWorkspace();

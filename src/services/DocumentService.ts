@@ -183,7 +183,8 @@ export class DocumentService {
     notes: string,
     webAbsoluteUrl: string,
     serverRelativeUrl: string,
-    sortOrder = 0
+    sortOrder = 0,
+    title?: string
   ): Promise<EntryDocument> {
     const webRoot = serverRelativeUrl.replace(/\/$/, '');
     const rootFolder = `${webRoot}/TravelHubAssets/documents`;
@@ -191,7 +192,7 @@ export class DocumentService {
     await ensureFolderChain(this.ctx, webAbsoluteUrl, [rootFolder, tripFolder]);
     const fileUrl = await uploadFileToFolder(this.ctx, webAbsoluteUrl, tripFolder, file);
     return this.create({
-      title: file.name,
+      title: title?.trim() || file.name,
       tripId,
       dayId,
       entryId,

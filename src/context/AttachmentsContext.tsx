@@ -23,6 +23,7 @@ export interface AttachmentsContextValue {
     entryId: string;
     documentType: EntryDocumentType;
     notes?: string;
+    title?: string;
   }) => Promise<EntryDocument>;
   updateDocument: (id: string, partial: Partial<Omit<EntryDocument, 'id'>>) => Promise<void>;
   deleteDocument: (id: string) => Promise<void>;
@@ -205,6 +206,7 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       entryId: string;
       documentType: EntryDocumentType;
       notes?: string;
+      title?: string;
     }): Promise<EntryDocument> => {
       if (!tripId) throw new Error('No trip loaded');
       const svc = new DocumentService(spContext);
@@ -219,7 +221,8 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         input.notes ?? '',
         webAbsoluteUrl,
         serverRelativeUrl,
-        nextSort
+        nextSort,
+        input.title
       );
       setDocuments((prev) => [...prev, created]);
       return created;

@@ -13,7 +13,7 @@ import { useAttachments } from '../../context/AttachmentsContext';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { rememberTripBookingMechanism } from '../../utils/tripBookingMechanisms';
-import { AccommodationEditLayout, FlightEditLayout, LocationInfoEditLayout } from './ItineraryCardEditCategoryLayouts';
+import { AccommodationEditLayout, CancellationPolicyFields, FlightEditLayout, LocationInfoEditLayout } from './ItineraryCardEditCategoryLayouts';
 import { EntryLinksSortableList } from './EntryLinksSortableList';
 import { isLocationInfoEntry } from '../../utils/locationInfoEntry';
 import { isPendingItineraryEntryId, isPendingSubItemId } from '../../utils/itineraryEntryIds';
@@ -1019,26 +1019,6 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
               value={draft.perksIncluded ?? ''}
               onChange={(e) => patch({ perksIncluded: e.target.value })}
             />
-            <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`cancelpol-${draft.id}`}>
-              Cancellation policy
-            </label>
-            <textarea
-              id={`cancelpol-${draft.id}`}
-              className={`${styles.textarea} ${styles.fullRow}`}
-              rows={2}
-              value={draft.cancellationPolicy ?? ''}
-              onChange={(e) => patch({ cancellationPolicy: e.target.value })}
-            />
-            <label className={styles.label} htmlFor={`canceldead-${draft.id}`}>
-              Cancellation deadline
-            </label>
-            <input
-              id={`canceldead-${draft.id}`}
-              className={styles.input}
-              type="datetime-local"
-              value={draft.cancellationDeadline ? draft.cancellationDeadline.slice(0, 16) : ''}
-              onChange={(e) => patch({ cancellationDeadline: e.target.value || undefined })}
-            />
           </>
         ) : null}
 
@@ -1107,16 +1087,6 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
               className={styles.input}
               value={draft.streetAddress ?? ''}
               onChange={(e) => patch({ streetAddress: e.target.value })}
-            />
-            <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`cancelpol-act-${draft.id}`}>
-              Cancellation policy
-            </label>
-            <textarea
-              id={`cancelpol-act-${draft.id}`}
-              className={`${styles.textarea} ${styles.fullRow}`}
-              rows={2}
-              value={draft.cancellationPolicy ?? ''}
-              onChange={(e) => patch({ cancellationPolicy: e.target.value })}
             />
           </>
         ) : null}
@@ -1266,21 +1236,6 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           </>
         ) : null}
 
-        {isOption ? (
-          <>
-            <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`cancelpol-opt-${draft.id}`}>
-              Cancellation policy
-            </label>
-            <textarea
-              id={`cancelpol-opt-${draft.id}`}
-              className={`${styles.textarea} ${styles.fullRow}`}
-              rows={2}
-              value={draft.cancellationPolicy ?? ''}
-              onChange={(e) => patch({ cancellationPolicy: e.target.value })}
-            />
-          </>
-        ) : null}
-
         <RichTextField
           id={`notes-${draft.id}`}
           label="Notes"
@@ -1337,6 +1292,8 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
             <div className={styles.readOnlyValue}>{nights > 0 ? perNight.toFixed(2) : '—'}</div>
           </>
         ) : null}
+
+        <CancellationPolicyFields draft={draft} patch={patch} />
       </div>
       )}
 

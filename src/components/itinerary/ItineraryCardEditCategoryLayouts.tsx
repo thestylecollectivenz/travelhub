@@ -185,6 +185,36 @@ function BookingPaymentFields({
   );
 }
 
+export function CancellationPolicyFields({
+  draft,
+  patch
+}: Pick<CategoryEditLayoutProps, 'draft' | 'patch'>): React.ReactElement {
+  return (
+    <>
+      <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`cancelpol-${draft.id}`}>
+        Cancellation policy
+      </label>
+      <textarea
+        id={`cancelpol-${draft.id}`}
+        className={`${styles.textarea} ${styles.fullRow}`}
+        rows={2}
+        value={draft.cancellationPolicy ?? ''}
+        onChange={(e) => patch({ cancellationPolicy: e.target.value })}
+      />
+      <label className={styles.label} htmlFor={`canceldead-${draft.id}`}>
+        Cancellation deadline
+      </label>
+      <input
+        id={`canceldead-${draft.id}`}
+        className={styles.input}
+        type="datetime-local"
+        value={draft.cancellationDeadline ? draft.cancellationDeadline.slice(0, 16) : ''}
+        onChange={(e) => patch({ cancellationDeadline: e.target.value || undefined })}
+      />
+    </>
+  );
+}
+
 export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
   const { draft, calendarDate, dayPlaceOptions, patch } = props;
   const timeValue = formatTimeHHMM(draft.timeStart);
@@ -355,6 +385,7 @@ export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
         onChange={(e) => patch({ notes: e.target.value })}
       />
       <BookingPaymentFields {...props} amountLabel="Amount" />
+      <CancellationPolicyFields {...props} />
     </div>
   );
 };
@@ -526,26 +557,8 @@ export const AccommodationEditLayout: React.FC<CategoryEditLayoutProps> = (props
         value={draft.perksIncluded ?? ''}
         onChange={(e) => patch({ perksIncluded: e.target.value })}
       />
-      <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`cancelpol-${draft.id}`}>
-        Cancellation policy
-      </label>
-      <textarea
-        id={`cancelpol-${draft.id}`}
-        className={`${styles.textarea} ${styles.fullRow}`}
-        rows={2}
-        value={draft.cancellationPolicy ?? ''}
-        onChange={(e) => patch({ cancellationPolicy: e.target.value })}
-      />
-      <label className={styles.label} htmlFor={`canceldead-${draft.id}`}>
-        Cancellation deadline
-      </label>
-      <input
-        id={`canceldead-${draft.id}`}
-        className={styles.input}
-        type="datetime-local"
-        value={draft.cancellationDeadline ? draft.cancellationDeadline.slice(0, 16) : ''}
-        onChange={(e) => patch({ cancellationDeadline: e.target.value || undefined })}
-      />
+      <BookingPaymentFields {...props} amountLabel="Total cost" />
+      <CancellationPolicyFields {...props} />
       <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`notes-a-${draft.id}`}>
         Notes
       </label>
@@ -556,7 +569,6 @@ export const AccommodationEditLayout: React.FC<CategoryEditLayoutProps> = (props
         value={draft.notes}
         onChange={(e) => patch({ notes: e.target.value })}
       />
-      <BookingPaymentFields {...props} amountLabel="Total cost" />
       <label className={styles.label}>
         Per night cost
       </label>

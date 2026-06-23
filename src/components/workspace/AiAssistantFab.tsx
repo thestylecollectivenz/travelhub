@@ -9,6 +9,7 @@ import { RichTextContent } from '../shared/RichTextContent';
 import { loadAiChatMessages, pruneAiChatHistory, saveAiChatMessages } from '../../utils/aiChatHistory';
 import { buildTripDayAiContext } from '../../utils/buildTripDayAiContext';
 import { markdownToHtml } from '../../utils/markdownToHtml';
+import { placeDisplayLabel } from '../../utils/placeDisplayLabel';
 import styles from './AiAssistantFab.module.css';
 
 const FAB_SIZE = 48;
@@ -83,6 +84,7 @@ export const AiAssistantFab: React.FC = () => {
   const [error, setError] = React.useState<string | null>(null);
   const [messages, setMessages] = React.useState<Array<{ role: 'user' | 'assistant'; text: string }>>([]);
   const [copyState, setCopyState] = React.useState<'idle' | 'copied' | 'error'>('idle');
+  const [dayScope, setDayScope] = React.useState<'day' | 'general'>('day');
   const [fabPos, setFabPos] = React.useState<FabPosition>(() => loadFabPosition());
   const dragRef = React.useRef<{
     pointerId: number;
@@ -117,16 +119,16 @@ export const AiAssistantFab: React.FC = () => {
 
   const tripContext = React.useMemo(() => {
     if (!trip) return '';
-    const placeTitle = selectedDay?.primaryPlaceId
-      ? placeById(selectedDay.primaryPlaceId)?.title
-      : undefined;
+    const place = selectedDay?.primaryPlaceId ? placeById(selectedDay.primaryPlaceId) : undefined;
+    const placeTitle = place ? placeDisplayLabel(place) : undefined;
     return buildTripDayAiContext({
       trip,
       day: selectedDay,
       entries: localEntries,
-      placeTitle
+      placeTitle,
+      daySpecific: dayScope === 'day'
     });
-  }, [trip, selectedDay, localEntries, placeById]);
+  }, [trip, selectedDay, localEntries, placeById, dayScope]);
 
   const persistMessages = React.useCallback(
     (next: Array<{ role: 'user' | 'assistant'; text: string }>) => {
@@ -215,12 +217,11 @@ export const AiAssistantFab: React.FC = () => {
   const panelHeight = Math.min(448, (typeof window !== 'undefined' ? window.innerHeight : 448) * 0.7);
   const panelPos = panelPosition(fabPos, panelWidth, panelHeight);
 
-  const placeTitle = selectedDay?.primaryPlaceId
-    ? placeById(selectedDay.primaryPlaceId)?.title?.trim()
-    : undefined;
+  const place = selectedDay?.primaryPlaceId ? placeById(selectedDay.primaryPlaceId) : undefined;
+  const placeLabel = place ? placeDisplayLabel(place) : undefined;
 
   const contextHintParts: string[] = [];
-  if (placeTitle) contextHintParts.push(placeTitle);
+  if (placeLabel) contextHintParts.push(placeLabel);
   if (selectedDay) {
     contextHintParts.push(`Day ${selectedDay.dayNumber}`);
     if (selectedDay.calendarDate) contextHintParts.push(selectedDay.calendarDate);
@@ -239,8 +240,21 @@ export const AiAssistantFab: React.FC = () => {
   const copyLatestResponse = React.useCallback(() => {
     const latest = latestAssistantIndex >= 0 ? messages[latestAssistantIndex] : undefined;
     if (!latest?.text.trim()) return;
-    void navigator.clipboard
-      .writeText(latest.text.trim())
+    const plain = latest.text.trim();
+    const html = markdownToHtml(plain);
+    const writeRich = async (): Promise<void> => {
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard.write) {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/html': new Blob([html], { type: 'text/html' }),
+            'text/plain': new Blob([plain], { type: 'text/plain' })
+          })
+        ]);
+        return;
+      }
+      await navigator.clipboard.writeText(plain);
+    };
+    void writeRich()
       .then(() => {
         setCopyState('copied');
         window.setTimeout(() => setCopyState('idle'), 2000);
@@ -280,6 +294,23 @@ export const AiAssistantFab: React.FC = () => {
             </button>
           </div>
           <p className={styles.contextHint}>{contextHint}</p>
+          <div className={styles.scopeRow}>
+            <span className={styles.scopeLabel}>Context:</span>
+            <button
+              type="button"
+              className={`${styles.scopeBtn} ${dayScope === 'day' ? styles.scopeBtnActive : ''}`}
+              onClick={() => setDayScope('day')}
+            >
+              This day
+            </button>
+            <button
+              type="button"
+              className={`${styles.scopeBtn} ${dayScope === 'general' ? styles.scopeBtnActive : ''}`}
+              onClick={() => setDayScope('general')}
+            >
+              Whole trip
+            </button>
+          </div>
           <div className={styles.thread}>
             {!messages.length ? (
               <p className={styles.hint}>

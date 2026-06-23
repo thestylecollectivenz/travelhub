@@ -30,3 +30,8 @@ export function formatLocationText(text: string, countryFallback?: string): stri
   }
   return t;
 }
+
+/** Short display label: city/place and country only (alias used across UI). */
+export function compactPlaceLabel(rawTitle: string, countryFallback?: string): string {
+  return formatLocationText(rawTitle, countryFallback);
+}
