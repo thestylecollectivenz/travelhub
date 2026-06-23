@@ -1236,15 +1236,6 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           </>
         ) : null}
 
-        <RichTextField
-          id={`notes-${draft.id}`}
-          label="Notes"
-          value={draft.notes}
-          onChange={(html) => patch({ notes: html })}
-          fullRow
-          labelClassName={`${styles.label} ${styles.fullRow}`}
-        />
-
         {draft.paymentStatus !== 'Free' ? (
           <>
             <label className={styles.label} htmlFor={`amt-${draft.id}`}>
@@ -1294,6 +1285,15 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
         ) : null}
 
         <CancellationPolicyFields draft={draft} patch={patch} />
+
+        <RichTextField
+          id={`notes-${draft.id}`}
+          label="Notes"
+          value={draft.notes}
+          onChange={(html) => patch({ notes: html })}
+          fullRow
+          labelClassName={`${styles.label} ${styles.fullRow}`}
+        />
       </div>
       )}
 

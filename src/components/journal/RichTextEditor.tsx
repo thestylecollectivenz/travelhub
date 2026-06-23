@@ -1,6 +1,16 @@
 import * as React from 'react';
 import styles from './RichTextEditor.module.css';
-import { clearRichTextAll, clearRichTextSelection, applyFontSizeToRange } from '../../utils/richTextFormatting';
+import {
+  applyFontSizeToEditor,
+  applyFontSizeToRange,
+  applyForeColorToEditor,
+  applyForeColorToRange,
+  applyFormatPaintToRange,
+  captureFormatFromSelection,
+  clearRichTextAll,
+  clearRichTextSelection,
+  type RichTextFormatPaint
+} from '../../utils/richTextFormatting';
 
 export interface RichTextEditorProps {
   value: string;
@@ -26,6 +36,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
   const ref = React.useRef<HTMLDivElement>(null);
   const lastExternal = React.useRef<string>(value);
   const savedRangeRef = React.useRef<Range | null>(null);
+  const undoSnapshotRef = React.useRef<string | null>(null);
+  const formatPaintRef = React.useRef<RichTextFormatPaint | null>(null);
+  const [formatReady, setFormatReady] = React.useState(false);
 
   const palette = React.useMemo(
     () => [
@@ -72,15 +85,80 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
     sel.addRange(savedRangeRef.current);
   }, []);
 
+  const pushUndo = React.useCallback((): void => {
+    if (ref.current) undoSnapshotRef.current = ref.current.innerHTML;
+  }, []);
+
   const run = React.useCallback(
-    (fn: () => void): void => {
+    (fn: () => void, options?: { skipUndo?: boolean }): void => {
       if (disabled) return;
+      if (!options?.skipUndo) pushUndo();
       ref.current?.focus();
       restoreSelection();
       fn();
       emit();
     },
-    [disabled, emit, restoreSelection]
+    [disabled, emit, pushUndo, restoreSelection]
+  );
+
+  const undoLast = React.useCallback((): void => {
+    if (disabled || !ref.current || undoSnapshotRef.current === null) return;
+    ref.current.innerHTML = undoSnapshotRef.current;
+    undoSnapshotRef.current = null;
+    emit();
+  }, [disabled, emit]);
+
+  const copyOrApplyFormat = React.useCallback((): void => {
+    if (disabled) return;
+    ref.current?.focus();
+    restoreSelection();
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+
+    if (formatReady && formatPaintRef.current && !range.collapsed) {
+      pushUndo();
+      applyFormatPaintToRange(range, formatPaintRef.current);
+      formatPaintRef.current = null;
+      setFormatReady(false);
+      emit();
+      return;
+    }
+
+    const paint = captureFormatFromSelection();
+    if (!paint) return;
+    formatPaintRef.current = paint;
+    setFormatReady(true);
+  }, [disabled, emit, formatReady, pushUndo, restoreSelection]);
+
+  const applySize = React.useCallback(
+    (pt: number, all: boolean): void => {
+      run(() => {
+        if (all && ref.current) {
+          applyFontSizeToEditor(ref.current, pt);
+          return;
+        }
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return;
+        applyFontSizeToRange(sel.getRangeAt(0), pt);
+      });
+    },
+    [run]
+  );
+
+  const applyColor = React.useCallback(
+    (color: string, all: boolean): void => {
+      run(() => {
+        if (all && ref.current) {
+          applyForeColorToEditor(ref.current, color);
+          return;
+        }
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return;
+        applyForeColorToRange(sel.getRangeAt(0), color);
+      });
+    },
+    [run]
   );
 
   return (
@@ -129,15 +207,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
           <button
             type="button"
             className={styles.swatchDefault}
-            title="Default text colour"
+            title="Default text colour (selection)"
             disabled={disabled}
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() =>
-              run(() => {
-                const color = readDefaultTextColor(ref.current);
-                document.execCommand('foreColor', false, color);
-              })
-            }
+            onClick={() => applyColor(readDefaultTextColor(ref.current), false)}
           >
             A
           </button>
@@ -147,12 +220,22 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
               type="button"
               className={styles.swatch}
               style={{ background: c }}
-              title={c}
+              title={`${c} (Alt+click = all text)`}
               disabled={disabled}
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => run(() => document.execCommand('foreColor', false, c))}
+              onClick={(e) => applyColor(c, e.altKey)}
             />
           ))}
+          <button
+            type="button"
+            className={styles.swatchAll}
+            title="Apply default colour to all notes text"
+            disabled={disabled}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => applyColor(readDefaultTextColor(ref.current), true)}
+          >
+            All
+          </button>
         </div>
         <div className={styles.sizeGroup} aria-label="Font size (pt)">
           {FONT_SIZE_PT.map((pt) => (
@@ -161,18 +244,12 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
               type="button"
               className={styles.sizeBtn}
               disabled={disabled}
-              title={`${pt} pt`}
+              title={`${pt} pt (Alt+click = all text)`}
               onMouseDown={(e) => {
                 e.preventDefault();
                 saveSelection();
               }}
-              onClick={() =>
-                run(() => {
-                  const sel = window.getSelection();
-                  if (!sel || sel.rangeCount === 0) return;
-                  applyFontSizeToRange(sel.getRangeAt(0), pt);
-                })
-              }
+              onClick={(e) => applySize(pt, e.altKey)}
             >
               {pt}
             </button>
@@ -208,6 +285,28 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
         </button>
         <button
           type="button"
+          className={`${styles.toolBtn} ${formatReady ? styles.toolBtnActive : ''}`}
+          disabled={disabled}
+          title={formatReady ? 'Apply copied formatting to selection' : 'Copy formatting from selection'}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            saveSelection();
+          }}
+          onClick={copyOrApplyFormat}
+        >
+          {formatReady ? 'Apply fmt' : 'Copy fmt'}
+        </button>
+        <button
+          type="button"
+          className={styles.toolBtn}
+          disabled={disabled}
+          title="Back to last setting (undo one format change)"
+          onClick={undoLast}
+        >
+          Undo
+        </button>
+        <button
+          type="button"
           className={styles.toolBtn}
           disabled={disabled}
           title="Clear formatting (selection)"
@@ -226,6 +325,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
           title="Clear all formatting"
           onClick={() => {
             if (disabled || !ref.current) return;
+            pushUndo();
             const next = clearRichTextAll(ref.current);
             ref.current.innerHTML = next;
             emit();

@@ -374,6 +374,8 @@ export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
         value={formatTimeHHMM(draft.bagCheckClosesTime ?? '')}
         onChange={(e) => patch({ bagCheckClosesTime: combineDayAndTime(calendarDate, e.target.value) })}
       />
+      <BookingPaymentFields {...props} amountLabel="Amount" />
+      <CancellationPolicyFields {...props} />
       <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`notes-${draft.id}`}>
         Notes
       </label>
@@ -384,8 +386,6 @@ export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
         value={draft.notes}
         onChange={(e) => patch({ notes: e.target.value })}
       />
-      <BookingPaymentFields {...props} amountLabel="Amount" />
-      <CancellationPolicyFields {...props} />
     </div>
   );
 };
@@ -558,6 +558,8 @@ export const AccommodationEditLayout: React.FC<CategoryEditLayoutProps> = (props
         onChange={(e) => patch({ perksIncluded: e.target.value })}
       />
       <BookingPaymentFields {...props} amountLabel="Total cost" />
+      <label className={styles.label}>Per night cost</label>
+      <div className={styles.readOnlyValue}>{nights > 0 ? perNight.toFixed(2) : '—'}</div>
       <CancellationPolicyFields {...props} />
       <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`notes-a-${draft.id}`}>
         Notes
@@ -569,10 +571,6 @@ export const AccommodationEditLayout: React.FC<CategoryEditLayoutProps> = (props
         value={draft.notes}
         onChange={(e) => patch({ notes: e.target.value })}
       />
-      <label className={styles.label}>
-        Per night cost
-      </label>
-      <div className={styles.readOnlyValue}>{nights > 0 ? perNight.toFixed(2) : '—'}</div>
     </div>
   );
 };

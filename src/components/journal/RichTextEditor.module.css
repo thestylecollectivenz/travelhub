@@ -89,6 +89,24 @@
   min-height: 7rem;
 }
 
+.toolBtnActive {
+  background: var(--color-blue-50, #eff6ff);
+  border-color: var(--color-primary, #1e3a5f);
+}
+
+.swatchAll {
+  min-width: 1.75rem;
+  height: 1.25rem;
+  border-radius: var(--radius-sm);
+  border: var(--border-default);
+  background: var(--color-surface-raised);
+  font-size: 9px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-blue-800);
+  cursor: pointer;
+  padding: 0 3px;
+}
+
 .editor ul,
 .editor ol {
   margin: 0.35em 0 0.35em 0;

@@ -123,12 +123,17 @@ export const AiAssistantFab: React.FC = () => {
     const placeTitle = place ? placeDisplayLabel(place) : undefined;
     return buildTripDayAiContext({
       trip,
+      tripDays,
       day: selectedDay,
       entries: localEntries,
       placeTitle,
+      placeForDay: (d) => {
+        const p = d.primaryPlaceId ? placeById(d.primaryPlaceId) : undefined;
+        return p;
+      },
       daySpecific: dayScope === 'day'
     });
-  }, [trip, selectedDay, localEntries, placeById, dayScope]);
+  }, [trip, tripDays, selectedDay, localEntries, placeById, dayScope]);
 
   const persistMessages = React.useCallback(
     (next: Array<{ role: 'user' | 'assistant'; text: string }>) => {
