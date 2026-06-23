@@ -376,16 +376,6 @@ export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
       />
       <BookingPaymentFields {...props} amountLabel="Amount" />
       <CancellationPolicyFields {...props} />
-      <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`notes-${draft.id}`}>
-        Notes
-      </label>
-      <textarea
-        id={`notes-${draft.id}`}
-        className={`${styles.textarea} ${styles.fullRow}`}
-        rows={3}
-        value={draft.notes}
-        onChange={(e) => patch({ notes: e.target.value })}
-      />
     </div>
   );
 };
@@ -561,16 +551,6 @@ export const AccommodationEditLayout: React.FC<CategoryEditLayoutProps> = (props
       <label className={styles.label}>Per night cost</label>
       <div className={styles.readOnlyValue}>{nights > 0 ? perNight.toFixed(2) : '—'}</div>
       <CancellationPolicyFields {...props} />
-      <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`notes-a-${draft.id}`}>
-        Notes
-      </label>
-      <textarea
-        id={`notes-a-${draft.id}`}
-        className={`${styles.textarea} ${styles.fullRow}`}
-        rows={3}
-        value={draft.notes}
-        onChange={(e) => patch({ notes: e.target.value })}
-      />
     </div>
   );
 };

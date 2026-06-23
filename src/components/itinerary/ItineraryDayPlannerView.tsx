@@ -124,12 +124,14 @@ function plannerBlockZIndex(
 function plannerBlockScheduleHero(
   item: PlannerTimedItem,
   calendarDate: string,
-  tripDays: TripDay[]
+  tripDays: TripDay[],
+  tripEntries: ItineraryEntry[]
 ): string | null {
   const leg = plannerItemTransportLeg(item, item.entry, calendarDate);
   return formatEntryScheduleHero(item.entry, calendarDate, tripDays, {
     transportLeg: leg,
-    subItem: item.subItem
+    subItem: item.subItem,
+    allEntries: tripEntries
   });
 }
 
@@ -867,7 +869,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
   const previewScheduleHero =
     previewEntry
       ? formatEntryScheduleHero(previewEntry, previewViewCalendarDate, tripDays, {
-          transportLeg: previewTransportLeg
+          transportLeg: previewTransportLeg,
+          allEntries: entriesForTrip
         })
       : null;
   const previewDocs = previewEntry ? docsForEntry(previewEntry.id) : [];
@@ -1215,7 +1218,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                         editingSubItem?.parentEntryId === e.id &&
                         editingSubItem?.subItemId === sub!.id;
                       const blockZ = plannerBlockZIndex(item, timed, frontBlockKey, isEditingParent || isEditingSub);
-                      const blockScheduleHero = plannerBlockScheduleHero(item, cal, tripDays);
+                      const blockScheduleHero = plannerBlockScheduleHero(item, cal, tripDays, entriesForTrip);
                       return (
                         <div
                           key={item.key}
@@ -1476,7 +1479,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                           editingSubItem?.parentEntryId === e.id &&
                           editingSubItem?.subItemId === sub!.id;
                         const blockZ = plannerBlockZIndex(item, timed, frontBlockKey, isEditingParent || isEditingSub);
-                        const blockScheduleHero = plannerBlockScheduleHero(item, cal, tripDays);
+                        const blockScheduleHero = plannerBlockScheduleHero(item, cal, tripDays, entriesForTrip);
                         return (
                           <div
                             key={item.key}

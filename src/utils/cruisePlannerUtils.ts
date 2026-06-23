@@ -1,7 +1,7 @@
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { TripDay } from '../models/TripDay';
 import { formatLocationText } from './placeDisplayLabel';
-import { minutesFromTimeStart } from './itineraryTimeUtils';
+import { formatTimeHHMM, minutesFromTimeStart } from './itineraryTimeUtils';
 
 export function isCruiseSeaOrScenicEntry(entry: ItineraryEntry): boolean {
   if (entry.category === 'Cruise at sea') return true;
@@ -85,6 +85,56 @@ export interface CruisePortPlannerBlock {
   startMinutes: number;
   durationMinutes: number;
   title: string;
+}
+
+export function formatCruisePortScheduleHero(
+  entry: ItineraryEntry,
+  calendarDate: string,
+  tripDays: TripDay[],
+  tripEntries: ItineraryEntry[]
+): string | null {
+  if (entry.category !== 'Cruise port' || isCruiseSeaOrScenicEntry(entry)) return null;
+
+  const viewYmd = ymdSlice(calendarDate);
+  const entryYmd = calendarDateForEntry(entry, tripDays);
+  if (!viewYmd || viewYmd !== entryYmd) return null;
+
+  const arrive = formatTimeHHMM(entry.timeStart || '');
+  const depart = formatTimeHHMM(entry.arrivalTime || '');
+  const place = formatLocationText((entry.location || entry.title || 'port').trim());
+
+  const disembarkCruises = cruisesDisembarkingOn(entryYmd, tripEntries);
+  const embarkCruises = cruisesEmbarkingOn(entryYmd, tripEntries);
+  if (disembarkCruises.length || embarkCruises.length) {
+    const parts: string[] = [];
+    if (disembarkCruises.length && arrive) parts.push(`Disembark ${arrive}`);
+    if (embarkCruises.length && depart) parts.push(`Departs ${depart}`);
+    return parts.length ? parts.join(' · ') : null;
+  }
+
+  const prevYmd = adjacentCalendarYmd(viewYmd, tripDays, -1);
+  const nextYmd = adjacentCalendarYmd(viewYmd, tripDays, 1);
+  const prevPort = prevYmd ? cruisePortOnCalendarDate(tripEntries, tripDays, prevYmd) : undefined;
+  const nextPort = nextYmd ? cruisePortOnCalendarDate(tripEntries, tripDays, nextYmd) : undefined;
+  const samePortAsPrev = prevPort && portPlaceKey(prevPort) === portPlaceKey(entry);
+  const samePortAsNext = nextPort && portPlaceKey(nextPort) === portPlaceKey(entry);
+
+  if (samePortAsPrev && samePortAsNext) {
+    return place ? `Overnight · ${place}` : 'Overnight';
+  }
+  if (!samePortAsPrev && samePortAsNext) {
+    if (arrive) return `Arrives ${arrive}`;
+    return place ? `Arrives · ${place}` : null;
+  }
+  if (samePortAsPrev && !samePortAsNext) {
+    if (depart) return `Departs ${depart}`;
+    return place ? `Departs · ${place}` : null;
+  }
+
+  const parts: string[] = [];
+  if (arrive) parts.push(`Arrives ${arrive}`);
+  if (depart) parts.push(`Departs ${depart}`);
+  return parts.length ? parts.join(' · ') : null;
 }
 
 export function cruisePortPlannerBlocks(

@@ -5,8 +5,8 @@ import { confirmUserAction } from '../../utils/confirmAction';
 import { useSpContext } from '../../context/SpContext';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { ReminderService } from '../../services/ReminderService';
-import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../../utils/googleMapsLink';
+import type { EntryDocumentType, EntryLinkType } from '../../models';
 import { SubItemDetailLines } from './SubItemDetailLines';
 import { EntryFilesLinksPanel } from './EntryFilesLinksPanel';
 import styles from './SubItem.module.css';
@@ -62,9 +62,10 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId, dragHandl
     setEditingSubItem,
     editingSubItem,
     duplicateSubItem,
-    moveSubItem
+    moveSubItem,
+    persistSubItem
   } = useTripWorkspace();
-  const { docsForEntry, linksForEntry } = useAttachments();
+  const { docsForEntry, linksForEntry, addDocument, addLink } = useAttachments();
   const [taskBusy, setTaskBusy] = React.useState(false);
   const [taskPanelOpen, setTaskPanelOpen] = React.useState(false);
   const [taskDesc, setTaskDesc] = React.useState('');
@@ -89,6 +90,38 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId, dragHandl
   const links = linksForEntry(item.id);
   const isEditingInPanel =
     editingSubItem?.parentEntryId === parentEntryId && editingSubItem?.subItemId === item.id;
+
+  const handleUploadDocument = React.useCallback(
+    async (file: File, documentType: EntryDocumentType, notes: string, title?: string) => {
+      if (!parentEntry) return;
+      const persisted = await persistSubItem(parentEntryId, item);
+      await addDocument({
+        file,
+        dayId: parentEntry.dayId,
+        entryId: persisted.id,
+        documentType,
+        notes,
+        title
+      });
+    },
+    [addDocument, item, parentEntry, parentEntryId, persistSubItem]
+  );
+
+  const handleAddLink = React.useCallback(
+    async (draft: { linkTitle: string; url: string; linkType: EntryLinkType; notes: string }) => {
+      if (!parentEntry) return;
+      const persisted = await persistSubItem(parentEntryId, item);
+      await addLink({
+        dayId: parentEntry.dayId,
+        entryId: persisted.id,
+        linkType: draft.linkType,
+        url: draft.url,
+        linkTitle: draft.linkTitle,
+        notes: draft.notes
+      });
+    },
+    [addLink, item, parentEntry, parentEntryId, persistSubItem]
+  );
 
   const submitOptionTask = React.useCallback(() => {
     if (!trip?.id || !parentEntry) return;
@@ -164,7 +197,14 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId, dragHandl
             ) : null}
           </div>
         ) : null}
-        <EntryFilesLinksPanel entryId={item.id} docs={docs} links={links} />
+        <EntryFilesLinksPanel
+          entryId={item.id}
+          docs={docs}
+          links={links}
+          allowAdd
+          onUploadDocument={handleUploadDocument}
+          onAddLink={handleAddLink}
+        />
       </div>
       <div className={styles.actionCol}>
         {dragHandle ? <span className={styles.dragHandleSlot}>{dragHandle}</span> : null}

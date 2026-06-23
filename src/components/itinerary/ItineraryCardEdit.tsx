@@ -10,15 +10,15 @@ import { durationFromDateTimes, arrivalTimeFromDuration, isDurationExpressionCom
 import { useConfig } from '../../context/ConfigContext';
 import { CurrencySelect } from '../shared/CurrencySelect';
 import { useAttachments } from '../../context/AttachmentsContext';
-import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { rememberTripBookingMechanism } from '../../utils/tripBookingMechanisms';
 import { AccommodationEditLayout, CancellationPolicyFields, FlightEditLayout, LocationInfoEditLayout } from './ItineraryCardEditCategoryLayouts';
-import { EntryLinksSortableList } from './EntryLinksSortableList';
+import { EntryFilesLinksPanel } from './EntryFilesLinksPanel';
 import { isLocationInfoEntry } from '../../utils/locationInfoEntry';
 import { isPendingItineraryEntryId, isPendingSubItemId } from '../../utils/itineraryEntryIds';
 import { editableEntryToSubItem } from '../../utils/optionEntryAdapter';
 import { RichTextField } from '../shared/RichTextField';
+import type { EntryDocumentType, EntryLinkType } from '../../models';
 import { sortEntryDocuments } from '../../utils/entryDocumentSort';
 import { sortEntryLinks } from '../../utils/entryLinkSort';
 import { ymdSlice } from '../../utils/tripListSort';
@@ -84,13 +84,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   const isLocationInfo = isLocationInfoEntry(draft);
   const isOption = variant === 'option';
   const needsComputedEndTime = isFlights || isTransport || isActivities || isOption;
-  const { documents, links, addDocument, deleteDocument, addLink, deleteLink } = useAttachments();
-  const [attachOpen, setAttachOpen] = React.useState(false);
-  const [linkTitle, setLinkTitle] = React.useState('');
-  const [linkUrl, setLinkUrl] = React.useState('');
-  const [docBusy, setDocBusy] = React.useState(false);
-  const [attachError, setAttachError] = React.useState('');
-  const fileRef = React.useRef<HTMLInputElement | null>(null);
+  const { documents, links, addDocument, addLink } = useAttachments();
 
   const knownAttachmentEntryIds = React.useMemo(() => {
     const ids = new Set<string>();
@@ -108,12 +102,6 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
     () => sortEntryLinks(links.filter((l) => knownAttachmentEntryIds.has(l.entryId))),
     [knownAttachmentEntryIds, links]
   );
-
-  React.useEffect(() => {
-    if (attachDocs.length + attachLinks.length > 0) {
-      setAttachOpen(true);
-    }
-  }, [draft.id, attachDocs.length, attachLinks.length]);
 
   const syncDraftId = React.useCallback((nextId: string) => {
     setAttachmentEntryId(nextId);
@@ -135,6 +123,38 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       return { id: resolved.id, dayId: resolved.dayId };
     },
     [variant, calendarDate, persistEntry, persistSubItem]
+  );
+
+  const handleUploadDocument = React.useCallback(
+    async (file: File, documentType: EntryDocumentType, notes: string, title?: string) => {
+      const resolved = await resolveAttachmentTarget(draft);
+      syncDraftId(resolved.id);
+      await addDocument({
+        file,
+        dayId: resolved.dayId,
+        entryId: resolved.id,
+        documentType,
+        notes,
+        title
+      });
+    },
+    [addDocument, draft, resolveAttachmentTarget, syncDraftId]
+  );
+
+  const handleAddLink = React.useCallback(
+    async (linkDraft: { linkTitle: string; url: string; linkType: EntryLinkType; notes: string }) => {
+      const resolved = await resolveAttachmentTarget(draft);
+      syncDraftId(resolved.id);
+      await addLink({
+        dayId: resolved.dayId,
+        entryId: resolved.id,
+        linkType: linkDraft.linkType,
+        url: linkDraft.url,
+        linkTitle: linkDraft.linkTitle,
+        notes: linkDraft.notes
+      });
+    },
+    [addLink, draft, resolveAttachmentTarget, syncDraftId]
   );
 
   const nights = React.useMemo(() => {
@@ -1285,7 +1305,10 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
         ) : null}
 
         <CancellationPolicyFields draft={draft} patch={patch} />
+      </div>
+      )}
 
+      {!isLocationInfo ? (
         <RichTextField
           id={`notes-${draft.id}`}
           label="Notes"
@@ -1294,144 +1317,17 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           fullRow
           labelClassName={`${styles.label} ${styles.fullRow}`}
         />
-      </div>
-      )}
+      ) : null}
 
       <div className={styles.attachmentsBlock}>
-        <button type="button" className={styles.attachmentsToggle} onClick={() => setAttachOpen((o) => !o)}>
-          {attachOpen ? 'Hide attachments ▴' : 'Attachments ▾'}
-        </button>
-        {attachOpen ? (
-          <div className={styles.attachmentsInner}>
-            <p className={styles.attachmentsHint}>
-              {attachDocs.length} file{attachDocs.length === 1 ? '' : 's'} · {attachLinks.length} link
-              {attachLinks.length === 1 ? '' : 's'}
-              {isPendingItineraryEntryId(draft.id) ? ' · saves entry automatically when you add files or links' : ''}
-            </p>
-            {attachError ? <p className={styles.attachmentsHint}>{attachError}</p> : null}
-            <div className={styles.attachmentsToolbar}>
-              <button type="button" className={styles.btnSecondary} disabled={docBusy} onClick={() => fileRef.current?.click()}>
-                {docBusy ? 'Uploading…' : 'Upload file'}
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                className={styles.fileHidden}
-                onChange={(ev) => {
-                  const f = ev.target.files?.[0];
-                  if (!f) return;
-                  setDocBusy(true);
-                  setAttachError('');
-                  void resolveAttachmentTarget(draft)
-                    .then((resolved) => {
-                      syncDraftId(resolved.id);
-                      return addDocument({
-                        file: f,
-                        dayId: resolved.dayId,
-                        entryId: resolved.id,
-                        documentType: 'Other',
-                        notes: ''
-                      });
-                    })
-                    .catch((err) => {
-                      setAttachError('Could not save file — try saving the card first.');
-                      console.error(err);
-                    })
-                    .then(() => {
-                      setDocBusy(false);
-                      ev.target.value = '';
-                    });
-                }}
-              />
-              <input
-                className={styles.input}
-                placeholder="Link title"
-                value={linkTitle}
-                onChange={(e) => setLinkTitle(e.target.value)}
-              />
-              <input
-                className={styles.input}
-                placeholder="https://…"
-                value={linkUrl}
-                onChange={(e) => setLinkUrl(e.target.value)}
-              />
-              <button
-                type="button"
-                className={styles.btnSecondary}
-                onClick={() => {
-                  const t = linkTitle.trim();
-                  const u = linkUrl.trim();
-                  if (!t || !u) return;
-                  setAttachError('');
-                  void resolveAttachmentTarget(draft)
-                    .then((resolved) => {
-                      syncDraftId(resolved.id);
-                      return addLink({
-                        dayId: resolved.dayId,
-                        entryId: resolved.id,
-                        linkType: 'Url',
-                        url: u,
-                        linkTitle: t
-                      });
-                    })
-                    .then(() => {
-                      setLinkTitle('');
-                      setLinkUrl('');
-                    })
-                    .catch((err) => {
-                      setAttachError('Could not save link — try saving the card first.');
-                      console.error(err);
-                    });
-                }}
-              >
-                Add link
-              </button>
-            </div>
-            <div className={styles.attachList}>
-              {attachDocs.map((d) => (
-                <div key={d.id} className={styles.attachRow}>
-                  <button type="button" className={styles.attachLink} onClick={() => openDocumentUrl(d.fileUrl)}>
-                    {d.title || 'Document'}
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.attachRemove}
-                    onClick={() => {
-                      void (async () => {
-                        if (!(await confirmUserAction('Remove this document?'))) return;
-                        deleteDocument(d.id).catch(console.error);
-                      })();
-                    }}
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-              <EntryLinksSortableList entryId={attachmentEntryId} links={attachLinks}>
-                {(l, dragHandle) => (
-                  <div className={styles.attachRow}>
-                    {dragHandle}
-                    <button type="button" className={styles.attachLink} onClick={() => openDocumentUrl(l.url)}>
-                      {l.linkTitle || l.url}
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.attachRemove}
-                      onClick={() => {
-                        void (async () => {
-                          if (!(await confirmUserAction('Remove this link?'))) return;
-                          deleteLink(l.id).catch(console.error);
-                        })();
-                      }}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                )}
-              </EntryLinksSortableList>
-            </div>
-          </div>
-        ) : null}
+        <EntryFilesLinksPanel
+          entryId={attachmentEntryId}
+          docs={attachDocs}
+          links={attachLinks}
+          allowAdd
+          onUploadDocument={handleUploadDocument}
+          onAddLink={handleAddLink}
+        />
       </div>
 
       <div className={styles.actions}>

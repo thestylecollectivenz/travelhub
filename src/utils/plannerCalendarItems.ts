@@ -98,14 +98,12 @@ export function accommodationPlannerBlocks(
   }
   if (day && checkOutDay === day) {
     const start = minutesFromTimeStart(entry.checkOutTime || '');
-    if (start !== undefined) {
-      blocks.push({
-        keySuffix: 'checkout',
-        startMinutes: start,
-        durationMinutes: PORT_MARKER_MINUTES,
-        title: `${base} · Check-out`
-      });
-    }
+    blocks.push({
+      keySuffix: 'checkout',
+      startMinutes: start ?? 8 * 60,
+      durationMinutes: PORT_MARKER_MINUTES,
+      title: `${base} · Check-out${entry.checkOutTime ? ` ${formatTimeHHMM(entry.checkOutTime)}` : ''}`
+    });
   }
   return blocks;
 }

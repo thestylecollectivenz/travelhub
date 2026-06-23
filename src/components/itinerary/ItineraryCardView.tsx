@@ -29,7 +29,9 @@ import {
   effectiveTransportLegTime,
   isTransportReturnOnCalendarDate,
   transportLegDurationLabel,
-  formatEntryScheduleHero
+  formatEntryScheduleHero,
+  isAccommodationCheckoutOnCalendarDate,
+  isAccommodationNightOnCalendarDate
 } from '../../utils/itineraryDayEntries';
 import type { TransportTimelineLeg } from '../../utils/itineraryDayEntries';
 import { formatActivityScheduleLabel } from '../../utils/activityScheduleLabel';
@@ -166,7 +168,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const openTaskTarget =
     manualTasks.find((t) => t.reminderId === openTaskReminderId) ?? linkedEntryTask ?? manualTasks[0];
   const spContext = useSpContext();
-  const { trip, addSubItem, convertToHomeCurrency, setSelectedDayId, setMainWorkspaceTab, tripDays, updateEntry, persistEntry, editingSubItem, setEditingSubItem } =
+  const { trip, addSubItem, convertToHomeCurrency, setSelectedDayId, setMainWorkspaceTab, tripDays, localEntries, updateEntry, persistEntry, editingSubItem, setEditingSubItem } =
     useTripWorkspace();
   const planView = usePlanView();
   const { config } = useConfig();
@@ -267,7 +269,14 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
     (transportLeg === 'return' || (!transportLeg && isTransportReturnOnCalendarDate(entry, calendarDate)));
   const transportOutboundHere = isTransport && !transportReturnHere && transportLeg !== 'return';
   const legDurationLabel = transportLegDurationLabel(entry, calendarDate, tripDays, transportLeg);
-  const entryScheduleHero = formatEntryScheduleHero(entry, calendarDate, tripDays, { transportLeg });
+  const entryScheduleHero = formatEntryScheduleHero(entry, calendarDate, tripDays, {
+    transportLeg,
+    allEntries: localEntries
+  });
+  const isCheckoutMorningOnly =
+    entry.category === 'Accommodation' &&
+    isAccommodationCheckoutOnCalendarDate(entry, calendarDate) &&
+    !isAccommodationNightOnCalendarDate(entry, calendarDate);
   const hhmm = formatTimeHHMM(effectiveTransportLegTime(entry, calendarDate, tripDays, transportLeg));
   const timeChip = isActivities
     ? formatActivityScheduleLabel({
@@ -736,7 +745,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       </div>
       ) : null}
 
-      {!isLocationInfo ? (
+      {!isLocationInfo && !isCheckoutMorningOnly ? (
         <>
           <div className={styles.amountRow}>
             {isAccommodation && nights > 0 ? (
@@ -774,7 +783,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         </>
       ) : null}
 
-      {!isLocationInfo && (entry.cancellationPolicy?.trim() || entry.cancellationDeadline) ? (
+      {!isLocationInfo && !isCheckoutMorningOnly && (entry.cancellationPolicy?.trim() || entry.cancellationDeadline) ? (
         <div className={styles.cancellationBlock}>
           {entry.cancellationPolicy?.trim() ? <div>Cancellation: {entry.cancellationPolicy.trim()}</div> : null}
           {entry.cancellationDeadline ? (
