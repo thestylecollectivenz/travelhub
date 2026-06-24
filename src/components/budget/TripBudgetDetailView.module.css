@@ -204,6 +204,22 @@
   font-weight: var(--font-weight-semibold);
 }
 
+.sortRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: var(--border-default);
+}
+
+.sortLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-600);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .lineList {
   border: var(--border-default);
   border-radius: var(--radius-lg);

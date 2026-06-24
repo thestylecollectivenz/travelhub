@@ -65,11 +65,15 @@ function settledAmount(total: number, paid: number | undefined, status: string):
   return 0;
 }
 
-function sortKeyForEntry(entry: ItineraryEntry, tripDays: TripDay[]): string {
-  if (entry.dateStart) return entry.dateStart;
-  if (entry.embarksDate) return entry.embarksDate;
-  const day = tripDays.find((d) => d.id === entry.dayId);
-  return day?.calendarDate?.slice(0, 10) || '9999-12-31';
+function sortKeyForEntry(entry: ItineraryEntry, tripDays: TripDay[], sub?: ItinerarySubItem): string {
+  const date =
+    entry.dateStart ||
+    entry.embarksDate ||
+    tripDays.find((d) => d.id === entry.dayId)?.calendarDate?.slice(0, 10) ||
+    '9999-12-31';
+  const time = (sub?.startTime || entry.timeStart || '').trim();
+  const timePart = time ? (time.length >= 5 ? time.slice(0, 5) : time) : '00:00';
+  return `${date}T${timePart}`;
 }
 
 function dateLinesForEntry(entry: ItineraryEntry, dayLabel: string): string[] {
@@ -80,14 +84,11 @@ function dateLinesForEntry(entry: ItineraryEntry, dayLabel: string): string[] {
 }
 
 function normalizeEntryCostCertainty(v?: string): CostCertainty {
-  return v === 'Estimated' ? 'Estimated' : 'Confirmed';
+  return v === 'Confirmed' ? 'Confirmed' : 'Estimated';
 }
 
-function normalizeSubCostCertainty(v?: string, decisionStatus?: string): CostCertainty {
-  if (v === 'Confirmed') return 'Confirmed';
-  if (v === 'Estimated') return 'Estimated';
-  if (decisionStatus === 'Idea' || decisionStatus === 'Planned') return 'Estimated';
-  return 'Estimated';
+function normalizeSubCostCertainty(v?: string): CostCertainty {
+  return v === 'Confirmed' ? 'Confirmed' : 'Estimated';
 }
 
 export function buildBudgetDetailLines(
@@ -152,12 +153,12 @@ export function buildBudgetDetailLines(
         total: subTotal,
         spent: subSpent,
         remaining: Math.max(0, subTotal - subSpent),
-        costCertainty: normalizeSubCostCertainty(sub.costCertainty, sub.decisionStatus),
+        costCertainty: normalizeSubCostCertainty(sub.costCertainty),
         isSubItem: true,
         parentTitle: entry.category === 'Cruise port' ? 'Cruise port' : entry.title || 'Untitled',
         transportSubtype: subCategory === 'Transport' ? entry.transportMode?.trim() || undefined : undefined,
         supplier: sub.supplier?.trim() || entry.supplier?.trim() || undefined,
-        sortKey: sortKeyForEntry(entry, tripDays)
+        sortKey: sortKeyForEntry(entry, tripDays, sub)
       });
     }
   }

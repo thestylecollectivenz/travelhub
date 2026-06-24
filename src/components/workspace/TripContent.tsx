@@ -37,7 +37,7 @@ import {
 import { PlanViewProvider, usePlanView } from '../../context/PlanViewContext';
 import { DayTitleStrip } from '../day/DayTitleStrip';
 import { PaneCollapseToggle } from '../layout/PaneCollapseToggle';
-import { RightPane } from '../layout/RightPane';
+import { RightPane, type RightPaneMode } from '../layout/RightPane';
 import dayHeaderStyles from '../day/DayHeader.module.css';
 import { useMinViewportWidth } from '../../utils/useMinViewportWidth';
 import {
@@ -64,6 +64,7 @@ const TripContentInner: React.FC = () => {
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const planView = usePlanView();
   const showDesktopRightPane = useMinViewportWidth(DESKTOP_LAYOUT_MIN_PX);
+
   const [sidebarWidth, setSidebarWidth] = React.useState<number>(() =>
     resolveSidebarWidthPx(config, PRIVATE_WORKSPACE_TAB_COUNT)
   );
@@ -95,6 +96,19 @@ const TripContentInner: React.FC = () => {
     if (!trip || !selectedDayId) return undefined;
     return tripDays.find((x) => x.id === selectedDayId && x.tripId === trip.id);
   }, [trip, tripDays, selectedDayId]);
+
+  const rightPaneMode = React.useMemo((): RightPaneMode => {
+    if (mainWorkspaceTab === 'itinerary' && dayPanelDay) return 'itinerary-day';
+    if (mainWorkspaceTab === 'journal' || mainWorkspaceTab === 'photos') return 'journal';
+    if (mainWorkspaceTab === 'budget') return 'budget';
+    if (mainWorkspaceTab === 'map') return 'map';
+    if (mainWorkspaceTab === 'files') return 'files';
+    if (mainWorkspaceTab === 'plan') {
+      if (planView?.planTab === 'packing') return 'packing';
+      if (planView?.planTab === 'tasks' || planView?.planTab === 'missing_costs') return 'tasks';
+    }
+    return 'default';
+  }, [mainWorkspaceTab, dayPanelDay, planView?.planTab]);
 
   const journalPaneDays = React.useMemo(() => {
     if (!trip) return [];
@@ -386,6 +400,7 @@ const TripContentInner: React.FC = () => {
             showSelectDayHint={mainWorkspaceTab === 'itinerary' && !dayPanelDay}
             showJournalMedia={mainWorkspaceTab === 'journal' || mainWorkspaceTab === 'photos'}
             journalDays={journalPaneDays}
+            paneMode={rightPaneMode}
           />
         </div>
       ) : null}

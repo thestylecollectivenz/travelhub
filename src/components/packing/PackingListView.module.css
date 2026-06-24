@@ -1,5 +1,11 @@
 .root { display: grid; gap: var(--space-3); }
 
+.dropActive {
+  outline: 2px dashed var(--color-primary);
+  outline-offset: 4px;
+  border-radius: var(--radius-md);
+}
+
 .heading {
   margin: 0;
   font-size: var(--font-size-lg);

@@ -24,6 +24,11 @@ import { BudgetPrintSheet } from './BudgetPrintSheet';
 import styles from './TripBudgetDetailView.module.css';
 
 type BudgetViewMode = 'category' | 'all';
+type BudgetLineSort = 'date' | 'alpha';
+
+function avgUnitLabel(spanLabel?: string): 'night' | 'day' {
+  return spanLabel && spanLabel.indexOf('night') >= 0 ? 'night' : 'day';
+}
 
 function BudgetLineTable({
   lines,
@@ -33,7 +38,9 @@ function BudgetLineTable({
   onSupplierFilter,
   transportSubtypeFilter,
   onTransportSubtypeFilter,
-  onEditEntry
+  onEditEntry,
+  lineSort,
+  onLineSort
 }: {
   lines: BudgetDetailLine[];
   homeCurrency: string;
@@ -43,6 +50,8 @@ function BudgetLineTable({
   transportSubtypeFilter: string | null;
   onTransportSubtypeFilter: (value: string | null) => void;
   onEditEntry: (entryId: string, subItemId?: string) => void;
+  lineSort: BudgetLineSort;
+  onLineSort: (value: BudgetLineSort) => void;
 }): React.ReactElement {
   const suppliers = React.useMemo(() => {
     const set = new Set<string>();
@@ -64,8 +73,14 @@ function BudgetLineTable({
     let out = lines;
     if (supplierFilter) out = out.filter((line) => line.supplier === supplierFilter);
     if (transportSubtypeFilter) out = out.filter((line) => line.transportSubtype === transportSubtypeFilter);
-    return out;
-  }, [lines, supplierFilter, transportSubtypeFilter]);
+    const sorted = [...out];
+    if (lineSort === 'alpha') {
+      sorted.sort((a, b) => a.title.localeCompare(b.title) || a.sortKey.localeCompare(b.sortKey));
+    } else {
+      sorted.sort((a, b) => a.sortKey.localeCompare(b.sortKey) || a.title.localeCompare(b.title));
+    }
+    return sorted;
+  }, [lines, supplierFilter, transportSubtypeFilter, lineSort]);
 
   const totals = sumBudgetLines(visibleLines);
   if (!lines.length) {
@@ -115,6 +130,23 @@ function BudgetLineTable({
           ))}
         </div>
       ) : null}
+      <div className={styles.sortRow} role="group" aria-label="Sort line items">
+        <span className={styles.sortLabel}>Sort</span>
+        <button
+          type="button"
+          className={`${styles.subtypeChip} ${lineSort === 'date' ? styles.subtypeChipActive : ''}`}
+          onClick={() => onLineSort('date')}
+        >
+          Date &amp; time
+        </button>
+        <button
+          type="button"
+          className={`${styles.subtypeChip} ${lineSort === 'alpha' ? styles.subtypeChipActive : ''}`}
+          onClick={() => onLineSort('alpha')}
+        >
+          A–Z
+        </button>
+      </div>
       <div className={styles.lineHeader}>
         <span>Details</span>
         <span className={styles.colMoney}>Total budget</span>
@@ -144,6 +176,7 @@ function BudgetLineTable({
               </button>
             </span>
             {line.locationLine ? <span className={styles.lineMeta}>{line.locationLine}</span> : null}
+            {line.supplier ? <span className={styles.lineMeta}>{line.supplier}</span> : null}
             {line.dateLines.map((d) => (
               <span key={d} className={styles.lineMeta}>
                 {d}
@@ -151,7 +184,9 @@ function BudgetLineTable({
             ))}
             {line.spanLabel ? <span className={styles.lineMeta}>{line.spanLabel}</span> : null}
             {line.avgPerDay !== undefined && line.avgPerDay > 0 ? (
-              <span className={styles.lineMeta}>Avg {formatCurrency(line.avgPerDay, homeCurrency)} / day</span>
+              <span className={styles.lineMeta}>
+                Avg {formatCurrency(line.avgPerDay, homeCurrency)} / {avgUnitLabel(line.spanLabel)}
+              </span>
             ) : null}
           </div>
           <span className={`${styles.lineAmount} ${styles.colMoney}`}>{formatCurrency(line.total, homeCurrency)}</span>
@@ -183,6 +218,7 @@ export const TripBudgetDetailView: React.FC = () => {
   const [printHtml, setPrintHtml] = React.useState<string | null>(null);
   const [transportSubtypeFilter, setTransportSubtypeFilter] = React.useState<string | null>(null);
   const [supplierFilter, setSupplierFilter] = React.useState<string | null>(null);
+  const [lineSort, setLineSort] = React.useState<BudgetLineSort>('date');
 
   React.useEffect(() => {
     if (selectedBudgetCategory) {
@@ -383,6 +419,8 @@ export const TripBudgetDetailView: React.FC = () => {
             transportSubtypeFilter={transportSubtypeFilter}
             onTransportSubtypeFilter={setTransportSubtypeFilter}
             onEditEntry={openEntryForEdit}
+            lineSort={lineSort}
+            onLineSort={setLineSort}
           />
         </>
       ) : (
@@ -408,6 +446,8 @@ export const TripBudgetDetailView: React.FC = () => {
                   transportSubtypeFilter={null}
                   onTransportSubtypeFilter={() => undefined}
                   onEditEntry={openEntryForEdit}
+                  lineSort={lineSort}
+                  onLineSort={setLineSort}
                 />
               </section>
             );

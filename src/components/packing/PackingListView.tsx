@@ -5,6 +5,7 @@ import { useSpContext } from '../../context/SpContext';
 import { PackingItem, PackingService } from '../../services/PackingService';
 import { loadTripTravellers } from '../../utils/tripTravellers';
 import { confirmUserAction } from '../../utils/confirmAction';
+import { PACKING_DRAG_MIME, parsePackingTemplateDrag } from '../../utils/packingTemplateDrag';
 import styles from './PackingListView.module.css';
 
 const CATEGORIES = ['Clothing', 'Shoes', 'Accessories', 'Toiletries', 'Electronics', 'Documents', 'Medications', 'Other'];
@@ -35,6 +36,51 @@ export const PackingListView: React.FC = () => {
   React.useEffect(() => {
     refresh();
   }, [refresh]);
+
+  const addTemplateItem = React.useCallback(
+    (itemName: string, category: string, quantity: number): void => {
+      if (!trip?.id || !itemName.trim()) return;
+      const traveller = activeTraveller || travellers[0] || 'Traveller 1';
+      const cat = CATEGORIES.indexOf(category) >= 0 ? category : 'Other';
+      service
+        .create({
+          tripId: trip.id,
+          category: activeCategory === '__all__' ? cat : activeCategory,
+          traveller,
+          itemName: itemName.trim(),
+          quantity: Math.max(1, quantity || 1),
+          isPacked: false,
+          isTemplate: false,
+          templateId: ''
+        })
+        .then(refresh)
+        .catch(console.error);
+    },
+    [service, trip?.id, activeTraveller, travellers, activeCategory, refresh]
+  );
+
+  React.useEffect(() => {
+    const onTemplateAdd = (event: Event): void => {
+      const detail = (event as CustomEvent<{ itemName?: string; category?: string; quantity?: number }>).detail;
+      if (!detail?.itemName) return;
+      addTemplateItem(detail.itemName, detail.category || 'Other', detail.quantity || 1);
+    };
+    window.addEventListener('packing-template-add', onTemplateAdd);
+    return () => window.removeEventListener('packing-template-add', onTemplateAdd);
+  }, [addTemplateItem]);
+
+  const [dropActive, setDropActive] = React.useState(false);
+
+  const handleTemplateDrop = React.useCallback(
+    (event: React.DragEvent<HTMLElement>): void => {
+      event.preventDefault();
+      setDropActive(false);
+      const payload = parsePackingTemplateDrag(event.dataTransfer.getData(PACKING_DRAG_MIME));
+      if (!payload) return;
+      addTemplateItem(payload.itemName, payload.category, payload.quantity);
+    },
+    [addTemplateItem]
+  );
 
   React.useEffect(() => {
     const openTemplates = (): void => {
@@ -80,7 +126,17 @@ export const PackingListView: React.FC = () => {
   }, [categoryRows]);
 
   return (
-    <section className={styles.root}>
+    <section
+      className={`${styles.root} ${dropActive ? styles.dropActive : ''}`}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.indexOf(PACKING_DRAG_MIME) >= 0) {
+          e.preventDefault();
+          setDropActive(true);
+        }
+      }}
+      onDragLeave={() => setDropActive(false)}
+      onDrop={handleTemplateDrop}
+    >
       <div className={styles.row}>
         <h2 className={styles.heading}>
           Packing — {activeTraveller ? activeTraveller : 'All travellers'}

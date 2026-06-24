@@ -106,30 +106,44 @@ function reminderDisplayTitle(m: TripReminder): string {
 function resolveReminderItineraryTarget(
   m: TripReminder,
   localEntries: ItineraryEntry[]
-): { openEntryId: string; openDayId: string; contextLine: string; entry?: ItineraryEntry } | undefined {
+): { openEntryId: string; openDayId: string; contextLine: string; entry?: ItineraryEntry; supplier?: string } | undefined {
   const eid = (m.entryId || '').trim();
   if (!eid) return undefined;
   const parent = localEntries.find((e) => e.id === eid);
   if (parent) {
+    const supplier = parent.supplier?.trim() || undefined;
     return {
       openEntryId: parent.id,
       openDayId: parent.dayId,
       contextLine: `${parent.category ? `${parent.category} · ` : ''}${parent.title || 'Untitled'}`,
-      entry: parent
+      entry: parent,
+      supplier
     };
   }
   for (const p of localEntries) {
     const sub = p.subItems?.find((s) => s.id === eid);
     if (sub) {
+      const supplier = sub.supplier?.trim() || p.supplier?.trim() || undefined;
       return {
         openEntryId: p.id,
         openDayId: p.dayId,
         contextLine: `Option: ${sub.title || 'Untitled'} · under ${p.title || 'Item'}`,
-        entry: p
+        entry: p,
+        supplier
       };
     }
   }
   return undefined;
+}
+
+function supplierMetaLine(supplier?: string): React.ReactNode {
+  if (!supplier?.trim()) return null;
+  return (
+    <>
+      <span aria-hidden> · </span>
+      {supplier.trim()}
+    </>
+  );
 }
 
 function ymdFromIso(iso?: string): string {
@@ -614,6 +628,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                   <div className={styles.meta}>
                     {entry.category ? `${entry.category} · ` : null}
                     {dayName(entry.dayId) || 'Day'}
+                    {supplierMetaLine(entry.supplier)}
                   </div>
                 </div>
                 <div className={styles.actions}>
@@ -833,6 +848,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                             {target.contextLine}
                             <span aria-hidden> · </span>
                             {dayName(target.openDayId) || 'Itinerary day'}
+                            {supplierMetaLine(target.supplier)}
                           </div>
                         ) : null}
                       </>
@@ -902,7 +918,10 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                 />
                 <div className={styles.itemBody}>
                   <div>Book: {entry.title}</div>
-                  <div className={styles.meta}>{dayName(entry.dayId)}</div>
+                  <div className={styles.meta}>
+                    {dayName(entry.dayId)}
+                    {supplierMetaLine(entry.supplier)}
+                  </div>
                   <label className={styles.dueLabel}>
                     Book by{' '}
                     <input
@@ -958,7 +977,10 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                       : paymentDueTaskTitle(entry)}{' '}
                     ({Math.max(0, entry.amount - (entry.amountPaid || 0)).toFixed(2)})
                   </div>
-                  <div className={styles.meta}>{dayName(entry.dayId)}</div>
+                  <div className={styles.meta}>
+                    {dayName(entry.dayId)}
+                    {supplierMetaLine(entry.supplier)}
+                  </div>
                   <label className={styles.dueLabel}>
                     Pay by{' '}
                     <input

@@ -7,7 +7,22 @@ import { DayPlaceInfoSection } from '../day/DayPlaceInfoSection';
 import { PaneCollapseToggle } from './PaneCollapseToggle';
 import { RightPaneTripSummary } from './RightPaneTripSummary';
 import { RightPaneJournalMedia } from './RightPaneJournalMedia';
+import { RightPaneMapAnalysis } from './RightPaneMapAnalysis';
+import { RightPaneBudgetInsights } from './RightPaneBudgetInsights';
+import { RightPaneFilesInsights } from './RightPaneFilesInsights';
+import { RightPaneTasksInsights } from './RightPaneTasksInsights';
+import { RightPanePackingTemplates } from './RightPanePackingTemplates';
 import styles from './RightPane.module.css';
+
+export type RightPaneMode =
+  | 'itinerary-day'
+  | 'journal'
+  | 'budget'
+  | 'map'
+  | 'files'
+  | 'tasks'
+  | 'packing'
+  | 'default';
 
 export interface RightPaneProps {
   widthPx: number;
@@ -20,6 +35,7 @@ export interface RightPaneProps {
   showSelectDayHint: boolean;
   showJournalMedia?: boolean;
   journalDays?: TripDay[];
+  paneMode?: RightPaneMode;
 }
 
 export const RightPane: React.FC<RightPaneProps> = ({
@@ -32,7 +48,8 @@ export const RightPane: React.FC<RightPaneProps> = ({
   showItineraryDayContent,
   showSelectDayHint,
   showJournalMedia = false,
-  journalDays = []
+  journalDays = [],
+  paneMode = 'default'
 }) => {
   const { trip } = useTripWorkspace();
   const { config } = useConfig();
@@ -69,8 +86,18 @@ export const RightPane: React.FC<RightPaneProps> = ({
               />
             </div>
           </>
-        ) : showJournalMedia && journalDays.length ? (
+        ) : paneMode === 'journal' && showJournalMedia && journalDays.length ? (
           <RightPaneJournalMedia journalDays={journalDays} />
+        ) : paneMode === 'map' ? (
+          <RightPaneMapAnalysis />
+        ) : paneMode === 'budget' ? (
+          <RightPaneBudgetInsights />
+        ) : paneMode === 'files' ? (
+          <RightPaneFilesInsights />
+        ) : paneMode === 'tasks' ? (
+          <RightPaneTasksInsights />
+        ) : paneMode === 'packing' ? (
+          <RightPanePackingTemplates />
         ) : (
           <RightPaneTripSummary showSelectDayHint={showSelectDayHint} />
         )}

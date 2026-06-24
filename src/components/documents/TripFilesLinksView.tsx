@@ -151,7 +151,7 @@ export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeD
             const editKey = `${r.kind}-${r.id}`;
             const isEditing = editingKey === editKey;
             return (
-              <div key={editKey} className={styles.row}>
+              <div key={editKey} className={isEditing ? styles.rowEditing : styles.row}>
                 {isEditing && r.kind === 'document' ? (
                   <>
                     <input className={styles.input} value={docDraft.title} onChange={(e) => setDocDraft((prev) => ({ ...prev, title: e.target.value }))} placeholder="Title" />
@@ -238,23 +238,25 @@ export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeD
                         .filter(Boolean)
                         .join(' · ')}
                     </span>
-                    <button type="button" className={styles.button} onClick={() => startEdit(r)}>
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.deleteBtn}
-                      onClick={() => {
-                        void (async () => {
-                          const label = r.kind === 'document' ? 'document' : 'link';
-                          if (!(await confirmUserAction(`Delete this ${label}?`))) return;
-                          if (r.kind === 'document') deleteDocument(r.id).catch(console.error);
-                          else deleteLink(r.id).catch(console.error);
-                        })();
-                      }}
-                    >
-                      Delete
-                    </button>
+                    <span className={styles.rowActions}>
+                      <button type="button" className={styles.inlineAction} onClick={() => startEdit(r)}>
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.inlineActionMuted}
+                        onClick={() => {
+                          void (async () => {
+                            const label = r.kind === 'document' ? 'document' : 'link';
+                            if (!(await confirmUserAction(`Delete this ${label}?`))) return;
+                            if (r.kind === 'document') deleteDocument(r.id).catch(console.error);
+                            else deleteLink(r.id).catch(console.error);
+                          })();
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </span>
                   </>
                 )}
               </div>
