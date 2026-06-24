@@ -300,9 +300,7 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
         duration: '',
         supplier: '',
         location: displayPort,
-        notes: [row.date ? `Cruise import · ${row.date}` : 'Cruise import', row.importNotes?.trim()]
-          .filter(Boolean)
-          .join('\n'),
+        notes: row.importNotes?.trim() || '',
         decisionStatus: 'Planned',
         bookingRequired: false,
         bookingStatus: 'Not booked',
@@ -499,7 +497,7 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
         duration: '',
         supplier: '',
         location: trip.destination,
-        notes: `Imported ${parsed.length} port line(s) from cruise itinerary.`,
+        notes: '',
         decisionStatus: 'Planned',
         bookingRequired: false,
         bookingStatus: 'Not booked',

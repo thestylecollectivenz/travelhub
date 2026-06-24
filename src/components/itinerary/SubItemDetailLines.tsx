@@ -83,6 +83,7 @@ export const SubItemDetailLines: React.FC<SubItemDetailLinesProps> = ({
         <div className={styles.timeLine}>{timeLine}</div>
       ) : null}
       {locationLine ? <div className={styles.locationLine}>{locationLine}</div> : null}
+      {item.supplier?.trim() ? <div className={styles.supplierLine}>{item.supplier.trim()}</div> : null}
       <div className={styles.badges}>
         {item.category?.trim() ? (
           <span className={`${styles.badge} th-cat-badge th-cat-${getCategorySlug(item.category)}`}>{item.category}</span>

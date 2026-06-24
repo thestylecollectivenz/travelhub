@@ -893,9 +893,15 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
 
       {!isLocationInfo ? (
         <>
-          <button type="button" className={styles.notesToggle} onClick={() => setNotesOpen((o) => !o)}>
-            {notesOpen ? 'Notes ▴' : hasNotes ? 'Notes ▾' : 'Notes (empty) ▾'}
-          </button>
+          {hasNotes ? (
+            <button type="button" className={styles.notesToggle} onClick={() => setNotesOpen((o) => !o)}>
+              {notesOpen ? 'Notes ▴' : 'Notes ▾'}
+            </button>
+          ) : (
+            <button type="button" className={styles.notesEnterLink} onClick={onEdit}>
+              Enter notes
+            </button>
+          )}
           {notesOpen && hasNotes ? (
             <div className={styles.notesBody}>
               <RichTextContent html={entry.notes} />

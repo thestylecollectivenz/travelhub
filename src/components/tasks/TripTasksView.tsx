@@ -20,6 +20,7 @@ import { confirmUserAction } from '../../utils/confirmAction';
 import { loadTripAssignees, rememberTripAssignee } from '../../utils/tripAssignees';
 import { reminderTaskCategory, TASK_FILTER_UNCATEGORISED } from '../../utils/taskFilters';
 import { openTasksPrintPreview, type TasksPrintSection } from '../../utils/tasksPrintHtml';
+import { localTodayYmd, matchesTaskDueFilter, type TaskDueFilter } from '../../utils/taskDueBuckets';
 import dayHeaderStyles from '../day/DayHeader.module.css';
 import styles from './TripTasksView.module.css';
 
@@ -140,6 +141,9 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
   const [createAssignedTo, setCreateAssignedTo] = React.useState('');
   const [createTaskCategory, setCreateTaskCategory] = React.useState('Other');
   const [dueDateSort, setDueDateSort] = React.useState<DueDateSort>('none');
+  const [taskDueFilter, setTaskDueFilter] = React.useState<TaskDueFilter>('all');
+  const [paymentDueFilter, setPaymentDueFilter] = React.useState<TaskDueFilter>('all');
+  const todayYmd = React.useMemo(() => localTodayYmd(), []);
 
   const taskCategoryFilter = planView?.taskCategoryFilter ?? null;
   const taskAssigneeFilter = planView?.taskAssigneeFilter ?? null;
@@ -243,11 +247,13 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
         ? localEntries.filter(
             (e) =>
               ((e.paymentStatus === 'Not paid' && e.amount > 0) || e.paymentStatus === 'Part paid') &&
-              matchesCategoryFilter(e)
+              matchesCategoryFilter(e) &&
+              matchesTaskDueFilter(e.paymentDueDate, paymentDueFilter, todayYmd)
           )
         : [],
-    [localEntries, matchesCategoryFilter, showEntryDerivedTasks, showEntryDerivedForAssignee]
+    [localEntries, matchesCategoryFilter, showEntryDerivedTasks, showEntryDerivedForAssignee, paymentDueFilter, todayYmd]
   );
+
   const manualTodos = React.useMemo(() => {
     let rows = manual.filter(
       (m) =>
@@ -259,6 +265,11 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
     rows = rows.filter(matchesReminderFilters);
     return sortRemindersByDueDate(rows, dueDateSort);
   }, [manual, filter, matchesReminderFilters, dueDateSort]);
+
+  const filteredManualTodos = React.useMemo(
+    () => manualTodos.filter((m) => matchesTaskDueFilter(m.dueDate, taskDueFilter, todayYmd)),
+    [manualTodos, taskDueFilter, todayYmd]
+  );
 
   const cancellationReminders = React.useMemo(() => {
     let rows = manual.filter((m) => m.reminderType === 'CancellationDeadline');
@@ -686,7 +697,19 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                 Due date {dueDateSort === 'asc' ? '↑' : dueDateSort === 'desc' ? '↓' : '—'}
               </button>
             </div>
-            {manualTodos.map((m) => {
+            <div className={styles.dueFilterRow} role="group" aria-label="Filter tasks by due date">
+              {(['all', 'overdue', 'today', 'tomorrow'] as TaskDueFilter[]).map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={taskDueFilter === key ? styles.dueFilterChipActive : styles.dueFilterChip}
+                  onClick={() => setTaskDueFilter(key)}
+                >
+                  {key === 'all' ? 'All' : key === 'overdue' ? 'Overdue' : key === 'today' ? 'Due today' : 'Due tomorrow'}
+                </button>
+              ))}
+            </div>
+            {filteredManualTodos.map((m) => {
               const target = resolveReminderItineraryTarget(m, localEntries);
               const isEditing = editingReminderId === m.id;
               return (
@@ -877,6 +900,18 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
           {showTaskSection('payments') ? (
           <div className={styles.group}>
             <h3 className={styles.title}>Payments due</h3>
+            <div className={styles.dueFilterRow} role="group" aria-label="Filter payments by due date">
+              {(['all', 'overdue', 'today', 'tomorrow'] as TaskDueFilter[]).map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={paymentDueFilter === key ? styles.dueFilterChipActive : styles.dueFilterChip}
+                  onClick={() => setPaymentDueFilter(key)}
+                >
+                  {key === 'all' ? 'All' : key === 'overdue' ? 'Overdue' : key === 'today' ? 'Due today' : 'Due tomorrow'}
+                </button>
+              ))}
+            </div>
             {paymentTasks.length === 0 ? (
               <p className={styles.sectionHelp}>No outstanding payments.</p>
             ) : null}

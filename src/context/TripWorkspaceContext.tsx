@@ -9,6 +9,7 @@ import { DayService } from '../services/DayService';
 import { ItineraryService } from '../services/ItineraryService';
 import { ReminderService } from '../services/ReminderService';
 import { syncEntryCancellationDeadlineReminder } from '../utils/entryCancellationReminderSync';
+import { insertSubItemByTime } from '../utils/subItemSort';
 import { FxService } from '../services/FxService';
 import { mergeTripDisplayPrefs, saveTripDisplayPrefs } from '../utils/tripDisplayPrefs';
 import { useSpContext } from './SpContext';
@@ -415,6 +416,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
         const created = await svc.create(itineraryEntryCreatePayload(latest));
         const merged = { ...created, subItems: latest.subItems ?? [] };
         setLocalEntries((prev) => prev.map((e) => (e.id === tempId ? merged : e)));
+        setEditingCardId((prev) => (prev === tempId ? merged.id : prev));
         pendingEntryCreatesRef.current.delete(tempId);
         const allEntries = localEntriesRef.current.map((e) => (e.id === tempId ? merged : e));
         syncDayColumnsForEntryTimeOrder(merged, allEntries, tripDaysRef.current);
@@ -813,6 +815,9 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
                 : entry
             )
           );
+          setEditingSubItem((prev) =>
+            prev?.subItemId === subItem.id ? { parentEntryId: parentId, subItemId: merged.id } : prev
+          );
           pendingSubItemCreatesRef.current.delete(subItem.id);
           return merged;
         } catch (err) {
@@ -849,33 +854,41 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
         })();
         if (!sub) return;
         const merged = { ...sub, ...updatedSubItem, id: sub.id };
+        let slot = merged;
         setLocalEntries((prev) =>
-          prev.map((entry) =>
-            entry.id === entryId
-              ? { ...entry, subItems: entry.subItems?.map((s) => (s.id === merged.id ? merged : s)) }
-              : entry
-          )
+          prev.map((entry) => {
+            if (entry.id !== entryId) return entry;
+            const subs = entry.subItems ?? [];
+            const prior = subs.find((s) => s.id === merged.id);
+            const timeChanged = (prior?.startTime || '') !== (merged.startTime || '');
+            const nextSubs = timeChanged
+              ? insertSubItemByTime(subs, merged)
+              : subs.map((s) => (s.id === merged.id ? merged : s));
+            slot = nextSubs.find((s) => s.id === merged.id) ?? merged;
+            return { ...entry, subItems: nextSubs };
+          })
         );
         const svc = new ItineraryService(spContext);
         svc
-          .update(merged.id, {
-            title: merged.title,
-            category: merged.category,
-            timeStart: merged.startTime,
-            arrivalTime: merged.endTime,
-            duration: merged.duration,
-            decisionStatus: merged.decisionStatus,
-            paymentStatus: merged.paymentStatus,
-            amount: merged.amount,
-            amountPaid: merged.amountPaid,
-            currency: merged.currency,
-            costCertainty: merged.costCertainty,
-            notes: merged.notes,
-            location: merged.location,
-            streetAddress: merged.streetAddress,
-            bookingRequired: merged.bookingRequired === true,
-            sortOrder: merged.sortOrder,
-            cancellationPolicy: merged.cancellationPolicy
+          .update(slot.id, {
+            title: slot.title,
+            category: slot.category,
+            timeStart: slot.startTime,
+            arrivalTime: slot.endTime,
+            duration: slot.duration,
+            supplier: slot.supplier,
+            decisionStatus: slot.decisionStatus,
+            paymentStatus: slot.paymentStatus,
+            amount: slot.amount,
+            amountPaid: slot.amountPaid,
+            currency: slot.currency,
+            costCertainty: slot.costCertainty,
+            notes: slot.notes,
+            location: slot.location,
+            streetAddress: slot.streetAddress,
+            bookingRequired: slot.bookingRequired === true,
+            sortOrder: slot.sortOrder,
+            cancellationPolicy: slot.cancellationPolicy
           } as Partial<ItineraryEntry>)
           .catch((err) => {
             // eslint-disable-next-line no-console
@@ -893,9 +906,8 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
         prev.map((entry) => {
           if (entry.id !== entryId) return entry;
           const subs = entry.subItems ?? [];
-          const maxSort = subs.reduce((m, s) => Math.max(m, s.sortOrder ?? 0), -1);
-          const subItemWithTempId: ItinerarySubItem = { ...subItem, id: tempId, sortOrder: maxSort + 1 };
-          return { ...entry, subItems: [...subs, subItemWithTempId] };
+          const subItemWithTempId: ItinerarySubItem = { ...subItem, id: tempId, sortOrder: subs.length };
+          return { ...entry, subItems: insertSubItemByTime(subs, subItemWithTempId) };
         })
       );
       return tempId;

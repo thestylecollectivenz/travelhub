@@ -33,6 +33,8 @@ export interface ItinerarySubItem {
   amountPaid?: number;
   currency: string;
   costCertainty?: CostCertainty;
+  /** Optional supplier / operator for this option. */
+  supplier?: string;
   notes?: string;
   groupLabel?: string;
   /** Display order within parent card (SharePoint SortOrder on child row). */

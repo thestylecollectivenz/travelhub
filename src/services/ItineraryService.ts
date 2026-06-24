@@ -313,6 +313,7 @@ function mapToSubItem(item: any): ItinerarySubItem {
         ? item.CostCertainty
         : undefined,
     notes: item.Notes ?? '',
+    supplier: item.Supplier ?? undefined,
     groupLabel: item.GroupLabel ?? undefined,
     location: item.Location ?? undefined,
     streetAddress: item.StreetAddress ?? undefined,

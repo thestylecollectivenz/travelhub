@@ -129,6 +129,9 @@
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-bold);
   color: var(--color-blue-800);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  padding-right: var(--space-8);
 }
 
 .returnPill {
@@ -169,6 +172,8 @@
   font-size: var(--font-size-sm);
   color: var(--color-blue-700);
   line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .taskInlineLabel {
@@ -205,6 +210,8 @@
   font-size: var(--font-size-xs);
   color: var(--color-blue-800);
   margin-top: var(--space-1);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .cancellationTaskNote {
@@ -376,6 +383,22 @@
 
 .notesToggle:hover {
   text-decoration: underline;
+}
+
+.notesEnterLink {
+  margin-top: var(--space-2);
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.notesEnterLink:hover {
+  color: var(--color-blue-800);
 }
 
 .notesBody {
@@ -592,11 +615,11 @@
 .relatedContent {
   max-height: 0;
   overflow: hidden;
-  transition: max-height 200ms ease;
 }
 
 .relatedContentOpen {
-  max-height: 900px;
+  max-height: none;
+  overflow: visible;
 }
 
 .newSubItemForm {
@@ -777,6 +800,8 @@
   color: var(--color-blue-900);
   white-space: pre-wrap;
   line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .locationInfoAiError {

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import type { ItinerarySubItem } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { confirmUserAction } from '../../utils/confirmAction';
@@ -9,47 +10,13 @@ import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../../utils/googleM
 import type { EntryDocumentType, EntryLinkType } from '../../models';
 import { SubItemDetailLines } from './SubItemDetailLines';
 import { EntryFilesLinksPanel } from './EntryFilesLinksPanel';
+import cardMenuStyles from './ItineraryCardView.module.css';
 import styles from './SubItem.module.css';
 
 export interface SubItemProps {
   item: ItinerarySubItem;
   parentEntryId: string;
   dragHandle?: React.ReactNode;
-}
-
-function EditIcon(): React.ReactElement {
-  return (
-    <svg width={12} height={12} viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path d="M3 11.8 11.6 3.2l1.2 1.2L4.2 13H3v-1.2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M9.9 4.9 11.1 6.1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function DeleteIcon(): React.ReactElement {
-  return (
-    <svg width={12} height={12} viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function TaskIcon(): React.ReactElement {
-  return (
-    <svg width={12} height={12} viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path d="M3.5 3.5h9v9h-9v-9Z" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M5.5 7.5h5M5.5 10h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function DuplicateIcon(): React.ReactElement {
-  return (
-    <svg width={12} height={12} viewBox="0 0 16 16" fill="none" aria-hidden>
-      <rect x="5.5" y="5.5" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M3.5 10.5V3.5a1 1 0 0 1 1-1H10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-    </svg>
-  );
 }
 
 export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId, dragHandle }) => {
@@ -69,27 +36,54 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId, dragHandl
   const [taskBusy, setTaskBusy] = React.useState(false);
   const [taskPanelOpen, setTaskPanelOpen] = React.useState(false);
   const [taskDesc, setTaskDesc] = React.useState('');
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const [moveOpen, setMoveOpen] = React.useState(false);
+  const menuButtonRef = React.useRef<HTMLButtonElement>(null);
+  const menuPortalRef = React.useRef<HTMLDivElement>(null);
+  const [menuAnchor, setMenuAnchor] = React.useState({ top: 0, left: 0, width: 140 });
 
   const parentEntry = React.useMemo(() => localEntries.find((e) => e.id === parentEntryId), [localEntries, parentEntryId]);
   const calendarDate = React.useMemo(() => {
     const day = tripDays.find((d) => d.id === parentEntry?.dayId);
     return day?.calendarDate?.slice(0, 10) ?? '';
   }, [tripDays, parentEntry?.dayId]);
-  const moveTargets = React.useMemo(
-    () =>
-      localEntries.filter(
-        (e) =>
-          e.dayId === parentEntry?.dayId &&
-          !e.parentEntryId &&
-          e.id !== parentEntryId &&
-          e.id !== item.id
-      ),
-    [localEntries, parentEntry?.dayId, parentEntryId, item.id]
-  );
+
+  const moveTargetGroups = React.useMemo(() => {
+    const sortedDays = [...tripDays].sort((a, b) => a.dayNumber - b.dayNumber);
+    return sortedDays
+      .map((day) => ({
+        day,
+        entries: localEntries.filter(
+          (e) => !e.parentEntryId && e.id !== parentEntryId && e.id !== item.id && e.dayId === day.id
+        )
+      }))
+      .filter((g) => g.entries.length > 0);
+  }, [localEntries, tripDays, parentEntryId, item.id]);
+
+  const hasMoveTargets = moveTargetGroups.some((g) => g.entries.length > 0);
+
   const docs = docsForEntry(item.id);
   const links = linksForEntry(item.id);
   const isEditingInPanel =
     editingSubItem?.parentEntryId === parentEntryId && editingSubItem?.subItemId === item.id;
+
+  React.useEffect(() => {
+    if (!menuOpen || !menuButtonRef.current) return;
+    const rect = menuButtonRef.current.getBoundingClientRect();
+    setMenuAnchor({ top: rect.bottom + 4, left: rect.right - 160, width: 160 });
+  }, [menuOpen]);
+
+  React.useEffect(() => {
+    if (!menuOpen) return;
+    const onDoc = (e: MouseEvent): void => {
+      const t = e.target as Node;
+      if (menuPortalRef.current?.contains(t) || menuButtonRef.current?.contains(t)) return;
+      setMenuOpen(false);
+      setMoveOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [menuOpen]);
 
   const handleUploadDocument = React.useCallback(
     async (file: File, documentType: EntryDocumentType, notes: string, title?: string) => {
@@ -151,6 +145,101 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId, dragHandl
   const viewMapsPlaceUrl = googleMapsPlaceUrl(item.streetAddress || '');
   const viewMapsDirectionsUrl = googleMapsDirectionsUrl(item.streetAddress || '');
 
+  const optionMenuPortal =
+    menuOpen && typeof document !== 'undefined'
+      ? ReactDOM.createPortal(
+          <div
+            ref={menuPortalRef}
+            className={cardMenuStyles.dropdownPortal}
+            role="menu"
+            style={{ top: menuAnchor.top, left: menuAnchor.left, minWidth: menuAnchor.width }}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                setEditingSubItem({ parentEntryId, subItemId: item.id });
+              }}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                duplicateSubItem(parentEntryId, item.id);
+              }}
+            >
+              Duplicate
+            </button>
+            {hasMoveTargets ? (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => setMoveOpen((v) => !v)}
+              >
+                Move to card…
+              </button>
+            ) : null}
+            {moveOpen && hasMoveTargets ? (
+              <div className={styles.moveMenuPanel}>
+                <select
+                  className={styles.moveSelect}
+                  value=""
+                  aria-label="Move option to another card"
+                  onChange={(e) => {
+                    const toId = e.target.value;
+                    if (!toId) return;
+                    moveSubItem(parentEntryId, item.id, toId);
+                    e.target.value = '';
+                    setMenuOpen(false);
+                    setMoveOpen(false);
+                  }}
+                >
+                  <option value="">Choose card…</option>
+                  {moveTargetGroups.map(({ day, entries }) => (
+                    <optgroup key={day.id} label={`Day ${day.dayNumber} — ${day.displayTitle || 'Untitled'}`}>
+                      {entries.map((target) => (
+                        <option key={target.id} value={target.id}>
+                          {target.title?.trim() || target.category || 'Card'}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                setTaskPanelOpen(true);
+                setTaskDesc(`Book ${item.title || 'option'}`);
+              }}
+            >
+              Add to tasks
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                void (async () => {
+                  if (!(await confirmUserAction('Delete this related option?'))) return;
+                  deleteSubItem(parentEntryId, item.id);
+                })();
+              }}
+            >
+              Delete
+            </button>
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
     <div className={`${styles.optionInline} ${isEditingInPanel ? styles.optionInlineActive : ''}`}>
       <div className={styles.optionBody}>
@@ -208,76 +297,21 @@ export const SubItem: React.FC<SubItemProps> = ({ item, parentEntryId, dragHandl
       </div>
       <div className={styles.actionCol}>
         {dragHandle ? <span className={styles.dragHandleSlot}>{dragHandle}</span> : null}
-        {moveTargets.length > 0 ? (
-          <select
-            className={styles.moveSelect}
-            value=""
-            aria-label="Move option to another card"
-            title="Move to card"
-            onChange={(e) => {
-              const toId = e.target.value;
-              if (!toId) return;
-              moveSubItem(parentEntryId, item.id, toId);
-              e.target.value = '';
-            }}
+        <div className={cardMenuStyles.menuWrap}>
+          <button
+            ref={menuButtonRef}
+            type="button"
+            className={cardMenuStyles.menuButton}
+            aria-expanded={menuOpen}
+            aria-haspopup="menu"
+            aria-label="Option actions"
+            onClick={() => setMenuOpen((o) => !o)}
           >
-            <option value="">Move…</option>
-            {moveTargets.map((target) => (
-              <option key={target.id} value={target.id}>
-                {target.title?.trim() || target.category || 'Card'}
-              </option>
-            ))}
-          </select>
-        ) : null}
-        <button
-          type="button"
-          className={styles.editButton}
-          onClick={() => duplicateSubItem(parentEntryId, item.id)}
-          aria-label="Duplicate option"
-          title="Duplicate"
-        >
-          <DuplicateIcon />
-        </button>
-        <button
-          type="button"
-          className={styles.taskButton}
-          onClick={() => {
-            setTaskPanelOpen((o) => {
-              const next = !o;
-              if (!o) {
-                setTaskDesc(`Book ${item.title || 'option'}`);
-              }
-              return next;
-            });
-          }}
-          disabled={taskBusy}
-          aria-label="Add option to tasks"
-          title="Add to tasks"
-        >
-          <TaskIcon />
-        </button>
-        <button
-          type="button"
-          className={styles.editButton}
-          onClick={() => setEditingSubItem({ parentEntryId, subItemId: item.id })}
-          aria-label="Edit option"
-        >
-          <EditIcon />
-        </button>
-        <button
-          type="button"
-          className={styles.deleteButton}
-          onClick={() => {
-            void (async () => {
-              if (!(await confirmUserAction('Delete this related option?'))) return;
-              deleteSubItem(parentEntryId, item.id);
-            })();
-          }}
-          aria-label="Delete option"
-        >
-          <DeleteIcon />
-        </button>
+            ⋯
+          </button>
+        </div>
       </div>
+      {optionMenuPortal}
     </div>
   );
 };

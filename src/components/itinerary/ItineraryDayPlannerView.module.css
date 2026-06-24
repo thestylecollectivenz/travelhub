@@ -598,13 +598,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 1.35rem;
-  min-height: 1.35rem;
-  padding: 2px 4px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
   border-radius: var(--radius-sm);
-  color: var(--color-primary);
-  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
-  border: 1px solid color-mix(in srgb, var(--color-primary) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-sand-400) 55%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+  color: var(--color-blue-800);
 }
 
 .blockIcons a:hover {

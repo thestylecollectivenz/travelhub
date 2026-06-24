@@ -3,30 +3,13 @@ import type { Trip } from '../models/Trip';
 import type { TripDay } from '../models/TripDay';
 import type { TripReminder } from '../services/ReminderService';
 import { paymentDueTaskTitle } from './paymentDueLabels';
-
-function twoDigit(n: number): string {
-  return n < 10 ? `0${n}` : String(n);
-}
-
-function localTodayYmd(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${twoDigit(d.getMonth() + 1)}-${twoDigit(d.getDate())}`;
-}
-
-function ymdFromIso(iso?: string): string {
-  return (iso || '').slice(0, 10);
-}
-
-function addDaysYmd(ymd: string, delta: number): string {
-  const d = new Date(`${ymd}T12:00:00`);
-  d.setDate(d.getDate() + delta);
-  return `${d.getFullYear()}-${twoDigit(d.getMonth() + 1)}-${twoDigit(d.getDate())}`;
-}
-
-function isManualTodo(reminder: TripReminder): boolean {
-  const rt = (reminder.reminderType || '').trim();
-  return rt === 'Manual' || rt === 'ManualEntryTask' || rt === 'Custom';
-}
+import {
+  addDaysYmd,
+  isManualTodoReminder,
+  localTodayYmd,
+  partitionPaymentTasksByDue,
+  ymdFromIso
+} from './taskDueBuckets';
 
 function reminderLine(reminder: TripReminder, tripDays: TripDay[], entries: ItineraryEntry[]): string {
   const parts: string[] = [];
@@ -85,7 +68,7 @@ export function buildTripTasksAiContext(options: {
   const tomorrow = addDaysYmd(today, 1);
 
   const incomplete = reminders.filter((r) => !r.isComplete);
-  const manualTodos = incomplete.filter(isManualTodo);
+  const manualTodos = incomplete.filter(isManualTodoReminder);
   const cancellations = incomplete.filter((r) => (r.reminderType || '').trim() === 'CancellationDeadline');
 
   const overdue: TripReminder[] = [];
@@ -111,21 +94,9 @@ export function buildTripTasksAiContext(options: {
       ((e.paymentStatus === 'Not paid' && e.amount > 0) || e.paymentStatus === 'Part paid')
   );
 
-  const paymentOverdue: ItineraryEntry[] = [];
-  const paymentDueToday: ItineraryEntry[] = [];
-  const paymentDueTomorrow: ItineraryEntry[] = [];
-  const paymentNoDueDate: ItineraryEntry[] = [];
-
-  for (const e of paymentTasks) {
-    const due = ymdFromIso(e.paymentDueDate);
-    if (!due) {
-      paymentNoDueDate.push(e);
-      continue;
-    }
-    if (due < today) paymentOverdue.push(e);
-    else if (due === today) paymentDueToday.push(e);
-    else if (due === tomorrow) paymentDueTomorrow.push(e);
-  }
+  const paymentBuckets = partitionPaymentTasksByDue(paymentTasks, today);
+  const { overdue: paymentOverdue, dueToday: paymentDueToday, dueTomorrow: paymentDueTomorrow, noDueDate: paymentNoDueDate, later: paymentLater } =
+    paymentBuckets;
 
   const lines: string[] = [];
   lines.push(`Trip: ${trip.title || 'Untitled'}`);
@@ -178,15 +149,10 @@ export function buildTripTasksAiContext(options: {
   );
   pushSection(
     'Other payments outstanding (due later)',
-    paymentTasks
-      .filter((e) => {
-        const due = ymdFromIso(e.paymentDueDate);
-        return due && due > tomorrow;
-      })
-      .map((e) => {
+    paymentLater.map((e) => {
         const due = e.paymentDueDate ? `due ${e.paymentDueDate.slice(0, 10)}` : undefined;
         return entryTaskLine(paymentDueTaskTitle(e), e, tripDays, due);
-      })
+    })
   );
 
   lines.push('');

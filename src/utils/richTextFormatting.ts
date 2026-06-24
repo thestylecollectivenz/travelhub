@@ -81,10 +81,43 @@ function wrapRangeContents(range: Range, apply: (span: HTMLSpanElement) => void)
   sel.addRange(next);
 }
 
+function blocksInRange(range: Range): HTMLElement[] {
+  const root =
+    range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+      ? (range.commonAncestorContainer as Element)
+      : range.commonAncestorContainer.parentElement;
+  if (!root) return [];
+  const blocks: HTMLElement[] = [];
+  root.querySelectorAll('p, li, div, h1, h2, h3, h4, h5, h6').forEach((el) => {
+    if (rangeIntersectsNode(range, el)) blocks.push(el as HTMLElement);
+  });
+  if (!blocks.length) {
+    let node: Node | null = range.commonAncestorContainer;
+    while (node && node !== root) {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const tag = (node as HTMLElement).tagName;
+        if (['P', 'LI', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6'].indexOf(tag) >= 0) {
+          blocks.push(node as HTMLElement);
+          break;
+        }
+      }
+      node = node.parentNode;
+    }
+  }
+  return blocks;
+}
+
 export function applyFontSizeToRange(range: Range, fontSizePt: number): void {
   const size = `${fontSizePt}pt`;
   if (range.collapsed) {
     document.execCommand('insertHTML', false, `<span style="font-size:${size}">&#8203;</span>`);
+    return;
+  }
+  const blocks = blocksInRange(range);
+  if (blocks.length > 0) {
+    blocks.forEach((block) => {
+      block.style.fontSize = size;
+    });
     return;
   }
   listItemsInRange(range).forEach((li) => {

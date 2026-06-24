@@ -151,6 +151,9 @@ function plannerBlockMeta(item: PlannerTimedItem, calendarDate: string, tripDays
     if (item.key.includes('-disembark') && arrive) return arrive;
     if (item.key.includes('-embark') && depart) return depart;
     if (item.key.endsWith('-arrive') && arrive) return arrive;
+    if (item.key.endsWith('-overnight')) {
+      return arrive ? `Arrives ${arrive} · Overnight` : 'Overnight';
+    }
     if (item.key.endsWith('-depart') && depart) return depart;
     return arrive || depart || '—';
   }

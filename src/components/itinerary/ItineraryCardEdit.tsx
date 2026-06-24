@@ -42,7 +42,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   onCancel,
   onDelete
 }) => {
-  const { trip, tripDays, usedSuppliers, usedBookingMechanisms, usedLocations, usedCurrencies, persistEntry, persistSubItem } = useTripWorkspace();
+  const { trip, tripDays, usedSuppliers, usedBookingMechanisms, usedLocations, usedCurrencies, persistEntry, persistSubItem, setEditingCardId, setEditingSubItem } = useTripWorkspace();
   const { placeById } = usePlaces();
   const { config } = useConfig();
   const [draft, setDraft] = React.useState<ItineraryEntry>(() => ({ ...entry }));
@@ -107,8 +107,13 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
     setAttachmentEntryId(nextId);
     if (nextId !== draft.id) {
       setDraft((d) => ({ ...d, id: nextId }));
+      if (isOption && draft.parentEntryId) {
+        setEditingSubItem({ parentEntryId: draft.parentEntryId, subItemId: nextId });
+      } else {
+        setEditingCardId(nextId);
+      }
     }
-  }, [draft.id]);
+  }, [draft.id, draft.parentEntryId, isOption, setEditingCardId, setEditingSubItem]);
 
   const resolveAttachmentTarget = React.useCallback(
     async (d: ItineraryEntry): Promise<{ id: string; dayId: string }> => {
