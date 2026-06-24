@@ -371,34 +371,25 @@
 }
 
 .notesToggle {
-  margin-top: var(--space-2);
+  margin-top: 0;
   padding: 0;
   border: none;
   background: none;
   font-size: var(--font-size-xs);
   color: var(--color-primary);
   cursor: pointer;
-  font-weight: var(--font-weight-medium);
 }
 
 .notesToggle:hover {
   text-decoration: underline;
 }
 
-.notesEnterLink {
-  margin-top: var(--space-2);
-  padding: 0;
-  border: none;
-  background: none;
-  font-size: var(--font-size-sm);
-  color: var(--color-primary);
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.notesEnterLink:hover {
-  color: var(--color-blue-800);
+.cardLinksRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-3);
 }
 
 .notesBody {

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { isLikelyJournalHtml, plainTextToEditorHtml } from '../../utils/journalRichText';
+import { collapseEmptyRichTextParagraphs, isLikelyJournalHtml, plainTextToEditorHtml } from '../../utils/journalRichText';
 import styles from './RichTextContent.module.css';
 
 export interface RichTextContentProps {
@@ -12,7 +12,9 @@ export const RichTextContent: React.FC<RichTextContentProps> = ({ html, classNam
     const raw = (html || '').trim();
     if (!raw) return '';
     const base = isLikelyJournalHtml(raw) ? raw : plainTextToEditorHtml(raw);
-    return base.replace(/<a\s+(?![^>]*\btarget=)/gi, '<a target="_blank" rel="noopener noreferrer" ');
+    return collapseEmptyRichTextParagraphs(
+      base.replace(/<a\s+(?![^>]*\btarget=)/gi, '<a target="_blank" rel="noopener noreferrer" ')
+    );
   }, [html]);
 
   if (!safe) return null;

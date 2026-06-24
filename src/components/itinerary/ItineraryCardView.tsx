@@ -892,26 +892,16 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       ) : null}
 
       {!isLocationInfo ? (
-        <>
+        <div className={styles.cardLinksRow}>
           {hasNotes ? (
-            <button type="button" className={styles.notesToggle} onClick={() => setNotesOpen((o) => !o)}>
+            <button type="button" className={styles.addSubItemBtn} onClick={() => setNotesOpen((o) => !o)}>
               {notesOpen ? 'Notes ▴' : 'Notes ▾'}
             </button>
           ) : (
-            <button type="button" className={styles.notesEnterLink} onClick={onEdit}>
+            <button type="button" className={styles.addSubItemBtn} onClick={onEdit}>
               Enter notes
             </button>
           )}
-          {notesOpen && hasNotes ? (
-            <div className={styles.notesBody}>
-              <RichTextContent html={entry.notes} />
-            </div>
-          ) : null}
-        </>
-      ) : null}
-
-      {(!isLocationInfo || !locationInfoExpanded) ? (
-        <>
           <EntryFilesLinksPanel
             entryId={attachmentEntryId}
             docs={docs}
@@ -920,6 +910,16 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             onUploadDocument={handleUploadDocument}
             onAddLink={handleAddLink}
           />
+        </div>
+      ) : null}
+      {!isLocationInfo && notesOpen && hasNotes ? (
+        <div className={styles.notesBody}>
+          <RichTextContent html={entry.notes} />
+        </div>
+      ) : null}
+
+      {(!isLocationInfo || !locationInfoExpanded) ? (
+        <>
           {isLocationInfo && !locationInfoExpanded ? (
             <div className={styles.locationInfoInlineActions}>
               <button type="button" className={styles.addSubItemBtn} onClick={onEdit}>

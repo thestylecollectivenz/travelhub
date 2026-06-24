@@ -56,7 +56,7 @@ export function editableEntryToSubItem(
     duration,
     location: entry.location?.trim() || undefined,
     streetAddress: entry.streetAddress?.trim() || undefined,
-    supplier: entry.supplier?.trim() || prior?.supplier,
+    supplier: entry.supplier?.trim() || undefined,
     notes: entry.notes?.trim() || undefined,
     decisionStatus: entry.decisionStatus,
     paymentStatus: entry.paymentStatus,

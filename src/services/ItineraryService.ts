@@ -664,6 +664,7 @@ export class ItineraryService {
       AmountPaid: subItem.amountPaid ?? null,
       Currency: subItem.currency,
       Notes: subItem.notes ?? '',
+      Supplier: subItem.supplier?.trim() || '',
       Location: subItem.location ?? '',
       StreetAddress: subItem.streetAddress ?? '',
       GroupLabel: subItem.groupLabel ?? '',

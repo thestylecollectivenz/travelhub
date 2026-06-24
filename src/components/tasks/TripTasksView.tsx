@@ -142,6 +142,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
   const [createTaskCategory, setCreateTaskCategory] = React.useState('Other');
   const [dueDateSort, setDueDateSort] = React.useState<DueDateSort>('none');
   const [taskDueFilter, setTaskDueFilter] = React.useState<TaskDueFilter>('all');
+  const [bookingDueFilter, setBookingDueFilter] = React.useState<TaskDueFilter>('all');
   const [paymentDueFilter, setPaymentDueFilter] = React.useState<TaskDueFilter>('all');
   const todayYmd = React.useMemo(() => localTodayYmd(), []);
 
@@ -236,10 +237,14 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
     () =>
       showEntryDerivedTasks && showEntryDerivedForAssignee
         ? localEntries.filter(
-            (e) => e.bookingRequired && e.bookingStatus === 'Not booked' && matchesCategoryFilter(e)
+            (e) =>
+              e.bookingRequired &&
+              e.bookingStatus === 'Not booked' &&
+              matchesCategoryFilter(e) &&
+              matchesTaskDueFilter(e.bookingDueDate, bookingDueFilter, todayYmd)
           )
         : [],
-    [localEntries, matchesCategoryFilter, showEntryDerivedTasks, showEntryDerivedForAssignee]
+    [localEntries, matchesCategoryFilter, showEntryDerivedTasks, showEntryDerivedForAssignee, bookingDueFilter, todayYmd]
   );
   const paymentTasks = React.useMemo(
     () =>
@@ -850,6 +855,18 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
           {showTaskSection('bookings') ? (
           <div className={styles.group}>
             <h3 className={styles.title}>Bookings needed</h3>
+            <div className={styles.dueFilterRow} role="group" aria-label="Filter bookings by due date">
+              {(['all', 'overdue', 'today', 'tomorrow'] as TaskDueFilter[]).map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={bookingDueFilter === key ? styles.dueFilterChipActive : styles.dueFilterChip}
+                  onClick={() => setBookingDueFilter(key)}
+                >
+                  {key === 'all' ? 'All' : key === 'overdue' ? 'Overdue' : key === 'today' ? 'Due today' : 'Due tomorrow'}
+                </button>
+              ))}
+            </div>
             {bookingTasks.length === 0 ? (
               <p className={styles.sectionHelp}>No items need booking right now.</p>
             ) : null}

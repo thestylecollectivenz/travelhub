@@ -222,8 +222,23 @@ function plannerBlockLocation(
   return formatLocationText((day.displayTitle || '').trim());
 }
 
+function plannerBlockSupplier(sub: ItinerarySubItem | undefined): string | undefined {
+  const supplier = sub?.supplier?.trim();
+  return supplier || undefined;
+}
+
 function toggleFrontBlock(key: string, setFrontBlockKey: React.Dispatch<React.SetStateAction<string | null>>): void {
   setFrontBlockKey((prev) => (prev === key ? null : key));
+}
+
+function plannerBlockBringForwardMouseDown(
+  e: React.MouseEvent,
+  key: string,
+  setFrontBlockKey: React.Dispatch<React.SetStateAction<string | null>>
+): void {
+  if ((e.target as HTMLElement).closest('button, a, input, select, textarea')) return;
+  e.stopPropagation();
+  toggleFrontBlock(key, setFrontBlockKey);
 }
 
 function plannerItemTransportLeg(
@@ -1226,10 +1241,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                         <div
                           key={item.key}
                           style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: blockZ, overflow: 'hidden' }}
-                          onMouseDown={(e) => {
-                            e.stopPropagation();
-                            toggleFrontBlock(item.key, setFrontBlockKey);
-                          }}
+                          onMouseDown={(e) => plannerBlockBringForwardMouseDown(e, item.key, setFrontBlockKey)}
                         >
                           {isEditingParent ? (
                             <div className={styles.editOverlay}>
@@ -1272,6 +1284,9 @@ export const ItineraryDayPlannerView: React.FC = () => {
                               </div>
                               {plannerBlockLocation(e, sub, day) ? (
                                 <div className={styles.blockLocation}>{plannerBlockLocation(e, sub, day)}</div>
+                              ) : null}
+                              {plannerBlockSupplier(sub) ? (
+                                <div className={styles.blockSupplier}>{plannerBlockSupplier(sub)}</div>
                               ) : null}
                               {blockScheduleHero ? (
                                 <div className={styles.blockScheduleHero}>{blockScheduleHero}</div>
@@ -1487,10 +1502,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                           <div
                             key={item.key}
                             style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: blockZ, overflow: 'hidden' }}
-                            onMouseDown={(e) => {
-                            e.stopPropagation();
-                            toggleFrontBlock(item.key, setFrontBlockKey);
-                          }}
+                            onMouseDown={(e) => plannerBlockBringForwardMouseDown(e, item.key, setFrontBlockKey)}
                           >
                             {isEditingParent ? (
                               <div className={styles.editOverlay}>
@@ -1533,6 +1545,9 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                 </div>
                                 {plannerBlockLocation(e, sub, day) ? (
                                   <div className={styles.blockLocation}>{plannerBlockLocation(e, sub, day)}</div>
+                                ) : null}
+                                {plannerBlockSupplier(sub) ? (
+                                  <div className={styles.blockSupplier}>{plannerBlockSupplier(sub)}</div>
                                 ) : null}
                                 {blockScheduleHero ? (
                                   <div className={styles.blockScheduleHero}>{blockScheduleHero}</div>

@@ -25,6 +25,11 @@ export function isRichTextEditorEmpty(html: string): boolean {
   return (d.textContent || '').replace(/\u00a0/g, ' ').trim().length === 0;
 }
 
+/** Remove blank spacer paragraphs so manual extra Enters do not create huge gaps. */
+export function collapseEmptyRichTextParagraphs(html: string): string {
+  return (html || '').replace(/<p>(?:\s|&nbsp;|<br\s*\/?>)*<\/p>/gi, '');
+}
+
 /** Strip editor HTML to plain text for APIs / search. */
 export function richTextToPlainText(html: string): string {
   if (typeof document === 'undefined') return (html || '').trim();
