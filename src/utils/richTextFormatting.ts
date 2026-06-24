@@ -113,32 +113,49 @@ export function applyFontSizeToRange(range: Range, fontSizePt: number): void {
     document.execCommand('insertHTML', false, `<span style="font-size:${size}">&#8203;</span>`);
     return;
   }
+  applyInlineStyleToRange(
+    range,
+    (el) => {
+      el.style.fontSize = size;
+    },
+    (span) => {
+      span.style.fontSize = size;
+    }
+  );
+}
+
+function applyInlineStyleToRange(
+  range: Range,
+  applyToBlock: (el: HTMLElement) => void,
+  applyToSpan: (span: HTMLSpanElement) => void
+): void {
   const blocks = blocksInRange(range);
   if (blocks.length > 0) {
-    blocks.forEach((block) => {
-      block.style.fontSize = size;
-    });
+    blocks.forEach(applyToBlock);
     return;
   }
-  listItemsInRange(range).forEach((li) => {
-    li.style.fontSize = size;
-  });
-  wrapRangeContents(range, (span) => {
-    span.style.fontSize = size;
-  });
+  const items = listItemsInRange(range);
+  if (items.length > 0) {
+    items.forEach(applyToBlock);
+    return;
+  }
+  wrapRangeContents(range, applyToSpan);
 }
 
 export function applyForeColorToRange(range: Range, color: string): void {
   if (range.collapsed) {
-    document.execCommand('insertHTML', false, `<span style="color:${color}">&#8203;</span>`);
+    document.execCommand('foreColor', false, color);
     return;
   }
-  listItemsInRange(range).forEach((li) => {
-    li.style.color = color;
-  });
-  wrapRangeContents(range, (span) => {
-    span.style.color = color;
-  });
+  applyInlineStyleToRange(
+    range,
+    (el) => {
+      el.style.color = color;
+    },
+    (span) => {
+      span.style.color = color;
+    }
+  );
 }
 
 export function applyFontSizeToEditor(editor: HTMLElement, fontSizePt: number): void {
@@ -182,23 +199,14 @@ export function captureFormatFromSelection(): RichTextFormatPaint | null {
 
 export function applyFormatPaintToRange(range: Range, paint: RichTextFormatPaint): void {
   if (range.collapsed || !paint) return;
-  if (paint.color) {
-    listItemsInRange(range).forEach((li) => {
-      li.style.color = paint.color!;
-    });
-  }
-  if (paint.fontSize) {
-    listItemsInRange(range).forEach((li) => {
-      li.style.fontSize = paint.fontSize!;
-    });
-  }
-  wrapRangeContents(range, (span) => {
-    if (paint.color) span.style.color = paint.color;
-    if (paint.fontSize) span.style.fontSize = paint.fontSize;
+  const applyToBlock = (el: HTMLElement): void => {
+    if (paint.color) el.style.color = paint.color;
+    if (paint.fontSize) el.style.fontSize = paint.fontSize;
     if (paint.fontWeight && (paint.fontWeight === 'bold' || Number(paint.fontWeight) >= 600)) {
-      span.style.fontWeight = 'bold';
+      el.style.fontWeight = 'bold';
     }
-    if (paint.fontStyle === 'italic') span.style.fontStyle = 'italic';
-    if (paint.textDecoration?.includes('underline')) span.style.textDecoration = 'underline';
-  });
+    if (paint.fontStyle === 'italic') el.style.fontStyle = 'italic';
+    if (paint.textDecoration?.includes('underline')) el.style.textDecoration = 'underline';
+  };
+  applyInlineStyleToRange(range, applyToBlock, (span) => applyToBlock(span));
 }

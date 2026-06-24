@@ -174,15 +174,15 @@ export const EntryFilesLinksPanel: React.FC<EntryFilesLinksPanelProps> = ({
                   {dragHandle ? <span className={linkSortStyles.dragHandleSlot}>{dragHandle}</span> : null}
                   <input
                     className={styles.field}
-                    value={linkDraft.linkTitle}
-                    onChange={(e) => setLinkDraft((prev) => ({ ...prev, linkTitle: e.target.value }))}
-                    placeholder="Link title"
-                  />
-                  <input
-                    className={styles.field}
                     value={linkDraft.url}
                     onChange={(e) => setLinkDraft((prev) => ({ ...prev, url: e.target.value }))}
                     placeholder="URL"
+                  />
+                  <input
+                    className={styles.field}
+                    value={linkDraft.linkTitle}
+                    onChange={(e) => setLinkDraft((prev) => ({ ...prev, linkTitle: e.target.value }))}
+                    placeholder="Link title"
                   />
                   <button
                     type="button"
@@ -314,15 +314,15 @@ export const EntryFilesLinksPanel: React.FC<EntryFilesLinksPanelProps> = ({
             <div className={styles.addFormRow}>
               <input
                 className={styles.fieldCompact}
-                placeholder="Link title"
-                value={linkDraft.linkTitle}
-                onChange={(e) => setLinkDraft((prev) => ({ ...prev, linkTitle: e.target.value }))}
-              />
-              <input
-                className={styles.fieldCompact}
                 placeholder="URL"
                 value={linkDraft.url}
                 onChange={(e) => setLinkDraft((prev) => ({ ...prev, url: e.target.value }))}
+              />
+              <input
+                className={styles.fieldCompact}
+                placeholder="Link title"
+                value={linkDraft.linkTitle}
+                onChange={(e) => setLinkDraft((prev) => ({ ...prev, linkTitle: e.target.value }))}
               />
               <button
                 type="button"

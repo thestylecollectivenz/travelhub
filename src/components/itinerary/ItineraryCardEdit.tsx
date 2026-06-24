@@ -22,6 +22,7 @@ import type { EntryDocumentType, EntryLinkType } from '../../models';
 import { sortEntryDocuments } from '../../utils/entryDocumentSort';
 import { sortEntryLinks } from '../../utils/entryLinkSort';
 import { ymdSlice } from '../../utils/tripListSort';
+import { activityTitlesForDay } from '../../utils/dayActivityTitles';
 import styles from './ItineraryCardEdit.module.css';
 
 export interface ItineraryCardEditProps {
@@ -42,7 +43,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   onCancel,
   onDelete
 }) => {
-  const { trip, tripDays, usedSuppliers, usedBookingMechanisms, usedLocations, usedCurrencies, persistEntry, persistSubItem, setEditingCardId, setEditingSubItem } = useTripWorkspace();
+  const { trip, tripDays, localEntries, usedSuppliers, usedBookingMechanisms, usedLocations, usedCurrencies, persistEntry, persistSubItem, setEditingCardId, setEditingSubItem } = useTripWorkspace();
   const { placeById } = usePlaces();
   const { config } = useConfig();
   const [draft, setDraft] = React.useState<ItineraryEntry>(() => ({ ...entry }));
@@ -189,6 +190,11 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       includeNextDay: false
     });
   }, [draft.dayId, draft.location, tripDays, placeById, isFlights, usedLocations]);
+
+  const transportFromSuggestions = React.useMemo(
+    () => (isTransport ? activityTitlesForDay(draft.dayId, localEntries, draft.id) : []),
+    [draft.dayId, draft.id, isTransport, localEntries]
+  );
 
   React.useEffect(() => {
     if (!isFlights && !isTransport) return;
@@ -858,9 +864,16 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
             <input
               id={`tf-${draft.id}`}
               className={styles.input}
+              list={`transport-from-${draft.id}`}
               value={draft.transportFrom ?? ''}
               onChange={(e) => patch({ transportFrom: e.target.value })}
+              placeholder="Activity or place name"
             />
+            <datalist id={`transport-from-${draft.id}`}>
+              {transportFromSuggestions.map((title) => (
+                <option key={title} value={title} />
+              ))}
+            </datalist>
             <label className={styles.label} htmlFor={`tt-${draft.id}`}>
               To
             </label>

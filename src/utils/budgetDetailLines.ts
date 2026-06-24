@@ -156,7 +156,7 @@ export function buildBudgetDetailLines(
         isSubItem: true,
         parentTitle: entry.category === 'Cruise port' ? 'Cruise port' : entry.title || 'Untitled',
         transportSubtype: subCategory === 'Transport' ? entry.transportMode?.trim() || undefined : undefined,
-        supplier: entry.supplier?.trim() || undefined,
+        supplier: sub.supplier?.trim() || entry.supplier?.trim() || undefined,
         sortKey: sortKeyForEntry(entry, tripDays)
       });
     }

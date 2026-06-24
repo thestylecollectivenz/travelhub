@@ -1109,7 +1109,18 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       setSharedPreview,
       workspaceReturn,
       setWorkspaceReturn,
-      usedSuppliers: Array.from(new Set(localEntries.map((e) => (e.supplier || '').trim()).filter(Boolean))).sort(),
+      usedSuppliers: (() => {
+        const names = new Set<string>();
+        for (const e of localEntries) {
+          const main = (e.supplier || '').trim();
+          if (main) names.add(main);
+          for (const sub of e.subItems ?? []) {
+            const subSup = (sub.supplier || '').trim();
+            if (subSup) names.add(subSup);
+          }
+        }
+        return Array.from(names).sort();
+      })(),
       usedLocations: Array.from(new Set(localEntries.map((e) => (e.location || '').trim()).filter(Boolean))).sort(),
       usedCurrencies: (() => {
         const codes = new Set<string>();

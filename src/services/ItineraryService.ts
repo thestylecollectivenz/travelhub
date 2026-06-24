@@ -313,7 +313,7 @@ function mapToSubItem(item: any): ItinerarySubItem {
         ? item.CostCertainty
         : undefined,
     notes: item.Notes ?? '',
-    supplier: item.Supplier ?? undefined,
+    supplier: item.Supplier != null && String(item.Supplier).trim() ? String(item.Supplier).trim() : undefined,
     groupLabel: item.GroupLabel ?? undefined,
     location: item.Location ?? undefined,
     streetAddress: item.StreetAddress ?? undefined,
@@ -337,7 +337,7 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   if (entry.embarksDate !== undefined) item.EmbarksDate = serializeDate(entry.embarksDate);
   if (entry.disembarksDate !== undefined) item.DisembarksDate = serializeDate(entry.disembarksDate);
   if (entry.duration !== undefined) item.Duration = entry.duration ?? '';
-  if (entry.supplier !== undefined) item.Supplier = entry.supplier;
+  if (entry.supplier !== undefined) item.Supplier = (entry.supplier || '').trim();
   if (entry.location !== undefined) item.Location = entry.location;
   if (entry.notes !== undefined) item.Notes = entry.notes;
   if (entry.decisionStatus !== undefined) item.DecisionStatus = entry.decisionStatus;

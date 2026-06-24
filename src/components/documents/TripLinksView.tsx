@@ -114,8 +114,8 @@ export const TripLinksView: React.FC = () => {
       {adding ? (
         <div className={styles.row}>
           <div className={styles.line2}>
-            <input className={styles.input} placeholder="Title" value={draft.linkTitle} onChange={(e) => setDraft((prev) => ({ ...prev, linkTitle: e.target.value }))} />
             <input className={styles.input} placeholder="URL" value={draft.url} onChange={(e) => setDraft((prev) => ({ ...prev, url: e.target.value }))} />
+            <input className={styles.input} placeholder="Title" value={draft.linkTitle} onChange={(e) => setDraft((prev) => ({ ...prev, linkTitle: e.target.value }))} />
             <select className={styles.select} value={draft.linkType} onChange={(e) => setDraft((prev) => ({ ...prev, linkType: e.target.value as EntryLink['linkType'] }))}>
               <option value="Url">Url</option>
               <option value="Supplier">Supplier</option>
@@ -188,8 +188,8 @@ export const TripLinksView: React.FC = () => {
                 {rowEditing ? (
                   <>
                     <div className={styles.line2}>
-                      <input className={styles.input} value={draft.linkTitle} onChange={(e) => setDraft((prev) => ({ ...prev, linkTitle: e.target.value }))} />
-                      <input className={styles.input} value={draft.url} onChange={(e) => setDraft((prev) => ({ ...prev, url: e.target.value }))} />
+                      <input className={styles.input} value={draft.url} onChange={(e) => setDraft((prev) => ({ ...prev, url: e.target.value }))} placeholder="URL" />
+                      <input className={styles.input} value={draft.linkTitle} onChange={(e) => setDraft((prev) => ({ ...prev, linkTitle: e.target.value }))} placeholder="Title" />
                       <select className={styles.select} value={draft.linkType} onChange={(e) => setDraft((prev) => ({ ...prev, linkType: e.target.value as EntryLink['linkType'] }))}>
                         <option value="Url">Url</option>
                         <option value="Supplier">Supplier</option>

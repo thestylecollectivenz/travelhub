@@ -1,4 +1,5 @@
 import * as React from 'react';
+import type { EntryDocumentType } from '../../models';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
@@ -11,10 +12,14 @@ export interface TripFilesLinksViewProps {
 }
 
 export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeDocuments = true }) => {
-  const { documents, links, deleteDocument, deleteLink } = useAttachments();
+  const { documents, links, deleteDocument, deleteLink, updateDocument, updateLink } = useAttachments();
   const { tripDays, selectedDayId, setSelectedDayId, mainWorkspaceTab, localEntries } = useTripWorkspace();
   const [kind, setKind] = React.useState<KindFilter>('all');
   const [dayFilter, setDayFilter] = React.useState('all');
+  const [editingKey, setEditingKey] = React.useState<string | null>(null);
+  const [saving, setSaving] = React.useState(false);
+  const [docDraft, setDocDraft] = React.useState({ title: '', documentType: 'Other' as EntryDocumentType, notes: '' });
+  const [linkDraft, setLinkDraft] = React.useState({ url: '', linkTitle: '' });
 
   React.useEffect(() => {
     if (mainWorkspaceTab === 'files' && selectedDayId) {
@@ -88,6 +93,28 @@ export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeD
     });
   }, [documents, links, kind, dayFilter, search, includeDocuments]);
 
+  const startEdit = React.useCallback(
+    (row: (typeof rows)[number]) => {
+      setEditingKey(`${row.kind}-${row.id}`);
+      if (row.kind === 'document') {
+        const doc = documents.find((d) => d.id === row.id);
+        if (doc) {
+          setDocDraft({
+            title: doc.title || doc.fileName || '',
+            documentType: doc.documentType,
+            notes: doc.notes || ''
+          });
+        }
+      } else {
+        const link = links.find((l) => l.id === row.id);
+        if (link) {
+          setLinkDraft({ url: link.url, linkTitle: link.linkTitle });
+        }
+      }
+    },
+    [documents, links]
+  );
+
   return (
     <section className={styles.root} aria-label="Files and links">
       <header className={styles.header}>
@@ -120,40 +147,119 @@ export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeD
       </div>
       {rows.length === 0 ? <div className={styles.empty}>No files or links</div> : (
         <div className={styles.list}>
-          {rows.map((r) => (
-            <div key={`${r.kind}-${r.id}`} className={styles.row}>
-              <span className={styles.badge}>{r.kind === 'document' ? 'Document' : 'Link'}</span>
-              <button
-                type="button"
-                className={styles.name}
-                onClick={(ev) => {
-                  ev.preventDefault();
-                  openDocumentUrl(r.url);
-                }}
-              >
-                {r.title}
-              </button>
-              <span className={styles.metaLine}>
-                {[r.meta, r.dayId ? dayLabel(r.dayId) : '', entryTitleFor(r.entryId)]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </span>
-              <button
-                type="button"
-                className={styles.deleteBtn}
-                onClick={() => {
-                  void (async () => {
-                    const label = r.kind === 'document' ? 'document' : 'link';
-                    if (!(await confirmUserAction(`Delete this ${label}?`))) return;
-                    if (r.kind === 'document') deleteDocument(r.id).catch(console.error);
-                    else deleteLink(r.id).catch(console.error);
-                  })();
-                }}
-              >
-                Delete
-              </button>
-            </div>
-          ))}
+          {rows.map((r) => {
+            const editKey = `${r.kind}-${r.id}`;
+            const isEditing = editingKey === editKey;
+            return (
+              <div key={editKey} className={styles.row}>
+                {isEditing && r.kind === 'document' ? (
+                  <>
+                    <input className={styles.input} value={docDraft.title} onChange={(e) => setDocDraft((prev) => ({ ...prev, title: e.target.value }))} placeholder="Title" />
+                    <select className={styles.select} value={docDraft.documentType} onChange={(e) => setDocDraft((prev) => ({ ...prev, documentType: e.target.value as EntryDocumentType }))}>
+                      <option value="Ticket">Ticket</option>
+                      <option value="Confirmation">Confirmation</option>
+                      <option value="Image">Image</option>
+                      <option value="PDF">PDF</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    <input className={styles.input} value={docDraft.notes} onChange={(e) => setDocDraft((prev) => ({ ...prev, notes: e.target.value }))} placeholder="Notes (optional)" />
+                    <button
+                      type="button"
+                      className={styles.button}
+                      disabled={saving}
+                      onClick={() => {
+                        setSaving(true);
+                        updateDocument(r.id, {
+                          title: docDraft.title.trim(),
+                          documentType: docDraft.documentType,
+                          notes: docDraft.notes.trim()
+                        })
+                          .then(() => {
+                            setEditingKey(null);
+                            setSaving(false);
+                          })
+                          .catch((err) => {
+                            setSaving(false);
+                            console.error(err);
+                          });
+                      }}
+                    >
+                      Save
+                    </button>
+                    <button type="button" className={styles.button} onClick={() => setEditingKey(null)}>
+                      Cancel
+                    </button>
+                  </>
+                ) : isEditing && r.kind === 'link' ? (
+                  <>
+                    <input className={styles.input} value={linkDraft.url} onChange={(e) => setLinkDraft((prev) => ({ ...prev, url: e.target.value }))} placeholder="URL" />
+                    <input className={styles.input} value={linkDraft.linkTitle} onChange={(e) => setLinkDraft((prev) => ({ ...prev, linkTitle: e.target.value }))} placeholder="Title" />
+                    <button
+                      type="button"
+                      className={styles.button}
+                      disabled={saving || !linkDraft.url.trim()}
+                      onClick={() => {
+                        setSaving(true);
+                        updateLink(r.id, {
+                          url: linkDraft.url.trim(),
+                          linkTitle: linkDraft.linkTitle.trim() || linkDraft.url.trim()
+                        })
+                          .then(() => {
+                            setEditingKey(null);
+                            setSaving(false);
+                          })
+                          .catch((err) => {
+                            setSaving(false);
+                            console.error(err);
+                          });
+                      }}
+                    >
+                      Save link
+                    </button>
+                    <button type="button" className={styles.button} onClick={() => setEditingKey(null)}>
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className={styles.badge}>{r.kind === 'document' ? 'Document' : 'Link'}</span>
+                    <button
+                      type="button"
+                      className={styles.name}
+                      onClick={(ev) => {
+                        ev.preventDefault();
+                        openDocumentUrl(r.url);
+                      }}
+                    >
+                      {r.title}
+                    </button>
+                    <span className={styles.metaLine}>
+                      {[r.meta, r.dayId ? dayLabel(r.dayId) : '', entryTitleFor(r.entryId)]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                    <button type="button" className={styles.button} onClick={() => startEdit(r)}>
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.deleteBtn}
+                      onClick={() => {
+                        void (async () => {
+                          const label = r.kind === 'document' ? 'document' : 'link';
+                          if (!(await confirmUserAction(`Delete this ${label}?`))) return;
+                          if (r.kind === 'document') deleteDocument(r.id).catch(console.error);
+                          else deleteLink(r.id).catch(console.error);
+                        })();
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </section>

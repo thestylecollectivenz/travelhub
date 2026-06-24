@@ -111,11 +111,12 @@ function getFinancialLines(
       const subAmountPaid = sub.amountPaid !== undefined
         ? converter(sub.amountPaid, subCurrency)
         : undefined;
+      const subCategory = (sub.category || '').trim() || entry.category;
       lines.push({
         amount: subAmount,
         amountPaid: subAmountPaid,
         paymentStatus: sub.paymentStatus,
-        category: entry.category,
+        category: subCategory,
         dayId: lineDayId
       });
     }
