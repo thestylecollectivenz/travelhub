@@ -894,11 +894,11 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       {!isLocationInfo ? (
         <div className={styles.cardLinksRow}>
           {hasNotes ? (
-            <button type="button" className={styles.addSubItemBtn} onClick={() => setNotesOpen((o) => !o)}>
+            <button type="button" className={styles.cardInlineLink} onClick={() => setNotesOpen((o) => !o)}>
               {notesOpen ? 'Notes ▴' : 'Notes ▾'}
             </button>
           ) : (
-            <button type="button" className={styles.addSubItemBtn} onClick={onEdit}>
+            <button type="button" className={styles.cardInlineLink} onClick={onEdit}>
               Enter notes
             </button>
           )}
@@ -907,6 +907,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             docs={docs}
             links={links}
             allowAdd
+            toggleClassName={styles.cardInlineLink}
             onUploadDocument={handleUploadDocument}
             onAddLink={handleAddLink}
           />

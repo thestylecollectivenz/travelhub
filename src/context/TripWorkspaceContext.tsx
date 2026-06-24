@@ -876,7 +876,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
             timeStart: slot.startTime,
             arrivalTime: slot.endTime,
             duration: slot.duration,
-            supplier: slot.supplier,
+            supplier: (slot.supplier ?? '').trim(),
             decisionStatus: slot.decisionStatus,
             paymentStatus: slot.paymentStatus,
             amount: slot.amount,

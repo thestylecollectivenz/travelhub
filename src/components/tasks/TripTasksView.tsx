@@ -24,6 +24,36 @@ import { localTodayYmd, matchesTaskDueFilter, type TaskDueFilter } from '../../u
 import dayHeaderStyles from '../day/DayHeader.module.css';
 import styles from './TripTasksView.module.css';
 
+const DUE_FILTER_KEYS: TaskDueFilter[] = ['all', 'overdue', 'today', 'tomorrow'];
+
+function dueFilterLabel(key: TaskDueFilter): string {
+  if (key === 'all') return 'All';
+  if (key === 'overdue') return 'Overdue';
+  if (key === 'today') return 'Due today';
+  return 'Due tomorrow';
+}
+
+function DueFilterChips(props: {
+  ariaLabel: string;
+  value: TaskDueFilter;
+  onChange: (value: TaskDueFilter) => void;
+}): React.ReactElement {
+  return (
+    <div className={styles.dueFilterRow} role="group" aria-label={props.ariaLabel}>
+      {DUE_FILTER_KEYS.map((key) => (
+        <button
+          key={key}
+          type="button"
+          className={props.value === key ? styles.dueFilterChipActive : styles.dueFilterChip}
+          onClick={() => props.onChange(key)}
+        >
+          {dueFilterLabel(key)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 type TaskFilter = 'incomplete' | 'all';
 
 export interface TripTasksViewProps {
@@ -525,6 +555,20 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
       </div>
 
       {viewMode === 'calendar' && showStandardSections ? (
+        <div className={styles.calendarDueFilters}>
+          {showTaskSection('todo') ? (
+            <DueFilterChips ariaLabel="Filter tasks by due date" value={taskDueFilter} onChange={setTaskDueFilter} />
+          ) : null}
+          {showTaskSection('bookings') ? (
+            <DueFilterChips ariaLabel="Filter bookings by due date" value={bookingDueFilter} onChange={setBookingDueFilter} />
+          ) : null}
+          {showTaskSection('payments') ? (
+            <DueFilterChips ariaLabel="Filter payments by due date" value={paymentDueFilter} onChange={setPaymentDueFilter} />
+          ) : null}
+        </div>
+      ) : null}
+
+      {viewMode === 'calendar' && showStandardSections ? (
         calendarLayout === 'grid' ? (
           <TasksMonthCalendar
             events={calendarEvents}
@@ -702,18 +746,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                 Due date {dueDateSort === 'asc' ? '↑' : dueDateSort === 'desc' ? '↓' : '—'}
               </button>
             </div>
-            <div className={styles.dueFilterRow} role="group" aria-label="Filter tasks by due date">
-              {(['all', 'overdue', 'today', 'tomorrow'] as TaskDueFilter[]).map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  className={taskDueFilter === key ? styles.dueFilterChipActive : styles.dueFilterChip}
-                  onClick={() => setTaskDueFilter(key)}
-                >
-                  {key === 'all' ? 'All' : key === 'overdue' ? 'Overdue' : key === 'today' ? 'Due today' : 'Due tomorrow'}
-                </button>
-              ))}
-            </div>
+            <DueFilterChips ariaLabel="Filter tasks by due date" value={taskDueFilter} onChange={setTaskDueFilter} />
             {filteredManualTodos.map((m) => {
               const target = resolveReminderItineraryTarget(m, localEntries);
               const isEditing = editingReminderId === m.id;
@@ -855,18 +888,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
           {showTaskSection('bookings') ? (
           <div className={styles.group}>
             <h3 className={styles.title}>Bookings needed</h3>
-            <div className={styles.dueFilterRow} role="group" aria-label="Filter bookings by due date">
-              {(['all', 'overdue', 'today', 'tomorrow'] as TaskDueFilter[]).map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  className={bookingDueFilter === key ? styles.dueFilterChipActive : styles.dueFilterChip}
-                  onClick={() => setBookingDueFilter(key)}
-                >
-                  {key === 'all' ? 'All' : key === 'overdue' ? 'Overdue' : key === 'today' ? 'Due today' : 'Due tomorrow'}
-                </button>
-              ))}
-            </div>
+            <DueFilterChips ariaLabel="Filter bookings by due date" value={bookingDueFilter} onChange={setBookingDueFilter} />
             {bookingTasks.length === 0 ? (
               <p className={styles.sectionHelp}>No items need booking right now.</p>
             ) : null}
@@ -917,18 +939,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
           {showTaskSection('payments') ? (
           <div className={styles.group}>
             <h3 className={styles.title}>Payments due</h3>
-            <div className={styles.dueFilterRow} role="group" aria-label="Filter payments by due date">
-              {(['all', 'overdue', 'today', 'tomorrow'] as TaskDueFilter[]).map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  className={paymentDueFilter === key ? styles.dueFilterChipActive : styles.dueFilterChip}
-                  onClick={() => setPaymentDueFilter(key)}
-                >
-                  {key === 'all' ? 'All' : key === 'overdue' ? 'Overdue' : key === 'today' ? 'Due today' : 'Due tomorrow'}
-                </button>
-              ))}
-            </div>
+            <DueFilterChips ariaLabel="Filter payments by due date" value={paymentDueFilter} onChange={setPaymentDueFilter} />
             {paymentTasks.length === 0 ? (
               <p className={styles.sectionHelp}>No outstanding payments.</p>
             ) : null}

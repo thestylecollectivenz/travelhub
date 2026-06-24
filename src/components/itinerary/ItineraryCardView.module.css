@@ -392,6 +392,22 @@
   margin-top: var(--space-3);
 }
 
+.cardInlineLink {
+  margin-top: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  cursor: pointer;
+  text-decoration: none;
+  font-family: inherit;
+}
+
+.cardInlineLink:hover {
+  text-decoration: underline;
+}
+
 .notesBody {
   margin-top: var(--space-2);
   font-size: var(--font-size-sm);
@@ -399,7 +415,6 @@
   background: var(--color-sand-50);
   border-radius: var(--radius-md);
   padding: var(--space-2) var(--space-3);
-  white-space: pre-wrap;
 }
 
 .relatedToggle {

@@ -13,6 +13,7 @@ export interface EntryFilesLinksPanelProps {
   links: EntryLink[];
   /** Show add document / add link controls (day cards). */
   allowAdd?: boolean;
+  toggleClassName?: string;
   onUploadDocument?: (file: File, documentType: EntryDocumentType, notes: string, title?: string) => Promise<void>;
   onAddLink?: (draft: { linkTitle: string; url: string; linkType: EntryLinkType; notes: string }) => Promise<void>;
 }
@@ -22,6 +23,7 @@ export const EntryFilesLinksPanel: React.FC<EntryFilesLinksPanelProps> = ({
   docs,
   links,
   allowAdd = false,
+  toggleClassName,
   onUploadDocument,
   onAddLink
 }) => {
@@ -68,7 +70,7 @@ export const EntryFilesLinksPanel: React.FC<EntryFilesLinksPanelProps> = ({
 
   return (
     <>
-      <button type="button" className={styles.attachToggle} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className={toggleClassName ?? styles.attachToggle} onClick={() => setOpen((o) => !o)}>
         {total === 0 && allowAdd ? 'Files & links ▾' : toggleLabel}
       </button>
       {open ? (

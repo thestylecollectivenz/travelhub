@@ -433,14 +433,12 @@
   gap: 2px;
   align-content: start;
   background: color-mix(in srgb, var(--cat-bg, var(--color-surface-raised)) 38%, var(--color-surface));
-  pointer-events: none;
+  pointer-events: auto;
   min-height: 0;
 }
 
-.block .iconBtn,
-.block a,
-.block button {
-  pointer-events: auto;
+.blockTitleClickable {
+  cursor: pointer;
 }
 
 .blockHoverTip {

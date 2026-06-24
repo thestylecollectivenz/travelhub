@@ -222,22 +222,25 @@ function plannerBlockLocation(
   return formatLocationText((day.displayTitle || '').trim());
 }
 
-function plannerBlockSupplier(sub: ItinerarySubItem | undefined): string | undefined {
-  const supplier = sub?.supplier?.trim();
+function plannerBlockSupplier(sub: ItinerarySubItem | undefined, entry: ItineraryEntry): string | undefined {
+  const supplier = sub?.supplier?.trim() || entry.supplier?.trim();
   return supplier || undefined;
+}
+
+function stopPlannerBlockPointer(e: React.SyntheticEvent): void {
+  e.stopPropagation();
 }
 
 function toggleFrontBlock(key: string, setFrontBlockKey: React.Dispatch<React.SetStateAction<string | null>>): void {
   setFrontBlockKey((prev) => (prev === key ? null : key));
 }
 
-function plannerBlockBringForwardMouseDown(
+function plannerBlockTitleClick(
   e: React.MouseEvent,
   key: string,
   setFrontBlockKey: React.Dispatch<React.SetStateAction<string | null>>
 ): void {
   if ((e.target as HTMLElement).closest('button, a, input, select, textarea')) return;
-  e.stopPropagation();
   toggleFrontBlock(key, setFrontBlockKey);
 }
 
@@ -1168,7 +1171,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                   </button>
                                   {cancel ? <div className={styles.blockCancel}>{cancel}</div> : null}
                                 </div>
-                                <div className={styles.blockActions}>
+                                <div className={styles.blockActions} onMouseDown={stopPlannerBlockPointer} onClick={stopPlannerBlockPointer}>
                                   <button
                                     type="button"
                                     className={styles.iconBtn}
@@ -1241,7 +1244,6 @@ export const ItineraryDayPlannerView: React.FC = () => {
                         <div
                           key={item.key}
                           style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: blockZ, overflow: 'hidden' }}
-                          onMouseDown={(e) => plannerBlockBringForwardMouseDown(e, item.key, setFrontBlockKey)}
                         >
                           {isEditingParent ? (
                             <div className={styles.editOverlay}>
@@ -1250,13 +1252,16 @@ export const ItineraryDayPlannerView: React.FC = () => {
                           ) : (
                             <div className={`${styles.block} th-cat-${cat} th-cat-border`} style={{ position: 'static', height: '100%' }} title={item.title}>
                               <div className={styles.blockTitleRow}>
-                                <div className={styles.blockTitle}>
+                                <div
+                                  className={`${styles.blockTitle} ${styles.blockTitleClickable}`}
+                                  onClick={(ev) => plannerBlockTitleClick(ev, item.key, setFrontBlockKey)}
+                                >
                                   {!sub && isTransportReturnOnCalendarDate(e, cal) ? (
                                     <span className={styles.returnBadge}>Return</span>
                                   ) : null}{' '}
                                   {sub && item.parentTitle ? `${item.title} (${item.parentTitle})` : item.title}
                                 </div>
-                                <div className={styles.blockActions}>
+                                <div className={styles.blockActions} onMouseDown={stopPlannerBlockPointer} onClick={stopPlannerBlockPointer}>
                                   <button
                                     type="button"
                                     className={styles.iconBtn}
@@ -1285,8 +1290,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
                               {plannerBlockLocation(e, sub, day) ? (
                                 <div className={styles.blockLocation}>{plannerBlockLocation(e, sub, day)}</div>
                               ) : null}
-                              {plannerBlockSupplier(sub) ? (
-                                <div className={styles.blockSupplier}>{plannerBlockSupplier(sub)}</div>
+                              {plannerBlockSupplier(sub, e) ? (
+                                <div className={styles.blockSupplier}>{plannerBlockSupplier(sub, e)}</div>
                               ) : null}
                               {blockScheduleHero ? (
                                 <div className={styles.blockScheduleHero}>{blockScheduleHero}</div>
@@ -1418,7 +1423,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                   </button>
                                   {cancel ? <div className={styles.blockCancel}>{cancel}</div> : null}
                                 </div>
-                                <div className={styles.blockActions}>
+                                <div className={styles.blockActions} onMouseDown={stopPlannerBlockPointer} onClick={stopPlannerBlockPointer}>
                                   <button
                                     type="button"
                                     className={styles.iconBtn}
@@ -1502,7 +1507,6 @@ export const ItineraryDayPlannerView: React.FC = () => {
                           <div
                             key={item.key}
                             style={{ position: 'absolute', left: 4, right: 4, top: `${top}px`, height: `${Math.max(h, 28)}px`, zIndex: blockZ, overflow: 'hidden' }}
-                            onMouseDown={(e) => plannerBlockBringForwardMouseDown(e, item.key, setFrontBlockKey)}
                           >
                             {isEditingParent ? (
                               <div className={styles.editOverlay}>
@@ -1511,13 +1515,16 @@ export const ItineraryDayPlannerView: React.FC = () => {
                             ) : (
                               <div className={`${styles.block} th-cat-${cat} th-cat-border`} style={{ position: 'static', height: '100%' }} title={item.title}>
                                 <div className={styles.blockTitleRow}>
-                                  <div className={styles.blockTitle}>
+                                  <div
+                                    className={`${styles.blockTitle} ${styles.blockTitleClickable}`}
+                                    onClick={(ev) => plannerBlockTitleClick(ev, item.key, setFrontBlockKey)}
+                                  >
                                     {!sub && isTransportReturnOnCalendarDate(e, cal) ? (
                                       <span className={styles.returnBadge}>Return</span>
                                     ) : null}{' '}
                                     {sub && item.parentTitle ? `${item.title} (${item.parentTitle})` : item.title}
                                   </div>
-                                  <div className={styles.blockActions}>
+                                  <div className={styles.blockActions} onMouseDown={stopPlannerBlockPointer} onClick={stopPlannerBlockPointer}>
                                     <button
                                       type="button"
                                       className={styles.iconBtn}
@@ -1546,8 +1553,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                 {plannerBlockLocation(e, sub, day) ? (
                                   <div className={styles.blockLocation}>{plannerBlockLocation(e, sub, day)}</div>
                                 ) : null}
-                                {plannerBlockSupplier(sub) ? (
-                                  <div className={styles.blockSupplier}>{plannerBlockSupplier(sub)}</div>
+                                {plannerBlockSupplier(sub, e) ? (
+                                  <div className={styles.blockSupplier}>{plannerBlockSupplier(sub, e)}</div>
                                 ) : null}
                                 {blockScheduleHero ? (
                                   <div className={styles.blockScheduleHero}>{blockScheduleHero}</div>

@@ -90,11 +90,22 @@
 }
 
 .editor p {
-  margin: 0 0 0.75em;
+  margin: 0 0 1em;
 }
 
 .editor p:last-child {
   margin-bottom: 0;
+}
+
+.editor p:empty {
+  margin: 0 0 0.35em;
+  min-height: 0;
+  line-height: 0;
+}
+
+.editor p:has(> br:only-child) {
+  margin: 0 0 0.35em;
+  line-height: 0.35;
 }
 
 .toolBtnActive {
@@ -117,7 +128,7 @@
 
 .editor ul,
 .editor ol {
-  margin: 0.35em 0 0.35em 0;
+  margin: 0.5em 0 0.75em 0;
   padding-left: 1.35em;
 }
 
@@ -130,7 +141,7 @@
 }
 
 .editor li {
-  margin: 0.15em 0;
+  margin: 0.55em 0;
   font-size: inherit;
 }
 

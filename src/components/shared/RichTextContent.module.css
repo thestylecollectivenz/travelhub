@@ -1,35 +1,45 @@
 .root {
   font-size: inherit;
-  line-height: 1.5;
+  line-height: 1.55;
   color: inherit;
   word-wrap: break-word;
   overflow-wrap: anywhere;
 }
 
 .root p {
-  margin: 0 0 0.75em;
+  margin: 0 0 1em;
 }
 
 .root p:last-child {
   margin-bottom: 0;
 }
 
-/* Spacer paragraphs from manual Enter presses — rely on p margin instead */
+/* Manual blank lines — keep a small gap, not a full extra paragraph */
 .root p:empty {
-  display: none;
-  margin: 0;
+  margin: 0 0 0.35em;
+  min-height: 0;
+  line-height: 0;
+}
+
+.root p:has(> br:only-child) {
+  margin: 0 0 0.35em;
+  line-height: 0.35;
 }
 
 .root ul,
 .root ol {
-  margin: 0.35em 0 0.65em 1.1em;
+  margin: 0.5em 0 0.75em 1.1em;
   padding: 0;
 }
 
 .root li {
-  margin: 0.35em 0;
+  margin: 0.55em 0;
 }
 
 .root li p {
-  margin: 0;
+  margin: 0 0 0.35em;
+}
+
+.root li p:last-child {
+  margin-bottom: 0;
 }
