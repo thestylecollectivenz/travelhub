@@ -10,7 +10,7 @@ import { ReminderService, type TripReminder } from '../../services/ReminderServi
 import { LinkifiedText } from '../shared/LinkifiedText';
 import { RichTextContent } from '../shared/RichTextContent';
 import { loadAiChatMessages, pruneAiChatHistory, saveAiChatMessages } from '../../utils/aiChatHistory';
-import { buildTripDayAiContext } from '../../utils/buildTripDayAiContext';
+import { buildAiCurrentFocusBlock, buildTripDayAiContext } from '../../utils/buildTripDayAiContext';
 import { buildTripTasksAiContext } from '../../utils/buildTripTasksAiContext';
 import { markdownToHtml } from '../../utils/markdownToHtml';
 import { placeDisplayLabel } from '../../utils/placeDisplayLabel';
@@ -143,31 +143,59 @@ export const AiAssistantFab: React.FC = () => {
     [selectedDayId, tripDays]
   );
 
-  const tripContext = React.useMemo(() => {
-    if (!trip) return '';
+  const buildSendContext = React.useCallback(() => {
+    if (!trip) return { tripContext: '', currentFocusBlock: '' };
+    const day =
+      selectedDayId ? tripDays.find((d) => d.id === selectedDayId && d.tripId === trip.id) : undefined;
+    const place = day?.primaryPlaceId ? placeById(day.primaryPlaceId) : undefined;
+    const placeTitle = place ? placeDisplayLabel(place) : undefined;
+
+    const currentFocusBlock = buildAiCurrentFocusBlock({
+      isTasksView,
+      dayScope,
+      selectedDay: day,
+      placeTitle,
+      mainWorkspaceTab
+    });
+
     if (isTasksView) {
-      return buildTripTasksAiContext({
+      return {
+        tripContext: buildTripTasksAiContext({
+          trip,
+          tripDays,
+          entries: localEntries,
+          reminders
+        }),
+        currentFocusBlock
+      };
+    }
+
+    return {
+      tripContext: buildTripDayAiContext({
         trip,
         tripDays,
+        day,
         entries: localEntries,
-        reminders
-      });
-    }
-    const place = selectedDay?.primaryPlaceId ? placeById(selectedDay.primaryPlaceId) : undefined;
-    const placeTitle = place ? placeDisplayLabel(place) : undefined;
-    return buildTripDayAiContext({
-      trip,
-      tripDays,
-      day: selectedDay,
-      entries: localEntries,
-      placeTitle,
-      placeForDay: (d) => {
-        const p = d.primaryPlaceId ? placeById(d.primaryPlaceId) : undefined;
-        return p;
-      },
-      daySpecific: dayScope === 'day'
-    });
-  }, [trip, tripDays, selectedDay, localEntries, placeById, dayScope, isTasksView, reminders]);
+        placeTitle,
+        placeForDay: (d) => {
+          const p = d.primaryPlaceId ? placeById(d.primaryPlaceId) : undefined;
+          return p;
+        },
+        daySpecific: dayScope === 'day'
+      }),
+      currentFocusBlock
+    };
+  }, [
+    trip,
+    tripDays,
+    selectedDayId,
+    localEntries,
+    placeById,
+    dayScope,
+    isTasksView,
+    reminders,
+    mainWorkspaceTab
+  ]);
 
   const persistMessages = React.useCallback(
     (next: Array<{ role: 'user' | 'assistant'; text: string }>) => {
@@ -191,7 +219,10 @@ export const AiAssistantFab: React.FC = () => {
     setError(null);
     setBusy(true);
     try {
-      const { answer } = await answerTravelChat(config.geminiApiKey, nextMessages, tripContext);
+      const { tripContext: freshContext, currentFocusBlock } = buildSendContext();
+      const { answer } = await answerTravelChat(config.geminiApiKey, nextMessages, freshContext, {
+        currentFocusBlock
+      });
       const withAnswer = [...nextMessages, { role: 'assistant' as const, text: answer }];
       setMessages(withAnswer);
       persistMessages(withAnswer);

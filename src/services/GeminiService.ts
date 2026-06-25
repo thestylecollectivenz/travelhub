@@ -357,20 +357,30 @@ export async function answerTravelChat(
   apiKey: string,
   messages: TravelChatMessage[],
   tripContext?: string,
-  options?: { model?: string }
+  options?: { model?: string; currentFocusBlock?: string }
 ): Promise<{ answer: string; model: string }> {
   const key = (apiKey || '').trim();
   if (!key) throw new GeminiServiceError('NO_KEY', 'Add a Gemini API key in User settings.');
 
-  const transcript = messages
+  const latest = messages[messages.length - 1];
+  const prior = messages.slice(0, -1);
+  const priorTranscript = prior
     .map((m) => `${m.role === 'user' ? 'Traveller' : 'Assistant'}: ${m.text}`)
     .join('\n');
-  const prompt = `You are a helpful travel planning assistant. Answer clearly and practically. Ask a brief clarifying question when the request is ambiguous (e.g. which station or neighbourhood they mean).
+  const latestText = latest?.role === 'user' ? latest.text.trim() : '';
 
-${tripContext?.trim() ? `Trip context:\n${tripContext.trim()}\n\n` : ''}Conversation:
-${transcript}
+  const prompt = `You are a helpful travel planning assistant. Answer clearly and practically.
 
-Reply as plain text or markdown (no HTML). Use [label](url) for links. Keep answers concise unless detail is needed.`;
+Before every reply, check the CURRENT FOCUS section — it reflects the traveller's selected day, calendar date, and location right now. Earlier conversation may discuss a different place; do not treat old topics as still current unless the latest message clearly continues them or names another day/place.
+
+${tripContext?.trim() ? `Background trip data:\n${tripContext.trim()}\n\n` : ''}${
+    priorTranscript
+      ? `Earlier conversation (may reference a different day or location):\n${priorTranscript}\n\n`
+      : ''
+  }${options?.currentFocusBlock?.trim() ? `${options.currentFocusBlock.trim()}\n\n` : ''}Latest traveller message:
+${latestText || '(empty)'}
+
+Reply for the CURRENT FOCUS day, date, and location. Ask a brief clarifying question only when the latest message is ambiguous about place or day. Use plain text or markdown (no HTML). Use [label](url) for links. Keep answers concise unless detail is needed.`;
 
   const models: string[] = options?.model
     ? [options.model, ...GEMINI_MODEL_FALLBACK_CHAIN.filter((m) => m !== options.model)]

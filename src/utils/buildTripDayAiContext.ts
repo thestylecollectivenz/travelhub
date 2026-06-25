@@ -5,6 +5,8 @@ import { formatTimeHHMM } from './itineraryTimeUtils';
 import { formatLocationText, placeDisplayLabel } from './placeDisplayLabel';
 import { isPreTripDayRow, resolvePreTripDayId, sortEntriesForDay } from './itineraryDayEntries';
 import type { Place } from '../models/Place';
+import { formatYmdDisplay } from './localDate';
+import { localTodayYmd } from './taskDueBuckets';
 
 function seasonLabel(calendarDate: string, hemisphere: 'north' | 'south'): string | undefined {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(calendarDate);
@@ -213,9 +215,66 @@ export function buildTripDayAiContext(options: {
   lines.push('');
   lines.push(
     daySpecific
-      ? 'When answering, tailor advice to the selected calendar date, season, and what is already planned. Mention gaps or timing conflicts when relevant.'
+      ? 'When answering, use the CURRENT FOCUS day, calendar date, and location — the traveller may change day between messages. Tailor advice to what is already planned on that day.'
       : 'Answer at trip level using the full outline above unless the traveller asks about a specific day.'
   );
+
+  return lines.join('\n');
+}
+
+const WORKSPACE_TAB_LABELS: Record<string, string> = {
+  itinerary: 'Itinerary',
+  journal: 'Journal',
+  photos: 'Photos',
+  budget: 'Budget',
+  map: 'Map',
+  files: 'Files & links',
+  plan: 'Plan'
+};
+
+/** Short, emphatic block repeated on every AI turn so replies track the current day/place. */
+export function buildAiCurrentFocusBlock(options: {
+  isTasksView: boolean;
+  dayScope: 'day' | 'general';
+  selectedDay?: TripDay;
+  placeTitle?: string;
+  mainWorkspaceTab?: string;
+  todayYmd?: string;
+}): string {
+  const { isTasksView, dayScope, selectedDay, placeTitle, mainWorkspaceTab, todayYmd } = options;
+  const today = todayYmd ?? localTodayYmd();
+  const lines: string[] = [
+    '=== CURRENT FOCUS (authoritative for this reply — read before answering) ===',
+    'The traveller may have changed day or location since earlier messages. Earlier chat may refer to a different place — do not assume the conversation is still about that place.',
+    'Always answer for the day, calendar date, and location listed here unless the latest message explicitly names another day or place.'
+  ];
+
+  if (isTasksView) {
+    lines.push(`Today's date (local): ${today}`);
+    lines.push('Context: To-do list — bookings, payments, reminders, and manual tasks');
+  } else {
+    const tabLabel = mainWorkspaceTab ? WORKSPACE_TAB_LABELS[mainWorkspaceTab] || mainWorkspaceTab : undefined;
+    if (tabLabel) lines.push(`App view: ${tabLabel}`);
+    lines.push(`Context scope: ${dayScope === 'day' ? 'Selected day only' : 'Whole trip'}`);
+
+    if (selectedDay) {
+      const dateYmd = selectedDay.calendarDate?.slice(0, 10) ?? '';
+      const dateLabel = formatYmdDisplay(dateYmd) || dateYmd;
+      lines.push(
+        `Selected day: Day ${selectedDay.dayNumber} — ${(selectedDay.displayTitle || 'Untitled').trim()}${dateLabel ? ` (${dateLabel})` : ''}`
+      );
+      if (dateYmd) lines.push(`Calendar date: ${dateYmd}`);
+      lines.push(`Day type: ${dayTypeLabel(selectedDay.dayType)}`);
+    } else {
+      lines.push('Selected day: (none — traveller has not selected a day in the sidebar)');
+    }
+
+    if (placeTitle?.trim()) {
+      lines.push(`Primary location: ${formatLocationText(placeTitle.trim())}`);
+    } else if (selectedDay && dayScope === 'day') {
+      lines.push('Primary location: (not set on this day)');
+    }
+  }
 
   return lines.join('\n');
 }
