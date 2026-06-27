@@ -20,6 +20,7 @@ import {
   type BudgetDetailLine
 } from '../../utils/budgetDetailLines';
 import { buildBudgetPrintHtml, exportFullBudgetToExcel } from '../../utils/exportBudgetExcel';
+import { INSIGHT_FOCUS_EVENT, type InsightFocusDetail } from '../../utils/insightFocus';
 import { BudgetPrintSheet } from './BudgetPrintSheet';
 import styles from './TripBudgetDetailView.module.css';
 
@@ -40,7 +41,9 @@ function BudgetLineTable({
   onTransportSubtypeFilter,
   onEditEntry,
   lineSort,
-  onLineSort
+  onLineSort,
+  certaintyFilter,
+  entries
 }: {
   lines: BudgetDetailLine[];
   homeCurrency: string;
@@ -52,6 +55,8 @@ function BudgetLineTable({
   onEditEntry: (entryId: string, subItemId?: string) => void;
   lineSort: BudgetLineSort;
   onLineSort: (value: BudgetLineSort) => void;
+  certaintyFilter: 'estimated' | 'confirmed' | 'unpaid' | 'needs_booking' | null;
+  entries: ItineraryEntry[];
 }): React.ReactElement {
   const suppliers = React.useMemo(() => {
     const set = new Set<string>();
@@ -73,6 +78,21 @@ function BudgetLineTable({
     let out = lines;
     if (supplierFilter) out = out.filter((line) => line.supplier === supplierFilter);
     if (transportSubtypeFilter) out = out.filter((line) => line.transportSubtype === transportSubtypeFilter);
+    if (certaintyFilter === 'estimated') out = out.filter((line) => line.costCertainty === 'Estimated');
+    if (certaintyFilter === 'confirmed') out = out.filter((line) => line.costCertainty === 'Confirmed');
+    if (certaintyFilter === 'unpaid' || certaintyFilter === 'needs_booking') {
+      out = out.filter((line) => {
+        const entry = entries.find((e) => e.id === line.entryId);
+        if (!entry) return false;
+        if (certaintyFilter === 'unpaid') {
+          return (
+            (entry.paymentStatus !== 'Fully paid' && entry.paymentStatus !== 'Free' && (entry.amount ?? 0) > 0) ||
+            entry.paymentStatus === 'Part paid'
+          );
+        }
+        return entry.bookingRequired && entry.bookingStatus !== 'Booked';
+      });
+    }
     const sorted = [...out];
     if (lineSort === 'alpha') {
       sorted.sort((a, b) => a.title.localeCompare(b.title) || a.sortKey.localeCompare(b.sortKey));
@@ -80,7 +100,7 @@ function BudgetLineTable({
       sorted.sort((a, b) => a.sortKey.localeCompare(b.sortKey) || a.title.localeCompare(b.title));
     }
     return sorted;
-  }, [lines, supplierFilter, transportSubtypeFilter, lineSort]);
+  }, [lines, supplierFilter, transportSubtypeFilter, lineSort, certaintyFilter, entries]);
 
   const totals = sumBudgetLines(visibleLines);
   if (!lines.length) {
@@ -219,6 +239,20 @@ export const TripBudgetDetailView: React.FC = () => {
   const [transportSubtypeFilter, setTransportSubtypeFilter] = React.useState<string | null>(null);
   const [supplierFilter, setSupplierFilter] = React.useState<string | null>(null);
   const [lineSort, setLineSort] = React.useState<BudgetLineSort>('date');
+  const [budgetInsightFocus, setBudgetInsightFocus] = React.useState<
+    'estimated' | 'confirmed' | 'unpaid' | 'needs_booking' | null
+  >(null);
+
+  React.useEffect(() => {
+    const handler = (event: Event): void => {
+      const detail = (event as CustomEvent<InsightFocusDetail>).detail;
+      if (detail.pane !== 'budget') return;
+      const focus = detail.focus as 'estimated' | 'confirmed' | 'unpaid' | 'needs_booking' | '';
+      setBudgetInsightFocus(focus || null);
+    };
+    window.addEventListener(INSIGHT_FOCUS_EVENT, handler);
+    return () => window.removeEventListener(INSIGHT_FOCUS_EVENT, handler);
+  }, []);
 
   React.useEffect(() => {
     if (selectedBudgetCategory) {
@@ -337,6 +371,11 @@ export const TripBudgetDetailView: React.FC = () => {
     <section className={styles.root} aria-label="Trip budget detail">
       <header className={styles.header}>
         <h1 className={styles.title}>Trip budget</h1>
+        {budgetInsightFocus ? (
+          <button type="button" className={styles.actionBtn} onClick={() => setBudgetInsightFocus(null)}>
+            Clear insight filter
+          </button>
+        ) : null}
         <p className={styles.subtitle}>
           {tripDayCount} trip day{tripDayCount === 1 ? '' : 's'} · All figures in {config.homeCurrency}
         </p>
@@ -421,6 +460,8 @@ export const TripBudgetDetailView: React.FC = () => {
             onEditEntry={openEntryForEdit}
             lineSort={lineSort}
             onLineSort={setLineSort}
+            certaintyFilter={budgetInsightFocus}
+            entries={entries}
           />
         </>
       ) : (
@@ -448,6 +489,8 @@ export const TripBudgetDetailView: React.FC = () => {
                   onEditEntry={openEntryForEdit}
                   lineSort={lineSort}
                   onLineSort={setLineSort}
+                  certaintyFilter={budgetInsightFocus}
+                  entries={entries}
                 />
               </section>
             );

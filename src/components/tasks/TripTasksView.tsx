@@ -20,6 +20,7 @@ import { confirmUserAction } from '../../utils/confirmAction';
 import { loadTripAssignees, rememberTripAssignee } from '../../utils/tripAssignees';
 import { reminderTaskCategory, TASK_FILTER_UNCATEGORISED } from '../../utils/taskFilters';
 import { openTasksPrintPreview, type TasksPrintSection } from '../../utils/tasksPrintHtml';
+import { INSIGHT_FOCUS_EVENT, type InsightFocusDetail } from '../../utils/insightFocus';
 import { localTodayYmd, matchesTaskDueFilter, type TaskDueFilter } from '../../utils/taskDueBuckets';
 import dayHeaderStyles from '../day/DayHeader.module.css';
 import styles from './TripTasksView.module.css';
@@ -188,7 +189,19 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
   const [taskDueFilter, setTaskDueFilter] = React.useState<TaskDueFilter>('all');
   const [bookingDueFilter, setBookingDueFilter] = React.useState<TaskDueFilter>('all');
   const [paymentDueFilter, setPaymentDueFilter] = React.useState<TaskDueFilter>('all');
+  const [tasksInsightFocus, setTasksInsightFocus] = React.useState<string | null>(null);
   const todayYmd = React.useMemo(() => localTodayYmd(), []);
+
+  React.useEffect(() => {
+    const handler = (event: Event): void => {
+      const detail = (event as CustomEvent<InsightFocusDetail>).detail;
+      if (detail.pane !== 'tasks') return;
+      setTasksInsightFocus(detail.focus || null);
+      if (detail.focus === 'overdue') setTaskDueFilter('overdue');
+    };
+    window.addEventListener(INSIGHT_FOCUS_EVENT, handler);
+    return () => window.removeEventListener(INSIGHT_FOCUS_EVENT, handler);
+  }, []);
 
   const taskCategoryFilter = planView?.taskCategoryFilter ?? null;
   const taskAssigneeFilter = planView?.taskAssigneeFilter ?? null;
@@ -315,10 +328,13 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
     return sortRemindersByDueDate(rows, dueDateSort);
   }, [manual, filter, matchesReminderFilters, dueDateSort]);
 
-  const filteredManualTodos = React.useMemo(
-    () => manualTodos.filter((m) => matchesTaskDueFilter(m.dueDate, taskDueFilter, todayYmd)),
-    [manualTodos, taskDueFilter, todayYmd]
-  );
+  const filteredManualTodos = React.useMemo(() => {
+    let rows = manualTodos.filter((m) => matchesTaskDueFilter(m.dueDate, taskDueFilter, todayYmd));
+    if (tasksInsightFocus === 'no_assignee') {
+      rows = rows.filter((m) => !(m.assignedTo || '').trim());
+    }
+    return rows;
+  }, [manualTodos, taskDueFilter, todayYmd, tasksInsightFocus]);
 
   const cancellationReminders = React.useMemo(() => {
     let rows = manual.filter((m) => m.reminderType === 'CancellationDeadline');

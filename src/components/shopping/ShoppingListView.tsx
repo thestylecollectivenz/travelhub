@@ -1,0 +1,241 @@
+import * as React from 'react';
+import { usePlanView } from '../../context/PlanViewContext';
+import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { useSpContext } from '../../context/SpContext';
+import { useConfig } from '../../context/ConfigContext';
+import { ShoppingListService, type ShoppingItem } from '../../services/ShoppingListService';
+import { formatCurrency } from '../../utils/financialUtils';
+import { loadTripTravellers } from '../../utils/tripTravellers';
+import { loadTripShoppingCategories, rememberTripShoppingCategory } from '../../utils/tripShoppingCategories';
+import { summarizeShoppingItems } from '../../utils/shoppingSummary';
+import { confirmUserAction } from '../../utils/confirmAction';
+import styles from './ShoppingListView.module.css';
+
+export const ShoppingListView: React.FC = () => {
+  const spContext = useSpContext();
+  const { trip } = useTripWorkspace();
+  const { config } = useConfig();
+  const planView = usePlanView();
+  const service = React.useMemo(() => new ShoppingListService(spContext), [spContext]);
+  const [items, setItems] = React.useState<ShoppingItem[]>([]);
+  const [name, setName] = React.useState('');
+  const [category, setCategory] = React.useState('Other');
+  const [newCategory, setNewCategory] = React.useState('');
+  const [budget, setBudget] = React.useState('');
+  const [purchaseMonth, setPurchaseMonth] = React.useState('');
+
+  const travellers = React.useMemo(() => (trip?.id ? loadTripTravellers(trip.id) : ['Traveller 1']), [trip?.id]);
+  const categories = React.useMemo(() => (trip?.id ? loadTripShoppingCategories(trip.id) : ['Other']), [trip?.id]);
+  const activeTraveller = planView?.shoppingTraveller ?? null;
+  const activeCategory = planView?.shoppingCategory ?? '__all__';
+  const activeMonth = planView?.shoppingMonthFilter ?? null;
+
+  const refresh = React.useCallback(() => {
+    if (!trip?.id) return;
+    service.getForTrip(trip.id).then(setItems).catch(console.error);
+  }, [service, trip?.id]);
+
+  React.useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const filtered = React.useMemo(() => {
+    let rows = items;
+    if (activeTraveller) rows = rows.filter((i) => (i.traveller || travellers[0]) === activeTraveller);
+    if (activeCategory !== '__all__') rows = rows.filter((i) => i.category === activeCategory);
+    if (activeMonth) rows = rows.filter((i) => (i.purchaseMonth || '') === activeMonth);
+    return rows;
+  }, [items, activeTraveller, activeCategory, activeMonth, travellers]);
+
+  const summary = React.useMemo(
+    () => summarizeShoppingItems(items, activeTraveller, activeCategory, activeMonth),
+    [items, activeTraveller, activeCategory, activeMonth]
+  );
+
+  const addItem = (): void => {
+    if (!trip?.id || !name.trim()) return;
+    const cat = category.trim() || 'Other';
+    rememberTripShoppingCategory(trip.id, cat);
+    service
+      .create({
+        tripId: trip.id,
+        itemName: name.trim(),
+        category: cat,
+        traveller: activeTraveller || travellers[0] || 'Traveller 1',
+        budgetAmount: Math.max(0, Number(budget) || 0),
+        actualAmount: 0,
+        currency: config.homeCurrency,
+        purchaseMonth: purchaseMonth.trim(),
+        websiteUrl: '',
+        notes: '',
+        isPurchased: false
+      })
+      .then(() => {
+        setName('');
+        setBudget('');
+        refresh();
+      })
+      .catch(console.error);
+  };
+
+  const addCategory = (): void => {
+    if (!trip?.id || !newCategory.trim()) return;
+    rememberTripShoppingCategory(trip.id, newCategory.trim());
+    setCategory(newCategory.trim());
+    setNewCategory('');
+  };
+
+  return (
+    <section className={styles.root} aria-label="Shopping list">
+      <h2 className={styles.heading}>
+        Shopping list
+        {activeTraveller ? ` — ${activeTraveller}` : ' — All travellers'}
+        {activeCategory !== '__all__' ? ` · ${activeCategory}` : ''}
+        {activeMonth ? ` · ${activeMonth}` : ''}
+      </h2>
+
+      <div className={styles.summaryStrip}>
+        <span className={styles.summaryChip}>
+          Budget {formatCurrency(summary.totals.budget, config.homeCurrency)} · Actual{' '}
+          {formatCurrency(summary.totals.actual, config.homeCurrency)} · {summary.totals.count} items
+        </span>
+      </div>
+
+      <div className={styles.row}>
+        <input className={styles.input} placeholder="Item to buy" value={name} onChange={(e) => setName(e.target.value)} />
+        <select className={styles.select} value={category} onChange={(e) => setCategory(e.target.value)}>
+          {categories.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+        <input className={styles.input} placeholder="Budget $" value={budget} onChange={(e) => setBudget(e.target.value)} />
+        <input className={styles.input} type="month" value={purchaseMonth} onChange={(e) => setPurchaseMonth(e.target.value)} aria-label="Purchase month" />
+        <button type="button" className={styles.button} onClick={addItem}>
+          Add item
+        </button>
+      </div>
+
+      <div className={styles.row}>
+        <input className={styles.input} placeholder="New category name" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} />
+        <button type="button" className={styles.button} onClick={addCategory}>
+          Add category
+        </button>
+      </div>
+
+      <div className={styles.headerRow}>
+        <span />
+        <span>Item</span>
+        <span>Category</span>
+        <span>Traveller</span>
+        <span>Budget</span>
+        <span>Actual</span>
+        <span>Month</span>
+        <span>Link / notes</span>
+        <span />
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className={styles.muted}>No shopping items yet.</p>
+      ) : (
+        filtered.map((item) => (
+          <div key={item.id} className={`${styles.item} ${item.isPurchased ? styles.itemPurchased : ''}`}>
+            <input
+              type="checkbox"
+              checked={item.isPurchased}
+              aria-label="Purchased"
+              onChange={(e) => service.update(item.id, { isPurchased: e.target.checked }).then(refresh).catch(console.error)}
+            />
+            <span className={styles.itemName}>{item.itemName}</span>
+            <select
+              className={styles.select}
+              value={item.category}
+              onChange={(e) => {
+                if (trip?.id) rememberTripShoppingCategory(trip.id, e.target.value);
+                service.update(item.id, { category: e.target.value }).then(refresh).catch(console.error);
+              }}
+            >
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <select
+              className={styles.select}
+              value={item.traveller || travellers[0]}
+              onChange={(e) => service.update(item.id, { traveller: e.target.value }).then(refresh).catch(console.error)}
+            >
+              {travellers.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            <input
+              className={styles.moneyInput}
+              type="number"
+              min={0}
+              step="0.01"
+              value={item.budgetAmount || ''}
+              onChange={(e) => {
+                const v = Math.max(0, Number(e.target.value) || 0);
+                service.update(item.id, { budgetAmount: v }).then(refresh).catch(console.error);
+              }}
+            />
+            <input
+              className={styles.moneyInput}
+              type="number"
+              min={0}
+              step="0.01"
+              value={item.actualAmount || ''}
+              onChange={(e) => {
+                const v = Math.max(0, Number(e.target.value) || 0);
+                service.update(item.id, { actualAmount: v }).then(refresh).catch(console.error);
+              }}
+            />
+            <input
+              className={styles.input}
+              type="month"
+              value={item.purchaseMonth || ''}
+              onChange={(e) => service.update(item.id, { purchaseMonth: e.target.value }).then(refresh).catch(console.error)}
+            />
+            <div>
+              <input
+                className={styles.linkInput}
+                placeholder="Website URL"
+                defaultValue={item.websiteUrl}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  if (v !== (item.websiteUrl || '')) service.update(item.id, { websiteUrl: v }).then(refresh).catch(console.error);
+                }}
+              />
+              <input
+                className={styles.noteInput}
+                placeholder="Notes"
+                defaultValue={item.notes}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  if (v !== (item.notes || '')) service.update(item.id, { notes: v }).then(refresh).catch(console.error);
+                }}
+              />
+            </div>
+            <button
+              type="button"
+              className={styles.deleteBtn}
+              onClick={() => {
+                void (async () => {
+                  if (!(await confirmUserAction('Delete this shopping item?'))) return;
+                  service.delete(item.id).then(refresh).catch(console.error);
+                })();
+              }}
+            >
+              Delete
+            </button>
+          </div>
+        ))
+      )}
+    </section>
+  );
+};

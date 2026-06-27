@@ -5,6 +5,8 @@ import { ReminderService } from '../../services/ReminderService';
 import { SidebarDayList } from './SidebarDayList';
 import { SidebarCategoryBudget } from './SidebarCategoryBudget';
 import { SidebarMapStops } from './SidebarMapStops';
+import { SidebarMapPlaces } from './SidebarMapPlaces';
+import { SidebarShoppingFilters } from './SidebarShoppingFilters';
 import { SidebarPackingCategories } from './SidebarPackingCategories';
 import { SidebarTaskCategories } from './SidebarTaskCategories';
 import { SidebarTaskAssignees } from './SidebarTaskAssignees';
@@ -235,7 +237,12 @@ export const TripSidebar: React.FC = () => {
         {mainWorkspaceTab === 'budget' ? (
           <SidebarCategoryBudget />
         ) : mainWorkspaceTab === 'map' ? (
-          <SidebarMapStops />
+          <>
+            <SidebarMapPlaces />
+            <SidebarMapStops />
+          </>
+        ) : mainWorkspaceTab === 'plan' && planView?.planTab === 'shopping' ? (
+          <SidebarShoppingFilters />
         ) : mainWorkspaceTab === 'plan' && planView?.planTab === 'packing' ? (
           <SidebarPackingCategories />
         ) : mainWorkspaceTab === 'plan' &&

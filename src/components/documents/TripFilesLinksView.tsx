@@ -4,6 +4,7 @@ import { useAttachments } from '../../context/AttachmentsContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { confirmUserAction } from '../../utils/confirmAction';
+import { INSIGHT_FOCUS_EVENT, type InsightFocusDetail } from '../../utils/insightFocus';
 import styles from './TripDocumentsView.module.css';
 
 type KindFilter = 'all' | 'documents' | 'links';
@@ -27,6 +28,17 @@ export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeD
     }
   }, [mainWorkspaceTab, selectedDayId]);
   const [search, setSearch] = React.useState('');
+  const [filesInsightFocus, setFilesInsightFocus] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const handler = (event: Event): void => {
+      const detail = (event as CustomEvent<InsightFocusDetail>).detail;
+      if (detail.pane !== 'files') return;
+      setFilesInsightFocus(detail.focus || null);
+    };
+    window.addEventListener(INSIGHT_FOCUS_EVENT, handler);
+    return () => window.removeEventListener(INSIGHT_FOCUS_EVENT, handler);
+  }, []);
 
   const dayLabel = React.useCallback((dayId: string): string => {
     const d = tripDays.find((x) => x.id === dayId);
@@ -88,10 +100,21 @@ export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeD
     }
     return out.filter((r) => {
       if (dayFilter !== 'all' && r.dayId !== dayFilter) return false;
+      if (filesInsightFocus === 'unlinked_documents' && (r.kind !== 'document' || r.entryId)) return false;
+      if (filesInsightFocus === 'unlinked_links' && (r.kind !== 'link' || r.entryId)) return false;
+      if (filesInsightFocus === 'missing_day' && r.dayId) return false;
+      if (filesInsightFocus && filesInsightFocus.indexOf('duplicate:') === 0) {
+        if (r.kind !== 'link') return false;
+        const link = links.find((l) => l.id === r.id);
+        if (!link) return false;
+        const target = filesInsightFocus.slice('duplicate:'.length).trim().toLowerCase().replace(/\/$/, '');
+        const key = (link.url || '').trim().toLowerCase().replace(/\/$/, '');
+        if (key !== target) return false;
+      }
       if (!q) return true;
       return `${r.title} ${r.url} ${r.meta}`.toLowerCase().includes(q);
     });
-  }, [documents, links, kind, dayFilter, search, includeDocuments]);
+  }, [documents, links, kind, dayFilter, search, includeDocuments, filesInsightFocus]);
 
   const startEdit = React.useCallback(
     (row: (typeof rows)[number]) => {
@@ -119,6 +142,11 @@ export const TripFilesLinksView: React.FC<TripFilesLinksViewProps> = ({ includeD
     <section className={styles.root} aria-label="Files and links">
       <header className={styles.header}>
         <h2 className={styles.title}>Files & Links</h2>
+        {filesInsightFocus ? (
+          <button type="button" className={styles.inlineAction} onClick={() => setFilesInsightFocus(null)}>
+            Clear filter
+          </button>
+        ) : null}
       </header>
       <div className={styles.filters}>
         <input className={styles.input} placeholder="Search files and links" value={search} onChange={(e) => setSearch(e.target.value)} />

@@ -133,6 +133,26 @@ export class PackingService {
     return mapToTemplate(await resp.json());
   }
 
+  async deleteTemplate(templateId: string): Promise<void> {
+    const items = await this.ctx.spHttpClient.get(
+      `${this.baseUrl}?$select=ID&$filter=IsTemplate eq 1 and TemplateId eq '${templateId.replace(/'/g, "''")}'&$top=5000`,
+      SPHttpClient.configurations.v1
+    );
+    if (items.ok) {
+      const data = await items.json();
+      const rows = data.value ?? [];
+      for (const row of rows) {
+        // eslint-disable-next-line no-await-in-loop
+        await this.delete(String(row.ID));
+      }
+    }
+    const resp = await this.ctx.spHttpClient.fetch(`${this.templatesUrl}(${templateId})`, SPHttpClient.configurations.v1, {
+      method: 'DELETE',
+      headers: { 'IF-MATCH': '*', 'X-HTTP-Method': 'DELETE' }
+    });
+    if (!resp.ok && resp.status !== 204) throw new Error(`PackingService.deleteTemplate failed: ${resp.status}`);
+  }
+
   async bulkCreate(items: Array<Omit<PackingItem, 'id'>>): Promise<void> {
     await Promise.all(items.map((item) => this.create(item).then(() => undefined)));
   }

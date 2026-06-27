@@ -12,6 +12,7 @@ import { RightPaneBudgetInsights } from './RightPaneBudgetInsights';
 import { RightPaneFilesInsights } from './RightPaneFilesInsights';
 import { RightPaneTasksInsights } from './RightPaneTasksInsights';
 import { RightPanePackingTemplates } from './RightPanePackingTemplates';
+import { RightPaneShoppingSummary } from './RightPaneShoppingSummary';
 import styles from './RightPane.module.css';
 
 export type RightPaneMode =
@@ -22,6 +23,7 @@ export type RightPaneMode =
   | 'files'
   | 'tasks'
   | 'packing'
+  | 'shopping'
   | 'default';
 
 export interface RightPaneProps {
@@ -98,6 +100,8 @@ export const RightPane: React.FC<RightPaneProps> = ({
           <RightPaneTasksInsights />
         ) : paneMode === 'packing' ? (
           <RightPanePackingTemplates />
+        ) : paneMode === 'shopping' ? (
+          <RightPaneShoppingSummary />
         ) : (
           <RightPaneTripSummary showSelectDayHint={showSelectDayHint} />
         )}

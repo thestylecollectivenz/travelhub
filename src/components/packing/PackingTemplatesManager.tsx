@@ -65,6 +65,23 @@ export const PackingTemplatesManager: React.FC<{ onClose?: () => void }> = ({ on
         >
           Add template
         </button>
+        {selected ? (
+          <button
+            className={styles.button}
+            type="button"
+            onClick={() => {
+              void (async () => {
+                if (!(await confirmUserAction(`Delete template “${selected.templateName}” and all its items?`))) return;
+                service.deleteTemplate(selected.id).then(() => {
+                  setSelectedId('');
+                  refresh();
+                }).catch(console.error);
+              })();
+            }}
+          >
+            Delete template
+          </button>
+        ) : null}
       </div>
       {selected ? (
         <>

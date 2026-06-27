@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-export type PlanTab = 'tasks' | 'packing' | 'packing_templates' | 'missing_costs';
+export type PlanTab = 'tasks' | 'shopping' | 'packing' | 'packing_templates' | 'missing_costs';
 
 export type TaskSectionKey = 'todo' | 'bookings' | 'payments' | 'cancellations';
 
@@ -25,6 +25,13 @@ export interface PlanViewContextValue {
   setPackingTraveller: (name: string | null) => void;
   focusedReminderId: string | null;
   setFocusedReminderId: (id: string | null) => void;
+  /** null = all travellers on shopping list */
+  shoppingTraveller: string | null;
+  setShoppingTraveller: (name: string | null) => void;
+  shoppingCategory: string;
+  setShoppingCategory: (category: string) => void;
+  shoppingMonthFilter: string | null;
+  setShoppingMonthFilter: (month: string | null) => void;
 }
 
 const PlanViewContext = React.createContext<PlanViewContextValue | undefined>(undefined);
@@ -38,6 +45,9 @@ export const PlanViewProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [tasksViewMode, setTasksViewMode] = React.useState<'list' | 'calendar'>('list');
   const [packingTraveller, setPackingTraveller] = React.useState<string | null>(null);
   const [focusedReminderId, setFocusedReminderId] = React.useState<string | null>(null);
+  const [shoppingTraveller, setShoppingTraveller] = React.useState<string | null>(null);
+  const [shoppingCategory, setShoppingCategory] = React.useState('__all__');
+  const [shoppingMonthFilter, setShoppingMonthFilter] = React.useState<string | null>(null);
 
   const value = React.useMemo(
     () => ({
@@ -56,9 +66,15 @@ export const PlanViewProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       packingTraveller,
       setPackingTraveller,
       focusedReminderId,
-      setFocusedReminderId
+      setFocusedReminderId,
+      shoppingTraveller,
+      setShoppingTraveller,
+      shoppingCategory,
+      setShoppingCategory,
+      shoppingMonthFilter,
+      setShoppingMonthFilter
     }),
-    [planTab, packingCategory, taskCategoryFilter, taskAssigneeFilter, taskSectionFilter, tasksViewMode, packingTraveller, focusedReminderId]
+    [planTab, packingCategory, taskCategoryFilter, taskAssigneeFilter, taskSectionFilter, tasksViewMode, packingTraveller, focusedReminderId, shoppingTraveller, shoppingCategory, shoppingMonthFilter]
   );
 
   return <PlanViewContext.Provider value={value}>{children}</PlanViewContext.Provider>;

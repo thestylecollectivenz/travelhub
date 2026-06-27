@@ -352,5 +352,19 @@ Add-ListFieldIfMissing -ListTitle 'AlbumPhotos' -InternalName 'PlaceId' -FieldTy
 Add-ListFieldIfMissing -ListTitle 'AlbumPhotos' -InternalName 'FileUrl' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'AlbumPhotos' -InternalName 'Caption' -FieldType 'Text'
 
+# --- ShoppingList (pre-trip purchases) ---
+Ensure-CustomList -Title 'ShoppingList'
+Add-ListFieldIfMissing -ListTitle 'ShoppingList' -InternalName 'TripId' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'ShoppingList' -InternalName 'ItemName' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'ShoppingList' -InternalName 'Category' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'ShoppingList' -InternalName 'Traveller' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'ShoppingList' -InternalName 'BudgetAmount' -FieldType 'Number'
+Add-ListFieldIfMissing -ListTitle 'ShoppingList' -InternalName 'ActualAmount' -FieldType 'Number'
+Add-ListFieldIfMissing -ListTitle 'ShoppingList' -InternalName 'Currency' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'ShoppingList' -InternalName 'PurchaseMonth' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'ShoppingList' -InternalName 'WebsiteUrl' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'ShoppingList' -InternalName 'ItemNotes' -FieldType 'Note'
+Add-ListFieldIfMissing -ListTitle 'ShoppingList' -InternalName 'IsPurchased' -FieldType 'Boolean'
+
 Write-Host "Provisioning finished successfully."
 Disconnect-PnPOnline

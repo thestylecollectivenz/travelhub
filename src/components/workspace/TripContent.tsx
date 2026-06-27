@@ -10,6 +10,7 @@ import { ErrorBoundary } from '../shared/ErrorBoundary';
 import { TripTasksView } from '../tasks/TripTasksView';
 import { TripBudgetDetailView } from '../budget/TripBudgetDetailView';
 import { PackingListView } from '../packing/PackingListView';
+import { ShoppingListView } from '../shopping/ShoppingListView';
 import { PackingTemplatesManager } from '../packing/PackingTemplatesManager';
 import { TripSidebar } from '../sidebar/TripSidebar';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
@@ -104,7 +105,8 @@ const TripContentInner: React.FC = () => {
     if (mainWorkspaceTab === 'map') return 'map';
     if (mainWorkspaceTab === 'files') return 'files';
     if (mainWorkspaceTab === 'plan') {
-      if (planView?.planTab === 'packing') return 'packing';
+      if (planView?.planTab === 'packing' || planView?.planTab === 'packing_templates') return 'packing';
+      if (planView?.planTab === 'shopping') return 'shopping';
       if (planView?.planTab === 'tasks' || planView?.planTab === 'missing_costs') return 'tasks';
     }
     return 'default';
@@ -351,6 +353,14 @@ const TripContentInner: React.FC = () => {
               <button
                 type="button"
                 className={dayHeaderStyles.journalButton}
+                style={planView?.planTab === 'shopping' ? { borderColor: 'var(--color-primary)', boxShadow: '0 0 0 1px var(--color-primary)' } : undefined}
+                onClick={() => planView?.setPlanTab('shopping')}
+              >
+                Shopping
+              </button>
+              <button
+                type="button"
+                className={dayHeaderStyles.journalButton}
                 style={planView?.planTab === 'missing_costs' ? { borderColor: 'var(--color-primary)', boxShadow: '0 0 0 1px var(--color-primary)' } : undefined}
                 onClick={() => planView?.setPlanTab('missing_costs')}
               >
@@ -381,6 +391,8 @@ const TripContentInner: React.FC = () => {
               <PackingListView />
             ) : planView?.planTab === 'packing_templates' ? (
               <PackingTemplatesManager />
+            ) : planView?.planTab === 'shopping' ? (
+              <ShoppingListView />
             ) : (
               <TripTasksView variant={planView?.planTab === 'missing_costs' ? 'missing_costs' : 'tasks'} />
             )}
