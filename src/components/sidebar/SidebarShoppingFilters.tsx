@@ -1,17 +1,25 @@
 import * as React from 'react';
 import { usePlanView } from '../../context/PlanViewContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { useSpContext } from '../../context/SpContext';
+import { confirmUserAction } from '../../utils/confirmAction';
 import { loadTripTravellers } from '../../utils/tripTravellers';
-import { loadTripShoppingCategories } from '../../utils/tripShoppingCategories';
+import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
 import styles from './TripSidebar.module.css';
 
 export const SidebarShoppingFilters: React.FC = () => {
   const plan = usePlanView();
   const { trip } = useTripWorkspace();
+  const spContext = useSpContext();
   const travellers = React.useMemo(() => (trip?.id ? loadTripTravellers(trip.id) : ['Traveller 1']), [trip?.id]);
-  const categories = React.useMemo(() => (trip?.id ? loadTripShoppingCategories(trip.id) : ['Other']), [trip?.id]);
+  const { categories, addCategory, renameCategory, deleteCategory } = useTripShoppingCategories(trip?.id, spContext);
   const traveller = plan?.shoppingTraveller ?? null;
   const category = plan?.shoppingCategory ?? '__all__';
+  const [newCategoryName, setNewCategoryName] = React.useState('');
+  const [editingCategory, setEditingCategory] = React.useState<string | null>(null);
+  const [editCategoryName, setEditCategoryName] = React.useState('');
+
+  if (!plan) return null;
 
   return (
     <div className={styles.dayListSection}>
@@ -20,7 +28,7 @@ export const SidebarShoppingFilters: React.FC = () => {
         <button
           type="button"
           className={`${styles.packingCatBtn} ${traveller === null ? styles.packingCatBtnActive : ''}`}
-          onClick={() => plan?.setShoppingTraveller(null)}
+          onClick={() => plan.setShoppingTraveller(null)}
         >
           All
         </button>
@@ -29,33 +37,134 @@ export const SidebarShoppingFilters: React.FC = () => {
             key={name}
             type="button"
             className={`${styles.packingCatBtn} ${traveller === name ? styles.packingCatBtnActive : ''}`}
-            onClick={() => plan?.setShoppingTraveller(name)}
+            onClick={() => plan.setShoppingTraveller(name)}
           >
             {name}
           </button>
         ))}
       </div>
 
-      <h2 className={styles.dayListHeading}>Category</h2>
-      <button
-        type="button"
-        className={`${styles.packingCatBtn} ${category === '__all__' ? styles.packingCatBtnActive : ''}`}
-        onClick={() => plan?.setShoppingCategory('__all__')}
-      >
-        All categories
-      </button>
-      {categories.map((c) => (
+      <h2 className={styles.dayListHeading}>Categories</h2>
+      <p className={styles.dayListHint}>
+        Add categories here — they appear in the item pick list. Rename or delete using the actions beside each name.
+      </p>
+      <ul className={styles.dayList}>
+        <li>
+          <button
+            type="button"
+            className={`${styles.packingCatBtn} ${category === '__all__' ? styles.packingCatBtnActive : ''}`}
+            onClick={() => plan.setShoppingCategory('__all__')}
+          >
+            All categories
+          </button>
+        </li>
+        {categories.length === 0 ? (
+          <li className={styles.dayListHint}>No categories yet — add one below.</li>
+        ) : (
+          categories.map((c) => (
+            <li key={c}>
+              {editingCategory === c ? (
+                <div className={styles.travellerEditRow}>
+                  <input
+                    className={styles.travellerInput}
+                    value={editCategoryName}
+                    onChange={(e) => setEditCategoryName(e.target.value)}
+                    aria-label="Category name"
+                  />
+                  <button
+                    type="button"
+                    className={styles.travellerActionBtn}
+                    onClick={() => {
+                      void (async () => {
+                        const next = editCategoryName.trim();
+                        if (!next || next.toLowerCase() === c.toLowerCase()) {
+                          setEditingCategory(null);
+                          return;
+                        }
+                        await renameCategory(c, next);
+                        if (category === c) plan.setShoppingCategory(next);
+                        setEditingCategory(null);
+                      })();
+                    }}
+                  >
+                    Save
+                  </button>
+                </div>
+              ) : (
+                <div className={styles.travellerRow}>
+                  <button
+                    type="button"
+                    className={`${styles.packingCatBtn} ${category === c ? styles.packingCatBtnActive : ''}`}
+                    onClick={() => plan.setShoppingCategory(c)}
+                  >
+                    {c}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.travellerActionBtn}
+                    title="Rename category"
+                    onClick={() => {
+                      setEditingCategory(c);
+                      setEditCategoryName(c);
+                    }}
+                  >
+                    ✎
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.travellerActionBtn}
+                    title="Delete category"
+                    onClick={() => {
+                      void (async () => {
+                        if (!(await confirmUserAction(`Delete category "${c}"? Items in this category will become uncategorised.`))) return;
+                        await deleteCategory(c);
+                        if (category === c) plan.setShoppingCategory('__all__');
+                      })();
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+            </li>
+          ))
+        )}
+      </ul>
+      <div className={styles.travellerAddRow}>
+        <input
+          className={styles.travellerInput}
+          placeholder="New category name"
+          value={newCategoryName}
+          onChange={(e) => setNewCategoryName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return;
+            const next = newCategoryName.trim();
+            if (!next) return;
+            addCategory(next);
+            setNewCategoryName('');
+            plan.setShoppingCategory(next);
+          }}
+        />
         <button
-          key={c}
           type="button"
-          className={`${styles.packingCatBtn} ${category === c ? styles.packingCatBtnActive : ''}`}
-          onClick={() => plan?.setShoppingCategory(c)}
+          className={styles.travellerActionBtn}
+          onClick={() => {
+            const next = newCategoryName.trim();
+            if (!next) return;
+            if (categories.some((c) => c.toLowerCase() === next.toLowerCase())) {
+              setNewCategoryName('');
+              return;
+            }
+            addCategory(next);
+            setNewCategoryName('');
+            plan.setShoppingCategory(next);
+          }}
         >
-          {c}
+          Add
         </button>
-      ))}
+      </div>
 
-      {plan?.shoppingMonthFilter ? (
+      {plan.shoppingMonthFilter ? (
         <p className={styles.dayListHint}>
           Month filter: {plan.shoppingMonthFilter}{' '}
           <button type="button" className={styles.packingCatBtn} onClick={() => plan.setShoppingMonthFilter(null)}>

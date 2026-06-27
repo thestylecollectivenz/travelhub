@@ -24,7 +24,7 @@ function mapToItem(item: any): ShoppingItem {
     id: String(item.ID),
     tripId: item.TripId ?? '',
     itemName: item.ItemName ?? item.Title ?? '',
-    category: item.Category ?? 'Other',
+    category: item.Category ?? '',
     traveller: item.Traveller ?? '',
     budgetAmount: Number(item.BudgetAmount ?? 0),
     actualAmount: Number(item.ActualAmount ?? 0),

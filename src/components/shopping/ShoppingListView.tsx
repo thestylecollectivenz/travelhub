@@ -6,7 +6,8 @@ import { useConfig } from '../../context/ConfigContext';
 import { ShoppingListService, type ShoppingItem } from '../../services/ShoppingListService';
 import { formatCurrency } from '../../utils/financialUtils';
 import { loadTripTravellers } from '../../utils/tripTravellers';
-import { loadTripShoppingCategories, rememberTripShoppingCategory } from '../../utils/tripShoppingCategories';
+import { categoriesForItemSelect, rememberTripShoppingCategory } from '../../utils/tripShoppingCategories';
+import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
 import { summarizeShoppingItems } from '../../utils/shoppingSummary';
 import { confirmUserAction } from '../../utils/confirmAction';
 import styles from './ShoppingListView.module.css';
@@ -17,18 +18,23 @@ export const ShoppingListView: React.FC = () => {
   const { config } = useConfig();
   const planView = usePlanView();
   const service = React.useMemo(() => new ShoppingListService(spContext), [spContext]);
+  const { categories } = useTripShoppingCategories(trip?.id, spContext);
   const [items, setItems] = React.useState<ShoppingItem[]>([]);
   const [name, setName] = React.useState('');
-  const [category, setCategory] = React.useState('Other');
-  const [newCategory, setNewCategory] = React.useState('');
+  const [category, setCategory] = React.useState('');
   const [budget, setBudget] = React.useState('');
   const [purchaseMonth, setPurchaseMonth] = React.useState('');
 
   const travellers = React.useMemo(() => (trip?.id ? loadTripTravellers(trip.id) : ['Traveller 1']), [trip?.id]);
-  const categories = React.useMemo(() => (trip?.id ? loadTripShoppingCategories(trip.id) : ['Other']), [trip?.id]);
   const activeTraveller = planView?.shoppingTraveller ?? null;
   const activeCategory = planView?.shoppingCategory ?? '__all__';
   const activeMonth = planView?.shoppingMonthFilter ?? null;
+
+  React.useEffect(() => {
+    if (category && !categories.some((c) => c.toLowerCase() === category.toLowerCase())) {
+      setCategory('');
+    }
+  }, [categories, category]);
 
   const refresh = React.useCallback(() => {
     if (!trip?.id) return;
@@ -54,7 +60,8 @@ export const ShoppingListView: React.FC = () => {
 
   const addItem = (): void => {
     if (!trip?.id || !name.trim()) return;
-    const cat = category.trim() || 'Other';
+    const cat = category.trim();
+    if (!cat) return;
     rememberTripShoppingCategory(trip.id, cat);
     service
       .create({
@@ -78,12 +85,7 @@ export const ShoppingListView: React.FC = () => {
       .catch(console.error);
   };
 
-  const addCategory = (): void => {
-    if (!trip?.id || !newCategory.trim()) return;
-    rememberTripShoppingCategory(trip.id, newCategory.trim());
-    setCategory(newCategory.trim());
-    setNewCategory('');
-  };
+  const categoryOptions = (itemCategory: string): string[] => categoriesForItemSelect(categories, itemCategory);
 
   return (
     <section className={styles.root} aria-label="Shopping list">
@@ -101,9 +103,20 @@ export const ShoppingListView: React.FC = () => {
         </span>
       </div>
 
+      {categories.length === 0 ? (
+        <p className={styles.muted}>Add shopping categories in the left sidebar before adding items.</p>
+      ) : null}
+
       <div className={styles.row}>
         <input className={styles.input} placeholder="Item to buy" value={name} onChange={(e) => setName(e.target.value)} />
-        <select className={styles.select} value={category} onChange={(e) => setCategory(e.target.value)}>
+        <select
+          className={styles.select}
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          aria-label="Category"
+          disabled={categories.length === 0}
+        >
+          <option value="">Select category…</option>
           {categories.map((c) => (
             <option key={c} value={c}>
               {c}
@@ -112,15 +125,8 @@ export const ShoppingListView: React.FC = () => {
         </select>
         <input className={styles.input} placeholder="Budget $" value={budget} onChange={(e) => setBudget(e.target.value)} />
         <input className={styles.input} type="month" value={purchaseMonth} onChange={(e) => setPurchaseMonth(e.target.value)} aria-label="Purchase month" />
-        <button type="button" className={styles.button} onClick={addItem}>
+        <button type="button" className={styles.button} onClick={addItem} disabled={!name.trim() || !category.trim() || categories.length === 0}>
           Add item
-        </button>
-      </div>
-
-      <div className={styles.row}>
-        <input className={styles.input} placeholder="New category name" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} />
-        <button type="button" className={styles.button} onClick={addCategory}>
-          Add category
         </button>
       </div>
 
@@ -150,13 +156,15 @@ export const ShoppingListView: React.FC = () => {
             <span className={styles.itemName}>{item.itemName}</span>
             <select
               className={styles.select}
-              value={item.category}
+              value={item.category || ''}
               onChange={(e) => {
-                if (trip?.id) rememberTripShoppingCategory(trip.id, e.target.value);
-                service.update(item.id, { category: e.target.value }).then(refresh).catch(console.error);
+                const next = e.target.value;
+                if (trip?.id && next) rememberTripShoppingCategory(trip.id, next);
+                service.update(item.id, { category: next }).then(refresh).catch(console.error);
               }}
             >
-              {categories.map((c) => (
+              <option value="">Uncategorised</option>
+              {categoryOptions(item.category).map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>
