@@ -33,6 +33,8 @@ import { TripRoleProvider } from '../../context/TripRoleContext';
 import { LocationInfoTripOpenBackfill } from '../itinerary/LocationInfoTripOpenBackfill';
 import { AiAssistantFab } from './AiAssistantFab';
 import { OptionEditPortal } from '../itinerary/OptionEditPortal';
+import { useMobileMode } from '../../hooks/useMobileMode';
+import { MobileTripShell } from '../mobile/MobileTripShell';
 import styles from './TripWorkspace.module.css';
 
 export interface ITripWorkspaceProps {
@@ -645,6 +647,12 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
   );
 };
 
+const MobileAwareTripLayout: React.FC<ITripWorkspaceProps> = (props) => {
+  const isMobile = useMobileMode();
+  if (isMobile) return <MobileTripShell onBack={props.onBack} />;
+  return <TripWorkspaceLayout {...props} />;
+};
+
 export const TripWorkspace: React.FC<ITripWorkspaceProps> = (props) => {
   return (
     <TripWorkspaceProvider tripId={props.tripId} onBack={props.onBack}>
@@ -655,7 +663,7 @@ export const TripWorkspace: React.FC<ITripWorkspaceProps> = (props) => {
             <PlacesProvider>
               <AttachmentsProvider>
                 <LocationInfoTripOpenBackfill />
-                <TripWorkspaceLayout {...props} />
+                <MobileAwareTripLayout {...props} />
               </AttachmentsProvider>
             </PlacesProvider>
           </JournalMediaSelectionProvider>
