@@ -10,6 +10,7 @@ import type { EntryDocumentType, EntryLinkType } from '../../models';
 import { CategoryIcon } from '../shared/CategoryIcon';
 import { getCategorySlug, CATEGORY_LIST } from '../../utils/categoryUtils';
 import { formatCurrency } from '../../utils/financialUtils';
+import { useCanSeeFinancials } from '../../hooks/useCanSeeFinancials';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { SubItemList } from './SubItemList';
 import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
@@ -172,6 +173,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
     useTripWorkspace();
   const planView = usePlanView();
   const { config } = useConfig();
+  const canSeeFinancials = useCanSeeFinancials();
   const { documents, links: allLinks, addDocument, addLink } = useAttachments();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [attachmentEntryId, setAttachmentEntryId] = React.useState(entry.id);
@@ -600,8 +602,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       {entry.category === 'Accommodation' && !entryScheduleHero && (entry.checkInTime || entry.bookingReference?.trim()) ? (
         <div className={styles.categorySummary}>
           {entry.checkInTime ? <span>Check-in {formatTimeHHMM(entry.checkInTime)}</span> : null}
-          {entry.checkInTime && entry.bookingReference?.trim() ? <span aria-hidden> · </span> : null}
-          {entry.bookingReference?.trim() ? <span>Ref {entry.bookingReference.trim()}</span> : null}
+          {entry.checkInTime && canSeeFinancials && entry.bookingReference?.trim() ? <span aria-hidden> · </span> : null}
+          {canSeeFinancials && entry.bookingReference?.trim() ? <span>Ref {entry.bookingReference.trim()}</span> : null}
         </div>
       ) : null}
       {isFlights && (entry.flightNumbers?.trim() || cabinLabel) ? (
@@ -621,7 +623,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       {transportReturnHere ? (
         <div className={styles.categorySummary}>Return journey</div>
       ) : null}
-      {isActivities && entry.bookingReference?.trim() ? (
+      {isActivities && canSeeFinancials && entry.bookingReference?.trim() ? (
         <div className={styles.categorySummary}>Ref {entry.bookingReference.trim()}</div>
       ) : null}
       {isContinuation ? <div className={styles.continuationLabel}>Continuing stay — Night {nightNumber} of {nights}</div> : null}
@@ -729,12 +731,14 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       {!isLocationInfo ? (
       <div className={styles.badges}>
         <span className={`${styles.statusPill} ${styles.decisionPill} ${decisionClass}`}>{entry.decisionStatus}</span>
+        {canSeeFinancials ? (
         <span className={`${styles.statusPill} ${styles.paymentPill} ${paymentClass}`}>
           {entry.paymentStatus}
           {(entry.paymentStatus === 'Not paid' || entry.paymentStatus === 'Part paid') && entry.paymentDueDate
             ? ` · ${paymentDueActionLabel(entry)} ${entry.paymentDueDate.slice(0, 10)}`
             : ''}
         </span>
+        ) : null}
         {entry.bookingRequired ? (
           <span className={`${styles.statusPill} ${styles.bookingPill} ${styles.booking}`}>
             {entry.bookingStatus}
@@ -745,7 +749,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       </div>
       ) : null}
 
-      {!isLocationInfo && !isCheckoutMorningOnly ? (
+      {!isLocationInfo && !isCheckoutMorningOnly && canSeeFinancials ? (
         <>
           <div className={styles.amountRow}>
             {isAccommodation && nights > 0 ? (
@@ -823,9 +827,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           ) : null}
         </div>
       ) : null}
-      {isFlights && (entry.bookingReference?.trim() || entry.checkInClosesTime || entry.bagCheckClosesTime) ? (
+      {isFlights && (entry.checkInClosesTime || entry.bagCheckClosesTime || (canSeeFinancials && entry.bookingReference?.trim())) ? (
         <div className={styles.detailBlock}>
-          {entry.bookingReference?.trim() ? <div>PNR / ref {entry.bookingReference.trim()}</div> : null}
+          {canSeeFinancials && entry.bookingReference?.trim() ? <div>PNR / ref {entry.bookingReference.trim()}</div> : null}
           {entry.checkInClosesTime ? <div>Check-in closes {formatTimeHHMM(entry.checkInClosesTime)}</div> : null}
           {entry.bagCheckClosesTime ? <div>Bag check closes {formatTimeHHMM(entry.bagCheckClosesTime)}</div> : null}
         </div>

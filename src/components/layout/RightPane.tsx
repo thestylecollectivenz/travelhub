@@ -13,6 +13,7 @@ import { RightPaneFilesInsights } from './RightPaneFilesInsights';
 import { RightPaneTasksInsights } from './RightPaneTasksInsights';
 import { RightPanePackingTemplates } from './RightPanePackingTemplates';
 import { RightPaneShoppingSummary } from './RightPaneShoppingSummary';
+import { RoleGate } from '../shared/RoleGate';
 import styles from './RightPane.module.css';
 
 export type RightPaneMode =
@@ -81,11 +82,13 @@ export const RightPane: React.FC<RightPaneProps> = ({
             <DayPlaceInfoSection day={day} activePlaceInfoId={activePlaceInfoId} />
             <hr className={styles.divider} />
             <div id="day-breakdown-tile">
-              <BudgetBreakdownTile
-                tripId={trip.id}
-                dayId={day.id}
-                defaultExpanded={config.dayBreakdownVisibleByDefault}
-              />
+              <RoleGate requiredRole="Editor">
+                <BudgetBreakdownTile
+                  tripId={trip.id}
+                  dayId={day.id}
+                  defaultExpanded={config.dayBreakdownVisibleByDefault}
+                />
+              </RoleGate>
             </div>
           </>
         ) : paneMode === 'journal' && showJournalMedia && journalDays.length ? (
@@ -93,7 +96,9 @@ export const RightPane: React.FC<RightPaneProps> = ({
         ) : paneMode === 'map' ? (
           <RightPaneMapAnalysis />
         ) : paneMode === 'budget' ? (
-          <RightPaneBudgetInsights />
+          <RoleGate requiredRole="Editor">
+            <RightPaneBudgetInsights />
+          </RoleGate>
         ) : paneMode === 'files' ? (
           <RightPaneFilesInsights />
         ) : paneMode === 'tasks' ? (
@@ -101,7 +106,9 @@ export const RightPane: React.FC<RightPaneProps> = ({
         ) : paneMode === 'packing' ? (
           <RightPanePackingTemplates />
         ) : paneMode === 'shopping' ? (
-          <RightPaneShoppingSummary />
+          <RoleGate requiredRole="Editor">
+            <RightPaneShoppingSummary />
+          </RoleGate>
         ) : (
           <RightPaneTripSummary showSelectDayHint={showSelectDayHint} />
         )}

@@ -14,6 +14,7 @@ import { SidebarTaskSections } from './SidebarTaskSections';
 import { SidebarCollapsibleFilters } from './SidebarCollapsibleFilters';
 import { SharedSidebarDayList } from './SharedSidebarDayList';
 import { usePlanView } from '../../context/PlanViewContext';
+import { RoleGate } from '../shared/RoleGate';
 import styles from './TripSidebar.module.css';
 
 export const TripSidebar: React.FC = () => {
@@ -177,6 +178,7 @@ export const TripSidebar: React.FC = () => {
         >
           {mapIcon}
         </button>
+        <RoleGate requiredRole="Editor">
         <button
           type="button"
           role="tab"
@@ -188,6 +190,7 @@ export const TripSidebar: React.FC = () => {
         >
           {budgetIcon}
         </button>
+        </RoleGate>
         <button
           type="button"
           role="tab"
@@ -235,7 +238,9 @@ export const TripSidebar: React.FC = () => {
       </div>
       <div className={styles.sidebarBodyScroll}>
         {mainWorkspaceTab === 'budget' ? (
-          <SidebarCategoryBudget />
+          <RoleGate requiredRole="Editor">
+            <SidebarCategoryBudget />
+          </RoleGate>
         ) : mainWorkspaceTab === 'map' ? (
           <>
             <SidebarMapPlaces />

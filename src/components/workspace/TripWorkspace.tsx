@@ -567,7 +567,11 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
       {deleteTripError ? <div className={styles.deleteError}>{deleteTripError}</div> : null}
       <div className={styles.workspaceBody}>
         <TripHero trip={trip} onEdit={() => setEditOpen(true)} showEditButton={!sharedPreview} />
-        {sharedPreview ? null : <TripStatsStrip />}
+        {sharedPreview ? null : (
+          <RoleGate requiredRole="Editor">
+            <TripStatsStrip />
+          </RoleGate>
+        )}
         <RouteStrip />
         {sharedPreview ? (
           <ErrorBoundary fallbackTitle="Something went wrong in shared view">

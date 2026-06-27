@@ -7,6 +7,7 @@ import { TripPhotoAlbum } from '../journal/TripPhotoAlbum';
 import { TripFilesLinksView } from '../documents/TripFilesLinksView';
 import { TripMap } from '../maps/TripMap';
 import { ErrorBoundary } from '../shared/ErrorBoundary';
+import { RoleGate } from '../shared/RoleGate';
 import { TripTasksView } from '../tasks/TripTasksView';
 import { TripBudgetDetailView } from '../budget/TripBudgetDetailView';
 import { PackingListView } from '../packing/PackingListView';
@@ -330,7 +331,11 @@ const TripContentInner: React.FC = () => {
             onActivePlaceInfoChange={setActivePlaceInfoId}
           />
         ) : null}
-        {mainWorkspaceTab === 'budget' ? <TripBudgetDetailView /> : null}
+        {mainWorkspaceTab === 'budget' ? (
+          <RoleGate requiredRole="Editor">
+            <TripBudgetDetailView />
+          </RoleGate>
+        ) : null}
         {mainWorkspaceTab === 'journal' ? <TripJournalFeed /> : null}
         {mainWorkspaceTab === 'photos' ? <TripPhotoAlbum /> : null}
         {mainWorkspaceTab === 'files' ? <TripFilesLinksView /> : null}
@@ -358,6 +363,7 @@ const TripContentInner: React.FC = () => {
               >
                 Shopping
               </button>
+              <RoleGate requiredRole="Editor">
               <button
                 type="button"
                 className={dayHeaderStyles.journalButton}
@@ -366,6 +372,7 @@ const TripContentInner: React.FC = () => {
               >
                 Missing costs
               </button>
+              </RoleGate>
               <button
                 type="button"
                 className={dayHeaderStyles.journalButton}
