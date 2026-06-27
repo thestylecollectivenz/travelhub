@@ -5,10 +5,12 @@ import { TripWorkspace } from '../../../../components/workspace/TripWorkspace';
 import { ConfigPanel } from '../../../../components/workspace/ConfigPanel';
 import { TermsAndConditions } from './TermsAndConditions';
 import { AppFooter } from './AppFooter';
+import { useMobileMode } from '../../../../hooks/useMobileMode';
 
 type AppView = 'multiTrip' | 'singleTrip' | 'createTrip' | 'terms';
 
 export const AppRouter: React.FC = () => {
+  const isMobile = useMobileMode();
   const [view, setView] = React.useState<AppView>('multiTrip');
   const [selectedTripId, setSelectedTripId] = React.useState<string>('');
   const [configOpen, setConfigOpen] = React.useState(false);
@@ -49,7 +51,9 @@ export const AppRouter: React.FC = () => {
     <>
       {content}
       <ConfigPanel isOpen={configOpen} onClose={() => setConfigOpen(false)} />
-      <AppFooter onOpenTerms={() => setView('terms')} />
+      {!(isMobile && view === 'singleTrip') ? (
+        <AppFooter onOpenTerms={() => setView('terms')} />
+      ) : null}
       {view === 'createTrip' ? (
         <CreateTripPanel
           onCreated={(newTripId) => goToTrip(newTripId)}

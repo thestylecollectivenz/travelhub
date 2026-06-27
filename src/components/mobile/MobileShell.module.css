@@ -1,8 +1,13 @@
 .mobileRoot {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
   min-height: 0;
+  overflow: hidden;
   background: var(--color-surface-base);
 }
 
@@ -50,6 +55,8 @@
   grid-template-columns: repeat(5, 1fr);
   border-top: var(--border-default);
   background: var(--color-surface-raised);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  box-shadow: 0 -2px 8px color-mix(in srgb, var(--color-blue-900) 8%, transparent);
 }
 
 .tabBtn {
@@ -156,4 +163,183 @@
   display: flex;
   gap: var(--space-2);
   margin-bottom: var(--space-3);
+}
+
+.dayView {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.dateGoRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.dateGoLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-blue-800);
+  font-weight: var(--font-weight-medium);
+  flex-shrink: 0;
+}
+
+.dateInput {
+  flex: 1;
+  min-width: 0;
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-blue-800);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-sans);
+}
+
+.unschedSection {
+  margin-bottom: var(--space-3);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  overflow: hidden;
+}
+
+.unschedToggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: none;
+  background: transparent;
+  color: var(--color-blue-800);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  text-align: left;
+}
+
+.unschedMeta {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-normal);
+  color: var(--color-sand-600);
+}
+
+.unschedBody {
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.unschedBody .cardBtn:last-child {
+  margin-bottom: 0;
+}
+
+.mobileTimeline {
+  position: relative;
+  padding-bottom: var(--space-2);
+}
+
+.mobileTimeline::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 var(--space-2) 44px;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: var(--radius-md);
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(3rem - 1px),
+    color-mix(in srgb, var(--color-sand-300) 55%, transparent) calc(3rem - 1px),
+    color-mix(in srgb, var(--color-sand-300) 55%, transparent) 3rem
+  );
+}
+
+.mobileRail {
+  position: absolute;
+  left: calc(44px + var(--space-2) + 9px);
+  top: 12px;
+  bottom: 12px;
+  width: 2px;
+  background: var(--color-sand-200);
+  z-index: 0;
+}
+
+.timelineRow {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  margin-bottom: var(--space-3);
+}
+
+.timelineRow:last-child {
+  margin-bottom: 0;
+}
+
+.timeCell {
+  width: 44px;
+  flex-shrink: 0;
+  padding-top: 2px;
+  font-size: 11px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-sand-500);
+  text-align: right;
+  line-height: 1.2;
+}
+
+.nodeWrap {
+  width: 20px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  margin-left: var(--space-2);
+}
+
+.node {
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-sand-400);
+  background: var(--color-surface-raised);
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.node[data-category='flights'] {
+  border-color: var(--color-cat-flights);
+}
+
+.node[data-category='accommodation'] {
+  border-color: var(--color-cat-accommodation);
+}
+
+.node[data-category='food'] {
+  border-color: var(--color-cat-food);
+}
+
+.node[data-category='activities'] {
+  border-color: var(--color-cat-activities);
+}
+
+.node[data-category='transport'] {
+  border-color: var(--color-cat-transport);
+}
+
+.node[data-category='other'] {
+  border-color: var(--color-cat-other);
+}
+
+.timelineCard {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
 }
