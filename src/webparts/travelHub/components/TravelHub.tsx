@@ -6,6 +6,7 @@ import { AppRouter } from './app/AppRouter';
 import { SpContext } from '../../../context/SpContext';
 import { ConfigProvider } from '../../../context/ConfigContext';
 import { AppConfigProvider } from '../../../context/AppConfigContext';
+import { runTravelHubProvisioning } from '../../../services/provisioning/runTravelHubProvisioning';
 
 const TravelHub: React.FC<ITravelHubProps> = (props) => {
   const [licenceKey, setLicenceKey] = React.useState<string>(props.licenceKey || '');
@@ -13,6 +14,10 @@ const TravelHub: React.FC<ITravelHubProps> = (props) => {
   React.useEffect(() => {
     setLicenceKey(props.licenceKey || '');
   }, [props.licenceKey]);
+
+  React.useEffect(() => {
+    runTravelHubProvisioning(props.context);
+  }, [props.context]);
 
   return (
     <div className="th-app-root" data-th-app-root>

@@ -344,6 +344,16 @@ Add-ListFieldIfMissing -ListTitle 'TripFollowers' -InternalName 'TripId' -FieldT
 Add-ListFieldIfMissing -ListTitle 'TripFollowers' -InternalName 'UserId' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'TripFollowers' -InternalName 'AccessLevel' -FieldType 'Text'
 
+# --- TripMembers (per-trip roles: Editor / Companion / Follower) ---
+Ensure-CustomList -Title 'TripMembers'
+Add-ListFieldIfMissing -ListTitle 'TripMembers' -InternalName 'TripId' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'TripMembers' -InternalName 'UserId' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'TripMembers' -InternalName 'UserEmail' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'TripMembers' -InternalName 'UserDisplayName' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'TripMembers' -InternalName 'Role' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'TripMembers' -InternalName 'InvitedBy' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'TripMembers' -InternalName 'InvitedAt' -FieldType 'DateTime'
+
 # --- AlbumPhotos ---
 Ensure-CustomList -Title 'AlbumPhotos'
 Add-ListFieldIfMissing -ListTitle 'AlbumPhotos' -InternalName 'TripId' -FieldType 'Text'

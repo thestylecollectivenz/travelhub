@@ -1,0 +1,46 @@
+---
+description: Extended Scope 4 — mobile shell, roles, storage-agnostic guardrails
+alwaysApply: true
+---
+
+# Extended Scope 4 — Persistent Memory
+
+## Roles (MEMORY 1)
+
+Travel Hub has four user roles: **Editor**, **Companion**, **Follower** (was Shared-View Follower), and the trip creator (always Editor). Roles are stored in the **TripMembers** SharePoint list. Role enforcement uses `useCurrentUserRole` hook and `RoleGate` component.
+
+## Financial visibility (MEMORY 2)
+
+Financial fields (amounts, budget cards, day totals, payment status, booking references) are **never rendered** for Companion or Follower roles. They are removed from the DOM — not hidden with CSS.
+
+## Mobile shell (MEMORY 3)
+
+Mobile shell is a separate component tree in `src/components/mobile/`. `useMobileMode` hook controls which tree renders. Desktop components are never conditionally modified for mobile — mobile has its own components.
+
+## User identity (MEMORY 4)
+
+**UserEmail** is the primary user identity field in all data models. SharePoint user IDs may exist alongside but email is authoritative. This supports future non-SharePoint storage backends.
+
+## Data access (MEMORY 5)
+
+Travel Hub will eventually support self-hosted storage (Dropbox, Google Drive, OneDrive). All data access must go through **ITravelHubDataService**. No SharePoint-specific types, URLs, or query syntax may appear outside service implementation files.
+
+## Schema safety (MEMORY 6)
+
+All column additions to existing SharePoint lists are **append-only**. Check before create. Never delete, rename, or modify existing columns or lists. This protects live trip data.
+
+## Shopping list (MEMORY 7)
+
+The shopping list is already built. **OwnerEmail** column needs to be added to it. Include it in MobileListsView alongside the packing list.
+
+## ES4 build order
+
+Implement tasks ES4-1 through ES4-14 in order (see `docs/Travel_Hub_Cursor_Brief_ES4.docx`). Do not skip ahead to UI before ES4-3 (roles hook) is in place.
+
+## Constraints (carry forward)
+
+- Desktop `TripWorkspace` tree unchanged for mobile work — mobile is a sibling branch
+- CSS tokens from `src/styles/global.css` only; category colours via `th-cat-{slug}` classes
+- No external icon libraries; inline SVG only
+- No modal dialogs — inline expand or slide-in panels only
+- `npm run build` must pass after every task; commit and push after each task

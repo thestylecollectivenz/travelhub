@@ -7,7 +7,7 @@ Creates the SharePoint custom lists and columns used by the Travel Hub app on th
 ### What it does
 
 - Connects to `https://thestylecollectiveconz.sharepoint.com/sites/travelhub` using **PnP PowerShell** and **interactive** Microsoft 365 sign-in.
-- For each required list (Trips, TripDays, Places, DayPlaces, ItineraryEntries, EntryDocuments, EntryLinks, JournalEntries, JournalPhotos, JournalLikes, JournalComments, TripFollowers, AlbumPhotos):
+- For each required list (Trips, TripDays, Places, DayPlaces, ItineraryEntries, EntryDocuments, EntryLinks, JournalEntries, JournalPhotos, JournalLikes, JournalComments, TripFollowers, TripMembers, AlbumPhotos, ShoppingList):
   - Creates the list as a **generic custom list** if it does not exist.
   - Adds each specified column (internal name and type match the functional model) if that column is not already on the list.
 - Prints `[List]` and `[Column]` lines so you can see what was skipped vs created.
