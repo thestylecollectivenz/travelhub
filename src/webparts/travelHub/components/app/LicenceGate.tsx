@@ -1,16 +1,30 @@
 import * as React from 'react';
 import * as ReactDom from 'react-dom';
 import { useLicence } from '../../../../hooks/useLicence';
+import { clearStoredLicenceKey, saveStoredLicenceKey } from '../../../../utils/licenceKeyStorage';
 
 interface LicenceGateProps {
   licenceKey: string;
+  /** SharePoint user id (email) — scopes browser storage per user. */
+  storageUserId: string;
   onKeySubmit: (key: string) => void;
   children: React.ReactNode;
 }
 
-export const LicenceGate: React.FC<LicenceGateProps> = ({ licenceKey, onKeySubmit, children }) => {
-  const { isValid, isChecking, message } = useLicence(licenceKey);
+export const LicenceGate: React.FC<LicenceGateProps> = ({ licenceKey, storageUserId, onKeySubmit, children }) => {
+  const { isValid, isChecking, message, status } = useLicence(licenceKey);
   const [inputValue, setInputValue] = React.useState('');
+
+  React.useEffect(() => {
+    if (!storageUserId || isChecking) return;
+    const trimmed = licenceKey.trim();
+    if (!trimmed) return;
+    if (isValid) {
+      saveStoredLicenceKey(storageUserId, trimmed);
+    } else if (status === 'invalid') {
+      clearStoredLicenceKey(storageUserId);
+    }
+  }, [storageUserId, licenceKey, isValid, isChecking, status]);
 
   const [portalRoot, setPortalRoot] = React.useState<HTMLElement | null>(null);
 

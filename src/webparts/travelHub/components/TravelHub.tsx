@@ -7,13 +7,27 @@ import { SpContext } from '../../../context/SpContext';
 import { ConfigProvider } from '../../../context/ConfigContext';
 import { AppConfigProvider } from '../../../context/AppConfigContext';
 import { runTravelHubProvisioning } from '../../../services/provisioning/runTravelHubProvisioning';
+import { getCurrentUserEmail } from '../../../utils/currentUserEmail';
+import { loadStoredLicenceKey } from '../../../utils/licenceKeyStorage';
 
 const TravelHub: React.FC<ITravelHubProps> = (props) => {
-  const [licenceKey, setLicenceKey] = React.useState<string>(props.licenceKey || '');
+  const storageUserId = React.useMemo(() => getCurrentUserEmail(props.context), [props.context]);
+
+  const [licenceKey, setLicenceKey] = React.useState(() => {
+    const fromWebPart = (props.licenceKey || '').trim();
+    if (fromWebPart) return fromWebPart;
+    return loadStoredLicenceKey(storageUserId);
+  });
 
   React.useEffect(() => {
-    setLicenceKey(props.licenceKey || '');
-  }, [props.licenceKey]);
+    const fromWebPart = (props.licenceKey || '').trim();
+    if (fromWebPart) {
+      setLicenceKey(fromWebPart);
+      return;
+    }
+    const stored = loadStoredLicenceKey(storageUserId);
+    if (stored) setLicenceKey(stored);
+  }, [props.licenceKey, storageUserId]);
 
   React.useEffect(() => {
     runTravelHubProvisioning(props.context);
@@ -24,7 +38,7 @@ const TravelHub: React.FC<ITravelHubProps> = (props) => {
       <SpContext.Provider value={props.context}>
         <AppConfigProvider>
           <ConfigProvider>
-            <LicenceGate licenceKey={licenceKey} onKeySubmit={setLicenceKey}>
+            <LicenceGate licenceKey={licenceKey} storageUserId={storageUserId} onKeySubmit={setLicenceKey}>
               <AppRouter />
             </LicenceGate>
           </ConfigProvider>
