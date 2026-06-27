@@ -1,5 +1,6 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
+import { getCurrentUserEmail } from '../utils/currentUserEmail';
 
 const LIST = 'PackingList';
 const TEMPLATES_LIST = 'PackingTemplates';
@@ -16,6 +17,7 @@ export interface PackingItem {
   itemNotes?: string;
   /** Traveller name for per-person lists (optional SharePoint Traveller column). */
   traveller?: string;
+  ownerEmail?: string;
 }
 
 export interface PackingTemplate {
@@ -35,7 +37,8 @@ function mapToItem(item: any): PackingItem {
     isTemplate: item.IsTemplate === true,
     templateId: item.TemplateId ?? '',
     itemNotes: item.ItemNotes ?? undefined,
-    traveller: item.Traveller ?? undefined
+    traveller: item.Traveller ?? undefined,
+    ownerEmail: String(item.OwnerEmail ?? '').trim() || undefined
   };
 }
 
@@ -58,6 +61,7 @@ function toSpItem(partial: Partial<PackingItem>): Record<string, unknown> {
   if (partial.templateId !== undefined) out.TemplateId = partial.templateId || '';
   if (partial.itemNotes !== undefined) out.ItemNotes = partial.itemNotes || '';
   if (partial.traveller !== undefined) out.Traveller = partial.traveller || '';
+  if (partial.ownerEmail !== undefined) out.OwnerEmail = partial.ownerEmail || '';
   if (partial.itemName !== undefined) out.Title = partial.itemName;
   return out;
 }
@@ -72,7 +76,7 @@ export class PackingService {
 
   async getForTrip(tripId: string): Promise<PackingItem[]> {
     const safe = tripId.replace(/'/g, "''");
-    const url = `${this.baseUrl}?$select=ID,TripId,Category,ItemName,Quantity,IsPacked,IsTemplate,TemplateId,Traveller,ItemNotes&$filter=TripId eq '${safe}' and (IsTemplate eq null or IsTemplate eq 0)&$orderby=Category asc,ItemName asc&$top=5000`;
+    const url = `${this.baseUrl}?$select=ID,TripId,Category,ItemName,Quantity,IsPacked,IsTemplate,TemplateId,Traveller,ItemNotes,OwnerEmail&$filter=TripId eq '${safe}' and (IsTemplate eq null or IsTemplate eq 0)&$orderby=Category asc,ItemName asc&$top=5000`;
     const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
     if (!resp.ok) throw new Error(`PackingService.getForTrip failed: ${resp.status}`);
     const data = await resp.json();
@@ -94,9 +98,10 @@ export class PackingService {
   }
 
   async create(item: Omit<PackingItem, 'id'>): Promise<PackingItem> {
+    const ownerEmail = item.ownerEmail ?? getCurrentUserEmail(this.ctx);
     const resp = await this.ctx.spHttpClient.post(this.baseUrl, SPHttpClient.configurations.v1, {
       headers: { 'Content-Type': 'application/json;odata.metadata=minimal', Accept: 'application/json;odata.metadata=minimal' },
-      body: JSON.stringify(toSpItem(item))
+      body: JSON.stringify(toSpItem({ ...item, ownerEmail }))
     });
     if (!resp.ok) throw new Error(`PackingService.create failed: ${resp.status}`);
     return mapToItem(await resp.json());

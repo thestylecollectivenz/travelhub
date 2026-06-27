@@ -1,5 +1,7 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { ensureTripMembersList } from './ensureTripMembersList';
+import { ensureOwnerEmailColumns } from './ensureOwnerEmailColumns';
+import { runOwnerEmailBackfill } from './backfillOwnerEmail';
 
 let provisioningStarted = false;
 
@@ -14,6 +16,8 @@ export function runTravelHubProvisioning(ctx: WebPartContext): void {
   void (async () => {
     try {
       await ensureTripMembersList(ctx);
+      await ensureOwnerEmailColumns(ctx);
+      runOwnerEmailBackfill(ctx);
     } catch (err) {
       // Non-fatal: user may lack list-manage permissions; admin can run scripts/provision-lists.ps1.
       // eslint-disable-next-line no-console

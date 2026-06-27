@@ -4,6 +4,7 @@ import type { JournalComment, JournalEntry, JournalPhoto } from '../models';
 import { ensureFolderChain, uploadFileToFolder } from '../utils/spFileUpload';
 import { parsePhotoFocalPoint, formatPhotoFocalPoint } from '../utils/journalPhotoFocal';
 import { resolveSharePointMediaSrc } from '../utils/sharePointUrl';
+import { getCurrentUserEmail } from '../utils/currentUserEmail';
 
 const ENTRIES_LIST = 'JournalEntries';
 const PHOTOS_LIST = 'JournalPhotos';
@@ -37,7 +38,8 @@ function mapJournalEntry(item: Record<string, unknown>): JournalEntry {
     entryTimestamp: typeof item.EntryTimestamp === 'string' ? item.EntryTimestamp : new Date().toISOString(),
     likeCount: typeof item.LikeCount === 'number' ? item.LikeCount : Number(item.LikeCount ?? 0) || 0,
     likedByUsers: String(item.LikedByUsers ?? ''),
-    shareableLink: String(item.ShareableLink ?? '')
+    shareableLink: String(item.ShareableLink ?? ''),
+    ownerEmail: String(item.OwnerEmail ?? '').trim() || undefined
   };
 }
 
@@ -126,7 +128,7 @@ export class JournalService {
   async getAll(tripId: string): Promise<JournalEntry[]> {
     const safeTrip = odataEscapeString(tripId);
     const select =
-      '$select=ID,Title,TripId,DayId,AuthorName,EntryText,Location,EntryTimestamp,LikeCount,LikedByUsers,ShareableLink';
+      '$select=ID,Title,TripId,DayId,AuthorName,EntryText,Location,EntryTimestamp,LikeCount,LikedByUsers,ShareableLink,OwnerEmail';
     const filter = `$filter=TripId eq '${safeTrip}'`;
     const order = '$orderby=EntryTimestamp asc';
     const url = `${this.entriesUrl}?${select}&${filter}&${order}`;
@@ -140,7 +142,7 @@ export class JournalService {
     const safeTrip = odataEscapeString(tripId);
     const safeDay = odataEscapeString(dayId);
     const select =
-      '$select=ID,Title,TripId,DayId,AuthorName,EntryText,Location,EntryTimestamp,LikeCount,LikedByUsers,ShareableLink';
+      '$select=ID,Title,TripId,DayId,AuthorName,EntryText,Location,EntryTimestamp,LikeCount,LikedByUsers,ShareableLink,OwnerEmail';
     const filter = `$filter=TripId eq '${safeTrip}' and DayId eq '${safeDay}'`;
     const order = '$orderby=EntryTimestamp asc';
     const url = `${this.entriesUrl}?${select}&${filter}&${order}`;
@@ -157,11 +159,13 @@ export class JournalService {
     const nowIso = new Date().toISOString();
     const titleIso = nowIso;
     const authorName = (entry.authorName?.trim() || this.ctx.pageContext.user.displayName || '').trim();
+    const ownerEmail = getCurrentUserEmail(this.ctx);
     const body = JSON.stringify({
       Title: titleIso,
       TripId: entry.tripId,
       DayId: entry.dayId,
       AuthorName: authorName,
+      OwnerEmail: ownerEmail,
       EntryText: entry.entryText,
       Location: entry.location ?? '',
       EntryTimestamp: nowIso,
@@ -195,6 +199,7 @@ export class JournalService {
     if (partial.likeCount !== undefined) item.LikeCount = partial.likeCount;
     if (partial.likedByUsers !== undefined) item.LikedByUsers = partial.likedByUsers;
     if (partial.shareableLink !== undefined) item.ShareableLink = partial.shareableLink;
+    if (partial.ownerEmail !== undefined) item.OwnerEmail = partial.ownerEmail;
 
     const body = JSON.stringify(item);
     const resp = await this.ctx.spHttpClient.fetch(url, SPHttpClient.configurations.v1, {

@@ -10,4 +10,6 @@ export interface JournalEntry {
   likeCount: number;
   likedByUsers: string;
   shareableLink: string;
+  /** Primary owner identity (email) for companion edit rules. */
+  ownerEmail?: string;
 }

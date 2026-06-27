@@ -315,6 +315,7 @@ Add-ListFieldIfMissing -ListTitle 'JournalEntries' -InternalName 'AuthorName' -F
 Add-ListFieldIfMissing -ListTitle 'JournalEntries' -InternalName 'EntryText' -FieldType 'Note'
 Add-ListFieldIfMissing -ListTitle 'JournalEntries' -InternalName 'Location' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'JournalEntries' -InternalName 'EntryTimestamp' -FieldType 'DateTime'
+Add-ListFieldIfMissing -ListTitle 'JournalEntries' -InternalName 'OwnerEmail' -FieldType 'Text'
 
 # --- JournalPhotos ---
 Ensure-CustomList -Title 'JournalPhotos'
@@ -375,6 +376,20 @@ Add-ListFieldIfMissing -ListTitle 'ShoppingList' -InternalName 'PurchaseMonth' -
 Add-ListFieldIfMissing -ListTitle 'ShoppingList' -InternalName 'WebsiteUrl' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'ShoppingList' -InternalName 'ItemNotes' -FieldType 'Note'
 Add-ListFieldIfMissing -ListTitle 'ShoppingList' -InternalName 'IsPurchased' -FieldType 'Boolean'
+Add-ListFieldIfMissing -ListTitle 'ShoppingList' -InternalName 'OwnerEmail' -FieldType 'Text'
+
+# --- PackingList ---
+Ensure-CustomList -Title 'PackingList'
+Add-ListFieldIfMissing -ListTitle 'PackingList' -InternalName 'TripId' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'PackingList' -InternalName 'Category' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'PackingList' -InternalName 'ItemName' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'PackingList' -InternalName 'Quantity' -FieldType 'Number'
+Add-ListFieldIfMissing -ListTitle 'PackingList' -InternalName 'IsPacked' -FieldType 'Boolean'
+Add-ListFieldIfMissing -ListTitle 'PackingList' -InternalName 'IsTemplate' -FieldType 'Boolean'
+Add-ListFieldIfMissing -ListTitle 'PackingList' -InternalName 'TemplateId' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'PackingList' -InternalName 'Traveller' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'PackingList' -InternalName 'ItemNotes' -FieldType 'Note'
+Add-ListFieldIfMissing -ListTitle 'PackingList' -InternalName 'OwnerEmail' -FieldType 'Text'
 
 Write-Host "Provisioning finished successfully."
 Disconnect-PnPOnline

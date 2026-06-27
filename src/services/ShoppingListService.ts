@@ -1,5 +1,6 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
+import { getCurrentUserEmail } from '../utils/currentUserEmail';
 
 const LIST = 'ShoppingList';
 
@@ -16,6 +17,7 @@ export interface ShoppingItem {
   websiteUrl: string;
   notes: string;
   isPurchased: boolean;
+  ownerEmail?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -32,7 +34,8 @@ function mapToItem(item: any): ShoppingItem {
     purchaseMonth: item.PurchaseMonth ?? '',
     websiteUrl: item.WebsiteUrl ?? '',
     notes: item.ItemNotes ?? '',
-    isPurchased: item.IsPurchased === true
+    isPurchased: item.IsPurchased === true,
+    ownerEmail: String(item.OwnerEmail ?? '').trim() || undefined
   };
 }
 
@@ -52,6 +55,7 @@ function toSpItem(partial: Partial<ShoppingItem>): Record<string, unknown> {
   if (partial.websiteUrl !== undefined) out.WebsiteUrl = partial.websiteUrl;
   if (partial.notes !== undefined) out.ItemNotes = partial.notes;
   if (partial.isPurchased !== undefined) out.IsPurchased = partial.isPurchased;
+  if (partial.ownerEmail !== undefined) out.OwnerEmail = partial.ownerEmail;
   return out;
 }
 
@@ -64,7 +68,7 @@ export class ShoppingListService {
 
   async getForTrip(tripId: string): Promise<ShoppingItem[]> {
     const safe = tripId.replace(/'/g, "''");
-    const url = `${this.baseUrl}?$select=ID,TripId,ItemName,Category,Traveller,BudgetAmount,ActualAmount,Currency,PurchaseMonth,WebsiteUrl,ItemNotes,IsPurchased&$filter=TripId eq '${safe}'&$orderby=PurchaseMonth asc,Category asc,ItemName asc&$top=5000`;
+    const url = `${this.baseUrl}?$select=ID,TripId,ItemName,Category,Traveller,BudgetAmount,ActualAmount,Currency,PurchaseMonth,WebsiteUrl,ItemNotes,IsPurchased,OwnerEmail&$filter=TripId eq '${safe}'&$orderby=PurchaseMonth asc,Category asc,ItemName asc&$top=5000`;
     const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
     if (!resp.ok) throw new Error(`ShoppingListService.getForTrip failed: ${resp.status}`);
     const data = await resp.json();
@@ -72,9 +76,10 @@ export class ShoppingListService {
   }
 
   async create(item: Omit<ShoppingItem, 'id'>): Promise<ShoppingItem> {
+    const ownerEmail = item.ownerEmail ?? getCurrentUserEmail(this.ctx);
     const resp = await this.ctx.spHttpClient.post(this.baseUrl, SPHttpClient.configurations.v1, {
       headers: { 'Content-Type': 'application/json;odata.metadata=minimal', Accept: 'application/json;odata.metadata=minimal' },
-      body: JSON.stringify(toSpItem(item))
+      body: JSON.stringify(toSpItem({ ...item, ownerEmail }))
     });
     if (!resp.ok) throw new Error(`ShoppingListService.create failed: ${resp.status}`);
     return mapToItem(await resp.json());
