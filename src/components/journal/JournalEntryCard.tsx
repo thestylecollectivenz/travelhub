@@ -14,6 +14,8 @@ import { RichTextEditor } from './RichTextEditor';
 import { isLikelyJournalHtml, plainTextToEditorHtml } from '../../utils/journalRichText';
 import { JournalEntryPhotoDrop } from './JournalEntryPhotoDrop';
 import { formatOrdinalDayDate } from '../../utils/formatTripDayDate';
+import { useTripRole } from '../../context/TripRoleContext';
+import { canEditOwnedRecord } from '../../utils/canEditOwnedRecord';
 import styles from './JournalEntryCard.module.css';
 
 function isAllowedImage(file: File): boolean {
@@ -70,8 +72,9 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
   const { selectedPhotoId, setSelectedPhotoId, setSelectedEntryId } = useJournalMediaSelection();
 
   const displayName = spContext.pageContext.user.displayName ?? '';
-  const isOwner = entry.authorName === journalAuthorName || entry.authorName === displayName;
-  const showMenu = canModerate || isOwner;
+  const { role } = useTripRole();
+  const canEditEntry = canModerate && canEditOwnedRecord(spContext, entry.ownerEmail, role);
+  const showMenu = canEditEntry;
   const showAuthorLine = trip?.showAuthorName !== false;
   const showEntryTimestamp = trip?.showJournalEntryDate !== false;
   const entryDay = journalDays.find((d) => d.id === entry.dayId);
@@ -217,12 +220,12 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
       className={`${styles.card} ${isUnread ? styles.cardUnread : ''} ${dropActive ? styles.cardDropActive : ''}`}
       data-journal-id={entry.id}
       onDragOver={(e) => {
-        if (!canModerate) return;
+        if (!canEditEntry) return;
         e.preventDefault();
         setDropActive(true);
       }}
       onDragLeave={() => setDropActive(false)}
-      onDrop={canModerate ? onPhotoDrop : undefined}
+      onDrop={canEditEntry ? onPhotoDrop : undefined}
     >
       <div className={styles.metaRow}>
         {dragHandleProps ? (
@@ -340,7 +343,7 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
         <div className={styles.text}>{entry.entryText}</div>
       )}
 
-      {canModerate ? (
+      {canEditEntry ? (
         <div className={styles.addPhotosRow}>
           <input
             ref={photoInputRef}
@@ -362,7 +365,7 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
         </div>
       ) : null}
 
-      <JournalEntryPhotoDrop entryId={entry.id} enabled={canModerate}>
+      <JournalEntryPhotoDrop entryId={entry.id} enabled={canEditEntry}>
         <JournalPhotoBoard
           photos={photos}
           selectedPhotoId={selectedPhotoId}
@@ -374,10 +377,10 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
             const idx = photos.findIndex((p) => p.fileUrl === url);
             setLightboxIndex(idx >= 0 ? idx : 0);
           }}
-          sortable={canModerate}
+          sortable={canEditEntry}
           sortableEntryId={entry.id}
           footerOptional
-          renderFooter={(p) => <JournalPhotoCaptionFooter photo={p} canModerate={canModerate} />}
+          renderFooter={(p) => <JournalPhotoCaptionFooter photo={p} canModerate={canEditEntry} />}
         />
       </JournalEntryPhotoDrop>
 

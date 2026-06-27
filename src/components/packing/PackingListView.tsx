@@ -5,6 +5,8 @@ import { useSpContext } from '../../context/SpContext';
 import { PackingItem, PackingService } from '../../services/PackingService';
 import { loadTripTravellers } from '../../utils/tripTravellers';
 import { confirmUserAction } from '../../utils/confirmAction';
+import { useTripRole } from '../../context/TripRoleContext';
+import { canEditOwnedRecord } from '../../utils/canEditOwnedRecord';
 import { PACKING_DRAG_MIME, parsePackingTemplateDrag } from '../../utils/packingTemplateDrag';
 import styles from './PackingListView.module.css';
 
@@ -18,6 +20,11 @@ export const PackingListView: React.FC = () => {
   const activeTraveller = planView?.packingTraveller ?? null;
   const travellers = React.useMemo(() => (trip?.id ? loadTripTravellers(trip.id) : ['Traveller 1']), [trip?.id]);
   const service = React.useMemo(() => new PackingService(spContext), [spContext]);
+  const { role } = useTripRole();
+  const canEditItem = React.useCallback(
+    (item: PackingItem) => canEditOwnedRecord(spContext, item.ownerEmail, role),
+    [spContext, role]
+  );
   const [items, setItems] = React.useState<PackingItem[]>([]);
   const [collapsed, setCollapsed] = React.useState<Record<string, boolean>>({});
   const [name, setName] = React.useState('');
@@ -269,11 +276,14 @@ export const PackingListView: React.FC = () => {
       {categoryRows.length === 0 ? (
         <p className={styles.muted}>No items in this category yet.</p>
       ) : (
-        categoryRows.map((item) => (
+        categoryRows.map((item) => {
+          const editable = canEditItem(item);
+          return (
           <div key={item.id} className={styles.item}>
             <input
               type="checkbox"
               checked={item.isPacked}
+              disabled={!editable}
               onChange={(e) => service.update(item.id, { isPacked: e.target.checked }).then(refresh).catch(console.error)}
             />
             <span className={styles.itemName}>{item.itemName}</span>
@@ -281,6 +291,7 @@ export const PackingListView: React.FC = () => {
               className={styles.select}
               aria-label="Category"
               value={CATEGORIES.indexOf(item.category) >= 0 ? item.category : 'Other'}
+              disabled={!editable}
               onChange={(e) => {
                 void service.update(item.id, { category: e.target.value }).then(refresh).catch(console.error);
               }}
@@ -296,6 +307,7 @@ export const PackingListView: React.FC = () => {
               type="number"
               min={1}
               value={item.quantity}
+              disabled={!editable}
               onChange={(e) => {
                 const q = Math.max(1, Number(e.target.value) || 1);
                 void service.update(item.id, { quantity: q }).then(refresh).catch(console.error);
@@ -306,12 +318,15 @@ export const PackingListView: React.FC = () => {
               type="text"
               placeholder="Note"
               value={noteDrafts[item.id] ?? ''}
+              disabled={!editable}
               onChange={(e) => setNoteDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))}
               onBlur={() => {
+                if (!editable) return;
                 const notes = (noteDrafts[item.id] ?? '').trim();
                 void service.update(item.id, { itemNotes: notes || undefined }).then(refresh).catch(console.error);
               }}
             />
+            {editable ? (
             <button
               className={styles.deleteBtn}
               type="button"
@@ -325,8 +340,10 @@ export const PackingListView: React.FC = () => {
             >
               Delete
             </button>
+            ) : null}
           </div>
-        ))
+        );
+        })
       )}
     </section>
   );

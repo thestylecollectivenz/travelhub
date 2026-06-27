@@ -10,6 +10,9 @@ import { categoriesForItemSelect, rememberTripShoppingCategory } from '../../uti
 import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
 import { summarizeShoppingItems } from '../../utils/shoppingSummary';
 import { confirmUserAction } from '../../utils/confirmAction';
+import { useTripRole } from '../../context/TripRoleContext';
+import { canEditOwnedRecord } from '../../utils/canEditOwnedRecord';
+import { useCanSeeFinancials } from '../../hooks/useCanSeeFinancials';
 import styles from './ShoppingListView.module.css';
 
 export const ShoppingListView: React.FC = () => {
@@ -19,6 +22,12 @@ export const ShoppingListView: React.FC = () => {
   const planView = usePlanView();
   const service = React.useMemo(() => new ShoppingListService(spContext), [spContext]);
   const { categories } = useTripShoppingCategories(trip?.id, spContext);
+  const { role } = useTripRole();
+  const canSeeFinancials = useCanSeeFinancials();
+  const canEditItem = React.useCallback(
+    (item: ShoppingItem) => canEditOwnedRecord(spContext, item.ownerEmail, role),
+    [spContext, role]
+  );
   const [items, setItems] = React.useState<ShoppingItem[]>([]);
   const [name, setName] = React.useState('');
   const [category, setCategory] = React.useState('');
@@ -96,12 +105,14 @@ export const ShoppingListView: React.FC = () => {
         {activeMonth ? ` · ${activeMonth}` : ''}
       </h2>
 
+      {canSeeFinancials ? (
       <div className={styles.summaryStrip}>
         <span className={styles.summaryChip}>
           Budget {formatCurrency(summary.totals.budget, config.homeCurrency)} · Actual{' '}
           {formatCurrency(summary.totals.actual, config.homeCurrency)} · {summary.totals.count} items
         </span>
       </div>
+      ) : null}
 
       {categories.length === 0 ? (
         <p className={styles.muted}>Add shopping categories in the left sidebar before adding items.</p>
@@ -123,7 +134,9 @@ export const ShoppingListView: React.FC = () => {
             </option>
           ))}
         </select>
+        {canSeeFinancials ? (
         <input className={styles.input} placeholder="Budget $" value={budget} onChange={(e) => setBudget(e.target.value)} />
+        ) : null}
         <input className={styles.input} type="month" value={purchaseMonth} onChange={(e) => setPurchaseMonth(e.target.value)} aria-label="Purchase month" />
         <button type="button" className={styles.button} onClick={addItem} disabled={!name.trim() || !category.trim() || categories.length === 0}>
           Add item
@@ -135,8 +148,8 @@ export const ShoppingListView: React.FC = () => {
         <span>Item</span>
         <span>Category</span>
         <span>Traveller</span>
-        <span>Budget</span>
-        <span>Actual</span>
+        {canSeeFinancials ? <span>Budget</span> : null}
+        {canSeeFinancials ? <span>Actual</span> : null}
         <span>Month</span>
         <span>Link / notes</span>
         <span />
@@ -145,18 +158,22 @@ export const ShoppingListView: React.FC = () => {
       {filtered.length === 0 ? (
         <p className={styles.muted}>No shopping items yet.</p>
       ) : (
-        filtered.map((item) => (
+        filtered.map((item) => {
+          const editable = canEditItem(item);
+          return (
           <div key={item.id} className={`${styles.item} ${item.isPurchased ? styles.itemPurchased : ''}`}>
             <input
               type="checkbox"
               checked={item.isPurchased}
               aria-label="Purchased"
+              disabled={!editable}
               onChange={(e) => service.update(item.id, { isPurchased: e.target.checked }).then(refresh).catch(console.error)}
             />
             <span className={styles.itemName}>{item.itemName}</span>
             <select
               className={styles.select}
               value={item.category || ''}
+              disabled={!editable}
               onChange={(e) => {
                 const next = e.target.value;
                 if (trip?.id && next) rememberTripShoppingCategory(trip.id, next);
@@ -173,6 +190,7 @@ export const ShoppingListView: React.FC = () => {
             <select
               className={styles.select}
               value={item.traveller || travellers[0]}
+              disabled={!editable}
               onChange={(e) => service.update(item.id, { traveller: e.target.value }).then(refresh).catch(console.error)}
             >
               {travellers.map((t) => (
@@ -181,32 +199,39 @@ export const ShoppingListView: React.FC = () => {
                 </option>
               ))}
             </select>
+            {canSeeFinancials ? (
             <input
               className={styles.moneyInput}
               type="number"
               min={0}
               step="0.01"
               value={item.budgetAmount || ''}
+              disabled={!editable}
               onChange={(e) => {
                 const v = Math.max(0, Number(e.target.value) || 0);
                 service.update(item.id, { budgetAmount: v }).then(refresh).catch(console.error);
               }}
             />
+            ) : null}
+            {canSeeFinancials ? (
             <input
               className={styles.moneyInput}
               type="number"
               min={0}
               step="0.01"
               value={item.actualAmount || ''}
+              disabled={!editable}
               onChange={(e) => {
                 const v = Math.max(0, Number(e.target.value) || 0);
                 service.update(item.id, { actualAmount: v }).then(refresh).catch(console.error);
               }}
             />
+            ) : null}
             <input
               className={styles.input}
               type="month"
               value={item.purchaseMonth || ''}
+              disabled={!editable}
               onChange={(e) => service.update(item.id, { purchaseMonth: e.target.value }).then(refresh).catch(console.error)}
             />
             <div>
@@ -214,7 +239,9 @@ export const ShoppingListView: React.FC = () => {
                 className={styles.linkInput}
                 placeholder="Website URL"
                 defaultValue={item.websiteUrl}
+                disabled={!editable}
                 onBlur={(e) => {
+                  if (!editable) return;
                   const v = e.target.value.trim();
                   if (v !== (item.websiteUrl || '')) service.update(item.id, { websiteUrl: v }).then(refresh).catch(console.error);
                 }}
@@ -223,12 +250,15 @@ export const ShoppingListView: React.FC = () => {
                 className={styles.noteInput}
                 placeholder="Notes"
                 defaultValue={item.notes}
+                disabled={!editable}
                 onBlur={(e) => {
+                  if (!editable) return;
                   const v = e.target.value.trim();
                   if (v !== (item.notes || '')) service.update(item.id, { notes: v }).then(refresh).catch(console.error);
                 }}
               />
             </div>
+            {editable ? (
             <button
               type="button"
               className={styles.deleteBtn}
@@ -241,8 +271,10 @@ export const ShoppingListView: React.FC = () => {
             >
               Delete
             </button>
+            ) : null}
           </div>
-        ))
+        );
+        })
       )}
     </section>
   );
