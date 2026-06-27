@@ -7,3 +7,4 @@ export * from './JournalPhoto';
 export * from './JournalComment';
 export * from './EntryDocument';
 export * from './EntryLink';
+export * from './TripMember';
