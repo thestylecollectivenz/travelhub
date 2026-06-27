@@ -27,6 +27,7 @@ import { formatCurrency, sumByCategory, sumByPaymentStatus } from '../../utils/f
 import { useConfig } from '../../context/ConfigContext';
 import { JournalPdfExport } from '../export/JournalPdfExport';
 import { SOLUTION_VERSION } from '../../appVersion';
+import { TripRoleProvider } from '../../context/TripRoleContext';
 import { LocationInfoTripOpenBackfill } from '../itinerary/LocationInfoTripOpenBackfill';
 import { AiAssistantFab } from './AiAssistantFab';
 import { OptionEditPortal } from '../itinerary/OptionEditPortal';
@@ -634,7 +635,8 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
 export const TripWorkspace: React.FC<ITripWorkspaceProps> = (props) => {
   return (
     <TripWorkspaceProvider tripId={props.tripId} onBack={props.onBack}>
-      <ConfirmDialogProvider>
+      <TripRoleProvider tripId={props.tripId}>
+        <ConfirmDialogProvider>
         <JournalProvider>
           <JournalMediaSelectionProvider>
             <PlacesProvider>
@@ -645,7 +647,8 @@ export const TripWorkspace: React.FC<ITripWorkspaceProps> = (props) => {
             </PlacesProvider>
           </JournalMediaSelectionProvider>
         </JournalProvider>
-      </ConfirmDialogProvider>
+        </ConfirmDialogProvider>
+      </TripRoleProvider>
     </TripWorkspaceProvider>
   );
 };
