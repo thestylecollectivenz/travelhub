@@ -80,3 +80,28 @@
   color: var(--color-primary);
 }
 .muted { font-size: var(--font-size-xs); color: var(--color-sand-600); }
+
+@media (max-width: 767px) {
+  .item {
+    flex-wrap: wrap;
+  }
+
+  .itemName,
+  .noteInput {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+
+  .row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .input,
+  .select,
+  .button {
+    width: 100%;
+    min-width: 0;
+    flex: none;
+  }
+}

@@ -1,5 +1,7 @@
 import * as React from 'react';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { useSpContext } from '../../context/SpContext';
+import { logTripAccessOnce } from '../../services/TripAccessLogService';
 import { MobileDayView } from './MobileDayView';
 import { MobileJournalView } from './MobileJournalView';
 import { MobileListsView } from './MobileListsView';
@@ -24,7 +26,12 @@ const TABS: Array<{ id: MobileTab; label: string }> = [
 
 export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack }) => {
   const { trip } = useTripWorkspace();
+  const spContext = useSpContext();
   const [tab, setTab] = React.useState<MobileTab>('today');
+
+  React.useEffect(() => {
+    if (trip?.id) logTripAccessOnce(spContext, trip.id, 'view.mobile', tab);
+  }, [trip?.id, tab, spContext]);
 
   let body: React.ReactNode;
   switch (tab) {

@@ -1,6 +1,15 @@
 const KEY = 'travelhub-trip-shopping-categories-';
 
 export const SHOPPING_CATEGORIES_CHANGED_EVENT = 'travelhub-shopping-categories-changed';
+export const SHOPPING_ITEMS_CHANGED_EVENT = 'travelhub-shopping-items-changed';
+
+export function notifyShoppingItemsChanged(tripId: string): void {
+  window.dispatchEvent(
+    new CustomEvent<{ tripId: string }>(SHOPPING_ITEMS_CHANGED_EVENT, {
+      detail: { tripId }
+    })
+  );
+}
 
 function normalizeList(categories: string[]): string[] {
   const seen = new Set<string>();
@@ -13,7 +22,7 @@ function normalizeList(categories: string[]): string[] {
     seen.add(key);
     out.push(trimmed);
   }
-  return out;
+  return out.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 }
 
 export function loadTripShoppingCategories(tripId: string): string[] {

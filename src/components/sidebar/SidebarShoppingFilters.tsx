@@ -3,16 +3,16 @@ import { usePlanView } from '../../context/PlanViewContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
 import { confirmUserAction } from '../../utils/confirmAction';
-import { loadTripTravellers } from '../../utils/tripTravellers';
 import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
+import { useTripMembers } from '../../hooks/useTripMembers';
 import styles from './TripSidebar.module.css';
 
 export const SidebarShoppingFilters: React.FC = () => {
   const plan = usePlanView();
   const { trip } = useTripWorkspace();
   const spContext = useSpContext();
-  const travellers = React.useMemo(() => (trip?.id ? loadTripTravellers(trip.id) : ['Traveller 1']), [trip?.id]);
   const { categories, addCategory, renameCategory, deleteCategory } = useTripShoppingCategories(trip?.id, spContext);
+  const { travellers } = useTripMembers(trip?.id);
   const traveller = plan?.shoppingTraveller ?? null;
   const category = plan?.shoppingCategory ?? '__all__';
   const [newCategoryName, setNewCategoryName] = React.useState('');

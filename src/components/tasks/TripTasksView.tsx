@@ -22,6 +22,11 @@ import { reminderTaskCategory, TASK_FILTER_UNCATEGORISED } from '../../utils/tas
 import { openTasksPrintPreview, type TasksPrintSection } from '../../utils/tasksPrintHtml';
 import { INSIGHT_FOCUS_EVENT, type InsightFocusDetail } from '../../utils/insightFocus';
 import { localTodayYmd, matchesTaskDueFilter, type TaskDueFilter } from '../../utils/taskDueBuckets';
+import { useTripRole } from '../../context/TripRoleContext';
+import { useTripMembers } from '../../hooks/useTripMembers';
+import { useCompanionListDefaults } from '../../hooks/useCompanionListDefaults';
+import { assigneeLabelsMatch } from '../../utils/tripMemberIdentity';
+import { canEditOwnedRecord } from '../../utils/canEditOwnedRecord';
 import dayHeaderStyles from '../day/DayHeader.module.css';
 import styles from './TripTasksView.module.css';
 
@@ -165,6 +170,13 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
     setWorkspaceReturn
   } = useTripWorkspace();
   const planView = usePlanView();
+  const { role } = useTripRole();
+  const { members } = useTripMembers(trip?.id);
+  useCompanionListDefaults(planView, role, members);
+  const canEditManualTask = React.useCallback(
+    (assignedTo?: string) => canEditOwnedRecord(spContext, undefined, role, assignedTo, members),
+    [spContext, role, members]
+  );
   const [manual, setManual] = React.useState<TripReminder[]>([]);
   const [filter, setFilter] = React.useState<TaskFilter>('incomplete');
   const [viewMode, setViewMode] = React.useState<ViewMode>(planView?.tasksViewMode ?? 'list');
@@ -210,10 +222,22 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
     (key: 'todo' | 'bookings' | 'payments' | 'cancellations') => !taskSectionFilter || taskSectionFilter === key,
     [taskSectionFilter]
   );
-  const knownAssignees = React.useMemo(
-    () => (trip?.id ? loadTripAssignees(trip.id) : []),
-    [trip?.id, manual]
-  );
+  const knownAssignees = React.useMemo(() => {
+    const fromStorage = trip?.id ? loadTripAssignees(trip.id) : [];
+    const fromMembers = members.map((m) => m.userDisplayName).filter(Boolean);
+    const fromManual = manual.map((m) => m.assignedTo).filter(Boolean) as string[];
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const raw of [...fromMembers, ...fromStorage, ...fromManual]) {
+      const t = (raw || '').trim();
+      if (!t) continue;
+      const key = t.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(t);
+    }
+    return out.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  }, [trip?.id, manual, members]);
 
   React.useEffect(() => {
     if (!planView) return;
@@ -242,9 +266,9 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
   const matchesAssigneeFilter = React.useCallback(
     (assignedTo?: string): boolean => {
       if (!taskAssigneeFilter) return true;
-      return (assignedTo || '').trim() === taskAssigneeFilter;
+      return assigneeLabelsMatch(spContext, assignedTo, taskAssigneeFilter, members);
     },
-    [taskAssigneeFilter]
+    [taskAssigneeFilter, spContext, members]
   );
 
   const matchesReminderFilters = React.useCallback(
@@ -443,6 +467,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
   );
 
   const startEditReminder = React.useCallback((m: TripReminder): void => {
+    if (!canEditManualTask(m.assignedTo)) return;
     setEditingReminderId(m.id);
     const raw = (m.reminderText || m.title || '').trim();
     setEditTitle(raw.replace(/^(Task|Reminder):\s*/i, ''));
@@ -450,7 +475,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
     setEditNote((m.taskNote || '').trim());
     setEditAssignedTo((m.assignedTo || '').trim());
     setEditTaskCategory(reminderTaskCategory(m) || 'Other');
-  }, []);
+  }, [canEditManualTask]);
 
   const saveEditReminder = React.useCallback(
     (m: TripReminder): void => {
@@ -882,9 +907,11 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                       </>
                     ) : (
                       <>
+                        {canEditManualTask(m.assignedTo) ? (
                         <button className={styles.iconBtn} type="button" title="Edit" onClick={() => startEditReminder(m)}>
                           ✎
                         </button>
+                        ) : null}
                         {target ? (
                           <button
                             className={styles.iconBtn}
@@ -895,6 +922,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                             ↗
                           </button>
                         ) : null}
+                        {canEditManualTask(m.assignedTo) ? (
                         <button
                           className={styles.iconBtn}
                           type="button"
@@ -908,6 +936,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                         >
                           🗑
                         </button>
+                        ) : null}
                       </>
                     )}
                   </div>
@@ -1103,10 +1132,12 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                         className={styles.iconBtn}
                         type="button"
                         title="Edit"
+                        disabled={!canEditManualTask(m.assignedTo)}
                         onClick={() => startEditReminder(m)}
                       >
                         ✎
                       </button>
+                      {canEditManualTask(m.assignedTo) ? (
                       <button
                         className={styles.iconBtn}
                         type="button"
@@ -1120,6 +1151,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                       >
                         🗑
                       </button>
+                      ) : null}
                     </div>
                   </div>
                 );

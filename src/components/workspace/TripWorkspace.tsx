@@ -14,6 +14,7 @@ import { TripContent } from './TripContent';
 import { SharedTripView } from './SharedTripView';
 import { EditTripPanel } from './EditTripPanel';
 import { TripMembersPanel } from './TripMembersPanel';
+import { TripAccessLogPanel } from './TripAccessLogPanel';
 import { RoleGate } from '../shared/RoleGate';
 import { TripDateRangeReassignDialog } from './TripDateRangeReassignDialog';
 import { ErrorBoundary } from '../shared/ErrorBoundary';
@@ -35,6 +36,8 @@ import { AiAssistantFab } from './AiAssistantFab';
 import { OptionEditPortal } from '../itinerary/OptionEditPortal';
 import { useMobileMode } from '../../hooks/useMobileMode';
 import { MobileTripShell } from '../mobile/MobileTripShell';
+import { useSpContext } from '../../context/SpContext';
+import { logTripAccessOnce } from '../../services/TripAccessLogService';
 import styles from './TripWorkspace.module.css';
 
 export interface ITripWorkspaceProps {
@@ -63,12 +66,14 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
     setSelectedDayId,
     setMainWorkspaceTab
   } = useTripWorkspace();
+  const spContext = useSpContext();
   const { config } = useConfig();
   const { allEntries: journalEntries, allTripPhotos, photosForEntry, commentsForEntry, reassignDayContent } =
     useJournal();
   const { documents, links, setHighlightedDocumentId, setHighlightedLinkId } = useAttachments();
   const [editOpen, setEditOpen] = React.useState(false);
   const [membersOpen, setMembersOpen] = React.useState(false);
+  const [accessLogOpen, setAccessLogOpen] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [exportOpen, setExportOpen] = React.useState(false);
@@ -80,6 +85,10 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
   } | null>(null);
   const [dateReassignMappings, setDateReassignMappings] = React.useState<Record<string, string>>({});
   const [dateReassignBusy, setDateReassignBusy] = React.useState(false);
+
+  React.useEffect(() => {
+    if (trip?.id) logTripAccessOnce(spContext, trip.id, 'view.trip');
+  }, [trip?.id, spContext]);
 
   const applyTripDateRangeChange = React.useCallback(
     async (partial: Partial<Trip>, reassignments?: Record<string, string>): Promise<void> => {
@@ -460,6 +469,9 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
                 <button type="button" className={styles.settingsButton} onClick={() => setMembersOpen(true)}>
                   Trip access
                 </button>
+                <button type="button" className={styles.settingsButton} onClick={() => setAccessLogOpen(true)}>
+                  Access log
+                </button>
               </RoleGate>
               <button type="button" className={styles.settingsButton} onClick={() => setSharedPreview(true)}>
                 Preview shared view
@@ -613,6 +625,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
       ) : null}
       <EditTripPanel trip={trip} isOpen={editOpen} onClose={() => setEditOpen(false)} onSave={handleTripDetailsSave} />
       <TripMembersPanel tripId={tripId} isOpen={membersOpen} onClose={() => setMembersOpen(false)} />
+      <TripAccessLogPanel tripId={tripId} isOpen={accessLogOpen} onClose={() => setAccessLogOpen(false)} />
       {dateReassignState && trip ? (
         <TripDateRangeReassignDialog
           trip={trip}

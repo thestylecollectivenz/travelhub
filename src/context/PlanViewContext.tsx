@@ -38,7 +38,7 @@ const PlanViewContext = React.createContext<PlanViewContextValue | undefined>(un
 
 export const PlanViewProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [planTab, setPlanTab] = React.useState<PlanTab>('tasks');
-  const [packingCategory, setPackingCategory] = React.useState('Clothing');
+  const [packingCategory, setPackingCategory] = React.useState('__all__');
   const [taskCategoryFilter, setTaskCategoryFilter] = React.useState<string | null>(null);
   const [taskAssigneeFilter, setTaskAssigneeFilter] = React.useState<string | null>(null);
   const [taskSectionFilter, setTaskSectionFilter] = React.useState<TaskSectionKey | null>(null);

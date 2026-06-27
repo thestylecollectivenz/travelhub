@@ -2,13 +2,24 @@ import * as React from 'react';
 import { PlanViewProvider } from '../../context/PlanViewContext';
 import { PackingListView } from '../packing/PackingListView';
 import { ShoppingListView } from '../shopping/ShoppingListView';
+import { MobileShoppingFilters } from './MobileShoppingFilters';
+import { useTripMembers } from '../../hooks/useTripMembers';
+import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { useTripRole } from '../../context/TripRoleContext';
+import { useCompanionListDefaults } from '../../hooks/useCompanionListDefaults';
+import { usePlanView } from '../../context/PlanViewContext';
 import styles from './MobileShell.module.css';
 
-export const MobileListsView: React.FC = () => {
+const MobileListsBody: React.FC = () => {
   const [sub, setSub] = React.useState<'packing' | 'shopping'>('packing');
+  const { trip } = useTripWorkspace();
+  const planView = usePlanView();
+  const { role } = useTripRole();
+  const { members, travellers } = useTripMembers(trip?.id);
+  useCompanionListDefaults(planView, role, members);
 
   return (
-    <PlanViewProvider>
+    <div className={styles.mobileListsWrap}>
       <div className={styles.subTabs}>
         <button
           type="button"
@@ -25,7 +36,16 @@ export const MobileListsView: React.FC = () => {
           Shopping
         </button>
       </div>
+      {sub === 'shopping' ? <MobileShoppingFilters travellers={travellers} /> : null}
       {sub === 'packing' ? <PackingListView /> : <ShoppingListView />}
+    </div>
+  );
+};
+
+export const MobileListsView: React.FC = () => {
+  return (
+    <PlanViewProvider>
+      <MobileListsBody />
     </PlanViewProvider>
   );
 };

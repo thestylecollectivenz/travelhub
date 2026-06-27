@@ -3,11 +3,13 @@ import { usePlanView } from '../../context/PlanViewContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
 import { PackingItem, PackingService } from '../../services/PackingService';
-import { loadTripTravellers } from '../../utils/tripTravellers';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { useTripRole } from '../../context/TripRoleContext';
 import { canEditOwnedRecord } from '../../utils/canEditOwnedRecord';
 import { PACKING_DRAG_MIME, parsePackingTemplateDrag } from '../../utils/packingTemplateDrag';
+import { useTripMembers } from '../../hooks/useTripMembers';
+import { useCompanionListDefaults } from '../../hooks/useCompanionListDefaults';
+import { assigneeLabelsMatch, resolveOwnerEmailForAssignee } from '../../utils/tripMemberIdentity';
 import styles from './PackingListView.module.css';
 
 const CATEGORIES = ['Clothing', 'Shoes', 'Accessories', 'Toiletries', 'Electronics', 'Documents', 'Medications', 'Other'];
@@ -18,12 +20,13 @@ export const PackingListView: React.FC = () => {
   const planView = usePlanView();
   const activeCategory = planView?.packingCategory ?? 'Other';
   const activeTraveller = planView?.packingTraveller ?? null;
-  const travellers = React.useMemo(() => (trip?.id ? loadTripTravellers(trip.id) : ['Traveller 1']), [trip?.id]);
-  const service = React.useMemo(() => new PackingService(spContext), [spContext]);
   const { role } = useTripRole();
+  const { members, travellers } = useTripMembers(trip?.id);
+  useCompanionListDefaults(planView, role, members);
+  const service = React.useMemo(() => new PackingService(spContext), [spContext]);
   const canEditItem = React.useCallback(
-    (item: PackingItem) => canEditOwnedRecord(spContext, item.ownerEmail, role),
-    [spContext, role]
+    (item: PackingItem) => canEditOwnedRecord(spContext, item.ownerEmail, role, item.traveller, members),
+    [spContext, role, members]
   );
   const [items, setItems] = React.useState<PackingItem[]>([]);
   const [collapsed, setCollapsed] = React.useState<Record<string, boolean>>({});
@@ -58,7 +61,8 @@ export const PackingListView: React.FC = () => {
           quantity: Math.max(1, quantity || 1),
           isPacked: false,
           isTemplate: false,
-          templateId: ''
+          templateId: '',
+          ownerEmail: resolveOwnerEmailForAssignee(spContext, traveller, members)
         })
         .then(refresh)
         .catch(console.error);
@@ -112,10 +116,12 @@ export const PackingListView: React.FC = () => {
   const filteredItems = React.useMemo(() => {
     let rows = items;
     if (activeTraveller) {
-      rows = rows.filter((i) => (i.traveller || travellers[0] || '').trim() === activeTraveller);
+      rows = rows.filter((i) =>
+        assigneeLabelsMatch(spContext, i.traveller || travellers[0] || '', activeTraveller, members)
+      );
     }
     return rows;
-  }, [items, activeTraveller, travellers]);
+  }, [items, activeTraveller, travellers, spContext, members]);
 
   const categoryRows = React.useMemo(() => {
     if (activeCategory === '__all__') return filteredItems;
@@ -159,21 +165,24 @@ export const PackingListView: React.FC = () => {
 
       <div className={styles.row}>
         <input className={styles.input} placeholder="Item name" value={name} onChange={(e) => setName(e.target.value)} />
-        <select className={styles.select} value={activeCategory} onChange={(e) => planView?.setPackingCategory(e.target.value)}>
+        <select className={styles.select} value={activeCategory === '__all__' ? category : activeCategory} onChange={(e) => planView?.setPackingCategory(e.target.value)}>
+          <option value="__all__">All items</option>
           {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
         <input className={styles.input} type="number" min={1} value={qty} onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))} />
         <button className={styles.button} type="button" onClick={() => {
           if (!trip?.id || !name.trim()) return;
+          const traveller = activeTraveller || travellers[0] || 'Traveller 1';
           service.create({
             tripId: trip.id,
-            category: activeCategory === '__all__' ? 'Other' : activeCategory,
-            traveller: activeTraveller || travellers[0] || 'Traveller 1',
+            category: activeCategory === '__all__' ? category : activeCategory,
+            traveller,
             itemName: name.trim(),
             quantity: qty,
             isPacked: false,
             isTemplate: false,
-            templateId: ''
+            templateId: '',
+            ownerEmail: resolveOwnerEmailForAssignee(spContext, traveller, members)
           })
             .then(() => {
               setName('');

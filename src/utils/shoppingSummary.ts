@@ -1,4 +1,7 @@
+import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import type { ShoppingItem } from '../services/ShoppingListService';
+import type { TripMember } from '../models/TripMember';
+import { assigneeLabelsMatch } from './tripMemberIdentity';
 
 export interface ShoppingTotals {
   budget: number;
@@ -25,11 +28,20 @@ export function summarizeShoppingItems(
   items: ShoppingItem[],
   travellerFilter: string | null,
   categoryFilter: string | null,
-  monthFilter: string | null
-): { totals: ShoppingTotals; byMonth: ShoppingMonthRow[]; byTraveller: Map<string, ShoppingTotals> } {
+  monthFilter: string | null,
+  ctx?: WebPartContext,
+  members?: TripMember[]
+): {
+  totals: ShoppingTotals;
+  byMonth: ShoppingMonthRow[];
+  byTraveller: Map<string, ShoppingTotals>;
+  byCategory: Map<string, ShoppingTotals>;
+} {
   let filtered = items;
   if (travellerFilter) {
-    filtered = filtered.filter((i) => (i.traveller || '').trim() === travellerFilter);
+    filtered = filtered.filter((i) =>
+      ctx ? assigneeLabelsMatch(ctx, i.traveller, travellerFilter, members) : (i.traveller || '').trim() === travellerFilter
+    );
   }
   if (categoryFilter && categoryFilter !== '__all__') {
     filtered = filtered.filter((i) => i.category === categoryFilter);
@@ -41,6 +53,7 @@ export function summarizeShoppingItems(
   const totals: ShoppingTotals = { budget: 0, actual: 0, count: filtered.length };
   const monthMap = new Map<string, ShoppingTotals>();
   const travellerMap = new Map<string, ShoppingTotals>();
+  const categoryMap = new Map<string, ShoppingTotals>();
 
   for (const item of filtered) {
     const budget = item.budgetAmount || 0;
@@ -51,6 +64,8 @@ export function summarizeShoppingItems(
     addToMap(monthMap, month, budget, actual);
     const traveller = (item.traveller || 'Unassigned').trim() || 'Unassigned';
     addToMap(travellerMap, traveller, budget, actual);
+    const category = (item.category || 'Uncategorised').trim() || 'Uncategorised';
+    addToMap(categoryMap, category, budget, actual);
   }
 
   const byMonth = Array.from(monthMap.entries())
@@ -61,5 +76,5 @@ export function summarizeShoppingItems(
       return a.month.localeCompare(b.month);
     });
 
-  return { totals, byMonth, byTraveller: travellerMap };
+  return { totals, byMonth, byTraveller: travellerMap, byCategory: categoryMap };
 }

@@ -15,6 +15,8 @@ import { ShoppingListView } from '../shopping/ShoppingListView';
 import { PackingTemplatesManager } from '../packing/PackingTemplatesManager';
 import { TripSidebar } from '../sidebar/TripSidebar';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { useSpContext } from '../../context/SpContext';
+import { logTripAccessOnce } from '../../services/TripAccessLogService';
 import {
   expandTimelineDisplayRows,
   isPreTripDayRow,
@@ -61,11 +63,21 @@ import {
 import styles from './TripWorkspace.module.css';
 
 const TripContentInner: React.FC = () => {
+  const spContext = useSpContext();
   const { trip, tripDays, selectedDayId, localEntries, reorderEntries, moveEntryToDay, mainWorkspaceTab } = useTripWorkspace();
   const { config, saveConfig } = useConfig();
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const planView = usePlanView();
   const showDesktopRightPane = useMinViewportWidth(DESKTOP_LAYOUT_MIN_PX);
+
+  React.useEffect(() => {
+    if (!trip?.id) return;
+    const resource =
+      mainWorkspaceTab === 'plan' && planView?.planTab
+        ? `${mainWorkspaceTab}.${planView.planTab}`
+        : mainWorkspaceTab;
+    logTripAccessOnce(spContext, trip.id, 'view.tab', resource);
+  }, [trip?.id, mainWorkspaceTab, planView?.planTab, spContext]);
 
   const [sidebarWidth, setSidebarWidth] = React.useState<number>(() =>
     resolveSidebarWidthPx(config, PRIVATE_WORKSPACE_TAB_COUNT)
