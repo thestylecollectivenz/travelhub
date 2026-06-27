@@ -13,6 +13,8 @@ import { TripStatsStrip } from './TripStatsStrip';
 import { TripContent } from './TripContent';
 import { SharedTripView } from './SharedTripView';
 import { EditTripPanel } from './EditTripPanel';
+import { TripMembersPanel } from './TripMembersPanel';
+import { RoleGate } from '../shared/RoleGate';
 import { TripDateRangeReassignDialog } from './TripDateRangeReassignDialog';
 import { ErrorBoundary } from '../shared/ErrorBoundary';
 import type { Trip } from '../../models/Trip';
@@ -64,6 +66,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
     useJournal();
   const { documents, links, setHighlightedDocumentId, setHighlightedLinkId } = useAttachments();
   const [editOpen, setEditOpen] = React.useState(false);
+  const [membersOpen, setMembersOpen] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [exportOpen, setExportOpen] = React.useState(false);
@@ -451,6 +454,11 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
             </div>
           ) : (
             <>
+              <RoleGate requiredRole="Editor">
+                <button type="button" className={styles.settingsButton} onClick={() => setMembersOpen(true)}>
+                  Trip access
+                </button>
+              </RoleGate>
               <button type="button" className={styles.settingsButton} onClick={() => setSharedPreview(true)}>
                 Preview shared view
               </button>
@@ -598,6 +606,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
         </div>
       ) : null}
       <EditTripPanel trip={trip} isOpen={editOpen} onClose={() => setEditOpen(false)} onSave={handleTripDetailsSave} />
+      <TripMembersPanel tripId={tripId} isOpen={membersOpen} onClose={() => setMembersOpen(false)} />
       {dateReassignState && trip ? (
         <TripDateRangeReassignDialog
           trip={trip}
