@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useSpContext } from '../context/SpContext';
 import { TripMembersService } from '../services/TripMembersService';
 import type { TripRoleLevel } from '../models/TripMember';
+import { resolveTripRoleForUser } from '../utils/resolveTripRole';
 
 const roleCache = new Map<string, TripRoleLevel>();
 
@@ -39,16 +40,8 @@ export function useCurrentUserRole(tripId: string | undefined): {
     void (async () => {
       try {
         const me = svc.currentUserSnapshot();
-        const [members, authorEmail] = await Promise.all([svc.getForTrip(tripId), svc.getTripAuthorEmail(tripId)]);
-        const mine = members.find((m) => m.userEmail === me.email);
-        let resolved: TripRoleLevel = 'Editor';
-        if (mine) {
-          resolved = mine.role;
-        } else if (authorEmail && authorEmail === me.email) {
-          resolved = 'Editor';
-        } else if (members.length > 0) {
-          resolved = 'Follower';
-        }
+        const [members, author] = await Promise.all([svc.getForTrip(tripId), svc.getTripAuthorIdentity(tripId)]);
+        const resolved = resolveTripRoleForUser(svc, me.email, members, author);
         roleCache.set(tripId, resolved);
         setRole(resolved);
       } catch (err) {

@@ -20,6 +20,7 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
   const { refreshRole } = useTripRole();
   const service = React.useMemo(() => new TripMembersService(spContext), [spContext]);
   const [members, setMembers] = React.useState<TripMember[]>([]);
+  const [authorEmail, setAuthorEmail] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [displayName, setDisplayName] = React.useState('');
   const [role, setRole] = React.useState<TripRoleLevel>('Companion');
@@ -27,10 +28,15 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
   const [error, setError] = React.useState<string | null>(null);
 
   const refresh = React.useCallback(() => {
-    service.getForTrip(tripId).then(setMembers).catch((err) => {
-      console.error(err);
-      setError('Could not load trip members.');
-    });
+    Promise.all([service.getForTrip(tripId), service.getTripAuthorIdentity(tripId)])
+      .then(([rows, author]) => {
+        setMembers(rows);
+        setAuthorEmail(author.email);
+      })
+      .catch((err) => {
+        console.error(err);
+        setError('Could not load trip members.');
+      });
   }, [service, tripId]);
 
   React.useEffect(() => {
@@ -79,16 +85,18 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
           {members.length === 0 ? (
             <li className={styles.muted}>No members added yet — trip creator has Editor access.</li>
           ) : (
-            members.map((m) => (
+            members.map((m) => {
+              const isTripAuthor = Boolean(authorEmail && m.userEmail === authorEmail);
+              return (
               <li key={m.id} className={styles.row}>
                 <div className={styles.memberMeta}>
                   <strong>{m.userDisplayName || m.userEmail}</strong>
-                  <span className={styles.email}>{m.userEmail}</span>
+                  <span className={styles.email}>{m.userEmail}{isTripAuthor ? ' · Trip creator' : ''}</span>
                 </div>
                 <select
                   className={styles.select}
-                  value={m.role}
-                  disabled={busy}
+                  value={isTripAuthor ? 'Editor' : m.role}
+                  disabled={busy || isTripAuthor}
                   onChange={(e) => {
                     const next = e.target.value as TripRoleLevel;
                     setBusy(true);
@@ -112,7 +120,7 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
                 <button
                   type="button"
                   className={styles.removeBtn}
-                  disabled={busy}
+                  disabled={busy || isTripAuthor}
                   onClick={() => {
                     void (async () => {
                       if (!(await confirmUserAction(`Remove ${m.userEmail} from this trip?`))) return;
@@ -132,7 +140,8 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
                   Remove
                 </button>
               </li>
-            ))
+            );
+            })
           )}
         </ul>
         <div className={styles.addBlock}>

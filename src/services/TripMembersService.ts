@@ -2,7 +2,13 @@ import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 import type { TripMember, TripRoleLevel } from '../models/TripMember';
 import { parseTripRoleLevel } from '../models/TripMember';
-import { getCurrentUserDisplayName, getCurrentUserEmail } from '../utils/currentUserEmail';
+import { getCurrentUserDisplayName, getCurrentUserEmail, getCurrentUserId, parseSharePointUserEmail } from '../utils/currentUserEmail';
+
+export interface TripAuthorIdentity {
+  authorId?: number;
+  email: string;
+}
+
 
 const LIST = 'TripMembers';
 
@@ -56,13 +62,41 @@ export class TripMembersService {
       .filter((m: TripMember | null): m is TripMember => m !== null);
   }
 
-  async getTripAuthorEmail(tripId: string): Promise<string | null> {
-    const url = `${this.tripsUrl}(${tripId})?$select=ID&$expand=Author`;
+  async getTripAuthorIdentity(tripId: string): Promise<TripAuthorIdentity> {
+    const url = `${this.tripsUrl}(${tripId})?$select=ID,AuthorId&$expand=Author($select=Id,Email,EMail,LoginName)`;
     const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
-    if (!resp.ok) return null;
-    const data = (await resp.json()) as { Author?: { Email?: string; EMail?: string } };
-    const email = (data.Author?.Email ?? data.Author?.EMail ?? '').trim();
-    return email ? email.toLowerCase() : null;
+    if (!resp.ok) return { email: '' };
+    const data = (await resp.json()) as {
+      AuthorId?: number;
+      Author?: { Id?: number; Email?: string; EMail?: string; LoginName?: string };
+    };
+    const author = data.Author;
+    const email = parseSharePointUserEmail({
+      email: author?.Email,
+      eMail: author?.EMail,
+      loginName: author?.LoginName
+    });
+    const authorId = author?.Id ?? data.AuthorId;
+    return {
+      authorId: authorId !== undefined && authorId !== null ? Number(authorId) : undefined,
+      email
+    };
+  }
+
+  /** @deprecated Use getTripAuthorIdentity */
+  async getTripAuthorEmail(tripId: string): Promise<string | null> {
+    const identity = await this.getTripAuthorIdentity(tripId);
+    return identity.email || null;
+  }
+
+  isCurrentUserTripAuthor(author: TripAuthorIdentity): boolean {
+    const meId = getCurrentUserId(this.ctx);
+    if (author.authorId !== undefined && meId !== undefined && author.authorId === meId) {
+      return true;
+    }
+    const meEmail = getCurrentUserEmail(this.ctx);
+    if (author.email && author.email === meEmail) return true;
+    return false;
   }
 
   async addMember(input: {
