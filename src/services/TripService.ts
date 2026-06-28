@@ -1,6 +1,7 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 import { Trip, TripLifecycleStatus } from '../models';
+import { getCurrentUserEmail } from '../utils/currentUserEmail';
 
 const LIST = 'Trips';
 
@@ -101,7 +102,10 @@ export class TripService {
   }
 
   async create(trip: Omit<Trip, 'id'>): Promise<Trip> {
-    const body = JSON.stringify(mapToSpItem(trip));
+    const body = JSON.stringify({
+      ...mapToSpItem(trip),
+      EditorEmail: getCurrentUserEmail(this.ctx)
+    });
     try {
       const resp: SPHttpClientResponse = await this.ctx.spHttpClient.post(
         this.baseUrl,

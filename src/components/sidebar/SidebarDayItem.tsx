@@ -5,6 +5,7 @@ import { useConfig } from '../../context/ConfigContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { formatCurrency } from '../../utils/financialUtils';
 import type { DayPlanningStatus } from '../../models/TripDay';
+import { useTripPermissions } from '../../hooks/useTripPermissions';
 import styles from './SidebarDayItem.module.css';
 
 export interface SidebarDayItemProps {
@@ -31,10 +32,12 @@ function dayTypeLabel(dayType: TripDay['dayType']): string {
 export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected, onSelect, dayTotal }) => {
   const { config } = useConfig();
   const { updateDay } = useTripWorkspace();
+  const { canEditDayMeta, canSeeFinancials } = useTripPermissions();
   const planningStatus: DayPlanningStatus = day.planningStatus ?? 'NotStarted';
   const { setNodeRef, isOver } = useDroppable({
     id: day.id,
-    data: { type: 'day' }
+    data: { type: 'day' },
+    disabled: !canEditDayMeta
   });
   const [isEditingTitle, setIsEditingTitle] = React.useState(false);
   const [titleDraft, setTitleDraft] = React.useState(day.displayTitle);
@@ -92,6 +95,7 @@ export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected,
             {day.dayType === 'PreTrip' ? 'Pre-trip' : `Day ${day.dayNumber}${dayDate ? ` · ${dayDate}` : ''}`}
           </span>
           <div className={styles.badgeWrap}>
+            {canEditDayMeta ? (
             <button
               type="button"
               className={`${styles.badge} ${badgeColorClass}`}
@@ -102,7 +106,10 @@ export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected,
             >
               {dayTypeLabel(day.dayType)}
             </button>
-            {typePickerOpen ? (
+            ) : (
+            <span className={`${styles.badge} ${badgeColorClass}`}>{dayTypeLabel(day.dayType)}</span>
+            )}
+            {canEditDayMeta && typePickerOpen ? (
               <div className={styles.badgeOptions} onClick={(e) => e.stopPropagation()}>
                 {(['PlacePort', 'Sea', 'TravelTransit', 'PreTrip'] as const).map((option) => (
                   <button
@@ -130,7 +137,7 @@ export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected,
           </div>
         </div>
         <div className={styles.row2}>
-          {isEditingTitle ? (
+          {canEditDayMeta && isEditingTitle ? (
             <input
               className={styles.titleInput}
               value={titleDraft}
@@ -147,6 +154,7 @@ export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected,
             <span
               className={styles.title}
               onClick={(e) => {
+                if (!canEditDayMeta) return;
                 e.stopPropagation();
                 setIsEditingTitle(true);
               }}
@@ -154,8 +162,11 @@ export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected,
               {day.displayTitle}
             </span>
           )}
-          <span className={styles.dayTotal}>{formatCurrency(dayTotal, config.homeCurrency)}</span>
+          {canSeeFinancials ? (
+            <span className={styles.dayTotal}>{formatCurrency(dayTotal, config.homeCurrency)}</span>
+          ) : null}
         </div>
+        {canEditDayMeta ? (
         <div className={styles.row3} onClick={(e) => e.stopPropagation()}>
           <label className={styles.planningLabel}>
             Planning
@@ -172,6 +183,7 @@ export const SidebarDayItem: React.FC<SidebarDayItemProps> = ({ day, isSelected,
             </select>
           </label>
         </div>
+        ) : null}
       </button>
     </li>
   );

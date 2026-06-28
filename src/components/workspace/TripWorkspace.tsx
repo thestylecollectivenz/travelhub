@@ -489,6 +489,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
                 </svg>
                 Search
               </button>
+              <RoleGate requiredRole="Editor">
               <button
                 type="button"
                 className={styles.settingsButton}
@@ -511,6 +512,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
                 </svg>
                 Delete trip
               </button>
+              </RoleGate>
             </>
           )}
         </div>

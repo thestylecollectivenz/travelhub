@@ -20,8 +20,8 @@ const TABS: Array<{ id: MobileTab; label: string }> = [
   { id: 'today', label: 'Today' },
   { id: 'journal', label: 'Journal' },
   { id: 'lists', label: 'Lists' },
-  { id: 'map', label: 'Map' },
-  { id: 'tasks', label: 'Tasks' }
+  { id: 'tasks', label: 'Tasks' },
+  { id: 'map', label: 'Map' }
 ];
 
 export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack }) => {

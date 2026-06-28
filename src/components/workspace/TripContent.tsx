@@ -60,6 +60,7 @@ import {
   writeBool,
   writePaneWidth
 } from '../../utils/workspacePaneLayout';
+import { useTripPermissions } from '../../hooks/useTripPermissions';
 import styles from './TripWorkspace.module.css';
 
 const TripContentInner: React.FC = () => {
@@ -68,6 +69,7 @@ const TripContentInner: React.FC = () => {
   const { config, saveConfig } = useConfig();
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const planView = usePlanView();
+  const { canEditItinerary } = useTripPermissions();
   const showDesktopRightPane = useMinViewportWidth(DESKTOP_LAYOUT_MIN_PX);
 
   React.useEffect(() => {
@@ -180,6 +182,10 @@ const TripContentInner: React.FC = () => {
 
   const handleDragEnd = React.useCallback(
     (event: DragEndEvent): void => {
+      if (!canEditItinerary) {
+        setActiveId(null);
+        return;
+      }
       const { active, over } = event;
       setActiveId(null);
       if (!over) {
@@ -232,7 +238,7 @@ const TripContentInner: React.FC = () => {
         }
       }
     },
-    [dayEntries, localEntries, moveEntryToDay, reorderEntries, selectedDayId, trip, timelineRows]
+    [canEditItinerary, dayEntries, localEntries, moveEntryToDay, reorderEntries, selectedDayId, trip, timelineRows]
   );
 
   const startSidebarResize = React.useCallback(
@@ -439,6 +445,10 @@ const TripContentInner: React.FC = () => {
   );
 
   if (mainWorkspaceTab !== 'itinerary') {
+    return shell;
+  }
+
+  if (!canEditItinerary) {
     return shell;
   }
 

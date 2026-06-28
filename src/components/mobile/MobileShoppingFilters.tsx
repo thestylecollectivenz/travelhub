@@ -3,6 +3,7 @@ import { usePlanView } from '../../context/PlanViewContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
 import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
+import { useTripPermissions } from '../../hooks/useTripPermissions';
 import { confirmUserAction } from '../../utils/confirmAction';
 import styles from './MobileShell.module.css';
 
@@ -12,6 +13,7 @@ export const MobileShoppingFilters: React.FC<{ travellers: string[] }> = ({ trav
   const { trip } = useTripWorkspace();
   const spContext = useSpContext();
   const { categories, addCategory, renameCategory, deleteCategory } = useTripShoppingCategories(trip?.id, spContext);
+  const { canManageTrip } = useTripPermissions();
   const [newCategoryName, setNewCategoryName] = React.useState('');
   const [editingCategory, setEditingCategory] = React.useState<string | null>(null);
   const [editCategoryName, setEditCategoryName] = React.useState('');
@@ -67,6 +69,7 @@ export const MobileShoppingFilters: React.FC<{ travellers: string[] }> = ({ trav
             </button>
           ))}
         </div>
+        {canManageTrip ? (
         <div className={styles.filterAddRow}>
           <input
             className={styles.dateInput}
@@ -96,7 +99,8 @@ export const MobileShoppingFilters: React.FC<{ travellers: string[] }> = ({ trav
             Add
           </button>
         </div>
-        {categories.length > 0 ? (
+        ) : null}
+        {canManageTrip && categories.length > 0 ? (
           <ul className={styles.categoryManageList}>
             {categories.map((c) => (
               <li key={c} className={styles.categoryManageRow}>

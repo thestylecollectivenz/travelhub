@@ -95,44 +95,49 @@ export const MobileDayView: React.FC = () => {
 
   return (
     <div className={styles.dayView}>
-      <h2 className={styles.sectionHeading}>{day.displayTitle || `Day ${day.dayNumber}`}</h2>
-      <p className={styles.muted}>{day.calendarDate ? formatOrdinalDayDate(day.calendarDate) : ''}</p>
-      <div className={styles.pagerRow}>
-        <button type="button" className={styles.pagerBtn} onClick={() => jumpToDate(ymdToday())}>
-          Today
-        </button>
-        <button type="button" className={styles.pagerBtn} onClick={() => jumpToDate(ymdTomorrow())}>
-          Tomorrow
-        </button>
-        <button
-          type="button"
-          className={styles.pagerBtn}
-          disabled={dayIndex <= 0}
-          onClick={() => dayIndex > 0 && setSelectedDayId(days[dayIndex - 1].id)}
-        >
-          ← Prev
-        </button>
-        <button
-          type="button"
-          className={styles.pagerBtn}
-          disabled={dayIndex < 0 || dayIndex >= days.length - 1}
-          onClick={() => dayIndex >= 0 && dayIndex < days.length - 1 && setSelectedDayId(days[dayIndex + 1].id)}
-        >
-          Next →
-        </button>
-      </div>
-      <label className={styles.dateGoRow}>
-        <span className={styles.dateGoLabel}>Go to</span>
+      <div className={styles.dayHeaderCompact}>
+        <div>
+          <h2 className={styles.dayTitleCompact}>{day.displayTitle || `Day ${day.dayNumber}`}</h2>
+          <p className={styles.dayDateCompact}>
+            {day.calendarDate ? formatOrdinalDayDate(day.calendarDate) : ''}
+          </p>
+        </div>
         <input
           type="date"
-          className={styles.dateInput}
+          className={styles.dateInputCompact}
           min={tripStartYmd || undefined}
           max={tripEndYmd || undefined}
           value={dayYmd}
           onChange={(e) => jumpToDate(e.target.value)}
           aria-label="Go to date within trip"
         />
-      </label>
+      </div>
+      <div className={styles.dayNavCompact}>
+        <button type="button" className={styles.navChip} onClick={() => jumpToDate(ymdToday())}>
+          Today
+        </button>
+        <button type="button" className={styles.navChip} onClick={() => jumpToDate(ymdTomorrow())}>
+          Tmrw
+        </button>
+        <button
+          type="button"
+          className={styles.navChip}
+          disabled={dayIndex <= 0}
+          onClick={() => dayIndex > 0 && setSelectedDayId(days[dayIndex - 1].id)}
+          aria-label="Previous day"
+        >
+          ←
+        </button>
+        <button
+          type="button"
+          className={styles.navChip}
+          disabled={dayIndex < 0 || dayIndex >= days.length - 1}
+          onClick={() => dayIndex >= 0 && dayIndex < days.length - 1 && setSelectedDayId(days[dayIndex + 1].id)}
+          aria-label="Next day"
+        >
+          →
+        </button>
+      </div>
 
       {unscheduled.length > 0 ? (
         <section className={styles.unschedSection}>

@@ -58,6 +58,15 @@ export function useCurrentUserRole(tripId: string | undefined): {
     load();
   }, [load]);
 
+  React.useEffect(() => {
+    const onRefresh = (): void => {
+      if (tripId) roleCache.delete(tripId);
+      load();
+    };
+    window.addEventListener('travelhub-trip-role-refresh', onRefresh);
+    return () => window.removeEventListener('travelhub-trip-role-refresh', onRefresh);
+  }, [tripId, load]);
+
   const refresh = React.useCallback(() => {
     if (tripId) roleCache.delete(tripId);
     load();

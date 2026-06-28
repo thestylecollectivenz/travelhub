@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { PlanViewProvider } from '../../context/PlanViewContext';
-import { PackingListView } from '../packing/PackingListView';
-import { ShoppingListView } from '../shopping/ShoppingListView';
+import { MobilePackingList } from './MobilePackingList';
+import { MobileShoppingList } from './MobileShoppingList';
 import { MobileShoppingFilters } from './MobileShoppingFilters';
 import { useTripMembers } from '../../hooks/useTripMembers';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
@@ -37,7 +37,7 @@ const MobileListsBody: React.FC = () => {
         </button>
       </div>
       {sub === 'shopping' ? <MobileShoppingFilters travellers={travellers} /> : null}
-      {sub === 'packing' ? <PackingListView /> : <ShoppingListView />}
+      {sub === 'packing' ? <MobilePackingList /> : <MobileShoppingList />}
     </div>
   );
 };

@@ -87,6 +87,8 @@ export interface ItineraryCardViewProps {
   linkedEntryTasks?: LinkedEntryTask[];
   /** True when a Trip Reminders row exists for this entry with ReminderType CancellationDeadline. */
   hasCancellationDeadlineReminder?: boolean;
+  /** When true, hide edit/duplicate/delete and other mutating controls. */
+  readOnly?: boolean;
   onEdit: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
@@ -154,6 +156,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   linkedEntryTask,
   linkedEntryTasks,
   hasCancellationDeadlineReminder = false,
+  readOnly = false,
   onEdit,
   onDuplicate,
   onDelete,
@@ -436,10 +439,11 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
 
 
   const handleStartAddSubItem = React.useCallback(() => {
+    if (readOnly) return;
     setSubItemsOpen(true);
     const tempId = addSubItem(entry.id, emptySubItem(entry));
     setEditingSubItem({ parentEntryId: entry.id, subItemId: tempId });
-  }, [addSubItem, entry, setEditingSubItem]);
+  }, [addSubItem, entry, readOnly, setEditingSubItem]);
 
   const handleUploadDocument = React.useCallback(
     async (file: File, documentType: EntryDocumentType, notes: string, title?: string) => {
@@ -474,7 +478,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   );
 
   const entryMenuPortal =
-    menuOpen && typeof document !== 'undefined'
+    !readOnly && menuOpen && typeof document !== 'undefined'
       ? ReactDOM.createPortal(
           <div
             ref={menuPortalRef}
@@ -536,6 +540,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           </span>
         </div>
         <div className={styles.menuWrap}>
+          {!readOnly ? (
           <button
             ref={menuButtonRef}
             type="button"
@@ -547,6 +552,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           >
             ⋯
           </button>
+          ) : null}
         </div>
       </div>
       ) : null}
@@ -560,6 +566,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           </h3>
           <div className={styles.locationInfoTitleActions}>
             <div className={styles.menuWrap}>
+              {!readOnly ? (
               <button
                 ref={menuButtonRef}
                 type="button"
@@ -571,6 +578,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
               >
                 ⋯
               </button>
+              ) : null}
             </div>
             <button
               type="button"
@@ -693,8 +701,10 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
               place={placeById(locationInfoData.placeId)}
               geminiApiKey={config.geminiApiKey}
               hasAnyContent={locationInfoIsPopulated(locationInfoData)}
+              readOnly={readOnly}
               onOpenSettings={() => window.dispatchEvent(new Event('travelhub-open-settings'))}
               onChange={(rows) => {
+                if (readOnly) return;
                 const prev = locationHighlightRowsRef.current;
                 const suppressed = recordSuppressedHighlightLabels(locationInfoData, prev, rows);
                 const marked = markHighlightRowsUserEdited(rows);
@@ -901,16 +911,16 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             <button type="button" className={styles.cardInlineLink} onClick={() => setNotesOpen((o) => !o)}>
               {notesOpen ? 'Notes ▴' : 'Notes ▾'}
             </button>
-          ) : (
+          ) : !readOnly ? (
             <button type="button" className={styles.cardInlineLink} onClick={onEdit}>
               Enter notes
             </button>
-          )}
+          ) : null}
           <EntryFilesLinksPanel
             entryId={attachmentEntryId}
             docs={docs}
             links={links}
-            allowAdd
+            allowAdd={!readOnly}
             toggleClassName={styles.cardInlineLink}
             onUploadDocument={handleUploadDocument}
             onAddLink={handleAddLink}
@@ -925,7 +935,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
 
       {(!isLocationInfo || !locationInfoExpanded) ? (
         <>
-          {isLocationInfo && !locationInfoExpanded ? (
+          {isLocationInfo && !locationInfoExpanded && !readOnly ? (
             <div className={styles.locationInfoInlineActions}>
               <button type="button" className={styles.addSubItemBtn} onClick={onEdit}>
                 Edit
@@ -1007,9 +1017,12 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             >
               Open task
             </button>
+            {!readOnly ? (
             <button type="button" className={styles.addSubItemBtn} onClick={onEdit}>
               Edit
             </button>
+            ) : null}
+            {!readOnly ? (
             <button
               type="button"
               className={styles.addSubItemBtn}
@@ -1028,6 +1041,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             >
               Edit task
             </button>
+            ) : null}
+            {!readOnly ? (
             <button
               type="button"
               className={styles.addSubItemBtn}
@@ -1048,8 +1063,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             >
               Create another task
             </button>
+            ) : null}
           </>
-        ) : (
+        ) : !readOnly ? (
           <>
             <button type="button" className={styles.addSubItemBtn} onClick={onEdit}>
               Edit
@@ -1074,13 +1090,15 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
               {manualTasks.length > 0 ? 'Create another task' : 'Create task'}
             </button>
           </>
-        )}
+        ) : null}
       </div>
       {!isLocationInfo ? (
       <div className={styles.subItemActionsRowSecondary}>
+        {!readOnly ? (
         <button type="button" className={styles.addSubItemBtn} onClick={handleStartAddSubItem}>
           + Add option
         </button>
+        ) : null}
         {hasSubItems ? (
           <button type="button" className={styles.relatedToggle} onClick={() => setSubItemsOpen((o) => !o)}>
             {subItemsOpen ? `Hide related items ▴` : `Show ${subItems.length} related items ▾`}
@@ -1088,7 +1106,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         ) : null}
       </div>
       ) : null}
-      {taskEditOpen && openTaskTarget ? (
+      {taskEditOpen && !readOnly && openTaskTarget ? (
         <div className={styles.newSubItemForm}>
           <label className={styles.taskInlineLabel} htmlFor={`task-edit-desc-${entry.id}`}>
             Task description
@@ -1147,7 +1165,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           </div>
         </div>
       ) : null}
-      {taskPromptOpen ? (
+      {taskPromptOpen && !readOnly ? (
         <div className={styles.newSubItemForm}>
           <label className={styles.taskInlineLabel} htmlFor={`task-cat-${entry.id}`}>
             Category

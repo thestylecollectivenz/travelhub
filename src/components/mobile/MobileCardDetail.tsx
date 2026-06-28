@@ -4,6 +4,10 @@ import { useAttachments } from '../../context/AttachmentsContext';
 import { CategoryIcon } from '../shared/CategoryIcon';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
+import { isLocationInfoEntry } from '../../utils/locationInfoEntry';
+import { isRichTextEditorEmpty } from '../../utils/journalRichText';
+import { SharedLocationInfoBlock } from '../itinerary/SharedLocationInfoBlock';
+import { RichTextContent } from '../shared/RichTextContent';
 import styles from './MobileShell.module.css';
 
 export interface MobileCardDetailProps {
@@ -22,17 +26,17 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({ entry, onClo
   const entryDocs = documents.filter((d) => d.entryId === entry.id);
   const entryLinks = links.filter((l) => l.entryId === entry.id);
   const mapLink = mapsUrl(entry);
+  const isLocationInfo = isLocationInfoEntry(entry);
+  const hasNotes = !isLocationInfo && !isRichTextEditorEmpty(entry.notes);
 
   return (
     <div className={styles.detailPanel}>
-      <div className={styles.detailActions}>
-        <button type="button" className={styles.pagerBtn} onClick={onClose}>
-          ← Back
-        </button>
-      </div>
-      <div className={`th-cat-${getCategorySlug(entry.category)}`} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+      <button type="button" className={styles.detailBackBtn} onClick={onClose}>
+        ← Back
+      </button>
+      <div className={`th-cat-${getCategorySlug(entry.category)} ${styles.detailTitleRow}`}>
         <CategoryIcon category={entry.category} />
-        <strong className={styles.cardTitle}>{entry.title}</strong>
+        <h2 className={styles.cardTitle}>{entry.title}</h2>
       </div>
       <p className={styles.cardMeta}>
         {entry.category} · {entry.decisionStatus}
@@ -41,9 +45,14 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({ entry, onClo
       {entry.location || entry.streetAddress ? (
         <p className={styles.muted}>{entry.location || entry.streetAddress}</p>
       ) : null}
-      {entry.notes ? <div className={styles.muted} dangerouslySetInnerHTML={{ __html: entry.notes }} /> : null}
       {entry.category === 'Accommodation' && entry.roomType ? <p className={styles.muted}>Room: {entry.roomType}</p> : null}
       {entry.category === 'Flights' && entry.flightNumbers ? <p className={styles.muted}>Flight: {entry.flightNumbers}</p> : null}
+      {entry.notes && !isLocationInfo && hasNotes ? (
+        <div className={styles.detailNotes}>
+          <RichTextContent html={entry.notes} />
+        </div>
+      ) : null}
+      {isLocationInfo ? <SharedLocationInfoBlock entry={entry} /> : null}
       {mapLink ? (
         <a className={styles.linkBtn} href={mapLink} target="_blank" rel="noopener noreferrer">
           Open in Google Maps

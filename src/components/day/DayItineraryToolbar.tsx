@@ -2,6 +2,7 @@ import * as React from 'react';
 import type { TripDay } from '../../models/TripDay';
 import type { Trip } from '../../models/Trip';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { useTripPermissions } from '../../hooks/useTripPermissions';
 import styles from './DayPanel.module.css';
 
 function TimelineGlyph(): React.ReactElement {
@@ -40,6 +41,7 @@ export const DayItineraryToolbar: React.FC<DayItineraryToolbarProps> = ({
   onTipToggle
 }) => {
   const { setEditingCardId } = useTripWorkspace();
+  const { canEditItinerary, canUseExports } = useTripPermissions();
 
   return (
     <div className={styles.itineraryToolbar} role="group" aria-label="Itinerary view and actions">
@@ -61,31 +63,39 @@ export const DayItineraryToolbar: React.FC<DayItineraryToolbarProps> = ({
         <PlannerGlyph />
         Day Planner
       </button>
-      <button type="button" className={styles.itineraryViewBtn} onClick={() => window.dispatchEvent(new Event('open-cruise-import'))}>
-        Import cruise itinerary
-      </button>
-      <button type="button" className={styles.itineraryViewBtn} onClick={() => window.dispatchEvent(new Event('export-trip-excel'))}>
-        Export to Excel
-      </button>
-      <span className={styles.toolbarDivider} aria-hidden />
-      <button type="button" className={styles.itineraryViewBtn} onClick={onTipToggle}>
-        Tip calc
-      </button>
-      <button type="button" className={styles.itineraryViewBtn} onClick={onJournalEntry}>
-        Journal entry
-      </button>
-      <button
-        type="button"
-        className={styles.addButton}
-        onClick={() => {
-          if (itineraryView !== 'timeline') {
-            onItineraryViewChange('timeline');
-          }
-          setEditingCardId('new');
-        }}
-      >
-        + Add
-      </button>
+      {canEditItinerary ? (
+        <button type="button" className={styles.itineraryViewBtn} onClick={() => window.dispatchEvent(new Event('open-cruise-import'))}>
+          Import cruise itinerary
+        </button>
+      ) : null}
+      {canUseExports ? (
+        <button type="button" className={styles.itineraryViewBtn} onClick={() => window.dispatchEvent(new Event('export-trip-excel'))}>
+          Export to Excel
+        </button>
+      ) : null}
+      {canEditItinerary ? (
+        <>
+          <span className={styles.toolbarDivider} aria-hidden />
+          <button type="button" className={styles.itineraryViewBtn} onClick={onTipToggle}>
+            Tip calc
+          </button>
+          <button type="button" className={styles.itineraryViewBtn} onClick={onJournalEntry}>
+            Journal entry
+          </button>
+          <button
+            type="button"
+            className={styles.addButton}
+            onClick={() => {
+              if (itineraryView !== 'timeline') {
+                onItineraryViewChange('timeline');
+              }
+              setEditingCardId('new');
+            }}
+          >
+            + Add
+          </button>
+        </>
+      ) : null}
     </div>
   );
 };

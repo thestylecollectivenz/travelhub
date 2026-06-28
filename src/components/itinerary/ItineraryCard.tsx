@@ -10,6 +10,7 @@ import { isLocationInfoEntry } from '../../utils/locationInfoEntry';
 import { ItineraryCardEdit } from './ItineraryCardEdit';
 import { ItineraryCardView } from './ItineraryCardView';
 import { confirmUserAction } from '../../utils/confirmAction';
+import { useTripPermissions } from '../../hooks/useTripPermissions';
 import styles from './ItineraryCard.module.css';
 
 export interface ItineraryCardProps {
@@ -56,17 +57,19 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
   sortableId
 }) => {
   const { editingCardId, setEditingCardId, focusedEntryId, updateEntry, deleteEntry, duplicateEntry } = useTripWorkspace();
+  const { canEditItinerary } = useTripPermissions();
   const dragId = sortableId ?? entry.id;
+  const allowDrag = draggable && canEditItinerary;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: dragId,
-    disabled: !draggable
+    disabled: !allowDrag
   });
 
   const isEditing = editingCardId === entry.id;
   const isDraftNew = entry.id.startsWith('new-') && editingCardId === 'new';
   const [menuOpen, setMenuOpen] = React.useState(false);
 
-  const showEdit = isEditing || isDraftNew;
+  const showEdit = canEditItinerary && (isEditing || isDraftNew);
   const isFocused = focusedEntryId === entry.id && !showEdit;
 
   const handleSave = React.useCallback(
@@ -118,7 +121,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
       data-entry-id={entry.id}
       style={dragStyle}
     >
-      {draggable ? (
+      {allowDrag ? (
         <button
           type="button"
           className={`${styles.dragHandle} ${isDragging ? styles.dragging : ''}`}
@@ -143,6 +146,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
           linkedEntryTask={linkedEntryTask}
           linkedEntryTasks={linkedEntryTasks}
           hasCancellationDeadlineReminder={hasCancellationDeadlineReminder}
+          readOnly={!canEditItinerary}
           onEdit={() => setEditingCardId(entry.id)}
           onDuplicate={() => duplicateEntry(entry.id)}
           onDelete={handleDelete}

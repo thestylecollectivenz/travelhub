@@ -7,6 +7,8 @@ import { getCurrentUserDisplayName, getCurrentUserEmail, getCurrentUserId, parse
 export interface TripAuthorIdentity {
   authorId?: number;
   email: string;
+  editorEmail?: string;
+  loginName?: string;
 }
 
 
@@ -63,23 +65,27 @@ export class TripMembersService {
   }
 
   async getTripAuthorIdentity(tripId: string): Promise<TripAuthorIdentity> {
-    const url = `${this.tripsUrl}(${tripId})?$select=ID,AuthorId&$expand=Author($select=Id,Email,EMail,LoginName)`;
+    const url = `${this.tripsUrl}(${tripId})?$select=AuthorId,EditorEmail&$expand=Author($select=Id,Email,EMail,LoginName)`;
     const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
     if (!resp.ok) return { email: '' };
     const data = (await resp.json()) as {
       AuthorId?: number;
+      EditorEmail?: string;
       Author?: { Id?: number; Email?: string; EMail?: string; LoginName?: string };
     };
     const author = data.Author;
-    const email = parseSharePointUserEmail({
+    const fromAuthor = parseSharePointUserEmail({
       email: author?.Email,
       eMail: author?.EMail,
       loginName: author?.LoginName
     });
+    const editorEmail = String(data.EditorEmail ?? '').trim().toLowerCase();
     const authorId = author?.Id ?? data.AuthorId;
     return {
       authorId: authorId !== undefined && authorId !== null ? Number(authorId) : undefined,
-      email
+      email: editorEmail || fromAuthor,
+      editorEmail: editorEmail || undefined,
+      loginName: (author?.LoginName ?? '').trim() || undefined
     };
   }
 
@@ -91,11 +97,20 @@ export class TripMembersService {
 
   isCurrentUserTripAuthor(author: TripAuthorIdentity): boolean {
     const meId = getCurrentUserId(this.ctx);
-    if (author.authorId !== undefined && meId !== undefined && author.authorId === meId) {
+    if (author.authorId !== undefined && meId !== undefined && Number(author.authorId) === Number(meId)) {
       return true;
     }
     const meEmail = getCurrentUserEmail(this.ctx);
+    if (author.editorEmail && author.editorEmail === meEmail) return true;
     if (author.email && author.email === meEmail) return true;
+    const myLogin = (this.ctx.pageContext.user.loginName ?? '').trim().toLowerCase();
+    const authLogin = (author.loginName ?? '').trim().toLowerCase();
+    if (myLogin && authLogin) {
+      if (myLogin === authLogin) return true;
+      const myTail = myLogin.split('|').pop() || myLogin;
+      const authTail = authLogin.split('|').pop() || authLogin;
+      if (myTail === authTail) return true;
+    }
     return false;
   }
 
