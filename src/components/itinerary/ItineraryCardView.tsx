@@ -72,7 +72,7 @@ function deriveTransportDisplayTitle(entry: ItineraryEntry, calendarDate: string
   const arrow = from || to ? `${from} → ${to}` : '';
   return (arrow + (mode ? ` (${mode})` : '')).trim() || 'Transport';
 }
-import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../../utils/googleMapsLink';
+import { entryMapsDirectionsUrl, entryMapsPlaceUrl } from '../../utils/googleMapsLink';
 import styles from './ItineraryCardView.module.css';
 
 export interface ItineraryCardViewProps {
@@ -324,8 +324,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const isCruise = entry.category === 'Cruise' && !!entry.embarksDate && !!entry.disembarksDate;
   const isCruisePort = entry.category === 'Cruise port';
   const isFlights = entry.category === 'Flights';
-  const mapsPlaceUrl = googleMapsPlaceUrl(entry.streetAddress || '');
-  const mapsDirectionsUrl = googleMapsDirectionsUrl(entry.streetAddress || '');
+  const mapsPlaceUrl = entryMapsPlaceUrl(entry);
+  const mapsDirectionsUrl = entryMapsDirectionsUrl(entry);
   const cabinLabel =
     entry.cabinClass === 'business'
       ? 'Business'
@@ -845,6 +845,23 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         </div>
       ) : null}
       {isActivities && (entry.streetAddress?.trim() || mapsPlaceUrl) ? (
+        <div className={styles.detailBlock}>
+          {entry.streetAddress?.trim() ? <div>{entry.streetAddress.trim()}</div> : null}
+          {mapsPlaceUrl ? (
+            <div className={styles.mapsLinks}>
+              <a className={styles.mapsLink} href={mapsPlaceUrl} target="_blank" rel="noopener noreferrer">
+                View on map
+              </a>
+              {mapsDirectionsUrl ? (
+                <a className={styles.mapsLinkSecondary} href={mapsDirectionsUrl} target="_blank" rel="noopener noreferrer">
+                  Get directions
+                </a>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      {!isLocationInfo && !isAccommodation && !isActivities && (entry.streetAddress?.trim() || mapsPlaceUrl) ? (
         <div className={styles.detailBlock}>
           {entry.streetAddress?.trim() ? <div>{entry.streetAddress.trim()}</div> : null}
           {mapsPlaceUrl ? (

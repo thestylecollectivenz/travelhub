@@ -374,6 +374,16 @@ export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
         value={formatTimeHHMM(draft.bagCheckClosesTime ?? '')}
         onChange={(e) => patch({ bagCheckClosesTime: combineDayAndTime(calendarDate, e.target.value) })}
       />
+      <label className={styles.label} htmlFor={`addr-f-${draft.id}`}>
+        Street address
+      </label>
+      <input
+        id={`addr-f-${draft.id}`}
+        className={styles.input}
+        value={draft.streetAddress ?? ''}
+        onChange={(e) => patch({ streetAddress: e.target.value })}
+        placeholder="Terminal or airport address for maps"
+      />
       <BookingPaymentFields {...props} amountLabel="Amount" />
       <CancellationPolicyFields {...props} />
     </div>

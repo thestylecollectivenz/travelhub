@@ -8,6 +8,7 @@ import { isLocationInfoEntry } from '../../utils/locationInfoEntry';
 import { isRichTextEditorEmpty } from '../../utils/journalRichText';
 import { SharedLocationInfoBlock } from '../itinerary/SharedLocationInfoBlock';
 import { RichTextContent } from '../shared/RichTextContent';
+import { entryMapsDirectionsUrl, entryMapsPlaceUrl } from '../../utils/googleMapsLink';
 import styles from './MobileShell.module.css';
 
 export interface MobileCardDetailProps {
@@ -15,19 +16,16 @@ export interface MobileCardDetailProps {
   onClose: () => void;
 }
 
-function mapsUrl(entry: ItineraryEntry): string | null {
-  const q = (entry.location || entry.streetAddress || '').trim();
-  if (!q) return null;
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
-}
-
 export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({ entry, onClose }) => {
   const { documents, links } = useAttachments();
   const entryDocs = documents.filter((d) => d.entryId === entry.id);
   const entryLinks = links.filter((l) => l.entryId === entry.id);
-  const mapLink = mapsUrl(entry);
+  const mapsPlaceUrl = entryMapsPlaceUrl(entry);
+  const mapsDirectionsUrl = entryMapsDirectionsUrl(entry);
   const isLocationInfo = isLocationInfoEntry(entry);
   const hasNotes = !isLocationInfo && !isRichTextEditorEmpty(entry.notes);
+  const locationLabel = (entry.location ?? '').trim();
+  const streetLabel = (entry.streetAddress ?? '').trim();
 
   return (
     <div className={styles.detailPanel}>
@@ -42,21 +40,33 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({ entry, onClo
         {entry.category} · {entry.decisionStatus}
         {entry.timeStart ? ` · ${formatTimeHHMM(entry.timeStart)}` : ''}
       </p>
-      {entry.location || entry.streetAddress ? (
-        <p className={styles.muted}>{entry.location || entry.streetAddress}</p>
-      ) : null}
+      {locationLabel ? <p className={styles.muted}>{locationLabel}</p> : null}
+      {streetLabel && streetLabel !== locationLabel ? <p className={styles.muted}>{streetLabel}</p> : null}
       {entry.category === 'Accommodation' && entry.roomType ? <p className={styles.muted}>Room: {entry.roomType}</p> : null}
       {entry.category === 'Flights' && entry.flightNumbers ? <p className={styles.muted}>Flight: {entry.flightNumbers}</p> : null}
+      {entry.category === 'Transport' && entry.transportFrom ? (
+        <p className={styles.muted}>
+          {entry.transportFrom}
+          {entry.transportTo ? ` → ${entry.transportTo}` : ''}
+        </p>
+      ) : null}
       {entry.notes && !isLocationInfo && hasNotes ? (
         <div className={styles.detailNotes}>
           <RichTextContent html={entry.notes} />
         </div>
       ) : null}
       {isLocationInfo ? <SharedLocationInfoBlock entry={entry} /> : null}
-      {mapLink ? (
-        <a className={styles.linkBtn} href={mapLink} target="_blank" rel="noopener noreferrer">
-          Open in Google Maps
-        </a>
+      {!isLocationInfo && mapsPlaceUrl ? (
+        <div className={styles.mobileMapsRow}>
+          <a className={styles.linkBtn} href={mapsPlaceUrl} target="_blank" rel="noopener noreferrer">
+            Open in Google Maps
+          </a>
+          {mapsDirectionsUrl ? (
+            <a className={styles.linkBtn} href={mapsDirectionsUrl} target="_blank" rel="noopener noreferrer">
+              Get directions
+            </a>
+          ) : null}
+        </div>
       ) : null}
       {entryDocs.length ? (
         <div>

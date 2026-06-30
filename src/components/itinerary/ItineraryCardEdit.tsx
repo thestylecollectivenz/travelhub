@@ -856,6 +856,21 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           ))}
         </datalist>
 
+        {!isAccommodation && !isActivities ? (
+          <>
+            <label className={styles.label} htmlFor={`addr-${draft.id}`}>
+              Street address
+            </label>
+            <input
+              id={`addr-${draft.id}`}
+              className={styles.input}
+              value={draft.streetAddress ?? ''}
+              onChange={(e) => patch({ streetAddress: e.target.value })}
+              placeholder="For Google Maps (restaurant, venue, etc.)"
+            />
+          </>
+        ) : null}
+
         {isTransport ? (
           <>
             <label className={styles.label} htmlFor={`tf-${draft.id}`}>
