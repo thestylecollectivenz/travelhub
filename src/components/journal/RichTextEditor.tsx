@@ -9,6 +9,8 @@ import {
   captureFormatFromSelection,
   clearRichTextAll,
   clearRichTextSelection,
+  insertLinkInRange,
+  removeLinkFromSelection,
   type RichTextFormatPaint
 } from '../../utils/richTextFormatting';
 
@@ -146,6 +148,27 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
     [run]
   );
 
+  const insertLink = React.useCallback((): void => {
+    run(() => {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      const range = sel.getRangeAt(0);
+      const url = window.prompt('Link URL (https://…)');
+      if (!url?.trim()) return;
+      if (range.collapsed) {
+        const text = window.prompt('Link text', url.trim());
+        if (text === null) return;
+        insertLinkInRange(range, url, text || url.trim());
+        return;
+      }
+      insertLinkInRange(range, url);
+    });
+  }, [run]);
+
+  const removeLink = React.useCallback((): void => {
+    run(() => removeLinkFromSelection());
+  }, [run]);
+
   const applyColor = React.useCallback(
     (color: string, all: boolean): void => {
       run(() => {
@@ -189,6 +212,34 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
           onClick={() => run(() => document.execCommand('italic'))}
         >
           <em>I</em>
+        </button>
+        <button
+          type="button"
+          className={styles.toolBtn}
+          aria-label="Insert link"
+          disabled={disabled}
+          title="Insert link"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            saveSelection();
+          }}
+          onClick={insertLink}
+        >
+          <span className={styles.linkBtn}>Link</span>
+        </button>
+        <button
+          type="button"
+          className={styles.toolBtn}
+          aria-label="Remove link"
+          disabled={disabled}
+          title="Remove link"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            saveSelection();
+          }}
+          onClick={removeLink}
+        >
+          Unlink
         </button>
         <button
           type="button"

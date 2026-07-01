@@ -66,7 +66,68 @@ export function saveDayViewEntryOrder(tripId: string, viewDayId: string, ordered
   }
 }
 
-/** Insert an entry into saved column order by time when it is not already listed (e.g. return transport leg). */
+/** Place timeline row keys at their time-sorted index while preserving other saved positions. */
+function insertRowKeysAtTimePosition(
+  savedKeys: string[],
+  keysToInsert: string[],
+  timeSortedKeys: string[]
+): string[] {
+  const result = savedKeys.filter((key) => keysToInsert.indexOf(key) < 0);
+  for (const key of keysToInsert) {
+    const timeIndex = timeSortedKeys.indexOf(key);
+    if (timeIndex < 0) {
+      result.push(key);
+      continue;
+    }
+    const before = new Set(timeSortedKeys.slice(0, timeIndex));
+    const after = new Set(timeSortedKeys.slice(timeIndex + 1));
+    let insertAt = result.length;
+    for (let i = 0; i < result.length; i++) {
+      if (after.has(result[i])) {
+        insertAt = i;
+        break;
+      }
+    }
+    if (insertAt === result.length) {
+      for (let i = result.length - 1; i >= 0; i--) {
+        if (before.has(result[i])) {
+          insertAt = i + 1;
+          break;
+        }
+      }
+    }
+    result.splice(insertAt, 0, key);
+  }
+  return result;
+}
+
+function readTimelineRowKeys(tripId: string, viewDayId: string): string[] {
+  try {
+    const s = window.localStorage.getItem(timelineRowStorageKey(tripId, viewDayId));
+    if (!s) return [];
+    const rawKeys = JSON.parse(s) as string[];
+    return Array.isArray(rawKeys) ? rawKeys : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveTimelineRowsForEntry(
+  tripId: string,
+  viewDayId: string,
+  entryId: string,
+  rows: Array<{ key: string; entry: ItineraryEntry }>
+): void {
+  const timeSortedKeys = rows.map((r) => r.key);
+  const entryRowKeys = rows.filter((r) => r.entry.id === entryId).map((r) => r.key);
+  if (entryRowKeys.length === 0) return;
+  const savedKeys = readTimelineRowKeys(tripId, viewDayId);
+  const nextKeys =
+    savedKeys.length > 0
+      ? insertRowKeysAtTimePosition(savedKeys, entryRowKeys, timeSortedKeys)
+      : timeSortedKeys;
+  saveDayViewTimelineRowOrder(tripId, viewDayId, nextKeys);
+}
 export function insertEntryInDayViewOrderByTime(
   tripId: string,
   viewDayId: string,
@@ -96,9 +157,14 @@ export function insertEntryInDayViewOrderByTime(
     preTripRowStrict,
     tripDays
   );
-  saveDayViewEntryOrder(tripId, viewDayId, sorted.map((e) => e.id));
-  const rows = expandTimelineDisplayRows(sorted, calendarDate, tripDays);
-  saveDayViewTimelineRowOrder(tripId, viewDayId, rows.map((r) => r.key));
+  const nextIds =
+    Array.isArray(rawIds) && rawIds.length > 0
+      ? insertEntryIdAtTimePosition(rawIds, entryId, sorted)
+      : sorted.map((e) => e.id);
+  saveDayViewEntryOrder(tripId, viewDayId, nextIds);
+  const ordered = applyDayViewEntryOrder(tripId, viewDayId, sorted, calendarDate, tripDays);
+  const rows = expandTimelineDisplayRows(ordered, calendarDate, tripDays);
+  saveTimelineRowsForEntry(tripId, viewDayId, entryId, rows);
 }
 
 /** Re-slot an entry by time on every day column where it appears (home day, carryovers, checkout). */
@@ -139,9 +205,11 @@ export function syncDayColumnsForEntryTimeOrder(
       nextIds = rawIds;
     }
     saveDayViewEntryOrder(tripId, day.id, nextIds);
-    const ordered = applyDayViewEntryOrder(tripId, day.id, sorted, day.calendarDate, tripDays);
-    const rows = expandTimelineDisplayRows(ordered, day.calendarDate, tripDays);
-    saveDayViewTimelineRowOrder(tripId, day.id, rows.map((r) => r.key));
+    if (reposition || rawIds.indexOf(entry.id) < 0) {
+      const ordered = applyDayViewEntryOrder(tripId, day.id, sorted, day.calendarDate, tripDays);
+      const rows = expandTimelineDisplayRows(ordered, day.calendarDate, tripDays);
+      saveTimelineRowsForEntry(tripId, day.id, entry.id, rows);
+    }
   }
 }
 

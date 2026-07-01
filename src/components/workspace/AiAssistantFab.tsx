@@ -19,10 +19,20 @@ import styles from './AiAssistantFab.module.css';
 const FAB_SIZE = 48;
 const DRAG_THRESHOLD_PX = 6;
 const STORAGE_KEY = 'travelhub-ai-fab-pos';
+const PANEL_SIZE_STORAGE_KEY = 'travelhub-ai-panel-size';
+const DEFAULT_PANEL_WIDTH = 352;
+const DEFAULT_PANEL_HEIGHT = 448;
+const MIN_PANEL_WIDTH = 280;
+const MIN_PANEL_HEIGHT = 260;
 
 interface FabPosition {
   x: number;
   y: number;
+}
+
+interface PanelSize {
+  width: number;
+  height: number;
 }
 
 function defaultFabPosition(): FabPosition {
@@ -64,6 +74,45 @@ function loadFabPosition(): FabPosition {
   return defaultFabPosition();
 }
 
+function clampPanelSize(size: PanelSize): PanelSize {
+  if (typeof window === 'undefined') {
+    return size;
+  }
+  const maxWidth = Math.max(MIN_PANEL_WIDTH, window.innerWidth - 16);
+  const maxHeight = Math.max(MIN_PANEL_HEIGHT, Math.floor(window.innerHeight * 0.85));
+  return {
+    width: Math.min(Math.max(MIN_PANEL_WIDTH, size.width), maxWidth),
+    height: Math.min(Math.max(MIN_PANEL_HEIGHT, size.height), maxHeight)
+  };
+}
+
+function defaultPanelSize(): PanelSize {
+  if (typeof window === 'undefined') {
+    return { width: DEFAULT_PANEL_WIDTH, height: DEFAULT_PANEL_HEIGHT };
+  }
+  return clampPanelSize({
+    width: Math.min(DEFAULT_PANEL_WIDTH, window.innerWidth - 16),
+    height: Math.min(DEFAULT_PANEL_HEIGHT, Math.floor(window.innerHeight * 0.7))
+  });
+}
+
+function loadPanelSize(): PanelSize {
+  if (typeof window === 'undefined') {
+    return defaultPanelSize();
+  }
+  try {
+    const raw = window.localStorage.getItem(PANEL_SIZE_STORAGE_KEY);
+    if (!raw) return defaultPanelSize();
+    const parsed = JSON.parse(raw) as Partial<PanelSize>;
+    if (typeof parsed.width === 'number' && typeof parsed.height === 'number') {
+      return clampPanelSize({ width: parsed.width, height: parsed.height });
+    }
+  } catch {
+    // ignore corrupt storage
+  }
+  return defaultPanelSize();
+}
+
 function panelPosition(fab: FabPosition, panelWidth: number, panelHeight: number): FabPosition {
   if (typeof window === 'undefined') {
     return { x: fab.x, y: fab.y - panelHeight - 12 };
@@ -93,6 +142,7 @@ export const AiAssistantFab: React.FC = () => {
   const [copyState, setCopyState] = React.useState<'idle' | 'copied' | 'error'>('idle');
   const [dayScope, setDayScope] = React.useState<'day' | 'general'>('day');
   const [fabPos, setFabPos] = React.useState<FabPosition>(() => loadFabPosition());
+  const [panelSize, setPanelSize] = React.useState<PanelSize>(() => loadPanelSize());
   const dragRef = React.useRef<{
     pointerId: number;
     startX: number;
@@ -101,10 +151,18 @@ export const AiAssistantFab: React.FC = () => {
     originY: number;
     moved: boolean;
   } | null>(null);
+  const resizeRef = React.useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originWidth: number;
+    originHeight: number;
+  } | null>(null);
 
   React.useEffect(() => {
     const onResize = (): void => {
       setFabPos((prev) => clampFabPosition(prev));
+      setPanelSize((prev) => clampPanelSize(prev));
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
@@ -283,8 +341,51 @@ export const AiAssistantFab: React.FC = () => {
     setOpen((v) => !v);
   };
 
-  const panelWidth = Math.min(352, (typeof window !== 'undefined' ? window.innerWidth : 352) - 16);
-  const panelHeight = Math.min(448, (typeof window !== 'undefined' ? window.innerHeight : 448) * 0.7);
+  const onResizePointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    resizeRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      originWidth: panelSize.width,
+      originHeight: panelSize.height
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const onResizePointerMove = (e: React.PointerEvent<HTMLDivElement>): void => {
+    const resize = resizeRef.current;
+    if (!resize || resize.pointerId !== e.pointerId) return;
+    const next = clampPanelSize({
+      width: resize.originWidth + (e.clientX - resize.startX),
+      height: resize.originHeight + (e.clientY - resize.startY)
+    });
+    setPanelSize(next);
+  };
+
+  const onResizePointerUp = (e: React.PointerEvent<HTMLDivElement>): void => {
+    const resize = resizeRef.current;
+    if (!resize || resize.pointerId !== e.pointerId) return;
+    const finalSize = clampPanelSize({
+      width: resize.originWidth + (e.clientX - resize.startX),
+      height: resize.originHeight + (e.clientY - resize.startY)
+    });
+    resizeRef.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    setPanelSize(finalSize);
+    try {
+      window.localStorage.setItem(PANEL_SIZE_STORAGE_KEY, JSON.stringify(finalSize));
+    } catch {
+      // ignore storage failures
+    }
+  };
+
+  const panelWidth = panelSize.width;
+  const panelHeight = panelSize.height;
   const panelPos = panelPosition(fabPos, panelWidth, panelHeight);
 
   const place = selectedDay?.primaryPlaceId ? placeById(selectedDay.primaryPlaceId) : undefined;
@@ -355,7 +456,7 @@ export const AiAssistantFab: React.FC = () => {
       {open ? (
         <div
           className={styles.panel}
-          style={{ left: panelPos.x, top: panelPos.y, width: panelWidth, maxHeight: panelHeight }}
+          style={{ left: panelPos.x, top: panelPos.y, width: panelWidth, height: panelHeight }}
           role="dialog"
           aria-label="Travel AI chat"
         >
@@ -438,6 +539,16 @@ export const AiAssistantFab: React.FC = () => {
               {busy ? '…' : 'Send'}
             </button>
           </div>
+          <div
+            className={styles.resizeHandle}
+            role="separator"
+            aria-label="Resize chat panel"
+            title="Drag to resize"
+            onPointerDown={onResizePointerDown}
+            onPointerMove={onResizePointerMove}
+            onPointerUp={onResizePointerUp}
+            onPointerCancel={onResizePointerUp}
+          />
         </div>
       ) : null}
     </>

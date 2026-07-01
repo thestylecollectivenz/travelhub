@@ -15,8 +15,8 @@ import { mergeTripDisplayPrefs, saveTripDisplayPrefs } from '../utils/tripDispla
 import { useSpContext } from './SpContext';
 import { repairPreTripCalendarIfCollidingWithFirstDay } from '../utils/tripPreTripCalendarAnchor';
 import { calendarDayBefore, planChronologicalRenumber, ymdSlice } from '../utils/tripDateRangeSync';
+import { formatTimeHHMM } from '../utils/itineraryTimeUtils';
 import {
-  expandTimelineDisplayRows,
   isPreTripDayRow,
   resolvePreTripDayId,
   sortEntriesForDay
@@ -32,7 +32,6 @@ import {
   insertEntryInDayViewOrderByTime,
   removeFromDayViewEntryOrder,
   replaceIdInDayViewEntryOrder,
-  saveDayViewTimelineRowOrder,
   syncDayColumnsForEntryTimeOrder
 } from '../utils/dayViewEntryOrder';
 import { useConfig } from './ConfigContext';
@@ -150,11 +149,12 @@ async function runBatched<T>(items: T[], batchSize: number, worker: (item: T) =>
 }
 
 function itineraryEntryTimeFieldsChanged(prev: ItineraryEntry, next: ItineraryEntry): boolean {
+  const normTime = (value?: string): string => formatTimeHHMM(value || '');
   return (
-    (prev.timeStart || '') !== (next.timeStart || '') ||
-    (prev.arrivalTime || '') !== (next.arrivalTime || '') ||
-    (prev.checkOutTime || '') !== (next.checkOutTime || '') ||
-    (prev.returnTime || '') !== (next.returnTime || '') ||
+    normTime(prev.timeStart) !== normTime(next.timeStart) ||
+    normTime(prev.arrivalTime) !== normTime(next.arrivalTime) ||
+    normTime(prev.checkOutTime) !== normTime(next.checkOutTime) ||
+    normTime(prev.returnTime) !== normTime(next.returnTime) ||
     ymdSlice(prev.dateStart) !== ymdSlice(next.dateStart) ||
     ymdSlice(prev.dateEnd) !== ymdSlice(next.dateEnd) ||
     ymdSlice(prev.returnDate) !== ymdSlice(next.returnDate) ||
@@ -515,17 +515,6 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
           resolvePreTripDayId(tripDays, updated.tripId),
           isPreTripDayRow(returnDay)
         );
-        const ordered = sortEntriesForDay(
-          entries,
-          returnDay.id,
-          returnDay.calendarDate,
-          returnDay.dayType,
-          resolvePreTripDayId(tripDays, updated.tripId),
-          isPreTripDayRow(returnDay),
-          tripDays
-        );
-        const rows = expandTimelineDisplayRows(ordered, returnDay.calendarDate, tripDays);
-        saveDayViewTimelineRowOrder(updated.tripId, returnDay.id, rows.map((r) => r.key));
       }
     }
   }, [spContext, persistEntry, tripDays]);
