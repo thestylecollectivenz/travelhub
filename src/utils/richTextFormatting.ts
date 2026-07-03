@@ -65,19 +65,6 @@ function listItemsInRange(range: Range): HTMLLIElement[] {
   return items;
 }
 
-function selectionCoversEntireBlock(range: Range, block: HTMLElement): boolean {
-  const blockRange = document.createRange();
-  try {
-    blockRange.selectNodeContents(block);
-  } catch {
-    return false;
-  }
-  return (
-    range.compareBoundaryPoints(Range.START_TO_START, blockRange) <= 0 &&
-    range.compareBoundaryPoints(Range.END_TO_END, blockRange) >= 0
-  );
-}
-
 function escapeHtmlAttr(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
@@ -131,6 +118,25 @@ function blocksInRange(range: Range): HTMLElement[] {
   return blocks;
 }
 
+/** Apply inline style to every paragraph/list block touched by the selection. */
+function applyInlineStyleToRange(
+  range: Range,
+  applyToBlock: (el: HTMLElement) => void,
+  applyToSpan: (span: HTMLSpanElement) => void
+): void {
+  const blocks = blocksInRange(range);
+  if (blocks.length > 0) {
+    blocks.forEach(applyToBlock);
+    return;
+  }
+  const items = listItemsInRange(range);
+  if (items.length > 0) {
+    items.forEach(applyToBlock);
+    return;
+  }
+  wrapRangeContents(range, applyToSpan);
+}
+
 export function applyFontSizeToRange(range: Range, fontSizePt: number): void {
   const size = `${fontSizePt}pt`;
   if (range.collapsed) {
@@ -146,24 +152,6 @@ export function applyFontSizeToRange(range: Range, fontSizePt: number): void {
       span.style.fontSize = size;
     }
   );
-}
-
-function applyInlineStyleToRange(
-  range: Range,
-  applyToBlock: (el: HTMLElement) => void,
-  applyToSpan: (span: HTMLSpanElement) => void
-): void {
-  const blocks = blocksInRange(range);
-  if (blocks.length > 0 && blocks.every((block) => selectionCoversEntireBlock(range, block))) {
-    blocks.forEach(applyToBlock);
-    return;
-  }
-  const items = listItemsInRange(range);
-  if (items.length > 0 && items.every((item) => selectionCoversEntireBlock(range, item))) {
-    items.forEach(applyToBlock);
-    return;
-  }
-  wrapRangeContents(range, applyToSpan);
 }
 
 /** Wrap the current selection (or insert at caret) as a clickable link. */
