@@ -38,15 +38,21 @@ export function summarizeShoppingItems(
   byCategory: Map<string, ShoppingTotals>;
 } {
   let filtered = items;
-  if (travellerFilter) {
+  if (travellerFilter === '__unassigned__') {
+    filtered = filtered.filter((i) => !(i.traveller || '').trim());
+  } else if (travellerFilter) {
     filtered = filtered.filter((i) =>
       ctx ? assigneeLabelsMatch(ctx, i.traveller, travellerFilter, members) : (i.traveller || '').trim() === travellerFilter
     );
   }
-  if (categoryFilter && categoryFilter !== '__all__') {
+  if (categoryFilter === '__uncategorised__') {
+    filtered = filtered.filter((i) => !(i.category || '').trim());
+  } else if (categoryFilter && categoryFilter !== '__all__') {
     filtered = filtered.filter((i) => i.category === categoryFilter);
   }
-  if (monthFilter) {
+  if (monthFilter === '__unscheduled__') {
+    filtered = filtered.filter((i) => !(i.purchaseMonth || '').trim());
+  } else if (monthFilter) {
     filtered = filtered.filter((i) => (i.purchaseMonth || '').trim() === monthFilter);
   }
 

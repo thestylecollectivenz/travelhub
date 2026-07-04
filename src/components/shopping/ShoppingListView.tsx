@@ -9,6 +9,7 @@ import { categoriesForItemSelect, rememberTripShoppingCategory, notifyShoppingIt
 import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
 import { summarizeShoppingItems } from '../../utils/shoppingSummary';
 import { confirmUserAction } from '../../utils/confirmAction';
+import { offerAddPurchasedShoppingToPacking } from '../../utils/shoppingToPacking';
 import { useTripRole } from '../../context/TripRoleContext';
 import { canEditOwnedRecord } from '../../utils/canEditOwnedRecord';
 import { useCanSeeFinancials } from '../../hooks/useCanSeeFinancials';
@@ -65,13 +66,23 @@ export const ShoppingListView: React.FC = () => {
 
   const filtered = React.useMemo(() => {
     let rows = items;
-    if (activeTraveller) {
+    if (activeTraveller === '__unassigned__') {
+      rows = rows.filter((i) => !(i.traveller || '').trim());
+    } else if (activeTraveller) {
       rows = rows.filter((i) =>
         assigneeLabelsMatch(spContext, i.traveller || travellers[0], activeTraveller, members)
       );
     }
-    if (activeCategory !== '__all__') rows = rows.filter((i) => i.category === activeCategory);
-    if (activeMonth) rows = rows.filter((i) => (i.purchaseMonth || '') === activeMonth);
+    if (activeCategory === '__uncategorised__') {
+      rows = rows.filter((i) => !(i.category || '').trim());
+    } else if (activeCategory !== '__all__') {
+      rows = rows.filter((i) => i.category === activeCategory);
+    }
+    if (activeMonth === '__unscheduled__') {
+      rows = rows.filter((i) => !(i.purchaseMonth || '').trim());
+    } else if (activeMonth) {
+      rows = rows.filter((i) => (i.purchaseMonth || '') === activeMonth);
+    }
     return rows;
   }, [items, activeTraveller, activeCategory, activeMonth, travellers, spContext, members]);
 
@@ -80,7 +91,10 @@ export const ShoppingListView: React.FC = () => {
     [items, activeTraveller, activeCategory, activeMonth, spContext, members]
   );
 
-  const assignTraveller = activeTraveller || travellers[0] || 'Traveller 1';
+  const assignTraveller =
+    activeTraveller && activeTraveller !== '__unassigned__'
+      ? activeTraveller
+      : travellers[0] || 'Traveller 1';
 
   const addItem = (): void => {
     if (!trip?.id || !name.trim()) return;
@@ -122,13 +136,39 @@ export const ShoppingListView: React.FC = () => {
 
   const categoryOptions = (itemCategory: string): string[] => categoriesForItemSelect(categories, itemCategory);
 
+  const headingTraveller =
+    activeTraveller === '__unassigned__' ? 'Unassigned' : activeTraveller || 'All travellers';
+  const headingCategory =
+    activeCategory === '__all__'
+      ? ''
+      : activeCategory === '__uncategorised__'
+        ? 'Uncategorised'
+        : activeCategory;
+  const headingMonth =
+    activeMonth === '__unscheduled__' ? 'Unscheduled' : activeMonth || '';
+
+  const markPurchased = (item: ShoppingItem, purchased: boolean): void => {
+    void (async () => {
+      try {
+        await service.update(item.id, { isPurchased: purchased });
+        if (purchased && trip?.id) {
+          await offerAddPurchasedShoppingToPacking(spContext, trip.id, item, members);
+        }
+        refresh();
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(err);
+      }
+    })();
+  };
+
   return (
     <section className={styles.root} aria-label="Shopping list">
       <h2 className={styles.heading}>
         Shopping list
-        {activeTraveller ? ` — ${activeTraveller}` : ' — All travellers'}
-        {activeCategory !== '__all__' ? ` · ${activeCategory}` : ''}
-        {activeMonth ? ` · ${activeMonth}` : ''}
+        {` — ${headingTraveller}`}
+        {headingCategory ? ` · ${headingCategory}` : ''}
+        {headingMonth ? ` · ${headingMonth}` : ''}
       </h2>
 
       {canSeeFinancials ? (
@@ -199,7 +239,7 @@ export const ShoppingListView: React.FC = () => {
                 checked={item.isPurchased}
                 aria-label="Purchased"
                 disabled={!editable}
-                onChange={(e) => service.update(item.id, { isPurchased: e.target.checked }).then(refresh).catch(console.error)}
+                onChange={(e) => markPurchased(item, e.target.checked)}
               />
               <input
                 className={styles.itemNameInput}

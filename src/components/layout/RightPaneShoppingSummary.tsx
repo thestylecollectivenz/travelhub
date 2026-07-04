@@ -10,6 +10,10 @@ import { SHOPPING_ITEMS_CHANGED_EVENT } from '../../utils/tripShoppingCategories
 import { useTripMembers } from '../../hooks/useTripMembers';
 import styles from './RightPaneInsights.module.css';
 
+const ALL_CATEGORIES = '__all__';
+const UNCATEGORISED = '__uncategorised__';
+const UNSCHEDULED_MONTH = '__unscheduled__';
+
 export const RightPaneShoppingSummary: React.FC = () => {
   const spContext = useSpContext();
   const { trip } = useTripWorkspace();
@@ -37,22 +41,33 @@ export const RightPaneShoppingSummary: React.FC = () => {
     return () => window.removeEventListener(SHOPPING_ITEMS_CHANGED_EVENT, onChanged);
   }, [trip?.id, reload]);
 
+  const activeCategory = planView?.shoppingCategory ?? ALL_CATEGORIES;
+  const activeMonth = planView?.shoppingMonthFilter ?? null;
+  const activeTraveller = planView?.shoppingTraveller ?? null;
+
   const summary = React.useMemo(
     () =>
       summarizeShoppingItems(
         items,
-        planView?.shoppingTraveller ?? null,
-        planView?.shoppingCategory ?? '__all__',
-        planView?.shoppingMonthFilter ?? null,
+        activeTraveller,
+        activeCategory,
+        activeMonth,
         spContext,
         members
       ),
-    [items, planView?.shoppingTraveller, planView?.shoppingCategory, planView?.shoppingMonthFilter, spContext, members]
+    [items, activeTraveller, activeCategory, activeMonth, spContext, members]
   );
 
-  if (!trip) return null;
+  if (!trip || !planView) return null;
   const home = config.homeCurrency;
   const categories = Array.from(summary.byCategory.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+
+  const categoryKey = (name: string): string => (name === 'Uncategorised' ? UNCATEGORISED : name);
+  const monthKey = (name: string): string | null => (name === 'Unscheduled' ? UNSCHEDULED_MONTH : name);
+  const travellerKey = (name: string): string | null => (name === 'Unassigned' ? '__unassigned__' : name);
+
+  const itemClass = (active: boolean): string =>
+    `${styles.listItem} ${styles.clickableItem}${active ? ` ${styles.clickableItemActive}` : ''}`;
 
   return (
     <section className={styles.root} aria-label="Shopping summary">
@@ -74,62 +89,96 @@ export const RightPaneShoppingSummary: React.FC = () => {
 
       <h3 className={styles.subheading}>By category</h3>
       <ul className={styles.list}>
+        <li>
+          <button
+            type="button"
+            className={itemClass(activeCategory === ALL_CATEGORIES)}
+            onClick={() => planView.setShoppingCategory(ALL_CATEGORIES)}
+          >
+            <strong>All categories</strong>
+          </button>
+        </li>
         {categories.length === 0 ? (
           <li className={styles.muted}>No items yet.</li>
         ) : (
-          categories.map(([name, row]) => (
-            <li key={name}>
-              <button
-                type="button"
-                className={`${styles.listItem} ${styles.clickableItem}`}
-                onClick={() => planView?.setShoppingCategory(name === 'Uncategorised' ? '__all__' : name)}
-              >
-                <strong>{name}</strong> · Budget {formatCurrency(row.budget, home)} · Actual{' '}
-                {formatCurrency(row.actual, home)} · {row.count} item{row.count === 1 ? '' : 's'}
-              </button>
-            </li>
-          ))
+          categories.map(([name, row]) => {
+            const key = categoryKey(name);
+            return (
+              <li key={name}>
+                <button
+                  type="button"
+                  className={itemClass(activeCategory === key)}
+                  onClick={() => planView.setShoppingCategory(key)}
+                >
+                  <strong>{name}</strong> · Budget {formatCurrency(row.budget, home)} · Actual{' '}
+                  {formatCurrency(row.actual, home)} · {row.count} item{row.count === 1 ? '' : 's'}
+                </button>
+              </li>
+            );
+          })
         )}
       </ul>
 
       <h3 className={styles.subheading}>By month</h3>
       <ul className={styles.list}>
+        <li>
+          <button
+            type="button"
+            className={itemClass(activeMonth === null)}
+            onClick={() => planView.setShoppingMonthFilter(null)}
+          >
+            <strong>All months</strong>
+          </button>
+        </li>
         {summary.byMonth.length === 0 ? (
           <li className={styles.muted}>No items scheduled.</li>
         ) : (
-          summary.byMonth.map((row) => (
-            <li key={row.month}>
-              <button
-                type="button"
-                className={`${styles.listItem} ${styles.clickableItem}`}
-                onClick={() => {
-                  const month = row.month === 'Unscheduled' ? '' : row.month;
-                  planView?.setShoppingMonthFilter(month || null);
-                }}
-              >
-                <strong>{row.month}</strong> · Budget {formatCurrency(row.budget, home)} · Actual{' '}
-                {formatCurrency(row.actual, home)} · {row.count} item{row.count === 1 ? '' : 's'}
-              </button>
-            </li>
-          ))
+          summary.byMonth.map((row) => {
+            const key = monthKey(row.month);
+            return (
+              <li key={row.month}>
+                <button
+                  type="button"
+                  className={itemClass(activeMonth === key)}
+                  onClick={() => planView.setShoppingMonthFilter(key)}
+                >
+                  <strong>{row.month}</strong> · Budget {formatCurrency(row.budget, home)} · Actual{' '}
+                  {formatCurrency(row.actual, home)} · {row.count} item{row.count === 1 ? '' : 's'}
+                </button>
+              </li>
+            );
+          })
         )}
       </ul>
 
       <h3 className={styles.subheading}>By traveller</h3>
       <ul className={styles.list}>
+        <li>
+          <button
+            type="button"
+            className={itemClass(activeTraveller === null)}
+            onClick={() => planView.setShoppingTraveller(null)}
+          >
+            <strong>All travellers</strong>
+          </button>
+        </li>
         {Array.from(summary.byTraveller.entries())
           .sort((a, b) => a[0].localeCompare(b[0]))
-          .map(([name, row]) => (
-            <li key={name}>
-              <button
-                type="button"
-                className={`${styles.listItem} ${styles.clickableItem}`}
-                onClick={() => planView?.setShoppingTraveller(name === 'Unassigned' ? null : name)}
-              >
-                <strong>{name}</strong> · Budget {formatCurrency(row.budget, home)} · Actual {formatCurrency(row.actual, home)}
-              </button>
-            </li>
-          ))}
+          .map(([name, row]) => {
+            const key = travellerKey(name);
+            return (
+              <li key={name}>
+                <button
+                  type="button"
+                  className={itemClass(activeTraveller === key)}
+                  onClick={() => planView.setShoppingTraveller(key)}
+                >
+                  <strong>{name}</strong> · Budget {formatCurrency(row.budget, home)} · Actual{' '}
+                  {formatCurrency(row.actual, home)}
+                </button>
+              </li>
+            );
+          })}
       </ul>
     </section>
   );

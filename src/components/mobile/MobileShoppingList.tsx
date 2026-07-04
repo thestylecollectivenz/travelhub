@@ -9,6 +9,7 @@ import { categoriesForItemSelect, rememberTripShoppingCategory, notifyShoppingIt
 import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
 import { summarizeShoppingItems } from '../../utils/shoppingSummary';
 import { confirmUserAction } from '../../utils/confirmAction';
+import { offerAddPurchasedShoppingToPacking } from '../../utils/shoppingToPacking';
 import { useTripRole } from '../../context/TripRoleContext';
 import { canEditOwnedRecord } from '../../utils/canEditOwnedRecord';
 import { useCanSeeFinancials } from '../../hooks/useCanSeeFinancials';
@@ -67,22 +68,50 @@ export const MobileShoppingList: React.FC = () => {
 
   const filtered = React.useMemo(() => {
     let rows = items;
-    if (activeTraveller) {
+    if (activeTraveller === '__unassigned__') {
+      rows = rows.filter((i) => !(i.traveller || '').trim());
+    } else if (activeTraveller) {
       rows = rows.filter((i) =>
         assigneeLabelsMatch(spContext, i.traveller || travellers[0], activeTraveller, members)
       );
     }
-    if (activeCategory !== '__all__') rows = rows.filter((i) => i.category === activeCategory);
-    if (activeMonth) rows = rows.filter((i) => (i.purchaseMonth || '') === activeMonth);
+    if (activeCategory === '__uncategorised__') {
+      rows = rows.filter((i) => !(i.category || '').trim());
+    } else if (activeCategory !== '__all__') {
+      rows = rows.filter((i) => i.category === activeCategory);
+    }
+    if (activeMonth === '__unscheduled__') {
+      rows = rows.filter((i) => !(i.purchaseMonth || '').trim());
+    } else if (activeMonth) {
+      rows = rows.filter((i) => (i.purchaseMonth || '') === activeMonth);
+    }
     return rows;
   }, [items, activeTraveller, activeCategory, activeMonth, travellers, spContext, members]);
+
+  const markPurchased = (item: ShoppingItem, purchased: boolean): void => {
+    void (async () => {
+      try {
+        await service.update(item.id, { isPurchased: purchased });
+        if (purchased && trip?.id) {
+          await offerAddPurchasedShoppingToPacking(spContext, trip.id, item, members);
+        }
+        refresh();
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(err);
+      }
+    })();
+  };
 
   const summary = React.useMemo(
     () => summarizeShoppingItems(items, activeTraveller, activeCategory, activeMonth, spContext, members),
     [items, activeTraveller, activeCategory, activeMonth, spContext, members]
   );
 
-  const assignTraveller = activeTraveller || travellers[0] || 'Traveller 1';
+  const assignTraveller =
+    activeTraveller && activeTraveller !== '__unassigned__'
+      ? activeTraveller
+      : travellers[0] || 'Traveller 1';
   const canAdd = (role === 'Editor' || role === 'Companion') && categories.length > 0;
 
   const addItem = (): void => {
@@ -190,9 +219,7 @@ export const MobileShoppingList: React.FC = () => {
                     checked={item.isPurchased}
                     disabled={!editable}
                     aria-label={`Purchased: ${item.itemName}`}
-                    onChange={(e) =>
-                      service.update(item.id, { isPurchased: e.target.checked }).then(refresh).catch(console.error)
-                    }
+                    onChange={(e) => markPurchased(item, e.target.checked)}
                   />
                   <button
                     type="button"

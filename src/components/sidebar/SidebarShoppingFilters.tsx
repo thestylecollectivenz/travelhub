@@ -166,9 +166,10 @@ export const SidebarShoppingFilters: React.FC = () => {
 
       {plan.shoppingMonthFilter ? (
         <p className={styles.dayListHint}>
-          Month filter: {plan.shoppingMonthFilter}{' '}
+          Month filter:{' '}
+          {plan.shoppingMonthFilter === '__unscheduled__' ? 'Unscheduled' : plan.shoppingMonthFilter}{' '}
           <button type="button" className={styles.packingCatBtn} onClick={() => plan.setShoppingMonthFilter(null)}>
-            Clear
+            All months
           </button>
         </p>
       ) : null}
