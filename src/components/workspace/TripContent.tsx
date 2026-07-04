@@ -19,6 +19,7 @@ import { useSpContext } from '../../context/SpContext';
 import { logTripAccessOnce } from '../../services/TripAccessLogService';
 import {
   expandTimelineDisplayRows,
+  sortTimelineDisplayRowsByTime,
   isPreTripDayRow,
   resolvePreTripDayId,
   sortEntriesForDay
@@ -164,8 +165,12 @@ const TripContentInner: React.FC = () => {
   const timelineRows = React.useMemo(() => {
     if (!dayPanelDay || !trip) return [];
     const cal = dayPanelDay.calendarDate ?? '';
-    const rows = expandTimelineDisplayRows(dayEntries, cal, tripDays);
-    return applyDayViewTimelineRowOrder(trip.id, selectedDayId ?? '', rows);
+    const rows = sortTimelineDisplayRowsByTime(
+      expandTimelineDisplayRows(dayEntries, cal, tripDays),
+      cal,
+      tripDays
+    );
+    return applyDayViewTimelineRowOrder(trip.id, selectedDayId ?? '', rows, cal, tripDays);
   }, [dayEntries, dayPanelDay, trip, tripDays, selectedDayId]);
 
   const activeEntry = React.useMemo(() => {

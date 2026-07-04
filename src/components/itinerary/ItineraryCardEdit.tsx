@@ -1292,7 +1292,11 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
         {draft.paymentStatus !== 'Free' ? (
           <>
             <label className={styles.label} htmlFor={`amt-${draft.id}`}>
-              {isAccommodation ? 'Total cost' : 'Amount'}
+              {isAccommodation
+                ? 'Total cost'
+                : isTransport && draft.journeyType === 'return'
+                  ? 'Return price (round trip)'
+                  : 'Amount'}
             </label>
             <input
               id={`amt-${draft.id}`}
@@ -1303,6 +1307,12 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
               value={Number.isNaN(draft.amount) ? '' : draft.amount}
               onChange={(e) => patch({ amount: e.target.value === '' ? 0 : Number(e.target.value) })}
             />
+            {isTransport && draft.journeyType === 'return' && draft.amount > 0 ? (
+              <div className={`${styles.readOnlyValue} ${styles.fullRow}`}>
+                Each way {(draft.amount / 2).toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{' '}
+                {draft.currency || config.homeCurrency}
+              </div>
+            ) : null}
             <label className={styles.label} htmlFor={`cur-${draft.id}`}>
               Currency
             </label>

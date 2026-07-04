@@ -29,7 +29,6 @@ import {
 } from '../utils/tripDayPlanningStatus';
 import {
   insertAfterInDayViewEntryOrder,
-  insertEntryInDayViewOrderByTime,
   removeFromDayViewEntryOrder,
   replaceIdInDayViewEntryOrder,
   syncDayColumnsForEntryTimeOrder
@@ -155,6 +154,7 @@ function itineraryEntryTimeFieldsChanged(prev: ItineraryEntry, next: ItineraryEn
     normTime(prev.arrivalTime) !== normTime(next.arrivalTime) ||
     normTime(prev.checkOutTime) !== normTime(next.checkOutTime) ||
     normTime(prev.returnTime) !== normTime(next.returnTime) ||
+    normTime(prev.returnArrivalTime) !== normTime(next.returnArrivalTime) ||
     ymdSlice(prev.dateStart) !== ymdSlice(next.dateStart) ||
     ymdSlice(prev.dateEnd) !== ymdSlice(next.dateEnd) ||
     ymdSlice(prev.returnDate) !== ymdSlice(next.returnDate) ||
@@ -495,28 +495,6 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
         });
     }
 
-    if (updated.category === 'Transport' && updated.journeyType === 'return' && updated.returnDate?.trim()) {
-      const returnDay = tripDays.find(
-        (d) => d.tripId === updated.tripId && ymdSlice(d.calendarDate) === ymdSlice(updated.returnDate)
-      );
-      if (returnDay) {
-        const entries = localEntriesRef.current.map((e) => (e.id === updated.id ? updated : e));
-        if (!entries.some((e) => e.id === updated.id)) {
-          entries.push(updated);
-        }
-        insertEntryInDayViewOrderByTime(
-          updated.tripId,
-          returnDay.id,
-          updated.id,
-          entries,
-          returnDay.calendarDate,
-          tripDays,
-          returnDay.dayType,
-          resolvePreTripDayId(tripDays, updated.tripId),
-          isPreTripDayRow(returnDay)
-        );
-      }
-    }
   }, [spContext, persistEntry, tripDays]);
 
   const deleteEntry = React.useCallback(

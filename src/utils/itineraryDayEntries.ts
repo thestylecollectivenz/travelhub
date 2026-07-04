@@ -87,14 +87,26 @@ function entryHomeCalendarYmd(entry: ItineraryEntry, tripDays: TripDay[] | undef
  * Time string for planner blocks / timeline.
  * Same-calendar-day flights use departure time (`timeStart`); arrival time is used only when the
  * entry's home day differs from the viewed day (overnight leg on the arrival column).
+ * Return transport on a day with both legs uses outbound time for entry-level placement;
+ * timeline rows use effectiveTransportLegTime per leg.
  */
 export function effectivePlannerTimeStart(
   entry: ItineraryEntry,
   dayCalendarDate: string,
   tripDays?: TripDay[]
 ): string {
-  if (isTransportReturnOnCalendarDate(entry, dayCalendarDate) && entry.returnTime?.trim()) {
-    return entry.returnTime.trim();
+  if (entry.category === 'Transport' && entry.journeyType === 'return') {
+    const retHere = isTransportReturnOnCalendarDate(entry, dayCalendarDate);
+    const outHere = isTransportDepartureOnCalendarDate(entry, dayCalendarDate, tripDays);
+    if (outHere && retHere) {
+      return entry.timeStart?.trim() || entry.returnTime?.trim() || '';
+    }
+    if (retHere && entry.returnTime?.trim()) {
+      return entry.returnTime.trim();
+    }
+    if (outHere && entry.timeStart?.trim()) {
+      return entry.timeStart.trim();
+    }
   }
   if (
     entry.category === 'Accommodation' &&
@@ -574,6 +586,36 @@ export function effectiveTransportLegTime(
   if (leg === 'return' && entry.returnTime?.trim()) return entry.returnTime.trim();
   if (leg === 'outbound' && entry.timeStart?.trim()) return entry.timeStart.trim();
   return effectivePlannerTimeStart(entry, calendarDate, tripDays);
+}
+
+/** Sort expanded timeline rows by leg start time (outbound/return legs independently). */
+export function sortTimelineDisplayRowsByTime(
+  rows: TimelineDisplayRow[],
+  calendarDate: string,
+  tripDays?: TripDay[]
+): TimelineDisplayRow[] {
+  return rows.slice().sort((a, b) => {
+    const aLoc = isLocationInfoEntry(a.entry) ? 0 : 1;
+    const bLoc = isLocationInfoEntry(b.entry) ? 0 : 1;
+    if (aLoc !== bLoc) return aLoc - bLoc;
+
+    const aMin = minutesFromTimeStart(
+      effectiveTransportLegTime(a.entry, calendarDate, tripDays, a.transportLeg)
+    );
+    const bMin = minutesFromTimeStart(
+      effectiveTransportLegTime(b.entry, calendarDate, tripDays, b.transportLeg)
+    );
+    const aHas = aMin !== undefined;
+    const bHas = bMin !== undefined;
+    if (aHas !== bHas) return aHas ? -1 : 1;
+    if (aHas && bHas && aMin !== bMin) return aMin - bMin;
+
+    const ao = a.entry.sortOrder ?? 0;
+    const bo = b.entry.sortOrder ?? 0;
+    if (ao !== bo) return ao - bo;
+    if (a.key !== b.key) return a.key.localeCompare(b.key);
+    return (a.entry.title || '').localeCompare(b.entry.title || '');
+  });
 }
 
 function collectPlaceIdsOnDay(day: TripDay): string[] {

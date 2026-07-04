@@ -10,7 +10,8 @@ import {
   expandTimelineDisplayRows,
   isPreTripDayRow,
   resolvePreTripDayId,
-  sortEntriesForDay
+  sortEntriesForDay,
+  sortTimelineDisplayRowsByTime
 } from '../../utils/itineraryDayEntries';
 import { applyDayViewEntryOrder, applyDayViewTimelineRowOrder } from '../../utils/dayViewEntryOrder';
 import { ItineraryCard } from './ItineraryCard';
@@ -123,8 +124,12 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
       tripDays
     );
     const ordered = trip ? applyDayViewEntryOrder(trip.id, dayId, raw, calendarDate, tripDays) : raw;
-    const rows = expandTimelineDisplayRows(ordered, calendarDate, tripDays);
-    return trip ? applyDayViewTimelineRowOrder(trip.id, dayId, rows) : rows;
+    const rows = sortTimelineDisplayRowsByTime(
+      expandTimelineDisplayRows(ordered, calendarDate, tripDays),
+      calendarDate,
+      tripDays
+    );
+    return trip ? applyDayViewTimelineRowOrder(trip.id, dayId, rows, calendarDate, tripDays) : rows;
   }, [localEntries, dayId, calendarDate, dayType, preTripDayId, dayMeta, trip, tripDays]);
 
   const loadEntryTasks = React.useCallback((): void => {

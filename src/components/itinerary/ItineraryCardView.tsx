@@ -10,6 +10,11 @@ import type { EntryDocumentType, EntryLinkType } from '../../models';
 import { CategoryIcon } from '../shared/CategoryIcon';
 import { getCategorySlug, CATEGORY_LIST } from '../../utils/categoryUtils';
 import { formatCurrency } from '../../utils/financialUtils';
+import {
+  isReturnTransport,
+  transportEachWayAmount,
+  transportLegDisplayAmount
+} from '../../utils/transportReturnPricing';
 import { useCanSeeFinancials } from '../../hooks/useCanSeeFinancials';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { SubItemList } from './SubItemList';
@@ -260,15 +265,20 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
     setTaskAssignee('');
   }, [entry.id]);
 
-  const displayAmountHome = convertToHomeCurrency(entry.amount, entry.currency || 'NZD');
+  const isActivities = entry.category === 'Activities';
+  const isTransport = entry.category === 'Transport';
+  const isReturnTrip = isReturnTransport(entry);
+  const legAmount = transportLegDisplayAmount(entry, transportLeg);
+  const eachWayAmount = transportEachWayAmount(entry);
+  const displayAmountHome = convertToHomeCurrency(legAmount, entry.currency || 'NZD');
+  const displayReturnTotalHome = convertToHomeCurrency(entry.amount, entry.currency || 'NZD');
+  const displayEachWayHome = convertToHomeCurrency(eachWayAmount, entry.currency || 'NZD');
   const paidCurrency = (entry.paymentCurrency || config.homeCurrency || 'NZD').toUpperCase();
   const displayAmountPaidHome = entry.amountPaid !== undefined
     ? (paidCurrency === (config.homeCurrency || 'NZD').toUpperCase()
       ? entry.amountPaid
       : convertToHomeCurrency(entry.amountPaid, paidCurrency))
     : undefined;
-  const isActivities = entry.category === 'Activities';
-  const isTransport = entry.category === 'Transport';
   const transportReturnHere =
     isTransport &&
     (transportLeg === 'return' || (!transportLeg && isTransportReturnOnCalendarDate(entry, calendarDate)));
@@ -775,6 +785,10 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
               )
             ) : showCruiseDailyAmount ? (
               `${formatCurrency(displayAmountHome, config.homeCurrency)} total · ${formatCurrency(perCruiseDayHome, config.homeCurrency)} /day`
+            ) : isReturnTrip && entry.amount > 0 && (transportLeg === 'outbound' || transportLeg === 'return') ? (
+              `${formatCurrency(displayAmountHome, config.homeCurrency)} each way`
+            ) : isReturnTrip && entry.amount > 0 ? (
+              `${formatCurrency(displayReturnTotalHome, config.homeCurrency)} return · ${formatCurrency(displayEachWayHome, config.homeCurrency)} each way`
             ) : (
               formatCurrency(hasSubItems ? cardTotalHome : displayAmountHome, config.homeCurrency)
             )}
@@ -782,7 +796,11 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
               <span className={styles.unitSuffix}>
                 {showCruiseDailyAmount
                   ? ` (${entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency} · ${perCruiseDayTrip.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency} /day)`
-                  : ` (${entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency})`}
+                  : isReturnTrip && entry.amount > 0 && (transportLeg === 'outbound' || transportLeg === 'return')
+                    ? ` (${legAmount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency} each way)`
+                    : isReturnTrip && entry.amount > 0
+                      ? ` (${entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency} return · ${eachWayAmount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency} each way)`
+                      : ` (${entry.amount.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${entry.currency})`}
               </span>
             ) : null}
             {unitSuffix ? <span className={styles.unitSuffix}>{unitSuffix}</span> : null}
@@ -791,7 +809,13 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             <div className={styles.partPaidDetail}>
               <span className={styles.partPaidPaid}>{formatCurrency(displayAmountPaidHome, config.homeCurrency)} paid</span>
               <span className={styles.partPaidSep}> · </span>
-              <span className={styles.partPaidOwing}>{formatCurrency(displayAmountHome - displayAmountPaidHome, config.homeCurrency)} owing</span>
+              <span className={styles.partPaidOwing}>
+                {formatCurrency(
+                  (isReturnTrip ? displayReturnTotalHome : displayAmountHome) - displayAmountPaidHome,
+                  config.homeCurrency
+                )}{' '}
+                owing
+              </span>
             </div>
           ) : null}
         </>

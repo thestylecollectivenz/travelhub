@@ -1,5 +1,6 @@
 import type { ItineraryEntry, ItineraryPaymentStatus } from '../models/ItineraryEntry';
 import { isFlightArrivalOnCalendarDate } from './itineraryDayEntries';
+import { returnTransportDaySplitDivisor } from './transportReturnPricing';
 
 function entryAmount(entry: ItineraryEntry): number {
   const n = entry.amount;
@@ -53,6 +54,7 @@ function appliesToDay(
   if (homeDayEntriesOnly) {
     return entry.dayId === dayId;
   }
+  if (returnTransportDaySplitDivisor(entry, dayCalendarDate) > 0) return true;
   if (entry.dayId === dayId) return true;
   if (dayCalendarDate && isFlightArrivalOnCalendarDate(entry, dayCalendarDate)) return true;
   return isAccommodationOnDate(entry, dayCalendarDate) || isCruiseOnDate(entry, dayCalendarDate);
@@ -86,7 +88,9 @@ function getFinancialLines(
     const fullAmount = entryAmount(entry);
     const nights = nightsForAccommodation(entry);
     const cruiseDays = daysForCruise(entry);
-    const splitDivisor = nights > 0 ? nights : cruiseDays > 0 ? cruiseDays : 0;
+    const returnSplit = dayId ? returnTransportDaySplitDivisor(entry, dayCalendarDate) : 0;
+    const splitDivisor =
+      returnSplit > 0 ? returnSplit : nights > 0 ? nights : cruiseDays > 0 ? cruiseDays : 0;
     const splitAmount = dayId && splitDivisor > 0 ? fullAmount / splitDivisor : fullAmount;
     const amount = converter(splitAmount, currency);
     const amountPaid = entry.amountPaid !== undefined
