@@ -5,6 +5,7 @@ import { ReminderService, type TripReminder } from '../../services/ReminderServi
 import { useSpContext } from '../../context/SpContext';
 import { usePlanView } from '../../context/PlanViewContext';
 import { requestInsightFocus } from '../../utils/insightFocus';
+import { countMissingAmountRows } from '../../utils/missingAmountEntries';
 import styles from './RightPaneInsights.module.css';
 
 export const RightPaneTasksInsights: React.FC = () => {
@@ -29,7 +30,7 @@ export const RightPaneTasksInsights: React.FC = () => {
     const noAssignee = open.filter((r) => !(r.assignedTo || '').trim()).length;
 
     const entries = trip ? localEntries.filter((e) => e.tripId === trip.id) : [];
-    const missingCost = entries.filter((e) => !e.parentEntryId && (e.amount ?? 0) <= 0 && e.category !== 'Location info').length;
+    const missingCost = countMissingAmountRows(entries);
     const needsBooking = entries.filter((e) => e.bookingRequired && e.bookingStatus !== 'Booked').length;
     const unpaid = entries.filter(
       (e) => e.paymentStatus !== 'Fully paid' && e.paymentStatus !== 'Free' && (e.amount ?? 0) > 0
@@ -100,7 +101,7 @@ export const RightPaneTasksInsights: React.FC = () => {
               className={`${styles.listItem} ${styles.clickableItem} ${styles.warnItem} ${activeFocus === 'missing_cost' ? styles.clickableItemActive : ''}`}
               onClick={() => focus('missing_cost', () => planView?.setPlanTab('missing_costs'))}
             >
-              {insights.missingCost} itinerary card{insights.missingCost === 1 ? '' : 's'} with no cost
+              {insights.missingCost} item{insights.missingCost === 1 ? '' : 's'} with no cost
             </button>
           </li>
         ) : null}

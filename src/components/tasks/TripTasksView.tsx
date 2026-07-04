@@ -14,6 +14,7 @@ import {
   loadDismissedMissingAmountIds,
   restoreMissingAmountEntry
 } from '../../utils/missingAmountDismissed';
+import { collectMissingAmountRows } from '../../utils/missingAmountEntries';
 import { paymentDueTaskTitle, paymentDueDateHint } from '../../utils/paymentDueLabels';
 import { CATEGORY_LIST } from '../../utils/categoryUtils';
 import { confirmUserAction } from '../../utils/confirmAction';
@@ -81,12 +82,6 @@ function sortRemindersByDueDate(rows: TripReminder[], mode: DueDateSort): TripRe
     return (a.title || '').localeCompare(b.title || '');
   });
   return copy;
-}
-
-function entryAmountMissing(amount: number | undefined): boolean {
-  if (amount === undefined || amount === null) return true;
-  if (typeof amount !== 'number' || Number.isNaN(amount)) return true;
-  return amount <= 0;
 }
 
 function stripFollowUpPrefix(text: string): string {
@@ -165,6 +160,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
     updateEntry,
     setSelectedDayId,
     setEditingCardId,
+    setEditingSubItem,
     setFocusedEntryId,
     setMainWorkspaceTab,
     setWorkspaceReturn
@@ -373,22 +369,29 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
   }, [planView?.focusedReminderId, manualTodos, cancellationReminders, taskSectionFilter, viewMode]);
 
   const missingAmountEntries = React.useMemo(() => {
-    return localEntries
-      .filter((e) => entryAmountMissing(e.amount))
-      .filter((e) => matchesCategoryFilter(e))
-      .filter((e) => missingAmountFilter === 'all' || !dismissedMissing.has(e.id))
+    return collectMissingAmountRows(localEntries)
+      .filter((row) => {
+        if (!taskCategoryFilter) return true;
+        if (taskCategoryFilter === TASK_FILTER_UNCATEGORISED) return false;
+        return (row.category || 'Other').trim() === taskCategoryFilter;
+      })
+      .filter((row) => missingAmountFilter === 'all' || !dismissedMissing.has(row.id))
       .sort((a, b) => {
         const da = tripDays.find((d) => d.id === a.dayId)?.dayNumber ?? 0;
         const db = tripDays.find((d) => d.id === b.dayId)?.dayNumber ?? 0;
         if (da !== db) return da - db;
+        if (a.openEntryId !== b.openEntryId) {
+          return (a.parentTitle || a.title).localeCompare(b.parentTitle || b.title);
+        }
+        if (a.isOption !== b.isOption) return a.isOption ? 1 : -1;
         return (a.title || '').localeCompare(b.title || '');
       });
-  }, [localEntries, tripDays, missingAmountFilter, dismissedMissing, matchesCategoryFilter]);
+  }, [localEntries, tripDays, missingAmountFilter, dismissedMissing, taskCategoryFilter]);
 
   const dayName = React.useCallback((dayId?: string) => tripDays.find((d) => d.id === dayId)?.displayTitle || '', [tripDays]);
 
   const openEntryInItineraryRead = React.useCallback(
-    (entryId: string, dayId: string): void => {
+    (entryId: string, dayId: string, optionId?: string): void => {
       const returnLabel =
         variant === 'missing_costs'
           ? 'missing costs'
@@ -405,10 +408,16 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
       setSelectedDayId(dayId);
       setEditingCardId(null);
       setFocusedEntryId(entryId);
+      if (optionId) {
+        setEditingSubItem({ parentEntryId: entryId, subItemId: optionId });
+      } else {
+        setEditingSubItem(null);
+      }
       requestSidebarDayFocus(dayId);
     },
     [
       setEditingCardId,
+      setEditingSubItem,
       setFocusedEntryId,
       setMainWorkspaceTab,
       setSelectedDayId,
@@ -646,8 +655,8 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
         <div className={styles.group}>
           <h3 className={styles.title}>Itinerary items with no cost entered</h3>
           <p className={styles.hint}>
-            Items where the main amount is zero or blank. Mark as cost not required when no amount is needed, or open the item to
-            add a cost.
+            Cards and options where the amount is zero or blank (excluding Free and Location info). Mark as cost not required when
+            no amount is needed, or open the item to add a cost.
           </p>
           <select
             className={styles.select}
@@ -662,27 +671,38 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
               No items missing amounts.
             </div>
           ) : (
-            missingAmountEntries.map((entry) => (
-              <div key={entry.id} className={styles.item}>
+            missingAmountEntries.map((row) => (
+              <div key={row.id} className={styles.item}>
                 <div className={styles.itemBody}>
-                  <div className={styles.missingTitle}>{entry.title || 'Untitled'}</div>
+                  <div className={styles.missingTitle}>{row.title || 'Untitled'}</div>
                   <div className={styles.meta}>
-                    {entry.category ? `${entry.category} · ` : null}
-                    {dayName(entry.dayId) || 'Day'}
-                    {supplierMetaLine(entry.supplier)}
+                    {row.isOption ? 'Option · ' : null}
+                    {row.category ? `${row.category} · ` : null}
+                    {dayName(row.dayId) || 'Day'}
+                    {row.isOption && row.parentTitle ? ` · on ${row.parentTitle}` : null}
+                    {supplierMetaLine(row.supplier)}
                   </div>
+                  {row.optionCostSummary ? (
+                    <div className={styles.meta}>{row.optionCostSummary}</div>
+                  ) : null}
                 </div>
                 <div className={styles.actions}>
-                  <button className={styles.button} type="button" onClick={() => openEntryInItineraryRead(entry.id, entry.dayId)}>
+                  <button
+                    className={styles.button}
+                    type="button"
+                    onClick={() =>
+                      openEntryInItineraryRead(row.openEntryId, row.dayId, row.isOption ? row.id : undefined)
+                    }
+                  >
                     Open in itinerary
                   </button>
-                  {dismissedMissing.has(entry.id) ? (
+                  {dismissedMissing.has(row.id) ? (
                     <button
                       className={styles.button}
                       type="button"
                       onClick={() => {
                         if (!trip?.id) return;
-                        setDismissedMissing(restoreMissingAmountEntry(trip.id, entry.id, dismissedMissing));
+                        setDismissedMissing(restoreMissingAmountEntry(trip.id, row.id, dismissedMissing));
                       }}
                     >
                       Needs review
@@ -693,7 +713,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                       type="button"
                       onClick={() => {
                         if (!trip?.id) return;
-                        setDismissedMissing(dismissMissingAmountEntry(trip.id, entry.id, dismissedMissing));
+                        setDismissedMissing(dismissMissingAmountEntry(trip.id, row.id, dismissedMissing));
                       }}
                     >
                       Cost not required
