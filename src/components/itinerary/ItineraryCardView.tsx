@@ -59,24 +59,7 @@ import {
   locationHighlightRows,
   splitHighlightRows
 } from '../../utils/locationInfoEntry';
-
-function deriveTransportDisplayTitle(entry: ItineraryEntry, calendarDate: string): string {
-  const raw = (entry.title || '').trim();
-  const isReturnHere = isTransportReturnOnCalendarDate(entry, calendarDate);
-  if (raw) {
-    return raw;
-  }
-  let from = (entry.transportFrom || '').trim();
-  let to = (entry.transportTo || '').trim();
-  if (entry.journeyType === 'return' && isReturnHere) {
-    const swap = from;
-    from = to;
-    to = swap;
-  }
-  const mode = (entry.transportMode || '').trim();
-  const arrow = from || to ? `${from} → ${to}` : '';
-  return (arrow + (mode ? ` (${mode})` : '')).trim() || 'Transport';
-}
+import { deriveTransportDisplayTitle } from '../../utils/transportDisplayTitle';
 import { entryMapsDirectionsUrl, entryMapsPlaceUrl } from '../../utils/googleMapsLink';
 import styles from './ItineraryCardView.module.css';
 
@@ -603,7 +586,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       ) : (
         <h3 className={styles.title}>
           {transportReturnHere ? <span className={styles.returnPill}>Return</span> : null}
-          {isTransport ? deriveTransportDisplayTitle(entry, calendarDate) : entry.title || 'Untitled'}
+          {isTransport ? deriveTransportDisplayTitle(entry, calendarDate, transportLeg) : entry.title || 'Untitled'}
         </h3>
       )}
       {entryScheduleHero ? (

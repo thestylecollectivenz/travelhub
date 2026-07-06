@@ -3,13 +3,16 @@ import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { Place } from '../models/Place';
 import { ItineraryService } from '../services/ItineraryService';
 import { formatGeminiUserMessage } from '../services/geminiErrorMessage';
-import { answerLocationQuestion, generateLocationInfo } from '../services/GeminiService';
+import { answerLocationQuestion, generateDiningSuggestions, generateLocationInfo, generateNearestPlaces } from '../services/GeminiService';
 import { emitLocationInfoAIStatus } from './locationInfoAIEvents';
+import { resolveGeoCoords } from './locationGeoContext';
 import {
   type LocationInfoMergeSection,
   type LocationInfoNotes,
   type LocationInfoQaEntry,
+  type NearestPlaceKind,
   mergeAIResult,
+  normalizeLocationInfoNotes,
   parseLocationInfoNotes,
   placeNameAndCountry,
   serializeLocationInfoNotes,
@@ -160,6 +163,105 @@ export function scheduleLocationInfoQuestion(options: {
     } catch (err) {
       const message = formatGeminiUserMessage(err);
       emitLocationInfoAIStatus({ entryId: entry.id, loading: false, section: 'qa', error: message });
+      if (onComplete) onComplete();
+    }
+  })();
+}
+
+export function scheduleLocationInfoDining(options: {
+  spContext: WebPartContext;
+  entry: ItineraryEntry;
+  place: Place;
+  apiKey: string;
+  onComplete?: () => void;
+}): void {
+  const { spContext, entry, place, apiKey, onComplete } = options;
+  const key = (apiKey || '').trim();
+  if (!key) return;
+  const parsed = parseLocationInfoNotes(entry.notes);
+  if (!parsed) return;
+
+  emitLocationInfoAIStatus({ entryId: entry.id, loading: true, section: 'dining' });
+  void (async () => {
+    try {
+      const coords = await resolveGeoCoords(place);
+      const { placeName, country } = placeNameAndCountry(place);
+      const { items, model } = await generateDiningSuggestions(placeName, country, {
+        apiKey: key,
+        coords: coords ? { lat: coords.latitude, lon: coords.longitude } : undefined
+      });
+      const existing = parsed.diningSuggestions ?? [];
+      const existingKeys = new Set(existing.map((x) => x.label.trim().toLowerCase()));
+      const mergedItems = [...existing];
+      for (let i = 0; i < items.length; i++) {
+        const label = items[i].label.trim();
+        const lk = label.toLowerCase();
+        if (!label || existingKeys.has(lk)) continue;
+        mergedItems.push({
+          id: `dining-${Date.now()}-${i}`,
+          label,
+          done: false,
+          source: 'ai'
+        });
+        existingKeys.add(lk);
+      }
+      const next = normalizeLocationInfoNotes({
+        ...parsed,
+        diningSuggestions: mergedItems,
+        aiModel: model,
+        aiError: ''
+      });
+      const svc = new ItineraryService(spContext);
+      await svc.update(entry.id, { notes: serializeLocationInfoNotes(next) });
+      emitLocationInfoAIStatus({ entryId: entry.id, loading: false, section: 'dining', success: true });
+      if (onComplete) onComplete();
+      window.dispatchEvent(new Event('trip-itinerary-updated'));
+    } catch (err) {
+      const message = formatGeminiUserMessage(err);
+      emitLocationInfoAIStatus({ entryId: entry.id, loading: false, section: 'dining', error: message });
+      if (onComplete) onComplete();
+    }
+  })();
+}
+
+export function scheduleLocationInfoNearest(options: {
+  spContext: WebPartContext;
+  entry: ItineraryEntry;
+  place: Place;
+  apiKey: string;
+  kind: NearestPlaceKind;
+  onComplete?: () => void;
+}): void {
+  const { spContext, entry, place, apiKey, kind, onComplete } = options;
+  const key = (apiKey || '').trim();
+  if (!key) return;
+  const parsed = parseLocationInfoNotes(entry.notes);
+  if (!parsed) return;
+
+  emitLocationInfoAIStatus({ entryId: entry.id, loading: true, section: kind });
+  void (async () => {
+    try {
+      const coords = await resolveGeoCoords(place);
+      const { placeName, country } = placeNameAndCountry(place);
+      const { places, model } = await generateNearestPlaces(placeName, country, kind, {
+        apiKey: key,
+        coords: coords ? { lat: coords.latitude, lon: coords.longitude } : undefined
+      });
+      const nearestPlaces = { ...(parsed.nearestPlaces ?? {}), [kind]: places };
+      const next = normalizeLocationInfoNotes({
+        ...parsed,
+        nearestPlaces,
+        aiModel: model,
+        aiError: ''
+      });
+      const svc = new ItineraryService(spContext);
+      await svc.update(entry.id, { notes: serializeLocationInfoNotes(next) });
+      emitLocationInfoAIStatus({ entryId: entry.id, loading: false, section: kind, success: true });
+      if (onComplete) onComplete();
+      window.dispatchEvent(new Event('trip-itinerary-updated'));
+    } catch (err) {
+      const message = formatGeminiUserMessage(err);
+      emitLocationInfoAIStatus({ entryId: entry.id, loading: false, section: kind, error: message });
       if (onComplete) onComplete();
     }
   })();

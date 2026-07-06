@@ -21,6 +21,15 @@ export type LocationInfoQaEntry = {
   createdAt: string;
 };
 
+export type NearestPlaceKind = 'pharmacy' | 'grocery' | 'petrol' | 'atm' | 'hospital';
+
+export type NearestPlaceRow = {
+  id: string;
+  name: string;
+  note?: string;
+  mapsUrl?: string;
+};
+
 export type LocationInfoNotes = {
   placeId: string;
   overview: string;
@@ -31,6 +40,10 @@ export type LocationInfoNotes = {
   foodDrinkItems?: LocationInfoCheckItem[];
   drinkItems?: LocationInfoCheckItem[];
   souvenirItems?: LocationInfoCheckItem[];
+  /** Restaurant and café suggestions (AI or manual). */
+  diningSuggestions?: LocationInfoCheckItem[];
+  /** Nearest practical places keyed by category. */
+  nearestPlaces?: Partial<Record<NearestPlaceKind, NearestPlaceRow[]>>;
   aiSightsPlaceholder?: string;
   aiFoodPlaceholder?: string;
   aiGenerated?: boolean;
@@ -176,6 +189,8 @@ export function locationInfoIsPopulated(data: LocationInfoNotes): boolean {
   if (getFoodDrinkItems(data).length) return true;
   if ((data.drinkItems ?? []).length) return true;
   if ((data.souvenirItems ?? []).length) return true;
+  if ((data.diningSuggestions ?? []).length) return true;
+  if (data.nearestPlaces && Object.keys(data.nearestPlaces).length) return true;
   if ((data.aiQaThread ?? []).length) return true;
   return false;
 }
@@ -325,6 +340,8 @@ export function normalizeLocationInfoNotes(data: LocationInfoNotes): LocationInf
     souvenirItems,
     iconicSights: checkItemsToText(iconicSightsItems),
     foodDrink: checkItemsToText(foodDrinkItems),
+    diningSuggestions: data.diningSuggestions ?? [],
+    nearestPlaces: data.nearestPlaces ?? {},
     aiQaThread: data.aiQaThread ?? []
   };
 }

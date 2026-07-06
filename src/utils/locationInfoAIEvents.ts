@@ -1,7 +1,9 @@
+import type { NearestPlaceKind } from './locationInfoEntry';
+
 export type LocationInfoAIEventDetail = {
   entryId: string;
   loading: boolean;
-  section?: 'sights' | 'food' | 'drink' | 'souvenirs' | 'all' | 'qa';
+  section?: 'sights' | 'food' | 'drink' | 'souvenirs' | 'all' | 'qa' | 'dining' | NearestPlaceKind;
   error?: string;
   success?: boolean;
 };

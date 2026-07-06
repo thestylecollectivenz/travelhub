@@ -1,0 +1,63 @@
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-default);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, #0d9488 5%, var(--color-surface-raised));
+  width: fit-content;
+  max-width: 100%;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-raised);
+  color: var(--color-teal-800, #115e59);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  padding: 0.2rem 0.55rem 0.2rem 0.35rem;
+  cursor: pointer;
+  max-width: 9rem;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+.chip:hover {
+  border-color: var(--color-teal-400, #2dd4bf);
+  box-shadow: var(--shadow-card);
+}
+
+.chipActive {
+  border-color: var(--color-teal-500, #0d9488);
+  background: color-mix(in srgb, #0d9488 12%, var(--color-surface-raised));
+}
+
+.chipComplete {
+  opacity: 0.85;
+}
+
+.chipIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--color-teal-600, #0d9488);
+}
+
+.chipLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chipDot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: var(--radius-full);
+  background: var(--color-amber-500);
+  flex-shrink: 0;
+}

@@ -15,8 +15,11 @@ import {
 } from '../../utils/itineraryDayEntries';
 import { applyDayViewEntryOrder, applyDayViewTimelineRowOrder } from '../../utils/dayViewEntryOrder';
 import { ItineraryCard } from './ItineraryCard';
+import { DayLocationInfoStrip } from './DayLocationInfoStrip';
+import { LocationInfoSlidePanel } from './LocationInfoSlidePanel';
 import { ReminderService } from '../../services/ReminderService';
 import type { LinkedEntryTask } from '../../utils/linkedEntryTask';
+import { isLocationInfoEntry } from '../../utils/locationInfoEntry';
 import styles from './ItineraryTimeline.module.css';
 
 export interface ItineraryTimelineProps {
@@ -84,21 +87,29 @@ const NewComposer: React.FC<NewComposerProps> = ({ tripId, dayId, calendarDate, 
 
 export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) => {
   const spContext = useSpContext();
-  const { trip, localEntries, editingCardId, focusedEntryId, setFocusedEntryId, tripDays } = useTripWorkspace();
+  const { trip, editingCardId, setEditingCardId, focusedEntryId, setFocusedEntryId, tripDays, localEntries } = useTripWorkspace();
+  const [taskEntryIds, setTaskEntryIds] = React.useState<Set<string>>(new Set());
+  const [entryLinkedTask, setEntryLinkedTask] = React.useState<Map<string, LinkedEntryTask>>(new Map());
+  const [entryLinkedTasks, setEntryLinkedTasks] = React.useState<Map<string, LinkedEntryTask[]>>(new Map());
+  const [cancellationDeadlineEntryIds, setCancellationDeadlineEntryIds] = React.useState<Set<string>>(new Set());
+  const [locationPanelEntryId, setLocationPanelEntryId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!focusedEntryId) return undefined;
+    const entry = localEntries.find((e) => e.id === focusedEntryId);
+    if (entry && isLocationInfoEntry(entry)) {
+      setLocationPanelEntryId(focusedEntryId);
+      setFocusedEntryId(null);
+      return undefined;
+    }
     const el = document.getElementById(`itinerary-entry-${focusedEntryId}`);
     if (el) {
       window.setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
     }
     const t = window.setTimeout(() => setFocusedEntryId(null), 4000);
     return () => window.clearTimeout(t);
-  }, [focusedEntryId, setFocusedEntryId]);
-  const [taskEntryIds, setTaskEntryIds] = React.useState<Set<string>>(new Set());
-  const [entryLinkedTask, setEntryLinkedTask] = React.useState<Map<string, LinkedEntryTask>>(new Map());
-  const [entryLinkedTasks, setEntryLinkedTasks] = React.useState<Map<string, LinkedEntryTask[]>>(new Map());
-  const [cancellationDeadlineEntryIds, setCancellationDeadlineEntryIds] = React.useState<Set<string>>(new Set());
+  }, [focusedEntryId, setFocusedEntryId, localEntries]);
+
   const preTripDayId = React.useMemo(() => (trip ? resolvePreTripDayId(tripDays, trip.id) : undefined), [trip, tripDays]);
 
   const calendarDate = React.useMemo(() => {
@@ -131,6 +142,21 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
     );
     return trip ? applyDayViewTimelineRowOrder(trip.id, dayId, rows, calendarDate, tripDays) : rows;
   }, [localEntries, dayId, calendarDate, dayType, preTripDayId, dayMeta, trip, tripDays]);
+
+  const timelineRows = React.useMemo(
+    () => sorted.filter((row) => !isLocationInfoEntry(row.entry)),
+    [sorted]
+  );
+
+  const dayLocationEntries = React.useMemo(
+    () => localEntries.filter((e) => e.dayId === dayId && isLocationInfoEntry(e) && !e.parentEntryId),
+    [localEntries, dayId]
+  );
+
+  const locationPanelEntry = React.useMemo(
+    () => (locationPanelEntryId ? localEntries.find((e) => e.id === locationPanelEntryId) ?? null : null),
+    [localEntries, locationPanelEntryId]
+  );
 
   const loadEntryTasks = React.useCallback((): void => {
     if (!trip?.id) {
@@ -207,7 +233,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
   }
 
   const showComposer = editingCardId === 'new';
-  const showEmpty = sorted.length === 0 && !showComposer;
+  const showEmpty = timelineRows.length === 0 && !showComposer && dayLocationEntries.length === 0;
 
   if (showEmpty) {
     return (
@@ -219,6 +245,18 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
 
   return (
     <div className={styles.timeline}>
+      {dayLocationEntries.length ? (
+        <DayLocationInfoStrip
+          entries={dayLocationEntries}
+          activeEntryId={locationPanelEntryId}
+          onSelect={setLocationPanelEntryId}
+        />
+      ) : null}
+      <LocationInfoSlidePanel
+        entry={locationPanelEntry}
+        calendarDate={calendarDate}
+        onClose={() => setLocationPanelEntryId(null)}
+      />
       <div className={styles.rail} aria-hidden />
       {showComposer ? (
         <div className={styles.row}>
@@ -234,8 +272,8 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
           </div>
         </div>
       ) : null}
-      <SortableContext items={sorted.map((row) => row.key)} strategy={verticalListSortingStrategy}>
-        {sorted.map((row) => {
+      <SortableContext items={timelineRows.map((row) => row.key)} strategy={verticalListSortingStrategy}>
+        {timelineRows.map((row) => {
           const entry = row.entry;
           const categorySlug = getCategorySlug(entry.category);
           const editing = editingCardId === entry.id;

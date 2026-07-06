@@ -5,7 +5,7 @@
  * - Config: UserConfig in ConfigService.ts; batch read via getConfig(userId).
  */
 
-import type { LocationInfoAIResult } from '../utils/locationInfoEntry';
+import type { LocationInfoAIResult, NearestPlaceKind, NearestPlaceRow } from '../utils/locationInfoEntry';
 
 /**
  * Models to try in order (free tier). Avoid gemini-2.0-flash — often 0 RPM/RPD on new projects.
@@ -419,3 +419,154 @@ Reply for the CURRENT FOCUS day, date, and location. Ask a brief clarifying ques
   }
   throw lastErr ?? new GeminiServiceError('API_ERROR', 'No Gemini models available.');
 }
+
+const NEAREST_KIND_LABEL: Record<NearestPlaceKind, string> = {
+  pharmacy: 'pharmacy or chemist',
+  grocery: 'grocery store or supermarket',
+  petrol: 'petrol station or gas station',
+  atm: 'ATM or cash machine',
+  hospital: 'hospital or urgent care clinic'
+};
+
+function buildDiningPrompt(placeName: string, country: string, coords?: { lat: number; lon: number }): string {
+  const geo = coords
+    ? `Coordinates: ${coords.lat.toFixed(5)}, ${coords.lon.toFixed(5)} (use for realistic nearby suggestions).`
+    : '';
+  return `You are a local dining guide. Suggest specific restaurants, cafés, or food markets near this place.
+
+Place: ${placeName}, ${country}
+${geo}
+
+Respond with ONLY JSON:
+{"items":[{"label":"specific venue name — brief dish or style note","done":false}]}
+
+Rules:
+- 4-6 concrete venue suggestions (real or highly plausible for the area)
+- label is one line: "Venue name — what to try or why"
+- done is always false
+- No markdown, no code fences`;
+}
+
+function buildNearestPrompt(
+  placeName: string,
+  country: string,
+  kind: NearestPlaceKind,
+  coords?: { lat: number; lon: number }
+): string {
+  const geo = coords
+    ? `Coordinates: ${coords.lat.toFixed(5)}, ${coords.lon.toFixed(5)} — suggest places realistically near this point.`
+    : '';
+  return `You are a practical travel assistant. List the nearest ${NEAREST_KIND_LABEL[kind]} options for a traveller.
+
+Place: ${placeName}, ${country}
+${geo}
+
+Respond with ONLY JSON:
+{"places":[{"name":"business name","note":"approx distance or street area","mapsUrl":"optional Google Maps search URL"}]}
+
+Rules:
+- 3-5 results, most likely nearest first
+- name: specific business or chain name when possible
+- note: short (distance, cross-street, or opening hint)
+- mapsUrl: optional https URL to open in maps (search query is fine)
+- No markdown, no code fences`;
+}
+
+async function callGeminiJson<T>(
+  prompt: string,
+  apiKey: string,
+  modelHint?: string
+): Promise<{ parsed: T; model: string }> {
+  const models: string[] = modelHint
+    ? [modelHint, ...GEMINI_MODEL_FALLBACK_CHAIN.filter((m) => m !== modelHint)]
+    : [...GEMINI_MODEL_FALLBACK_CHAIN];
+
+  let lastErr: GeminiServiceError | undefined;
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.35, maxOutputTokens: 700 }
+        })
+      });
+      if (!resp.ok) {
+        throw new GeminiServiceError('API_ERROR', `Gemini API returned ${resp.status}`, resp.status);
+      }
+      const data = await resp.json();
+      const text = stripJsonFences(extractResponseText(data));
+      if (!text) throw new GeminiServiceError('PARSE_ERROR', 'Gemini returned an empty response.');
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        throw new GeminiServiceError('PARSE_ERROR', 'Could not parse Gemini response as JSON.');
+      }
+      return { parsed: parsed as T, model };
+    } catch (err) {
+      if (!(err instanceof GeminiServiceError)) {
+        throw new GeminiServiceError('API_ERROR', err instanceof Error ? err.message : 'Gemini request failed.');
+      }
+      lastErr = err;
+      if (err.code === 'PARSE_ERROR' || err.code === 'INVALID_RESPONSE' || err.code === 'NO_KEY') throw err;
+      if (i < models.length - 1 && isQuotaOrModelBlockedError(err)) continue;
+      throw err;
+    }
+  }
+  throw lastErr ?? new GeminiServiceError('API_ERROR', 'No Gemini models available.');
+}
+
+export async function generateDiningSuggestions(
+  placeName: string,
+  country: string,
+  options: GeminiServiceOptions & { coords?: { lat: number; lon: number } }
+): Promise<{ items: Array<{ label: string; done: boolean }>; model: string }> {
+  const apiKey = (options.apiKey || '').trim();
+  if (!apiKey) throw new GeminiServiceError('NO_KEY', 'Gemini API key is not set.');
+  const { parsed, model } = await callGeminiJson<{ items?: Array<{ label?: string; done?: boolean }> }>(
+    buildDiningPrompt(placeName, country, options.coords),
+    apiKey,
+    options.model
+  );
+  const items: Array<{ label: string; done: boolean }> = [];
+  const arr = parsed.items ?? [];
+  for (let i = 0; i < arr.length; i++) {
+    const label = (arr[i]?.label ?? '').trim();
+    if (!label) continue;
+    items.push({ label, done: false });
+  }
+  if (!items.length) throw new GeminiServiceError('INVALID_RESPONSE', 'No dining suggestions returned.');
+  return { items, model };
+}
+
+export async function generateNearestPlaces(
+  placeName: string,
+  country: string,
+  kind: NearestPlaceKind,
+  options: GeminiServiceOptions & { coords?: { lat: number; lon: number } }
+): Promise<{ places: NearestPlaceRow[]; model: string }> {
+  const apiKey = (options.apiKey || '').trim();
+  if (!apiKey) throw new GeminiServiceError('NO_KEY', 'Gemini API key is not set.');
+  const { parsed, model } = await callGeminiJson<{
+    places?: Array<{ name?: string; note?: string; mapsUrl?: string }>;
+  }>(buildNearestPrompt(placeName, country, kind, options.coords), apiKey, options.model);
+  const places: NearestPlaceRow[] = [];
+  const arr = parsed.places ?? [];
+  for (let i = 0; i < arr.length; i++) {
+    const name = (arr[i]?.name ?? '').trim();
+    if (!name) continue;
+    places.push({
+      id: `near-${kind}-${Date.now()}-${i}`,
+      name,
+      note: (arr[i]?.note ?? '').trim() || undefined,
+      mapsUrl: (arr[i]?.mapsUrl ?? '').trim() || undefined
+    });
+  }
+  if (!places.length) throw new GeminiServiceError('INVALID_RESPONSE', 'No nearest places returned.');
+  return { places, model };
+}
+
