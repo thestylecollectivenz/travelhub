@@ -3,6 +3,7 @@ import type { TripDay } from '../models/TripDay';
 import { parseDurationMinutes, durationFromDateTimes } from './durationFromTimes';
 import { cruisePortPlannerBlocks, isCruiseSeaOrScenicEntry } from './cruisePlannerUtils';
 import { effectivePlannerTimeStart } from './itineraryDayEntries';
+import { isLocationInfoEntry } from './locationInfoEntry';
 import { formatTimeHHMM, minutesFromTimeStart } from './itineraryTimeUtils';
 
 export interface PlannerTimedItem {
@@ -243,6 +244,7 @@ export function isPlannerUnscheduledEntry(
   tripDays: TripDay[],
   tripEntries?: ItineraryEntry[]
 ): boolean {
+  if (isLocationInfoEntry(entry)) return false;
   if (isWholeCruiseEntry(entry)) return true;
   if (isCruiseSeaOrScenicEntry(entry)) return true;
   const all = tripEntries ?? [];
@@ -362,6 +364,7 @@ export function expandPlannerTimedItems(
   const allTripEntries = tripEntries ?? entries;
   const items: PlannerTimedItem[] = [];
   for (const entry of entries) {
+    if (isLocationInfoEntry(entry)) continue;
     const subs = [...(entry.subItems ?? [])].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
     const timedSubs = subs.filter((s) => minutesFromTimeStart(s.startTime || '') !== undefined);
     const untimedSubs = subs.filter((s) => minutesFromTimeStart(s.startTime || '') === undefined);
@@ -479,6 +482,7 @@ export function expandPlannerUnscheduledItems(
   const all = tripEntries ?? entries;
   const items: PlannerUnscheduledItem[] = [];
   for (const entry of entries) {
+    if (isLocationInfoEntry(entry)) continue;
     const untimedSubs = (entry.subItems ?? []).filter(
       (s) => minutesFromTimeStart(s.startTime || '') === undefined
     );

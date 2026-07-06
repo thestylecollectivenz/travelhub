@@ -66,8 +66,8 @@ export const LocationInfoSlidePanel: React.FC<LocationInfoSlidePanelProps> = ({ 
 
   const panel = (
     <div className={styles.backdrop} role="presentation" onClick={onClose}>
-      <aside
-        className={styles.panel}
+      <div
+        className={styles.dialog}
         role="dialog"
         aria-modal="true"
         aria-label={`Location info — ${title}`}
@@ -89,7 +89,7 @@ export const LocationInfoSlidePanel: React.FC<LocationInfoSlidePanelProps> = ({ 
         <div className={styles.body}>
           <LocationInfoPanelContent entry={entry} readOnly={!canEditItinerary} />
         </div>
-      </aside>
+      </div>
     </div>
   );
 

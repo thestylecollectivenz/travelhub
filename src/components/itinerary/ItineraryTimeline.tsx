@@ -19,6 +19,7 @@ import { DayLocationInfoStrip } from './DayLocationInfoStrip';
 import { LocationInfoSlidePanel } from './LocationInfoSlidePanel';
 import { ReminderService } from '../../services/ReminderService';
 import type { LinkedEntryTask } from '../../utils/linkedEntryTask';
+import { locationInfoEntriesForDay } from '../../utils/locationInfoDayResolve';
 import { isLocationInfoEntry } from '../../utils/locationInfoEntry';
 import styles from './ItineraryTimeline.module.css';
 
@@ -148,10 +149,10 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
     [sorted]
   );
 
-  const dayLocationEntries = React.useMemo(
-    () => localEntries.filter((e) => e.dayId === dayId && isLocationInfoEntry(e) && !e.parentEntryId),
-    [localEntries, dayId]
-  );
+  const dayLocationEntries = React.useMemo(() => {
+    if (!trip || !dayMeta) return [];
+    return locationInfoEntriesForDay(dayMeta, localEntries, trip.id);
+  }, [localEntries, dayMeta, trip]);
 
   const locationPanelEntry = React.useMemo(
     () => (locationPanelEntryId ? localEntries.find((e) => e.id === locationPanelEntryId) ?? null : null),

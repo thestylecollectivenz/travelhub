@@ -5,7 +5,7 @@ import { ItineraryService } from '../services/ItineraryService';
 import { formatGeminiUserMessage } from '../services/geminiErrorMessage';
 import { answerLocationQuestion, generateDiningSuggestions, generateLocationInfo, generateNearestPlaces } from '../services/GeminiService';
 import { emitLocationInfoAIStatus } from './locationInfoAIEvents';
-import { resolveGeoCoords } from './locationGeoContext';
+import { resolveLocationSearchContext } from './locationGeoContext';
 import {
   type LocationInfoMergeSection,
   type LocationInfoNotes,
@@ -173,9 +173,10 @@ export function scheduleLocationInfoDining(options: {
   entry: ItineraryEntry;
   place: Place;
   apiKey: string;
+  replaceExisting?: boolean;
   onComplete?: () => void;
 }): void {
-  const { spContext, entry, place, apiKey, onComplete } = options;
+  const { spContext, entry, place, apiKey, replaceExisting, onComplete } = options;
   const key = (apiKey || '').trim();
   if (!key) return;
   const parsed = parseLocationInfoNotes(entry.notes);
@@ -184,30 +185,25 @@ export function scheduleLocationInfoDining(options: {
   emitLocationInfoAIStatus({ entryId: entry.id, loading: true, section: 'dining' });
   void (async () => {
     try {
-      const coords = await resolveGeoCoords(place);
-      const { placeName, country } = placeNameAndCountry(place);
-      const { items, model } = await generateDiningSuggestions(placeName, country, {
+      const searchContext = await resolveLocationSearchContext(place);
+      if (!searchContext) throw new Error('Could not resolve location for dining search.');
+      const { items, model } = await generateDiningSuggestions({
         apiKey: key,
-        coords: coords ? { lat: coords.latitude, lon: coords.longitude } : undefined
+        searchContext
       });
-      const existing = parsed.diningSuggestions ?? [];
-      const existingKeys = new Set(existing.map((x) => x.label.trim().toLowerCase()));
+      const existing = replaceExisting ? [] : (parsed.diningSuggestions ?? []);
+      const existingKeys = new Set(existing.map((x) => x.name.trim().toLowerCase()));
       const mergedItems = [...existing];
       for (let i = 0; i < items.length; i++) {
-        const label = items[i].label.trim();
-        const lk = label.toLowerCase();
-        if (!label || existingKeys.has(lk)) continue;
-        mergedItems.push({
-          id: `dining-${Date.now()}-${i}`,
-          label,
-          done: false,
-          source: 'ai'
-        });
+        const name = items[i].name.trim();
+        const lk = name.toLowerCase();
+        if (!name || existingKeys.has(lk)) continue;
+        mergedItems.push(items[i]);
         existingKeys.add(lk);
       }
       const next = normalizeLocationInfoNotes({
         ...parsed,
-        diningSuggestions: mergedItems,
+        diningSuggestions: replaceExisting ? items : mergedItems,
         aiModel: model,
         aiError: ''
       });
@@ -230,9 +226,10 @@ export function scheduleLocationInfoNearest(options: {
   place: Place;
   apiKey: string;
   kind: NearestPlaceKind;
+  replaceExisting?: boolean;
   onComplete?: () => void;
 }): void {
-  const { spContext, entry, place, apiKey, kind, onComplete } = options;
+  const { spContext, entry, place, apiKey, kind, replaceExisting, onComplete } = options;
   const key = (apiKey || '').trim();
   if (!key) return;
   const parsed = parseLocationInfoNotes(entry.notes);
@@ -241,11 +238,11 @@ export function scheduleLocationInfoNearest(options: {
   emitLocationInfoAIStatus({ entryId: entry.id, loading: true, section: kind });
   void (async () => {
     try {
-      const coords = await resolveGeoCoords(place);
-      const { placeName, country } = placeNameAndCountry(place);
-      const { places, model } = await generateNearestPlaces(placeName, country, kind, {
+      const searchContext = await resolveLocationSearchContext(place);
+      if (!searchContext) throw new Error('Could not resolve location for nearest search.');
+      const { places, model } = await generateNearestPlaces(kind, {
         apiKey: key,
-        coords: coords ? { lat: coords.latitude, lon: coords.longitude } : undefined
+        searchContext
       });
       const nearestPlaces = { ...(parsed.nearestPlaces ?? {}), [kind]: places };
       const next = normalizeLocationInfoNotes({

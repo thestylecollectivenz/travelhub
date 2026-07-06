@@ -14,6 +14,26 @@ export function googleMapsDirectionsUrl(address: string): string | undefined {
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(t)}`;
 }
 
+/** Directions from the user's current location to lat/lng. */
+export function googleMapsDirectionsToCoords(lat: number, lon: number): string {
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${lat},${lon}`)}`;
+}
+
+/** Google search for reviews of a venue. */
+export function googleReviewsSearchUrl(query: string): string {
+  return `https://www.google.com/search?q=${encodeURIComponent(`${query} reviews`)}`;
+}
+
+export function placeQueryMapsUrl(name: string, address?: string): string | undefined {
+  const q = [name.trim(), (address || '').trim()].filter(Boolean).join(', ');
+  return googleMapsPlaceUrl(q);
+}
+
+export function placeQueryDirectionsUrl(name: string, address?: string): string | undefined {
+  const q = [name.trim(), (address || '').trim()].filter(Boolean).join(', ');
+  return googleMapsDirectionsUrl(q);
+}
+
 /** Best text query for maps: street address first, then location / transport endpoints. */
 export function entryMapsQuery(
   entry: Pick<ItineraryEntry, 'streetAddress' | 'location' | 'transportFrom' | 'transportTo' | 'category'>

@@ -2,23 +2,25 @@
   position: fixed;
   inset: 0;
   z-index: 12500;
-  background: color-mix(in srgb, var(--color-sand-900) 28%, transparent);
+  background: color-mix(in srgb, var(--color-sand-900) 32%, transparent);
   pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3);
 }
 
-.panel {
-  position: absolute;
-  top: 0;
-  right: 0;
-  height: 100%;
-  width: min(26rem, 100vw);
-  max-width: 100%;
+.dialog {
   box-sizing: border-box;
+  width: min(34rem, 100%);
+  max-height: min(88vh, 100%);
   background: var(--color-surface-raised);
   box-shadow: var(--shadow-elevated);
-  border-left: var(--border-default);
+  border: var(--border-default);
+  border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .header {

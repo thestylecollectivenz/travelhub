@@ -23,7 +23,7 @@ function progressForEntry(entry: ItineraryEntry): { done: number; total: number 
   const dining = data.diningSuggestions ?? [];
   const all = [...rows, ...dining];
   if (!all.length) return { done: 0, total: 0 };
-  const done = all.filter((x) => x.done).length;
+  const done = rows.filter((x) => x.done).length + dining.filter((x) => x.done).length;
   return { done, total: all.length };
 }
 

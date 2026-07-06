@@ -20,8 +20,12 @@ import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
 import { formatCurrency } from '../../utils/financialUtils';
 import { ItineraryCard } from './ItineraryCard';
+import { DayLocationInfoStrip } from './DayLocationInfoStrip';
+import { LocationInfoSlidePanel } from './LocationInfoSlidePanel';
 import { SubItemDetailLines } from './SubItemDetailLines';
 import { applyDayViewEntryOrder } from '../../utils/dayViewEntryOrder';
+import { locationInfoEntriesForDay } from '../../utils/locationInfoDayResolve';
+import { isLocationInfoEntry } from '../../utils/locationInfoEntry';
 import {
   expandPlannerTimedItems,
   expandPlannerUnscheduledItems,
@@ -346,6 +350,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
   const [unschedSectionHidden, setUnschedSectionHidden] = React.useState(false);
   const [frontBlockKey, setFrontBlockKey] = React.useState<string | null>(null);
   const [previewContext, setPreviewContext] = React.useState<PlannerPreviewContext | null>(null);
+  const [locationPanelEntryId, setLocationPanelEntryId] = React.useState<string | null>(null);
   const plannerDragRef = React.useRef<{
     pointerId: number;
     startX: number;
@@ -394,10 +399,21 @@ export const ItineraryDayPlannerView: React.FC = () => {
         isPreTripDayRow(day),
         tripDays
       );
-      return applyDayViewEntryOrder(trip.id, day.id, raw, cal, tripDays);
+      return applyDayViewEntryOrder(trip.id, day.id, raw, cal, tripDays).filter((e) => !isLocationInfoEntry(e));
     },
     [trip, entriesForTrip, preTripDayId, tripDays]
   );
+
+  const locationPanelEntry = React.useMemo(
+    () => (locationPanelEntryId ? localEntries.find((e) => e.id === locationPanelEntryId) ?? null : null),
+    [localEntries, locationPanelEntryId]
+  );
+
+  const locationPanelCalendarDate = React.useMemo(() => {
+    if (!locationPanelEntry || !trip) return '';
+    const day = tripDays.find((d) => d.id === locationPanelEntry.dayId && d.tripId === trip.id);
+    return day?.calendarDate ?? '';
+  }, [locationPanelEntry, trip, tripDays]);
 
   const resolveSingleDate = React.useCallback((ymd: string): { days: TripDay[]; notice: string } => {
     if (!orderedDays.length) return { days: [], notice: '' };
@@ -740,6 +756,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
       const timedRows: Array<{ sortMin: number; entry: DayPlannerPrintDay['timed'][0] }> = [];
       const unscheduled: DayPlannerPrintDay['unscheduled'] = [];
       for (const e of list) {
+        if (isLocationInfoEntry(e)) continue;
         const start = effectivePlannerTimeStart(e, cal, tripDays);
         const sm = minutesFromTimeStart(start);
         const subs = [...(e.subItems ?? [])]
@@ -991,6 +1008,11 @@ export const ItineraryDayPlannerView: React.FC = () => {
 
   return (
     <>
+    <LocationInfoSlidePanel
+      entry={locationPanelEntry}
+      calendarDate={locationPanelCalendarDate}
+      onClose={() => setLocationPanelEntryId(null)}
+    />
     <div className={`${styles.root} ${plannerFullscreen ? styles.rootFullscreen : ''}`} id="th-print-root">
       <div className={styles.filterBar}>
         {filters.map((f) => (
@@ -1130,6 +1152,13 @@ export const ItineraryDayPlannerView: React.FC = () => {
             return (
               <div key={day.id} className={styles.mobileDayStack}>
                 <PlannerDayHead day={day} className={styles.dayHead} />
+                {trip ? (
+                  <DayLocationInfoStrip
+                    entries={locationInfoEntriesForDay(day, localEntries, trip.id)}
+                    activeEntryId={locationPanelEntryId}
+                    onSelect={setLocationPanelEntryId}
+                  />
+                ) : null}
                 {unsched.length ? (
                   <div className={styles.unscheduled}>
                     <button
@@ -1367,6 +1396,23 @@ export const ItineraryDayPlannerView: React.FC = () => {
           </div>
           <div className={styles.plannerTrackVScroll} ref={plannerVScrollRef}>
           <div className={styles.plannerTrackHScroll} ref={plannerHScrollRef}>
+            {trip ? (
+              <div
+                className={styles.unschedRowGrid}
+                style={{ gridTemplateColumns: gridColTemplate, minWidth: plannerGridMinWidth }}
+              >
+                <div className={styles.cornerCell} aria-hidden />
+                {displayDays.map((day) => (
+                  <div key={`loc-${day.id}`} className={styles.unschedCell}>
+                    <DayLocationInfoStrip
+                      entries={locationInfoEntriesForDay(day, localEntries, trip.id)}
+                      activeEntryId={locationPanelEntryId}
+                      onSelect={setLocationPanelEntryId}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : null}
             {!unschedSectionHidden ? (
               <div
                 className={styles.unschedRowGrid}

@@ -5,7 +5,8 @@
  * - Config: UserConfig in ConfigService.ts; batch read via getConfig(userId).
  */
 
-import type { LocationInfoAIResult, NearestPlaceKind, NearestPlaceRow } from '../utils/locationInfoEntry';
+import type { LocationInfoAIResult, NearestPlaceKind, NearestPlaceRow, DiningSuggestionRow } from '../utils/locationInfoEntry';
+import type { LocationSearchContext } from '../utils/locationGeoContext';
 
 /**
  * Models to try in order (free tier). Avoid gemini-2.0-flash — often 0 RPM/RPD on new projects.
@@ -423,52 +424,48 @@ Reply for the CURRENT FOCUS day, date, and location. Ask a brief clarifying ques
 const NEAREST_KIND_LABEL: Record<NearestPlaceKind, string> = {
   pharmacy: 'pharmacy or chemist',
   grocery: 'grocery store or supermarket',
-  petrol: 'petrol station or gas station',
+  fuel: 'fuel station or petrol station',
   atm: 'ATM or cash machine',
-  hospital: 'hospital or urgent care clinic'
+  medical: 'medical clinic, urgent care, or hospital'
 };
 
-function buildDiningPrompt(placeName: string, country: string, coords?: { lat: number; lon: number }): string {
-  const geo = coords
-    ? `Coordinates: ${coords.lat.toFixed(5)}, ${coords.lon.toFixed(5)} (use for realistic nearby suggestions).`
-    : '';
-  return `You are a local dining guide. Suggest specific restaurants, cafés, or food markets near this place.
+function buildDiningPrompt(ctx: LocationSearchContext): string {
+  const geo = `Coordinates: ${ctx.latitude.toFixed(5)}, ${ctx.longitude.toFixed(5)}`;
+  const placeLine =
+    ctx.mode === 'onsite'
+      ? `The traveller is on-site near ${ctx.placeName}, ${ctx.country}. Use their current GPS as the search anchor.`
+      : `Trip destination: ${ctx.placeName}, ${ctx.country}. Suggest venues a visitor would realistically try while there.`;
+  return `You are a local dining guide.
 
-Place: ${placeName}, ${country}
+${placeLine}
 ${geo}
 
 Respond with ONLY JSON:
-{"items":[{"label":"specific venue name — brief dish or style note","done":false}]}
+{"items":[{"name":"venue name","description":"1 sentence about the venue","why":"why a traveller should go","mapsUrl":"optional Google Maps search URL","reviewsUrl":"optional Google search URL for reviews"}]}
 
 Rules:
-- 4-6 concrete venue suggestions (real or highly plausible for the area)
-- label is one line: "Venue name — what to try or why"
-- done is always false
+- 4-6 concrete restaurants, cafés, or food markets
+- Real or highly plausible for the area
 - No markdown, no code fences`;
 }
 
-function buildNearestPrompt(
-  placeName: string,
-  country: string,
-  kind: NearestPlaceKind,
-  coords?: { lat: number; lon: number }
-): string {
-  const geo = coords
-    ? `Coordinates: ${coords.lat.toFixed(5)}, ${coords.lon.toFixed(5)} — suggest places realistically near this point.`
-    : '';
-  return `You are a practical travel assistant. List the nearest ${NEAREST_KIND_LABEL[kind]} options for a traveller.
+function buildNearestPrompt(kind: NearestPlaceKind, ctx: LocationSearchContext): string {
+  const geo = `Search anchor coordinates: ${ctx.latitude.toFixed(5)}, ${ctx.longitude.toFixed(5)}`;
+  const anchorLine =
+    ctx.mode === 'onsite'
+      ? `The traveller is physically at/near ${ctx.placeName}. Find ${NEAREST_KIND_LABEL[kind]} closest to their CURRENT GPS location (walking or short drive). Do NOT suggest venues in other cities.`
+      : `Trip place: ${ctx.placeName}, ${ctx.country}. Find ${NEAREST_KIND_LABEL[kind]} near this destination coordinates (for trip planning).`;
+  return `You are a practical travel assistant.
 
-Place: ${placeName}, ${country}
+${anchorLine}
 ${geo}
 
 Respond with ONLY JSON:
-{"places":[{"name":"business name","note":"approx distance or street area","mapsUrl":"optional Google Maps search URL"}]}
+{"places":[{"name":"business name","note":"distance or cross-street","address":"street or area if known","mapsUrl":"optional Google Maps URL","reviewsUrl":"optional reviews search URL"}]}
 
 Rules:
-- 3-5 results, most likely nearest first
-- name: specific business or chain name when possible
-- note: short (distance, cross-street, or opening hint)
-- mapsUrl: optional https URL to open in maps (search query is fine)
+- 3-5 results, nearest first
+- name: specific business when possible
 - No markdown, no code fences`;
 }
 
@@ -521,39 +518,47 @@ async function callGeminiJson<T>(
 }
 
 export async function generateDiningSuggestions(
-  placeName: string,
-  country: string,
-  options: GeminiServiceOptions & { coords?: { lat: number; lon: number } }
-): Promise<{ items: Array<{ label: string; done: boolean }>; model: string }> {
+  options: GeminiServiceOptions & { searchContext: LocationSearchContext }
+): Promise<{ items: DiningSuggestionRow[]; model: string }> {
   const apiKey = (options.apiKey || '').trim();
   if (!apiKey) throw new GeminiServiceError('NO_KEY', 'Gemini API key is not set.');
-  const { parsed, model } = await callGeminiJson<{ items?: Array<{ label?: string; done?: boolean }> }>(
-    buildDiningPrompt(placeName, country, options.coords),
-    apiKey,
-    options.model
-  );
-  const items: Array<{ label: string; done: boolean }> = [];
+  const { parsed, model } = await callGeminiJson<{
+    items?: Array<{
+      name?: string;
+      description?: string;
+      why?: string;
+      mapsUrl?: string;
+      reviewsUrl?: string;
+    }>;
+  }>(buildDiningPrompt(options.searchContext), apiKey, options.model);
+  const items: DiningSuggestionRow[] = [];
   const arr = parsed.items ?? [];
   for (let i = 0; i < arr.length; i++) {
-    const label = (arr[i]?.label ?? '').trim();
-    if (!label) continue;
-    items.push({ label, done: false });
+    const name = (arr[i]?.name ?? '').trim();
+    if (!name) continue;
+    items.push({
+      id: `dining-ai-${Date.now()}-${i}`,
+      name,
+      description: (arr[i]?.description ?? '').trim() || undefined,
+      why: (arr[i]?.why ?? '').trim() || undefined,
+      mapsUrl: (arr[i]?.mapsUrl ?? '').trim() || undefined,
+      reviewsUrl: (arr[i]?.reviewsUrl ?? '').trim() || undefined,
+      done: false
+    });
   }
   if (!items.length) throw new GeminiServiceError('INVALID_RESPONSE', 'No dining suggestions returned.');
   return { items, model };
 }
 
 export async function generateNearestPlaces(
-  placeName: string,
-  country: string,
   kind: NearestPlaceKind,
-  options: GeminiServiceOptions & { coords?: { lat: number; lon: number } }
+  options: GeminiServiceOptions & { searchContext: LocationSearchContext }
 ): Promise<{ places: NearestPlaceRow[]; model: string }> {
   const apiKey = (options.apiKey || '').trim();
   if (!apiKey) throw new GeminiServiceError('NO_KEY', 'Gemini API key is not set.');
   const { parsed, model } = await callGeminiJson<{
-    places?: Array<{ name?: string; note?: string; mapsUrl?: string }>;
-  }>(buildNearestPrompt(placeName, country, kind, options.coords), apiKey, options.model);
+    places?: Array<{ name?: string; note?: string; address?: string; mapsUrl?: string; reviewsUrl?: string }>;
+  }>(buildNearestPrompt(kind, options.searchContext), apiKey, options.model);
   const places: NearestPlaceRow[] = [];
   const arr = parsed.places ?? [];
   for (let i = 0; i < arr.length; i++) {
@@ -563,7 +568,9 @@ export async function generateNearestPlaces(
       id: `near-${kind}-${Date.now()}-${i}`,
       name,
       note: (arr[i]?.note ?? '').trim() || undefined,
-      mapsUrl: (arr[i]?.mapsUrl ?? '').trim() || undefined
+      address: (arr[i]?.address ?? '').trim() || undefined,
+      mapsUrl: (arr[i]?.mapsUrl ?? '').trim() || undefined,
+      reviewsUrl: (arr[i]?.reviewsUrl ?? '').trim() || undefined
     });
   }
   if (!places.length) throw new GeminiServiceError('INVALID_RESPONSE', 'No nearest places returned.');

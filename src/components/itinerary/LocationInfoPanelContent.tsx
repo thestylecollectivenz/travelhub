@@ -14,13 +14,18 @@ import {
   recordSuppressedHighlightLabels,
   serializeLocationInfoNotes,
   splitHighlightRows,
-  type LocationInfoCheckItem,
+  type DiningSuggestionRow,
   type LocationInfoNotes,
   type NearestPlaceKind,
   type NearestPlaceRow
 } from '../../utils/locationInfoEntry';
 import { subscribeLocationInfoAIStatus } from '../../utils/locationInfoAIEvents';
 import { scheduleLocationInfoDining, scheduleLocationInfoNearest } from '../../utils/locationInfoGeneration';
+import {
+  googleReviewsSearchUrl,
+  placeQueryDirectionsUrl,
+  placeQueryMapsUrl
+} from '../../utils/googleMapsLink';
 import { RichTextContent } from '../shared/RichTextContent';
 import { LocationInfoAskPanel } from './LocationInfoAskPanel';
 import { LocationInfoHighlights } from './LocationInfoHighlights';
@@ -52,8 +57,7 @@ function PharmacyIcon(): React.ReactElement {
   return (
     <svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
       <rect x="4" y="8" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M12 8V4M9 4h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M12 12v6M9 15h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M12 8V4M9 4h6M12 12v6M9 15h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   );
 }
@@ -69,7 +73,7 @@ function GroceryIcon(): React.ReactElement {
   );
 }
 
-function PetrolIcon(): React.ReactElement {
+function FuelIcon(): React.ReactElement {
   return (
     <svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M6 20V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v14" stroke="currentColor" strokeWidth="1.5" />
@@ -88,7 +92,7 @@ function AtmIcon(): React.ReactElement {
   );
 }
 
-function HospitalIcon(): React.ReactElement {
+function MedicalIcon(): React.ReactElement {
   return (
     <svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
       <rect x="5" y="4" width="14" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
@@ -97,84 +101,84 @@ function HospitalIcon(): React.ReactElement {
   );
 }
 
-const NEAREST_TOOLS: Array<{ kind: NearestPlaceKind; label: string; icon: React.ReactElement }> = [
-  { kind: 'pharmacy', label: 'Nearest pharmacy', icon: <PharmacyIcon /> },
-  { kind: 'grocery', label: 'Nearest grocery', icon: <GroceryIcon /> },
-  { kind: 'petrol', label: 'Nearest petrol', icon: <PetrolIcon /> },
-  { kind: 'atm', label: 'Nearest ATM', icon: <AtmIcon /> },
-  { kind: 'hospital', label: 'Nearest hospital', icon: <HospitalIcon /> }
-];
-
-function ChecklistSection(props: {
-  title: string;
-  items: LocationInfoCheckItem[];
-  readOnly?: boolean;
-  onChange: (items: LocationInfoCheckItem[]) => void;
-}): React.ReactElement | null {
-  const { title, items, readOnly, onChange } = props;
-  if (!items.length && readOnly) return null;
+function RefreshIcon(): React.ReactElement {
   return (
-    <section className={styles.section}>
-      <h4 className={styles.heading}>{title}</h4>
-      {items.length ? (
-        <ul className={styles.checkList}>
-          {items.map((item) => (
-            <li key={item.id} className={styles.checkRow}>
-              <label className={styles.checkLabel}>
-                <input
-                  type="checkbox"
-                  checked={item.done}
-                  disabled={readOnly}
-                  onChange={() =>
-                    onChange(items.map((x) => (x.id === item.id ? { ...x, done: !x.done } : x)))
-                  }
-                />
-                <span className={item.done ? styles.labelDone : undefined}>{item.label}</span>
-              </label>
-              {!readOnly ? (
-                <button
-                  type="button"
-                  className={styles.removeBtn}
-                  aria-label="Remove"
-                  onClick={() => onChange(items.filter((x) => x.id !== item.id))}
-                >
-                  ×
-                </button>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className={styles.emptyHint}>Tap the icon above to generate suggestions.</p>
-      )}
-    </section>
+    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M20 7v5h-5M4 17v-5h5M5.6 9.4A7 7 0 0 1 19 9M18.4 14.6A7 7 0 0 1 5 15"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
-function NearestSection(props: {
-  kind: NearestPlaceKind;
-  title: string;
-  rows: NearestPlaceRow[];
-}): React.ReactElement | null {
-  const { title, rows } = props;
-  if (!rows.length) return null;
+const NEAREST_TOOLS: Array<{ kind: NearestPlaceKind; label: string; icon: React.ReactElement }> = [
+  { kind: 'pharmacy', label: 'Nearest pharmacy', icon: <PharmacyIcon /> },
+  { kind: 'grocery', label: 'Nearest grocery', icon: <GroceryIcon /> },
+  { kind: 'fuel', label: 'Nearest fuel', icon: <FuelIcon /> },
+  { kind: 'atm', label: 'Nearest ATM', icon: <AtmIcon /> },
+  { kind: 'medical', label: 'Nearest medical', icon: <MedicalIcon /> }
+];
+
+function PlaceLinks(props: { name: string; address?: string; mapsUrl?: string; reviewsUrl?: string }): React.ReactElement {
+  const { name, address, mapsUrl, reviewsUrl } = props;
+  const mapHref = mapsUrl || placeQueryMapsUrl(name, address);
+  const routeHref = placeQueryDirectionsUrl(name, address);
+  const reviewsHref = reviewsUrl || googleReviewsSearchUrl([name, address].filter(Boolean).join(' '));
   return (
-    <section className={styles.section}>
+    <div className={styles.placeLinks}>
+      {mapHref ? (
+        <a className={styles.placeLinkIcon} href={mapHref} target="_blank" rel="noopener noreferrer" title="Map">
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M12 21s7-4.35 7-10a7 7 0 1 0-14 0c0 5.65 7 10 7 10Z" stroke="currentColor" strokeWidth="1.5" />
+            <circle cx="12" cy="11" r="2" fill="currentColor" />
+          </svg>
+        </a>
+      ) : null}
+      {routeHref ? (
+        <a className={styles.placeLinkIcon} href={routeHref} target="_blank" rel="noopener noreferrer" title="Route from here">
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M5 12h12M13 6l6 6-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </a>
+      ) : null}
+      {reviewsHref ? (
+        <a className={styles.placeLinkIcon} href={reviewsHref} target="_blank" rel="noopener noreferrer" title="Reviews">
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M12 3l2.4 4.8L20 9l-4 3.9.9 5.6L12 16.2 7.1 18.5 8 12.9 4 9l5.6-1.2L12 3Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+          </svg>
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
+function SectionHead(props: {
+  title: string;
+  onRefresh?: () => void;
+  refreshing?: boolean;
+  refreshLabel?: string;
+}): React.ReactElement {
+  const { title, onRefresh, refreshing, refreshLabel } = props;
+  return (
+    <div className={styles.sectionHead}>
       <h4 className={styles.heading}>{title}</h4>
-      <ul className={styles.nearestList}>
-        {rows.map((row) => (
-          <li key={row.id} className={styles.nearestRow}>
-            <span className={styles.nearestName}>{row.name}</span>
-            {row.note ? <span className={styles.nearestNote}>{row.note}</span> : null}
-            {row.mapsUrl ? (
-              <a className={styles.mapsLink} href={row.mapsUrl} target="_blank" rel="noopener noreferrer">
-                Map
-              </a>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-    </section>
+      {onRefresh ? (
+        <button
+          type="button"
+          className={`${styles.refreshBtn} ${refreshing ? styles.refreshBtnLoading : ''}`}
+          title={refreshLabel || 'Refresh'}
+          aria-label={refreshLabel || 'Refresh'}
+          disabled={refreshing}
+          onClick={onRefresh}
+        >
+          <RefreshIcon />
+        </button>
+      ) : null}
+    </div>
   );
 }
 
@@ -217,16 +221,16 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
     updateEntry({ ...entry, notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(next)) });
   };
 
-  const runDining = (): void => {
+  const runDining = (replaceExisting = false): void => {
     if (!place || !hasKey || readOnly) return;
     setToolError(undefined);
-    scheduleLocationInfoDining({ spContext, entry, place, apiKey: config.geminiApiKey });
+    scheduleLocationInfoDining({ spContext, entry, place, apiKey: config.geminiApiKey, replaceExisting });
   };
 
-  const runNearest = (kind: NearestPlaceKind): void => {
+  const runNearest = (kind: NearestPlaceKind, replaceExisting = false): void => {
     if (!place || !hasKey || readOnly) return;
     setToolError(undefined);
-    scheduleLocationInfoNearest({ spContext, entry, place, apiKey: config.geminiApiKey, kind });
+    scheduleLocationInfoNearest({ spContext, entry, place, apiKey: config.geminiApiKey, kind, replaceExisting });
   };
 
   const dining = data.diningSuggestions ?? [];
@@ -239,10 +243,10 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
           <button
             type="button"
             className={`${styles.toolBtn} ${loadingTool === 'dining' ? styles.toolBtnLoading : ''}`}
-            title="Dining suggestions (AI + GPS)"
+            title="Dining suggestions"
             aria-label="Dining suggestions"
             disabled={!hasKey || loadingTool !== null}
-            onClick={runDining}
+            onClick={() => runDining(dining.length > 0)}
           >
             <DiningIcon />
           </button>
@@ -254,7 +258,7 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
               title={tool.label}
               aria-label={tool.label}
               disabled={!hasKey || loadingTool !== null}
-              onClick={() => runNearest(tool.kind)}
+              onClick={() => runNearest(tool.kind, (nearest[tool.kind]?.length ?? 0) > 0)}
             >
               {tool.icon}
             </button>
@@ -262,12 +266,9 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
         </div>
       ) : null}
       {!hasKey && !readOnly ? (
-        <p className={styles.keyHint}>
-          Add a Gemini API key in User settings to use dining and nearest-place tools.
-        </p>
+        <p className={styles.keyHint}>Add a Gemini API key in User settings to use dining and nearest-place tools.</p>
       ) : null}
       {toolError ? <p className={styles.toolError}>{toolError}</p> : null}
-
       {data.aiError?.trim() ? <p className={styles.toolError}>{data.aiError.trim()}</p> : null}
 
       {data.overview.trim() ? (
@@ -305,17 +306,73 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
         />
       </section>
 
-      <ChecklistSection
-        title="Dining suggestions"
-        items={dining}
-        readOnly={readOnly}
-        onChange={(items) => persist({ ...data, diningSuggestions: items })}
-      />
+      {dining.length || !readOnly ? (
+        <section className={styles.section}>
+          <SectionHead
+            title="Dining suggestions"
+            refreshLabel="Refresh dining suggestions"
+            refreshing={loadingTool === 'dining'}
+            onRefresh={dining.length && !readOnly && hasKey ? () => runDining(true) : undefined}
+          />
+          {dining.length ? (
+            <ul className={styles.cardList}>
+              {dining.map((row) => (
+                <li key={row.id} className={styles.placeCard}>
+                  <div className={styles.placeCardTop}>
+                    <label className={styles.checkLabel}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(row.done)}
+                        disabled={readOnly}
+                        onChange={() =>
+                          persist({
+                            ...data,
+                            diningSuggestions: dining.map((x) =>
+                              x.id === row.id ? { ...x, done: !x.done } : x
+                            )
+                          })
+                        }
+                      />
+                      <span className={`${styles.placeName} ${row.done ? styles.labelDone : ''}`}>{row.name}</span>
+                    </label>
+                    <PlaceLinks name={row.name} mapsUrl={row.mapsUrl} reviewsUrl={row.reviewsUrl} />
+                  </div>
+                  {row.description ? <p className={styles.placeDesc}>{row.description}</p> : null}
+                  {row.why ? <p className={styles.placeWhy}>{row.why}</p> : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className={styles.emptyHint}>Tap the dining icon above to generate suggestions.</p>
+          )}
+        </section>
+      ) : null}
 
       {NEAREST_TOOLS.map((tool) => {
         const rows = nearest[tool.kind] ?? [];
         if (!rows.length) return null;
-        return <NearestSection key={tool.kind} kind={tool.kind} title={tool.label} rows={rows} />;
+        return (
+          <section key={tool.kind} className={styles.section}>
+            <SectionHead
+              title={tool.label}
+              refreshLabel={`Refresh ${tool.label.toLowerCase()}`}
+              refreshing={loadingTool === tool.kind}
+              onRefresh={!readOnly && hasKey ? () => runNearest(tool.kind, true) : undefined}
+            />
+            <ul className={styles.cardList}>
+              {rows.map((row: NearestPlaceRow) => (
+                <li key={row.id} className={styles.placeCard}>
+                  <div className={styles.placeCardTop}>
+                    <span className={styles.placeName}>{row.name}</span>
+                    <PlaceLinks name={row.name} address={row.address} mapsUrl={row.mapsUrl} reviewsUrl={row.reviewsUrl} />
+                  </div>
+                  {row.note ? <p className={styles.placeDesc}>{row.note}</p> : null}
+                  {row.address ? <p className={styles.placeWhy}>{row.address}</p> : null}
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
       })}
 
       {data.practicalTips.trim() ? (

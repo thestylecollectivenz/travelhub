@@ -21,13 +21,36 @@ export type LocationInfoQaEntry = {
   createdAt: string;
 };
 
-export type NearestPlaceKind = 'pharmacy' | 'grocery' | 'petrol' | 'atm' | 'hospital';
+export type NearestPlaceKind = 'pharmacy' | 'grocery' | 'fuel' | 'atm' | 'medical';
+
+const LEGACY_NEAREST_KIND: Record<string, NearestPlaceKind> = {
+  petrol: 'fuel',
+  hospital: 'medical'
+};
+
+export function normalizeNearestPlaceKind(kind: string): NearestPlaceKind | undefined {
+  const k = (kind || '').trim();
+  if (k === 'pharmacy' || k === 'grocery' || k === 'fuel' || k === 'atm' || k === 'medical') return k;
+  return LEGACY_NEAREST_KIND[k];
+}
 
 export type NearestPlaceRow = {
   id: string;
   name: string;
   note?: string;
+  address?: string;
   mapsUrl?: string;
+  reviewsUrl?: string;
+};
+
+export type DiningSuggestionRow = {
+  id: string;
+  name: string;
+  description?: string;
+  why?: string;
+  mapsUrl?: string;
+  reviewsUrl?: string;
+  done?: boolean;
 };
 
 export type LocationInfoNotes = {
@@ -41,7 +64,7 @@ export type LocationInfoNotes = {
   drinkItems?: LocationInfoCheckItem[];
   souvenirItems?: LocationInfoCheckItem[];
   /** Restaurant and café suggestions (AI or manual). */
-  diningSuggestions?: LocationInfoCheckItem[];
+  diningSuggestions?: DiningSuggestionRow[];
   /** Nearest practical places keyed by category. */
   nearestPlaces?: Partial<Record<NearestPlaceKind, NearestPlaceRow[]>>;
   aiSightsPlaceholder?: string;
@@ -67,6 +90,54 @@ export type LocationInfoAIResult = {
 };
 
 export type LocationInfoMergeSection = 'sights' | 'food' | 'drink' | 'souvenirs';
+
+function migrateNearestPlaces(
+  raw?: Partial<Record<string, NearestPlaceRow[]>>
+): Partial<Record<NearestPlaceKind, NearestPlaceRow[]>> {
+  const out: Partial<Record<NearestPlaceKind, NearestPlaceRow[]>> = {};
+  if (!raw) return out;
+  const keys = Object.keys(raw);
+  for (let i = 0; i < keys.length; i++) {
+    const nk = normalizeNearestPlaceKind(keys[i]);
+    if (!nk) continue;
+    const rows = raw[keys[i]] ?? [];
+    if (!out[nk]?.length) out[nk] = rows;
+    else out[nk] = [...(out[nk] ?? []), ...rows];
+  }
+  return out;
+}
+
+function migrateDiningSuggestions(raw?: DiningSuggestionRow[] | LocationInfoCheckItem[]): DiningSuggestionRow[] {
+  if (!raw?.length) return [];
+  const out: DiningSuggestionRow[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const row = raw[i] as DiningSuggestionRow & LocationInfoCheckItem;
+    if ((row.name || '').trim()) {
+      out.push({
+        id: row.id || `dining-${i}`,
+        name: row.name.trim(),
+        description: row.description?.trim() || undefined,
+        why: row.why?.trim() || undefined,
+        mapsUrl: row.mapsUrl?.trim() || undefined,
+        reviewsUrl: row.reviewsUrl?.trim() || undefined,
+        done: Boolean(row.done)
+      });
+      continue;
+    }
+    const label = (row.label || '').trim();
+    if (!label) continue;
+    const dash = label.indexOf(' — ');
+    const name = dash >= 0 ? label.slice(0, dash).trim() : label;
+    const why = dash >= 0 ? label.slice(dash + 3).trim() : undefined;
+    out.push({
+      id: row.id || `dining-${i}`,
+      name,
+      why,
+      done: Boolean(row.done)
+    });
+  }
+  return out;
+}
 
 function labelKey(label: string): string {
   return (label || '').trim().toLowerCase();
@@ -340,8 +411,8 @@ export function normalizeLocationInfoNotes(data: LocationInfoNotes): LocationInf
     souvenirItems,
     iconicSights: checkItemsToText(iconicSightsItems),
     foodDrink: checkItemsToText(foodDrinkItems),
-    diningSuggestions: data.diningSuggestions ?? [],
-    nearestPlaces: data.nearestPlaces ?? {},
+    diningSuggestions: migrateDiningSuggestions(data.diningSuggestions as DiningSuggestionRow[] | LocationInfoCheckItem[] | undefined),
+    nearestPlaces: migrateNearestPlaces(data.nearestPlaces as Partial<Record<string, NearestPlaceRow[]>> | undefined),
     aiQaThread: data.aiQaThread ?? []
   };
 }

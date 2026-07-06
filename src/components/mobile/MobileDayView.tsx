@@ -9,6 +9,9 @@ import {
 } from '../../utils/plannerCalendarItems';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { getCategorySlug } from '../../utils/categoryUtils';
+import { DayLocationInfoStrip } from '../itinerary/DayLocationInfoStrip';
+import { LocationInfoSlidePanel } from '../itinerary/LocationInfoSlidePanel';
+import { locationInfoEntriesForDay } from '../../utils/locationInfoDayResolve';
 import { MobileCardDetail } from './MobileCardDetail';
 import styles from './MobileShell.module.css';
 
@@ -33,6 +36,7 @@ function formatPlannerMinutes(minutes: number): string {
 export const MobileDayView: React.FC = () => {
   const { trip, tripDays, localEntries, selectedDayId, setSelectedDayId } = useTripWorkspace();
   const [detailEntryId, setDetailEntryId] = React.useState<string | null>(null);
+  const [locationPanelEntryId, setLocationPanelEntryId] = React.useState<string | null>(null);
   const [unschedOpen, setUnschedOpen] = React.useState(false);
 
   const days = React.useMemo(
@@ -76,6 +80,13 @@ export const MobileDayView: React.FC = () => {
   }, [day, dayEntries, tripDays, localEntries]);
 
   const detailEntry = detailEntryId ? localEntries.find((e) => e.id === detailEntryId) : undefined;
+  const dayLocationEntries = React.useMemo(() => {
+    if (!day || !trip) return [];
+    return locationInfoEntriesForDay(day, localEntries, trip.id);
+  }, [day, localEntries, trip]);
+  const locationPanelEntry = locationPanelEntryId
+    ? localEntries.find((e) => e.id === locationPanelEntryId) ?? null
+    : null;
 
   const jumpToDate = (ymd: string): void => {
     const match = days.find((d) => (d.calendarDate || '').slice(0, 10) === ymd);
@@ -138,6 +149,19 @@ export const MobileDayView: React.FC = () => {
           →
         </button>
       </div>
+
+      {dayLocationEntries.length ? (
+        <DayLocationInfoStrip
+          entries={dayLocationEntries}
+          activeEntryId={locationPanelEntryId}
+          onSelect={setLocationPanelEntryId}
+        />
+      ) : null}
+      <LocationInfoSlidePanel
+        entry={locationPanelEntry}
+        calendarDate={day.calendarDate || ''}
+        onClose={() => setLocationPanelEntryId(null)}
+      />
 
       {unscheduled.length > 0 ? (
         <section className={styles.unschedSection}>

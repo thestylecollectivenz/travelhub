@@ -70,6 +70,109 @@
   gap: var(--space-2);
 }
 
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.refreshBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: var(--border-default);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-teal-700, #0f766e);
+  cursor: pointer;
+  padding: 0;
+}
+
+.refreshBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.refreshBtnLoading {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.cardList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.placeCard {
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  padding: var(--space-2);
+}
+
+.placeCardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.placeName {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-sand-900);
+  font-size: var(--font-size-sm);
+}
+
+.placeDesc,
+.placeWhy {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-700);
+  line-height: 1.45;
+}
+
+.placeWhy {
+  font-style: italic;
+}
+
+.placeLinks {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.placeLinkIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: var(--radius-full);
+  border: var(--border-default);
+  color: var(--color-primary);
+  background: var(--color-surface-raised);
+  text-decoration: none;
+}
+
+.placeLinkIcon:hover {
+  border-color: var(--color-teal-400, #2dd4bf);
+}
+
+.checkLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  flex: 1;
+  cursor: pointer;
+}
+
 .heading {
   margin: 0;
   font-size: var(--font-size-xs);
