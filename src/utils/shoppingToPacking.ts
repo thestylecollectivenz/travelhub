@@ -22,7 +22,7 @@ export async function offerAddPurchasedShoppingToPacking(
 
   const packing = new PackingService(ctx);
   const ownerEmail =
-    (item.ownerEmail || '').trim() || resolveOwnerEmailForAssignee(ctx, traveller, members);
+    (item.ownerEmail || '').trim() || resolveOwnerEmailForAssignee(ctx, traveller, members ?? []);
   await packing.create({
     tripId,
     category: (item.category || '').trim() || 'Other',
