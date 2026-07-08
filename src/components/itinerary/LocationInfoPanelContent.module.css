@@ -202,6 +202,27 @@
   color: var(--color-amber-700);
 }
 
+.itemActions {
+  margin-top: var(--space-1);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.itemIconBtn {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: var(--border-default);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-sand-700);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
 .placeWhy {
   font-style: italic;
 }

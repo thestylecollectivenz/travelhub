@@ -19,6 +19,20 @@ import {
   locationInfoIsPopulated
 } from './locationInfoEntry';
 
+async function loadLatestNotes(
+  spContext: WebPartContext,
+  entry: ItineraryEntry,
+  fallback: LocationInfoNotes
+): Promise<LocationInfoNotes> {
+  const svc = new ItineraryService(spContext);
+  try {
+    const latest = await svc.getById(entry.id);
+    return parseLocationInfoNotes(latest.notes) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function applyLocationInfoAIResult(options: {
   spContext: WebPartContext;
   entry: ItineraryEntry;
@@ -101,10 +115,11 @@ export function scheduleLocationInfoAIGeneration(options: ScheduleLocationInfoAI
 
   void (async () => {
     try {
+      const latest = await loadLatestNotes(spContext, entry, parsed);
       await applyLocationInfoAIResult({
         spContext,
         entry,
-        existing: parsed,
+        existing: latest,
         apiKey: key,
         place,
         section
@@ -149,10 +164,11 @@ export function scheduleLocationInfoQuestion(options: {
 
   void (async () => {
     try {
+      const latest = await loadLatestNotes(spContext, entry, parsed);
       await applyLocationInfoQuestion({
         spContext,
         entry,
-        existing: parsed,
+        existing: latest,
         apiKey: key,
         place,
         question: q
@@ -185,13 +201,14 @@ export function scheduleLocationInfoDining(options: {
   emitLocationInfoAIStatus({ entryId: entry.id, loading: true, section: 'dining' });
   void (async () => {
     try {
+      const latest = await loadLatestNotes(spContext, entry, parsed);
       const searchContext = await resolveLocationSearchContext(place);
       if (!searchContext) throw new Error('Could not resolve location for dining search.');
       const { items, model } = await generateDiningSuggestions({
         apiKey: key,
         searchContext
       });
-      const existing = replaceExisting ? [] : (parsed.diningSuggestions ?? []);
+      const existing = replaceExisting ? [] : (latest.diningSuggestions ?? []);
       const existingKeys = new Set(existing.map((x) => x.name.trim().toLowerCase()));
       const mergedItems = [...existing];
       for (let i = 0; i < items.length; i++) {
@@ -202,7 +219,7 @@ export function scheduleLocationInfoDining(options: {
         existingKeys.add(lk);
       }
       const next = normalizeLocationInfoNotes({
-        ...parsed,
+        ...latest,
         diningSuggestions: replaceExisting ? items : mergedItems,
         aiModel: model,
         aiError: ''
@@ -238,15 +255,16 @@ export function scheduleLocationInfoNearest(options: {
   emitLocationInfoAIStatus({ entryId: entry.id, loading: true, section: kind });
   void (async () => {
     try {
+      const latest = await loadLatestNotes(spContext, entry, parsed);
       const searchContext = await resolveLocationSearchContext(place);
       if (!searchContext) throw new Error('Could not resolve location for nearest search.');
       const { places, model } = await generateNearestPlaces(kind, {
         apiKey: key,
         searchContext
       });
-      const nearestPlaces = { ...(parsed.nearestPlaces ?? {}), [kind]: places };
+      const nearestPlaces = { ...(latest.nearestPlaces ?? {}), [kind]: places };
       const next = normalizeLocationInfoNotes({
-        ...parsed,
+        ...latest,
         nearestPlaces,
         aiModel: model,
         aiError: ''

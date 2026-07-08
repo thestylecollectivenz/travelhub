@@ -141,6 +141,8 @@ export const AiAssistantFab: React.FC = () => {
   const [messages, setMessages] = React.useState<Array<{ role: 'user' | 'assistant'; text: string }>>([]);
   const [copyState, setCopyState] = React.useState<'idle' | 'copied' | 'error'>('idle');
   const [dayScope, setDayScope] = React.useState<'day' | 'general'>('day');
+  const [voiceListening, setVoiceListening] = React.useState(false);
+  const [autoReadAnswers, setAutoReadAnswers] = React.useState(false);
   const [fabPos, setFabPos] = React.useState<FabPosition>(() => loadFabPosition());
   const [panelSize, setPanelSize] = React.useState<PanelSize>(() => loadPanelSize());
   const dragRef = React.useRef<{
@@ -293,6 +295,44 @@ export const AiAssistantFab: React.FC = () => {
       setBusy(false);
     }
   };
+
+  const speakText = React.useCallback((text: string): void => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    const t = (text || '').trim();
+    if (!t) return;
+    const u = new SpeechSynthesisUtterance(t);
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+  }, []);
+
+  const startVoiceInput = (): void => {
+    if (typeof window === 'undefined') return;
+    const Ctor = (window as Window & { SpeechRecognition?: any; webkitSpeechRecognition?: any }).SpeechRecognition
+      || (window as Window & { SpeechRecognition?: any; webkitSpeechRecognition?: any }).webkitSpeechRecognition;
+    if (!Ctor) {
+      setError('Voice input is not supported in this browser.');
+      return;
+    }
+    const recognition = new Ctor();
+    recognition.lang = 'en-NZ';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    setVoiceListening(true);
+    recognition.onresult = (event: SpeechRecognitionEvent): void => {
+      const transcript = event.results?.[0]?.[0]?.transcript?.trim() || '';
+      if (transcript) setInput((prev) => `${prev}${prev ? '\n' : ''}${transcript}`);
+    };
+    recognition.onerror = (): void => setError('Could not capture voice input.');
+    recognition.onend = (): void => setVoiceListening(false);
+    recognition.start();
+  };
+
+  React.useEffect(() => {
+    if (!autoReadAnswers) return;
+    const latest = latestAssistantIndex >= 0 ? messages[latestAssistantIndex] : undefined;
+    if (!latest?.text?.trim()) return;
+    speakText(latest.text);
+  }, [autoReadAnswers, latestAssistantIndex, messages, speakText]);
 
   const onFabPointerDown = (e: React.PointerEvent<HTMLButtonElement>): void => {
     if (e.button !== 0) return;
@@ -510,6 +550,14 @@ export const AiAssistantFab: React.FC = () => {
                     <button
                       type="button"
                       className={styles.copyBtn}
+                      onClick={() => speakText(m.text)}
+                      aria-label="Read latest response aloud"
+                    >
+                      Read out
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.copyBtn}
                       onClick={copyLatestResponse}
                       aria-label="Copy latest response"
                     >
@@ -530,6 +578,15 @@ export const AiAssistantFab: React.FC = () => {
               rows={3}
               placeholder={isTasksView ? 'What do I need to do today?' : 'Ask about this trip…'}
             />
+            <div className={styles.composeTools}>
+              <button type="button" className={styles.voiceBtn} onClick={startVoiceInput} disabled={busy}>
+                {voiceListening ? 'Listening…' : 'Voice'}
+              </button>
+              <label className={styles.voiceToggle}>
+                <input type="checkbox" checked={autoReadAnswers} onChange={(e) => setAutoReadAnswers(e.target.checked)} />
+                Auto-read
+              </label>
+            </div>
             <button
               type="button"
               className={styles.sendBtn}

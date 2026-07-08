@@ -23,9 +23,12 @@ import { subscribeLocationInfoAIStatus } from '../../utils/locationInfoAIEvents'
 import { scheduleLocationInfoDining, scheduleLocationInfoNearest } from '../../utils/locationInfoGeneration';
 import {
   googleReviewsSearchUrl,
+  placeWebsiteSearchUrl,
   placeQueryDirectionsUrl,
   placeQueryMapsUrl
 } from '../../utils/googleMapsLink';
+import { generateDiningSuggestions, generateNearestPlaces } from '../../services/GeminiService';
+import { resolveLocationSearchContext } from '../../utils/locationGeoContext';
 import { RichTextContent } from '../shared/RichTextContent';
 import { LocationInfoAskPanel } from './LocationInfoAskPanel';
 import { LocationInfoHighlights } from './LocationInfoHighlights';
@@ -143,11 +146,12 @@ const NEAREST_TOOLS: Array<{ kind: NearestPlaceKind; label: string; icon: React.
   { kind: 'medical', label: 'Nearest medical', icon: <MedicalIcon /> }
 ];
 
-function PlaceLinks(props: { name: string; address?: string; mapsUrl?: string; reviewsUrl?: string }): React.ReactElement {
-  const { name, address, mapsUrl, reviewsUrl } = props;
+function PlaceLinks(props: { name: string; address?: string; mapsUrl?: string; reviewsUrl?: string; websiteUrl?: string }): React.ReactElement {
+  const { name, address, mapsUrl, reviewsUrl, websiteUrl } = props;
   const mapHref = mapsUrl || placeQueryMapsUrl(name, address);
   const routeHref = placeQueryDirectionsUrl(name, address);
   const reviewsHref = reviewsUrl || googleReviewsSearchUrl([name, address].filter(Boolean).join(' '));
+  const siteHref = websiteUrl || placeWebsiteSearchUrl(name, address);
   return (
     <div className={styles.placeLinks}>
       {mapHref ? (
@@ -170,6 +174,11 @@ function PlaceLinks(props: { name: string; address?: string; mapsUrl?: string; r
           <svg width={14} height={14} viewBox="0 0 24 24" fill="none" aria-hidden>
             <path d="M12 3l2.4 4.8L20 9l-4 3.9.9 5.6L12 16.2 7.1 18.5 8 12.9 4 9l5.6-1.2L12 3Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
           </svg>
+        </a>
+      ) : null}
+      {siteHref ? (
+        <a className={styles.placeLinkIcon} href={siteHref} target="_blank" rel="noopener noreferrer" title="Website">
+          <LinkIcon />
         </a>
       ) : null}
     </div>
@@ -343,6 +352,68 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
   const dining = data.diningSuggestions ?? [];
   const nearest = data.nearestPlaces ?? {};
   const toggleSection = (key: SectionKey): void => setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
+  const normalizeDistanceOnly = (text?: string): string | undefined => {
+    const raw = (text || '').trim();
+    if (!raw) return undefined;
+    const m = raw.match(/(\d+(?:\.\d+)?)\s*(km|m)\b/i);
+    if (!m) return raw;
+    return `${m[1]}${m[2].toLowerCase()}`;
+  };
+  const displayNearestNote = (kind: NearestPlaceKind, note?: string): string | undefined => {
+    if (kind !== 'grocery') return note;
+    return normalizeDistanceOnly(note);
+  };
+
+  const refreshDiningItem = async (itemId: string): Promise<void> => {
+    if (!place || !hasKey || readOnly) return;
+    setLoadingTool('dining');
+    setToolError(undefined);
+    try {
+      const ctx = await resolveLocationSearchContext(place);
+      if (!ctx) throw new Error('Could not resolve location for dining refresh.');
+      const existing = data.diningSuggestions ?? [];
+      const target = existing.find((x) => x.id === itemId);
+      if (!target) return;
+      const { items } = await generateDiningSuggestions({ apiKey: config.geminiApiKey, searchContext: ctx });
+      const candidate = items.find((x) => x.name.trim().toLowerCase() !== target.name.trim().toLowerCase()) ?? items[0];
+      if (!candidate) return;
+      persist({
+        ...data,
+        diningSuggestions: existing.map((x) => (x.id === itemId ? { ...candidate, id: itemId, done: x.done } : x))
+      });
+    } catch (err) {
+      setToolError(err instanceof Error ? err.message : 'Could not refresh this dining suggestion.');
+    } finally {
+      setLoadingTool(null);
+    }
+  };
+
+  const refreshNearestItem = async (kind: NearestPlaceKind, itemId: string): Promise<void> => {
+    if (!place || !hasKey || readOnly) return;
+    setLoadingTool(kind);
+    setToolError(undefined);
+    try {
+      const ctx = await resolveLocationSearchContext(place);
+      if (!ctx) throw new Error('Could not resolve location for nearest refresh.');
+      const rows = nearest[kind] ?? [];
+      const target = rows.find((x) => x.id === itemId);
+      if (!target) return;
+      const { places } = await generateNearestPlaces(kind, { apiKey: config.geminiApiKey, searchContext: ctx });
+      const candidate = places.find((x) => x.name.trim().toLowerCase() !== target.name.trim().toLowerCase()) ?? places[0];
+      if (!candidate) return;
+      persist({
+        ...data,
+        nearestPlaces: {
+          ...nearest,
+          [kind]: rows.map((x) => (x.id === itemId ? { ...candidate, id: itemId } : x))
+        }
+      });
+    } catch (err) {
+      setToolError(err instanceof Error ? err.message : 'Could not refresh this nearest place.');
+    } finally {
+      setLoadingTool(null);
+    }
+  };
 
   return (
     <div className={styles.root}>
@@ -465,7 +536,7 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
                       />
                       <span className={`${styles.placeName} ${row.done ? styles.labelDone : ''}`}>{row.name}</span>
                     </label>
-                    <PlaceLinks name={row.name} mapsUrl={row.mapsUrl} reviewsUrl={row.reviewsUrl} />
+                    <PlaceLinks name={row.name} mapsUrl={row.mapsUrl} reviewsUrl={row.reviewsUrl} websiteUrl={row.websiteUrl} />
                   </div>
                   <div className={styles.placeMetaRow}>
                     {row.priceLevel ? <span className={styles.chip}>{row.priceLevel}</span> : null}
@@ -479,11 +550,24 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
                   {row.description ? <p className={styles.placeDesc}>{row.description}</p> : null}
                   {row.why ? <p className={styles.placeWhy}>{row.why}</p> : null}
                   {row.bestFor ? <p className={styles.placeBestFor}>Best for: {row.bestFor}</p> : null}
-                  {row.websiteUrl ? (
-                    <div className={styles.placeMetaRow}>
-                      <a className={styles.placeLinkIcon} href={row.websiteUrl} target="_blank" rel="noopener noreferrer" title="Official website">
-                        <LinkIcon />
-                      </a>
+                  {!readOnly ? (
+                    <div className={styles.itemActions}>
+                      <button type="button" className={styles.itemIconBtn} title="Refresh this suggestion" onClick={() => void refreshDiningItem(row.id)}>
+                        <RefreshIcon />
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.itemIconBtn}
+                        title="Delete this suggestion"
+                        onClick={() =>
+                          persist({
+                            ...data,
+                            diningSuggestions: dining.filter((x) => x.id !== row.id)
+                          })
+                        }
+                      >
+                        ×
+                      </button>
                     </div>
                   ) : null}
                 </li>
@@ -516,16 +600,32 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
                   <li key={row.id} className={styles.placeCard}>
                     <div className={styles.placeCardTop}>
                       <span className={styles.placeName}>{row.name}</span>
-                      <PlaceLinks name={row.name} address={row.address} mapsUrl={row.mapsUrl} reviewsUrl={row.reviewsUrl} />
+                      <PlaceLinks name={row.name} address={row.address} mapsUrl={row.mapsUrl} reviewsUrl={row.reviewsUrl} websiteUrl={row.websiteUrl} />
                     </div>
-                    {row.note ? <p className={styles.placeDesc}>{row.note}</p> : null}
+                    {displayNearestNote(tool.kind, row.note) ? <p className={styles.placeDesc}>{displayNearestNote(tool.kind, row.note)}</p> : null}
                     {row.servicesSummary ? <p className={styles.placeBestFor}>Services: {row.servicesSummary}</p> : null}
                     {row.address ? <p className={styles.placeWhy}>{row.address}</p> : null}
-                    {row.websiteUrl ? (
-                      <div className={styles.placeMetaRow}>
-                        <a className={styles.placeLinkIcon} href={row.websiteUrl} target="_blank" rel="noopener noreferrer" title="Official website">
-                          <LinkIcon />
-                        </a>
+                    {!readOnly ? (
+                      <div className={styles.itemActions}>
+                        <button type="button" className={styles.itemIconBtn} title="Refresh this place" onClick={() => void refreshNearestItem(tool.kind, row.id)}>
+                          <RefreshIcon />
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.itemIconBtn}
+                          title="Delete this place"
+                          onClick={() =>
+                            persist({
+                              ...data,
+                              nearestPlaces: {
+                                ...nearest,
+                                [tool.kind]: rows.filter((x) => x.id !== row.id)
+                              }
+                            })
+                          }
+                        >
+                          ×
+                        </button>
                       </div>
                     ) : null}
                   </li>

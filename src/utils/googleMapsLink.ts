@@ -34,6 +34,13 @@ export function placeQueryDirectionsUrl(name: string, address?: string): string 
   return googleMapsDirectionsUrl(q);
 }
 
+/** Best-effort official site lookup for a venue/service. */
+export function placeWebsiteSearchUrl(name: string, address?: string): string | undefined {
+  const q = [name.trim(), (address || '').trim(), 'official site'].filter(Boolean).join(' ');
+  if (!q) return undefined;
+  return `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+}
+
 /** Best text query for maps: street address first, then location / transport endpoints. */
 export function entryMapsQuery(
   entry: Pick<ItineraryEntry, 'streetAddress' | 'location' | 'transportFrom' | 'transportTo' | 'category'>
