@@ -70,11 +70,38 @@
   gap: var(--space-2);
 }
 
+.sectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 .sectionHead {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
+}
+
+.sectionHeadMain {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.collapseBtn {
+  border: none;
+  background: none;
+  color: var(--color-sand-600);
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  padding: 0;
+}
+
+.sectionActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .refreshBtn {
@@ -89,6 +116,16 @@
   color: var(--color-teal-700, #0f766e);
   cursor: pointer;
   padding: 0;
+}
+
+.clearBtn {
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-sand-700);
+  font-size: 10px;
+  padding: 0.1rem 0.45rem;
+  cursor: pointer;
 }
 
 .refreshBtn:disabled {
@@ -135,6 +172,34 @@
   font-size: var(--font-size-xs);
   color: var(--color-sand-700);
   line-height: 1.45;
+}
+
+.placeBestFor {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-blue-800);
+}
+
+.placeMetaRow {
+  margin-top: var(--space-1);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.chip {
+  border: var(--border-default);
+  border-radius: var(--radius-full);
+  padding: 0.1rem 0.45rem;
+  font-size: 10px;
+  color: var(--color-sand-700);
+  background: var(--color-surface-raised);
+}
+
+.ratingValue {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-amber-700);
 }
 
 .placeWhy {

@@ -191,8 +191,10 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
   const [editNote, setEditNote] = React.useState('');
   const [editAssignedTo, setEditAssignedTo] = React.useState('');
   const [editTaskCategory, setEditTaskCategory] = React.useState('Other');
+  const [editCustomTaskCategory, setEditCustomTaskCategory] = React.useState('');
   const [createAssignedTo, setCreateAssignedTo] = React.useState('');
   const [createTaskCategory, setCreateTaskCategory] = React.useState('Other');
+  const [createCustomTaskCategory, setCreateCustomTaskCategory] = React.useState('');
   const [dueDateSort, setDueDateSort] = React.useState<DueDateSort>('none');
   const [taskDueFilter, setTaskDueFilter] = React.useState<TaskDueFilter>('all');
   const [bookingDueFilter, setBookingDueFilter] = React.useState<TaskDueFilter>('all');
@@ -234,6 +236,28 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
     }
     return out.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
   }, [trip?.id, manual, members]);
+
+  const taskCategoryOptions = React.useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const c of CATEGORY_LIST) {
+      const t = (c || '').trim();
+      if (!t) continue;
+      const k = t.toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(t);
+    }
+    for (const m of manual) {
+      const t = (m.taskCategory || '').trim();
+      if (!t) continue;
+      const k = t.toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(t);
+    }
+    return out.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  }, [manual]);
 
   React.useEffect(() => {
     if (!planView) return;
@@ -483,8 +507,16 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
     setEditDueDate(m.dueDate ? m.dueDate.slice(0, 10) : '');
     setEditNote((m.taskNote || '').trim());
     setEditAssignedTo((m.assignedTo || '').trim());
-    setEditTaskCategory(reminderTaskCategory(m) || 'Other');
-  }, [canEditManualTask]);
+    const category = reminderTaskCategory(m) || 'Other';
+    const known = taskCategoryOptions.some((x) => x.toLowerCase() === category.toLowerCase());
+    if (known) {
+      setEditTaskCategory(category);
+      setEditCustomTaskCategory('');
+    } else {
+      setEditTaskCategory('__custom__');
+      setEditCustomTaskCategory(category);
+    }
+  }, [canEditManualTask, taskCategoryOptions]);
 
   const saveEditReminder = React.useCallback(
     (m: TripReminder): void => {
@@ -503,7 +535,8 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
           title,
           reminderText: trimmed,
           taskNote: editNote.trim(),
-          taskCategory: editTaskCategory,
+          taskCategory:
+            editTaskCategory === '__custom__' ? (editCustomTaskCategory.trim() || 'Other') : editTaskCategory,
           assignedTo: editAssignedTo.trim() || undefined,
           dueDate: editDueDate ? `${editDueDate}T00:00:00.000Z` : undefined
         })
@@ -514,7 +547,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
         })
         .catch(console.error);
     },
-    [editDueDate, editNote, editTitle, editTaskCategory, editAssignedTo, refresh, svc, trip?.id]
+    [editDueDate, editNote, editTitle, editTaskCategory, editCustomTaskCategory, editAssignedTo, refresh, svc, trip?.id]
   );
 
   const renderTaskNote = (note: string | undefined, titleForDedup: string): React.ReactNode => {
@@ -755,7 +788,17 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                       {c}
                     </option>
                   ))}
+                  <option value="__custom__">Custom…</option>
                 </select>
+                {createTaskCategory === '__custom__' ? (
+                  <input
+                    className={styles.input}
+                    placeholder="Custom task type"
+                    value={createCustomTaskCategory}
+                    onChange={(e) => setCreateCustomTaskCategory(e.target.value)}
+                    aria-label="Custom task type"
+                  />
+                ) : null}
               ) : null}
               <input
                 className={styles.input}
@@ -789,7 +832,12 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                       tripId: trip.id,
                       reminderType: createKind === 'task' ? 'Manual' : 'Custom',
                       reminderText: trimmed,
-                      taskCategory: createKind === 'task' ? createTaskCategory : undefined,
+                      taskCategory:
+                        createKind === 'task'
+                          ? createTaskCategory === '__custom__'
+                            ? (createCustomTaskCategory.trim() || 'Other')
+                            : createTaskCategory
+                          : undefined,
                       assignedTo: createAssignedTo.trim() || undefined,
                       isComplete: false,
                       dueDate: dueDate ? `${dueDate}T00:00:00.000Z` : undefined,
@@ -801,6 +849,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                       setText('');
                       setDueDate('');
                       setCreateAssignedTo('');
+                      setCreateCustomTaskCategory('');
                       refresh();
                     })
                     .catch(console.error);
@@ -864,12 +913,23 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                             onChange={(e) => setEditTaskCategory(e.target.value)}
                             aria-label="Category"
                           >
-                            {CATEGORY_LIST.map((c) => (
+                            {taskCategoryOptions.map((c) => (
                               <option key={c} value={c}>
                                 {c}
                               </option>
                             ))}
+                            <option value="__custom__">Custom…</option>
                           </select>
+                        ) : null}
+                        {(m.reminderType === 'Manual' || m.reminderType === 'ManualEntryTask') &&
+                        editTaskCategory === '__custom__' ? (
+                          <input
+                            className={styles.input}
+                            placeholder="Custom task type"
+                            value={editCustomTaskCategory}
+                            onChange={(e) => setEditCustomTaskCategory(e.target.value)}
+                            aria-label="Custom task type"
+                          />
                         ) : null}
                         <input
                           className={styles.input}

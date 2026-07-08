@@ -31,6 +31,18 @@ import { LocationInfoAskPanel } from './LocationInfoAskPanel';
 import { LocationInfoHighlights } from './LocationInfoHighlights';
 import styles from './LocationInfoPanelContent.module.css';
 
+type SectionKey =
+  | 'overview'
+  | 'highlights'
+  | 'dining'
+  | 'pharmacy'
+  | 'grocery'
+  | 'fuel'
+  | 'atm'
+  | 'medical'
+  | 'tips'
+  | 'qa';
+
 function PinIcon(): React.ReactElement {
   return (
     <svg width={14} height={14} viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -115,6 +127,14 @@ function RefreshIcon(): React.ReactElement {
   );
 }
 
+function LinkIcon(): React.ReactElement {
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M10 14 14 10M7 17l-2 2a3 3 0 1 1-4-4l2-2M17 7l2-2a3 3 0 1 1 4 4l-2 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 const NEAREST_TOOLS: Array<{ kind: NearestPlaceKind; label: string; icon: React.ReactElement }> = [
   { kind: 'pharmacy', label: 'Nearest pharmacy', icon: <PharmacyIcon /> },
   { kind: 'grocery', label: 'Nearest grocery', icon: <GroceryIcon /> },
@@ -157,27 +177,43 @@ function PlaceLinks(props: { name: string; address?: string; mapsUrl?: string; r
 }
 
 function SectionHead(props: {
+  sectionKey: SectionKey;
+  collapsed: boolean;
+  onToggle: (key: SectionKey) => void;
   title: string;
   onRefresh?: () => void;
+  onClear?: () => void;
   refreshing?: boolean;
   refreshLabel?: string;
 }): React.ReactElement {
-  const { title, onRefresh, refreshing, refreshLabel } = props;
+  const { sectionKey, collapsed, onToggle, title, onRefresh, onClear, refreshing, refreshLabel } = props;
   return (
     <div className={styles.sectionHead}>
-      <h4 className={styles.heading}>{title}</h4>
-      {onRefresh ? (
-        <button
-          type="button"
-          className={`${styles.refreshBtn} ${refreshing ? styles.refreshBtnLoading : ''}`}
-          title={refreshLabel || 'Refresh'}
-          aria-label={refreshLabel || 'Refresh'}
-          disabled={refreshing}
-          onClick={onRefresh}
-        >
-          <RefreshIcon />
+      <div className={styles.sectionHeadMain}>
+        <button type="button" className={styles.collapseBtn} onClick={() => onToggle(sectionKey)} aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}>
+          {collapsed ? '▸' : '▾'}
         </button>
-      ) : null}
+        <h4 className={styles.heading}>{title}</h4>
+      </div>
+      <div className={styles.sectionActions}>
+        {onClear ? (
+          <button type="button" className={styles.clearBtn} title={`Clear ${title.toLowerCase()}`} aria-label={`Clear ${title.toLowerCase()}`} onClick={onClear}>
+            Clear
+          </button>
+        ) : null}
+        {onRefresh ? (
+          <button
+            type="button"
+            className={`${styles.refreshBtn} ${refreshing ? styles.refreshBtnLoading : ''}`}
+            title={refreshLabel || 'Refresh'}
+            aria-label={refreshLabel || 'Refresh'}
+            disabled={refreshing}
+            onClick={onRefresh}
+          >
+            <RefreshIcon />
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -197,6 +233,19 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
   const highlightRowsRef = React.useRef(data ? locationHighlightRows(data) : []);
   const [loadingTool, setLoadingTool] = React.useState<string | null>(null);
   const [toolError, setToolError] = React.useState<string | undefined>();
+  const [voiceListening, setVoiceListening] = React.useState(false);
+  const [collapsed, setCollapsed] = React.useState<Record<SectionKey, boolean>>({
+    overview: false,
+    highlights: false,
+    dining: false,
+    pharmacy: false,
+    grocery: false,
+    fuel: false,
+    atm: false,
+    medical: false,
+    tips: false,
+    qa: false
+  });
 
   const hasKey = Boolean((config.geminiApiKey || '').trim());
 
@@ -233,8 +282,67 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
     scheduleLocationInfoNearest({ spContext, entry, place, apiKey: config.geminiApiKey, kind, replaceExisting });
   };
 
+  const runVoiceCommand = (): void => {
+    if (typeof window === 'undefined') return;
+    const Ctor = (window as Window & { SpeechRecognition?: any; webkitSpeechRecognition?: any }).SpeechRecognition
+      || (window as Window & { SpeechRecognition?: any; webkitSpeechRecognition?: any }).webkitSpeechRecognition;
+    if (!Ctor) {
+      setToolError('Voice commands are not supported in this browser.');
+      return;
+    }
+    const recognition = new Ctor();
+    recognition.lang = 'en-NZ';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    setVoiceListening(true);
+    recognition.onresult = (event: SpeechRecognitionEvent): void => {
+      const text = event.results?.[0]?.[0]?.transcript?.toLowerCase().trim() || '';
+      if (!text) return;
+      if (text.includes('dining')) {
+        runDining(text.includes('refresh') || text.includes('regenerate'));
+        return;
+      }
+      if (text.includes('pharmacy')) {
+        if (text.includes('clear')) persist({ ...data, nearestPlaces: { ...nearest, pharmacy: [] } });
+        else runNearest('pharmacy', text.includes('refresh') || text.includes('regenerate'));
+        return;
+      }
+      if (text.includes('grocery')) {
+        if (text.includes('clear')) persist({ ...data, nearestPlaces: { ...nearest, grocery: [] } });
+        else runNearest('grocery', text.includes('refresh') || text.includes('regenerate'));
+        return;
+      }
+      if (text.includes('fuel')) {
+        if (text.includes('clear')) persist({ ...data, nearestPlaces: { ...nearest, fuel: [] } });
+        else runNearest('fuel', text.includes('refresh') || text.includes('regenerate'));
+        return;
+      }
+      if (text.includes('atm')) {
+        if (text.includes('clear')) persist({ ...data, nearestPlaces: { ...nearest, atm: [] } });
+        else runNearest('atm', text.includes('refresh') || text.includes('regenerate'));
+        return;
+      }
+      if (text.includes('medical')) {
+        if (text.includes('clear')) persist({ ...data, nearestPlaces: { ...nearest, medical: [] } });
+        else runNearest('medical', text.includes('refresh') || text.includes('regenerate'));
+        return;
+      }
+      if (text.includes('clear dining')) {
+        persist({ ...data, diningSuggestions: [] });
+        return;
+      }
+      setToolError('Voice command not recognised. Try "refresh dining", "nearest pharmacy", or "clear grocery".');
+    };
+    recognition.onerror = (): void => {
+      setToolError('Could not capture voice command. Please try again.');
+    };
+    recognition.onend = (): void => setVoiceListening(false);
+    recognition.start();
+  };
+
   const dining = data.diningSuggestions ?? [];
   const nearest = data.nearestPlaces ?? {};
+  const toggleSection = (key: SectionKey): void => setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
 
   return (
     <div className={styles.root}>
@@ -263,6 +371,16 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
               {tool.icon}
             </button>
           ))}
+          <button
+            type="button"
+            className={`${styles.toolBtn} ${voiceListening ? styles.toolBtnLoading : ''}`}
+            title="Voice command for AI helpers"
+            aria-label="Voice command for AI helpers"
+            disabled={!hasKey || loadingTool !== null}
+            onClick={runVoiceCommand}
+          >
+            🎙
+          </button>
         </div>
       ) : null}
       {!hasKey && !readOnly ? (
@@ -273,48 +391,60 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
 
       {data.overview.trim() ? (
         <section className={styles.section}>
-          <h4 className={styles.heading}>Overview</h4>
-          <div className={styles.overview}>
-            <RichTextContent html={data.overview.trim()} />
-          </div>
+          <SectionHead sectionKey="overview" collapsed={Boolean(collapsed.overview)} onToggle={toggleSection} title="Overview" />
+          {!collapsed.overview ? (
+            <div className={styles.sectionBody}>
+              <div className={styles.overview}>
+                <RichTextContent html={data.overview.trim()} />
+              </div>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
       <section className={styles.section}>
-        <h4 className={styles.heading}>Highlights</h4>
-        <LocationInfoHighlights
-          rows={locationHighlightRows(data)}
-          emptyHint={data.aiSightsPlaceholder}
-          entry={entry}
-          place={place}
-          geminiApiKey={config.geminiApiKey}
-          hasAnyContent={locationInfoIsPopulated(data)}
-          readOnly={readOnly}
-          onOpenSettings={() => window.dispatchEvent(new Event('travelhub-open-settings'))}
-          onChange={(rows) => {
-            if (readOnly) return;
-            const prev = highlightRowsRef.current;
-            const suppressed = recordSuppressedHighlightLabels(data, prev, rows);
-            const marked = markHighlightRowsUserEdited(rows);
-            highlightRowsRef.current = marked;
-            persist({
-              ...data,
-              ...splitHighlightRows(marked),
-              suppressedHighlightKeys: suppressed
-            });
-          }}
-        />
+        <SectionHead sectionKey="highlights" collapsed={Boolean(collapsed.highlights)} onToggle={toggleSection} title="Highlights" />
+        {!collapsed.highlights ? (
+          <div className={styles.sectionBody}>
+            <LocationInfoHighlights
+              rows={locationHighlightRows(data)}
+              emptyHint={data.aiSightsPlaceholder}
+              entry={entry}
+              place={place}
+              geminiApiKey={config.geminiApiKey}
+              hasAnyContent={locationInfoIsPopulated(data)}
+              readOnly={readOnly}
+              onOpenSettings={() => window.dispatchEvent(new Event('travelhub-open-settings'))}
+              onChange={(rows) => {
+                if (readOnly) return;
+                const prev = highlightRowsRef.current;
+                const suppressed = recordSuppressedHighlightLabels(data, prev, rows);
+                const marked = markHighlightRowsUserEdited(rows);
+                highlightRowsRef.current = marked;
+                persist({
+                  ...data,
+                  ...splitHighlightRows(marked),
+                  suppressedHighlightKeys: suppressed
+                });
+              }}
+            />
+          </div>
+        ) : null}
       </section>
 
       {dining.length || !readOnly ? (
         <section className={styles.section}>
           <SectionHead
+            sectionKey="dining"
+            collapsed={Boolean(collapsed.dining)}
+            onToggle={toggleSection}
             title="Dining suggestions"
             refreshLabel="Refresh dining suggestions"
             refreshing={loadingTool === 'dining'}
             onRefresh={dining.length && !readOnly && hasKey ? () => runDining(true) : undefined}
+            onClear={!readOnly && dining.length ? () => persist({ ...data, diningSuggestions: [] }) : undefined}
           />
-          {dining.length ? (
+          {!collapsed.dining ? dining.length ? (
             <ul className={styles.cardList}>
               {dining.map((row) => (
                 <li key={row.id} className={styles.placeCard}>
@@ -337,14 +467,31 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
                     </label>
                     <PlaceLinks name={row.name} mapsUrl={row.mapsUrl} reviewsUrl={row.reviewsUrl} />
                   </div>
+                  <div className={styles.placeMetaRow}>
+                    {row.priceLevel ? <span className={styles.chip}>{row.priceLevel}</span> : null}
+                    {typeof row.rating === 'number' ? (
+                      <span className={styles.chip}>
+                        <span className={styles.ratingValue}>★ {row.rating.toFixed(1)}</span>
+                        {row.ratingSource ? ` · ${row.ratingSource}` : ''}
+                      </span>
+                    ) : null}
+                  </div>
                   {row.description ? <p className={styles.placeDesc}>{row.description}</p> : null}
                   {row.why ? <p className={styles.placeWhy}>{row.why}</p> : null}
+                  {row.bestFor ? <p className={styles.placeBestFor}>Best for: {row.bestFor}</p> : null}
+                  {row.websiteUrl ? (
+                    <div className={styles.placeMetaRow}>
+                      <a className={styles.placeLinkIcon} href={row.websiteUrl} target="_blank" rel="noopener noreferrer" title="Official website">
+                        <LinkIcon />
+                      </a>
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ul>
           ) : (
             <p className={styles.emptyHint}>Tap the dining icon above to generate suggestions.</p>
-          )}
+          ) : null}
         </section>
       ) : null}
 
@@ -354,31 +501,45 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
         return (
           <section key={tool.kind} className={styles.section}>
             <SectionHead
+              sectionKey={tool.kind}
+              collapsed={Boolean(collapsed[tool.kind])}
+              onToggle={toggleSection}
               title={tool.label}
               refreshLabel={`Refresh ${tool.label.toLowerCase()}`}
               refreshing={loadingTool === tool.kind}
               onRefresh={!readOnly && hasKey ? () => runNearest(tool.kind, true) : undefined}
+              onClear={!readOnly && rows.length ? () => persist({ ...data, nearestPlaces: { ...nearest, [tool.kind]: [] } }) : undefined}
             />
-            <ul className={styles.cardList}>
-              {rows.map((row: NearestPlaceRow) => (
-                <li key={row.id} className={styles.placeCard}>
-                  <div className={styles.placeCardTop}>
-                    <span className={styles.placeName}>{row.name}</span>
-                    <PlaceLinks name={row.name} address={row.address} mapsUrl={row.mapsUrl} reviewsUrl={row.reviewsUrl} />
-                  </div>
-                  {row.note ? <p className={styles.placeDesc}>{row.note}</p> : null}
-                  {row.address ? <p className={styles.placeWhy}>{row.address}</p> : null}
-                </li>
-              ))}
-            </ul>
+            {!collapsed[tool.kind] ? (
+              <ul className={styles.cardList}>
+                {rows.map((row: NearestPlaceRow) => (
+                  <li key={row.id} className={styles.placeCard}>
+                    <div className={styles.placeCardTop}>
+                      <span className={styles.placeName}>{row.name}</span>
+                      <PlaceLinks name={row.name} address={row.address} mapsUrl={row.mapsUrl} reviewsUrl={row.reviewsUrl} />
+                    </div>
+                    {row.note ? <p className={styles.placeDesc}>{row.note}</p> : null}
+                    {row.servicesSummary ? <p className={styles.placeBestFor}>Services: {row.servicesSummary}</p> : null}
+                    {row.address ? <p className={styles.placeWhy}>{row.address}</p> : null}
+                    {row.websiteUrl ? (
+                      <div className={styles.placeMetaRow}>
+                        <a className={styles.placeLinkIcon} href={row.websiteUrl} target="_blank" rel="noopener noreferrer" title="Official website">
+                          <LinkIcon />
+                        </a>
+                      </div>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </section>
         );
       })}
 
       {data.practicalTips.trim() ? (
         <section className={styles.section}>
-          <h4 className={styles.heading}>Practical tips</h4>
-          <p className={styles.overview}>{data.practicalTips.trim()}</p>
+          <SectionHead sectionKey="tips" collapsed={Boolean(collapsed.tips)} onToggle={toggleSection} title="Practical tips" />
+          {!collapsed.tips ? <p className={styles.overview}>{data.practicalTips.trim()}</p> : null}
         </section>
       ) : null}
 

@@ -147,3 +147,11 @@
   text-decoration: underline;
   cursor: pointer;
 }
+
+.voiceToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-700);
+}

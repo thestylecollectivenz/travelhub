@@ -326,6 +326,23 @@
   overflow: hidden;
 }
 
+.accommodationRow {
+  margin-top: var(--space-2);
+}
+
+.accommodationBtn {
+  width: 100%;
+  text-align: left;
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-blue-100) 55%, var(--color-surface-raised));
+  color: var(--color-blue-900);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+}
+
 .mobileDayStack {
   border-bottom: var(--border-default);
   padding-bottom: var(--space-3);

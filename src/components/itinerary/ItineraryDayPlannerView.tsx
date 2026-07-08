@@ -231,6 +231,19 @@ function plannerBlockSupplier(sub: ItinerarySubItem | undefined, entry: Itinerar
   return supplier || undefined;
 }
 
+function isCruiseMainCard(entry: ItineraryEntry): boolean {
+  if (isCruisePortEntry(entry)) return false;
+  if ((entry.category || '').trim() === 'Cruise') return true;
+  const t = (entry.title || '').toLowerCase();
+  return t.includes('cruise');
+}
+
+function findAccommodationAnchor(entries: ItineraryEntry[]): ItineraryEntry | undefined {
+  const accommodation = entries.find((e) => (e.category || '').trim() === 'Accommodation');
+  if (accommodation) return accommodation;
+  return entries.find((e) => isCruiseMainCard(e));
+}
+
 function stopPlannerBlockPointer(e: React.SyntheticEvent): void {
   e.stopPropagation();
 }
@@ -1148,6 +1161,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
             const list = entriesForPlannerColumn(day);
             const timed = expandPlannerTimedItems(list, cal, tripDays, entriesForTrip).filter(shouldRenderPlannerItem);
             const unsched = expandPlannerUnscheduledItems(list, cal, tripDays, entriesForTrip);
+            const accommodationEntry = findAccommodationAnchor(list);
             const collapsed = Boolean(unschedCollapsed[day.id]);
             return (
               <div key={day.id} className={styles.mobileDayStack}>
@@ -1158,6 +1172,17 @@ export const ItineraryDayPlannerView: React.FC = () => {
                     activeEntryId={locationPanelEntryId}
                     onSelect={setLocationPanelEntryId}
                   />
+                ) : null}
+                {accommodationEntry ? (
+                  <div className={styles.accommodationRow}>
+                    <button
+                      type="button"
+                      className={styles.accommodationBtn}
+                      onClick={() => openPreview(day.id, accommodationEntry.id, { calendarDate: cal })}
+                    >
+                      Accommodation: {accommodationEntry.title || 'Stay'}
+                    </button>
+                  </div>
                 ) : null}
                 {unsched.length ? (
                   <div className={styles.unscheduled}>
@@ -1403,13 +1428,31 @@ export const ItineraryDayPlannerView: React.FC = () => {
               >
                 <div className={styles.cornerCell} aria-hidden />
                 {displayDays.map((day) => (
+                  (() => {
+                    const cal = day.calendarDate || '';
+                    const list = entriesForPlannerColumn(day);
+                    const accommodationEntry = findAccommodationAnchor(list);
+                    return (
                   <div key={`loc-${day.id}`} className={styles.unschedCell}>
                     <DayLocationInfoStrip
                       entries={locationInfoEntriesForDay(day, localEntries, trip.id)}
                       activeEntryId={locationPanelEntryId}
                       onSelect={setLocationPanelEntryId}
                     />
+                    {accommodationEntry ? (
+                      <div className={styles.accommodationRow}>
+                        <button
+                          type="button"
+                          className={styles.accommodationBtn}
+                          onClick={() => openPreview(day.id, accommodationEntry.id, { calendarDate: cal })}
+                        >
+                          Accommodation: {accommodationEntry.title || 'Stay'}
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
+                    );
+                  })()
                 ))}
               </div>
             ) : null}

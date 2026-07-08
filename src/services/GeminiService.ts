@@ -441,11 +441,13 @@ ${placeLine}
 ${geo}
 
 Respond with ONLY JSON:
-{"items":[{"name":"venue name","description":"1 sentence about the venue","why":"why a traveller should go","mapsUrl":"optional Google Maps search URL","reviewsUrl":"optional Google search URL for reviews"}]}
+{"items":[{"name":"venue name","description":"1 sentence about the venue","why":"why a traveller should go","bestFor":"short phrase like 'best for Alsatian tart and wine bar vibe'","priceLevel":"$, $$, $$$ or $$$$","rating":4.4,"ratingSource":"google|tripadvisor|mixed","mapsUrl":"optional Google Maps search URL","reviewsUrl":"optional Google/Tripadvisor reviews URL","websiteUrl":"official venue URL when known"}]}
 
 Rules:
 - 4-6 concrete restaurants, cafés, or food markets
 - Real or highly plausible for the area
+- Prefer a mix of places tied to local food/drink highlights; not every venue must match every highlight
+- Include rating and price level where possible
 - No markdown, no code fences`;
 }
 
@@ -461,11 +463,12 @@ ${anchorLine}
 ${geo}
 
 Respond with ONLY JSON:
-{"places":[{"name":"business name","note":"distance or cross-street","address":"street or area if known","mapsUrl":"optional Google Maps URL","reviewsUrl":"optional reviews search URL"}]}
+{"places":[{"name":"business name","note":"distance only (e.g. 450 m, 1.2 km)","address":"street or area if known","servicesSummary":"key services/features in one sentence","mapsUrl":"optional Google Maps URL","reviewsUrl":"optional reviews search URL","websiteUrl":"official website URL if known"}]}
 
 Rules:
 - 3-5 results, nearest first
 - name: specific business when possible
+- note must not include wording like "from coordinates"
 - No markdown, no code fences`;
 }
 
@@ -527,8 +530,13 @@ export async function generateDiningSuggestions(
       name?: string;
       description?: string;
       why?: string;
+      bestFor?: string;
+      priceLevel?: string;
+      rating?: number;
+      ratingSource?: 'google' | 'tripadvisor' | 'mixed';
       mapsUrl?: string;
       reviewsUrl?: string;
+      websiteUrl?: string;
     }>;
   }>(buildDiningPrompt(options.searchContext), apiKey, options.model);
   const items: DiningSuggestionRow[] = [];
@@ -541,8 +549,16 @@ export async function generateDiningSuggestions(
       name,
       description: (arr[i]?.description ?? '').trim() || undefined,
       why: (arr[i]?.why ?? '').trim() || undefined,
+      bestFor: (arr[i]?.bestFor ?? '').trim() || undefined,
+      priceLevel: (arr[i]?.priceLevel ?? '').trim() || undefined,
+      rating: Number.isFinite(arr[i]?.rating) ? Number(arr[i]?.rating) : undefined,
+      ratingSource:
+        arr[i]?.ratingSource === 'google' || arr[i]?.ratingSource === 'tripadvisor' || arr[i]?.ratingSource === 'mixed'
+          ? arr[i]?.ratingSource
+          : undefined,
       mapsUrl: (arr[i]?.mapsUrl ?? '').trim() || undefined,
       reviewsUrl: (arr[i]?.reviewsUrl ?? '').trim() || undefined,
+      websiteUrl: (arr[i]?.websiteUrl ?? '').trim() || undefined,
       done: false
     });
   }
@@ -557,7 +573,15 @@ export async function generateNearestPlaces(
   const apiKey = (options.apiKey || '').trim();
   if (!apiKey) throw new GeminiServiceError('NO_KEY', 'Gemini API key is not set.');
   const { parsed, model } = await callGeminiJson<{
-    places?: Array<{ name?: string; note?: string; address?: string; mapsUrl?: string; reviewsUrl?: string }>;
+    places?: Array<{
+      name?: string;
+      note?: string;
+      address?: string;
+      servicesSummary?: string;
+      mapsUrl?: string;
+      reviewsUrl?: string;
+      websiteUrl?: string;
+    }>;
   }>(buildNearestPrompt(kind, options.searchContext), apiKey, options.model);
   const places: NearestPlaceRow[] = [];
   const arr = parsed.places ?? [];
@@ -567,10 +591,12 @@ export async function generateNearestPlaces(
     places.push({
       id: `near-${kind}-${Date.now()}-${i}`,
       name,
-      note: (arr[i]?.note ?? '').trim() || undefined,
+      note: (arr[i]?.note ?? '').replace(/\s*from coordinates.*$/i, '').trim() || undefined,
       address: (arr[i]?.address ?? '').trim() || undefined,
+      servicesSummary: (arr[i]?.servicesSummary ?? '').trim() || undefined,
       mapsUrl: (arr[i]?.mapsUrl ?? '').trim() || undefined,
-      reviewsUrl: (arr[i]?.reviewsUrl ?? '').trim() || undefined
+      reviewsUrl: (arr[i]?.reviewsUrl ?? '').trim() || undefined,
+      websiteUrl: (arr[i]?.websiteUrl ?? '').trim() || undefined
     });
   }
   if (!places.length) throw new GeminiServiceError('INVALID_RESPONSE', 'No nearest places returned.');

@@ -37,6 +37,9 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
   const [askError, setAskError] = React.useState<string | undefined>();
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editDraft, setEditDraft] = React.useState('');
+  const [voiceListening, setVoiceListening] = React.useState(false);
+  const [voiceError, setVoiceError] = React.useState<string | undefined>();
+  const [autoReadAnswers, setAutoReadAnswers] = React.useState(false);
 
   const hasKey = Boolean((geminiApiKey || '').trim());
   const thread = data.aiQaThread ?? [];
@@ -54,6 +57,16 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
     });
   }, [entry.id]);
 
+  React.useEffect(() => {
+    if (!autoReadAnswers) return;
+    const last = thread[thread.length - 1];
+    if (!last?.answer?.trim()) return;
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    const utter = new SpeechSynthesisUtterance(richTextToPlainText(last.answer));
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utter);
+  }, [autoReadAnswers, thread]);
+
   const updateThread = (next: LocationInfoQaEntry[]): void => {
     onThreadChange?.(next);
   };
@@ -70,6 +83,42 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
       apiKey: geminiApiKey,
       question: q
     });
+  };
+
+  const startVoiceInput = (): void => {
+    if (typeof window === 'undefined') return;
+    const Ctor = (window as Window & { SpeechRecognition?: any; webkitSpeechRecognition?: any }).SpeechRecognition
+      || (window as Window & { SpeechRecognition?: any; webkitSpeechRecognition?: any }).webkitSpeechRecognition;
+    if (!Ctor) {
+      setVoiceError('Voice input is not supported in this browser.');
+      return;
+    }
+    const recognition = new Ctor();
+    recognition.lang = 'en-NZ';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    setVoiceError(undefined);
+    setVoiceListening(true);
+    recognition.onresult = (event: SpeechRecognitionEvent): void => {
+      const transcript = event.results?.[0]?.[0]?.transcript?.trim() || '';
+      if (transcript) {
+        setQuestion((prev) => `${prev}${prev ? '\n' : ''}${transcript}`);
+      }
+    };
+    recognition.onerror = (): void => {
+      setVoiceError('Could not capture voice input. Please try again.');
+    };
+    recognition.onend = (): void => setVoiceListening(false);
+    recognition.start();
+  };
+
+  const speakAnswer = (answer: string): void => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    const text = richTextToPlainText(answer);
+    if (!text) return;
+    const utter = new SpeechSynthesisUtterance(text);
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utter);
   };
 
   if (readOnly && !thread.length) {
@@ -100,6 +149,9 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
               )}
               {!readOnly && onThreadChange ? (
                 <div className={styles.qaActions}>
+                  <button type="button" className={styles.qaBtn} onClick={() => speakAnswer(item.answer)}>
+                    Read out
+                  </button>
                   {editingId === item.id ? (
                     <>
                       <button
@@ -158,12 +210,24 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
           <div className={styles.askActions}>
             <button
               type="button"
+              className={styles.qaBtn}
+              disabled={asking || !hasKey || !place}
+              onClick={startVoiceInput}
+            >
+              {voiceListening ? 'Listening…' : 'Voice input'}
+            </button>
+            <button
+              type="button"
               className={styles.askBtn}
               disabled={asking || !hasKey || !place || !richTextToPlainText(question)}
               onClick={submitQuestion}
             >
               {asking ? 'Asking…' : 'Ask AI'}
             </button>
+            <label className={styles.voiceToggle}>
+              <input type="checkbox" checked={autoReadAnswers} onChange={(e) => setAutoReadAnswers(e.target.checked)} />
+              Read new answers aloud
+            </label>
             {!hasKey ? (
               <span className={styles.hint}>
                 Add a Gemini API key in{' '}
@@ -178,6 +242,7 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
               </span>
             ) : null}
           </div>
+          {voiceError ? <p className={styles.error}>{voiceError}</p> : null}
           {askError ? <p className={styles.error}>{askError}</p> : null}
         </div>
       ) : null}

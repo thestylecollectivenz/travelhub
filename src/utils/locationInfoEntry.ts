@@ -41,6 +41,8 @@ export type NearestPlaceRow = {
   address?: string;
   mapsUrl?: string;
   reviewsUrl?: string;
+  websiteUrl?: string;
+  servicesSummary?: string;
 };
 
 export type DiningSuggestionRow = {
@@ -48,8 +50,13 @@ export type DiningSuggestionRow = {
   name: string;
   description?: string;
   why?: string;
+  bestFor?: string;
+  priceLevel?: string;
+  rating?: number;
+  ratingSource?: 'google' | 'tripadvisor' | 'mixed';
   mapsUrl?: string;
   reviewsUrl?: string;
+  websiteUrl?: string;
   done?: boolean;
 };
 
@@ -118,8 +125,16 @@ function migrateDiningSuggestions(raw?: DiningSuggestionRow[] | LocationInfoChec
         name: row.name.trim(),
         description: row.description?.trim() || undefined,
         why: row.why?.trim() || undefined,
+        bestFor: row.bestFor?.trim() || undefined,
+        priceLevel: row.priceLevel?.trim() || undefined,
+        rating: Number.isFinite(row.rating) ? Number(row.rating) : undefined,
+        ratingSource:
+          row.ratingSource === 'google' || row.ratingSource === 'tripadvisor' || row.ratingSource === 'mixed'
+            ? row.ratingSource
+            : undefined,
         mapsUrl: row.mapsUrl?.trim() || undefined,
         reviewsUrl: row.reviewsUrl?.trim() || undefined,
+        websiteUrl: row.websiteUrl?.trim() || undefined,
         done: Boolean(row.done)
       });
       continue;
