@@ -13,6 +13,9 @@ import { loadAiChatMessages, pruneAiChatHistory, saveAiChatMessages } from '../.
 import { buildAiCurrentFocusBlock, buildTripDayAiContext } from '../../utils/buildTripDayAiContext';
 import { buildTripTasksAiContext } from '../../utils/buildTripTasksAiContext';
 import { markdownToHtml } from '../../utils/markdownToHtml';
+import { useSpeechOutput } from '../../hooks/useSpeechOutput';
+import { useContinuousSpeechInput } from '../../hooks/useContinuousSpeechInput';
+import { SpeechPlaybackControls } from '../shared/SpeechPlaybackControls';
 import { placeDisplayLabel } from '../../utils/placeDisplayLabel';
 import styles from './AiAssistantFab.module.css';
 
@@ -141,7 +144,12 @@ export const AiAssistantFab: React.FC = () => {
   const [messages, setMessages] = React.useState<Array<{ role: 'user' | 'assistant'; text: string }>>([]);
   const [copyState, setCopyState] = React.useState<'idle' | 'copied' | 'error'>('idle');
   const [dayScope, setDayScope] = React.useState<'day' | 'general'>('day');
-  const [voiceListening, setVoiceListening] = React.useState(false);
+  const { speechState, speak, pause, resume, stop: stopSpeech } = useSpeechOutput();
+  const appendVoiceInput = React.useCallback((chunk: string) => {
+    setInput((prev) => `${prev}${prev ? ' ' : ''}${chunk}`);
+  }, []);
+  const { listening: voiceListening, toggleListening: toggleVoiceInput, stopListening: stopVoiceInput } =
+    useContinuousSpeechInput(appendVoiceInput);
   const [autoReadAnswers, setAutoReadAnswers] = React.useState(false);
   const [fabPos, setFabPos] = React.useState<FabPosition>(() => loadFabPosition());
   const [panelSize, setPanelSize] = React.useState<PanelSize>(() => loadPanelSize());
@@ -268,6 +276,7 @@ export const AiAssistantFab: React.FC = () => {
   const send = async (): Promise<void> => {
     const text = input.trim();
     if (!text || busy) return;
+    stopVoiceInput();
     if (!config.geminiApiKey?.trim()) {
       setError('Add a Gemini API key in User settings.');
       return;
@@ -294,37 +303,6 @@ export const AiAssistantFab: React.FC = () => {
     } finally {
       setBusy(false);
     }
-  };
-
-  const speakText = React.useCallback((text: string): void => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return;
-    const t = (text || '').trim();
-    if (!t) return;
-    const u = new SpeechSynthesisUtterance(t);
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(u);
-  }, []);
-
-  const startVoiceInput = (): void => {
-    if (typeof window === 'undefined') return;
-    const Ctor = (window as Window & { SpeechRecognition?: any; webkitSpeechRecognition?: any }).SpeechRecognition
-      || (window as Window & { SpeechRecognition?: any; webkitSpeechRecognition?: any }).webkitSpeechRecognition;
-    if (!Ctor) {
-      setError('Voice input is not supported in this browser.');
-      return;
-    }
-    const recognition = new Ctor();
-    recognition.lang = 'en-NZ';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    setVoiceListening(true);
-    recognition.onresult = (event: { results?: Array<{ 0?: { transcript?: string } }> }): void => {
-      const transcript = event.results?.[0]?.[0]?.transcript?.trim() || '';
-      if (transcript) setInput((prev) => `${prev}${prev ? '\n' : ''}${transcript}`);
-    };
-    recognition.onerror = (): void => setError('Could not capture voice input.');
-    recognition.onend = (): void => setVoiceListening(false);
-    recognition.start();
   };
 
   const onFabPointerDown = (e: React.PointerEvent<HTMLButtonElement>): void => {
@@ -447,8 +425,8 @@ export const AiAssistantFab: React.FC = () => {
     if (!autoReadAnswers) return;
     const latest = latestAssistantIndex >= 0 ? messages[latestAssistantIndex] : undefined;
     if (!latest?.text?.trim()) return;
-    speakText(latest.text);
-  }, [autoReadAnswers, latestAssistantIndex, messages, speakText]);
+    speak(latest.text);
+  }, [autoReadAnswers, latestAssistantIndex, messages, speak]);
 
   const copyLatestResponse = React.useCallback(() => {
     const latest = latestAssistantIndex >= 0 ? messages[latestAssistantIndex] : undefined;
@@ -550,11 +528,18 @@ export const AiAssistantFab: React.FC = () => {
                     <button
                       type="button"
                       className={styles.copyBtn}
-                      onClick={() => speakText(m.text)}
+                      onClick={() => speak(m.text)}
                       aria-label="Read latest response aloud"
                     >
                       Read out
                     </button>
+                    <SpeechPlaybackControls
+                      speechState={speechState}
+                      onPause={pause}
+                      onResume={resume}
+                      onStop={stopSpeech}
+                      buttonClassName={styles.copyBtn}
+                    />
                     <button
                       type="button"
                       className={styles.copyBtn}
@@ -579,9 +564,24 @@ export const AiAssistantFab: React.FC = () => {
               placeholder={isTasksView ? 'What do I need to do today?' : 'Ask about this trip…'}
             />
             <div className={styles.composeTools}>
-              <button type="button" className={styles.voiceBtn} onClick={startVoiceInput} disabled={busy}>
-                {voiceListening ? 'Listening…' : 'Voice'}
+              <button
+                type="button"
+                className={styles.voiceBtn}
+                onClick={() => {
+                  if (voiceListening) stopVoiceInput();
+                  else toggleVoiceInput();
+                }}
+                disabled={busy}
+              >
+                {voiceListening ? 'Stop listening' : 'Voice'}
               </button>
+              <SpeechPlaybackControls
+                speechState={speechState}
+                onPause={pause}
+                onResume={resume}
+                onStop={stopSpeech}
+                buttonClassName={styles.voiceBtn}
+              />
               <label className={styles.voiceToggle}>
                 <input type="checkbox" checked={autoReadAnswers} onChange={(e) => setAutoReadAnswers(e.target.checked)} />
                 Auto-read

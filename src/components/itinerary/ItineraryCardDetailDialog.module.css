@@ -1,0 +1,151 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: color-mix(in srgb, var(--color-ink-900) 42%, transparent);
+}
+
+.dialog {
+  box-sizing: border-box;
+  width: min(40rem, 100%);
+  max-height: min(88vh, 100%);
+  background: var(--color-surface-raised);
+  border: var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-elevated);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-bottom: var(--border-default);
+}
+
+.titleRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.categoryBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  width: fit-content;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.headerBtn,
+.closeBtn {
+  border: var(--border-default);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+  font: inherit;
+}
+
+.closeBtn {
+  font-size: 1.25rem;
+  line-height: 1;
+  width: 2rem;
+  height: 2rem;
+}
+
+.body {
+  flex: 1;
+  overflow: auto;
+  padding: var(--space-4);
+}
+
+.detailList {
+  margin: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.detailRow {
+  display: grid;
+  grid-template-columns: minmax(8rem, 34%) 1fr;
+  gap: var(--space-2) var(--space-3);
+  align-items: start;
+}
+
+.detailLabel {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-sand-700);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.detailValue {
+  margin: 0;
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.mapsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.linkBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  border: var(--border-default);
+  background: var(--color-surface);
+  color: var(--color-primary);
+  text-decoration: none;
+  font-size: var(--text-sm);
+}
+
+.attachSection {
+  margin-top: var(--space-4);
+}
+
+.sectionHeading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.linkList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-2);
+}

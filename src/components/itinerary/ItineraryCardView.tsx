@@ -8,7 +8,7 @@ import { useAttachments } from '../../context/AttachmentsContext';
 import { ReminderService } from '../../services/ReminderService';
 import type { EntryDocumentType, EntryLinkType } from '../../models';
 import { CategoryIcon } from '../shared/CategoryIcon';
-import { getCategorySlug, CATEGORY_LIST } from '../../utils/categoryUtils';
+import { getCategorySlug } from '../../utils/categoryUtils';
 import { formatCurrency } from '../../utils/financialUtils';
 import {
   isReturnTransport,
@@ -61,6 +61,12 @@ import {
 } from '../../utils/locationInfoEntry';
 import { deriveTransportDisplayTitle } from '../../utils/transportDisplayTitle';
 import { entryMapsDirectionsUrl, entryMapsPlaceUrl } from '../../utils/googleMapsLink';
+import { ItineraryCardDetailDialog } from './ItineraryCardDetailDialog';
+import {
+  buildTaskCategoryOptions,
+  rememberTripTaskCategory,
+  resolveTaskCategorySelection
+} from '../../utils/tripTaskCategories';
 import styles from './ItineraryCardView.module.css';
 
 export interface ItineraryCardViewProps {
@@ -187,9 +193,12 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const [menuAnchor, setMenuAnchor] = React.useState({ top: 0, left: 0, width: 140 });
   const [taskPromptOpen, setTaskPromptOpen] = React.useState(false);
   const [taskEditOpen, setTaskEditOpen] = React.useState(false);
+  const [detailOpen, setDetailOpen] = React.useState(false);
+  const [tripReminderCategories, setTripReminderCategories] = React.useState<string[]>([]);
   const [taskDueDate, setTaskDueDate] = React.useState('');
   const [taskDescription, setTaskDescription] = React.useState('');
-  const [taskCategory, setTaskCategory] = React.useState(entry.category || 'Other');
+  const [taskCategory, setTaskCategory] = React.useState('To Do');
+  const [customTaskCategory, setCustomTaskCategory] = React.useState('');
   const [taskAssignee, setTaskAssignee] = React.useState('');
   const [taskNoteDraft, setTaskNoteDraft] = React.useState('');
   const [editTaskDescription, setEditTaskDescription] = React.useState('');
@@ -198,6 +207,37 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const taskAssigneeOptions = React.useMemo(
     () => (trip?.id ? loadTripAssignees(trip.id) : []),
     [trip?.id, manualTasks.length]
+  );
+
+  React.useEffect(() => {
+    if (!trip?.id) {
+      setTripReminderCategories([]);
+      return undefined;
+    }
+    const svc = new ReminderService(spContext);
+    const load = (): void => {
+      void svc
+        .getForTrip(trip.id)
+        .then((rows) => {
+          const cats = rows
+            .map((r) => (r.taskCategory || '').trim())
+            .filter(Boolean);
+          setTripReminderCategories(cats);
+        })
+        .catch(() => setTripReminderCategories([]));
+    };
+    load();
+    window.addEventListener('trip-reminders-updated', load);
+    return () => window.removeEventListener('trip-reminders-updated', load);
+  }, [spContext, trip?.id]);
+
+  const taskCategoryOptions = React.useMemo(
+    () =>
+      buildTaskCategoryOptions(trip?.id, [
+        ...tripReminderCategories,
+        ...manualTasks.map((t) => t.taskCategory || '')
+      ]),
+    [trip?.id, tripReminderCategories, manualTasks]
   );
 
   React.useEffect(() => {
@@ -484,6 +524,16 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
               role="menuitem"
               onClick={() => {
                 setMenuOpen(false);
+                setDetailOpen(true);
+              }}
+            >
+              View all details
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
                 setSelectedDayId(entry.dayId);
                 requestSidebarDayFocus(entry.dayId);
                 onEdit();
@@ -533,6 +583,13 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           </span>
         </div>
         <div className={styles.menuWrap}>
+          <button
+            type="button"
+            className={styles.addSubItemBtn}
+            onClick={() => setDetailOpen(true)}
+          >
+            Details
+          </button>
           {!readOnly ? (
           <button
             ref={menuButtonRef}
@@ -559,6 +616,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           </h3>
           <div className={styles.locationInfoTitleActions}>
             <div className={styles.menuWrap}>
+              <button type="button" className={styles.addSubItemBtn} onClick={() => setDetailOpen(true)}>
+                Details
+              </button>
               {!readOnly ? (
               <button
                 ref={menuButtonRef}
@@ -972,7 +1032,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                     const next = !v;
                     if (!v) {
                       setTaskDescription('');
-                      setTaskCategory(entry.category || 'Other');
+                      setTaskCategory('To Do');
+                    setCustomTaskCategory('');
                       setTaskAssignee('');
                       setTaskNoteDraft('');
                       setTaskDueDate('');
@@ -1076,7 +1137,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                   const next = !v;
                   if (!v) {
                     setTaskDescription('');
-                    setTaskCategory(entry.category || 'Other');
+                    setTaskCategory('To Do');
+                    setCustomTaskCategory('');
                     setTaskAssignee('');
                     setTaskNoteDraft('');
                     setTaskDueDate('');
@@ -1102,7 +1164,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                   const next = !v;
                   if (!v) {
                     setTaskDescription('');
-                    setTaskCategory(entry.category || 'Other');
+                    setTaskCategory('To Do');
+                    setCustomTaskCategory('');
                     setTaskAssignee('');
                     setTaskNoteDraft('');
                     setTaskDueDate('');
@@ -1192,7 +1255,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       {taskPromptOpen && !readOnly ? (
         <div className={styles.newSubItemForm}>
           <label className={styles.taskInlineLabel} htmlFor={`task-cat-${entry.id}`}>
-            Category
+            Task type
           </label>
           <select
             id={`task-cat-${entry.id}`}
@@ -1200,12 +1263,22 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             value={taskCategory}
             onChange={(e) => setTaskCategory(e.target.value)}
           >
-            {CATEGORY_LIST.map((c) => (
+            {taskCategoryOptions.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
             ))}
+            <option value="__custom__">Custom…</option>
           </select>
+          {taskCategory === '__custom__' ? (
+            <input
+              className={styles.newSubField}
+              placeholder="Custom task type (e.g. To Do — Week we leave)"
+              value={customTaskCategory}
+              onChange={(e) => setCustomTaskCategory(e.target.value)}
+              aria-label="Custom task type"
+            />
+          ) : null}
           <label className={styles.taskInlineLabel} htmlFor={`task-desc-${entry.id}`}>
             Task description (optional)
           </label>
@@ -1251,6 +1324,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                 const svc = new ReminderService(spContext);
                 const desc = taskDescription.trim();
                 const note = taskNoteDraft.trim();
+                const resolvedCategory = resolveTaskCategorySelection(taskCategory, customTaskCategory);
                 void svc
                   .create({
                     title: desc ? (desc.startsWith('Task:') ? desc : `Task: ${desc}`) : 'Task',
@@ -1259,7 +1333,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                     entryId: entry.id,
                     reminderType: 'Manual',
                     reminderText: desc,
-                    taskCategory,
+                    taskCategory: resolvedCategory,
                     taskNote: note || undefined,
                     assignedTo: taskAssignee.trim() || undefined,
                     dueDate: taskDueDate ? `${taskDueDate}T00:00:00.000Z` : undefined,
@@ -1267,6 +1341,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                   })
                   .then((created) => {
                     if (trip?.id && taskAssignee.trim()) rememberTripAssignee(trip.id, taskAssignee);
+                    if (trip?.id) rememberTripTaskCategory(trip.id, resolvedCategory);
                     setOpenTaskReminderId(created.id);
                     window.dispatchEvent(new CustomEvent('trip-reminders-updated'));
                     setTaskPromptOpen(false);
@@ -1303,6 +1378,20 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         </div>
       ) : null}
       {entryMenuPortal}
+      {detailOpen ? (
+        <ItineraryCardDetailDialog
+          entry={entry}
+          onClose={() => setDetailOpen(false)}
+          onEdit={
+            readOnly
+              ? undefined
+              : () => {
+                  setDetailOpen(false);
+                  onEdit();
+                }
+          }
+        />
+      ) : null}
     </div>
   );
 };

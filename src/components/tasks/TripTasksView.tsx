@@ -16,10 +16,14 @@ import {
 } from '../../utils/missingAmountDismissed';
 import { collectMissingAmountRows } from '../../utils/missingAmountEntries';
 import { paymentDueTaskTitle, paymentDueDateHint } from '../../utils/paymentDueLabels';
-import { CATEGORY_LIST } from '../../utils/categoryUtils';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { loadTripAssignees, rememberTripAssignee } from '../../utils/tripAssignees';
 import { reminderTaskCategory, TASK_FILTER_UNCATEGORISED } from '../../utils/taskFilters';
+import {
+  buildTaskCategoryOptions,
+  rememberTripTaskCategory,
+  resolveTaskCategorySelection
+} from '../../utils/tripTaskCategories';
 import { openTasksPrintPreview, type TasksPrintSection } from '../../utils/tasksPrintHtml';
 import { INSIGHT_FOCUS_EVENT, type InsightFocusDetail } from '../../utils/insightFocus';
 import { localTodayYmd, matchesTaskDueFilter, type TaskDueFilter } from '../../utils/taskDueBuckets';
@@ -193,7 +197,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
   const [editTaskCategory, setEditTaskCategory] = React.useState('Other');
   const [editCustomTaskCategory, setEditCustomTaskCategory] = React.useState('');
   const [createAssignedTo, setCreateAssignedTo] = React.useState('');
-  const [createTaskCategory, setCreateTaskCategory] = React.useState('Other');
+  const [createTaskCategory, setCreateTaskCategory] = React.useState('To Do');
   const [createCustomTaskCategory, setCreateCustomTaskCategory] = React.useState('');
   const [dueDateSort, setDueDateSort] = React.useState<DueDateSort>('none');
   const [taskDueFilter, setTaskDueFilter] = React.useState<TaskDueFilter>('all');
@@ -237,27 +241,10 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
     return out.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
   }, [trip?.id, manual, members]);
 
-  const taskCategoryOptions = React.useMemo(() => {
-    const seen = new Set<string>();
-    const out: string[] = [];
-    for (const c of CATEGORY_LIST) {
-      const t = (c || '').trim();
-      if (!t) continue;
-      const k = t.toLowerCase();
-      if (seen.has(k)) continue;
-      seen.add(k);
-      out.push(t);
-    }
-    for (const m of manual) {
-      const t = (m.taskCategory || '').trim();
-      if (!t) continue;
-      const k = t.toLowerCase();
-      if (seen.has(k)) continue;
-      seen.add(k);
-      out.push(t);
-    }
-    return out.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-  }, [manual]);
+  const taskCategoryOptions = React.useMemo(
+    () => buildTaskCategoryOptions(trip?.id, manual.map((m) => m.taskCategory || '')),
+    [trip?.id, manual]
+  );
 
   React.useEffect(() => {
     if (!planView) return;
@@ -530,18 +517,19 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
         : trimmed.startsWith('Task:')
           ? trimmed
           : `Task: ${trimmed}`;
+      const resolvedCategory = resolveTaskCategorySelection(editTaskCategory, editCustomTaskCategory);
       svc
         .update(m.id, {
           title,
           reminderText: trimmed,
           taskNote: editNote.trim(),
-          taskCategory:
-            editTaskCategory === '__custom__' ? (editCustomTaskCategory.trim() || 'Other') : editTaskCategory,
+          taskCategory: resolvedCategory,
           assignedTo: editAssignedTo.trim() || undefined,
           dueDate: editDueDate ? `${editDueDate}T00:00:00.000Z` : undefined
         })
         .then(() => {
           if (trip?.id && editAssignedTo.trim()) rememberTripAssignee(trip.id, editAssignedTo);
+          if (trip?.id && !isReminder) rememberTripTaskCategory(trip.id, resolvedCategory);
           setEditingReminderId(null);
           refresh();
         })
@@ -784,7 +772,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                     onChange={(e) => setCreateTaskCategory(e.target.value)}
                     aria-label="Task category"
                   >
-                    {CATEGORY_LIST.map((c) => (
+                    {taskCategoryOptions.map((c) => (
                       <option key={c} value={c}>
                         {c}
                       </option>
@@ -828,18 +816,17 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                       : trimmed.startsWith('Reminder:')
                         ? trimmed
                         : `Reminder: ${trimmed}`;
+                  const resolvedCategory =
+                    createKind === 'task'
+                      ? resolveTaskCategorySelection(createTaskCategory, createCustomTaskCategory)
+                      : undefined;
                   svc
                     .create({
                       title,
                       tripId: trip.id,
                       reminderType: createKind === 'task' ? 'Manual' : 'Custom',
                       reminderText: trimmed,
-                      taskCategory:
-                        createKind === 'task'
-                          ? createTaskCategory === '__custom__'
-                            ? (createCustomTaskCategory.trim() || 'Other')
-                            : createTaskCategory
-                          : undefined,
+                      taskCategory: resolvedCategory,
                       assignedTo: createAssignedTo.trim() || undefined,
                       isComplete: false,
                       dueDate: dueDate ? `${dueDate}T00:00:00.000Z` : undefined,
@@ -848,6 +835,9 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
                     })
                     .then(() => {
                       if (createAssignedTo.trim()) rememberTripAssignee(trip.id, createAssignedTo);
+                      if (createKind === 'task' && resolvedCategory) {
+                        rememberTripTaskCategory(trip.id, resolvedCategory);
+                      }
                       setText('');
                       setDueDate('');
                       setCreateAssignedTo('');

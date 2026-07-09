@@ -10,6 +10,9 @@ import { RichTextField } from '../shared/RichTextField';
 import { RichTextContent } from '../shared/RichTextContent';
 import { isLikelyJournalHtml, richTextToPlainText } from '../../utils/journalRichText';
 import { confirmUserAction } from '../../utils/confirmAction';
+import { useSpeechOutput } from '../../hooks/useSpeechOutput';
+import { useContinuousSpeechInput } from '../../hooks/useContinuousSpeechInput';
+import { SpeechPlaybackControls } from '../shared/SpeechPlaybackControls';
 import styles from './LocationInfoAskPanel.module.css';
 
 export interface LocationInfoAskPanelProps {
@@ -37,9 +40,18 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
   const [askError, setAskError] = React.useState<string | undefined>();
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editDraft, setEditDraft] = React.useState('');
-  const [voiceListening, setVoiceListening] = React.useState(false);
   const [voiceError, setVoiceError] = React.useState<string | undefined>();
   const [autoReadAnswers, setAutoReadAnswers] = React.useState(false);
+  const { speechState, speak, pause, resume, stop: stopSpeech } = useSpeechOutput();
+  const appendVoiceInput = React.useCallback((chunk: string) => {
+    setQuestion((prev) => {
+      const plain = richTextToPlainText(prev);
+      const next = `${plain}${plain ? ' ' : ''}${chunk}`;
+      return next ? `<p>${next}</p>` : prev;
+    });
+  }, []);
+  const { listening: voiceListening, toggleListening: toggleVoiceInput, stopListening: stopVoiceInput } =
+    useContinuousSpeechInput(appendVoiceInput);
 
   const hasKey = Boolean((geminiApiKey || '').trim());
   const thread = data.aiQaThread ?? [];
@@ -53,19 +65,19 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
       } else if (detail.success) {
         setAskError(undefined);
         setQuestion('');
+        stopVoiceInput();
       }
     });
-  }, [entry.id]);
+  }, [entry.id, stopVoiceInput]);
 
+  const lastReadIdRef = React.useRef<string | undefined>();
   React.useEffect(() => {
     if (!autoReadAnswers) return;
     const last = thread[thread.length - 1];
-    if (!last?.answer?.trim()) return;
-    if (typeof window === 'undefined' || !window.speechSynthesis) return;
-    const utter = new SpeechSynthesisUtterance(richTextToPlainText(last.answer));
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utter);
-  }, [autoReadAnswers, thread]);
+    if (!last?.answer?.trim() || last.id === lastReadIdRef.current) return;
+    lastReadIdRef.current = last.id;
+    speak(richTextToPlainText(last.answer));
+  }, [autoReadAnswers, thread, speak]);
 
   const updateThread = (next: LocationInfoQaEntry[]): void => {
     onThreadChange?.(next);
@@ -75,6 +87,7 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
     if (!place || !hasKey || readOnly) return;
     const q = richTextToPlainText(question);
     if (!q) return;
+    stopVoiceInput();
     setAskError(undefined);
     scheduleLocationInfoQuestion({
       spContext,
@@ -85,40 +98,8 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
     });
   };
 
-  const startVoiceInput = (): void => {
-    if (typeof window === 'undefined') return;
-    const Ctor = (window as Window & { SpeechRecognition?: any; webkitSpeechRecognition?: any }).SpeechRecognition
-      || (window as Window & { SpeechRecognition?: any; webkitSpeechRecognition?: any }).webkitSpeechRecognition;
-    if (!Ctor) {
-      setVoiceError('Voice input is not supported in this browser.');
-      return;
-    }
-    const recognition = new Ctor();
-    recognition.lang = 'en-NZ';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    setVoiceError(undefined);
-    setVoiceListening(true);
-    recognition.onresult = (event: { results?: Array<{ 0?: { transcript?: string } }> }): void => {
-      const transcript = event.results?.[0]?.[0]?.transcript?.trim() || '';
-      if (transcript) {
-        setQuestion((prev) => `${prev}${prev ? '\n' : ''}${transcript}`);
-      }
-    };
-    recognition.onerror = (): void => {
-      setVoiceError('Could not capture voice input. Please try again.');
-    };
-    recognition.onend = (): void => setVoiceListening(false);
-    recognition.start();
-  };
-
   const speakAnswer = (answer: string): void => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return;
-    const text = richTextToPlainText(answer);
-    if (!text) return;
-    const utter = new SpeechSynthesisUtterance(text);
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utter);
+    speak(richTextToPlainText(answer));
   };
 
   if (readOnly && !thread.length) {
@@ -152,6 +133,13 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
                   <button type="button" className={styles.qaBtn} onClick={() => speakAnswer(item.answer)}>
                     Read out
                   </button>
+                  <SpeechPlaybackControls
+                    speechState={speechState}
+                    onPause={pause}
+                    onResume={resume}
+                    onStop={stopSpeech}
+                    buttonClassName={styles.qaBtn}
+                  />
                   {editingId === item.id ? (
                     <>
                       <button
@@ -212,10 +200,23 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
               type="button"
               className={styles.qaBtn}
               disabled={asking || !hasKey || !place}
-              onClick={startVoiceInput}
+              onClick={() => {
+                if (voiceListening) stopVoiceInput();
+                else {
+                  setVoiceError(undefined);
+                  toggleVoiceInput();
+                }
+              }}
             >
-              {voiceListening ? 'Listening…' : 'Voice input'}
+              {voiceListening ? 'Stop listening' : 'Voice input'}
             </button>
+            <SpeechPlaybackControls
+              speechState={speechState}
+              onPause={pause}
+              onResume={resume}
+              onStop={stopSpeech}
+              buttonClassName={styles.qaBtn}
+            />
             <button
               type="button"
               className={styles.askBtn}
