@@ -12,6 +12,7 @@
 
 .dialog {
   box-sizing: border-box;
+  position: relative;
   width: min(34rem, 100%);
   min-width: min(22rem, 100%);
   min-height: 18rem;
@@ -23,8 +24,7 @@
   border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
-  overflow: auto;
-  resize: both;
+  overflow: hidden;
 }
 
 .header {
@@ -79,4 +79,24 @@
   flex: 1;
   overflow: auto;
   padding: var(--space-3) var(--space-4) var(--space-5);
+}
+
+.resizeHandle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  touch-action: none;
+  background: linear-gradient(
+    135deg,
+    transparent 0 45%,
+    color-mix(in srgb, var(--color-sand-600) 55%, transparent) 45% 50%,
+    transparent 50% 60%,
+    color-mix(in srgb, var(--color-sand-600) 55%, transparent) 60% 65%,
+    transparent 65% 75%,
+    color-mix(in srgb, var(--color-sand-600) 55%, transparent) 75% 80%,
+    transparent 80% 100%
+  );
 }

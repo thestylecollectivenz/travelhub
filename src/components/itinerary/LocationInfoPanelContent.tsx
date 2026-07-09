@@ -291,6 +291,9 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
     scheduleLocationInfoNearest({ spContext, entry, place, apiKey: config.geminiApiKey, kind, replaceExisting });
   };
 
+  const dining = data.diningSuggestions ?? [];
+  const nearest = data.nearestPlaces ?? {};
+
   const runVoiceCommand = (): void => {
     if (typeof window === 'undefined') return;
     const Ctor = (window as Window & { SpeechRecognition?: any; webkitSpeechRecognition?: any }).SpeechRecognition
@@ -304,7 +307,7 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     setVoiceListening(true);
-    recognition.onresult = (event: SpeechRecognitionEvent): void => {
+    recognition.onresult = (event: { results?: Array<{ 0?: { transcript?: string } }> }): void => {
       const text = event.results?.[0]?.[0]?.transcript?.toLowerCase().trim() || '';
       if (!text) return;
       if (text.includes('dining')) {
@@ -349,8 +352,6 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
     recognition.start();
   };
 
-  const dining = data.diningSuggestions ?? [];
-  const nearest = data.nearestPlaces ?? {};
   const toggleSection = (key: SectionKey): void => setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
   const normalizeDistanceOnly = (text?: string): string | undefined => {
     const raw = (text || '').trim();

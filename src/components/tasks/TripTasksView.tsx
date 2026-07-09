@@ -777,28 +777,30 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
               />
               <input className={styles.input} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
               {createKind === 'task' ? (
-                <select
-                  className={styles.select}
-                  value={createTaskCategory}
-                  onChange={(e) => setCreateTaskCategory(e.target.value)}
-                  aria-label="Task category"
-                >
-                  {CATEGORY_LIST.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                  <option value="__custom__">Custom…</option>
-                </select>
-                {createTaskCategory === '__custom__' ? (
-                  <input
-                    className={styles.input}
-                    placeholder="Custom task type"
-                    value={createCustomTaskCategory}
-                    onChange={(e) => setCreateCustomTaskCategory(e.target.value)}
-                    aria-label="Custom task type"
-                  />
-                ) : null}
+                <>
+                  <select
+                    className={styles.select}
+                    value={createTaskCategory}
+                    onChange={(e) => setCreateTaskCategory(e.target.value)}
+                    aria-label="Task category"
+                  >
+                    {CATEGORY_LIST.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                    <option value="__custom__">Custom…</option>
+                  </select>
+                  {createTaskCategory === '__custom__' ? (
+                    <input
+                      className={styles.input}
+                      placeholder="Custom task type"
+                      value={createCustomTaskCategory}
+                      onChange={(e) => setCreateCustomTaskCategory(e.target.value)}
+                      aria-label="Custom task type"
+                    />
+                  ) : null}
+                </>
               ) : null}
               <input
                 className={styles.input}

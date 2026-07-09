@@ -318,7 +318,7 @@ export const AiAssistantFab: React.FC = () => {
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     setVoiceListening(true);
-    recognition.onresult = (event: SpeechRecognitionEvent): void => {
+    recognition.onresult = (event: { results?: Array<{ 0?: { transcript?: string } }> }): void => {
       const transcript = event.results?.[0]?.[0]?.transcript?.trim() || '';
       if (transcript) setInput((prev) => `${prev}${prev ? '\n' : ''}${transcript}`);
     };
@@ -326,13 +326,6 @@ export const AiAssistantFab: React.FC = () => {
     recognition.onend = (): void => setVoiceListening(false);
     recognition.start();
   };
-
-  React.useEffect(() => {
-    if (!autoReadAnswers) return;
-    const latest = latestAssistantIndex >= 0 ? messages[latestAssistantIndex] : undefined;
-    if (!latest?.text?.trim()) return;
-    speakText(latest.text);
-  }, [autoReadAnswers, latestAssistantIndex, messages, speakText]);
 
   const onFabPointerDown = (e: React.PointerEvent<HTMLButtonElement>): void => {
     if (e.button !== 0) return;
@@ -449,6 +442,13 @@ export const AiAssistantFab: React.FC = () => {
     }
     return -1;
   }, [messages]);
+
+  React.useEffect(() => {
+    if (!autoReadAnswers) return;
+    const latest = latestAssistantIndex >= 0 ? messages[latestAssistantIndex] : undefined;
+    if (!latest?.text?.trim()) return;
+    speakText(latest.text);
+  }, [autoReadAnswers, latestAssistantIndex, messages, speakText]);
 
   const copyLatestResponse = React.useCallback(() => {
     const latest = latestAssistantIndex >= 0 ? messages[latestAssistantIndex] : undefined;

@@ -99,7 +99,7 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
     recognition.maxAlternatives = 1;
     setVoiceError(undefined);
     setVoiceListening(true);
-    recognition.onresult = (event: SpeechRecognitionEvent): void => {
+    recognition.onresult = (event: { results?: Array<{ 0?: { transcript?: string } }> }): void => {
       const transcript = event.results?.[0]?.[0]?.transcript?.trim() || '';
       if (transcript) {
         setQuestion((prev) => `${prev}${prev ? '\n' : ''}${transcript}`);
