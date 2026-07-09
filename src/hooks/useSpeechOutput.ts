@@ -28,12 +28,13 @@ export function useSpeechOutput(): {
   const speak = React.useCallback(
     (text: string) => {
       speakPlainText(text, setSpeechState, {
+        speechEngine: config.speechEngine === 'elevenlabs' ? 'elevenlabs' : 'browser',
+        browserVoiceURI: config.browserVoiceURI,
         elevenLabsApiKey: config.elevenLabsApiKey,
-        elevenLabsVoiceId: config.elevenLabsVoiceId,
-        preferElevenLabs: true
+        elevenLabsVoiceId: config.elevenLabsVoiceId
       });
     },
-    [config.elevenLabsApiKey, config.elevenLabsVoiceId]
+    [config.speechEngine, config.browserVoiceURI, config.elevenLabsApiKey, config.elevenLabsVoiceId]
   );
 
   const pause = React.useCallback(() => {

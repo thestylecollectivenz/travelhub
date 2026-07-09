@@ -7,6 +7,12 @@ import {
   listElevenLabsVoicesWithFallback,
   type ElevenLabsVoice
 } from '../../services/ElevenLabsService';
+import {
+  loadBrowserSpeechVoices,
+  pickDefaultBrowserVoiceURI,
+  speakPlainText,
+  type BrowserSpeechVoiceOption
+} from '../../utils/speechVoice';
 import { CurrencySelect } from '../shared/CurrencySelect';
 import { SecretApiKeyField } from '../shared/SecretApiKeyField';
 
@@ -24,6 +30,8 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
   const [voices, setVoices] = React.useState<ElevenLabsVoice[]>([]);
   const [voicesLoading, setVoicesLoading] = React.useState(false);
   const [voicesError, setVoicesError] = React.useState('');
+  const [browserVoices, setBrowserVoices] = React.useState<BrowserSpeechVoiceOption[]>([]);
+  const [browserVoicesLoading, setBrowserVoicesLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState('');
 
@@ -31,10 +39,15 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
   const hasGeminiKey = Boolean((config.geminiApiKey || '').trim());
   const hasElevenLabsKey = Boolean((config.elevenLabsApiKey || '').trim());
   const effectiveElevenLabsKey = (elevenLabsKeyDraft.trim() || config.elevenLabsApiKey || '').trim();
+  const speechEngine = draft.speechEngine === 'elevenlabs' ? 'elevenlabs' : 'browser';
 
   React.useEffect(() => {
     if (isOpen) {
-      setDraft(config);
+      setDraft({
+        ...config,
+        speechEngine: config.speechEngine === 'elevenlabs' ? 'elevenlabs' : 'browser',
+        browserVoiceURI: config.browserVoiceURI || ''
+      });
       setWeatherKeyDraft('');
       setGeminiKeyDraft('');
       setElevenLabsKeyDraft('');
@@ -43,6 +56,28 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
       setSaving(false);
     }
   }, [isOpen, config]);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    setBrowserVoicesLoading(true);
+    void loadBrowserSpeechVoices()
+      .then((rows) => {
+        if (cancelled) return;
+        setBrowserVoices(rows);
+        setDraft((d) => {
+          if (d.browserVoiceURI) return d;
+          const auto = pickDefaultBrowserVoiceURI(rows);
+          return auto ? { ...d, browserVoiceURI: auto } : d;
+        });
+      })
+      .finally(() => {
+        if (!cancelled) setBrowserVoicesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -222,6 +257,71 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
             hint={`Uses ${DEFAULT_GEMINI_MODEL} first (check RPM/RPD in AI Studio), then 2.5 Flash Lite / 2.5 Flash if quota blocked. Avoid models showing 0 limits. Saved keys are masked here.`}
           />
 
+          <label style={{ display: 'grid', gap: 'var(--space-1)' }}>
+            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-800)' }}>Read-out voice engine</span>
+            <select
+              value={speechEngine}
+              onChange={(e) =>
+                setDraft((d) => ({
+                  ...d,
+                  speechEngine: e.target.value === 'elevenlabs' ? 'elevenlabs' : 'browser'
+                }))
+              }
+              style={{ border: 'var(--border-default)', borderRadius: 'var(--radius-md)', padding: 'var(--space-2)' }}
+            >
+              <option value="browser">Free browser voices (recommended)</option>
+              <option value="elevenlabs">ElevenLabs (uses credits)</option>
+            </select>
+            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-sand-600)' }}>
+              Browser voices are free and unlimited. ElevenLabs sounds better but burns monthly credits quickly on long read-outs.
+            </span>
+          </label>
+
+          <label style={{ display: 'grid', gap: 'var(--space-1)' }}>
+            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-800)' }}>Browser voice</span>
+            <select
+              value={draft.browserVoiceURI || ''}
+              onChange={(e) => setDraft((d) => ({ ...d, browserVoiceURI: e.target.value }))}
+              disabled={browserVoicesLoading}
+              style={{ border: 'var(--border-default)', borderRadius: 'var(--radius-md)', padding: 'var(--space-2)' }}
+            >
+              {!browserVoices.length ? (
+                <option value="">{browserVoicesLoading ? 'Loading voices…' : 'No browser voices found'}</option>
+              ) : null}
+              {browserVoices.map((v) => (
+                <option key={v.voiceURI} value={v.voiceURI}>
+                  {v.label}
+                </option>
+              ))}
+            </select>
+            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-sand-600)' }}>
+              Ranked with natural / neural / Online English voices first (Edge and Chrome usually have the best free options).
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                const uri = draft.browserVoiceURI || pickDefaultBrowserVoiceURI(browserVoices);
+                speakPlainText('Kia ora. This is how Travel Hub will sound when reading your itinerary.', undefined, {
+                  speechEngine: 'browser',
+                  browserVoiceURI: uri
+                });
+              }}
+              style={{
+                justifySelf: 'start',
+                border: 'var(--border-default)',
+                background: 'transparent',
+                color: 'var(--color-blue-700)',
+                borderRadius: 'var(--radius-md)',
+                padding: 'var(--space-1) var(--space-3)',
+                cursor: 'pointer',
+                fontSize: 'var(--font-size-xs)'
+              }}
+              disabled={!browserVoices.length}
+            >
+              Preview browser voice
+            </button>
+          </label>
+
           <SecretApiKeyField
             label="ElevenLabs API key"
             panelOpen={isOpen}
@@ -229,7 +329,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
             value={elevenLabsKeyDraft}
             onChange={setElevenLabsKeyDraft}
             placeholder="Paste a new ElevenLabs API key"
-            hint="Free plan includes API access (~10k credits/month). Used for Read out / Auto-read. Falls back to browser speech if missing or over quota. For a restricted key, enable Text to Speech (and Voices → Read if you want the full library)."
+            hint="Optional. Only used when Read-out voice engine is set to ElevenLabs. Free plan ~10k credits/month. Restricted keys need Text to Speech access."
           />
 
           <label style={{ display: 'grid', gap: 'var(--space-1)' }}>
@@ -237,11 +337,14 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
             <select
               value={draft.elevenLabsVoiceId || ''}
               onChange={(e) => setDraft((d) => ({ ...d, elevenLabsVoiceId: e.target.value }))}
-              disabled={!effectiveElevenLabsKey || voicesLoading}
+              disabled={speechEngine !== 'elevenlabs' || !effectiveElevenLabsKey || voicesLoading}
               style={{ border: 'var(--border-default)', borderRadius: 'var(--radius-md)', padding: 'var(--space-2)' }}
             >
-              {!effectiveElevenLabsKey ? <option value="">Add an API key to load voices</option> : null}
-              {effectiveElevenLabsKey && !voices.length && !voicesLoading ? (
+              {speechEngine !== 'elevenlabs' ? <option value="">Switch engine to ElevenLabs to use</option> : null}
+              {speechEngine === 'elevenlabs' && !effectiveElevenLabsKey ? (
+                <option value="">Add an API key to load voices</option>
+              ) : null}
+              {speechEngine === 'elevenlabs' && effectiveElevenLabsKey && !voices.length && !voicesLoading ? (
                 <option value={draft.elevenLabsVoiceId || DEFAULT_ELEVENLABS_VOICE_ID}>Default voice</option>
               ) : null}
               {voices.map((v) => (
@@ -256,7 +359,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
                 ? 'Loading voices…'
                 : voicesError
                   ? voicesError
-                  : 'Choose a free-plan voice for AI read-out.'}
+                  : 'Only used when ElevenLabs is selected above.'}
             </span>
           </label>
 
@@ -321,6 +424,8 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
               setSaveError('');
               void saveConfig({
                 ...draft,
+                speechEngine: draft.speechEngine === 'elevenlabs' ? 'elevenlabs' : 'browser',
+                browserVoiceURI: draft.browserVoiceURI || pickDefaultBrowserVoiceURI(browserVoices),
                 weatherApiKey: weatherTrim || config.weatherApiKey,
                 geminiApiKey: geminiTrim || config.geminiApiKey,
                 elevenLabsApiKey: elevenTrim || config.elevenLabsApiKey,

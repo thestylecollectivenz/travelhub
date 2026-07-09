@@ -5,10 +5,23 @@ import {
 
 export type SpeechOutputState = 'idle' | 'speaking' | 'paused';
 
+export type SpeechEngine = 'browser' | 'elevenlabs';
+
+export interface BrowserSpeechVoiceOption {
+  voiceURI: string;
+  name: string;
+  lang: string;
+  localService: boolean;
+  /** Higher = more natural / preferred for Travel Hub defaults. */
+  naturalScore: number;
+  label: string;
+}
+
 export interface SpeakOptions {
+  speechEngine?: SpeechEngine;
+  browserVoiceURI?: string;
   elevenLabsApiKey?: string;
   elevenLabsVoiceId?: string;
-  preferElevenLabs?: boolean;
 }
 
 type SpeechRecognitionCtor = new () => {
@@ -37,6 +50,10 @@ function clearActiveAudio(): void {
   if (activeAudio) {
     try {
       activeAudio.pause();
+    } catch {
+      /* ignore */
+    }
+    try {
       activeAudio.removeAttribute('src');
       activeAudio.load();
     } catch {
@@ -113,9 +130,118 @@ export function getSpeechOutputState(): SpeechOutputState {
   return 'idle';
 }
 
-function speakWithBrowser(text: string, onStateChange?: (state: SpeechOutputState) => void): void {
+/** Score browser voices so neural / Natural / Online voices rank above older desktop TTS. */
+export function scoreBrowserVoiceNaturalness(voice: SpeechSynthesisVoice): number {
+  const name = (voice.name || '').toLowerCase();
+  const lang = (voice.lang || '').toLowerCase();
+  let score = 0;
+
+  if (lang.startsWith('en-nz')) score += 40;
+  else if (lang.startsWith('en-au')) score += 36;
+  else if (lang.startsWith('en-gb')) score += 34;
+  else if (lang.startsWith('en-us')) score += 30;
+  else if (lang.startsWith('en-')) score += 18;
+  else score -= 20;
+
+  if (/\b(natural|neural|online|premium|enhanced|wavenet|studio)\b/.test(name)) score += 50;
+  if (/microsoft/.test(name) && /online/.test(name)) score += 20;
+  if (/google/.test(name)) score += 15;
+  if (/\b(aria|jenny|guy|sonia|ryan|natasha|michelle|hazel|susan|george|libby)\b/.test(name)) score += 12;
+
+  // Older Windows desktop voices are noticeably more robotic.
+  if (/\bdesktop\b/.test(name)) score -= 35;
+  if (/\b(zira|david|mark|hazel desktop)\b/.test(name) && !/natural|neural|online/.test(name)) score -= 25;
+  if (voice.localService && !/natural|neural|online|google/.test(name)) score -= 8;
+
+  return score;
+}
+
+function formatBrowserVoiceLabel(voice: SpeechSynthesisVoice, naturalScore: number): string {
+  const bits: string[] = [voice.name];
+  if (voice.lang) bits.push(voice.lang);
+  if (naturalScore >= 70) bits.push('natural');
+  else if (naturalScore >= 40) bits.push('clear');
+  return bits.join(' · ');
+}
+
+export function listBrowserSpeechVoices(): BrowserSpeechVoiceOption[] {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return [];
+  const voices = window.speechSynthesis.getVoices() || [];
+  const mapped: BrowserSpeechVoiceOption[] = voices.map((v) => {
+    const naturalScore = scoreBrowserVoiceNaturalness(v);
+    return {
+      voiceURI: v.voiceURI,
+      name: v.name,
+      lang: v.lang,
+      localService: v.localService,
+      naturalScore,
+      label: formatBrowserVoiceLabel(v, naturalScore)
+    };
+  });
+  mapped.sort((a, b) => {
+    if (b.naturalScore !== a.naturalScore) return b.naturalScore - a.naturalScore;
+    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+  });
+  return mapped;
+}
+
+/** Wait for Chrome/Edge async voice list population. */
+export function loadBrowserSpeechVoices(): Promise<BrowserSpeechVoiceOption[]> {
+  if (typeof window === 'undefined' || !window.speechSynthesis) {
+    return Promise.resolve([]);
+  }
+  const immediate = listBrowserSpeechVoices();
+  if (immediate.length) return Promise.resolve(immediate);
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const onVoicesChanged = (): void => {
+      if (settled) return;
+      settled = true;
+      window.speechSynthesis.removeEventListener('voiceschanged', onVoicesChanged);
+      resolve(listBrowserSpeechVoices());
+    };
+    window.speechSynthesis.addEventListener('voiceschanged', onVoicesChanged);
+    window.setTimeout(onVoicesChanged, 750);
+  });
+}
+
+export function pickDefaultBrowserVoiceURI(voices?: BrowserSpeechVoiceOption[]): string {
+  const list = voices ?? listBrowserSpeechVoices();
+  if (!list.length) return '';
+  return list[0].voiceURI;
+}
+
+function resolveBrowserVoice(voiceURI?: string): SpeechSynthesisVoice | undefined {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return undefined;
+  const voices = window.speechSynthesis.getVoices() || [];
+  const wanted = (voiceURI || '').trim();
+  if (wanted) {
+    const exact = voices.find((v) => v.voiceURI === wanted || v.name === wanted);
+    if (exact) return exact;
+  }
+  const ranked = listBrowserSpeechVoices();
+  if (!ranked.length) return voices[0];
+  return voices.find((v) => v.voiceURI === ranked[0].voiceURI) ?? voices[0];
+}
+
+function speakWithBrowser(
+  text: string,
+  onStateChange?: (state: SpeechOutputState) => void,
+  voiceURI?: string
+): void {
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
   const utter = new SpeechSynthesisUtterance(text);
+  const voice = resolveBrowserVoice(voiceURI);
+  if (voice) {
+    utter.voice = voice;
+    if (voice.lang) utter.lang = voice.lang;
+  } else {
+    utter.lang = 'en-NZ';
+  }
+  // Slightly slower than default often sounds more natural for travel narration.
+  utter.rate = 0.95;
+  utter.pitch = 1;
   utter.onstart = () => onStateChange?.('speaking');
   utter.onpause = () => onStateChange?.('paused');
   utter.onresume = () => onStateChange?.('speaking');
@@ -157,8 +283,8 @@ async function speakWithElevenLabs(
 }
 
 /**
- * Prefer ElevenLabs when an API key is configured; otherwise browser speechSynthesis.
- * Falls back to browser speech if ElevenLabs fails (quota, network, invalid key).
+ * Default engine is free browser speech. ElevenLabs only when explicitly selected
+ * and an API key is present; falls back to browser speech on failure.
  */
 export function speakPlainText(
   text: string,
@@ -171,17 +297,19 @@ export function speakPlainText(
   stopSpeechOutput();
   stateListener = onStateChange;
 
+  const engine: SpeechEngine = options?.speechEngine === 'elevenlabs' ? 'elevenlabs' : 'browser';
   const key = (options?.elevenLabsApiKey || '').trim();
-  const prefer = options?.preferElevenLabs !== false;
-  if (prefer && key) {
+  const browserVoiceURI = (options?.browserVoiceURI || '').trim();
+
+  if (engine === 'elevenlabs' && key) {
     onStateChange?.('speaking');
     void speakWithElevenLabs(t, key, (options?.elevenLabsVoiceId || '').trim(), onStateChange).catch(() => {
-      speakWithBrowser(t, onStateChange);
+      speakWithBrowser(t, onStateChange, browserVoiceURI);
     });
     return;
   }
 
-  speakWithBrowser(t, onStateChange);
+  speakWithBrowser(t, onStateChange, browserVoiceURI);
 }
 
 export function collectFinalTranscript(event: SpeechRecognitionResultEvent): string {

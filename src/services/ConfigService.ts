@@ -22,6 +22,10 @@ export interface UserConfig {
   elevenLabsApiKey: string;
   /** Selected ElevenLabs voice_id; empty = default premade voice. */
   elevenLabsVoiceId: string;
+  /** Read-out engine: free browser voices by default; ElevenLabs only when chosen. */
+  speechEngine: 'browser' | 'elevenlabs';
+  /** Browser speechSynthesis voiceURI (or name); empty = auto-pick most natural English voice. */
+  browserVoiceURI: string;
   /** When false, day budget breakdown starts collapsed on each day. */
   dayBreakdownVisibleByDefault: boolean;
 }
@@ -38,6 +42,8 @@ export const DEFAULT_USER_CONFIG: UserConfig = {
   geminiApiKey: '',
   elevenLabsApiKey: '',
   elevenLabsVoiceId: '',
+  speechEngine: 'browser',
+  browserVoiceURI: '',
   dayBreakdownVisibleByDefault: true
 };
 
@@ -84,7 +90,9 @@ export class ConfigService {
           typeof parsed.dayBreakdownVisibleByDefault === 'boolean'
             ? parsed.dayBreakdownVisibleByDefault
             : DEFAULT_USER_CONFIG.dayBreakdownVisibleByDefault,
-        dateFormat: parsed.dateFormat === 'MDY' ? 'MDY' : DEFAULT_USER_CONFIG.dateFormat
+        dateFormat: parsed.dateFormat === 'MDY' ? 'MDY' : DEFAULT_USER_CONFIG.dateFormat,
+        speechEngine: parsed.speechEngine === 'elevenlabs' ? 'elevenlabs' : 'browser',
+        browserVoiceURI: typeof parsed.browserVoiceURI === 'string' ? parsed.browserVoiceURI : ''
       };
     } catch {
       return undefined;
@@ -124,6 +132,8 @@ export class ConfigService {
       geminiApiKey: typeof item.GeminiApiKey === 'string' ? item.GeminiApiKey : '',
       elevenLabsApiKey: typeof item.ElevenLabsApiKey === 'string' ? item.ElevenLabsApiKey : '',
       elevenLabsVoiceId: typeof item.ElevenLabsVoiceId === 'string' ? item.ElevenLabsVoiceId : '',
+      speechEngine: item.SpeechEngine === 'elevenlabs' ? 'elevenlabs' : 'browser',
+      browserVoiceURI: typeof item.BrowserVoiceURI === 'string' ? item.BrowserVoiceURI : '',
       dayBreakdownVisibleByDefault:
         typeof item.DayBreakdownVisibleByDefault === 'boolean'
           ? item.DayBreakdownVisibleByDefault
@@ -147,6 +157,8 @@ export class ConfigService {
       GeminiApiKey: config.geminiApiKey ?? '',
       ElevenLabsApiKey: config.elevenLabsApiKey ?? '',
       ElevenLabsVoiceId: config.elevenLabsVoiceId ?? '',
+      SpeechEngine: config.speechEngine === 'elevenlabs' ? 'elevenlabs' : 'browser',
+      BrowserVoiceURI: config.browserVoiceURI ?? '',
       DayBreakdownVisibleByDefault: config.dayBreakdownVisibleByDefault
     };
   }
@@ -183,6 +195,10 @@ export class ConfigService {
       elevenLabsVoiceId: this.hasOwnField(item, 'ElevenLabsVoiceId')
         ? mapped.elevenLabsVoiceId
         : localFallback.elevenLabsVoiceId,
+      speechEngine: this.hasOwnField(item, 'SpeechEngine') ? mapped.speechEngine : localFallback.speechEngine,
+      browserVoiceURI: this.hasOwnField(item, 'BrowserVoiceURI')
+        ? mapped.browserVoiceURI
+        : localFallback.browserVoiceURI,
       dayBreakdownVisibleByDefault: this.hasOwnField(item, 'DayBreakdownVisibleByDefault')
         ? mapped.dayBreakdownVisibleByDefault
         : localFallback.dayBreakdownVisibleByDefault
@@ -193,11 +209,13 @@ export class ConfigService {
     const safeFilter = encodeURIComponent(filterExpr);
     const selects = includeUserIdField
       ? [
+          'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,ElevenLabsApiKey,ElevenLabsVoiceId,SpeechEngine,BrowserVoiceURI,DayBreakdownVisibleByDefault',
           'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,ElevenLabsApiKey,ElevenLabsVoiceId,DayBreakdownVisibleByDefault',
           'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault',
           'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault'
         ]
       : [
+          'ID,Title,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,ElevenLabsApiKey,ElevenLabsVoiceId,SpeechEngine,BrowserVoiceURI,DayBreakdownVisibleByDefault',
           'ID,Title,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,ElevenLabsApiKey,ElevenLabsVoiceId,DayBreakdownVisibleByDefault',
           'ID,Title,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault',
           'ID,Title,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault'
@@ -271,9 +289,17 @@ export class ConfigService {
     const fullBody = this.mapToSpItem(userId, config);
     const bodies: Record<string, unknown>[] = [
       fullBody,
-      // Fallback if ElevenLabs columns are not yet provisioned on the list.
+      // Fallback if newer speech columns are not yet provisioned on the list.
       (() => {
         const without = { ...fullBody };
+        delete without.SpeechEngine;
+        delete without.BrowserVoiceURI;
+        return without;
+      })(),
+      (() => {
+        const without = { ...fullBody };
+        delete without.SpeechEngine;
+        delete without.BrowserVoiceURI;
         delete without.ElevenLabsApiKey;
         delete without.ElevenLabsVoiceId;
         return without;
