@@ -103,6 +103,92 @@ function stripJsonFences(raw: string): string {
   return t;
 }
 
+/** Close truncated JSON by appending missing } / ] after the last complete value. */
+function repairTruncatedJson(raw: string): string | undefined {
+  let s = raw.trim();
+  if (!s) return undefined;
+  // Drop a trailing incomplete string / key fragment after the last complete object/array item.
+  const lastComplete = Math.max(s.lastIndexOf('}'), s.lastIndexOf(']'));
+  if (lastComplete < 0) return undefined;
+  s = s.slice(0, lastComplete + 1);
+  // Remove trailing commas before we close.
+  s = s.replace(/,\s*$/, '');
+
+  const stack: string[] = [];
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (inString) {
+      if (escape) escape = false;
+      else if (ch === '\\') escape = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === '{') stack.push('}');
+    else if (ch === '[') stack.push(']');
+    else if (ch === '}' || ch === ']') {
+      if (!stack.length || stack[stack.length - 1] !== ch) return undefined;
+      stack.pop();
+    }
+  }
+  if (inString) return undefined;
+  if (!stack.length) return s;
+  return s + stack.reverse().join('');
+}
+
+/** Pull complete {...} objects from a truncated `items` / `places` array. */
+function extractCompleteObjectsArray(raw: string, arrayKey: 'items' | 'places'): unknown[] | undefined {
+  const keyIdx = raw.indexOf(`"${arrayKey}"`);
+  if (keyIdx < 0) return undefined;
+  const arrStart = raw.indexOf('[', keyIdx);
+  if (arrStart < 0) return undefined;
+  const objects: unknown[] = [];
+  let i = arrStart + 1;
+  while (i < raw.length) {
+    while (i < raw.length && /[\s,]/.test(raw[i])) i += 1;
+    if (i >= raw.length || raw[i] === ']') break;
+    if (raw[i] !== '{') break;
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    const start = i;
+    for (; i < raw.length; i++) {
+      const ch = raw[i];
+      if (inString) {
+        if (escape) escape = false;
+        else if (ch === '\\') escape = true;
+        else if (ch === '"') inString = false;
+        continue;
+      }
+      if (ch === '"') {
+        inString = true;
+        continue;
+      }
+      if (ch === '{') depth += 1;
+      else if (ch === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          i += 1;
+          const slice = raw.slice(start, i);
+          try {
+            objects.push(JSON.parse(slice));
+          } catch {
+            /* skip incomplete */
+          }
+          break;
+        }
+      }
+    }
+    if (depth !== 0) break;
+  }
+  return objects.length ? objects : undefined;
+}
+
 function parseGeminiJson(text: string): unknown {
   const cleaned = stripJsonFences(text).trim();
   if (!cleaned) {
@@ -129,6 +215,18 @@ function parseGeminiJson(text: string): unknown {
     try {
       return JSON.parse(segment);
     } catch {
+      const repaired = repairTruncatedJson(segment) ?? repairTruncatedJson(cleaned.slice(start));
+      if (repaired) {
+        try {
+          return JSON.parse(repaired);
+        } catch {
+          /* fall through */
+        }
+      }
+      const items = extractCompleteObjectsArray(cleaned.slice(start), 'items');
+      if (items) return { items };
+      const places = extractCompleteObjectsArray(cleaned.slice(start), 'places');
+      if (places) return { places };
       throw new GeminiServiceError('PARSE_ERROR', 'Could not parse Gemini response as JSON.');
     }
   }
@@ -454,15 +552,15 @@ function buildDiningPrompt(ctx: LocationSearchContext): string {
 ${placeLine}
 ${geo}
 
-Respond with ONLY JSON:
-{"items":[{"name":"venue name","description":"1 sentence about the venue","why":"why a traveller should go","bestFor":"short phrase like 'best for Alsatian tart and wine bar vibe'","priceLevel":"$, $$, $$$ or $$$$","rating":4.4,"ratingSource":"google|tripadvisor|mixed","mapsUrl":"optional Google Maps search URL","reviewsUrl":"optional Google/Tripadvisor reviews URL","websiteUrl":"official venue URL when known"}]}
+Respond with ONLY a compact JSON object (no markdown, no code fences):
+{"items":[{"name":"venue","description":"one short sentence","why":"why go","bestFor":"short phrase","priceLevel":"$$","rating":4.4,"ratingSource":"google","mapsUrl":"","reviewsUrl":"","websiteUrl":""}]}
 
 Rules:
-- 4-6 concrete restaurants, cafés, or food markets
+- Exactly 4 venues (restaurants, cafés, or food markets)
+- Keep each string under 120 characters
 - Real or highly plausible for the area
-- Prefer a mix of places tied to local food/drink highlights; not every venue must match every highlight
-- Include rating and price level where possible
-- No markdown, no code fences`;
+- Prefer local food/drink highlights
+- Omit empty optional URL fields rather than inventing them`;
 }
 
 function buildNearestPrompt(kind: NearestPlaceKind, ctx: LocationSearchContext): string {
@@ -505,7 +603,11 @@ async function callGeminiJson<T>(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.35, maxOutputTokens: 700 }
+          generationConfig: {
+            temperature: 0.35,
+            maxOutputTokens: 2048,
+            responseMimeType: 'application/json'
+          }
         })
       });
       if (!resp.ok) {

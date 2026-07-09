@@ -32,26 +32,126 @@ export const DEFAULT_ELEVENLABS_VOICE_ID = '21m00Tcm4TlvDq8ikWAM';
  * (restricted keys often only grant Text to Speech). TTS still works with these IDs.
  */
 export const CURATED_ELEVENLABS_VOICES: ElevenLabsVoice[] = [
-  { voiceId: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel', category: 'premade' },
-  { voiceId: 'AZnzlk1XvdvUeBnXmlld', name: 'Domi', category: 'premade' },
-  { voiceId: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', category: 'premade' },
-  { voiceId: 'ErXwobaYiN019PkySvjV', name: 'Antoni', category: 'premade' },
-  { voiceId: 'MF3mGyEYCl7XYWbV9V6O', name: 'Elli', category: 'premade' },
-  { voiceId: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh', category: 'premade' },
-  { voiceId: 'VR6AewLTigWG4xSOukaG', name: 'Arnold', category: 'premade' },
-  { voiceId: 'pNInz6obpgDQGcFmaJgB', name: 'Adam', category: 'premade' },
-  { voiceId: 'yoZ06aMxZJJ28mfd3POQ', name: 'Sam', category: 'premade' },
-  { voiceId: 'JBFqnCBsd6RMkjVDRZzb', name: 'George', category: 'premade' },
-  { voiceId: 'onwK4e9ZLuTAKqWW03F9', name: 'Daniel', category: 'premade' },
-  { voiceId: 'XB0fDUnXU5powFXDhCwa', name: 'Charlotte', category: 'premade' },
-  { voiceId: 'XrExE9yKIg1WjnnlVkGX', name: 'Matilda', category: 'premade' },
-  { voiceId: 'N2lVS1w4EtoT3dr4eOWO', name: 'Callum', category: 'premade' },
-  { voiceId: 'IKne3meq5aSn9XLyUdCD', name: 'Charlie', category: 'premade' },
-  { voiceId: 'cgSgspJ2msmBaCrSLipa', name: 'Jessica', category: 'premade' },
-  { voiceId: 'FGY2WhTYpPnrIDTdsKH5', name: 'Laura', category: 'premade' },
-  { voiceId: 'TX3LPaxmHKxFdv7VOQHJ', name: 'Liam', category: 'premade' },
-  { voiceId: 'bIHbv24MWmeRgasZH58o', name: 'Will', category: 'premade' },
-  { voiceId: 'nPczCjzI2devNBz1zQrb', name: 'Brian', category: 'premade' }
+  {
+    voiceId: '21m00Tcm4TlvDq8ikWAM',
+    name: 'Rachel',
+    category: 'premade',
+    description: 'Calm, clear American female — great for narration'
+  },
+  {
+    voiceId: 'AZnzlk1XvdvUeBnXmlld',
+    name: 'Domi',
+    category: 'premade',
+    description: 'Strong, confident young American female'
+  },
+  {
+    voiceId: 'EXAVITQu4vr4xnSDxMaL',
+    name: 'Sarah',
+    category: 'premade',
+    description: 'Soft, soft-spoken American female'
+  },
+  {
+    voiceId: 'ErXwobaYiN019PkySvjV',
+    name: 'Antoni',
+    category: 'premade',
+    description: 'Well-rounded, friendly American male'
+  },
+  {
+    voiceId: 'MF3mGyEYCl7XYWbV9V6O',
+    name: 'Elli',
+    category: 'premade',
+    description: 'Emotional, expressive young American female'
+  },
+  {
+    voiceId: 'TxGEqnHWrfWFTfGW9XjX',
+    name: 'Josh',
+    category: 'premade',
+    description: 'Deep, young American male'
+  },
+  {
+    voiceId: 'VR6AewLTigWG4xSOukaG',
+    name: 'Arnold',
+    category: 'premade',
+    description: 'Crisp, middle-aged American male'
+  },
+  {
+    voiceId: 'pNInz6obpgDQGcFmaJgB',
+    name: 'Adam',
+    category: 'premade',
+    description: 'Deep, narrative American male'
+  },
+  {
+    voiceId: 'yoZ06aMxZJJ28mfd3POQ',
+    name: 'Sam',
+    category: 'premade',
+    description: 'Raspy, young American male'
+  },
+  {
+    voiceId: 'JBFqnCBsd6RMkjVDRZzb',
+    name: 'George',
+    category: 'premade',
+    description: 'Warm, British male — easy listening'
+  },
+  {
+    voiceId: 'onwK4e9ZLuTAKqWW03F9',
+    name: 'Daniel',
+    category: 'premade',
+    description: 'Authoritative British male newsreader style'
+  },
+  {
+    voiceId: 'XB0fDUnXU5powFXDhCwa',
+    name: 'Charlotte',
+    category: 'premade',
+    description: 'Seductive Swedish female English'
+  },
+  {
+    voiceId: 'XrExE9yKIg1WjnnlVkGX',
+    name: 'Matilda',
+    category: 'premade',
+    description: 'Warm, friendly American female'
+  },
+  {
+    voiceId: 'N2lVS1w4EtoT3dr4eOWO',
+    name: 'Callum',
+    category: 'premade',
+    description: 'Intense, husky American male'
+  },
+  {
+    voiceId: 'IKne3meq5aSn9XLyUdCD',
+    name: 'Charlie',
+    category: 'premade',
+    description: 'Casual, natural Australian male'
+  },
+  {
+    voiceId: 'cgSgspJ2msmBaCrSLipa',
+    name: 'Jessica',
+    category: 'premade',
+    description: 'Expressive, playful American female'
+  },
+  {
+    voiceId: 'FGY2WhTYpPnrIDTdsKH5',
+    name: 'Laura',
+    category: 'premade',
+    description: 'Upbeat, enthusiastic American female'
+  },
+  {
+    voiceId: 'TX3LPaxmHKxFdv7VOQHJ',
+    name: 'Liam',
+    category: 'premade',
+    description: 'Articulate young American male'
+  },
+  {
+    voiceId: 'bIHbv24MWmeRgasZH58o',
+    name: 'Will',
+    category: 'premade',
+    description: 'Friendly, conversational American male'
+  },
+  {
+    voiceId: 'nPczCjzI2devNBz1zQrb',
+    name: 'Brian',
+    category: 'premade',
+    description: 'Deep, resonant American male'
+  }
 ].slice().sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 
 export interface ElevenLabsVoiceListResult {

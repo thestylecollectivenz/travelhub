@@ -247,7 +247,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
               {voices.map((v) => (
                 <option key={v.voiceId} value={v.voiceId}>
                   {v.name}
-                  {v.category ? ` (${v.category})` : ''}
+                  {v.description ? ` — ${v.description}` : v.category ? ` (${v.category})` : ''}
                 </option>
               ))}
             </select>
