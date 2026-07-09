@@ -6,6 +6,8 @@ import { ConfigPanel } from '../../../../components/workspace/ConfigPanel';
 import { TermsAndConditions } from './TermsAndConditions';
 import { AppFooter } from './AppFooter';
 import { useMobileMode } from '../../../../hooks/useMobileMode';
+import { MobileHomeShell } from '../../../../components/mobile/MobileHomeShell';
+import type { MobileTab } from '../../../../components/mobile/mobileTypes';
 
 type AppView = 'multiTrip' | 'singleTrip' | 'createTrip' | 'terms';
 
@@ -13,6 +15,7 @@ export const AppRouter: React.FC = () => {
   const isMobile = useMobileMode();
   const [view, setView] = React.useState<AppView>('multiTrip');
   const [selectedTripId, setSelectedTripId] = React.useState<string>('');
+  const [initialMobileTab, setInitialMobileTab] = React.useState<MobileTab | undefined>(undefined);
   const [configOpen, setConfigOpen] = React.useState(false);
 
   React.useEffect(() => {
@@ -21,8 +24,9 @@ export const AppRouter: React.FC = () => {
     return () => window.removeEventListener('travelhub-open-settings', openSettings);
   }, []);
 
-  const goToTrip = (id: string): void => {
+  const goToTrip = (id: string, tab?: MobileTab): void => {
     setSelectedTripId(id);
+    setInitialMobileTab(tab);
     setView('singleTrip');
   };
 
@@ -33,14 +37,25 @@ export const AppRouter: React.FC = () => {
     content = (
       <TripWorkspace
         tripId={selectedTripId}
-        onBack={() => setView('multiTrip')}
+        onBack={() => {
+          setInitialMobileTab(undefined);
+          setView('multiTrip');
+        }}
+        initialMobileTab={initialMobileTab}
+      />
+    );
+  } else if (isMobile) {
+    content = (
+      <MobileHomeShell
+        onSelectTrip={goToTrip}
+        onCreateTrip={() => setView('createTrip')}
+        onOpenSettings={() => setConfigOpen(true)}
       />
     );
   } else {
-    // createTrip view is handled by panel overlay.
     content = (
       <TripBrowser
-        onSelectTrip={goToTrip}
+        onSelectTrip={(id) => goToTrip(id)}
         onCreateTrip={() => setView('createTrip')}
         onOpenSettings={() => setConfigOpen(true)}
       />
@@ -51,7 +66,7 @@ export const AppRouter: React.FC = () => {
     <>
       {content}
       <ConfigPanel isOpen={configOpen} onClose={() => setConfigOpen(false)} />
-      {!(isMobile && view === 'singleTrip') ? (
+      {!(isMobile && (view === 'singleTrip' || view === 'multiTrip')) ? (
         <AppFooter onOpenTerms={() => setView('terms')} />
       ) : null}
       {view === 'createTrip' ? (

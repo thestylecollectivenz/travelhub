@@ -7,13 +7,15 @@ import { MobileJournalView } from './MobileJournalView';
 import { MobileListsView } from './MobileListsView';
 import { MobileMapView } from './MobileMapView';
 import { MobileTaskView } from './MobileTaskView';
+import type { MobileTab } from './mobileTypes';
 import { SOLUTION_VERSION } from '../../appVersion';
 import styles from './MobileShell.module.css';
 
-export type MobileTab = 'today' | 'journal' | 'lists' | 'map' | 'tasks';
+export type { MobileTab } from './mobileTypes';
 
 export interface MobileTripShellProps {
   onBack: () => void;
+  initialTab?: MobileTab;
 }
 
 const TABS: Array<{ id: MobileTab; label: string }> = [
@@ -24,10 +26,14 @@ const TABS: Array<{ id: MobileTab; label: string }> = [
   { id: 'map', label: 'Map' }
 ];
 
-export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack }) => {
+export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initialTab }) => {
   const { trip } = useTripWorkspace();
   const spContext = useSpContext();
-  const [tab, setTab] = React.useState<MobileTab>('today');
+  const [tab, setTab] = React.useState<MobileTab>(initialTab ?? 'today');
+
+  React.useEffect(() => {
+    if (initialTab) setTab(initialTab);
+  }, [initialTab, trip?.id]);
 
   React.useEffect(() => {
     if (trip?.id) logTripAccessOnce(spContext, trip.id, 'view.mobile', tab);

@@ -36,6 +36,7 @@ import { AiAssistantFab } from './AiAssistantFab';
 import { OptionEditPortal } from '../itinerary/OptionEditPortal';
 import { useMobileMode } from '../../hooks/useMobileMode';
 import { MobileTripShell } from '../mobile/MobileTripShell';
+import type { MobileTab } from '../mobile/mobileTypes';
 import { useSpContext } from '../../context/SpContext';
 import { logTripAccessOnce } from '../../services/TripAccessLogService';
 import styles from './TripWorkspace.module.css';
@@ -43,6 +44,7 @@ import styles from './TripWorkspace.module.css';
 export interface ITripWorkspaceProps {
   tripId: string;
   onBack: () => void;
+  initialMobileTab?: MobileTab;
 }
 
 const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) => {
@@ -664,7 +666,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
 
 const MobileAwareTripLayout: React.FC<ITripWorkspaceProps> = (props) => {
   const isMobile = useMobileMode();
-  if (isMobile) return <MobileTripShell onBack={props.onBack} />;
+  if (isMobile) return <MobileTripShell onBack={props.onBack} initialTab={props.initialMobileTab} />;
   return <TripWorkspaceLayout {...props} />;
 };
 
