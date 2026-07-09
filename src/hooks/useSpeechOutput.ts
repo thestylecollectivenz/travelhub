@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useConfig } from '../context/ConfigContext';
 import {
   getSpeechOutputState,
   pauseSpeechOutput,
@@ -15,6 +16,7 @@ export function useSpeechOutput(): {
   resume: () => void;
   stop: () => void;
 } {
+  const { config } = useConfig();
   const [speechState, setSpeechState] = React.useState<SpeechOutputState>('idle');
 
   React.useEffect(() => {
@@ -23,9 +25,16 @@ export function useSpeechOutput(): {
     return () => window.clearInterval(id);
   }, []);
 
-  const speak = React.useCallback((text: string) => {
-    speakPlainText(text, setSpeechState);
-  }, []);
+  const speak = React.useCallback(
+    (text: string) => {
+      speakPlainText(text, setSpeechState, {
+        elevenLabsApiKey: config.elevenLabsApiKey,
+        elevenLabsVoiceId: config.elevenLabsVoiceId,
+        preferElevenLabs: true
+      });
+    },
+    [config.elevenLabsApiKey, config.elevenLabsVoiceId]
+  );
 
   const pause = React.useCallback(() => {
     if (pauseSpeechOutput()) setSpeechState('paused');

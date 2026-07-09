@@ -18,6 +18,10 @@ export interface UserConfig {
   sidebarWidthCustomized?: boolean;
   weatherApiKey: string;
   geminiApiKey: string;
+  /** ElevenLabs API key for AI read-out voices (free plan supported). */
+  elevenLabsApiKey: string;
+  /** Selected ElevenLabs voice_id; empty = default premade voice. */
+  elevenLabsVoiceId: string;
   /** When false, day budget breakdown starts collapsed on each day. */
   dayBreakdownVisibleByDefault: boolean;
 }
@@ -32,6 +36,8 @@ export const DEFAULT_USER_CONFIG: UserConfig = {
   sidebarWidth: 260,
   weatherApiKey: '',
   geminiApiKey: '',
+  elevenLabsApiKey: '',
+  elevenLabsVoiceId: '',
   dayBreakdownVisibleByDefault: true
 };
 
@@ -116,6 +122,8 @@ export class ConfigService {
         typeof item.SidebarWidthCustomized === 'boolean' ? item.SidebarWidthCustomized : false,
       weatherApiKey: typeof item.WeatherApiKey === 'string' ? item.WeatherApiKey : '',
       geminiApiKey: typeof item.GeminiApiKey === 'string' ? item.GeminiApiKey : '',
+      elevenLabsApiKey: typeof item.ElevenLabsApiKey === 'string' ? item.ElevenLabsApiKey : '',
+      elevenLabsVoiceId: typeof item.ElevenLabsVoiceId === 'string' ? item.ElevenLabsVoiceId : '',
       dayBreakdownVisibleByDefault:
         typeof item.DayBreakdownVisibleByDefault === 'boolean'
           ? item.DayBreakdownVisibleByDefault
@@ -137,6 +145,8 @@ export class ConfigService {
       SidebarWidthCustomized: config.sidebarWidthCustomized === true,
       WeatherApiKey: config.weatherApiKey ?? '',
       GeminiApiKey: config.geminiApiKey ?? '',
+      ElevenLabsApiKey: config.elevenLabsApiKey ?? '',
+      ElevenLabsVoiceId: config.elevenLabsVoiceId ?? '',
       DayBreakdownVisibleByDefault: config.dayBreakdownVisibleByDefault
     };
   }
@@ -167,6 +177,12 @@ export class ConfigService {
         : localFallback.sidebarWidthCustomized,
       weatherApiKey: this.hasOwnField(item, 'WeatherApiKey') ? mapped.weatherApiKey : localFallback.weatherApiKey,
       geminiApiKey: this.hasOwnField(item, 'GeminiApiKey') ? mapped.geminiApiKey : localFallback.geminiApiKey,
+      elevenLabsApiKey: this.hasOwnField(item, 'ElevenLabsApiKey')
+        ? mapped.elevenLabsApiKey
+        : localFallback.elevenLabsApiKey,
+      elevenLabsVoiceId: this.hasOwnField(item, 'ElevenLabsVoiceId')
+        ? mapped.elevenLabsVoiceId
+        : localFallback.elevenLabsVoiceId,
       dayBreakdownVisibleByDefault: this.hasOwnField(item, 'DayBreakdownVisibleByDefault')
         ? mapped.dayBreakdownVisibleByDefault
         : localFallback.dayBreakdownVisibleByDefault
@@ -177,10 +193,12 @@ export class ConfigService {
     const safeFilter = encodeURIComponent(filterExpr);
     const selects = includeUserIdField
       ? [
+          'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,ElevenLabsApiKey,ElevenLabsVoiceId,DayBreakdownVisibleByDefault',
           'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault',
           'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault'
         ]
       : [
+          'ID,Title,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,ElevenLabsApiKey,ElevenLabsVoiceId,DayBreakdownVisibleByDefault',
           'ID,Title,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault',
           'ID,Title,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault'
         ];
@@ -250,39 +268,59 @@ export class ConfigService {
 
   async saveConfig(userId: string, config: UserConfig): Promise<void> {
     const existing = await this.getConfigItem(userId);
-    const body = JSON.stringify(this.mapToSpItem(userId, config));
+    const fullBody = this.mapToSpItem(userId, config);
+    const bodies: Record<string, unknown>[] = [
+      fullBody,
+      // Fallback if ElevenLabs columns are not yet provisioned on the list.
+      (() => {
+        const without = { ...fullBody };
+        delete without.ElevenLabsApiKey;
+        delete without.ElevenLabsVoiceId;
+        return without;
+      })()
+    ];
 
     if (existing.id) {
-      const updateResp = await this.ctx.spHttpClient.fetch(`${this.baseUrl}(${existing.id})`, SPHttpClient.configurations.v1, {
-        method: 'PATCH',
+      let lastErr: SPHttpClientResponse | undefined;
+      for (const payload of bodies) {
+        const updateResp = await this.ctx.spHttpClient.fetch(`${this.baseUrl}(${existing.id})`, SPHttpClient.configurations.v1, {
+          method: 'PATCH',
+          headers: {
+            Accept: 'application/json;odata.metadata=minimal',
+            'Content-Type': 'application/json;odata.metadata=minimal',
+            'IF-MATCH': '*'
+          },
+          body: JSON.stringify(payload)
+        });
+        if (updateResp.ok || updateResp.status === 204) {
+          this.saveToLocalFallback(userId, config);
+          return;
+        }
+        lastErr = updateResp;
+        if (updateResp.status !== 400) break;
+      }
+      if (lastErr) await logFailedResponse('saveConfig PATCH', lastErr);
+      this.saveToLocalFallback(userId, config);
+      return;
+    }
+
+    let lastCreate: SPHttpClientResponse | undefined;
+    for (const payload of bodies) {
+      const createResp = await this.ctx.spHttpClient.post(this.baseUrl, SPHttpClient.configurations.v1, {
         headers: {
           Accept: 'application/json;odata.metadata=minimal',
-          'Content-Type': 'application/json;odata.metadata=minimal',
-          'IF-MATCH': '*'
+          'Content-Type': 'application/json;odata.metadata=minimal'
         },
-        body
+        body: JSON.stringify(payload)
       });
-      if (!updateResp.ok && updateResp.status !== 204) {
-        await logFailedResponse('saveConfig PATCH', updateResp);
+      if (createResp.ok || createResp.status === 201) {
         this.saveToLocalFallback(userId, config);
         return;
       }
-      this.saveToLocalFallback(userId, config);
-      return;
+      lastCreate = createResp;
+      if (createResp.status !== 400) break;
     }
-
-    const createResp = await this.ctx.spHttpClient.post(this.baseUrl, SPHttpClient.configurations.v1, {
-      headers: {
-        Accept: 'application/json;odata.metadata=minimal',
-        'Content-Type': 'application/json;odata.metadata=minimal'
-      },
-      body
-    });
-    if (!createResp.ok && createResp.status !== 201) {
-      await logFailedResponse('saveConfig POST', createResp);
-      this.saveToLocalFallback(userId, config);
-      return;
-    }
+    if (lastCreate) await logFailedResponse('saveConfig POST', lastCreate);
     this.saveToLocalFallback(userId, config);
   }
 }

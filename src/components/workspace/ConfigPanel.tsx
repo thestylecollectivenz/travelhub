@@ -2,6 +2,11 @@ import * as React from 'react';
 import { useConfig } from '../../context/ConfigContext';
 import type { UserConfig } from '../../services/ConfigService';
 import { DEFAULT_GEMINI_MODEL } from '../../services/GeminiService';
+import {
+  DEFAULT_ELEVENLABS_VOICE_ID,
+  listElevenLabsVoices,
+  type ElevenLabsVoice
+} from '../../services/ElevenLabsService';
 import { CurrencySelect } from '../shared/CurrencySelect';
 import { SecretApiKeyField } from '../shared/SecretApiKeyField';
 
@@ -15,21 +20,64 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
   const [draft, setDraft] = React.useState<UserConfig>(config);
   const [weatherKeyDraft, setWeatherKeyDraft] = React.useState('');
   const [geminiKeyDraft, setGeminiKeyDraft] = React.useState('');
+  const [elevenLabsKeyDraft, setElevenLabsKeyDraft] = React.useState('');
+  const [voices, setVoices] = React.useState<ElevenLabsVoice[]>([]);
+  const [voicesLoading, setVoicesLoading] = React.useState(false);
+  const [voicesError, setVoicesError] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState('');
 
   const hasWeatherKey = Boolean((config.weatherApiKey || '').trim());
   const hasGeminiKey = Boolean((config.geminiApiKey || '').trim());
+  const hasElevenLabsKey = Boolean((config.elevenLabsApiKey || '').trim());
+  const effectiveElevenLabsKey = (elevenLabsKeyDraft.trim() || config.elevenLabsApiKey || '').trim();
 
   React.useEffect(() => {
     if (isOpen) {
       setDraft(config);
       setWeatherKeyDraft('');
       setGeminiKeyDraft('');
+      setElevenLabsKeyDraft('');
       setSaveError('');
+      setVoicesError('');
       setSaving(false);
     }
   }, [isOpen, config]);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    if (!effectiveElevenLabsKey) {
+      setVoices([]);
+      setVoicesError('');
+      return;
+    }
+    let cancelled = false;
+    setVoicesLoading(true);
+    setVoicesError('');
+    void listElevenLabsVoices(effectiveElevenLabsKey)
+      .then((rows) => {
+        if (cancelled) return;
+        setVoices(rows);
+        if (!rows.length) return;
+        setDraft((d) => {
+          if (d.elevenLabsVoiceId) return d;
+          const preferred =
+            rows.find((v) => v.voiceId === DEFAULT_ELEVENLABS_VOICE_ID) ?? rows[0];
+          return { ...d, elevenLabsVoiceId: preferred.voiceId };
+        });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setVoices([]);
+        setVoicesError(err instanceof Error ? err.message : 'Could not load ElevenLabs voices.');
+      })
+      .finally(() => {
+        if (!cancelled) setVoicesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, effectiveElevenLabsKey]);
 
   if (!isOpen) {
     return null;
@@ -173,6 +221,44 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
             hint={`Uses ${DEFAULT_GEMINI_MODEL} first (check RPM/RPD in AI Studio), then 2.5 Flash Lite / 2.5 Flash if quota blocked. Avoid models showing 0 limits. Saved keys are masked here.`}
           />
 
+          <SecretApiKeyField
+            label="ElevenLabs API key"
+            panelOpen={isOpen}
+            hasSavedKey={hasElevenLabsKey}
+            value={elevenLabsKeyDraft}
+            onChange={setElevenLabsKeyDraft}
+            placeholder="Paste a new ElevenLabs API key"
+            hint="Free plan includes API access (~10k credits/month). Used for Read out / Auto-read. Falls back to browser speech if missing or over quota."
+          />
+
+          <label style={{ display: 'grid', gap: 'var(--space-1)' }}>
+            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-800)' }}>ElevenLabs voice</span>
+            <select
+              value={draft.elevenLabsVoiceId || ''}
+              onChange={(e) => setDraft((d) => ({ ...d, elevenLabsVoiceId: e.target.value }))}
+              disabled={!effectiveElevenLabsKey || voicesLoading}
+              style={{ border: 'var(--border-default)', borderRadius: 'var(--radius-md)', padding: 'var(--space-2)' }}
+            >
+              {!effectiveElevenLabsKey ? <option value="">Add an API key to load voices</option> : null}
+              {effectiveElevenLabsKey && !voices.length && !voicesLoading ? (
+                <option value={draft.elevenLabsVoiceId || DEFAULT_ELEVENLABS_VOICE_ID}>Default voice</option>
+              ) : null}
+              {voices.map((v) => (
+                <option key={v.voiceId} value={v.voiceId}>
+                  {v.name}
+                  {v.category ? ` (${v.category})` : ''}
+                </option>
+              ))}
+            </select>
+            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-sand-600)' }}>
+              {voicesLoading
+                ? 'Loading voices…'
+                : voicesError
+                  ? voicesError
+                  : 'Choose a free-plan voice for AI read-out.'}
+            </span>
+          </label>
+
           <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <input
               type="checkbox"
@@ -229,12 +315,15 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
             onClick={() => {
               const weatherTrim = weatherKeyDraft.trim();
               const geminiTrim = geminiKeyDraft.trim();
+              const elevenTrim = elevenLabsKeyDraft.trim();
               setSaving(true);
               setSaveError('');
               void saveConfig({
                 ...draft,
                 weatherApiKey: weatherTrim || config.weatherApiKey,
-                geminiApiKey: geminiTrim || config.geminiApiKey
+                geminiApiKey: geminiTrim || config.geminiApiKey,
+                elevenLabsApiKey: elevenTrim || config.elevenLabsApiKey,
+                elevenLabsVoiceId: draft.elevenLabsVoiceId || config.elevenLabsVoiceId || DEFAULT_ELEVENLABS_VOICE_ID
               })
                 .then(() => {
                   setSaving(false);

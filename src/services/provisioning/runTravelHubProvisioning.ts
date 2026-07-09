@@ -3,6 +3,7 @@ import { ensureTripMembersList } from './ensureTripMembersList';
 import { ensureOwnerEmailColumns } from './ensureOwnerEmailColumns';
 import { ensureTripAccessLogList } from './ensureTripAccessLogList';
 import { ensureEditorEmailOnTrips } from './ensureEditorEmailOnTrips';
+import { ensureElevenLabsConfigColumns } from './ensureElevenLabsConfigColumns';
 import { runOwnerEmailBackfill } from './backfillOwnerEmail';
 import { runTripEditorEmailBackfill } from './backfillTripEditorEmail';
 
@@ -22,6 +23,7 @@ export function runTravelHubProvisioning(ctx: WebPartContext): void {
       await ensureOwnerEmailColumns(ctx);
       await ensureTripAccessLogList(ctx);
       await ensureEditorEmailOnTrips(ctx);
+      await ensureElevenLabsConfigColumns(ctx);
       runOwnerEmailBackfill(ctx);
       runTripEditorEmailBackfill(ctx);
     } catch (err) {
