@@ -9,6 +9,8 @@ import { isRichTextEditorEmpty } from '../../utils/journalRichText';
 import { SharedLocationInfoBlock } from '../itinerary/SharedLocationInfoBlock';
 import { RichTextContent } from '../shared/RichTextContent';
 import { entryMapsDirectionsUrl, entryMapsPlaceUrl } from '../../utils/googleMapsLink';
+import { useCanSeeFinancials } from '../../hooks/useCanSeeFinancials';
+import { buildItineraryEntryDetailRows } from '../../utils/itineraryEntryDetailFields';
 import styles from './MobileShell.module.css';
 
 export interface MobileCardDetailProps {
@@ -18,6 +20,7 @@ export interface MobileCardDetailProps {
 
 export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({ entry, onClose }) => {
   const { documents, links } = useAttachments();
+  const canSeeFinancials = useCanSeeFinancials();
   const entryDocs = documents.filter((d) => d.entryId === entry.id);
   const entryLinks = links.filter((l) => l.entryId === entry.id);
   const mapsPlaceUrl = entryMapsPlaceUrl(entry);
@@ -26,6 +29,10 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({ entry, onClo
   const hasNotes = !isLocationInfo && !isRichTextEditorEmpty(entry.notes);
   const locationLabel = (entry.location ?? '').trim();
   const streetLabel = (entry.streetAddress ?? '').trim();
+  const detailRows = React.useMemo(
+    () => buildItineraryEntryDetailRows(entry, { canSeeFinancials }),
+    [entry, canSeeFinancials]
+  );
 
   return (
     <div className={styles.detailPanel}>
@@ -58,14 +65,24 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({ entry, onClo
       {isLocationInfo ? <SharedLocationInfoBlock entry={entry} /> : null}
       {!isLocationInfo && mapsPlaceUrl ? (
         <div className={styles.mobileMapsRow}>
-          <a className={styles.linkBtn} href={mapsPlaceUrl} target="_blank" rel="noopener noreferrer">
-            Open in Google Maps
+          <a className={styles.linkBtnIcon} href={mapsPlaceUrl} target="_blank" rel="noopener noreferrer" title="Open in Google Maps">
+            <span aria-hidden>🗺️</span>
           </a>
           {mapsDirectionsUrl ? (
-            <a className={styles.linkBtn} href={mapsDirectionsUrl} target="_blank" rel="noopener noreferrer">
-              Get directions
+            <a className={styles.linkBtnIcon} href={mapsDirectionsUrl} target="_blank" rel="noopener noreferrer" title="Get directions">
+              <span aria-hidden>🧭</span>
             </a>
           ) : null}
+        </div>
+      ) : null}
+      {!isLocationInfo && detailRows.length ? (
+        <div className={styles.mobileDetailRows}>
+          {detailRows.map((row) => (
+            <div key={row.label} className={styles.mobileDetailRow}>
+              <span className={styles.mobileDetailLabel}>{row.label}</span>
+              <span className={styles.mobileDetailValue}>{row.value}</span>
+            </div>
+          ))}
         </div>
       ) : null}
       {entryDocs.length ? (

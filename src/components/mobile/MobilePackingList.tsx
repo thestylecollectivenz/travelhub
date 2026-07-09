@@ -27,6 +27,8 @@ export const MobilePackingList: React.FC = () => {
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
   const [name, setName] = React.useState('');
   const [qty, setQty] = React.useState(1);
+  const [sortAlpha, setSortAlpha] = React.useState(true);
+  const [groupByCategory, setGroupByCategory] = React.useState(true);
 
   const canEditItem = React.useCallback(
     (item: PackingItem) => canEditOwnedRecord(spContext, item.ownerEmail, role, item.traveller, members),
@@ -54,8 +56,27 @@ export const MobilePackingList: React.FC = () => {
         (i) => (CATEGORIES.indexOf(i.category) >= 0 ? i.category : 'Other') === activeCategory
       );
     }
+    rows = [...rows].sort((a, b) =>
+      sortAlpha
+        ? (a.itemName || '').localeCompare(b.itemName || '', undefined, { sensitivity: 'base' })
+        : (a.category || '').localeCompare(b.category || '', undefined, { sensitivity: 'base' })
+    );
     return rows;
-  }, [items, activeTraveller, activeCategory, travellers, spContext, members]);
+  }, [items, activeTraveller, activeCategory, travellers, spContext, members, sortAlpha]);
+
+  const grouped = React.useMemo(() => {
+    if (!groupByCategory) return [{ key: 'all', label: 'All items', rows: filtered }];
+    const map = new Map<string, PackingItem[]>();
+    for (const item of filtered) {
+      const key = (item.category || 'Other').trim() || 'Other';
+      const rows = map.get(key) ?? [];
+      rows.push(item);
+      map.set(key, rows);
+    }
+    return Array.from(map.entries())
+      .sort((a, b) => a[0].localeCompare(b[0], undefined, { sensitivity: 'base' }))
+      .map(([key, rows]) => ({ key, label: key, rows }));
+  }, [filtered, groupByCategory]);
 
   const packedCount = filtered.filter((i) => i.isPacked).length;
   const canAdd = role === 'Editor' || role === 'Companion';
@@ -106,6 +127,14 @@ export const MobilePackingList: React.FC = () => {
           </button>
         ) : null}
       </div>
+      <div className={styles.mobileListOptionsRow}>
+        <button type="button" className={styles.pagerBtn} onClick={() => setSortAlpha((v) => !v)}>
+          {sortAlpha ? 'A-Z' : 'By category'}
+        </button>
+        <button type="button" className={styles.pagerBtn} onClick={() => setGroupByCategory((v) => !v)}>
+          {groupByCategory ? 'Grouped' : 'Flat list'}
+        </button>
+      </div>
 
       {addOpen ? (
         <div className={styles.mobileAddCard}>
@@ -149,8 +178,12 @@ export const MobilePackingList: React.FC = () => {
       {filtered.length === 0 ? (
         <p className={styles.muted}>No packing items yet.</p>
       ) : (
-        <ul className={styles.mobileItemList}>
-          {filtered.map((item) => {
+        <div className={styles.mobileGroupedList}>
+          {grouped.map((group) => (
+            <section key={group.key} className={styles.mobileGroupBlock}>
+              {groupByCategory ? <h3 className={styles.mobileGroupHeading}>{group.label}</h3> : null}
+              <ul className={styles.mobileItemList}>
+                {group.rows.map((item) => {
             const editable = canEditItem(item);
             const open = expandedId === item.id;
             return (
@@ -185,24 +218,94 @@ export const MobilePackingList: React.FC = () => {
                   <div className={styles.mobileListItemDetail}>
                     {item.itemNotes?.trim() ? <p className={styles.muted}>{item.itemNotes}</p> : null}
                     {editable ? (
-                      <textarea
-                        className={styles.mobileField}
-                        placeholder="Notes"
-                        defaultValue={item.itemNotes ?? ''}
-                        onBlur={(e) => {
-                          const v = e.target.value.trim();
-                          if (v !== (item.itemNotes || '')) {
-                            service.update(item.id, { itemNotes: v }).then(refresh).catch(console.error);
+                      <>
+                        <input
+                          className={styles.mobileField}
+                          defaultValue={item.itemName}
+                          onBlur={(e) => {
+                            const v = e.target.value.trim();
+                            if (v && v !== item.itemName) {
+                              service.update(item.id, { itemName: v }).then(refresh).catch(console.error);
+                            }
+                          }}
+                        />
+                        <div className={styles.mobileAddRow}>
+                          <input
+                            className={styles.mobileFieldQty}
+                            type="number"
+                            min={1}
+                            defaultValue={item.quantity}
+                            onBlur={(e) => {
+                              const v = Math.max(1, Number(e.target.value) || 1);
+                              if (v !== item.quantity) {
+                                service.update(item.id, { quantity: v }).then(refresh).catch(console.error);
+                              }
+                            }}
+                          />
+                          <select
+                            className={styles.mobileField}
+                            value={item.category || 'Other'}
+                            onChange={(e) => {
+                              service.update(item.id, { category: e.target.value }).then(refresh).catch(console.error);
+                            }}
+                          >
+                            {CATEGORIES.map((c) => (
+                              <option key={c} value={c}>
+                                {c}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <select
+                          className={styles.mobileField}
+                          value={item.traveller || travellers[0] || ''}
+                          onChange={(e) =>
+                            service
+                              .update(item.id, {
+                                traveller: e.target.value,
+                                ownerEmail: resolveOwnerEmailForAssignee(spContext, e.target.value, members)
+                              })
+                              .then(refresh)
+                              .catch(console.error)
                           }
-                        }}
-                      />
+                        >
+                          {travellers.map((t) => (
+                            <option key={t} value={t}>
+                              {t}
+                            </option>
+                          ))}
+                        </select>
+                        <textarea
+                          className={styles.mobileField}
+                          placeholder="Notes"
+                          defaultValue={item.itemNotes ?? ''}
+                          onBlur={(e) => {
+                            const v = e.target.value.trim();
+                            if (v !== (item.itemNotes || '')) {
+                              service.update(item.id, { itemNotes: v }).then(refresh).catch(console.error);
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className={styles.mobileDangerBtn}
+                          onClick={() => {
+                            service.delete(item.id).then(refresh).catch(console.error);
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </>
                     ) : null}
                   </div>
                 ) : null}
               </li>
             );
-          })}
-        </ul>
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
       )}
     </section>
   );

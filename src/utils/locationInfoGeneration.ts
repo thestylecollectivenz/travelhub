@@ -18,6 +18,7 @@ import {
   serializeLocationInfoNotes,
   locationInfoIsPopulated
 } from './locationInfoEntry';
+import { buildCanonicalLocationInfoByPlaceId } from './locationInfoDayResolve';
 
 async function loadLatestNotes(
   spContext: WebPartContext,
@@ -30,6 +31,22 @@ async function loadLatestNotes(
     return parseLocationInfoNotes(latest.notes) ?? fallback;
   } catch {
     return fallback;
+  }
+}
+
+async function resolveCanonicalLocationEntry(
+  spContext: WebPartContext,
+  entry: ItineraryEntry,
+  place: Place
+): Promise<ItineraryEntry> {
+  const svc = new ItineraryService(spContext);
+  try {
+    const all = await svc.getAll(entry.tripId);
+    const byPlace = buildCanonicalLocationInfoByPlaceId(all, entry.tripId);
+    const canonical = byPlace.get(place.id);
+    return canonical ?? entry;
+  } catch {
+    return entry;
   }
 }
 
@@ -115,10 +132,11 @@ export function scheduleLocationInfoAIGeneration(options: ScheduleLocationInfoAI
 
   void (async () => {
     try {
-      const latest = await loadLatestNotes(spContext, entry, parsed);
+      const targetEntry = await resolveCanonicalLocationEntry(spContext, entry, place);
+      const latest = await loadLatestNotes(spContext, targetEntry, parsed);
       await applyLocationInfoAIResult({
         spContext,
-        entry,
+        entry: targetEntry,
         existing: latest,
         apiKey: key,
         place,
@@ -164,10 +182,11 @@ export function scheduleLocationInfoQuestion(options: {
 
   void (async () => {
     try {
-      const latest = await loadLatestNotes(spContext, entry, parsed);
+      const targetEntry = await resolveCanonicalLocationEntry(spContext, entry, place);
+      const latest = await loadLatestNotes(spContext, targetEntry, parsed);
       await applyLocationInfoQuestion({
         spContext,
-        entry,
+        entry: targetEntry,
         existing: latest,
         apiKey: key,
         place,
@@ -201,7 +220,8 @@ export function scheduleLocationInfoDining(options: {
   emitLocationInfoAIStatus({ entryId: entry.id, loading: true, section: 'dining' });
   void (async () => {
     try {
-      const latest = await loadLatestNotes(spContext, entry, parsed);
+      const targetEntry = await resolveCanonicalLocationEntry(spContext, entry, place);
+      const latest = await loadLatestNotes(spContext, targetEntry, parsed);
       const searchContext = await resolveLocationSearchContext(place);
       if (!searchContext) throw new Error('Could not resolve location for dining search.');
       const { items, model } = await generateDiningSuggestions({
@@ -225,7 +245,7 @@ export function scheduleLocationInfoDining(options: {
         aiError: ''
       });
       const svc = new ItineraryService(spContext);
-      await svc.update(entry.id, { notes: serializeLocationInfoNotes(next) });
+      await svc.update(targetEntry.id, { notes: serializeLocationInfoNotes(next) });
       emitLocationInfoAIStatus({ entryId: entry.id, loading: false, section: 'dining', success: true });
       if (onComplete) onComplete();
       window.dispatchEvent(new Event('trip-itinerary-updated'));
@@ -255,7 +275,8 @@ export function scheduleLocationInfoNearest(options: {
   emitLocationInfoAIStatus({ entryId: entry.id, loading: true, section: kind });
   void (async () => {
     try {
-      const latest = await loadLatestNotes(spContext, entry, parsed);
+      const targetEntry = await resolveCanonicalLocationEntry(spContext, entry, place);
+      const latest = await loadLatestNotes(spContext, targetEntry, parsed);
       const searchContext = await resolveLocationSearchContext(place);
       if (!searchContext) throw new Error('Could not resolve location for nearest search.');
       const { places, model } = await generateNearestPlaces(kind, {
@@ -270,7 +291,7 @@ export function scheduleLocationInfoNearest(options: {
         aiError: ''
       });
       const svc = new ItineraryService(spContext);
-      await svc.update(entry.id, { notes: serializeLocationInfoNotes(next) });
+      await svc.update(targetEntry.id, { notes: serializeLocationInfoNotes(next) });
       emitLocationInfoAIStatus({ entryId: entry.id, loading: false, section: kind, success: true });
       if (onComplete) onComplete();
       window.dispatchEvent(new Event('trip-itinerary-updated'));

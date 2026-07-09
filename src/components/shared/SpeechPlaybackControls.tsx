@@ -22,16 +22,16 @@ export const SpeechPlaybackControls: React.FC<SpeechPlaybackControlsProps> = ({
   return (
     <div className={className}>
       {speechState === 'speaking' ? (
-        <button type="button" className={buttonClassName} onClick={onPause}>
-          Pause
+        <button type="button" className={buttonClassName} onClick={onPause} aria-label="Pause read out" title="Pause">
+          &#10074;&#10074;
         </button>
       ) : (
-        <button type="button" className={buttonClassName} onClick={onResume}>
-          Resume
+        <button type="button" className={buttonClassName} onClick={onResume} aria-label="Resume read out" title="Resume">
+          &#9654;
         </button>
       )}
-      <button type="button" className={buttonClassName} onClick={onStop}>
-        Stop
+      <button type="button" className={buttonClassName} onClick={onStop} aria-label="Stop read out" title="Stop">
+        &#9632;
       </button>
     </div>
   );

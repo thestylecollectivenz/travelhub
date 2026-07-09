@@ -17,7 +17,7 @@ export interface MobileTripShellProps {
 }
 
 const TABS: Array<{ id: MobileTab; label: string }> = [
-  { id: 'today', label: 'Today' },
+  { id: 'today', label: 'Itinerary' },
   { id: 'journal', label: 'Journal' },
   { id: 'lists', label: 'Lists' },
   { id: 'tasks', label: 'Tasks' },

@@ -103,6 +103,37 @@ function stripJsonFences(raw: string): string {
   return t;
 }
 
+function parseGeminiJson(text: string): unknown {
+  const cleaned = stripJsonFences(text).trim();
+  if (!cleaned) {
+    throw new GeminiServiceError('PARSE_ERROR', 'Gemini returned an empty response.');
+  }
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    // Some responses prepend/append prose; recover the first JSON object/array segment.
+    const firstObj = cleaned.indexOf('{');
+    const firstArr = cleaned.indexOf('[');
+    const startCandidates = [firstObj, firstArr].filter((n) => n >= 0);
+    if (!startCandidates.length) {
+      throw new GeminiServiceError('PARSE_ERROR', 'Could not parse Gemini response as JSON.');
+    }
+    const start = Math.min(...startCandidates);
+    const lastObj = cleaned.lastIndexOf('}');
+    const lastArr = cleaned.lastIndexOf(']');
+    const end = Math.max(lastObj, lastArr);
+    if (end <= start) {
+      throw new GeminiServiceError('PARSE_ERROR', 'Could not parse Gemini response as JSON.');
+    }
+    const segment = cleaned.slice(start, end + 1).trim();
+    try {
+      return JSON.parse(segment);
+    } catch {
+      throw new GeminiServiceError('PARSE_ERROR', 'Could not parse Gemini response as JSON.');
+    }
+  }
+}
+
 function validateAIResult(parsed: unknown): LocationInfoAIResult {
   if (!parsed || typeof parsed !== 'object') {
     throw new GeminiServiceError('INVALID_RESPONSE', 'AI response was not a JSON object.');
@@ -225,16 +256,8 @@ export async function answerLocationQuestion(
         throw new GeminiServiceError('API_ERROR', message, resp.status);
       }
       const data = await resp.json();
-      const text = stripJsonFences(extractResponseText(data));
-      if (!text) {
-        throw new GeminiServiceError('PARSE_ERROR', 'Gemini returned an empty response.');
-      }
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(text);
-      } catch {
-        throw new GeminiServiceError('PARSE_ERROR', 'Could not parse Gemini response as JSON.');
-      }
+      const text = extractResponseText(data);
+      const parsed = parseGeminiJson(text);
       const answer =
         parsed && typeof parsed === 'object' && typeof (parsed as { answer?: string }).answer === 'string'
           ? (parsed as { answer: string }).answer.trim()
@@ -293,17 +316,8 @@ async function generateLocationInfoWithModel(
   }
 
   const data = await resp.json();
-  const text = stripJsonFences(extractResponseText(data));
-  if (!text) {
-    throw new GeminiServiceError('PARSE_ERROR', 'Gemini returned an empty response.');
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new GeminiServiceError('PARSE_ERROR', 'Could not parse Gemini response as JSON.');
-  }
+  const text = extractResponseText(data);
+  const parsed = parseGeminiJson(text);
 
   return validateAIResult(parsed);
 }
@@ -498,14 +512,8 @@ async function callGeminiJson<T>(
         throw new GeminiServiceError('API_ERROR', `Gemini API returned ${resp.status}`, resp.status);
       }
       const data = await resp.json();
-      const text = stripJsonFences(extractResponseText(data));
-      if (!text) throw new GeminiServiceError('PARSE_ERROR', 'Gemini returned an empty response.');
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(text);
-      } catch {
-        throw new GeminiServiceError('PARSE_ERROR', 'Could not parse Gemini response as JSON.');
-      }
+      const text = extractResponseText(data);
+      const parsed = parseGeminiJson(text);
       return { parsed: parsed as T, model };
     } catch (err) {
       if (!(err instanceof GeminiServiceError)) {

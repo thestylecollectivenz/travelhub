@@ -17,6 +17,7 @@ export const MobileShoppingFilters: React.FC<{ travellers: string[] }> = ({ trav
   const [newCategoryName, setNewCategoryName] = React.useState('');
   const [editingCategory, setEditingCategory] = React.useState<string | null>(null);
   const [editCategoryName, setEditCategoryName] = React.useState('');
+  const [manageOpen, setManageOpen] = React.useState(false);
 
   if (!plan) return null;
 
@@ -101,6 +102,15 @@ export const MobileShoppingFilters: React.FC<{ travellers: string[] }> = ({ trav
         </div>
         ) : null}
         {canManageTrip && categories.length > 0 ? (
+          <>
+            <button
+              type="button"
+              className={styles.pagerBtn}
+              onClick={() => setManageOpen((v) => !v)}
+            >
+              {manageOpen ? 'Hide category manager' : 'Manage categories'}
+            </button>
+            {manageOpen ? (
           <ul className={styles.categoryManageList}>
             {categories.map((c) => (
               <li key={c} className={styles.categoryManageRow}>
@@ -155,6 +165,8 @@ export const MobileShoppingFilters: React.FC<{ travellers: string[] }> = ({ trav
               </li>
             ))}
           </ul>
+            ) : null}
+          </>
         ) : null}
       </div>
     </div>

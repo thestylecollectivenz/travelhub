@@ -215,6 +215,20 @@
   text-decoration: none;
 }
 
+.linkBtnIcon {
+  width: 2.2rem;
+  height: 2.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-primary);
+  text-decoration: none;
+  font-size: 1rem;
+}
+
 .subTabs {
   display: flex;
   gap: var(--space-2);
@@ -438,6 +452,23 @@
   margin-bottom: var(--space-3);
 }
 
+.mobileDaySelectWrap {
+  display: grid;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.mobileDaySelect {
+  width: 100%;
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-blue-800);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-sans);
+}
+
 .navChip {
   flex: 1;
   border: var(--border-default);
@@ -505,6 +536,12 @@
   margin: var(--space-1) 0 0;
   font-size: var(--font-size-xs);
   color: var(--color-sand-600);
+}
+
+.mobileListOptionsRow {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
 }
 
 .mobileFab {
@@ -591,6 +628,22 @@
   background: var(--color-surface-raised);
 }
 
+.mobileGroupedList {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.mobileGroupBlock {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.mobileGroupHeading {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-blue-800);
+}
+
 .mobileListItem {
   border-bottom: var(--border-default);
 }
@@ -646,6 +699,32 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+}
+
+.mobileDetailRows {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.mobileDetailRow {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, 40%) 1fr;
+  gap: var(--space-1) var(--space-2);
+}
+
+.mobileDetailLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--color-sand-600);
+}
+
+.mobileDetailValue {
+  font-size: var(--font-size-xs);
+  color: var(--color-blue-800);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .unschedBody .cardBtn {

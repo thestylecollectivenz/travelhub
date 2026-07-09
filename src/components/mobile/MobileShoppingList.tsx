@@ -35,6 +35,8 @@ export const MobileShoppingList: React.FC = () => {
   const [name, setName] = React.useState('');
   const [category, setCategory] = React.useState('');
   const [purchaseMonth, setPurchaseMonth] = React.useState('');
+  const [sortAlpha, setSortAlpha] = React.useState(true);
+  const [groupByCategory, setGroupByCategory] = React.useState(true);
 
   const activeTraveller = planView?.shoppingTraveller ?? null;
   const activeCategory = planView?.shoppingCategory ?? '__all__';
@@ -85,8 +87,28 @@ export const MobileShoppingList: React.FC = () => {
     } else if (activeMonth) {
       rows = rows.filter((i) => (i.purchaseMonth || '') === activeMonth);
     }
-    return rows;
-  }, [items, activeTraveller, activeCategory, activeMonth, travellers, spContext, members]);
+    const sorted = [...rows].sort((a, b) => {
+      if (sortAlpha) return (a.itemName || '').localeCompare(b.itemName || '', undefined, { sensitivity: 'base' });
+      return (a.purchaseMonth || '').localeCompare(b.purchaseMonth || '', undefined, { sensitivity: 'base' });
+    });
+    return sorted;
+  }, [items, activeTraveller, activeCategory, activeMonth, travellers, spContext, members, sortAlpha]);
+
+  const grouped = React.useMemo(() => {
+    if (!groupByCategory) {
+      return [{ key: 'all', label: 'All items', rows: filtered }];
+    }
+    const map = new Map<string, ShoppingItem[]>();
+    for (const item of filtered) {
+      const key = (item.category || 'Uncategorised').trim() || 'Uncategorised';
+      const rows = map.get(key) ?? [];
+      rows.push(item);
+      map.set(key, rows);
+    }
+    return Array.from(map.entries())
+      .sort((a, b) => a[0].localeCompare(b[0], undefined, { sensitivity: 'base' }))
+      .map(([key, rows]) => ({ key, label: key, rows }));
+  }, [filtered, groupByCategory]);
 
   const markPurchased = (item: ShoppingItem, purchased: boolean): void => {
     void (async () => {
@@ -162,6 +184,14 @@ export const MobileShoppingList: React.FC = () => {
           </button>
         ) : null}
       </div>
+      <div className={styles.mobileListOptionsRow}>
+        <button type="button" className={styles.pagerBtn} onClick={() => setSortAlpha((v) => !v)}>
+          {sortAlpha ? 'A-Z' : 'Created'}
+        </button>
+        <button type="button" className={styles.pagerBtn} onClick={() => setGroupByCategory((v) => !v)}>
+          {groupByCategory ? 'Grouped' : 'Flat list'}
+        </button>
+      </div>
 
       {categories.length === 0 ? (
         <p className={styles.muted}>Add a category in filters above before adding items.</p>
@@ -204,8 +234,12 @@ export const MobileShoppingList: React.FC = () => {
       {filtered.length === 0 ? (
         <p className={styles.muted}>No shopping items yet.</p>
       ) : (
-        <ul className={styles.mobileItemList}>
-          {filtered.map((item) => {
+        <div className={styles.mobileGroupedList}>
+          {grouped.map((group) => (
+            <section key={group.key} className={styles.mobileGroupBlock}>
+              {groupByCategory ? <h3 className={styles.mobileGroupHeading}>{group.label}</h3> : null}
+              <ul className={styles.mobileItemList}>
+                {group.rows.map((item) => {
             const editable = canEditItem(item);
             const open = expandedId === item.id;
             return (
@@ -335,8 +369,11 @@ export const MobileShoppingList: React.FC = () => {
                 ) : null}
               </li>
             );
-          })}
-        </ul>
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
       )}
     </section>
   );

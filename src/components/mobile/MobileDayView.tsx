@@ -123,6 +123,21 @@ export const MobileDayView: React.FC = () => {
           aria-label="Go to date within trip"
         />
       </div>
+      <label className={styles.mobileDaySelectWrap}>
+        <span className={styles.filterLabel}>Trip day</span>
+        <select
+          className={styles.mobileDaySelect}
+          value={day.id}
+          onChange={(e) => setSelectedDayId(e.target.value)}
+          aria-label="Select trip day"
+        >
+          {days.map((d) => (
+            <option key={d.id} value={d.id}>
+              {`Day ${d.dayNumber} - ${(d.calendarDate || '').slice(0, 10)}`}
+            </option>
+          ))}
+        </select>
+      </label>
       <div className={styles.dayNavCompact}>
         <button type="button" className={styles.navChip} onClick={() => jumpToDate(ymdToday())}>
           Today
