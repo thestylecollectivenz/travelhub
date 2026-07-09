@@ -4,7 +4,7 @@ import type { UserConfig } from '../../services/ConfigService';
 import { DEFAULT_GEMINI_MODEL } from '../../services/GeminiService';
 import {
   DEFAULT_ELEVENLABS_VOICE_ID,
-  listElevenLabsVoices,
+  listElevenLabsVoicesWithFallback,
   type ElevenLabsVoice
 } from '../../services/ElevenLabsService';
 import { CurrencySelect } from '../shared/CurrencySelect';
@@ -54,15 +54,16 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
     let cancelled = false;
     setVoicesLoading(true);
     setVoicesError('');
-    void listElevenLabsVoices(effectiveElevenLabsKey)
-      .then((rows) => {
+    void listElevenLabsVoicesWithFallback(effectiveElevenLabsKey)
+      .then((result) => {
         if (cancelled) return;
-        setVoices(rows);
-        if (!rows.length) return;
+        setVoices(result.voices);
+        setVoicesError(result.usedCuratedFallback ? result.fallbackReason || '' : '');
+        if (!result.voices.length) return;
         setDraft((d) => {
           if (d.elevenLabsVoiceId) return d;
           const preferred =
-            rows.find((v) => v.voiceId === DEFAULT_ELEVENLABS_VOICE_ID) ?? rows[0];
+            result.voices.find((v) => v.voiceId === DEFAULT_ELEVENLABS_VOICE_ID) ?? result.voices[0];
           return { ...d, elevenLabsVoiceId: preferred.voiceId };
         });
       })
@@ -228,7 +229,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
             value={elevenLabsKeyDraft}
             onChange={setElevenLabsKeyDraft}
             placeholder="Paste a new ElevenLabs API key"
-            hint="Free plan includes API access (~10k credits/month). Used for Read out / Auto-read. Falls back to browser speech if missing or over quota."
+            hint="Free plan includes API access (~10k credits/month). Used for Read out / Auto-read. Falls back to browser speech if missing or over quota. For a restricted key, enable Text to Speech (and Voices → Read if you want the full library)."
           />
 
           <label style={{ display: 'grid', gap: 'var(--space-1)' }}>
