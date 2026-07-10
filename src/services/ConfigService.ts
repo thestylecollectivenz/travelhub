@@ -49,8 +49,28 @@ export const DEFAULT_USER_CONFIG: UserConfig = {
   dayBreakdownVisibleByDefault: true
 };
 
-const FULL_SELECT =
-  'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,ElevenLabsApiKey,ElevenLabsVoiceId,SpeechEngine,BrowserVoiceURI,DayBreakdownVisibleByDefault,Modified';
+/** Canonical property names the app uses in payloads / mapping. */
+const CANONICAL_FIELDS = [
+  'Title',
+  'UserId',
+  'HomeCurrency',
+  'TemperatureUnit',
+  'DistanceUnit',
+  'DateFormat',
+  'ShowTravellerNames',
+  'JournalAuthorName',
+  'SidebarWidth',
+  'SidebarWidthCustomized',
+  'WeatherApiKey',
+  'GeminiApiKey',
+  'ElevenLabsApiKey',
+  'ElevenLabsVoiceId',
+  'SpeechEngine',
+  'BrowserVoiceURI',
+  'DayBreakdownVisibleByDefault'
+] as const;
+
+type CanonicalField = (typeof CANONICAL_FIELDS)[number];
 
 async function logFailedResponse(label: string, resp: SPHttpClientResponse): Promise<string> {
   let body = '';
@@ -81,19 +101,8 @@ function asNumber(value: unknown, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
-function field(item: Record<string, unknown>, ...names: string[]): unknown {
-  for (const name of names) {
-    if (Object.prototype.hasOwnProperty.call(item, name) && item[name] !== undefined && item[name] !== null) {
-      return item[name];
-    }
-  }
-  // Case-insensitive fallback (manual columns sometimes differ only by casing).
-  const keys = Object.keys(item);
-  for (const name of names) {
-    const hit = keys.find((k) => k.toLowerCase() === name.toLowerCase());
-    if (hit && item[hit] !== undefined && item[hit] !== null) return item[hit];
-  }
-  return undefined;
+function normalizeKey(value: string): string {
+  return value.replace(/[^a-z0-9]/gi, '').toLowerCase();
 }
 
 /** Stable cross-device identity for UserConfig rows. */
@@ -118,37 +127,136 @@ function identitiesMatch(a: string, b: string): boolean {
   return na === nb || a.trim().toLowerCase() === b.trim().toLowerCase();
 }
 
+interface SpFieldMeta {
+  InternalName: string;
+  EntityPropertyName?: string;
+  StaticName?: string;
+  Title?: string;
+}
+
+/**
+ * Maps canonical app field names → actual SharePoint EntityPropertyName on this list.
+ * Handles manually created columns whose internal names differ (spaces, casing, Field_n).
+ */
+class UserConfigFieldMap {
+  /** canonical lower → REST property name on items */
+  private toRest = new Map<string, string>();
+  /** normalized alias → canonical */
+  private aliasToCanonical = new Map<string, string>();
+
+  constructor(fields: SpFieldMeta[]) {
+    for (const canonical of CANONICAL_FIELDS) {
+      this.aliasToCanonical.set(normalizeKey(canonical), canonical);
+    }
+
+    for (const f of fields) {
+      const restName = (f.EntityPropertyName || f.InternalName || '').trim();
+      if (!restName) continue;
+      const aliases = [f.InternalName, f.StaticName, f.Title, f.EntityPropertyName, restName]
+        .filter(Boolean)
+        .map((x) => normalizeKey(String(x)));
+      for (const alias of aliases) {
+        const canonical = this.aliasToCanonical.get(alias);
+        if (canonical) {
+          this.toRest.set(canonical.toLowerCase(), restName);
+        }
+      }
+    }
+
+    // Always allow reading by exact canonical name if present on the item.
+    for (const canonical of CANONICAL_FIELDS) {
+      if (!this.toRest.has(canonical.toLowerCase())) {
+        this.toRest.set(canonical.toLowerCase(), canonical);
+      }
+    }
+  }
+
+  restName(canonical: CanonicalField | string): string {
+    return this.toRest.get(canonical.toLowerCase()) || canonical;
+  }
+
+  read(item: Record<string, unknown>, canonical: CanonicalField | string): unknown {
+    const preferred = this.restName(canonical);
+    if (Object.prototype.hasOwnProperty.call(item, preferred) && item[preferred] != null) {
+      return item[preferred];
+    }
+    const want = normalizeKey(canonical);
+    for (const [k, v] of Object.entries(item)) {
+      if (v == null) continue;
+      if (normalizeKey(k) === want) return v;
+      // Match Journal_x0020_Author_x0020_Name ↔ JournalAuthorName
+      if (normalizeKey(k.replace(/_x0020_/gi, ' ')) === want) return v;
+    }
+    return undefined;
+  }
+
+  /** Remap a canonical payload to the list's actual REST property names. */
+  toWritePayload(canonicalPayload: Record<string, unknown>): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(canonicalPayload)) {
+      out[this.restName(key)] = value;
+    }
+    return out;
+  }
+}
+
 export class ConfigService {
   private ctx: WebPartContext;
   private baseUrl: string;
+  private listApi: string;
+  private fieldMap?: UserConfigFieldMap;
 
   constructor(context: WebPartContext) {
     this.ctx = context;
-    this.baseUrl = `${context.pageContext.web.absoluteUrl}/_api/web/lists/getbytitle('${LIST}')/items`;
+    const web = context.pageContext.web.absoluteUrl.replace(/\/$/, '');
+    this.listApi = `${web}/_api/web/lists/getbytitle('${LIST}')`;
+    this.baseUrl = `${this.listApi}/items`;
   }
 
-  private mapFromSpItem(item: Record<string, unknown>): UserConfig {
-    const temperatureUnit = asString(field(item, 'TemperatureUnit'));
-    const distanceUnit = asString(field(item, 'DistanceUnit'));
-    const dateFormat = asString(field(item, 'DateFormat'));
-    const speechEngine = asString(field(item, 'SpeechEngine'));
+  private async getFieldMap(): Promise<UserConfigFieldMap> {
+    if (this.fieldMap) return this.fieldMap;
+    const url = `${this.listApi}/fields?$select=InternalName,EntityPropertyName,StaticName,Title&$top=200`;
+    const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
+    if (!resp.ok) {
+      await logFailedResponse('getFieldMap', resp);
+      this.fieldMap = new UserConfigFieldMap([]);
+      return this.fieldMap;
+    }
+    const data = (await resp.json()) as { value?: SpFieldMeta[] };
+    this.fieldMap = new UserConfigFieldMap(data.value ?? []);
+    // eslint-disable-next-line no-console
+    console.info(
+      'ConfigService field map',
+      CANONICAL_FIELDS.map((c) => `${c}→${this.fieldMap!.restName(c)}`).join(', ')
+    );
+    return this.fieldMap;
+  }
+
+  private mapFromSpItem(item: Record<string, unknown>, fmap: UserConfigFieldMap): UserConfig {
+    const temperatureUnit = asString(fmap.read(item, 'TemperatureUnit'));
+    const distanceUnit = asString(fmap.read(item, 'DistanceUnit'));
+    const dateFormat = asString(fmap.read(item, 'DateFormat'));
+    const speechEngine = asString(fmap.read(item, 'SpeechEngine'));
     return {
-      homeCurrency: asString(field(item, 'HomeCurrency')) || DEFAULT_USER_CONFIG.homeCurrency,
+      homeCurrency: asString(fmap.read(item, 'HomeCurrency')) || DEFAULT_USER_CONFIG.homeCurrency,
       temperatureUnit: temperatureUnit === 'Fahrenheit' ? 'Fahrenheit' : 'Celsius',
       distanceUnit: distanceUnit === 'Miles' ? 'Miles' : 'Kilometres',
       dateFormat: dateFormat === 'MDY' ? 'MDY' : 'DMY',
-      showTravellerNames: asBoolean(field(item, 'ShowTravellerNames'), DEFAULT_USER_CONFIG.showTravellerNames),
-      journalAuthorName: asString(field(item, 'JournalAuthorName')),
-      sidebarWidth: asNumber(field(item, 'SidebarWidth'), DEFAULT_USER_CONFIG.sidebarWidth),
-      sidebarWidthCustomized: asBoolean(field(item, 'SidebarWidthCustomized'), false),
-      weatherApiKey: asString(field(item, 'WeatherApiKey')),
-      geminiApiKey: asString(field(item, 'GeminiApiKey')),
-      elevenLabsApiKey: asString(field(item, 'ElevenLabsApiKey')),
-      elevenLabsVoiceId: asString(field(item, 'ElevenLabsVoiceId')),
+      showTravellerNames: asBoolean(
+        fmap.read(item, 'ShowTravellerNames'),
+        DEFAULT_USER_CONFIG.showTravellerNames
+      ),
+      journalAuthorName: asString(fmap.read(item, 'JournalAuthorName')),
+      sidebarWidth: asNumber(fmap.read(item, 'SidebarWidth'), DEFAULT_USER_CONFIG.sidebarWidth),
+      sidebarWidthCustomized: asBoolean(fmap.read(item, 'SidebarWidthCustomized'), false),
+      weatherApiKey: asString(fmap.read(item, 'WeatherApiKey')),
+      geminiApiKey: asString(fmap.read(item, 'GeminiApiKey')),
+      elevenLabsApiKey: asString(fmap.read(item, 'ElevenLabsApiKey')),
+      elevenLabsVoiceId: asString(fmap.read(item, 'ElevenLabsVoiceId')),
       speechEngine: speechEngine === 'elevenlabs' ? 'elevenlabs' : 'browser',
-      browserVoiceURI: asString(field(item, 'BrowserVoiceURI')),
+      browserVoiceURI: asString(fmap.read(item, 'BrowserVoiceURI')),
       dayBreakdownVisibleByDefault: asBoolean(
-        field(item, 'DayBreakdownVisibleByDefault'),
+        fmap.read(item, 'DayBreakdownVisibleByDefault'),
         DEFAULT_USER_CONFIG.dayBreakdownVisibleByDefault
       )
     };
@@ -186,38 +294,44 @@ export class ConfigService {
     return data.value ?? [];
   }
 
-  private async queryByField(fieldName: 'UserId' | 'Title', value: string): Promise<Record<string, unknown>[]> {
-    const safe = value.replace(/'/g, "''");
-    const filter = encodeURIComponent(`${fieldName} eq '${safe}'`);
-    const withSelect = `${this.baseUrl}?$select=${encodeURIComponent(FULL_SELECT)}&$filter=${filter}&$top=20&$orderby=Modified desc`;
-    const selected = await this.queryItems(withSelect);
-    if (selected.length) return selected;
-
-    // $select can 400 when a column internal name differs; fall back to unfiltered field set.
-    const bare = `${this.baseUrl}?$filter=${filter}&$top=20&$orderby=Modified desc`;
-    return this.queryItems(bare);
+  /** Load items with the simplest possible queries — no $select / $orderby (those 400 silently). */
+  private async loadAllConfigItems(): Promise<Record<string, unknown>[]> {
+    const urls = [
+      `${this.baseUrl}?$top=200`,
+      `${this.baseUrl}?$top=200&$orderby=Id desc`,
+      `${this.listApi}/items?$top=200`
+    ];
+    for (const url of urls) {
+      // eslint-disable-next-line no-await-in-loop
+      const rows = await this.queryItems(url);
+      if (rows.length) return rows;
+    }
+    return [];
   }
 
-  private scoreItem(item: Record<string, unknown>, preferredKey: string, candidates: string[]): number {
-    const title = asString(field(item, 'Title'));
-    const userId = asString(field(item, 'UserId'));
+  private scoreItem(
+    item: Record<string, unknown>,
+    fmap: UserConfigFieldMap,
+    preferredKey: string,
+    candidates: string[]
+  ): number {
+    const title = asString(fmap.read(item, 'Title'));
+    const userId = asString(fmap.read(item, 'UserId'));
     let score = 0;
     if (identitiesMatch(userId, preferredKey) || identitiesMatch(title, preferredKey)) score += 100;
     for (const c of candidates) {
       if (identitiesMatch(userId, c) || identitiesMatch(title, c)) score += 10;
     }
-    const modified = Date.parse(asString(field(item, 'Modified')));
-    if (Number.isFinite(modified)) score += Math.min(9, Math.floor(modified / 1e12));
-    // Prefer rows that already have real settings (not blank defaults).
-    if (asString(field(item, 'HomeCurrency'))) score += 2;
-    if (asString(field(item, 'WeatherApiKey')) || asString(field(item, 'GeminiApiKey'))) score += 3;
-    if (asString(field(item, 'JournalAuthorName'))) score += 1;
+    if (asString(fmap.read(item, 'HomeCurrency'))) score += 2;
+    if (asString(fmap.read(item, 'WeatherApiKey')) || asString(fmap.read(item, 'GeminiApiKey'))) score += 3;
+    if (asString(fmap.read(item, 'JournalAuthorName'))) score += 5;
     return score;
   }
 
   private async findConfigItem(
     userKey: string
   ): Promise<{ id?: number; config: UserConfig; raw?: Record<string, unknown> }> {
+    const fmap = await this.getFieldMap();
     const candidates = new Set<string>();
     candidates.add(userKey);
     const login = (this.ctx.pageContext.user.loginName || '').trim().toLowerCase();
@@ -227,54 +341,48 @@ export class ConfigService {
     const emailOnly = normalizeIdentity(email || userKey);
     if (emailOnly) candidates.add(emailOnly);
 
-    const found: Record<string, unknown>[] = [];
-    const seenIds = new Set<number>();
-
-    for (const key of Array.from(candidates)) {
-      for (const fieldName of ['UserId', 'Title'] as const) {
-        // eslint-disable-next-line no-await-in-loop
-        const rows = await this.queryByField(fieldName, key);
-        for (const item of rows) {
-          const id = Number(item.ID ?? item.Id);
-          if (!Number.isFinite(id) || seenIds.has(id)) continue;
-          seenIds.add(id);
-          found.push(item);
-        }
-      }
-    }
-
-    if (!found.length) {
-      // Last resort: scan recent items and match identity client-side (handles claims vs email).
-      const recent = await this.queryItems(`${this.baseUrl}?$top=50&$orderby=Modified desc`);
-      for (const item of recent) {
-        const title = asString(field(item, 'Title'));
-        const uid = asString(field(item, 'UserId'));
-        const match = Array.from(candidates).some((c) => identitiesMatch(title, c) || identitiesMatch(uid, c));
-        if (!match) continue;
-        const id = Number(item.ID ?? item.Id);
-        if (!Number.isFinite(id) || seenIds.has(id)) continue;
-        seenIds.add(id);
-        found.push(item);
-      }
-    }
-
-    if (!found.length) {
-      return { config: { ...DEFAULT_USER_CONFIG } };
-    }
-
+    const all = await this.loadAllConfigItems();
     const candidateList = Array.from(candidates);
-    found.sort((a, b) => this.scoreItem(b, userKey, candidateList) - this.scoreItem(a, userKey, candidateList));
-    const best = found[0];
-    const id = Number(best.ID ?? best.Id);
+    const matched = all.filter((item) => {
+      const title = asString(fmap.read(item, 'Title'));
+      const uid = asString(fmap.read(item, 'UserId'));
+      return candidateList.some((c) => identitiesMatch(title, c) || identitiesMatch(uid, c));
+    });
+
     // eslint-disable-next-line no-console
     console.info('ConfigService.findConfigItem', {
       userKey,
-      id,
-      title: best.Title,
-      userId: best.UserId,
-      homeCurrency: best.HomeCurrency
+      candidates: candidateList,
+      totalRows: all.length,
+      matched: matched.length,
+      sampleTitles: all.slice(0, 5).map((r) => ({
+        id: r.ID ?? r.Id,
+        Title: fmap.read(r, 'Title'),
+        UserId: fmap.read(r, 'UserId'),
+        JournalAuthorName: fmap.read(r, 'JournalAuthorName'),
+        WeatherApiKeyLen: asString(fmap.read(r, 'WeatherApiKey')).length
+      }))
     });
-    return { id, config: this.mapFromSpItem(best), raw: best };
+
+    if (!matched.length) {
+      return { config: { ...DEFAULT_USER_CONFIG } };
+    }
+
+    matched.sort(
+      (a, b) => this.scoreItem(b, fmap, userKey, candidateList) - this.scoreItem(a, fmap, userKey, candidateList)
+    );
+    const best = matched[0];
+    const id = Number(best.ID ?? best.Id);
+    const config = this.mapFromSpItem(best, fmap);
+    // eslint-disable-next-line no-console
+    console.info('ConfigService.loaded', {
+      id,
+      journalAuthorName: config.journalAuthorName,
+      hasWeatherKey: Boolean(config.weatherApiKey),
+      hasGeminiKey: Boolean(config.geminiApiKey),
+      homeCurrency: config.homeCurrency
+    });
+    return { id: Number.isFinite(id) ? id : undefined, config, raw: best };
   }
 
   async getConfig(userKey?: string): Promise<UserConfig> {
@@ -359,13 +467,16 @@ export class ConfigService {
 
     try {
       await ensureUserConfigColumns(this.ctx);
+      this.fieldMap = undefined; // refresh after provisioning
     } catch (err) {
       // eslint-disable-next-line no-console
       console.warn('ConfigService: ensureUserConfigColumns failed (will retry save with available columns).', err);
     }
 
+    const fmap = await this.getFieldMap();
     const existing = await this.findConfigItem(key);
-    let payload = this.mapToSpItem(key, config);
+    let canonical = this.mapToSpItem(key, config);
+    let payload = fmap.toWritePayload(canonical);
     const stripped: string[] = [];
     let lastStatus = 0;
     let lastBody = '';
@@ -375,9 +486,10 @@ export class ConfigService {
       const result = await this.writePayload(existing.id, payload);
       if (result.ok) {
         if (existing.id && existing.raw) {
-          const prevUserId = String(existing.raw.UserId ?? '').trim().toLowerCase();
-          const prevTitle = String(existing.raw.Title ?? '').trim().toLowerCase();
+          const prevUserId = asString(fmap.read(existing.raw, 'UserId')).trim().toLowerCase();
+          const prevTitle = asString(fmap.read(existing.raw, 'Title')).trim().toLowerCase();
           if (prevUserId !== key || prevTitle !== key) {
+            const idPayload = fmap.toWritePayload({ Title: key, UserId: key });
             await this.ctx.spHttpClient.fetch(`${this.baseUrl}(${existing.id})`, SPHttpClient.configurations.v1, {
               method: 'PATCH',
               headers: {
@@ -385,7 +497,7 @@ export class ConfigService {
                 'Content-Type': 'application/json;odata.metadata=minimal',
                 'IF-MATCH': '*'
               },
-              body: JSON.stringify({ Title: key, UserId: key })
+              body: JSON.stringify(idPayload)
             });
           }
         }
@@ -397,28 +509,20 @@ export class ConfigService {
           );
         }
 
-        // Verify SharePoint actually retained values (catches wrong internal names / wrong row).
         const verified = await this.getConfig(key);
-        const writtenKeys = new Set(Object.keys(payload));
+        const writtenKeys = new Set(Object.keys(canonical));
+        for (const s of stripped) writtenKeys.delete(s);
         if (!this.configsLookPersisted(config, verified, writtenKeys)) {
           // eslint-disable-next-line no-console
           console.error('ConfigService: save wrote but reload mismatch', {
             key,
             existingId: existing.id,
-            saved: {
-              homeCurrency: config.homeCurrency,
-              dateFormat: config.dateFormat,
-              showTravellerNames: config.showTravellerNames
-            },
-            loaded: {
-              homeCurrency: verified.homeCurrency,
-              dateFormat: verified.dateFormat,
-              showTravellerNames: verified.showTravellerNames
-            },
+            saved: { journalAuthorName: config.journalAuthorName, homeCurrency: config.homeCurrency },
+            loaded: { journalAuthorName: verified.journalAuthorName, homeCurrency: verified.homeCurrency },
             stripped
           });
           throw new Error(
-            'Settings save did not stick in SharePoint. Open the UserConfig list and confirm column *internal names* are exactly DateFormat, HomeCurrency, ShowTravellerNames, etc. (not Date_x0020_Format). Also check Title/UserId on your row equals your email.'
+            'Settings save did not stick in SharePoint. Check UserConfig column internal names (List settings → column → name in URL Field=).'
           );
         }
         return;
@@ -429,12 +533,16 @@ export class ConfigService {
       if (result.status !== 400) break;
 
       const missing = this.parseMissingProperty(result.body);
-      if (!missing || !(missing in payload) || missing === 'Title' || missing === 'UserId') {
-        break;
-      }
-      delete payload[missing];
-      stripped.push(missing);
-      payload = { ...payload };
+      if (!missing) break;
+
+      // Strip by REST name or canonical name.
+      const canonHit = Object.keys(canonical).find(
+        (k) => k === missing || fmap.restName(k) === missing || normalizeKey(k) === normalizeKey(missing)
+      );
+      if (!canonHit || canonHit === 'Title' || canonHit === 'UserId') break;
+      delete canonical[canonHit];
+      stripped.push(canonHit);
+      payload = fmap.toWritePayload(canonical);
     }
 
     throw new Error(

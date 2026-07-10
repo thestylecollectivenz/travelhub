@@ -42,6 +42,14 @@ export const ConfigProvider: React.FC<ConfigProviderProps> = ({ children }) => {
     svc
       .getConfig(userId)
       .then((loaded) => {
+        // eslint-disable-next-line no-console
+        console.info('ConfigProvider loaded', {
+          userId,
+          journalAuthorName: loaded.journalAuthorName,
+          hasWeatherKey: Boolean(loaded.weatherApiKey),
+          hasGeminiKey: Boolean(loaded.geminiApiKey),
+          homeCurrency: loaded.homeCurrency
+        });
         if (mounted) setConfig(loaded);
       })
       .catch((err) => {
