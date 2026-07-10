@@ -3,7 +3,7 @@ import { ensureTripMembersList } from './ensureTripMembersList';
 import { ensureOwnerEmailColumns } from './ensureOwnerEmailColumns';
 import { ensureTripAccessLogList } from './ensureTripAccessLogList';
 import { ensureEditorEmailOnTrips } from './ensureEditorEmailOnTrips';
-import { ensureElevenLabsConfigColumns } from './ensureElevenLabsConfigColumns';
+import { ensureUserConfigColumns } from './ensureUserConfigColumns';
 import { runOwnerEmailBackfill } from './backfillOwnerEmail';
 import { runTripEditorEmailBackfill } from './backfillTripEditorEmail';
 
@@ -19,17 +19,17 @@ export function runTravelHubProvisioning(ctx: WebPartContext): void {
 
   void (async () => {
     try {
+      await ensureUserConfigColumns(ctx);
       await ensureTripMembersList(ctx);
       await ensureOwnerEmailColumns(ctx);
       await ensureTripAccessLogList(ctx);
       await ensureEditorEmailOnTrips(ctx);
-      await ensureElevenLabsConfigColumns(ctx);
       runOwnerEmailBackfill(ctx);
       runTripEditorEmailBackfill(ctx);
     } catch (err) {
       // Non-fatal: user may lack list-manage permissions; admin can run scripts/provision-lists.ps1.
       // eslint-disable-next-line no-console
-      console.warn('Travel Hub provisioning: TripMembers ensure failed.', err);
+      console.warn('Travel Hub provisioning failed.', err);
     }
   })();
 }

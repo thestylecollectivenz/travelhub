@@ -16,14 +16,16 @@ import {
   type TripListFilter,
   type UpcomingSort
 } from '../../utils/tripListSort';
-import { getCurrentUserDisplayName } from '../../utils/currentUserEmail';
 import { resolveSharePointMediaSrc } from '../../utils/sharePointUrl';
+import { getCurrentUserDisplayName } from '../../utils/currentUserEmail';
 import { generateDiningSuggestions, generateNearestPlaces } from '../../services/GeminiService';
 import type { NearestPlaceKind } from '../../utils/locationInfoEntry';
+import { homeNearYouTools, type NearYouToolId } from '../../utils/nearYouTools';
+import { MobileNearYouPage } from './MobileNearYouPage';
 import '../../components/maps/LeafletCompat.css';
 import styles from './MobileHome.module.css';
 
-export type MobileHomeTab = 'home' | 'trips' | 'spots' | 'profile';
+export type MobileHomeTab = 'home' | 'trips' | 'spots' | 'profile' | 'nearyou';
 
 export interface MobileHomeShellProps {
   onSelectTrip: (tripId: string, initialTab?: MobileTab) => void;
@@ -140,64 +142,38 @@ function IconBell(): React.ReactElement {
   );
 }
 
-type NearToolId = 'dining' | NearestPlaceKind;
-
-const NEAR_TOOLS: Array<{ id: NearToolId; kind?: NearestPlaceKind; label: string; icon: React.ReactNode }> = [
-  {
-    id: 'dining',
-    label: 'Restaurants',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <path d="M7 3v8M7 11v10M5 3c0 2.5 2 4 2 8M9 3c0 2.5-2 4-2 8M14 3v18M17 3v7a3 3 0 0 1-3 3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      </svg>
-    )
-  },
-  {
-    id: 'pharmacy',
-    kind: 'pharmacy',
-    label: 'Pharmacy',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <rect x="4" y="7" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="1.7" />
-        <path d="M12 10v6M9 13h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      </svg>
-    )
-  },
-  {
-    id: 'medical',
-    kind: 'medical',
-    label: 'Medical',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <path d="M8 4h8v4h4v8h-4v4H8v-4H4V8h4V4Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-      </svg>
-    )
-  },
-  {
-    id: 'fuel',
-    kind: 'fuel',
-    label: 'Transport',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <rect x="4" y="7" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.7" />
-        <path d="M16 10h2.5L20 12.5V16h-4" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-        <circle cx="7.5" cy="16.5" r="1.5" stroke="currentColor" strokeWidth="1.5" />
-        <circle cx="14.5" cy="16.5" r="1.5" stroke="currentColor" strokeWidth="1.5" />
-      </svg>
-    )
-  },
-  {
-    id: 'atm',
-    kind: 'atm',
-    label: 'ATM',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.7" />
-        <path d="M12 7.5v9M9.5 9.5c.6-1 1.5-1.5 2.5-1.5 1.4 0 2.5.8 2.5 2s-1.1 2-2.5 2c-1.4 0-2.5.8-2.5 2s1.1 2 2.5 2c1 0 1.9-.5 2.5-1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    )
-  }
-];
+const HOME_NEAR_ICONS: Record<string, React.ReactNode> = {
+  dining: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M7 3v8M7 11v10M5 3c0 2.5 2 4 2 8M9 3c0 2.5-2 4-2 8M14 3v18M17 3v7a3 3 0 0 1-3 3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  ),
+  restroom: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="8" cy="6" r="2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M5.5 20v-7.5A2.5 2.5 0 0 1 8 10h0a2.5 2.5 0 0 1 2.5 2.5V20" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <circle cx="16" cy="6" r="2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M13.5 20v-6h5v6M13.5 14h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  ),
+  atm: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M12 7.5v9M9.5 9.5c.6-1 1.5-1.5 2.5-1.5 1.4 0 2.5.8 2.5 2s-1.1 2-2.5 2c-1.4 0-2.5.8-2.5 2s1.1 2 2.5 2c1 0 1.9-.5 2.5-1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  ),
+  medical: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M8 4h8v4h4v8h-4v4H8v-4H4V8h4V4Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+    </svg>
+  ),
+  transport: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="5" y="4" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M5 12h14M8 19h.01M16 19h.01" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  )
+};
 
 export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   onSelectTrip,
@@ -205,7 +181,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   onOpenSettings
 }) => {
   const spContext = useSpContext();
-  const { config } = useConfig();
+  const { config, greetingName } = useConfig();
   const [tab, setTab] = React.useState<MobileHomeTab>('home');
   const [trips, setTrips] = React.useState<Trip[]>([]);
   const [allPlaces, setAllPlaces] = React.useState<
@@ -219,7 +195,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   const [completedSort, setCompletedSort] = React.useState<CompletedSort>('newest');
   const [mapTripFilter, setMapTripFilter] = React.useState<MapTripFilter>('upcoming');
   const [aiPrompt, setAiPrompt] = React.useState('');
-  const [nearBusy, setNearBusy] = React.useState<NearToolId | null>(null);
+  const [nearBusy, setNearBusy] = React.useState<NearYouToolId | null>(null);
   const [nearError, setNearError] = React.useState('');
   const [nearResults, setNearResults] = React.useState<Array<{ name: string; note?: string; mapsUrl?: string }>>([]);
   const [nearKindLabel, setNearKindLabel] = React.useState('');
@@ -407,7 +383,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
     onSelectTrip(featuredTrip.id, initialTab);
   };
 
-  const runNearYou = async (toolId: NearToolId, label: string, kind?: NearestPlaceKind): Promise<void> => {
+  const runNearYou = async (toolId: NearYouToolId, label: string, kind?: NearestPlaceKind): Promise<void> => {
     const apiKey = (config.geminiApiKey || '').trim();
     if (!apiKey) {
       setNearError('Add a Gemini API key in Profile / User settings to use Near you.');
@@ -497,7 +473,9 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   };
 
   let body: React.ReactNode;
-  if (tab === 'profile') {
+  if (tab === 'nearyou') {
+    body = <MobileNearYouPage onBack={() => setTab('home')} />;
+  } else if (tab === 'profile') {
     body = (
       <div>
         <h2 className={styles.sectionTitle}>Profile</h2>
@@ -650,7 +628,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
         </div>
 
         <p className={styles.greeting}>
-          {greetingForNow()}, {firstName(displayName)}
+          {greetingForNow()}, {greetingName || firstName(displayName)}
         </p>
         <p className={styles.prompt}>Where to next?</p>
 
@@ -712,12 +690,12 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
 
         <div className={styles.sectionHead}>
           <h2 className={styles.sectionTitle}>Near you</h2>
-          <button type="button" className={styles.sectionLink} onClick={() => setTab('spots')}>
+          <button type="button" className={styles.sectionLink} onClick={() => setTab('nearyou')}>
             See all
           </button>
         </div>
         <div className={styles.nearRow} role="list">
-          {NEAR_TOOLS.map((tool) => (
+          {homeNearYouTools(5).map((tool) => (
             <button
               key={tool.id}
               type="button"
@@ -729,9 +707,9 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
               disabled={nearBusy !== null}
             >
               <span className={styles.nearCircle} aria-hidden>
-                {nearBusy === tool.id ? '…' : tool.icon}
+                {nearBusy === tool.id ? '…' : HOME_NEAR_ICONS[tool.id] || tool.shortLabel[0]}
               </span>
-              <span className={styles.nearLabel}>{tool.label}</span>
+              <span className={styles.nearLabel}>{tool.shortLabel}</span>
             </button>
           ))}
         </div>

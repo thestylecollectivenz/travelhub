@@ -23,6 +23,7 @@ function mapRow(item: Record<string, unknown>): TripMember | null {
     userId: String(item.UserId ?? ''),
     userEmail: String(item.UserEmail ?? '').trim().toLowerCase(),
     userDisplayName: String(item.UserDisplayName ?? ''),
+    avatarUrl: typeof item.AvatarUrl === 'string' ? item.AvatarUrl.trim() : '',
     role,
     invitedBy: String(item.InvitedBy ?? ''),
     invitedAt: typeof item.InvitedAt === 'string' ? item.InvitedAt : ''
@@ -35,6 +36,7 @@ function toSpBody(partial: Partial<TripMember>): Record<string, unknown> {
   if (partial.userId !== undefined) out.UserId = partial.userId;
   if (partial.userEmail !== undefined) out.UserEmail = partial.userEmail;
   if (partial.userDisplayName !== undefined) out.UserDisplayName = partial.userDisplayName;
+  if (partial.avatarUrl !== undefined) out.AvatarUrl = partial.avatarUrl;
   if (partial.role !== undefined) out.Role = partial.role;
   if (partial.invitedBy !== undefined) out.InvitedBy = partial.invitedBy;
   if (partial.invitedAt !== undefined) out.InvitedAt = partial.invitedAt;
@@ -54,7 +56,7 @@ export class TripMembersService {
 
   async getForTrip(tripId: string): Promise<TripMember[]> {
     const safe = tripId.replace(/'/g, "''");
-    const url = `${this.baseUrl}?$select=ID,TripId,UserId,UserEmail,UserDisplayName,Role,InvitedBy,InvitedAt&$filter=TripId eq '${safe}'&$orderby=UserDisplayName asc&$top=500`;
+    const url = `${this.baseUrl}?$select=ID,TripId,UserId,UserEmail,UserDisplayName,AvatarUrl,Role,InvitedBy,InvitedAt&$filter=TripId eq '${safe}'&$orderby=UserDisplayName asc&$top=500`;
     const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
     if (resp.status === 404) return [];
     if (!resp.ok) throw new Error(`TripMembersService.getForTrip failed: ${resp.status}`);
@@ -154,6 +156,20 @@ export class TripMembersService {
       body: JSON.stringify({ Role: role })
     });
     if (!resp.ok && resp.status !== 204) throw new Error(`TripMembersService.updateRole failed: ${resp.status}`);
+  }
+
+  async updateAvatarUrl(id: string, avatarUrl: string): Promise<void> {
+    const resp: SPHttpClientResponse = await this.ctx.spHttpClient.fetch(`${this.baseUrl}(${id})`, SPHttpClient.configurations.v1, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json;odata.metadata=minimal',
+        Accept: 'application/json;odata.metadata=minimal',
+        'IF-MATCH': '*',
+        'X-HTTP-Method': 'MERGE'
+      },
+      body: JSON.stringify({ AvatarUrl: (avatarUrl || '').trim() })
+    });
+    if (!resp.ok && resp.status !== 204) throw new Error(`TripMembersService.updateAvatarUrl failed: ${resp.status}`);
   }
 
   async removeMember(id: string): Promise<void> {

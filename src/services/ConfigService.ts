@@ -1,5 +1,6 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
+import { getCurrentUserEmail } from '../utils/currentUserEmail';
 
 const LIST = 'UserConfig';
 
@@ -47,7 +48,10 @@ export const DEFAULT_USER_CONFIG: UserConfig = {
   dayBreakdownVisibleByDefault: true
 };
 
-async function logFailedResponse(label: string, resp: SPHttpClientResponse): Promise<void> {
+const FULL_SELECT =
+  'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,ElevenLabsApiKey,ElevenLabsVoiceId,SpeechEngine,BrowserVoiceURI,DayBreakdownVisibleByDefault';
+
+async function logFailedResponse(label: string, resp: SPHttpClientResponse): Promise<string> {
   let body = '';
   try {
     body = await resp.text();
@@ -56,59 +60,24 @@ async function logFailedResponse(label: string, resp: SPHttpClientResponse): Pro
   }
   // eslint-disable-next-line no-console
   console.error(`ConfigService ${label} failed`, { status: resp.status, statusText: resp.statusText, body });
+  return body;
+}
+
+/** Stable cross-device identity for UserConfig rows. */
+export function resolveUserConfigKey(ctx: WebPartContext, preferred?: string): string {
+  const email = (preferred || getCurrentUserEmail(ctx) || '').trim().toLowerCase();
+  if (email && email.includes('@')) return email;
+  const login = (ctx.pageContext.user.loginName || '').trim().toLowerCase();
+  return login || email || 'unknown-user';
 }
 
 export class ConfigService {
   private ctx: WebPartContext;
   private baseUrl: string;
-  private localStorageKeyPrefix: string;
 
   constructor(context: WebPartContext) {
     this.ctx = context;
     this.baseUrl = `${context.pageContext.web.absoluteUrl}/_api/web/lists/getbytitle('${LIST}')/items`;
-    this.localStorageKeyPrefix = `travelhub:userconfig:${context.pageContext.web.absoluteUrl}`;
-  }
-
-  private localStorageKey(userId: string): string {
-    return `${this.localStorageKeyPrefix}:${userId}`;
-  }
-
-  private loadFromLocalFallback(userId: string): UserConfig | undefined {
-    try {
-      const raw = window.localStorage.getItem(this.localStorageKey(userId));
-      if (!raw) return undefined;
-      const parsed = JSON.parse(raw) as Partial<UserConfig>;
-      return {
-        ...DEFAULT_USER_CONFIG,
-        ...parsed,
-        sidebarWidth:
-          typeof parsed.sidebarWidth === 'number'
-            ? parsed.sidebarWidth
-            : Number(parsed.sidebarWidth ?? DEFAULT_USER_CONFIG.sidebarWidth) || DEFAULT_USER_CONFIG.sidebarWidth,
-        sidebarWidthCustomized: parsed.sidebarWidthCustomized === true,
-        dayBreakdownVisibleByDefault:
-          typeof parsed.dayBreakdownVisibleByDefault === 'boolean'
-            ? parsed.dayBreakdownVisibleByDefault
-            : DEFAULT_USER_CONFIG.dayBreakdownVisibleByDefault,
-        dateFormat: parsed.dateFormat === 'MDY' ? 'MDY' : DEFAULT_USER_CONFIG.dateFormat,
-        speechEngine: parsed.speechEngine === 'elevenlabs' ? 'elevenlabs' : 'browser',
-        browserVoiceURI: typeof parsed.browserVoiceURI === 'string' ? parsed.browserVoiceURI : ''
-      };
-    } catch {
-      return undefined;
-    }
-  }
-
-  private saveToLocalFallback(userId: string, config: UserConfig): void {
-    try {
-      window.localStorage.setItem(this.localStorageKey(userId), JSON.stringify(config));
-    } catch {
-      // Ignore quota/privacy mode errors.
-    }
-  }
-
-  private hasOwnField(item: Record<string, unknown>, fieldName: string): boolean {
-    return Object.prototype.hasOwnProperty.call(item, fieldName);
   }
 
   private mapFromSpItem(item: Record<string, unknown>): UserConfig {
@@ -141,10 +110,10 @@ export class ConfigService {
     };
   }
 
-  private mapToSpItem(userId: string, config: UserConfig): Record<string, unknown> {
+  private mapToSpItem(userKey: string, config: UserConfig): Record<string, unknown> {
     return {
-      Title: userId,
-      UserId: userId,
+      Title: userKey,
+      UserId: userKey,
       HomeCurrency: config.homeCurrency,
       TemperatureUnit: config.temperatureUnit,
       DistanceUnit: config.distanceUnit,
@@ -163,153 +132,79 @@ export class ConfigService {
     };
   }
 
-  private mergeWithLocalFallback(
-    item: Record<string, unknown>,
-    mapped: UserConfig,
-    localFallback?: UserConfig
-  ): UserConfig {
-    if (!localFallback) {
-      return mapped;
-    }
-
-    return {
-      homeCurrency: this.hasOwnField(item, 'HomeCurrency') ? mapped.homeCurrency : localFallback.homeCurrency,
-      temperatureUnit: this.hasOwnField(item, 'TemperatureUnit') ? mapped.temperatureUnit : localFallback.temperatureUnit,
-      distanceUnit: this.hasOwnField(item, 'DistanceUnit') ? mapped.distanceUnit : localFallback.distanceUnit,
-      dateFormat: this.hasOwnField(item, 'DateFormat') ? mapped.dateFormat : localFallback.dateFormat,
-      showTravellerNames: this.hasOwnField(item, 'ShowTravellerNames')
-        ? mapped.showTravellerNames
-        : localFallback.showTravellerNames,
-      journalAuthorName: this.hasOwnField(item, 'JournalAuthorName')
-        ? mapped.journalAuthorName
-        : localFallback.journalAuthorName,
-      sidebarWidth: this.hasOwnField(item, 'SidebarWidth') ? mapped.sidebarWidth : localFallback.sidebarWidth,
-      sidebarWidthCustomized: this.hasOwnField(item, 'SidebarWidthCustomized')
-        ? mapped.sidebarWidthCustomized
-        : localFallback.sidebarWidthCustomized,
-      weatherApiKey: this.hasOwnField(item, 'WeatherApiKey') ? mapped.weatherApiKey : localFallback.weatherApiKey,
-      geminiApiKey: this.hasOwnField(item, 'GeminiApiKey') ? mapped.geminiApiKey : localFallback.geminiApiKey,
-      elevenLabsApiKey: this.hasOwnField(item, 'ElevenLabsApiKey')
-        ? mapped.elevenLabsApiKey
-        : localFallback.elevenLabsApiKey,
-      elevenLabsVoiceId: this.hasOwnField(item, 'ElevenLabsVoiceId')
-        ? mapped.elevenLabsVoiceId
-        : localFallback.elevenLabsVoiceId,
-      speechEngine: this.hasOwnField(item, 'SpeechEngine') ? mapped.speechEngine : localFallback.speechEngine,
-      browserVoiceURI: this.hasOwnField(item, 'BrowserVoiceURI')
-        ? mapped.browserVoiceURI
-        : localFallback.browserVoiceURI,
-      dayBreakdownVisibleByDefault: this.hasOwnField(item, 'DayBreakdownVisibleByDefault')
-        ? mapped.dayBreakdownVisibleByDefault
-        : localFallback.dayBreakdownVisibleByDefault
-    };
+  private async queryByField(field: 'UserId' | 'Title', value: string): Promise<SPHttpClientResponse> {
+    const safe = value.replace(/'/g, "''");
+    const filter = encodeURIComponent(`${field} eq '${safe}'`);
+    const select = encodeURIComponent(FULL_SELECT);
+    const url = `${this.baseUrl}?$select=${select}&$filter=${filter}&$top=5`;
+    return this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
   }
 
-  private async getItemsWithFilter(filterExpr: string, includeUserIdField: boolean): Promise<SPHttpClientResponse> {
-    const safeFilter = encodeURIComponent(filterExpr);
-    const selects = includeUserIdField
-      ? [
-          'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,ElevenLabsApiKey,ElevenLabsVoiceId,SpeechEngine,BrowserVoiceURI,DayBreakdownVisibleByDefault',
-          'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,ElevenLabsApiKey,ElevenLabsVoiceId,DayBreakdownVisibleByDefault',
-          'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault',
-          'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault'
-        ]
-      : [
-          'ID,Title,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,ElevenLabsApiKey,ElevenLabsVoiceId,SpeechEngine,BrowserVoiceURI,DayBreakdownVisibleByDefault',
-          'ID,Title,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,ElevenLabsApiKey,ElevenLabsVoiceId,DayBreakdownVisibleByDefault',
-          'ID,Title,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault',
-          'ID,Title,HomeCurrency,TemperatureUnit,DistanceUnit,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,DayBreakdownVisibleByDefault'
-        ];
-    let lastResp: SPHttpClientResponse | undefined;
-    for (const selectFields of selects) {
-      const select = encodeURIComponent(selectFields);
-      const url = `${this.baseUrl}?$select=${select}&$filter=${safeFilter}&$top=1`;
-      // eslint-disable-next-line no-await-in-loop
-      const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
-      if (resp.ok) {
-        return resp;
-      }
-      lastResp = resp;
-      if (resp.status !== 400 && resp.status !== 404) {
-        break;
+  private async findConfigItem(
+    userKey: string
+  ): Promise<{ id?: number; config: UserConfig; raw?: Record<string, unknown> }> {
+    const candidates = new Set<string>();
+    candidates.add(userKey);
+    const login = (this.ctx.pageContext.user.loginName || '').trim().toLowerCase();
+    if (login) candidates.add(login);
+    const email = getCurrentUserEmail(this.ctx);
+    if (email) candidates.add(email);
+
+    let firstOkEmpty = false;
+    for (const key of Array.from(candidates)) {
+      for (const field of ['UserId', 'Title'] as const) {
+        let resp: SPHttpClientResponse;
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          resp = await this.queryByField(field, key);
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('ConfigService.findConfigItem query threw', field, key, err);
+          continue;
+        }
+        if (resp.status === 400 || resp.status === 404) {
+          // eslint-disable-next-line no-await-in-loop
+          await logFailedResponse(`findConfigItem ${field}`, resp);
+          continue;
+        }
+        if (!resp.ok) {
+          // eslint-disable-next-line no-await-in-loop
+          await logFailedResponse(`findConfigItem ${field}`, resp);
+          continue;
+        }
+        // eslint-disable-next-line no-await-in-loop
+        const data = (await resp.json()) as { value?: Record<string, unknown>[] };
+        const item = (data.value ?? [])[0];
+        if (!item) {
+          firstOkEmpty = true;
+          continue;
+        }
+        return { id: Number(item.ID), config: this.mapFromSpItem(item), raw: item };
       }
     }
-    return lastResp ?? (await this.ctx.spHttpClient.get(`${this.baseUrl}?$top=0`, SPHttpClient.configurations.v1));
+
+    if (firstOkEmpty) {
+      return { config: { ...DEFAULT_USER_CONFIG } };
+    }
+    return { config: { ...DEFAULT_USER_CONFIG } };
   }
 
-  private async getConfigItem(userId: string): Promise<{ id?: number; config: UserConfig; raw?: Record<string, unknown> }> {
-    const safeUserId = userId.replace(/'/g, "''");
-    let resp: SPHttpClientResponse;
-    try {
-      resp = await this.getItemsWithFilter(`UserId eq '${safeUserId}'`, true);
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('ConfigService.getConfigItem UserId query threw', err);
-      return { config: this.loadFromLocalFallback(userId) ?? { ...DEFAULT_USER_CONFIG } };
-    }
-    if (resp.status === 400 || resp.status === 406) {
-      await logFailedResponse('getConfigItem UserId filter (will try Title fallback)', resp);
-      try {
-        resp = await this.getItemsWithFilter(`Title eq '${safeUserId}'`, false);
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error('ConfigService.getConfigItem Title query threw', err);
-        return { config: this.loadFromLocalFallback(userId) ?? { ...DEFAULT_USER_CONFIG } };
-      }
-    }
-    if (!resp.ok) {
-      await logFailedResponse('getConfigItem', resp);
-      return { config: this.loadFromLocalFallback(userId) ?? { ...DEFAULT_USER_CONFIG } };
-    }
-    let data: { value?: Record<string, unknown>[] };
-    try {
-      data = await resp.json();
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('ConfigService.getConfigItem JSON parse', err);
-      return { config: this.loadFromLocalFallback(userId) ?? { ...DEFAULT_USER_CONFIG } };
-    }
-    const item = (data.value ?? [])[0];
-    if (!item) {
-      return { config: this.loadFromLocalFallback(userId) ?? { ...DEFAULT_USER_CONFIG } };
-    }
-    const localFallback = this.loadFromLocalFallback(userId);
-    const resolved = this.mergeWithLocalFallback(item, this.mapFromSpItem(item), localFallback);
-    this.saveToLocalFallback(userId, resolved);
-    return { id: Number(item.ID), config: resolved, raw: item };
-  }
-
-  async getConfig(userId: string): Promise<UserConfig> {
-    const row = await this.getConfigItem(userId);
+  async getConfig(userKey?: string): Promise<UserConfig> {
+    const key = resolveUserConfigKey(this.ctx, userKey);
+    const row = await this.findConfigItem(key);
     return row.config;
   }
 
-  async saveConfig(userId: string, config: UserConfig): Promise<void> {
-    const existing = await this.getConfigItem(userId);
-    const fullBody = this.mapToSpItem(userId, config);
-    const bodies: Record<string, unknown>[] = [
-      fullBody,
-      // Fallback if newer speech columns are not yet provisioned on the list.
-      (() => {
-        const without = { ...fullBody };
-        delete without.SpeechEngine;
-        delete without.BrowserVoiceURI;
-        return without;
-      })(),
-      (() => {
-        const without = { ...fullBody };
-        delete without.SpeechEngine;
-        delete without.BrowserVoiceURI;
-        delete without.ElevenLabsApiKey;
-        delete without.ElevenLabsVoiceId;
-        return without;
-      })()
-    ];
+  async saveConfig(userKey: string | undefined, config: UserConfig): Promise<void> {
+    const key = resolveUserConfigKey(this.ctx, userKey);
+    const existing = await this.findConfigItem(key);
+    const payload = this.mapToSpItem(key, config);
 
     if (existing.id) {
-      let lastErr: SPHttpClientResponse | undefined;
-      for (const payload of bodies) {
-        const updateResp = await this.ctx.spHttpClient.fetch(`${this.baseUrl}(${existing.id})`, SPHttpClient.configurations.v1, {
+      const updateResp = await this.ctx.spHttpClient.fetch(
+        `${this.baseUrl}(${existing.id})`,
+        SPHttpClient.configurations.v1,
+        {
           method: 'PATCH',
           headers: {
             Accept: 'application/json;odata.metadata=minimal',
@@ -317,37 +212,40 @@ export class ConfigService {
             'IF-MATCH': '*'
           },
           body: JSON.stringify(payload)
-        });
-        if (updateResp.ok || updateResp.status === 204) {
-          this.saveToLocalFallback(userId, config);
-          return;
         }
-        lastErr = updateResp;
-        if (updateResp.status !== 400) break;
-      }
-      if (lastErr) await logFailedResponse('saveConfig PATCH', lastErr);
-      this.saveToLocalFallback(userId, config);
-      return;
-    }
-
-    let lastCreate: SPHttpClientResponse | undefined;
-    for (const payload of bodies) {
-      const createResp = await this.ctx.spHttpClient.post(this.baseUrl, SPHttpClient.configurations.v1, {
-        headers: {
-          Accept: 'application/json;odata.metadata=minimal',
-          'Content-Type': 'application/json;odata.metadata=minimal'
-        },
-        body: JSON.stringify(payload)
-      });
-      if (createResp.ok || createResp.status === 201) {
-        this.saveToLocalFallback(userId, config);
+      );
+      if (updateResp.ok || updateResp.status === 204) {
+        // If the row was keyed by loginName, rewrite UserId/Title to email for future devices.
+        if (existing.raw) {
+          const prevUserId = String(existing.raw.UserId ?? '').trim().toLowerCase();
+          const prevTitle = String(existing.raw.Title ?? '').trim().toLowerCase();
+          if (prevUserId !== key || prevTitle !== key) {
+            await this.ctx.spHttpClient.fetch(`${this.baseUrl}(${existing.id})`, SPHttpClient.configurations.v1, {
+              method: 'PATCH',
+              headers: {
+                Accept: 'application/json;odata.metadata=minimal',
+                'Content-Type': 'application/json;odata.metadata=minimal',
+                'IF-MATCH': '*'
+              },
+              body: JSON.stringify({ Title: key, UserId: key })
+            });
+          }
+        }
         return;
       }
-      lastCreate = createResp;
-      if (createResp.status !== 400) break;
+      const body = await logFailedResponse('saveConfig PATCH', updateResp);
+      throw new Error(`Could not save settings to SharePoint (${updateResp.status}). ${body.slice(0, 180)}`);
     }
-    if (lastCreate) await logFailedResponse('saveConfig POST', lastCreate);
-    this.saveToLocalFallback(userId, config);
+
+    const createResp = await this.ctx.spHttpClient.post(this.baseUrl, SPHttpClient.configurations.v1, {
+      headers: {
+        Accept: 'application/json;odata.metadata=minimal',
+        'Content-Type': 'application/json;odata.metadata=minimal'
+      },
+      body: JSON.stringify(payload)
+    });
+    if (createResp.ok || createResp.status === 201) return;
+    const body = await logFailedResponse('saveConfig POST', createResp);
+    throw new Error(`Could not save settings to SharePoint (${createResp.status}). ${body.slice(0, 180)}`);
   }
 }
-

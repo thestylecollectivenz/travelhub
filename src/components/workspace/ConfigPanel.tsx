@@ -438,7 +438,11 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
                 .catch((err) => {
                   console.error(err);
                   setSaving(false);
-                  setSaveError('Could not save settings. Your browser may have blocked the request.');
+                  setSaveError(
+                    err instanceof Error
+                      ? err.message
+                      : 'Could not save settings to SharePoint. Check list permissions and that UserConfig columns exist.'
+                  );
                 });
             }}
             style={{

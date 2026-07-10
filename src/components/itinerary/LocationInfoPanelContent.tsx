@@ -30,6 +30,7 @@ import {
 import { generateDiningSuggestions, generateNearestPlaces } from '../../services/GeminiService';
 import { resolveLocationSearchContext } from '../../utils/locationGeoContext';
 import { RichTextContent } from '../shared/RichTextContent';
+import { desktopNearestTools } from '../../utils/nearYouTools';
 import { LocationInfoAskPanel } from './LocationInfoAskPanel';
 import { LocationInfoHighlights } from './LocationInfoHighlights';
 import styles from './LocationInfoPanelContent.module.css';
@@ -43,6 +44,8 @@ type SectionKey =
   | 'fuel'
   | 'atm'
   | 'medical'
+  | 'restroom'
+  | 'transport'
   | 'tips'
   | 'qa';
 
@@ -116,6 +119,26 @@ function MedicalIcon(): React.ReactElement {
   );
 }
 
+function RestroomIcon(): React.ReactElement {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="8" cy="6" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M5.5 20v-7.5A2.5 2.5 0 0 1 8 10h0a2.5 2.5 0 0 1 2.5 2.5V20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="16" cy="6" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M13.5 20v-6h5v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function TransportIcon(): React.ReactElement {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="5" y="4" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M5 12h14M8 19h.01M16 19h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function RefreshIcon(): React.ReactElement {
   return (
     <svg width={12} height={12} viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -138,13 +161,22 @@ function LinkIcon(): React.ReactElement {
   );
 }
 
-const NEAREST_TOOLS: Array<{ kind: NearestPlaceKind; label: string; icon: React.ReactElement }> = [
-  { kind: 'pharmacy', label: 'Nearest pharmacy', icon: <PharmacyIcon /> },
-  { kind: 'grocery', label: 'Nearest grocery', icon: <GroceryIcon /> },
-  { kind: 'fuel', label: 'Nearest fuel', icon: <FuelIcon /> },
-  { kind: 'atm', label: 'Nearest ATM', icon: <AtmIcon /> },
-  { kind: 'medical', label: 'Nearest medical', icon: <MedicalIcon /> }
-];
+const NEAREST_ICON: Record<NearestPlaceKind, React.ReactElement> = {
+  pharmacy: <PharmacyIcon />,
+  grocery: <GroceryIcon />,
+  fuel: <FuelIcon />,
+  atm: <AtmIcon />,
+  medical: <MedicalIcon />,
+  restroom: <RestroomIcon />,
+  transport: <TransportIcon />
+};
+
+const NEAREST_TOOLS: Array<{ kind: NearestPlaceKind; label: string; icon: React.ReactElement }> =
+  desktopNearestTools().map((t) => ({
+    kind: t.kind,
+    label: t.label,
+    icon: NEAREST_ICON[t.kind]
+  }));
 
 function PlaceLinks(props: { name: string; address?: string; mapsUrl?: string; reviewsUrl?: string; websiteUrl?: string }): React.ReactElement {
   const { name, address, mapsUrl, reviewsUrl, websiteUrl } = props;
@@ -252,6 +284,8 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
     fuel: false,
     atm: false,
     medical: false,
+    restroom: false,
+    transport: false,
     tips: false,
     qa: false
   });
@@ -337,6 +371,16 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
       if (text.includes('medical')) {
         if (text.includes('clear')) persist({ ...data, nearestPlaces: { ...nearest, medical: [] } });
         else runNearest('medical', text.includes('refresh') || text.includes('regenerate'));
+        return;
+      }
+      if (text.includes('restroom') || text.includes('toilet') || text.includes('bathroom')) {
+        if (text.includes('clear')) persist({ ...data, nearestPlaces: { ...nearest, restroom: [] } });
+        else runNearest('restroom', text.includes('refresh') || text.includes('regenerate'));
+        return;
+      }
+      if (text.includes('transport') || text.includes('bus') || text.includes('transit')) {
+        if (text.includes('clear')) persist({ ...data, nearestPlaces: { ...nearest, transport: [] } });
+        else runNearest('transport', text.includes('refresh') || text.includes('regenerate'));
         return;
       }
       if (text.includes('clear dining')) {

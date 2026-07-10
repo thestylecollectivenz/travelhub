@@ -179,6 +179,18 @@ export const AiAssistantFab: React.FC = () => {
   }, []);
 
   React.useEffect(() => {
+    const onOpenAi = (e: Event): void => {
+      const detail = (e as CustomEvent<{ prompt?: string }>).detail;
+      setOpen(true);
+      if (detail?.prompt) {
+        setInput(detail.prompt);
+      }
+    };
+    window.addEventListener('travelhub-open-ai', onOpenAi);
+    return () => window.removeEventListener('travelhub-open-ai', onOpenAi);
+  }, []);
+
+  React.useEffect(() => {
     if (!trip?.id) {
       setMessages([]);
       return;

@@ -62,36 +62,40 @@
 .pebbleMark {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 3px;
-  width: 1.75rem;
-  height: 1.75rem;
+  gap: 2px;
+  width: 1.85rem;
+  height: 1.85rem;
   flex-shrink: 0;
 }
 
 .pebble {
-  border-radius: 999px 999px 70% 999px;
   width: 100%;
   height: 100%;
+  background: var(--tl-olive);
 }
 
 .pebble:nth-child(1) {
   background: var(--tl-olive);
-  border-radius: 70% 999px 999px 999px;
+  border-radius: 55% 45% 60% 40% / 50% 55% 45% 50%;
+  transform: rotate(-12deg);
 }
 
 .pebble:nth-child(2) {
   background: var(--tl-gold);
-  border-radius: 999px 70% 999px 999px;
+  border-radius: 40% 60% 45% 55% / 55% 40% 60% 45%;
+  transform: rotate(18deg) scale(0.92);
 }
 
 .pebble:nth-child(3) {
   background: var(--tl-navy);
-  border-radius: 999px 999px 999px 70%;
+  border-radius: 60% 40% 50% 50% / 45% 55% 45% 55%;
+  transform: rotate(8deg) scale(0.95);
 }
 
 .pebble:nth-child(4) {
   background: var(--tl-rust);
-  border-radius: 999px 999px 70% 999px;
+  border-radius: 45% 55% 40% 60% / 50% 45% 55% 50%;
+  transform: rotate(-20deg);
 }
 
 .brandName {

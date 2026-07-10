@@ -6,6 +6,8 @@ export interface TripMember {
   userId: string;
   userEmail: string;
   userDisplayName: string;
+  /** Optional avatar image URL (SharePoint or absolute); empty = initials fallback. */
+  avatarUrl?: string;
   role: TripRoleLevel;
   invitedBy: string;
   invitedAt: string;

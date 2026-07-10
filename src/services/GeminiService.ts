@@ -538,7 +538,9 @@ const NEAREST_KIND_LABEL: Record<NearestPlaceKind, string> = {
   grocery: 'grocery store or supermarket',
   fuel: 'fuel station or petrol station',
   atm: 'ATM or cash machine',
-  medical: 'medical clinic, urgent care, or hospital'
+  medical: 'medical clinic, urgent care, or hospital',
+  restroom: 'public restroom, toilet, or bathroom',
+  transport: 'public transport stop, bus stop, train/metro station, or taxi stand'
 };
 
 function buildDiningPrompt(ctx: LocationSearchContext): string {

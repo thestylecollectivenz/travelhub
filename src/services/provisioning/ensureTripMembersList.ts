@@ -9,6 +9,7 @@ export const TRIP_MEMBERS_FIELDS = [
   { internalName: 'UserId', type: 'Text' as const },
   { internalName: 'UserEmail', type: 'Text' as const },
   { internalName: 'UserDisplayName', type: 'Text' as const },
+  { internalName: 'AvatarUrl', type: 'Text' as const },
   { internalName: 'Role', type: 'Text' as const },
   { internalName: 'InvitedBy', type: 'Text' as const },
   { internalName: 'InvitedAt', type: 'DateTime' as const }

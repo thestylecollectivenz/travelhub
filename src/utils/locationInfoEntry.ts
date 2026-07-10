@@ -21,16 +21,38 @@ export type LocationInfoQaEntry = {
   createdAt: string;
 };
 
-export type NearestPlaceKind = 'pharmacy' | 'grocery' | 'fuel' | 'atm' | 'medical';
+export type NearestPlaceKind =
+  | 'pharmacy'
+  | 'grocery'
+  | 'fuel'
+  | 'atm'
+  | 'medical'
+  | 'restroom'
+  | 'transport';
 
 const LEGACY_NEAREST_KIND: Record<string, NearestPlaceKind> = {
   petrol: 'fuel',
-  hospital: 'medical'
+  hospital: 'medical',
+  toilet: 'restroom',
+  toilets: 'restroom',
+  bathroom: 'restroom',
+  bus: 'transport',
+  transit: 'transport'
 };
 
 export function normalizeNearestPlaceKind(kind: string): NearestPlaceKind | undefined {
   const k = (kind || '').trim();
-  if (k === 'pharmacy' || k === 'grocery' || k === 'fuel' || k === 'atm' || k === 'medical') return k;
+  if (
+    k === 'pharmacy' ||
+    k === 'grocery' ||
+    k === 'fuel' ||
+    k === 'atm' ||
+    k === 'medical' ||
+    k === 'restroom' ||
+    k === 'transport'
+  ) {
+    return k;
+  }
   return LEGACY_NEAREST_KIND[k];
 }
 

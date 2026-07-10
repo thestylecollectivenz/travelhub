@@ -5,6 +5,7 @@ import type { TripMember, TripRoleLevel } from '../../models/TripMember';
 import { clearTripRoleCache } from '../../hooks/useCurrentUserRole';
 import { useTripRole } from '../../context/TripRoleContext';
 import { confirmUserAction } from '../../utils/confirmAction';
+import { TravellerAvatar } from '../shared/TravellerAvatar';
 import styles from './TripMembersPanel.module.css';
 
 export interface TripMembersPanelProps {
@@ -89,9 +90,31 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
               const isTripAuthor = Boolean(authorEmail && m.userEmail === authorEmail);
               return (
               <li key={m.id} className={styles.row}>
+                <TravellerAvatar displayName={m.userDisplayName || m.userEmail} avatarUrl={m.avatarUrl} size={36} />
                 <div className={styles.memberMeta}>
                   <strong>{m.userDisplayName || m.userEmail}</strong>
                   <span className={styles.email}>{m.userEmail}{isTripAuthor ? ' · Trip creator' : ''}</span>
+                  <input
+                    className={styles.input}
+                    type="url"
+                    placeholder="Avatar image URL (optional)"
+                    defaultValue={m.avatarUrl || ''}
+                    disabled={busy}
+                    onBlur={(e) => {
+                      const next = e.target.value.trim();
+                      if (next === (m.avatarUrl || '').trim()) return;
+                      setBusy(true);
+                      service
+                        .updateAvatarUrl(m.id, next)
+                        .then(() => refresh())
+                        .catch((err) => {
+                          console.error(err);
+                          setError('Could not update avatar.');
+                        })
+                        .then(() => setBusy(false), () => setBusy(false));
+                    }}
+                    aria-label={`Avatar URL for ${m.userDisplayName || m.userEmail}`}
+                  />
                 </div>
                 <select
                   className={styles.select}
