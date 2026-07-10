@@ -1,6 +1,7 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 import { getCurrentUserEmail } from '../utils/currentUserEmail';
+import { ensureUserConfigColumns } from './provisioning/ensureUserConfigColumns';
 
 const LIST = 'UserConfig';
 
@@ -195,14 +196,18 @@ export class ConfigService {
     return row.config;
   }
 
-  async saveConfig(userKey: string | undefined, config: UserConfig): Promise<void> {
-    const key = resolveUserConfigKey(this.ctx, userKey);
-    const existing = await this.findConfigItem(key);
-    const payload = this.mapToSpItem(key, config);
+  private parseMissingProperty(errorBody: string): string | undefined {
+    const match = errorBody.match(/The property '([^']+)' does not exist/i);
+    return match?.[1];
+  }
 
-    if (existing.id) {
+  private async writePayload(
+    existingId: number | undefined,
+    payload: Record<string, unknown>
+  ): Promise<{ ok: boolean; status: number; body: string }> {
+    if (existingId) {
       const updateResp = await this.ctx.spHttpClient.fetch(
-        `${this.baseUrl}(${existing.id})`,
+        `${this.baseUrl}(${existingId})`,
         SPHttpClient.configurations.v1,
         {
           method: 'PATCH',
@@ -215,8 +220,51 @@ export class ConfigService {
         }
       );
       if (updateResp.ok || updateResp.status === 204) {
-        // If the row was keyed by loginName, rewrite UserId/Title to email for future devices.
-        if (existing.raw) {
+        return { ok: true, status: updateResp.status, body: '' };
+      }
+      const body = await logFailedResponse('saveConfig PATCH', updateResp);
+      return { ok: false, status: updateResp.status, body };
+    }
+
+    const createResp = await this.ctx.spHttpClient.post(this.baseUrl, SPHttpClient.configurations.v1, {
+      headers: {
+        Accept: 'application/json;odata.metadata=minimal',
+        'Content-Type': 'application/json;odata.metadata=minimal'
+      },
+      body: JSON.stringify(payload)
+    });
+    if (createResp.ok || createResp.status === 201) {
+      return { ok: true, status: createResp.status, body: '' };
+    }
+    const body = await logFailedResponse('saveConfig POST', createResp);
+    return { ok: false, status: createResp.status, body };
+  }
+
+  /**
+   * Saves to SharePoint only. Ensures UserConfig columns when possible, then retries
+   * while stripping fields SharePoint reports as missing (append-only schema lag).
+   */
+  async saveConfig(userKey: string | undefined, config: UserConfig): Promise<void> {
+    const key = resolveUserConfigKey(this.ctx, userKey);
+
+    try {
+      await ensureUserConfigColumns(this.ctx);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('ConfigService: ensureUserConfigColumns failed (will retry save with available columns).', err);
+    }
+
+    const existing = await this.findConfigItem(key);
+    let payload = this.mapToSpItem(key, config);
+    const stripped: string[] = [];
+    let lastStatus = 0;
+    let lastBody = '';
+
+    for (let attempt = 0; attempt < 24; attempt++) {
+      // eslint-disable-next-line no-await-in-loop
+      const result = await this.writePayload(existing.id, payload);
+      if (result.ok) {
+        if (existing.id && existing.raw) {
           const prevUserId = String(existing.raw.UserId ?? '').trim().toLowerCase();
           const prevTitle = String(existing.raw.Title ?? '').trim().toLowerCase();
           if (prevUserId !== key || prevTitle !== key) {
@@ -231,21 +279,31 @@ export class ConfigService {
             });
           }
         }
+        if (stripped.length) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            'ConfigService: saved without columns not yet on UserConfig list:',
+            stripped.join(', ')
+          );
+        }
         return;
       }
-      const body = await logFailedResponse('saveConfig PATCH', updateResp);
-      throw new Error(`Could not save settings to SharePoint (${updateResp.status}). ${body.slice(0, 180)}`);
+
+      lastStatus = result.status;
+      lastBody = result.body;
+      if (result.status !== 400) break;
+
+      const missing = this.parseMissingProperty(result.body);
+      if (!missing || !(missing in payload) || missing === 'Title' || missing === 'UserId') {
+        break;
+      }
+      delete payload[missing];
+      stripped.push(missing);
+      payload = { ...payload };
     }
 
-    const createResp = await this.ctx.spHttpClient.post(this.baseUrl, SPHttpClient.configurations.v1, {
-      headers: {
-        Accept: 'application/json;odata.metadata=minimal',
-        'Content-Type': 'application/json;odata.metadata=minimal'
-      },
-      body: JSON.stringify(payload)
-    });
-    if (createResp.ok || createResp.status === 201) return;
-    const body = await logFailedResponse('saveConfig POST', createResp);
-    throw new Error(`Could not save settings to SharePoint (${createResp.status}). ${body.slice(0, 180)}`);
+    throw new Error(
+      `Could not save settings to SharePoint (${lastStatus}). ${lastBody.slice(0, 220)}`
+    );
   }
 }
