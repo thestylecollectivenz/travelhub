@@ -21,6 +21,7 @@ import {
   findConfirmationDocument
 } from '../../utils/bookingStatusUtils';
 import { formatDisplayLabel, transportDisplayTitle } from '../../utils/mobileDisplayFormat';
+import { MobileAccommodationDetail } from './MobileAccommodationDetail';
 import { MobileBookingSiteSheet } from './MobileBookingSiteSheet';
 import { MobilePencilButton } from './MobilePencilButton';
 import cardStyles from '../itinerary/ItineraryCard.module.css';
@@ -97,6 +98,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
   const slug = getCategorySlug(entry.category);
   const timeChip = entry.timeStart ? formatTimeHHMM(entry.timeStart) : entry.duration || '';
   const isEditing = editingCardId === sourceEntry.id;
+  const isAccommodation = entry.category === 'Accommodation';
   const title = entry.category === 'Transport' ? transportDisplayTitle(entry, calendarDate) : entry.title;
 
   React.useEffect(() => {
@@ -180,6 +182,31 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
         </div>
       </div>,
       document.body
+    );
+  }
+
+  if (isAccommodation) {
+    return (
+      <div className={styles.page} ref={pageRef}>
+        <MobileAccommodationDetail
+          entry={entry}
+          documents={entryDocs}
+          links={entryLinks}
+          canSeeFinancials={canSeeFinancials}
+          canEdit={canEditItinerary}
+          onEdit={() => setEditingCardId(sourceEntry.id)}
+          onBookNow={() => setShowBookingSites(true)}
+          mapsDirectionsUrl={mapsDirectionsUrl}
+          phoneNumber={entry.phoneNumber}
+        />
+        {showBookingSites ? (
+          <MobileBookingSiteSheet
+            title={entry.title || entry.location || 'Booking'}
+            options={bookingSiteOptions}
+            onClose={() => setShowBookingSites(false)}
+          />
+        ) : null}
+      </div>
     );
   }
 
