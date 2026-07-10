@@ -1,0 +1,13 @@
+.btn {
+  border: 1px solid color-mix(in srgb, #1e2a44 14%, transparent);
+  background: white;
+  border-radius: 999px;
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #1e2a44;
+  cursor: pointer;
+  flex-shrink: 0;
+}

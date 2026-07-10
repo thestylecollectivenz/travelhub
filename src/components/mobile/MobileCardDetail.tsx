@@ -20,14 +20,18 @@ import {
   effectiveBookingStatus,
   findConfirmationDocument
 } from '../../utils/bookingStatusUtils';
+import { formatDisplayLabel, transportDisplayTitle } from '../../utils/mobileDisplayFormat';
 import { MobileBookingSiteSheet } from './MobileBookingSiteSheet';
+import { MobilePencilButton } from './MobilePencilButton';
 import cardStyles from '../itinerary/ItineraryCard.module.css';
 import styles from './MobileCardDetail.module.css';
 
 export interface MobileCardDetailProps {
-  entry: ItineraryEntry;
+  sourceEntry: ItineraryEntry;
+  displayEntry: ItineraryEntry;
   calendarDate: string;
   onClose: () => void;
+  onOpenPlannedActivity?: (subItemId: string) => void;
 }
 
 function chipIcon(kind: 'star' | 'dot' | 'clock'): React.ReactNode {
@@ -56,14 +60,28 @@ function pillToneClass(tone: 'green' | 'rust' | 'red' | 'neutral'): string {
   return styles.pillNeutral;
 }
 
-export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({ entry, calendarDate, onClose }) => {
-  const { trip, editingCardId, setEditingCardId, updateEntry } = useTripWorkspace();
+function decisionChipClass(status: string): string {
+  if (status === 'Confirmed') return styles.chipConfirmed;
+  if (status === 'Planned') return styles.chipPlanned;
+  return styles.chipIdea;
+}
+
+export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
+  sourceEntry,
+  displayEntry,
+  calendarDate,
+  onClose,
+  onOpenPlannedActivity
+}) => {
+  const pageRef = React.useRef<HTMLDivElement>(null);
+  const { editingCardId, setEditingCardId, updateEntry } = useTripWorkspace();
   const { canEditItinerary } = useTripPermissions();
   const { documents, links } = useAttachments();
   const canSeeFinancials = useCanSeeFinancials();
   const [showBookingSites, setShowBookingSites] = React.useState(false);
-  const entryDocs = documents.filter((d) => d.entryId === entry.id);
-  const entryLinks = links.filter((l) => l.entryId === entry.id);
+  const entry = displayEntry;
+  const entryDocs = documents.filter((d) => d.entryId === sourceEntry.id);
+  const entryLinks = links.filter((l) => l.entryId === sourceEntry.id);
   const confirmationDoc = findConfirmationDocument(entryDocs);
   const booked = effectiveBookingStatus(entry, { hasConfirmationDoc: Boolean(confirmationDoc) });
   const mapsPlaceUrl = entryMapsPlaceUrl(entry);
@@ -72,13 +90,20 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({ entry, calen
   const hasNotes = !isLocationInfo && !isRichTextEditorEmpty(entry.notes);
   const locationLabel = (entry.location ?? '').trim();
   const streetLabel = (entry.streetAddress ?? '').trim();
-  const { stats, sections } = React.useMemo(
-    () => buildMobileCardSections(entry, { canSeeFinancials, hasConfirmationDoc: Boolean(confirmationDoc) }),
-    [entry, canSeeFinancials, confirmationDoc]
+  const { stats, sections, plannedActivities, showStatsBar } = React.useMemo(
+    () => buildMobileCardSections(entry, { canSeeFinancials, hasConfirmationDoc: Boolean(confirmationDoc), calendarDate }),
+    [entry, canSeeFinancials, confirmationDoc, calendarDate]
   );
   const slug = getCategorySlug(entry.category);
   const timeChip = entry.timeStart ? formatTimeHHMM(entry.timeStart) : entry.duration || '';
-  const isEditing = editingCardId === entry.id;
+  const isEditing = editingCardId === sourceEntry.id;
+  const title = entry.category === 'Transport' ? transportDisplayTitle(entry, calendarDate) : entry.title;
+
+  React.useEffect(() => {
+    const main = pageRef.current?.closest('[data-mobile-scroll]') as HTMLElement | null;
+    if (main) main.scrollTop = 0;
+    pageRef.current?.scrollIntoView({ block: 'start' });
+  }, [sourceEntry.id, displayEntry.title, calendarDate]);
 
   const bookingSiteOptions = React.useMemo(
     () => bookingPartnerSearchUrls(entry.title || entry.location || 'hotel', entry.dateStart, entry.dateEnd),
@@ -125,7 +150,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({ entry, calen
       if (entryDocs[0]?.fileUrl) rows.push({ label: 'Open document', href: entryDocs[0].fileUrl });
       if (entryLinks[0]?.url) rows.push({ label: 'View details', href: entryLinks[0].url });
     } else {
-      if (!booked) rows.push({ label: 'Book now', onClick: () => setShowBookingSites(true), primary: true });
+      if (!booked) rows.push({ label: 'Book now', onClick: () => setShowBookingSites(true), primary: true, primaryRust: true });
       else if (confirmationDoc?.fileUrl) rows.push({ label: 'Open booking', href: confirmationDoc.fileUrl, primary: true });
       if (mapsPlaceUrl) rows.push({ label: 'View on map', href: mapsPlaceUrl });
       if (mapsDirectionsUrl) rows.push({ label: 'Directions', href: mapsDirectionsUrl });
@@ -139,8 +164,8 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({ entry, calen
       <div className={cardStyles.portalEditRoot} role="presentation">
         <div className={cardStyles.portalEditInner}>
           <ItineraryCardEdit
-            key={entry.id}
-            entry={entry}
+            key={sourceEntry.id}
+            entry={sourceEntry}
             calendarDate={calendarDate}
             onSave={(saved) => {
               updateEntry(saved);
@@ -159,35 +184,26 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({ entry, calen
   }
 
   return (
-    <div className={styles.page}>
-      <header className={styles.topBar}>
-        <button type="button" className={styles.back} onClick={onClose}>
-          ← Back
-        </button>
-        {trip?.title ? <p className={styles.tripTitle}>{trip.title}</p> : <span />}
-        {canEditItinerary ? (
-          <button type="button" className={styles.editBtn} onClick={() => setEditingCardId(entry.id)}>
-            Edit
-          </button>
-        ) : (
-          <span />
-        )}
-      </header>
-
+    <div className={styles.page} ref={pageRef}>
       <div className={styles.hero}>
         <div className={`${styles.heroIcon} th-cat-${slug}`}>
           <CategoryIcon category={entry.category} size={28} color="white" />
         </div>
         <div className={styles.heroCopy}>
-          <h1 className={styles.title}>{entry.title}</h1>
+          <div className={styles.heroTitleRow}>
+            <h1 className={styles.title}>{title}</h1>
+            {canEditItinerary ? (
+              <MobilePencilButton onClick={() => setEditingCardId(sourceEntry.id)} ariaLabel="Edit itinerary item" />
+            ) : null}
+          </div>
           <div className={styles.chips}>
-            <span className={styles.chip}>
+            <span className={`${styles.chip} ${styles.chipCat} th-cat-${slug}`}>
               {chipIcon('star')}
               {entry.category}
             </span>
-            <span className={styles.chip}>
+            <span className={`${styles.chip} ${decisionChipClass(entry.decisionStatus)}`}>
               {chipIcon('dot')}
-              {entry.decisionStatus}
+              {formatDisplayLabel(entry.decisionStatus)}
             </span>
             {timeChip ? (
               <span className={styles.chip}>
@@ -227,7 +243,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({ entry, calen
         </div>
       ) : null}
 
-      {stats.length ? (
+      {showStatsBar && stats.length ? (
         <div className={styles.statsBar}>
           {stats.map((s) => (
             <div key={s.label} className={styles.statItem}>
@@ -243,16 +259,48 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({ entry, calen
           <div className={styles.sectionHead}>
             <h3 className={styles.sectionTitle}>{section.title}</h3>
             {section.statusPill ? (
-              <span className={`${styles.statusPill} ${pillToneClass(section.statusPill.tone)}`}>{section.statusPill.label}</span>
+              <span className={`${styles.statusPill} ${pillToneClass(section.statusPill.tone)}`}>
+                {formatDisplayLabel(section.statusPill.label)}
+              </span>
             ) : null}
           </div>
-          {section.fields ? (
-            <div className={styles.fieldGrid}>
-              {section.fields.map((f) => (
-                <div key={f.label} className={styles.fieldItem}>
-                  <span className={styles.fieldLabel}>{f.label}</span>
-                  <span className={`${styles.fieldValue} ${f.highlight ? styles.fieldHighlight : ''}`}>{f.value}</span>
+          {section.rows?.map((row, idx) => (
+            <div key={`${section.id}-row-${idx}`} className={styles.fieldGrid}>
+              {row.left ? (
+                <div className={styles.fieldItem}>
+                  <span className={styles.fieldLabel}>{row.left.label}</span>
+                  <span className={`${styles.fieldValue} ${row.left.highlight ? styles.fieldHighlight : ''}`}>{row.left.value}</span>
                 </div>
+              ) : (
+                <div />
+              )}
+              {row.right ? (
+                <div className={styles.fieldItem}>
+                  <span className={styles.fieldLabel}>{row.right.label}</span>
+                  <span className={`${styles.fieldValue} ${row.right.highlight ? styles.fieldHighlight : ''}`}>{row.right.value}</span>
+                </div>
+              ) : null}
+            </div>
+          ))}
+          {section.fullWidthFields?.map((f) => (
+            <div key={f.label} className={styles.fieldFull}>
+              <span className={styles.fieldLabel}>{f.label}</span>
+              <span className={styles.fieldValue}>{f.value}</span>
+            </div>
+          ))}
+          {section.id === 'planned' && plannedActivities.length ? (
+            <div className={styles.plannedList}>
+              {plannedActivities.map((act) => (
+                <button
+                  key={act.id}
+                  type="button"
+                  className={styles.plannedRow}
+                  onClick={() => onOpenPlannedActivity?.(act.id)}
+                >
+                  <span className={styles.plannedTitle}>{act.title}</span>
+                  {act.meta ? <span className={styles.plannedMeta}>{act.meta}</span> : null}
+                  <span aria-hidden>›</span>
+                </button>
               ))}
             </div>
           ) : null}
@@ -268,7 +316,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({ entry, calen
         </section>
       ) : null}
 
-      {isLocationInfo ? <SharedLocationInfoBlock entry={entry} /> : null}
+      {isLocationInfo ? <SharedLocationInfoBlock entry={sourceEntry} /> : null}
 
       {actions.length ? (
         <div className={styles.actions}>

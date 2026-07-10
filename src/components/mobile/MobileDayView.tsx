@@ -24,12 +24,19 @@ import { MobileCardDetail } from './MobileCardDetail';
 import { MobileLocationInfoSheet } from './MobileLocationInfoSheet';
 import { MobileStayCruiseTile } from './MobileStayCruiseTile';
 import { findStayTileForDay } from '../../utils/mobileDayStay';
+import { itineraryEntryFromSubItem } from '../../utils/mobileSubItemEntry';
 import styles from './MobileItinerary.module.css';
 import shellStyles from './MobileShell.module.css';
+
+export interface MobileDetailTarget {
+  entryId: string;
+  subItemId?: string;
+}
 
 export interface MobileDayViewProps {
   onOpenMembers?: () => void;
   onAskAi?: (prompt?: string) => void;
+  onDetailChange?: (open: boolean, close?: () => void) => void;
 }
 
 function ymdToday(): string {
@@ -119,7 +126,7 @@ function mapsSearchUrl(query: string): string {
 
 const MAX_VISIBLE_AVATARS = 3;
 
-export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onAskAi }) => {
+export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onAskAi, onDetailChange }) => {
   const { trip, tripDays, localEntries, selectedDayId, setSelectedDayId, updateEntry } = useTripWorkspace();
   const { role } = useTripRole();
   const { placeById } = usePlaces();
@@ -127,7 +134,8 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   const { config } = useConfig();
   const { members } = useTripMembers(trip?.id);
 
-  const [detailEntryId, setDetailEntryId] = React.useState<string | null>(null);
+  const [detailTarget, setDetailTarget] = React.useState<MobileDetailTarget | null>(null);
+  const touchStartRef = React.useRef<{ x: number; y: number } | null>(null);
   const [locationPanelEntryId, setLocationPanelEntryId] = React.useState<string | null>(null);
   const [unschedOpen, setUnschedOpen] = React.useState(false);
   const [aiPrompt, setAiPrompt] = React.useState('');
@@ -183,7 +191,26 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     return findStayTileForDay(localEntries, day.calendarDate);
   }, [day?.calendarDate, localEntries]);
 
-  const detailEntry = detailEntryId ? localEntries.find((e) => e.id === detailEntryId) : undefined;
+  const detailSourceEntry = detailTarget ? localEntries.find((e) => e.id === detailTarget.entryId) : undefined;
+  const detailDisplayEntry = React.useMemo(() => {
+    if (!detailSourceEntry || !detailTarget) return undefined;
+    if (!detailTarget.subItemId) return detailSourceEntry;
+    const sub = (detailSourceEntry.subItems ?? []).find((s) => s.id === detailTarget.subItemId);
+    if (!sub) return detailSourceEntry;
+    return itineraryEntryFromSubItem(detailSourceEntry, sub);
+  }, [detailSourceEntry, detailTarget]);
+
+  const openDetail = React.useCallback((entryId: string, subItemId?: string) => {
+    setDetailTarget({ entryId, subItemId });
+  }, []);
+
+  const closeDetail = React.useCallback(() => {
+    setDetailTarget(null);
+  }, []);
+
+  React.useEffect(() => {
+    onDetailChange?.(Boolean(detailTarget), closeDetail);
+  }, [detailTarget, onDetailChange, closeDetail]);
   const dayLocationEntries = React.useMemo(() => {
     if (!day || !trip) return [];
     return locationInfoEntriesForDay(day, localEntries, trip.id);
@@ -274,8 +301,9 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   const tripDuration =
     trip?.dateStart && trip?.dateEnd ? durationDays(trip.dateStart, trip.dateEnd) : 0;
 
-  const visibleMembers = members.slice(0, MAX_VISIBLE_AVATARS);
-  const extraMembers = Math.max(0, members.length - MAX_VISIBLE_AVATARS);
+  const travellerMembers = members.filter((m) => m.role !== 'Follower');
+  const visibleMembers = travellerMembers.slice(0, MAX_VISIBLE_AVATARS);
+  const extraMembers = Math.max(0, travellerMembers.length - MAX_VISIBLE_AVATARS);
 
   const handleAddItem = React.useCallback(() => {
     if (!trip || !day) return;
@@ -303,9 +331,9 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     updateEntry(draft);
     window.setTimeout(() => {
       setAdding(false);
-      setDetailEntryId(draft.id);
+      openDetail(draft.id);
     }, 300);
-  }, [trip, day, dayEntries.length, updateEntry]);
+  }, [trip, day, dayEntries.length, updateEntry, openDetail]);
 
   const handleAskAi = (): void => {
     const p = aiPrompt.trim();
@@ -318,13 +346,6 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   const dayYmd = (day?.calendarDate || '').slice(0, 10);
   const rangeLabel =
     tripStartYmd && tripEndYmd ? shortDateRange(tripStartYmd, tripEndYmd) : '';
-  const dayHeaderLine = [
-    weekdayLabel(day?.calendarDate),
-    shortDate(day?.calendarDate),
-    day ? `Day ${day.dayNumber}` : ''
-  ]
-    .filter(Boolean)
-    .join(' · ');
 
   const mapQuery = primaryPlace
     ? [primaryPlace.title, primaryPlace.country].filter(Boolean).join(', ')
@@ -356,14 +377,14 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
 
   if (!trip || !day) return <p className={shellStyles.muted}>No trip days yet.</p>;
 
-  if (detailEntry) {
+  if (detailSourceEntry && detailDisplayEntry) {
     return (
       <MobileCardDetail
-        entry={detailEntry}
+        sourceEntry={detailSourceEntry}
+        displayEntry={detailDisplayEntry}
         calendarDate={day.calendarDate || ''}
-        onClose={() => {
-          setDetailEntryId(null);
-        }}
+        onClose={closeDetail}
+        onOpenPlannedActivity={(subItemId) => openDetail(detailSourceEntry.id, subItemId)}
       />
     );
   }
@@ -440,7 +461,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
             </svg>
             <span className={styles.statLabel}>Travellers</span>
           </div>
-          {members.length > 0 ? (
+          {travellerMembers.length > 0 ? (
             <div className={styles.avatarStack}>
               {visibleMembers.map((m) => (
                 <TravellerAvatar
@@ -529,7 +550,18 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
 
       <div className={styles.dayHeader}>
         <div className={styles.dayHeaderLeft}>
-          <p className={styles.dayHeaderLine}>{dayHeaderLine}</p>
+          <p className={styles.dayHeaderLine}>
+            <span className={styles.dayHeaderWeekday}>{weekdayLabel(day?.calendarDate)}</span>
+            {shortDate(day?.calendarDate) ? (
+              <span className={styles.dayHeaderRest}>
+                {weekdayLabel(day?.calendarDate) ? ' · ' : ''}
+                {shortDate(day?.calendarDate)}
+                {day ? ` · Day ${day.dayNumber}` : ''}
+              </span>
+            ) : day ? (
+              <span className={styles.dayHeaderRest}>{`Day ${day.dayNumber}`}</span>
+            ) : null}
+          </p>
           {primaryPlaceLabel ? (
             <div className={styles.dayHeaderPlace}>
               <svg width="11" height="11" viewBox="0 0 12 14" fill="none" aria-hidden>
@@ -546,16 +578,18 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
         </div>
         {weatherLabel ? (
           <div className={styles.weatherChip} aria-label={`Weather ${weatherLabel}`}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.6" />
-              <path
-                d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-              />
-            </svg>
-            <span>{weatherLabel}</span>
+            <span className={styles.weatherIcon} aria-hidden>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.6" />
+                <path
+                  d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </span>
+            <span className={styles.weatherText}>{weatherLabel}</span>
           </div>
         ) : null}
       </div>
@@ -576,7 +610,25 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
         onClose={() => setLocationPanelEntryId(null)}
       />
 
-      <div className={styles.dayPanel}>
+      <div
+        className={styles.dayPanel}
+        onTouchStart={(e) => {
+          const t = e.changedTouches[0] ?? e.touches[0];
+          if (t) touchStartRef.current = { x: t.clientX, y: t.clientY };
+        }}
+        onTouchEnd={(e) => {
+          const start = touchStartRef.current;
+          touchStartRef.current = null;
+          if (!start || dayIndex < 0) return;
+          const t = e.changedTouches[0];
+          if (!t) return;
+          const dx = t.clientX - start.x;
+          const dy = t.clientY - start.y;
+          if (Math.abs(dx) < 56 || Math.abs(dx) < Math.abs(dy)) return;
+          if (dx < 0 && dayIndex < days.length - 1) setSelectedDayId(days[dayIndex + 1].id);
+          if (dx > 0 && dayIndex > 0) setSelectedDayId(days[dayIndex - 1].id);
+        }}
+      >
         {adding ? (
           <div className={styles.addingBanner}>
             <div className={styles.addingSpinner} />
@@ -589,7 +641,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
             mode={stayTile.mode}
             entry={stayTile.entry}
             calendarDate={day.calendarDate || ''}
-            onOpenDetail={() => setDetailEntryId(stayTile.entry.id)}
+            onOpenDetail={() => openDetail(stayTile.entry.id)}
           />
         ) : null}
 
@@ -610,7 +662,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
                       key={item.key}
                       type="button"
                       className={styles.unschedCard}
-                      onClick={() => setDetailEntryId(item.entry.id)}
+                      onClick={() => openDetail(item.entry.id, item.subItem?.id)}
                     >
                       <span className={`${styles.unschedCat} th-cat-${getCategorySlug(cat)}`}>
                         <CategoryIcon category={cat} size={12} color="white" />
@@ -649,7 +701,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
                   <button
                     type="button"
                     className={styles.timelineCard}
-                    onClick={() => setDetailEntryId(item.entry.id)}
+                    onClick={() => openDetail(item.entry.id, item.subItem?.id)}
                   >
                     <span className={styles.cardText}>
                       <div className={styles.cardTitle}>{item.title}</div>

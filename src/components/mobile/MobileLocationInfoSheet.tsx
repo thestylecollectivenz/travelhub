@@ -9,6 +9,7 @@ import { usePlaces } from '../../context/PlacesContext';
 import { ItineraryCardEdit } from '../itinerary/ItineraryCardEdit';
 import { MobileLocationInfoContent } from './MobileLocationInfoContent';
 import { MobileNearYouResults } from './MobileNearYouResults';
+import { MobilePencilButton } from './MobilePencilButton';
 import type { NearYouToolId } from '../../utils/nearYouTools';
 import cardStyles from '../itinerary/ItineraryCard.module.css';
 import styles from './MobileLocationInfo.module.css';
@@ -110,14 +111,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
           <h2 className={styles.title}>{title}</h2>
           <div className={styles.headerActions}>
             {canEditItinerary ? (
-              <button
-                type="button"
-                className={styles.editBtn}
-                onClick={() => setEditingCardId(entry.id)}
-                aria-label="Edit location info"
-              >
-                Edit
-              </button>
+              <MobilePencilButton onClick={() => setEditingCardId(entry.id)} ariaLabel="Edit location info" />
             ) : null}
             <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close">
               ×

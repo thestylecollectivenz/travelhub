@@ -85,6 +85,8 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
   const [tab, setTab] = React.useState<MobileTab>(initialTab ?? 'today');
   const [membersOpen, setMembersOpen] = React.useState(false);
   const [askAiPrompt, setAskAiPrompt] = React.useState<string | null>(null);
+  const [cardDetailOpen, setCardDetailOpen] = React.useState(false);
+  const closeCardDetailRef = React.useRef<(() => void) | undefined>(undefined);
 
   React.useEffect(() => {
     if (initialTab) setTab(initialTab);
@@ -102,6 +104,11 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
     setAskAiPrompt(p);
   }, []);
 
+  const handleDetailChange = React.useCallback((open: boolean, close?: () => void) => {
+    setCardDetailOpen(open);
+    closeCardDetailRef.current = close;
+  }, []);
+
   let body: React.ReactNode;
   switch (tab) {
     case 'journal':
@@ -117,35 +124,53 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
       body = <MobileTaskView />;
       break;
     default:
-      body = <MobileDayView onOpenMembers={handleOpenMembers} onAskAi={handleAskAi} />;
+      body = <MobileDayView onOpenMembers={handleOpenMembers} onAskAi={handleAskAi} onDetailChange={handleDetailChange} />;
   }
 
   return (
     <div className={styles.mobileRoot}>
       <header className={styles.mobileHeader}>
-        <button type="button" className={styles.backBtn} onClick={onBack} aria-label="All trips">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ verticalAlign: 'middle', marginRight: 3 }} aria-hidden>
-            <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          All Trips
-        </button>
+        {cardDetailOpen && tab === 'today' ? (
+          <button
+            type="button"
+            className={styles.backBtn}
+            onClick={() => closeCardDetailRef.current?.()}
+            aria-label="Back to day"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ verticalAlign: 'middle', marginRight: 3 }} aria-hidden>
+              <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Back
+          </button>
+        ) : (
+          <span className={styles.headerSpacer} aria-hidden />
+        )}
         <h1 className={styles.headerTitle}>{trip?.title ?? 'Trip'}</h1>
-        <button
-          type="button"
-          className={styles.headerIconBtn}
-          onClick={handleOpenMembers}
-          aria-label="Trip members"
-          title="Trip members"
-        >
-          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden>
-            <circle cx="7" cy="6" r="3.5" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M1 17c0-3.314 2.686-6 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            <circle cx="14" cy="7" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M11.5 17c0-2.485 1.567-4.5 3.5-4.5s3.5 2.015 3.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-        </button>
+        <div className={styles.headerActions}>
+          <button
+            type="button"
+            className={styles.headerIconBtn}
+            onClick={handleOpenMembers}
+            aria-label="Trip members"
+            title="Trip members"
+          >
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden>
+              <circle cx="7" cy="6" r="3.5" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M1 17c0-3.314 2.686-6 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <circle cx="14" cy="7" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M11.5 17c0-2.485 1.567-4.5 3.5-4.5s3.5 2.015 3.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+          {!cardDetailOpen ? (
+            <button type="button" className={styles.allTripsLink} onClick={onBack} aria-label="All trips">
+              All trips
+            </button>
+          ) : null}
+        </div>
       </header>
-      <main className={styles.mobileMain}>{body}</main>
+      <main className={styles.mobileMain} data-mobile-scroll>
+        {body}
+      </main>
       <nav className={styles.tabBar} aria-label="Mobile trip navigation">
         {TABS.map((t) => (
           <button
@@ -155,7 +180,8 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
             onClick={() => setTab(t.id)}
           >
             {t.icon}
-            {t.label}
+            <span>{t.label}</span>
+            {tab === t.id ? <span className={styles.tabDot} aria-hidden /> : null}
           </button>
         ))}
       </nav>

@@ -3,6 +3,7 @@ import { formatCurrency } from './financialUtils';
 import { formatTimeHHMM } from './itineraryTimeUtils';
 import { paymentDueActionLabel } from './paymentDueLabels';
 import { effectiveBookingStatus } from './bookingStatusUtils';
+import { formatCabinClass, formatDisplayLabel, formatJourneyType, isReturnTransportLeg } from './mobileDisplayFormat';
 
 export interface MobileStatItem {
   label: string;
@@ -15,12 +16,31 @@ export interface MobileDetailField {
   highlight?: boolean;
 }
 
+export interface MobileDetailRowPair {
+  left?: MobileDetailField;
+  right?: MobileDetailField;
+}
+
+export interface MobilePlannedActivity {
+  id: string;
+  title: string;
+  meta?: string;
+}
+
 export interface MobileDetailSection {
   id: string;
   title: string;
   statusPill?: { label: string; tone: 'green' | 'rust' | 'red' | 'neutral' };
   stats?: MobileStatItem[];
-  fields?: MobileDetailField[];
+  rows?: MobileDetailRowPair[];
+  fullWidthFields?: MobileDetailField[];
+}
+
+export interface MobileCardSectionsResult {
+  stats: MobileStatItem[];
+  sections: MobileDetailSection[];
+  plannedActivities: MobilePlannedActivity[];
+  showStatsBar: boolean;
 }
 
 function ymd(value?: string): string {
@@ -43,6 +63,11 @@ function field(label: string, value?: string | number | null, highlight?: boolea
   return { label, value: text, highlight };
 }
 
+function pair(left?: MobileDetailField, right?: MobileDetailField): MobileDetailRowPair | undefined {
+  if (!left && !right) return undefined;
+  return { left, right };
+}
+
 function nightsBetween(start?: string, end?: string): number {
   if (!start || !end) return 0;
   const a = new Date(`${start.slice(0, 10)}T00:00:00.000Z`);
@@ -62,143 +87,186 @@ function bookingPillTone(status: string): 'green' | 'rust' | 'red' | 'neutral' {
   return 'red';
 }
 
-function bookingPaymentSection(
+function balanceDue(entry: ItineraryEntry): number {
+  return Math.max(0, (entry.amount || 0) - (entry.amountPaid || 0));
+}
+
+function standardBookingRows(
   entry: ItineraryEntry,
   canSeeFinancials: boolean,
-  hasConfirmationDoc: boolean
+  hasConfirmationDoc: boolean,
+  options?: { includeSupplier?: boolean }
 ): MobileDetailSection | undefined {
+  const includeSupplier = options?.includeSupplier !== false;
   const booked = effectiveBookingStatus(entry, { hasConfirmationDoc });
-  const fields: Array<MobileDetailField | undefined> = [
-    field('Booking required', entry.bookingRequired ? 'Yes' : 'No'),
-    field('Booking status', booked),
-    field('Booking reference', entry.bookingReference || entry.cruiseReference),
-    canSeeFinancials ? field('Payment status', entry.paymentStatus, true) : undefined,
-    canSeeFinancials && entry.paymentDueDate
-      ? field('Payment due', `${paymentDueActionLabel(entry)} ${ymd(entry.paymentDueDate)}`, entry.paymentStatus === 'Not paid')
-      : undefined,
-    canSeeFinancials && entry.amount > 0
-      ? field(
-          'Amount',
-          `${formatCurrency(entry.amount, entry.currency)}${entry.costCertainty ? ` (${entry.costCertainty})` : ''}`,
-          true
-        )
-      : undefined,
-    canSeeFinancials && entry.amountPaid
-      ? field('Amount paid', formatCurrency(entry.amountPaid, entry.paymentCurrency || entry.currency))
-      : undefined,
-    canSeeFinancials && entry.unitType && entry.unitAmount
-      ? field('Unit pricing', `${formatCurrency(entry.unitAmount, entry.currency)} per ${entry.unitType.replace('per ', '')}`)
-      : undefined,
-    field('Booking due', ymd(entry.bookingDueDate)),
-    field('Supplier', entry.supplier)
+  const rows: Array<MobileDetailRowPair | undefined> = [
+    pair(
+      field('Booking required', entry.bookingRequired ? 'Yes' : 'No'),
+      field('Booking status', formatDisplayLabel(booked), true)
+    ),
+    pair(
+      includeSupplier ? field('Supplier', entry.supplier) : undefined,
+      field('Booking reference', entry.bookingReference || entry.cruiseReference)
+    )
   ];
-  const resolved = fields.filter((f): f is MobileDetailField => Boolean(f));
-  if (!resolved.length) return undefined;
+
+  if (canSeeFinancials) {
+    rows.push(
+      pair(
+        entry.amount > 0
+          ? field(
+              'Amount',
+              `${formatCurrency(entry.amount, entry.currency)}${entry.costCertainty ? ` (${formatDisplayLabel(entry.costCertainty)})` : ''}`,
+              true
+            )
+          : undefined,
+        entry.amountPaid !== undefined && entry.amountPaid > 0
+          ? field('Amount paid', formatCurrency(entry.amountPaid, entry.paymentCurrency || entry.currency))
+          : undefined
+      ),
+      pair(
+        entry.amount > 0 ? field('Balance due', formatCurrency(balanceDue(entry), entry.currency), balanceDue(entry) > 0) : undefined,
+        entry.paymentDueDate
+          ? field('Payment due', `${paymentDueActionLabel(entry)} ${ymd(entry.paymentDueDate)}`, entry.paymentStatus === 'Not paid')
+          : field('Payment due', ymd(entry.bookingDueDate) ? `Book by ${ymd(entry.bookingDueDate)}` : undefined)
+      )
+    );
+  } else {
+    rows.push(pair(field('Booking due', ymd(entry.bookingDueDate))));
+  }
+
+  const fullWidthFields: MobileDetailField[] = [];
+  const cancel = field('Cancellation policy', entry.cancellationPolicy);
+  if (cancel) fullWidthFields.push(cancel);
+
+  const resolvedRows = rows.filter((r): r is MobileDetailRowPair => Boolean(r));
+  if (!resolvedRows.length && !fullWidthFields.length) return undefined;
+
   const statusPill = canSeeFinancials
-    ? { label: entry.paymentStatus, tone: paymentPillTone(entry.paymentStatus) }
-    : { label: booked, tone: bookingPillTone(booked) };
-  return { id: 'booking', title: 'Booking & payment', statusPill, fields: resolved };
+    ? { label: formatDisplayLabel(entry.paymentStatus), tone: paymentPillTone(entry.paymentStatus) }
+    : { label: formatDisplayLabel(booked), tone: bookingPillTone(booked) };
+
+  return {
+    id: 'booking',
+    title: 'Booking & payment',
+    statusPill,
+    rows: resolvedRows,
+    fullWidthFields: fullWidthFields.length ? fullWidthFields : undefined
+  };
 }
 
 export function buildMobileCardSections(
   entry: ItineraryEntry,
-  options: { canSeeFinancials: boolean; hasConfirmationDoc: boolean }
-): { stats: MobileStatItem[]; sections: MobileDetailSection[] } {
-  const { canSeeFinancials, hasConfirmationDoc } = options;
+  options: { canSeeFinancials: boolean; hasConfirmationDoc: boolean; calendarDate: string }
+): MobileCardSectionsResult {
+  const { canSeeFinancials, hasConfirmationDoc, calendarDate } = options;
   const cat = entry.category;
   const stats: MobileStatItem[] = [];
   const sections: MobileDetailSection[] = [];
+  const plannedActivities: MobilePlannedActivity[] = [];
+  let showStatsBar = true;
 
-  const bookingSection = bookingPaymentSection(entry, canSeeFinancials, hasConfirmationDoc);
-  if (bookingSection) sections.push(bookingSection);
+  const skipBooking = cat === 'Cruise port';
+  if (!skipBooking) {
+    const bookingSection = standardBookingRows(entry, canSeeFinancials, hasConfirmationDoc, {
+      includeSupplier: cat !== 'Transport'
+    });
+    if (bookingSection) sections.push(bookingSection);
+  }
 
   if (cat === 'Accommodation') {
     const n = nightsBetween(entry.dateStart, entry.dateEnd);
     if (n) stats.push({ label: 'Stay duration', value: `${n} night${n === 1 ? '' : 's'}` });
-    if (entry.dateStart || entry.checkInTime) {
-      stats.push({ label: 'Check-in', value: ymdTime(entry.dateStart, entry.checkInTime) });
-    }
-    if (entry.dateEnd || entry.checkOutTime) {
-      stats.push({ label: 'Check-out', value: ymdTime(entry.dateEnd, entry.checkOutTime) });
-    }
-    const stayFields = [
-      field('Room type', entry.roomType),
-      field('Booking required', entry.bookingRequired ? 'Yes' : 'No'),
-      field('Transfers', entry.transportTransfers !== undefined ? String(entry.transportTransfers) : undefined),
-      field('Cancellation', entry.cancellationPolicy)
-    ].filter((f): f is MobileDetailField => Boolean(f));
-    if (stayFields.length) sections.push({ id: 'stay', title: 'Stay details', fields: stayFields });
+    if (entry.dateStart || entry.checkInTime) stats.push({ label: 'Check-in', value: ymdTime(entry.dateStart, entry.checkInTime) });
+    if (entry.dateEnd || entry.checkOutTime) stats.push({ label: 'Check-out', value: ymdTime(entry.dateEnd, entry.checkOutTime) });
+    const stayRows = [
+      pair(field('Room type', entry.roomType), field('Transfers', entry.transportTransfers !== undefined ? String(entry.transportTransfers) : undefined))
+    ].filter((r): r is MobileDetailRowPair => Boolean(r));
+    if (stayRows.length) sections.push({ id: 'stay', title: 'Stay details', rows: stayRows });
   } else if (cat === 'Flights') {
-    if (entry.timeStart) stats.push({ label: 'Departs', value: formatTimeHHMM(entry.timeStart) });
-    if (entry.duration) stats.push({ label: 'Duration', value: entry.duration });
-    if (entry.arrivalTime) stats.push({ label: 'Arrives', value: formatTimeHHMM(entry.arrivalTime) });
-    if (entry.transportTransfers !== undefined) stats.push({ label: 'Transfers', value: String(entry.transportTransfers) });
-    const flightFields = [
-      field('Supplier / operator', entry.supplier),
-      field('Flight number', entry.flightNumbers),
-      field('Cabin class', entry.cabinClass),
-      field('From', entry.transportFrom),
-      field('To', entry.transportTo),
-      field('Transfers', entry.transportTransfers !== undefined ? String(entry.transportTransfers) : undefined),
-      field('Check-in closes', entry.checkInClosesTime ? formatTimeHHMM(entry.checkInClosesTime) : undefined),
-      field('Bag check closes', entry.bagCheckClosesTime ? formatTimeHHMM(entry.bagCheckClosesTime) : undefined),
-      field('Arrival date', ymd(entry.arrivalDate))
-    ].filter((f): f is MobileDetailField => Boolean(f));
-    if (flightFields.length) sections.push({ id: 'flight', title: 'Flight details', fields: flightFields });
+    showStatsBar = false;
+    const flightRows = [
+      pair(field('Supplier / operator', entry.supplier), field('Flight number', entry.flightNumbers)),
+      pair(field('From', entry.transportFrom), field('To', entry.transportTo)),
+      pair(field('Cabin class', formatCabinClass(entry.cabinClass)), field('Arrival date', ymd(entry.arrivalDate))),
+      pair(
+        field('Check-in closes', entry.checkInClosesTime ? formatTimeHHMM(entry.checkInClosesTime) : undefined),
+        field('Bag check closes', entry.bagCheckClosesTime ? formatTimeHHMM(entry.bagCheckClosesTime) : undefined)
+      )
+    ].filter((r): r is MobileDetailRowPair => Boolean(r));
+    if (flightRows.length) sections.push({ id: 'flight', title: 'Flight details', rows: flightRows });
   } else if (cat === 'Transport') {
-    if (entry.timeStart) stats.push({ label: 'Start time', value: formatTimeHHMM(entry.timeStart) });
-    if (entry.duration) stats.push({ label: 'Duration', value: entry.duration });
-    if (entry.arrivalTime) stats.push({ label: 'Arrival time', value: formatTimeHHMM(entry.arrivalTime) });
-    if (entry.transportTransfers !== undefined) stats.push({ label: 'Transfers', value: String(entry.transportTransfers) });
-    const transportFields = [
-      field('Supplier / operator', entry.supplier),
-      field('From', entry.transportFrom),
-      field('To', entry.transportTo),
-      field('Transport mode', entry.transportMode),
-      field('Journey type', entry.journeyType),
-      field('Outbound date', ymd(entry.dateStart)),
-      field('Return date', ymd(entry.returnDate))
-    ].filter((f): f is MobileDetailField => Boolean(f));
-    if (transportFields.length) sections.push({ id: 'journey', title: 'Journey details', fields: transportFields });
-  } else if (cat === 'Cruise' || cat === 'Cruise port') {
-    const cruiseFields = [
-      field('Cruise line', entry.cruiseLineName),
-      field('Ship', entry.shipName),
-      field('Cabin', entry.cabinTypeAndNumber),
-      field('Embark date', ymd(entry.embarksDate)),
-      field('Disembark date', ymd(entry.disembarksDate)),
-      field('Package', entry.packageName),
-      field('Package inclusions', entry.packageInclusions),
-      field('Cruise reference', entry.cruiseReference)
-    ].filter((f): f is MobileDetailField => Boolean(f));
-    if (cruiseFields.length) sections.push({ id: 'cruise', title: 'Cruise overview', fields: cruiseFields });
+    const isReturn = isReturnTransportLeg({ ...entry, calendarDate });
+    const from = isReturn ? entry.transportTo : entry.transportFrom;
+    const to = isReturn ? entry.transportFrom : entry.transportTo;
+    const transportRows = [
+      pair(field('Supplier / operator', entry.supplier), field('Transport mode', entry.transportMode)),
+      pair(field('From', from), field('To', to)),
+      pair(field('Outbound date', ymd(entry.dateStart)), field('Return date', ymd(entry.returnDate))),
+      pair(
+        field('Journey type', formatJourneyType(entry.journeyType)),
+        entry.returnTime ? field('Return time', formatTimeHHMM(entry.returnTime)) : undefined
+      )
+    ].filter((r): r is MobileDetailRowPair => Boolean(r));
+    if (transportRows.length) sections.push({ id: 'journey', title: 'Journey details', rows: transportRows });
+  } else if (cat === 'Cruise') {
+    const cruiseRows = [
+      pair(field('Cruise line', entry.cruiseLineName), field('Ship', entry.shipName)),
+      pair(field('Cruise reference', entry.cruiseReference), field('Cabin', entry.cabinTypeAndNumber)),
+      pair(field('Embark date', ymd(entry.embarksDate)), field('Disembark date', ymd(entry.disembarksDate))),
+      pair(field('Package', entry.packageName), undefined)
+    ].filter((r): r is MobileDetailRowPair => Boolean(r));
+    if (cruiseRows.length) sections.push({ id: 'cruise', title: 'Cruise overview', rows: cruiseRows });
+    if (entry.packageInclusions) {
+      sections.push({
+        id: 'inclusions',
+        title: 'Package inclusions',
+        fullWidthFields: [field('Inclusions', entry.packageInclusions)!]
+      });
+    }
+  } else if (cat === 'Cruise port') {
+    showStatsBar = false;
+    if (entry.timeStart) {
+      const portRow = pair(field('Departure time', formatTimeHHMM(entry.timeStart)), field('Location', entry.location));
+      if (portRow) {
+        sections.push({
+          id: 'port',
+          title: 'Port details',
+          rows: [portRow]
+        });
+      }
+    }
+    for (const sub of entry.subItems ?? []) {
+      plannedActivities.push({
+        id: sub.id,
+        title: sub.title,
+        meta: [sub.startTime ? formatTimeHHMM(sub.startTime) : '', sub.category || 'Activity'].filter(Boolean).join(' · ')
+      });
+    }
+    if (plannedActivities.length) {
+      sections.push({ id: 'planned', title: 'Activities planned', rows: [] });
+    }
   } else if (cat === 'Food & Dining' || cat === 'Dining') {
     if (entry.timeStart) stats.push({ label: 'Start time', value: formatTimeHHMM(entry.timeStart) });
     if (entry.duration) stats.push({ label: 'Duration', value: entry.duration });
-    if (canSeeFinancials && entry.paymentStatus) stats.push({ label: 'Payment status', value: entry.paymentStatus });
-    if (canSeeFinancials && entry.amount > 0) {
-      stats.push({ label: 'Amount', value: formatCurrency(entry.amount, entry.currency) });
-    }
-    const diningFields = [
-      field('Category', cat),
-      field('Supplier / operator', entry.supplier),
-      field('Duration', entry.duration),
-      field('Start time', entry.timeStart ? formatTimeHHMM(entry.timeStart) : undefined)
-    ].filter((f): f is MobileDetailField => Boolean(f));
-    if (diningFields.length) sections.push({ id: 'dining', title: 'Dining details', fields: diningFields });
+    if (canSeeFinancials && entry.paymentStatus) stats.push({ label: 'Payment status', value: formatDisplayLabel(entry.paymentStatus) });
+    if (canSeeFinancials && entry.amount > 0) stats.push({ label: 'Amount', value: formatCurrency(entry.amount, entry.currency) });
+    const diningRows = [
+      pair(field('Location', entry.location || entry.streetAddress), field('Supplier / operator', entry.supplier)),
+      pair(field('Duration', entry.duration), field('Start time', entry.timeStart ? formatTimeHHMM(entry.timeStart) : undefined))
+    ].filter((r): r is MobileDetailRowPair => Boolean(r));
+    if (diningRows.length) sections.push({ id: 'dining', title: 'Dining details', rows: diningRows });
   } else {
     if (entry.timeStart) stats.push({ label: 'Start time', value: formatTimeHHMM(entry.timeStart) });
     if (entry.duration) stats.push({ label: 'Duration', value: entry.duration });
     if (entry.arrivalTime) stats.push({ label: 'End time', value: formatTimeHHMM(entry.arrivalTime) });
-    const overviewFields = [
-      field('Operator', entry.supplier),
-      field('Booking required', entry.bookingRequired ? 'Yes' : 'No'),
-      field('Booking due', ymd(entry.bookingDueDate)),
-      field('Location', entry.location),
-      field('Meeting point', entry.streetAddress)
-    ].filter((f): f is MobileDetailField => Boolean(f));
-    if (overviewFields.length) sections.push({ id: 'overview', title: 'Overview', fields: overviewFields });
+    const overviewRows = [
+      pair(field('Operator', entry.supplier), field('Booking reference', entry.bookingReference)),
+      pair(field('Booking due', ymd(entry.bookingDueDate)), field('Location', entry.location)),
+      pair(field('Meeting point', entry.streetAddress), undefined)
+    ].filter((r): r is MobileDetailRowPair => Boolean(r));
+    if (overviewRows.length) sections.push({ id: 'overview', title: 'Overview', rows: overviewRows });
   }
 
-  return { stats, sections };
+  return { stats, sections, plannedActivities, showStatsBar };
 }

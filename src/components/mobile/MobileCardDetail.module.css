@@ -62,8 +62,17 @@
   min-width: 0;
 }
 
+.heroTitleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .title {
   margin: 0;
+  flex: 1;
+  min-width: 0;
   font-family: Georgia, 'Palatino Linotype', Palatino, serif;
   font-size: 1.35rem;
   font-weight: 500;
@@ -88,6 +97,27 @@
   font-size: 0.68rem;
   font-weight: 650;
   color: #5c6570;
+}
+
+.chipCat {
+  color: white;
+  border-color: transparent;
+  background: color-mix(in srgb, currentColor 18%, white);
+}
+
+.chipConfirmed {
+  background: color-mix(in srgb, #3d6b4f 14%, white);
+  color: #3d6b4f;
+}
+
+.chipPlanned {
+  background: color-mix(in srgb, #6b7c3a 14%, white);
+  color: #556b2f;
+}
+
+.chipIdea {
+  background: color-mix(in srgb, #c4783a 14%, white);
+  color: #8a5a2b;
 }
 
 .dot {
@@ -269,6 +299,43 @@
 .fieldHighlight {
   color: #1e2a44;
   font-weight: 800;
+}
+
+.fieldFull {
+  margin-top: 0.35rem;
+}
+
+.plannedList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.plannedRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.25rem 0.5rem;
+  align-items: center;
+  width: 100%;
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  border-radius: 0.65rem;
+  background: color-mix(in srgb, #f7f3eb 50%, white);
+  padding: 0.55rem 0.65rem;
+  text-align: left;
+  cursor: pointer;
+  color: #1e2a44;
+}
+
+.plannedTitle {
+  font-size: 0.78rem;
+  font-weight: 700;
+  grid-column: 1;
+}
+
+.plannedMeta {
+  font-size: 0.65rem;
+  color: #6b6570;
+  grid-column: 1;
 }
 
 .notesBox {

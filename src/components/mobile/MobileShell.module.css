@@ -26,8 +26,34 @@
   background: none;
   color: var(--color-primary);
   font-size: var(--font-size-sm);
+  font-weight: 650;
   cursor: pointer;
   padding: var(--space-1) var(--space-2);
+  flex-shrink: 0;
+}
+
+.headerSpacer {
+  width: 3.5rem;
+  flex-shrink: 0;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-shrink: 0;
+}
+
+.allTripsLink {
+  border: none;
+  background: none;
+  color: var(--color-sand-600);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: var(--space-1);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .headerTitle {
@@ -121,10 +147,10 @@
   flex-shrink: 0;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  border-top: var(--border-default);
-  background: var(--color-surface-raised);
-  padding-bottom: env(safe-area-inset-bottom, 0);
-  box-shadow: 0 -2px 8px color-mix(in srgb, var(--color-blue-900) 8%, transparent);
+  border-top: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  background: color-mix(in srgb, white 92%, #f7f3eb);
+  padding: 0.45rem 0.5rem calc(0.45rem + env(safe-area-inset-bottom, 0));
+  box-shadow: 0 -8px 24px color-mix(in srgb, #1e2a44 8%, transparent);
 }
 
 .tabBtn {
@@ -133,18 +159,27 @@
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: var(--space-2) var(--space-1);
+  padding: 0.35rem 0.2rem;
   border: none;
   background: none;
-  color: var(--color-sand-600);
+  color: #6b6570;
   font-size: 10px;
+  font-weight: 600;
   cursor: pointer;
+  position: relative;
 }
 
 .tabBtnActive {
-  color: var(--color-primary);
-  font-weight: var(--font-weight-medium);
-  box-shadow: inset 0 2px 0 var(--color-primary);
+  color: #1e2a44;
+  font-weight: 600;
+}
+
+.tabDot {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: #1e2a44;
+  margin-top: 1px;
 }
 
 .sectionHeading {
