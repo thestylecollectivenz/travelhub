@@ -715,3 +715,91 @@ export async function generateNearestPlaces(
   return { places, model };
 }
 
+export type ItineraryAiCardType = 'place' | 'attraction' | 'tip';
+
+export interface ItineraryAiSuggestionCard {
+  id: string;
+  type: ItineraryAiCardType;
+  name: string;
+  description?: string;
+  aiBlurb?: string;
+  rating?: number;
+  priceLevel?: string;
+  travelTime?: string;
+  topPick?: boolean;
+  mapsUrl?: string;
+  websiteUrl?: string;
+}
+
+export async function generateItineraryAiSuggestions(
+  apiKey: string,
+  question: string,
+  tripContext: string,
+  currentFocusBlock: string
+): Promise<{ intro: string; cards: ItineraryAiSuggestionCard[]; chips: string[]; model: string }> {
+  const key = (apiKey || '').trim();
+  if (!key) throw new GeminiServiceError('NO_KEY', 'Add a Gemini API key in User settings.');
+  const q = question.trim();
+  if (!q) throw new GeminiServiceError('INVALID_RESPONSE', 'Enter a question first.');
+
+  const prompt = `You are a travel planning assistant. The traveller asked a question about their current trip day/location.
+
+${tripContext.trim() ? `Trip data:\n${tripContext.trim()}\n\n` : ''}${currentFocusBlock.trim() ? `${currentFocusBlock.trim()}\n\n` : ''}Question: ${q}
+
+Respond with ONLY JSON:
+{"intro":"one sentence summary","cards":[{"type":"place","name":"venue","description":"short meta","aiBlurb":"why pick this","rating":4.5,"priceLevel":"$$","travelTime":"6 min walk","topPick":true,"mapsUrl":"","websiteUrl":""}],"chips":["More like this","Open now","Family friendly"]}
+
+Rules:
+- 2-4 cards mixing place/restaurant (type place), sights (type attraction), and practical tips (type tip) when relevant
+- topPick true on at most one card
+- Keep strings short; omit empty URL fields
+- chips: 3-4 short refinement suggestions`;
+
+  const { parsed, model } = await callGeminiJson<{
+    intro?: string;
+    cards?: Array<{
+      type?: string;
+      name?: string;
+      description?: string;
+      aiBlurb?: string;
+      rating?: number;
+      priceLevel?: string;
+      travelTime?: string;
+      topPick?: boolean;
+      mapsUrl?: string;
+      websiteUrl?: string;
+    }>;
+    chips?: string[];
+  }>(prompt, key);
+
+  const cards: ItineraryAiSuggestionCard[] = [];
+  const arr = parsed.cards ?? [];
+  for (let i = 0; i < arr.length; i++) {
+    const name = (arr[i]?.name ?? '').trim();
+    if (!name) continue;
+    const rawType = (arr[i]?.type ?? 'place').trim();
+    const type: ItineraryAiCardType =
+      rawType === 'attraction' || rawType === 'tip' ? rawType : 'place';
+    cards.push({
+      id: `ai-card-${Date.now()}-${i}`,
+      type,
+      name,
+      description: (arr[i]?.description ?? '').trim() || undefined,
+      aiBlurb: (arr[i]?.aiBlurb ?? '').trim() || undefined,
+      rating: Number.isFinite(arr[i]?.rating) ? Number(arr[i]?.rating) : undefined,
+      priceLevel: (arr[i]?.priceLevel ?? '').trim() || undefined,
+      travelTime: (arr[i]?.travelTime ?? '').trim() || undefined,
+      topPick: Boolean(arr[i]?.topPick),
+      mapsUrl: (arr[i]?.mapsUrl ?? '').trim() || undefined,
+      websiteUrl: (arr[i]?.websiteUrl ?? '').trim() || undefined
+    });
+  }
+
+  return {
+    intro: (parsed.intro ?? '').trim() || 'Here are some suggestions.',
+    cards,
+    chips: (parsed.chips ?? []).map((c) => String(c).trim()).filter(Boolean).slice(0, 5),
+    model
+  };
+}
+

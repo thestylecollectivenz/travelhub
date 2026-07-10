@@ -19,6 +19,7 @@ import {
 import { resolveSharePointMediaSrc } from '../../utils/sharePointUrl';
 import { getCurrentUserDisplayName } from '../../utils/currentUserEmail';
 import { homeNearYouTools, type NearYouToolId } from '../../utils/nearYouTools';
+import { NearYouToolIcon } from '../shared/NearYouToolIcon';
 import { ItineraryService } from '../../services/ItineraryService';
 import { MobileNearYouPage } from './MobileNearYouPage';
 import '../../components/maps/LeafletCompat.css';
@@ -141,38 +142,6 @@ function IconBell(): React.ReactElement {
   );
 }
 
-const HOME_NEAR_ICONS: Record<string, React.ReactNode> = {
-  dining: (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M7 3v8M7 11v10M5 3c0 2.5 2 4 2 8M9 3c0 2.5-2 4-2 8M14 3v18M17 3v7a3 3 0 0 1-3 3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  ),
-  restroom: (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="8" cy="6" r="2" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M5.5 20v-7.5A2.5 2.5 0 0 1 8 10h0a2.5 2.5 0 0 1 2.5 2.5V20" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <circle cx="16" cy="6" r="2" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M13.5 20v-6h5v6M13.5 14h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  ),
-  atm: (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M12 7.5v9M9.5 9.5c.6-1 1.5-1.5 2.5-1.5 1.4 0 2.5.8 2.5 2s-1.1 2-2.5 2c-1.4 0-2.5.8-2.5 2s1.1 2 2.5 2c1 0 1.9-.5 2.5-1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  ),
-  medical: (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M8 4h8v4h4v8h-4v4H8v-4H4V8h4V4Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-    </svg>
-  ),
-  transport: (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="5" y="4" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M5 12h14M8 19h.01M16 19h.01" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  )
-};
 
 export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   onSelectTrip,
@@ -730,7 +699,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
               onClick={() => openNearYou(tool.id)}
             >
               <span className={styles.nearCircle} aria-hidden>
-                {HOME_NEAR_ICONS[tool.id] || tool.shortLabel[0]}
+                <NearYouToolIcon toolId={tool.id} size="lg" />
               </span>
               <span className={styles.nearLabel}>{tool.shortLabel}</span>
             </button>

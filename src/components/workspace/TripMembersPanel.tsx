@@ -80,11 +80,23 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
             ×
           </button>
         </header>
-        <p className={styles.hint}>Invite people by email and assign their role on this trip.</p>
+        <p className={styles.hint}>
+          People with access on this trip. Editor = full control; Companion = traveller (no finances); Follower = read-only onlooker.
+        </p>
         {error ? <p className={styles.error}>{error}</p> : null}
         <ul className={styles.list}>
-          {members.length === 0 ? (
-            <li className={styles.muted}>No members added yet — trip creator has Editor access.</li>
+          {authorEmail && !members.some((m) => m.userEmail === authorEmail) ? (
+            <li className={`${styles.row} ${styles.rowStatic}`}>
+              <TravellerAvatar displayName={authorEmail} size={36} />
+              <div className={styles.memberMeta}>
+                <strong>{authorEmail}</strong>
+                <span className={styles.email}>Trip creator · Editor</span>
+              </div>
+              <span className={styles.roleBadge}>Editor</span>
+            </li>
+          ) : null}
+          {members.length === 0 && !authorEmail ? (
+            <li className={styles.muted}>No members in TripMembers yet — trip creator has Editor access.</li>
           ) : (
             members.map((m) => {
               const isTripAuthor = Boolean(authorEmail && m.userEmail === authorEmail);

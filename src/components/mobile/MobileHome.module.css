@@ -293,16 +293,12 @@
 }
 
 .nearCircle {
-  width: 3.4rem;
-  height: 3.4rem;
-  border-radius: 999px;
-  background: white;
-  border: 1.5px solid color-mix(in srgb, var(--tl-rust) 55%, white);
-  color: var(--tl-rust);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--tl-navy) 8%, transparent);
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .nearLabel {

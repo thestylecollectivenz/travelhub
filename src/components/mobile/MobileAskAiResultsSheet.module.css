@@ -1,0 +1,123 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 12800;
+  background: color-mix(in srgb, #1a1f2e 42%, transparent);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.sheet {
+  width: 100%;
+  max-width: 32rem;
+  max-height: 88vh;
+  overflow: auto;
+  background: #f7f3eb;
+  border-radius: 1.25rem 1.25rem 0 0;
+  padding: 1rem 0.85rem calc(1.25rem + env(safe-area-inset-bottom, 0));
+  box-shadow: 0 -8px 28px color-mix(in srgb, #1a1f2e 18%, transparent);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.kicker {
+  margin: 0;
+  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
+  font-size: 1.1rem;
+  color: #1e2a44;
+}
+
+.closeBtn {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  background: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.question {
+  margin: 0.5rem 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #1e2a44;
+}
+
+.intro {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: #3a3025;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.chips {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  margin-top: 0.75rem;
+  padding-bottom: 0.25rem;
+}
+
+.chip {
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  background: white;
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: #1e2a44;
+  cursor: pointer;
+}
+
+.refineRow {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.refineInput {
+  flex: 1;
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  border-radius: 999px;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.82rem;
+  background: white;
+}
+
+.sendBtn {
+  border: none;
+  border-radius: 999px;
+  background: #6b7c3a;
+  color: white;
+  font-weight: 700;
+  padding: 0.45rem 0.85rem;
+  cursor: pointer;
+}
+
+.sendBtn:disabled {
+  opacity: 0.5;
+}
+
+.muted {
+  color: #6b6570;
+  font-size: 0.85rem;
+}
+
+.error {
+  color: #c45c3a;
+  font-size: 0.85rem;
+}

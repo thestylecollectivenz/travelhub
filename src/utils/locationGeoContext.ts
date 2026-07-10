@@ -8,8 +8,11 @@ export interface GeoCoords {
   source: 'device' | 'place';
 }
 
-/** Within this distance of the trip place, treat device GPS as on-site for nearest/dining. */
+/** Within this distance of the trip place, treat device GPS as on-site for nearest/dining (desktop default). */
 const ON_SITE_KM = 25;
+
+/** Mobile Near You from a trip place uses a wider on-site radius. */
+export const MOBILE_NEAR_YOU_ON_SITE_KM = 50;
 
 export type LocationSearchMode = 'onsite' | 'trip_place';
 
@@ -51,8 +54,12 @@ async function readDeviceCoords(): Promise<GeoCoords | undefined> {
  * - On-site (device within ~25 km of trip place): use GPS — finds what's actually near the traveller.
  * - Otherwise: use trip place coordinates — planning from home won't mix NZ GPS with Colmar results.
  */
-export async function resolveLocationSearchContext(place: Place | undefined): Promise<LocationSearchContext | undefined> {
+export async function resolveLocationSearchContext(
+  place: Place | undefined,
+  options?: { onSiteKm?: number }
+): Promise<LocationSearchContext | undefined> {
   if (!place) return undefined;
+  const onSiteKm = options?.onSiteKm ?? ON_SITE_KM;
   const { placeName, country } = placeNameAndCountry(place);
   const placeLat = Number(place.latitude);
   const placeLon = Number(place.longitude);
@@ -61,7 +68,7 @@ export async function resolveLocationSearchContext(place: Place | undefined): Pr
   const device = await readDeviceCoords();
   if (device && hasPlace) {
     const distKm = haversineKm(device.latitude, device.longitude, placeLat, placeLon);
-    if (distKm <= ON_SITE_KM) {
+    if (distKm <= onSiteKm) {
       return {
         mode: 'onsite',
         latitude: device.latitude,

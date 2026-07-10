@@ -1,0 +1,208 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.toolRow {
+  display: flex;
+  gap: 0.55rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  scrollbar-width: none;
+}
+
+.toolRow::-webkit-scrollbar {
+  display: none;
+}
+
+.toolBtn {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  min-width: 3.6rem;
+  padding: 0;
+}
+
+.toolLabel {
+  font-size: 10px;
+  font-weight: 650;
+  color: #5c6570;
+  text-align: center;
+  line-height: 1.15;
+}
+
+.section {
+  background: color-mix(in srgb, white 94%, #f7f3eb);
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  border-radius: 1rem;
+  padding: 0.75rem 0.85rem;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
+  font-size: 1rem;
+  font-weight: 550;
+  color: #1e2a44;
+}
+
+.overviewBody {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #3a3025;
+}
+
+.highlightsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.highlightCol {
+  min-width: 0;
+}
+
+.highlightKind {
+  margin: 0 0 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #8a7355;
+}
+
+.highlightList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.highlightItem {
+  margin-bottom: 0.25rem;
+}
+
+.highlightCheck {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.3rem;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  color: #1e2a44;
+  cursor: pointer;
+}
+
+.highlightCheck input {
+  margin-top: 0.1rem;
+  flex-shrink: 0;
+}
+
+.done {
+  text-decoration: line-through;
+  color: #6b6570;
+}
+
+.highlightEmpty {
+  font-size: 0.65rem;
+  color: #6b6570;
+  font-style: italic;
+}
+
+.essentialsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.essentialCard {
+  border: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
+  border-radius: 0.85rem;
+  background: white;
+  padding: 0.55rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.essentialTop {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.essentialName {
+  font-size: 0.72rem;
+  line-height: 1.2;
+  color: #1e2a44;
+}
+
+.essentialDist {
+  margin: 0;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #6b7c3a;
+}
+
+.essentialNote,
+.essentialAddr {
+  margin: 0;
+  font-size: 0.62rem;
+  line-height: 1.25;
+  color: #6b6570;
+}
+
+.essentialActions {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: auto;
+}
+
+.essentialAction {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  background: color-mix(in srgb, #e8f0f4 60%, white);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-size: 0.75rem;
+}
+
+.askHint {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: #8a7355;
+  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
+}
+
+.empty {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #6b6570;
+}
+
+@media (max-width: 360px) {
+  .highlightsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .essentialsGrid {
+    grid-template-columns: 1fr;
+  }
+}

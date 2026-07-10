@@ -1,44 +1,37 @@
 import * as React from 'react';
 import L from 'leaflet';
 import '../maps/LeafletCompat.css';
+import type { Place } from '../../models/Place';
 import { useConfig } from '../../context/ConfigContext';
 import { generateDiningSuggestions, generateNearestPlaces } from '../../services/GeminiService';
 import type { DiningSuggestionRow, NearestPlaceKind, NearestPlaceRow } from '../../utils/locationInfoEntry';
+import { MOBILE_NEAR_YOU_ON_SITE_KM, resolveLocationSearchContext } from '../../utils/locationGeoContext';
+import { placeQueryMapsUrl, placeWebsiteSearchUrl } from '../../utils/googleMapsLink';
 import { NEAR_YOU_TOOLS, type NearYouToolId } from '../../utils/nearYouTools';
 import {
-  placeQueryDirectionsUrl,
-  placeQueryMapsUrl,
-  placeWebsiteSearchUrl
-} from '../../utils/googleMapsLink';
+  loadNearYouCache,
+  nearYouScopeForHome,
+  nearYouScopeForLocation,
+  saveNearYouCache,
+  type NearYouCachedResult
+} from '../../utils/nearYouResultCache';
+import { NearYouResultCard } from './NearYouResultCard';
 import styles from './MobileNearYouResults.module.css';
 
 export interface MobileNearYouResultsProps {
   toolId: NearYouToolId;
   onBack: () => void;
-  /** Featured / active trip title for header context. */
   tripTitle?: string;
   tripDateRange?: string;
-  /** Called when user wants to add a place as an itinerary idea. */
+  /** When set, search near this place (GPS if within 50 km, else place coords). */
+  place?: Place;
+  locationEntryId?: string;
+  locationLabel?: string;
   onAddToItinerary?: (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string }) => void;
-  /** Called when user saves/bookmarks a place. */
   onSavePlace?: (place: { name: string; note?: string; mapsUrl?: string }) => void;
 }
 
 type ViewMode = 'map' | 'list' | 'ai';
-
-type ResultCard = {
-  id: string;
-  name: string;
-  note?: string;
-  address?: string;
-  rating?: number;
-  priceLevel?: string;
-  mapsUrl?: string;
-  websiteUrl?: string;
-  reviewsUrl?: string;
-  aiBlurb?: string;
-  topPick?: boolean;
-};
 
 function toolDef(id: NearYouToolId) {
   return NEAR_YOU_TOOLS.find((t) => t.id === id) ?? NEAR_YOU_TOOLS[0];
@@ -63,16 +56,49 @@ function addTiles(map: L.Map): void {
   primary.addTo(map);
 }
 
+function toCardsFromDining(items: DiningSuggestionRow[]): NearYouCachedResult[] {
+  return items.slice(0, 10).map((p, i) => ({
+    id: p.id,
+    name: p.name,
+    note: p.bestFor || p.description,
+    rating: p.rating,
+    priceLevel: p.priceLevel,
+    mapsUrl: p.mapsUrl || placeQueryMapsUrl(p.name),
+    websiteUrl: p.websiteUrl || placeWebsiteSearchUrl(p.name),
+    reviewsUrl: p.reviewsUrl,
+    aiBlurb: p.why || p.description || p.bestFor,
+    topPick: i === 0
+  }));
+}
+
+function toCardsFromNearest(places: NearestPlaceRow[]): NearYouCachedResult[] {
+  return places.slice(0, 10).map((p, i) => ({
+    id: p.id,
+    name: p.name,
+    note: p.note || p.servicesSummary,
+    address: p.address,
+    mapsUrl: p.mapsUrl || placeQueryMapsUrl(p.name, p.address),
+    websiteUrl: p.websiteUrl || placeWebsiteSearchUrl(p.name, p.address),
+    reviewsUrl: p.reviewsUrl,
+    aiBlurb: p.note || p.servicesSummary,
+    topPick: i === 0
+  }));
+}
+
 export const MobileNearYouResults: React.FC<MobileNearYouResultsProps> = ({
   toolId,
   onBack,
   tripTitle,
   tripDateRange,
+  place,
+  locationEntryId,
+  locationLabel,
   onAddToItinerary,
   onSavePlace
 }) => {
   const { config } = useConfig();
   const tool = toolDef(toolId);
+  const cacheScope = locationEntryId ? nearYouScopeForLocation(locationEntryId) : nearYouScopeForHome();
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState('');
   const [view, setView] = React.useState<ViewMode>('list');
@@ -81,96 +107,127 @@ export const MobileNearYouResults: React.FC<MobileNearYouResultsProps> = ({
   const [filterWalkable, setFilterWalkable] = React.useState(false);
   const [filterRated, setFilterRated] = React.useState(false);
   const [toast, setToast] = React.useState('');
+  const [contextLabel, setContextLabel] = React.useState('');
   const [userLat, setUserLat] = React.useState<number | null>(null);
   const [userLng, setUserLng] = React.useState<number | null>(null);
-  const [results, setResults] = React.useState<ResultCard[]>([]);
+  const [results, setResults] = React.useState<NearYouCachedResult[]>([]);
+  const [fromCache, setFromCache] = React.useState(false);
   const mapHostRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<L.Map | null>(null);
 
-  const load = React.useCallback(async (): Promise<void> => {
-    const apiKey = (config.geminiApiKey || '').trim();
-    if (!apiKey) {
-      setError('Add a Gemini API key in Profile / User settings.');
-      setResults([]);
-      return;
-    }
-    if (!navigator.geolocation) {
-      setError('Location is not available on this device.');
-      return;
-    }
-    setBusy(true);
-    setError('');
-    try {
-      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 8000,
-          maximumAge: 60000
-        });
-      });
-      setUserLat(pos.coords.latitude);
-      setUserLng(pos.coords.longitude);
-      const searchContext = {
-        mode: 'onsite' as const,
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-        placeName: 'Current location',
-        country: ''
-      };
-      if (toolId === 'dining') {
-        const { items } = await generateDiningSuggestions({ apiKey, searchContext });
-        setResults(
-          items.slice(0, 10).map((p: DiningSuggestionRow, i) => ({
-            id: p.id,
-            name: p.name,
-            note: p.bestFor || p.description,
-            address: undefined,
-            rating: p.rating,
-            priceLevel: p.priceLevel,
-            mapsUrl: p.mapsUrl || placeQueryMapsUrl(p.name),
-            websiteUrl: p.websiteUrl || placeWebsiteSearchUrl(p.name),
-            reviewsUrl: p.reviewsUrl,
-            aiBlurb: p.why || p.description || p.bestFor,
-            topPick: i === 0
-          }))
-        );
-      } else if (tool.kind) {
-        const { places } = await generateNearestPlaces(tool.kind as NearestPlaceKind, { apiKey, searchContext });
-        setResults(
-          places.slice(0, 10).map((p: NearestPlaceRow, i) => ({
-            id: p.id,
-            name: p.name,
-            note: p.note || p.servicesSummary,
-            address: p.address,
-            mapsUrl: p.mapsUrl || placeQueryMapsUrl(p.name, p.address),
-            websiteUrl: p.websiteUrl || placeWebsiteSearchUrl(p.name, p.address),
-            reviewsUrl: p.reviewsUrl,
-            aiBlurb: p.note || p.servicesSummary,
-            topPick: i === 0
-          }))
-        );
+  const subTitle = React.useMemo(() => {
+    if (contextLabel) return contextLabel;
+    if (locationLabel) return `${locationLabel} · based on trip place`;
+    return 'Based on your current location';
+  }, [contextLabel, locationLabel]);
+
+  const load = React.useCallback(
+    async (forceRefresh = false): Promise<void> => {
+      const apiKey = (config.geminiApiKey || '').trim();
+      if (!apiKey) {
+        setError('Add a Gemini API key in Profile / User settings.');
+        setResults([]);
+        return;
       }
-    } catch (err) {
-      setResults([]);
-      setError(err instanceof Error ? err.message : 'Could not find nearby places.');
-    } finally {
-      setBusy(false);
-    }
-  }, [config.geminiApiKey, tool.kind, toolId]);
+
+      if (!forceRefresh) {
+        const cached = loadNearYouCache(cacheScope, toolId);
+        if (cached?.results?.length) {
+          setResults(cached.results);
+          setContextLabel(cached.contextLabel);
+          setFromCache(true);
+          setError('');
+          return;
+        }
+      }
+
+      setBusy(true);
+      setError('');
+      setFromCache(false);
+      try {
+        let searchContext;
+        if (place) {
+          searchContext = await resolveLocationSearchContext(place, { onSiteKm: MOBILE_NEAR_YOU_ON_SITE_KM });
+        } else {
+          if (!navigator.geolocation) {
+            setError('Location is not available on this device.');
+            return;
+          }
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 8000,
+              maximumAge: 60000
+            });
+          });
+          setUserLat(pos.coords.latitude);
+          setUserLng(pos.coords.longitude);
+          searchContext = {
+            mode: 'onsite' as const,
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            placeName: 'Current location',
+            country: ''
+          };
+        }
+
+        if (!searchContext) {
+          setError('Could not resolve a search location for this place.');
+          return;
+        }
+
+        setUserLat(searchContext.latitude);
+        setUserLng(searchContext.longitude);
+        const label =
+          searchContext.mode === 'onsite'
+            ? locationLabel
+              ? `Near you · ${locationLabel}`
+              : 'Based on your current location'
+            : locationLabel
+              ? `Near ${locationLabel}`
+              : `Near ${searchContext.placeName}`;
+        setContextLabel(label);
+
+        let cards: NearYouCachedResult[] = [];
+        if (toolId === 'dining') {
+          const { items } = await generateDiningSuggestions({ apiKey, searchContext });
+          cards = toCardsFromDining(items);
+        } else if (tool.kind) {
+          const { places } = await generateNearestPlaces(tool.kind as NearestPlaceKind, { apiKey, searchContext });
+          cards = toCardsFromNearest(places);
+        }
+        setResults(cards);
+        saveNearYouCache(cacheScope, toolId, {
+          results: cards,
+          fetchedAt: new Date().toISOString(),
+          contextLabel: label,
+          aiPrompt: aiPrompt.trim() || undefined
+        });
+      } catch (err) {
+        setResults([]);
+        setError(err instanceof Error ? err.message : 'Could not find nearby places.');
+      } finally {
+        setBusy(false);
+      }
+    },
+    [aiPrompt, cacheScope, config.geminiApiKey, locationLabel, place, tool.kind, toolId]
+  );
 
   React.useEffect(() => {
-    void load();
+    void load(false);
   }, [load]);
 
   const visible = React.useMemo(() => {
     let rows = results.slice();
     if (filterRated) rows = rows.filter((r) => typeof r.rating === 'number' && r.rating >= 4.3);
-    // Open now / walkable are soft UI filters until live hours/distance exist — keep all but prefer top picks.
     if (filterOpenNow || filterWalkable) rows = rows.slice().sort((a, b) => Number(b.topPick) - Number(a.topPick));
     return rows;
   }, [results, filterOpenNow, filterWalkable, filterRated]);
 
-  const aiPicks = React.useMemo(() => visible.filter((r) => r.topPick || (r.rating && r.rating >= 4.5)).slice(0, 5), [visible]);
+  const aiPicks = React.useMemo(
+    () => visible.filter((r) => r.topPick || (r.rating && r.rating >= 4.5)).slice(0, 5),
+    [visible]
+  );
 
   React.useEffect(() => {
     if (view !== 'map') return undefined;
@@ -184,10 +241,8 @@ export const MobileNearYouResults: React.FC<MobileNearYouResultsProps> = ({
     mapRef.current = map;
     addTiles(map);
     const layer = L.layerGroup().addTo(map);
-    const points: L.LatLngExpression[] = [];
     if (userLat != null && userLng != null) {
       const me = L.latLng(userLat, userLng);
-      points.push(me);
       L.circleMarker(me, {
         radius: 8,
         color: '#fff',
@@ -195,12 +250,9 @@ export const MobileNearYouResults: React.FC<MobileNearYouResultsProps> = ({
         fillColor: '#2E90D1',
         fillOpacity: 1
       })
-        .bindTooltip('You', { permanent: false })
+        .bindTooltip('Search centre', { permanent: false })
         .addTo(layer);
-    }
-    // Without geocoded result coords, centre on user and show count in overlay.
-    if (points.length) {
-      map.setView(points[0], 14);
+      map.setView(me, 14);
     } else {
       map.setView([-41.29, 174.78], 11);
     }
@@ -218,21 +270,33 @@ export const MobileNearYouResults: React.FC<MobileNearYouResultsProps> = ({
   };
 
   const listForView = view === 'ai' ? (aiPicks.length ? aiPicks : visible.slice(0, 5)) : visible;
+  const saveLabel = locationLabel ? `Save to ${locationLabel.split(',')[0]}` : 'Save';
 
   return (
     <div className={styles.page}>
       <header className={styles.topBar}>
         <button type="button" className={styles.back} onClick={onBack}>
-          ← Near you
+          ← {locationEntryId ? locationLabel || 'Location' : 'Near you'}
         </button>
         <div className={styles.tripMeta}>
           <p className={styles.tripTitle}>{tripTitle || 'Near you'}</p>
           {tripDateRange ? <p className={styles.tripDates}>{tripDateRange}</p> : null}
         </div>
+        <button
+          type="button"
+          className={styles.refreshBtn}
+          onClick={() => void load(true)}
+          disabled={busy}
+          aria-label="Refresh results"
+          title="Refresh results"
+        >
+          ↻
+        </button>
       </header>
 
       <h1 className={styles.heading}>{tool.label} Nearby</h1>
-      <p className={styles.sub}>Based on your current location</p>
+      <p className={styles.sub}>{subTitle}</p>
+      {fromCache ? <p className={styles.cachedNote}>Showing saved results · tap ↻ to refresh</p> : null}
 
       <div className={styles.aiSearch}>
         <span className={styles.sparkle} aria-hidden>
@@ -245,10 +309,7 @@ export const MobileNearYouResults: React.FC<MobileNearYouResultsProps> = ({
           placeholder={`Ask AI: refine ${tool.shortLabel.toLowerCase()}…`}
           aria-label="Ask AI to refine results"
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && aiPrompt.trim()) {
-              showToast('Refinement saved for next search — reloading…');
-              void load();
-            }
+            if (e.key === 'Enter' && aiPrompt.trim()) void load(true);
           }}
         />
       </div>
@@ -287,7 +348,7 @@ export const MobileNearYouResults: React.FC<MobileNearYouResultsProps> = ({
             className={`${styles.segBtn} ${view === mode ? styles.segBtnOn : ''}`}
             onClick={() => setView(mode)}
           >
-            {mode === 'ai' ? 'AI Picks' : mode === 'map' ? 'Map' : 'List'}
+            {mode === 'ai' ? '✦ AI Picks' : mode === 'map' ? 'Map' : 'List'}
           </button>
         ))}
       </div>
@@ -295,84 +356,35 @@ export const MobileNearYouResults: React.FC<MobileNearYouResultsProps> = ({
       {view === 'map' ? (
         <div className={styles.mapCard}>
           <div ref={mapHostRef} className={styles.mapCanvas} />
-          <p className={styles.mapHint}>
-            {busy ? 'Locating…' : `${visible.length} places near you`}
-          </p>
+          <p className={styles.mapHint}>{busy ? 'Searching…' : `${visible.length} places`}</p>
         </div>
       ) : null}
 
       {error ? <p className={styles.error}>{error}</p> : null}
-      {busy && !results.length ? <p className={styles.muted}>Searching near you…</p> : null}
+      {busy && !results.length ? <p className={styles.muted}>Searching…</p> : null}
 
       <div className={styles.list}>
-        {listForView.map((r) => {
-          const directions = placeQueryDirectionsUrl(r.name, r.address) || r.mapsUrl;
-          const website = r.websiteUrl || placeWebsiteSearchUrl(r.name, r.address);
-          return (
-            <article key={r.id} className={styles.card}>
-              <div className={styles.cardTop}>
-                <div className={styles.thumb} aria-hidden>
-                  {r.name.slice(0, 1).toUpperCase()}
-                </div>
-                <div className={styles.cardMain}>
-                  <div className={styles.cardTitleRow}>
-                    <h3 className={styles.cardTitle}>{r.name}</h3>
-                    {typeof r.rating === 'number' ? (
-                      <span className={styles.rating}>★ {r.rating.toFixed(1)}</span>
-                    ) : null}
-                  </div>
-                  {r.topPick ? <span className={styles.badge}>AI TOP PICK</span> : null}
-                  <p className={styles.cardMeta}>
-                    {[tool.shortLabel, r.priceLevel, r.note].filter(Boolean).join(' · ')}
-                  </p>
-                  {r.address ? <p className={styles.cardAddr}>{r.address}</p> : null}
-                  {r.aiBlurb ? (
-                    <p className={styles.aiSays}>
-                      <strong>AI says:</strong> {r.aiBlurb}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-              <div className={styles.actions}>
-                {directions ? (
-                  <a className={styles.action} href={directions} target="_blank" rel="noopener noreferrer">
-                    Directions
-                  </a>
-                ) : null}
-                <button
-                  type="button"
-                  className={styles.action}
-                  onClick={() => {
-                    onSavePlace?.({ name: r.name, note: r.note, mapsUrl: r.mapsUrl });
-                    showToast(`Saved · ${r.name}`);
-                  }}
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  className={styles.action}
-                  onClick={() => {
-                    onAddToItinerary?.({
-                      name: r.name,
-                      note: r.note,
-                      mapsUrl: r.mapsUrl,
-                      websiteUrl: r.websiteUrl
-                    });
-                    showToast('Added to itinerary');
-                  }}
-                >
-                  Add to itinerary
-                </button>
-                {website ? (
-                  <a className={styles.action} href={website} target="_blank" rel="noopener noreferrer">
-                    Website
-                  </a>
-                ) : null}
-              </div>
-            </article>
-          );
-        })}
+        {listForView.map((r) => (
+          <NearYouResultCard
+            key={r.id}
+            result={r}
+            categoryLabel={tool.shortLabel}
+            saveLabel={saveLabel}
+            onSave={() => {
+              onSavePlace?.({ name: r.name, note: r.note, mapsUrl: r.mapsUrl });
+              showToast(`Saved · ${r.name}`);
+            }}
+            onAddToItinerary={() => {
+              onAddToItinerary?.({
+                name: r.name,
+                note: r.note,
+                mapsUrl: r.mapsUrl,
+                websiteUrl: r.websiteUrl
+              });
+              showToast('Added to itinerary');
+            }}
+          />
+        ))}
       </div>
 
       {toast ? <div className={styles.toast}>{toast}</div> : null}

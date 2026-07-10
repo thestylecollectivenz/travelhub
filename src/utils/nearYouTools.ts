@@ -38,11 +38,11 @@ export const NEAR_YOU_TOOLS: NearYouToolDef[] = [
     homePriority: 3
   },
   {
-    id: 'medical',
-    kind: 'medical',
-    label: 'Medical',
-    shortLabel: 'Medical',
-    description: 'Clinics, urgent care, and hospitals',
+    id: 'grocery',
+    kind: 'grocery',
+    label: 'Shopping',
+    shortLabel: 'Shopping',
+    description: 'Supermarkets and grocery stores',
     homePriority: 4
   },
   {
@@ -54,12 +54,20 @@ export const NEAR_YOU_TOOLS: NearYouToolDef[] = [
     homePriority: 5
   },
   {
+    id: 'medical',
+    kind: 'medical',
+    label: 'Medical',
+    shortLabel: 'Medical',
+    description: 'Clinics, urgent care, and hospitals',
+    homePriority: 6
+  },
+  {
     id: 'pharmacy',
     kind: 'pharmacy',
     label: 'Pharmacy',
     shortLabel: 'Pharmacy',
     description: 'Pharmacies and chemists',
-    homePriority: 6
+    homePriority: 7
   },
   {
     id: 'fuel',
@@ -67,14 +75,6 @@ export const NEAR_YOU_TOOLS: NearYouToolDef[] = [
     label: 'Fuel',
     shortLabel: 'Fuel',
     description: 'Petrol and fuel stations',
-    homePriority: 7
-  },
-  {
-    id: 'grocery',
-    kind: 'grocery',
-    label: 'Grocery',
-    shortLabel: 'Grocery',
-    description: 'Supermarkets and grocery stores',
     homePriority: 8
   }
 ];

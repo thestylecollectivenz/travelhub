@@ -160,16 +160,17 @@
   -webkit-overflow-scrolling: touch;
 }
 
-/* Soften nested panel chrome for mobile sheet */
-.body :global(h4) {
-  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
-  font-weight: 550;
+.nearOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12700;
+  background: #f7f3eb;
+  overflow: auto;
 }
 
-.body :global([class*='section']) {
-  background: color-mix(in srgb, white 92%, #f7f3eb);
-  border-radius: 0.95rem;
-  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
-  padding: 0.65rem 0.75rem;
-  margin-bottom: 0.75rem;
+.nearOverlayInner {
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: 0.85rem 0.85rem 2rem;
+  min-height: 100%;
 }

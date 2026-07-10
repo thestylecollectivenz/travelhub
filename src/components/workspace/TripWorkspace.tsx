@@ -14,6 +14,7 @@ import { TripContent } from './TripContent';
 import { SharedTripView } from './SharedTripView';
 import { EditTripPanel } from './EditTripPanel';
 import { TripMembersPanel } from './TripMembersPanel';
+import { TripTravellersStrip } from './TripTravellersStrip';
 import { TripAccessLogPanel } from './TripAccessLogPanel';
 import { RoleGate } from '../shared/RoleGate';
 import { TripDateRangeReassignDialog } from './TripDateRangeReassignDialog';
@@ -435,6 +436,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
         <span className={styles.buildTag} title="App package version — use this to confirm SharePoint loaded the latest deploy">
           v{SOLUTION_VERSION}
         </span>
+        <TripTravellersStrip tripId={tripId} onOpenMembers={() => setMembersOpen(true)} />
         <div className={styles.toolbarActions}>
           {sharedPreview ? (
             <button type="button" className={styles.settingsButton} onClick={() => setSharedPreview(false)}>

@@ -57,12 +57,23 @@
 
 .row {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: auto 1fr auto auto;
   gap: var(--space-2);
   align-items: center;
   border: var(--border-default);
   border-radius: var(--radius-md);
   padding: var(--space-2);
+}
+
+.rowStatic {
+  background: color-mix(in srgb, var(--color-surface) 80%, white);
+}
+
+.roleBadge {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--color-primary);
+  white-space: nowrap;
 }
 
 .memberMeta {

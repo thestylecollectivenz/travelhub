@@ -6,8 +6,10 @@ import { useTripPermissions } from '../../hooks/useTripPermissions';
 import { compactPlaceLabel } from '../../utils/placeDisplayLabel';
 import { parseLocationInfoNotes } from '../../utils/locationInfoEntry';
 import { usePlaces } from '../../context/PlacesContext';
-import { LocationInfoPanelContent } from '../itinerary/LocationInfoPanelContent';
 import { ItineraryCardEdit } from '../itinerary/ItineraryCardEdit';
+import { MobileLocationInfoContent } from './MobileLocationInfoContent';
+import { MobileNearYouResults } from './MobileNearYouResults';
+import type { NearYouToolId } from '../../utils/nearYouTools';
 import cardStyles from '../itinerary/ItineraryCard.module.css';
 import styles from './MobileLocationInfo.module.css';
 
@@ -17,34 +19,27 @@ export interface MobileLocationInfoSheetProps {
   onClose: () => void;
 }
 
-const JUMP_ITEMS: Array<{ id: string; label: string; tone: string }> = [
-  { id: 'highlights', label: 'Sights', tone: styles.toneSights },
-  { id: 'food', label: 'Food', tone: styles.toneFood },
-  { id: 'medical', label: 'Medical', tone: styles.toneMedical },
-  { id: 'grocery', label: 'Shop', tone: styles.toneShop },
-  { id: 'transport', label: 'Transit', tone: styles.toneTransit },
-  { id: 'notes', label: 'Notes', tone: styles.toneNotes },
-  { id: 'ask', label: 'Ask AI', tone: styles.toneAsk }
-];
-
 export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = ({
   entry,
   calendarDate,
   onClose
 }) => {
-  const { editingCardId, setEditingCardId, updateEntry } = useTripWorkspace();
+  const { trip, editingCardId, setEditingCardId, updateEntry } = useTripWorkspace();
   const { canEditItinerary } = useTripPermissions();
   const { placeById } = usePlaces();
-  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [nearToolId, setNearToolId] = React.useState<NearYouToolId | null>(null);
 
   React.useEffect(() => {
     if (!entry) return undefined;
     const onKey = (ev: KeyboardEvent): void => {
-      if (ev.key === 'Escape' && editingCardId !== entry.id) onClose();
+      if (ev.key === 'Escape') {
+        if (nearToolId) setNearToolId(null);
+        else if (editingCardId !== entry.id) onClose();
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [entry, onClose, editingCardId]);
+  }, [entry, onClose, editingCardId, nearToolId]);
 
   if (!entry) return null;
 
@@ -54,15 +49,6 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   const title = place
     ? compactPlaceLabel(place.title, place.country)
     : (entry.title || entry.location || 'Location').trim() || 'Location';
-
-  const jumpTo = (sectionId: string): void => {
-    const root = scrollRef.current;
-    if (!root) return;
-    const target = root.querySelector(`[data-li-section="${sectionId}"]`) as HTMLElement | null;
-    if (target) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
 
   if (isEditing) {
     return ReactDOM.createPortal(
@@ -81,6 +67,29 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
               setEditingCardId(null);
               onClose();
             }}
+          />
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
+  if (nearToolId) {
+    return ReactDOM.createPortal(
+      <div className={styles.nearOverlay} role="presentation">
+        <div className={styles.nearOverlayInner}>
+          <MobileNearYouResults
+            toolId={nearToolId}
+            place={place}
+            locationEntryId={entry.id}
+            locationLabel={title}
+            tripTitle={trip?.title}
+            tripDateRange={
+              trip?.dateStart && trip?.dateEnd
+                ? `${trip.dateStart.slice(0, 10)} – ${trip.dateEnd.slice(0, 10)}`
+                : undefined
+            }
+            onBack={() => setNearToolId(null)}
           />
         </div>
       </div>,
@@ -116,24 +125,13 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
           </div>
         </header>
 
-        <nav className={styles.jumpRow} aria-label="Jump to section">
-          {JUMP_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`${styles.jumpItem} ${item.tone}`}
-              onClick={() => jumpTo(item.id)}
-            >
-              <span className={styles.jumpDot} aria-hidden>
-                {item.label.slice(0, 1)}
-              </span>
-              <span className={styles.jumpLabel}>{item.label}</span>
-            </button>
-          ))}
-        </nav>
-
-        <div className={styles.body} ref={scrollRef}>
-          <LocationInfoPanelContent entry={entry} readOnly={!canEditItinerary} enableSectionAnchors />
+        <div className={styles.body}>
+          <MobileLocationInfoContent
+            entry={entry}
+            place={place}
+            readOnly={!canEditItinerary}
+            onOpenNearTool={(toolId) => setNearToolId(toolId)}
+          />
         </div>
       </div>
     </div>,

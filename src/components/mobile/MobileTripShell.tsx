@@ -9,6 +9,7 @@ import { MobileMapView } from './MobileMapView';
 import { MobileTaskView } from './MobileTaskView';
 import { TripMembersPanel } from '../workspace/TripMembersPanel';
 import { AiAssistantFab } from '../workspace/AiAssistantFab';
+import { MobileAskAiResultsSheet } from './MobileAskAiResultsSheet';
 import type { MobileTab } from './mobileTypes';
 import { SOLUTION_VERSION } from '../../appVersion';
 import styles from './MobileShell.module.css';
@@ -83,6 +84,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
   const spContext = useSpContext();
   const [tab, setTab] = React.useState<MobileTab>(initialTab ?? 'today');
   const [membersOpen, setMembersOpen] = React.useState(false);
+  const [askAiPrompt, setAskAiPrompt] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (initialTab) setTab(initialTab);
@@ -95,9 +97,9 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
   const handleOpenMembers = React.useCallback(() => setMembersOpen(true), []);
 
   const handleAskAi = React.useCallback((prompt?: string) => {
-    window.dispatchEvent(
-      new CustomEvent('travelhub-open-ai', { detail: { prompt: prompt ?? '' } })
-    );
+    const p = (prompt ?? '').trim();
+    if (!p) return;
+    setAskAiPrompt(p);
   }, []);
 
   let body: React.ReactNode;
@@ -164,7 +166,9 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
           onClose={() => setMembersOpen(false)}
         />
       ) : null}
-      {/* Itinerary tab has its own Ask AI bar + blue + FAB; keep floating AI on other tabs. */}
+      {askAiPrompt ? (
+        <MobileAskAiResultsSheet prompt={askAiPrompt} onClose={() => setAskAiPrompt(null)} />
+      ) : null}
       {tab !== 'today' ? <AiAssistantFab /> : null}
       <span aria-hidden style={{ display: 'none' }}>
         v{SOLUTION_VERSION}
