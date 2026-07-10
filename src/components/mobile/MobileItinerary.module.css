@@ -309,6 +309,22 @@
   padding: var(--space-3) var(--space-4) var(--space-2);
 }
 
+.weatherChip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 9.5rem;
+  padding: 0.4rem 0.65rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, white 88%, var(--tl-cream));
+  border: 1px solid var(--tl-line);
+  color: var(--tl-navy);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
 .dayHeaderLeft {
   display: flex;
   flex-direction: column;

@@ -19,6 +19,7 @@ import { locationInfoEntriesForDay } from '../../utils/locationInfoDayResolve';
 import { parseLocationInfoNotes } from '../../utils/locationInfoEntry';
 import { TravellerAvatar } from '../shared/TravellerAvatar';
 import { resolveSharePointMediaSrc } from '../../utils/sharePointUrl';
+import { useConfig } from '../../context/ConfigContext';
 import { MobileCardDetail } from './MobileCardDetail';
 import styles from './MobileItinerary.module.css';
 import shellStyles from './MobileShell.module.css';
@@ -90,6 +91,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   const { role } = useTripRole();
   const { placeById } = usePlaces();
   const sp = useSpContext();
+  const { config } = useConfig();
   const { members } = useTripMembers(trip?.id);
 
   const [detailEntryId, setDetailEntryId] = React.useState<string | null>(null);
@@ -97,6 +99,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   const [unschedOpen, setUnschedOpen] = React.useState(false);
   const [aiPrompt, setAiPrompt] = React.useState('');
   const [adding, setAdding] = React.useState(false);
+  const [weatherLabel, setWeatherLabel] = React.useState('');
 
   const carouselRef = React.useRef<HTMLDivElement>(null);
 
@@ -178,6 +181,48 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
 
   // Primary place for current day
   const primaryPlace = day?.primaryPlaceId ? placeById(day.primaryPlaceId) : undefined;
+
+  React.useEffect(() => {
+    const key = (config.weatherApiKey || '').trim();
+    const lat = Number(primaryPlace?.latitude);
+    const lng = Number(primaryPlace?.longitude);
+    const ymd = (day?.calendarDate || '').slice(0, 10);
+    if (!key || !primaryPlace || !Number.isFinite(lat) || !Number.isFinite(lng) || !ymd) {
+      setWeatherLabel('');
+      return;
+    }
+    let cancelled = false;
+    const units = config.temperatureUnit === 'Fahrenheit' ? 'us' : 'metric';
+    const unitSuffix = config.temperatureUnit === 'Fahrenheit' ? '°F' : '°C';
+    const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${lat},${lng}/${ymd}?key=${encodeURIComponent(key)}&unitGroup=${units}&include=days&contentType=json`;
+    fetch(url)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Weather ${r.status}`))))
+      .then((data) => {
+        if (cancelled) return;
+        const row = (data.days ?? [])[0] ?? {};
+        const temp = Number(row.temp ?? row.tempmax);
+        const conditions = String(row.conditions ?? '').trim();
+        if (!Number.isFinite(temp) && !conditions) {
+          setWeatherLabel('');
+          return;
+        }
+        const tempPart = Number.isFinite(temp) ? `${Math.round(temp)}${unitSuffix}` : '';
+        setWeatherLabel([tempPart, conditions].filter(Boolean).join(' · '));
+      })
+      .catch(() => {
+        if (!cancelled) setWeatherLabel('');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    config.weatherApiKey,
+    config.temperatureUnit,
+    primaryPlace?.id,
+    primaryPlace?.latitude,
+    primaryPlace?.longitude,
+    day?.calendarDate
+  ]);
 
   // Travel tip from first location info entry's practicalTips
   const travelTip = React.useMemo(() => {
@@ -417,6 +462,15 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
             </div>
           ) : null}
         </div>
+        {weatherLabel ? (
+          <div className={styles.weatherChip} aria-label={`Weather ${weatherLabel}`}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.6" />
+              <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+            <span>{weatherLabel}</span>
+          </div>
+        ) : null}
       </div>
 
       {/* ── Location info strip ────────────────────────────── */}
