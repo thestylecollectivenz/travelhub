@@ -50,7 +50,7 @@ export const DEFAULT_USER_CONFIG: UserConfig = {
 };
 
 const FULL_SELECT =
-  'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,ElevenLabsApiKey,ElevenLabsVoiceId,SpeechEngine,BrowserVoiceURI,DayBreakdownVisibleByDefault';
+  'ID,Title,UserId,HomeCurrency,TemperatureUnit,DistanceUnit,DateFormat,ShowTravellerNames,JournalAuthorName,SidebarWidth,SidebarWidthCustomized,WeatherApiKey,GeminiApiKey,ElevenLabsApiKey,ElevenLabsVoiceId,SpeechEngine,BrowserVoiceURI,DayBreakdownVisibleByDefault,Modified';
 
 async function logFailedResponse(label: string, resp: SPHttpClientResponse): Promise<string> {
   let body = '';
@@ -64,12 +64,58 @@ async function logFailedResponse(label: string, resp: SPHttpClientResponse): Pro
   return body;
 }
 
+function asString(value: unknown): string {
+  return typeof value === 'string' ? value : value == null ? '' : String(value);
+}
+
+function asBoolean(value: unknown, fallback: boolean): boolean {
+  if (typeof value === 'boolean') return value;
+  if (value === 1 || value === '1' || value === 'true' || value === 'True' || value === 'Yes') return true;
+  if (value === 0 || value === '0' || value === 'false' || value === 'False' || value === 'No') return false;
+  return fallback;
+}
+
+function asNumber(value: unknown, fallback: number): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function field(item: Record<string, unknown>, ...names: string[]): unknown {
+  for (const name of names) {
+    if (Object.prototype.hasOwnProperty.call(item, name) && item[name] !== undefined && item[name] !== null) {
+      return item[name];
+    }
+  }
+  // Case-insensitive fallback (manual columns sometimes differ only by casing).
+  const keys = Object.keys(item);
+  for (const name of names) {
+    const hit = keys.find((k) => k.toLowerCase() === name.toLowerCase());
+    if (hit && item[hit] !== undefined && item[hit] !== null) return item[hit];
+  }
+  return undefined;
+}
+
 /** Stable cross-device identity for UserConfig rows. */
 export function resolveUserConfigKey(ctx: WebPartContext, preferred?: string): string {
   const email = (preferred || getCurrentUserEmail(ctx) || '').trim().toLowerCase();
   if (email && email.includes('@')) return email;
   const login = (ctx.pageContext.user.loginName || '').trim().toLowerCase();
   return login || email || 'unknown-user';
+}
+
+function normalizeIdentity(value: string): string {
+  const v = value.trim().toLowerCase();
+  if (!v) return '';
+  const emailMatch = v.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i);
+  return emailMatch ? emailMatch[0].toLowerCase() : v;
+}
+
+function identitiesMatch(a: string, b: string): boolean {
+  const na = normalizeIdentity(a);
+  const nb = normalizeIdentity(b);
+  if (!na || !nb) return false;
+  return na === nb || a.trim().toLowerCase() === b.trim().toLowerCase();
 }
 
 export class ConfigService {
@@ -82,32 +128,29 @@ export class ConfigService {
   }
 
   private mapFromSpItem(item: Record<string, unknown>): UserConfig {
+    const temperatureUnit = asString(field(item, 'TemperatureUnit'));
+    const distanceUnit = asString(field(item, 'DistanceUnit'));
+    const dateFormat = asString(field(item, 'DateFormat'));
+    const speechEngine = asString(field(item, 'SpeechEngine'));
     return {
-      homeCurrency: (item.HomeCurrency as string) || DEFAULT_USER_CONFIG.homeCurrency,
-      temperatureUnit: item.TemperatureUnit === 'Fahrenheit' ? 'Fahrenheit' : 'Celsius',
-      distanceUnit: item.DistanceUnit === 'Miles' ? 'Miles' : 'Kilometres',
-      dateFormat: item.DateFormat === 'MDY' ? 'MDY' : 'DMY',
-      showTravellerNames:
-        typeof item.ShowTravellerNames === 'boolean'
-          ? item.ShowTravellerNames
-          : DEFAULT_USER_CONFIG.showTravellerNames,
-      journalAuthorName: typeof item.JournalAuthorName === 'string' ? item.JournalAuthorName : '',
-      sidebarWidth:
-        typeof item.SidebarWidth === 'number'
-          ? item.SidebarWidth
-          : Number(item.SidebarWidth ?? DEFAULT_USER_CONFIG.sidebarWidth) || DEFAULT_USER_CONFIG.sidebarWidth,
-      sidebarWidthCustomized:
-        typeof item.SidebarWidthCustomized === 'boolean' ? item.SidebarWidthCustomized : false,
-      weatherApiKey: typeof item.WeatherApiKey === 'string' ? item.WeatherApiKey : '',
-      geminiApiKey: typeof item.GeminiApiKey === 'string' ? item.GeminiApiKey : '',
-      elevenLabsApiKey: typeof item.ElevenLabsApiKey === 'string' ? item.ElevenLabsApiKey : '',
-      elevenLabsVoiceId: typeof item.ElevenLabsVoiceId === 'string' ? item.ElevenLabsVoiceId : '',
-      speechEngine: item.SpeechEngine === 'elevenlabs' ? 'elevenlabs' : 'browser',
-      browserVoiceURI: typeof item.BrowserVoiceURI === 'string' ? item.BrowserVoiceURI : '',
-      dayBreakdownVisibleByDefault:
-        typeof item.DayBreakdownVisibleByDefault === 'boolean'
-          ? item.DayBreakdownVisibleByDefault
-          : DEFAULT_USER_CONFIG.dayBreakdownVisibleByDefault
+      homeCurrency: asString(field(item, 'HomeCurrency')) || DEFAULT_USER_CONFIG.homeCurrency,
+      temperatureUnit: temperatureUnit === 'Fahrenheit' ? 'Fahrenheit' : 'Celsius',
+      distanceUnit: distanceUnit === 'Miles' ? 'Miles' : 'Kilometres',
+      dateFormat: dateFormat === 'MDY' ? 'MDY' : 'DMY',
+      showTravellerNames: asBoolean(field(item, 'ShowTravellerNames'), DEFAULT_USER_CONFIG.showTravellerNames),
+      journalAuthorName: asString(field(item, 'JournalAuthorName')),
+      sidebarWidth: asNumber(field(item, 'SidebarWidth'), DEFAULT_USER_CONFIG.sidebarWidth),
+      sidebarWidthCustomized: asBoolean(field(item, 'SidebarWidthCustomized'), false),
+      weatherApiKey: asString(field(item, 'WeatherApiKey')),
+      geminiApiKey: asString(field(item, 'GeminiApiKey')),
+      elevenLabsApiKey: asString(field(item, 'ElevenLabsApiKey')),
+      elevenLabsVoiceId: asString(field(item, 'ElevenLabsVoiceId')),
+      speechEngine: speechEngine === 'elevenlabs' ? 'elevenlabs' : 'browser',
+      browserVoiceURI: asString(field(item, 'BrowserVoiceURI')),
+      dayBreakdownVisibleByDefault: asBoolean(
+        field(item, 'DayBreakdownVisibleByDefault'),
+        DEFAULT_USER_CONFIG.dayBreakdownVisibleByDefault
+      )
     };
   }
 
@@ -133,12 +176,43 @@ export class ConfigService {
     };
   }
 
-  private async queryByField(field: 'UserId' | 'Title', value: string): Promise<SPHttpClientResponse> {
+  private async queryItems(url: string): Promise<Record<string, unknown>[]> {
+    const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
+    if (!resp.ok) {
+      await logFailedResponse('queryItems', resp);
+      return [];
+    }
+    const data = (await resp.json()) as { value?: Record<string, unknown>[] };
+    return data.value ?? [];
+  }
+
+  private async queryByField(fieldName: 'UserId' | 'Title', value: string): Promise<Record<string, unknown>[]> {
     const safe = value.replace(/'/g, "''");
-    const filter = encodeURIComponent(`${field} eq '${safe}'`);
-    const select = encodeURIComponent(FULL_SELECT);
-    const url = `${this.baseUrl}?$select=${select}&$filter=${filter}&$top=5`;
-    return this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
+    const filter = encodeURIComponent(`${fieldName} eq '${safe}'`);
+    const withSelect = `${this.baseUrl}?$select=${encodeURIComponent(FULL_SELECT)}&$filter=${filter}&$top=20&$orderby=Modified desc`;
+    const selected = await this.queryItems(withSelect);
+    if (selected.length) return selected;
+
+    // $select can 400 when a column internal name differs; fall back to unfiltered field set.
+    const bare = `${this.baseUrl}?$filter=${filter}&$top=20&$orderby=Modified desc`;
+    return this.queryItems(bare);
+  }
+
+  private scoreItem(item: Record<string, unknown>, preferredKey: string, candidates: string[]): number {
+    const title = asString(field(item, 'Title'));
+    const userId = asString(field(item, 'UserId'));
+    let score = 0;
+    if (identitiesMatch(userId, preferredKey) || identitiesMatch(title, preferredKey)) score += 100;
+    for (const c of candidates) {
+      if (identitiesMatch(userId, c) || identitiesMatch(title, c)) score += 10;
+    }
+    const modified = Date.parse(asString(field(item, 'Modified')));
+    if (Number.isFinite(modified)) score += Math.min(9, Math.floor(modified / 1e12));
+    // Prefer rows that already have real settings (not blank defaults).
+    if (asString(field(item, 'HomeCurrency'))) score += 2;
+    if (asString(field(item, 'WeatherApiKey')) || asString(field(item, 'GeminiApiKey'))) score += 3;
+    if (asString(field(item, 'JournalAuthorName'))) score += 1;
+    return score;
   }
 
   private async findConfigItem(
@@ -150,44 +224,57 @@ export class ConfigService {
     if (login) candidates.add(login);
     const email = getCurrentUserEmail(this.ctx);
     if (email) candidates.add(email);
+    const emailOnly = normalizeIdentity(email || userKey);
+    if (emailOnly) candidates.add(emailOnly);
 
-    let firstOkEmpty = false;
+    const found: Record<string, unknown>[] = [];
+    const seenIds = new Set<number>();
+
     for (const key of Array.from(candidates)) {
-      for (const field of ['UserId', 'Title'] as const) {
-        let resp: SPHttpClientResponse;
-        try {
-          // eslint-disable-next-line no-await-in-loop
-          resp = await this.queryByField(field, key);
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.error('ConfigService.findConfigItem query threw', field, key, err);
-          continue;
-        }
-        if (resp.status === 400 || resp.status === 404) {
-          // eslint-disable-next-line no-await-in-loop
-          await logFailedResponse(`findConfigItem ${field}`, resp);
-          continue;
-        }
-        if (!resp.ok) {
-          // eslint-disable-next-line no-await-in-loop
-          await logFailedResponse(`findConfigItem ${field}`, resp);
-          continue;
-        }
+      for (const fieldName of ['UserId', 'Title'] as const) {
         // eslint-disable-next-line no-await-in-loop
-        const data = (await resp.json()) as { value?: Record<string, unknown>[] };
-        const item = (data.value ?? [])[0];
-        if (!item) {
-          firstOkEmpty = true;
-          continue;
+        const rows = await this.queryByField(fieldName, key);
+        for (const item of rows) {
+          const id = Number(item.ID ?? item.Id);
+          if (!Number.isFinite(id) || seenIds.has(id)) continue;
+          seenIds.add(id);
+          found.push(item);
         }
-        return { id: Number(item.ID), config: this.mapFromSpItem(item), raw: item };
       }
     }
 
-    if (firstOkEmpty) {
+    if (!found.length) {
+      // Last resort: scan recent items and match identity client-side (handles claims vs email).
+      const recent = await this.queryItems(`${this.baseUrl}?$top=50&$orderby=Modified desc`);
+      for (const item of recent) {
+        const title = asString(field(item, 'Title'));
+        const uid = asString(field(item, 'UserId'));
+        const match = Array.from(candidates).some((c) => identitiesMatch(title, c) || identitiesMatch(uid, c));
+        if (!match) continue;
+        const id = Number(item.ID ?? item.Id);
+        if (!Number.isFinite(id) || seenIds.has(id)) continue;
+        seenIds.add(id);
+        found.push(item);
+      }
+    }
+
+    if (!found.length) {
       return { config: { ...DEFAULT_USER_CONFIG } };
     }
-    return { config: { ...DEFAULT_USER_CONFIG } };
+
+    const candidateList = Array.from(candidates);
+    found.sort((a, b) => this.scoreItem(b, userKey, candidateList) - this.scoreItem(a, userKey, candidateList));
+    const best = found[0];
+    const id = Number(best.ID ?? best.Id);
+    // eslint-disable-next-line no-console
+    console.info('ConfigService.findConfigItem', {
+      userKey,
+      id,
+      title: best.Title,
+      userId: best.UserId,
+      homeCurrency: best.HomeCurrency
+    });
+    return { id, config: this.mapFromSpItem(best), raw: best };
   }
 
   async getConfig(userKey?: string): Promise<UserConfig> {
@@ -199,6 +286,29 @@ export class ConfigService {
   private parseMissingProperty(errorBody: string): string | undefined {
     const match = errorBody.match(/The property '([^']+)' does not exist/i);
     return match?.[1];
+  }
+
+  private configsLookPersisted(
+    saved: UserConfig,
+    loaded: UserConfig,
+    writtenKeys: Set<string>
+  ): boolean {
+    const check = (spName: string, ok: boolean): boolean => !writtenKeys.has(spName) || ok;
+    return (
+      check('HomeCurrency', loaded.homeCurrency === saved.homeCurrency) &&
+      check('TemperatureUnit', loaded.temperatureUnit === saved.temperatureUnit) &&
+      check('DistanceUnit', loaded.distanceUnit === saved.distanceUnit) &&
+      check('DateFormat', loaded.dateFormat === saved.dateFormat) &&
+      check('ShowTravellerNames', loaded.showTravellerNames === saved.showTravellerNames) &&
+      check(
+        'DayBreakdownVisibleByDefault',
+        loaded.dayBreakdownVisibleByDefault === saved.dayBreakdownVisibleByDefault
+      ) &&
+      check('JournalAuthorName', (loaded.journalAuthorName || '') === (saved.journalAuthorName || '')) &&
+      check('SpeechEngine', (loaded.speechEngine || 'browser') === (saved.speechEngine || 'browser')) &&
+      check('WeatherApiKey', (loaded.weatherApiKey || '') === (saved.weatherApiKey || '')) &&
+      check('GeminiApiKey', (loaded.geminiApiKey || '') === (saved.geminiApiKey || ''))
+    );
   }
 
   private async writePayload(
@@ -284,6 +394,31 @@ export class ConfigService {
           console.warn(
             'ConfigService: saved without columns not yet on UserConfig list:',
             stripped.join(', ')
+          );
+        }
+
+        // Verify SharePoint actually retained values (catches wrong internal names / wrong row).
+        const verified = await this.getConfig(key);
+        const writtenKeys = new Set(Object.keys(payload));
+        if (!this.configsLookPersisted(config, verified, writtenKeys)) {
+          // eslint-disable-next-line no-console
+          console.error('ConfigService: save wrote but reload mismatch', {
+            key,
+            existingId: existing.id,
+            saved: {
+              homeCurrency: config.homeCurrency,
+              dateFormat: config.dateFormat,
+              showTravellerNames: config.showTravellerNames
+            },
+            loaded: {
+              homeCurrency: verified.homeCurrency,
+              dateFormat: verified.dateFormat,
+              showTravellerNames: verified.showTravellerNames
+            },
+            stripped
+          });
+          throw new Error(
+            'Settings save did not stick in SharePoint. Open the UserConfig list and confirm column *internal names* are exactly DateFormat, HomeCurrency, ShowTravellerNames, etc. (not Date_x0020_Format). Also check Title/UserId on your row equals your email.'
           );
         }
         return;

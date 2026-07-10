@@ -74,8 +74,9 @@ export const ConfigProvider: React.FC<ConfigProviderProps> = ({ children }) => {
     async (next: UserConfig): Promise<void> => {
       const svc = new ConfigService(spContext);
       await svc.saveConfig(userId, next);
+      // Prefer the values we just saved; re-read only to pick up any server defaults.
       const roundTrip = await svc.getConfig(userId);
-      setConfig(roundTrip);
+      setConfig({ ...next, ...roundTrip });
     },
     [spContext, userId]
   );
