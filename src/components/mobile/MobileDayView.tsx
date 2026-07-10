@@ -22,6 +22,8 @@ import { useConfig } from '../../context/ConfigContext';
 import { MobileDayMapSnippet } from './MobileDayMapSnippet';
 import { MobileCardDetail } from './MobileCardDetail';
 import { MobileLocationInfoSheet } from './MobileLocationInfoSheet';
+import { MobileStayCruiseTile } from './MobileStayCruiseTile';
+import { findStayTileForDay } from '../../utils/mobileDayStay';
 import styles from './MobileItinerary.module.css';
 import shellStyles from './MobileShell.module.css';
 
@@ -175,6 +177,11 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
       shouldRenderPlannerItem
     );
   }, [day, dayEntries, tripDays, localEntries]);
+
+  const stayTile = React.useMemo(() => {
+    if (!day?.calendarDate) return undefined;
+    return findStayTileForDay(localEntries, day.calendarDate);
+  }, [day?.calendarDate, localEntries]);
 
   const detailEntry = detailEntryId ? localEntries.find((e) => e.id === detailEntryId) : undefined;
   const dayLocationEntries = React.useMemo(() => {
@@ -574,6 +581,15 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
             <div className={styles.addingSpinner} />
             <span>Creating new item…</span>
           </div>
+        ) : null}
+
+        {stayTile ? (
+          <MobileStayCruiseTile
+            mode={stayTile.mode}
+            entry={stayTile.entry}
+            calendarDate={day.calendarDate || ''}
+            onOpenDetail={() => setDetailEntryId(stayTile.entry.id)}
+          />
         ) : null}
 
         {unscheduled.length > 0 ? (

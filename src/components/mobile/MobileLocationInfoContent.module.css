@@ -6,7 +6,8 @@
 
 .toolRow {
   display: flex;
-  gap: 0.55rem;
+  justify-content: center;
+  gap: 0.4rem;
   overflow-x: auto;
   padding-bottom: 0.25rem;
   scrollbar-width: none;
@@ -25,7 +26,7 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  min-width: 3.6rem;
+  min-width: 3.4rem;
   padding: 0;
 }
 

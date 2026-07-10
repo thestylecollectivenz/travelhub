@@ -352,6 +352,7 @@ Add-ListFieldIfMissing -ListTitle 'TripMembers' -InternalName 'TripId' -FieldTyp
 Add-ListFieldIfMissing -ListTitle 'TripMembers' -InternalName 'UserId' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'TripMembers' -InternalName 'UserEmail' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'TripMembers' -InternalName 'UserDisplayName' -FieldType 'Text'
+Add-ListFieldIfMissing -ListTitle 'TripMembers' -InternalName 'AvatarUrl' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'TripMembers' -InternalName 'Role' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'TripMembers' -InternalName 'InvitedBy' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'TripMembers' -InternalName 'InvitedAt' -FieldType 'DateTime'

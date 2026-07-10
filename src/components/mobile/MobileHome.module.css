@@ -267,7 +267,8 @@
 
 .nearRow {
   display: flex;
-  gap: var(--space-3);
+  justify-content: center;
+  gap: 0.35rem;
   overflow-x: auto;
   padding-bottom: var(--space-2);
   margin-bottom: var(--space-5);
@@ -281,7 +282,7 @@
 
 .nearItem {
   flex: 0 0 auto;
-  width: 4.4rem;
+  width: 3.6rem;
   border: none;
   background: transparent;
   padding: 0;

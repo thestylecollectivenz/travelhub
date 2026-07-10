@@ -1,0 +1,131 @@
+.tile {
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  background: color-mix(in srgb, white 94%, #f7f3eb);
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+
+.tileStay {
+  --tile-accent: #8a7355;
+}
+
+.tileCruise {
+  --tile-accent: #c4783a;
+}
+
+.head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: none;
+  background: transparent;
+  padding: 0.55rem 0.75rem 0.35rem;
+  cursor: pointer;
+}
+
+.kicker {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tile-accent);
+}
+
+.chevron {
+  color: #6b6570;
+  font-size: 0.85rem;
+}
+
+.body {
+  padding: 0 0.75rem 0.75rem;
+}
+
+.main {
+  display: grid;
+  grid-template-columns: 3.5rem 1fr;
+  gap: 0.65rem;
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+}
+
+.thumb {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.copy {
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
+  font-size: 1.05rem;
+  color: #1e2a44;
+}
+
+.badge {
+  display: inline-block;
+  margin-top: 0.2rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #3d6b4f;
+  background: color-mix(in srgb, #3d6b4f 12%, white);
+  border-radius: 999px;
+  padding: 0.12rem 0.45rem;
+}
+
+.times {
+  display: flex;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  color: #5c6570;
+}
+
+.sub,
+.addr,
+.ref {
+  margin: 0.25rem 0 0;
+  font-size: 0.72rem;
+  color: #5c6570;
+  line-height: 1.35;
+}
+
+.addr {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
+}
+
+.action {
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  background: white;
+  border-radius: 0.65rem;
+  padding: 0.4rem 0.25rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: #1e2a44;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}

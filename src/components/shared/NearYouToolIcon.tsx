@@ -83,8 +83,8 @@ function IconGlyph({ id }: { id: NearYouToolId }): React.ReactElement {
   }
 }
 
-const SIZE_PX: Record<NearYouIconSize, number> = { sm: 28, md: 42, lg: 54 };
-const GLYPH_PX: Record<NearYouIconSize, number> = { sm: 14, md: 20, lg: 24 };
+const SIZE_PX: Record<NearYouIconSize, number> = { sm: 28, md: 38, lg: 48 };
+const GLYPH_PX: Record<NearYouIconSize, number> = { sm: 14, md: 18, lg: 22 };
 
 export interface NearYouToolIconProps {
   toolId: NearYouToolId;

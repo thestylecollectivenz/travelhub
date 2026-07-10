@@ -5,6 +5,7 @@ import type { TripMember, TripRoleLevel } from '../../models/TripMember';
 import { clearTripRoleCache } from '../../hooks/useCurrentUserRole';
 import { useTripRole } from '../../context/TripRoleContext';
 import { confirmUserAction } from '../../utils/confirmAction';
+import { uploadTripMemberAvatar } from '../../utils/memberAvatarUpload';
 import { TravellerAvatar } from '../shared/TravellerAvatar';
 import styles from './TripMembersPanel.module.css';
 
@@ -27,17 +28,25 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
   const [role, setRole] = React.useState<TripRoleLevel>('Companion');
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const avatarInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [avatarTargetId, setAvatarTargetId] = React.useState<string | null>(null);
 
   const refresh = React.useCallback(() => {
-    Promise.all([service.getForTrip(tripId), service.getTripAuthorIdentity(tripId)])
-      .then(([rows, author]) => {
-        setMembers(rows);
-        setAuthorEmail(author.email);
-      })
+    setError(null);
+    service
+      .getForTrip(tripId)
+      .then((rows) => setMembers(rows))
       .catch((err) => {
         console.error(err);
-        setError('Could not load trip members.');
+        setMembers([]);
+        setError(
+          'Could not load trip members. Add a text column AvatarUrl to the TripMembers list if missing, then refresh.'
+        );
       });
+    service
+      .getTripAuthorIdentity(tripId)
+      .then((author) => setAuthorEmail(author.email))
+      .catch(() => setAuthorEmail(''));
   }, [service, tripId]);
 
   React.useEffect(() => {
@@ -48,6 +57,33 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
   }, [isOpen, refresh]);
 
   if (!isOpen) return null;
+
+  const pickAvatar = (memberId: string): void => {
+    setAvatarTargetId(memberId);
+    avatarInputRef.current?.click();
+  };
+
+  const onAvatarFile = (file: File | undefined): void => {
+    if (!file || !avatarTargetId) return;
+    setBusy(true);
+    setError(null);
+    uploadTripMemberAvatar(spContext, tripId, avatarTargetId, file)
+      .then((url) => service.updateAvatarUrl(avatarTargetId, url))
+      .then(() => refresh())
+      .catch((err) => {
+        console.error(err);
+        setError(
+          'Could not save avatar. Add a text column AvatarUrl to TripMembers, then try again.'
+        );
+      })
+      .then(() => {
+        setBusy(false);
+        setAvatarTargetId(null);
+      }, () => {
+        setBusy(false);
+        setAvatarTargetId(null);
+      });
+  };
 
   const addMember = (): void => {
     const trimmed = email.trim().toLowerCase();
@@ -81,8 +117,19 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
           </button>
         </header>
         <p className={styles.hint}>
-          People with access on this trip. Editor = full control; Companion = traveller (no finances); Follower = read-only onlooker.
+          People with access on this trip. Tap a photo to upload an avatar (stored in trip documents). Editor = full control; Companion = traveller (no finances); Follower = read-only onlooker.
         </p>
+        <input
+          ref={avatarInputRef}
+          type="file"
+          accept="image/*"
+          className={styles.hiddenFile}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            onAvatarFile(file);
+            e.target.value = '';
+          }}
+        />
         {error ? <p className={styles.error}>{error}</p> : null}
         <ul className={styles.list}>
           {authorEmail && !members.some((m) => m.userEmail === authorEmail) ? (
@@ -102,31 +149,19 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
               const isTripAuthor = Boolean(authorEmail && m.userEmail === authorEmail);
               return (
               <li key={m.id} className={styles.row}>
-                <TravellerAvatar displayName={m.userDisplayName || m.userEmail} avatarUrl={m.avatarUrl} size={36} />
+                <button
+                  type="button"
+                  className={styles.avatarBtn}
+                  onClick={() => pickAvatar(m.id)}
+                  disabled={busy}
+                  title="Upload avatar photo"
+                  aria-label={`Upload avatar for ${m.userDisplayName || m.userEmail}`}
+                >
+                  <TravellerAvatar displayName={m.userDisplayName || m.userEmail} avatarUrl={m.avatarUrl} size={36} />
+                </button>
                 <div className={styles.memberMeta}>
                   <strong>{m.userDisplayName || m.userEmail}</strong>
                   <span className={styles.email}>{m.userEmail}{isTripAuthor ? ' · Trip creator' : ''}</span>
-                  <input
-                    className={styles.input}
-                    type="url"
-                    placeholder="Avatar image URL (optional)"
-                    defaultValue={m.avatarUrl || ''}
-                    disabled={busy}
-                    onBlur={(e) => {
-                      const next = e.target.value.trim();
-                      if (next === (m.avatarUrl || '').trim()) return;
-                      setBusy(true);
-                      service
-                        .updateAvatarUrl(m.id, next)
-                        .then(() => refresh())
-                        .catch((err) => {
-                          console.error(err);
-                          setError('Could not update avatar.');
-                        })
-                        .then(() => setBusy(false), () => setBusy(false));
-                    }}
-                    aria-label={`Avatar URL for ${m.userDisplayName || m.userEmail}`}
-                  />
                 </div>
                 <select
                   className={styles.select}

@@ -54,9 +54,7 @@ export class TripMembersService {
     this.tripsUrl = `${web}/_api/web/lists/getbytitle('Trips')/items`;
   }
 
-  async getForTrip(tripId: string): Promise<TripMember[]> {
-    const safe = tripId.replace(/'/g, "''");
-    const url = `${this.baseUrl}?$select=ID,TripId,UserId,UserEmail,UserDisplayName,AvatarUrl,Role,InvitedBy,InvitedAt&$filter=TripId eq '${safe}'&$orderby=UserDisplayName asc&$top=500`;
+  private async fetchMembers(url: string): Promise<TripMember[]> {
     const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
     if (resp.status === 404) return [];
     if (!resp.ok) throw new Error(`TripMembersService.getForTrip failed: ${resp.status}`);
@@ -64,6 +62,38 @@ export class TripMembersService {
     return (data.value ?? [])
       .map((row: Record<string, unknown>) => mapRow(row))
       .filter((m: TripMember | null): m is TripMember => m !== null);
+  }
+
+  async getForTrip(tripId: string): Promise<TripMember[]> {
+    const safe = tripId.replace(/'/g, "''");
+    const numeric = /^\d+$/.test(tripId.trim()) ? tripId.trim() : '';
+    const selectFull =
+      'ID,TripId,UserId,UserEmail,UserDisplayName,AvatarUrl,Role,InvitedBy,InvitedAt';
+    const selectBase = 'ID,TripId,UserId,UserEmail,UserDisplayName,Role,InvitedBy,InvitedAt';
+    const filters = [`TripId eq '${safe}'`];
+    if (numeric) filters.push(`TripId eq ${numeric}`);
+
+    for (const filter of filters) {
+      for (const select of [selectFull, selectBase]) {
+        try {
+          const url = `${this.baseUrl}?$select=${select}&$filter=${filter}&$orderby=UserDisplayName asc&$top=500`;
+          const rows = await this.fetchMembers(url);
+          if (rows.length || select === selectBase) return rows;
+        } catch {
+          // try next query shape
+        }
+      }
+    }
+
+    // Last resort: load recent rows and filter client-side (handles odd TripId storage).
+    try {
+      const url = `${this.baseUrl}?$select=${selectBase}&$orderby=ID desc&$top=500`;
+      const rows = await this.fetchMembers(url);
+      const want = tripId.trim();
+      return rows.filter((m) => m.tripId === want || m.tripId === numeric);
+    } catch (err) {
+      throw err instanceof Error ? err : new Error('TripMembersService.getForTrip failed');
+    }
   }
 
   async getTripAuthorIdentity(tripId: string): Promise<TripAuthorIdentity> {

@@ -699,7 +699,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
               onClick={() => openNearYou(tool.id)}
             >
               <span className={styles.nearCircle} aria-hidden>
-                <NearYouToolIcon toolId={tool.id} size="lg" />
+                <NearYouToolIcon toolId={tool.id} size="md" />
               </span>
               <span className={styles.nearLabel}>{tool.shortLabel}</span>
             </button>

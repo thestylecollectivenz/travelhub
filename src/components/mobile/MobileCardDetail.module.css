@@ -1,0 +1,220 @@
+.page {
+  padding-bottom: 2rem;
+  color: #1e2a44;
+}
+
+.topBar {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.back {
+  border: none;
+  background: transparent;
+  color: #1e2a44;
+  font-weight: 650;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.tripTitle {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #6b6570;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 3.25rem 1fr;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.heroIcon {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.heroCopy {
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
+  font-size: 1.35rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  background: white;
+  border-radius: 999px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 650;
+  color: #5c6570;
+}
+
+.dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: #6b7c3a;
+}
+
+.location {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0.45rem 0 0;
+  font-size: 0.78rem;
+  color: #5c6570;
+}
+
+.sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  color: #6b6570;
+}
+
+.flightBlock {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.75rem;
+  border-radius: 0.85rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  background: color-mix(in srgb, #e8eef5 55%, white);
+  margin-bottom: 0.75rem;
+}
+
+.flightLabel {
+  margin: 0;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b6570;
+}
+
+.flightTime {
+  margin: 0.15rem 0 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.flightPlace {
+  margin: 0.1rem 0 0;
+  font-size: 0.72rem;
+  color: #5c6570;
+}
+
+.flightMid {
+  font-size: 1.1rem;
+  opacity: 0.7;
+}
+
+.detailBox {
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  border-radius: 0.95rem;
+  background: white;
+  padding: 0.65rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.detailRow {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid color-mix(in srgb, #1e2a44 6%, transparent);
+  font-size: 0.78rem;
+}
+
+.detailRow:last-child {
+  border-bottom: none;
+}
+
+.detailLabel {
+  color: #6b6570;
+}
+
+.detailValue {
+  color: #1e2a44;
+  font-weight: 600;
+  text-align: right;
+  word-break: break-word;
+}
+
+.notesBox {
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, #f7f3eb 70%, white);
+  padding: 0.65rem 0.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+}
+
+.actionBtn {
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  background: white;
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #1e2a44;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.section {
+  margin-bottom: 0.75rem;
+}
+
+.sectionTitle {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e2a44;
+}
+
+.docLink {
+  display: block;
+  padding: 0.45rem 0;
+  font-size: 0.78rem;
+  color: #3d5a80;
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
+}
