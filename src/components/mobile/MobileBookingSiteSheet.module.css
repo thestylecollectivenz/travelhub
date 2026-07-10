@@ -1,0 +1,60 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 12900;
+  background: color-mix(in srgb, #1a1f2e 42%, transparent);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.sheet {
+  width: 100%;
+  max-width: 32rem;
+  background: #f7f3eb;
+  border-radius: 1.25rem 1.25rem 0 0;
+  padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom, 0));
+}
+
+.title {
+  margin: 0;
+  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
+  font-size: 1.15rem;
+  color: #1e2a44;
+}
+
+.sub {
+  margin: 0.35rem 0 0.75rem;
+  font-size: 0.8rem;
+  color: #6b6570;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.option {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 999px;
+  padding: 0.7rem 1rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  background: #c4783a;
+  color: white;
+}
+
+.cancel {
+  margin-top: 0.65rem;
+  width: 100%;
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  background: white;
+  border-radius: 999px;
+  padding: 0.6rem;
+  font-weight: 650;
+  color: #1e2a44;
+  cursor: pointer;
+}

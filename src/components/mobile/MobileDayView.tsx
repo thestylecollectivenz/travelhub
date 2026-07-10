@@ -360,6 +360,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     return (
       <MobileCardDetail
         entry={detailEntry}
+        calendarDate={day.calendarDate || ''}
         onClose={() => {
           setDetailEntryId(null);
         }}

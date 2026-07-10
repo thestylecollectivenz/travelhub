@@ -8,6 +8,7 @@ import {
   ItineraryPaymentStatus,
   ItineraryUnitType
 } from '../models';
+import { resolveBookingStatusFromItem } from '../utils/bookingStatusUtils';
 
 const LIST = 'ItineraryEntries';
 
@@ -239,7 +240,7 @@ function mapToEntry(item: any): ItineraryEntry {
     notes: item.Notes ?? '',
     decisionStatus: (item.DecisionStatus as ItineraryDecisionStatus) ?? 'Planned',
     bookingRequired: item.BookingRequired === true,
-    bookingStatus: (item.BookingStatus as ItineraryBookingStatus) ?? 'Not booked',
+    bookingStatus: resolveBookingStatusFromItem(item),
     paymentStatus: (item.PaymentStatus as ItineraryPaymentStatus) ?? 'Not paid',
     amount: item.Amount ?? 0,
     costCertainty:

@@ -5,7 +5,7 @@
 
 .topBar {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto 1fr auto;
   gap: 0.5rem;
   align-items: center;
   margin-bottom: 0.75rem;
@@ -19,6 +19,17 @@
   font-size: 0.85rem;
   cursor: pointer;
   padding: 0;
+}
+
+.editBtn {
+  border: 1px solid color-mix(in srgb, #1e2a44 14%, transparent);
+  background: white;
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #1e2a44;
+  cursor: pointer;
 }
 
 .tripTitle {
@@ -134,11 +145,52 @@
 }
 
 .flightMid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
   font-size: 1.1rem;
   opacity: 0.7;
 }
 
-.detailBox {
+.flightDur {
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.statsBar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(4.5rem, 1fr));
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  border-radius: 0.85rem;
+  background: white;
+  padding: 0.55rem 0.45rem;
+}
+
+.statItem {
+  text-align: center;
+  padding: 0.15rem;
+}
+
+.statLabel {
+  display: block;
+  font-size: 0.58rem;
+  color: #6b7c3a;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.statValue {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #1e2a44;
+}
+
+.sectionCard {
   border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
   border-radius: 0.95rem;
   background: white;
@@ -146,42 +198,90 @@
   margin-bottom: 0.75rem;
 }
 
-.detailRow {
-  display: grid;
-  grid-template-columns: 1fr 1.2fr;
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
-  padding: 0.35rem 0;
-  border-bottom: 1px solid color-mix(in srgb, #1e2a44 6%, transparent);
-  font-size: 0.78rem;
+  margin-bottom: 0.45rem;
 }
 
-.detailRow:last-child {
-  border-bottom: none;
+.sectionTitle {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e2a44;
 }
 
-.detailLabel {
+.statusPill {
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pillGreen {
+  background: color-mix(in srgb, #3d6b4f 14%, white);
+  color: #3d6b4f;
+}
+
+.pillRust {
+  background: color-mix(in srgb, #c4783a 16%, white);
+  color: #8a5a2b;
+}
+
+.pillRed {
+  background: color-mix(in srgb, #b44a4a 14%, white);
+  color: #9a3a3a;
+}
+
+.pillNeutral {
+  background: color-mix(in srgb, #1e2a44 8%, white);
+  color: #5c6570;
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem 0.65rem;
+}
+
+.fieldItem {
+  min-width: 0;
+}
+
+.fieldLabel {
+  display: block;
+  font-size: 0.62rem;
   color: #6b6570;
 }
 
-.detailValue {
+.fieldValue {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.76rem;
+  font-weight: 650;
   color: #1e2a44;
-  font-weight: 600;
-  text-align: right;
   word-break: break-word;
 }
 
+.fieldHighlight {
+  color: #1e2a44;
+  font-weight: 800;
+}
+
 .notesBox {
-  border-radius: 0.85rem;
+  border-radius: 0.65rem;
   background: color-mix(in srgb, #f7f3eb 70%, white);
-  padding: 0.65rem 0.75rem;
-  margin-bottom: 0.75rem;
+  padding: 0.55rem 0.65rem;
   font-size: 0.82rem;
   line-height: 1.45;
 }
 
 .actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.45rem;
   margin-bottom: 0.85rem;
 }
@@ -189,8 +289,8 @@
 .actionBtn {
   border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
   background: white;
-  border-radius: 0.75rem;
-  padding: 0.65rem 0.5rem;
+  border-radius: 999px;
+  padding: 0.55rem 0.85rem;
   font-size: 0.72rem;
   font-weight: 700;
   color: #1e2a44;
@@ -199,22 +299,36 @@
   cursor: pointer;
 }
 
-.section {
-  margin-bottom: 0.75rem;
+.actionPrimary {
+  background: #1e2a44;
+  border-color: #1e2a44;
+  color: white;
 }
 
-.sectionTitle {
-  margin: 0 0 0.4rem;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #1e2a44;
+.actionRust {
+  background: #c4783a;
+  border-color: #c4783a;
+  color: white;
 }
 
-.docLink {
-  display: block;
+.actionDisabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.docRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   padding: 0.45rem 0;
   font-size: 0.78rem;
   color: #3d5a80;
   text-decoration: none;
   border-bottom: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
+}
+
+.docRow:last-child {
+  border-bottom: none;
 }

@@ -109,12 +109,58 @@
 }
 
 .actions {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.35rem;
   margin-top: 0.65rem;
   padding-top: 0.55rem;
   border-top: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 14%, transparent);
+  background: white;
+  border-radius: 999px;
+  padding: 0.42rem 0.65rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #1e2a44;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pillPrimaryRust {
+  background: #c4783a;
+  border-color: #c4783a;
+  color: white;
+}
+
+.pillPrimaryBlue {
+  background: #1e2a44;
+  border-color: #1e2a44;
+  color: white;
+}
+
+.pillDisabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.badgeBooked {
+  color: #3d6b4f;
+  background: color-mix(in srgb, #3d6b4f 12%, white);
+}
+
+.badgePending {
+  color: #8a5a2b;
+  background: color-mix(in srgb, #c4783a 14%, white);
 }
 
 .action {
