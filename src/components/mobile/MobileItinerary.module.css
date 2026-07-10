@@ -707,6 +707,35 @@
   color: var(--tl-muted);
 }
 
+.mapSnippetLive {
+  position: relative;
+  display: block;
+  border: 1px solid var(--tl-line);
+  border-radius: 0.95rem;
+  overflow: hidden;
+  min-height: 5.6rem;
+  text-decoration: none;
+  color: inherit;
+  background: color-mix(in srgb, white 90%, var(--tl-cream));
+}
+
+.mapSnippetCanvas {
+  width: 100%;
+  height: 5.6rem;
+  z-index: 0;
+}
+
+.mapSnippetOverlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0.45rem 0.65rem;
+  background: linear-gradient(transparent, color-mix(in srgb, var(--tl-cream) 92%, white));
+  z-index: 2;
+  pointer-events: none;
+}
+
 .travelTipCard {
   border: 1px solid color-mix(in srgb, var(--tl-gold) 30%, transparent);
   border-radius: 0.95rem;

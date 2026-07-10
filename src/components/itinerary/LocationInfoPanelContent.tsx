@@ -262,9 +262,15 @@ function SectionHead(props: {
 export interface LocationInfoPanelContentProps {
   entry: ItineraryEntry;
   readOnly?: boolean;
+  /** When true, sections expose data-li-section for mobile jump nav. */
+  enableSectionAnchors?: boolean;
 }
 
-export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> = ({ entry, readOnly = false }) => {
+export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> = ({
+  entry,
+  readOnly = false,
+  enableSectionAnchors = false
+}) => {
   const spContext = useSpContext();
   const { config } = useConfig();
   const { placeById } = usePlaces();
@@ -506,7 +512,7 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
       {data.aiError?.trim() ? <p className={styles.toolError}>{data.aiError.trim()}</p> : null}
 
       {data.overview.trim() ? (
-        <section className={styles.section}>
+        <section className={styles.section} {...(enableSectionAnchors ? { 'data-li-section': 'overview' } : {})}>
           <SectionHead sectionKey="overview" collapsed={Boolean(collapsed.overview)} onToggle={toggleSection} title="Overview" />
           {!collapsed.overview ? (
             <div className={styles.sectionBody}>
@@ -518,7 +524,7 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
         </section>
       ) : null}
 
-      <section className={styles.section}>
+      <section className={styles.section} {...(enableSectionAnchors ? { 'data-li-section': 'highlights' } : {})}>
         <SectionHead sectionKey="highlights" collapsed={Boolean(collapsed.highlights)} onToggle={toggleSection} title="Highlights" />
         {!collapsed.highlights ? (
           <div className={styles.sectionBody}>
@@ -549,7 +555,7 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
       </section>
 
       {dining.length || !readOnly ? (
-        <section className={styles.section}>
+        <section className={styles.section} {...(enableSectionAnchors ? { 'data-li-section': 'food' } : {})}>
           <SectionHead
             sectionKey="dining"
             collapsed={Boolean(collapsed.dining)}
@@ -628,7 +634,11 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
         const rows = nearest[tool.kind] ?? [];
         if (!rows.length) return null;
         return (
-          <section key={tool.kind} className={styles.section}>
+          <section
+            key={tool.kind}
+            className={styles.section}
+            {...(enableSectionAnchors ? { 'data-li-section': tool.kind } : {})}
+          >
             <SectionHead
               sectionKey={tool.kind}
               collapsed={Boolean(collapsed[tool.kind])}
@@ -682,21 +692,23 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
       })}
 
       {data.practicalTips.trim() ? (
-        <section className={styles.section}>
+        <section className={styles.section} {...(enableSectionAnchors ? { 'data-li-section': 'notes' } : {})}>
           <SectionHead sectionKey="tips" collapsed={Boolean(collapsed.tips)} onToggle={toggleSection} title="Practical tips" />
           {!collapsed.tips ? <p className={styles.overview}>{data.practicalTips.trim()}</p> : null}
         </section>
       ) : null}
 
-      <LocationInfoAskPanel
-        entry={entry}
-        place={place}
-        data={data}
-        geminiApiKey={config.geminiApiKey}
-        readOnly={readOnly}
-        onOpenSettings={() => window.dispatchEvent(new Event('travelhub-open-settings'))}
-        onThreadChange={(thread) => persist({ ...data, aiQaThread: thread })}
-      />
+      <div {...(enableSectionAnchors ? { 'data-li-section': 'ask' } : {})}>
+        <LocationInfoAskPanel
+          entry={entry}
+          place={place}
+          data={data}
+          geminiApiKey={config.geminiApiKey}
+          readOnly={readOnly}
+          onOpenSettings={() => window.dispatchEvent(new Event('travelhub-open-settings'))}
+          onThreadChange={(thread) => persist({ ...data, aiQaThread: thread })}
+        />
+      </div>
     </div>
   );
 };

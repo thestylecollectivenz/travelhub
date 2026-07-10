@@ -1,0 +1,175 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 12600;
+  background: color-mix(in srgb, #1a1f2e 40%, transparent);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.sheet {
+  width: 100%;
+  max-width: 32rem;
+  height: min(92vh, 100%);
+  background: #f7f3eb;
+  border-radius: 1.25rem 1.25rem 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 -8px 28px color-mix(in srgb, #1a1f2e 18%, transparent);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1rem 0.5rem;
+  flex-shrink: 0;
+}
+
+.title {
+  margin: 0;
+  font-family: Georgia, 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
+  font-size: 1.45rem;
+  font-weight: 500;
+  color: #1e2a44;
+  line-height: 1.2;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.editBtn,
+.closeBtn {
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  background: color-mix(in srgb, white 90%, #f7f3eb);
+  color: #1e2a44;
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.closeBtn {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.jumpRow {
+  display: flex;
+  gap: 0.55rem;
+  overflow-x: auto;
+  padding: 0.5rem 1rem 0.75rem;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+
+.jumpRow::-webkit-scrollbar {
+  display: none;
+}
+
+.jumpItem {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  min-width: 3.1rem;
+  padding: 0;
+}
+
+.jumpDot {
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 999px;
+  background: var(--jump-bg, #e8eef5);
+  color: var(--jump-fg, #3d5a80);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--jump-fg, #3d5a80) 18%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.jumpLabel {
+  font-size: 10px;
+  font-weight: 650;
+  color: #5c6570;
+}
+
+.toneSights {
+  --jump-bg: #e8eef5;
+  --jump-fg: #3d5a80;
+}
+.toneFood {
+  --jump-bg: #f8eee4;
+  --jump-fg: #c4783a;
+}
+.toneMedical {
+  --jump-bg: #eef1e4;
+  --jump-fg: #6b7c3a;
+}
+.toneShop {
+  --jump-bg: #f8ebe6;
+  --jump-fg: #c45c3a;
+}
+.toneTransit {
+  --jump-bg: #eceeef;
+  --jump-fg: #5c6570;
+}
+.toneNotes {
+  --jump-bg: #f0efed;
+  --jump-fg: #6b6570;
+}
+.toneAsk {
+  --jump-bg: #e6f0f4;
+  --jump-fg: #5b8fa8;
+}
+
+.toneSights .jumpDot,
+.toneFood .jumpDot,
+.toneMedical .jumpDot,
+.toneShop .jumpDot,
+.toneTransit .jumpDot,
+.toneNotes .jumpDot,
+.toneAsk .jumpDot {
+  background: var(--jump-bg);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 0.85rem 1.5rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Soften nested panel chrome for mobile sheet */
+.body :global(h4) {
+  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
+  font-weight: 550;
+}
+
+.body :global([class*='section']) {
+  background: color-mix(in srgb, white 92%, #f7f3eb);
+  border-radius: 0.95rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  padding: 0.65rem 0.75rem;
+  margin-bottom: 0.75rem;
+}

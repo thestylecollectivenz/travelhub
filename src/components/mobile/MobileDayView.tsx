@@ -14,13 +14,14 @@ import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { CategoryIcon } from '../shared/CategoryIcon';
 import { DayLocationInfoStrip } from '../itinerary/DayLocationInfoStrip';
-import { LocationInfoSlidePanel } from '../itinerary/LocationInfoSlidePanel';
 import { locationInfoEntriesForDay } from '../../utils/locationInfoDayResolve';
 import { parseLocationInfoNotes } from '../../utils/locationInfoEntry';
 import { TravellerAvatar } from '../shared/TravellerAvatar';
 import { resolveSharePointMediaSrc } from '../../utils/sharePointUrl';
 import { useConfig } from '../../context/ConfigContext';
+import { MobileDayMapSnippet } from './MobileDayMapSnippet';
 import { MobileCardDetail } from './MobileCardDetail';
+import { MobileLocationInfoSheet } from './MobileLocationInfoSheet';
 import styles from './MobileItinerary.module.css';
 import shellStyles from './MobileShell.module.css';
 
@@ -322,6 +323,30 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     ? [primaryPlace.title, primaryPlace.country].filter(Boolean).join(', ')
     : trip?.title || 'trip';
 
+  const dayRoutePoints = React.useMemo(() => {
+    const pts: Array<{ lat: number; lng: number; label?: string }> = [];
+    const seen = new Set<string>();
+    for (const entry of dayLocationEntries) {
+      const notes = parseLocationInfoNotes(entry.notes);
+      const place = notes?.placeId ? placeById(notes.placeId) : undefined;
+      const lat = Number(place?.latitude);
+      const lng = Number(place?.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      pts.push({ lat, lng, label: placeShort(place?.title) || entry.title });
+    }
+    if (pts.length < 2 && primaryPlace) {
+      const lat = Number(primaryPlace.latitude);
+      const lng = Number(primaryPlace.longitude);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        return [{ lat, lng, label: primaryPlaceLabel }];
+      }
+    }
+    return pts;
+  }, [dayLocationEntries, placeById, primaryPlace, primaryPlaceLabel]);
+
   if (!trip || !day) return <p className={shellStyles.muted}>No trip days yet.</p>;
 
   if (detailEntry) {
@@ -537,7 +562,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
           />
         </div>
       ) : null}
-      <LocationInfoSlidePanel
+      <MobileLocationInfoSheet
         entry={locationPanelEntry}
         calendarDate={day.calendarDate || ''}
         onClose={() => setLocationPanelEntryId(null)}
@@ -661,23 +686,13 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
       </div>
 
       <div className={styles.bottomWidgets}>
-        <a
-          className={styles.mapSnippet}
-          href={mapsSearchUrl(mapQuery)}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={`Open map for ${mapQuery}`}
-        >
-          <div className={styles.mapSnippetRoute}>
-            <span className={styles.mapDot} />
-            <span className={styles.mapLine} />
-            <span className={styles.mapDot} />
-          </div>
-          <div>
-            <p className={styles.mapSnippetLabel}>{primaryPlaceLabel || 'Day map'}</p>
-            <p className={styles.mapSnippetMeta}>Open in Maps</p>
-          </div>
-        </a>
+        <MobileDayMapSnippet
+          latitude={Number(primaryPlace?.latitude)}
+          longitude={Number(primaryPlace?.longitude)}
+          label={primaryPlaceLabel || 'Day map'}
+          routePoints={dayRoutePoints}
+          mapsHref={mapsSearchUrl(mapQuery)}
+        />
         <div className={styles.travelTipCard}>
           <p className={styles.travelTipTitle}>Travel tip</p>
           <p className={styles.travelTipText}>{travelTip}</p>

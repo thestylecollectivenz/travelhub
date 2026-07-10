@@ -35,7 +35,7 @@ export function getCategoryColor(category: string): string {
     case 'Activities':
       return 'var(--color-cat-activities)';
     case 'Location info':
-      return 'var(--color-cat-other)';
+      return 'var(--color-cat-location-info)';
     case 'Transport':
       return 'var(--color-cat-transport)';
     case 'Travel Overheads':
@@ -59,6 +59,8 @@ export function getCategoryBgColor(category: string): string {
       return 'var(--color-cat-food-bg)';
     case 'Activities':
       return 'var(--color-cat-activities-bg)';
+    case 'Location info':
+      return 'var(--color-cat-location-info-bg)';
     case 'Transport':
       return 'var(--color-cat-transport-bg)';
     case 'Travel Overheads':

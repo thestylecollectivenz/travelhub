@@ -18,9 +18,8 @@ import {
 } from '../../utils/tripListSort';
 import { resolveSharePointMediaSrc } from '../../utils/sharePointUrl';
 import { getCurrentUserDisplayName } from '../../utils/currentUserEmail';
-import { generateDiningSuggestions, generateNearestPlaces } from '../../services/GeminiService';
-import type { NearestPlaceKind } from '../../utils/locationInfoEntry';
 import { homeNearYouTools, type NearYouToolId } from '../../utils/nearYouTools';
+import { ItineraryService } from '../../services/ItineraryService';
 import { MobileNearYouPage } from './MobileNearYouPage';
 import '../../components/maps/LeafletCompat.css';
 import styles from './MobileHome.module.css';
@@ -195,10 +194,8 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   const [completedSort, setCompletedSort] = React.useState<CompletedSort>('newest');
   const [mapTripFilter, setMapTripFilter] = React.useState<MapTripFilter>('upcoming');
   const [aiPrompt, setAiPrompt] = React.useState('');
-  const [nearBusy, setNearBusy] = React.useState<NearYouToolId | null>(null);
-  const [nearError, setNearError] = React.useState('');
-  const [nearResults, setNearResults] = React.useState<Array<{ name: string; note?: string; mapsUrl?: string }>>([]);
-  const [nearKindLabel, setNearKindLabel] = React.useState('');
+  const [nearToolId, setNearToolId] = React.useState<NearYouToolId | null>(null);
+  const [nearActionMsg, setNearActionMsg] = React.useState('');
   const mapRef = React.useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = React.useRef<L.Map | null>(null);
   const markerLayerRef = React.useRef<L.LayerGroup | null>(null);
@@ -383,61 +380,70 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
     onSelectTrip(featuredTrip.id, initialTab);
   };
 
-  const runNearYou = async (toolId: NearYouToolId, label: string, kind?: NearestPlaceKind): Promise<void> => {
-    const apiKey = (config.geminiApiKey || '').trim();
-    if (!apiKey) {
-      setNearError('Add a Gemini API key in Profile / User settings to use Near you.');
-      setNearResults([]);
-      return;
-    }
-    if (!navigator.geolocation) {
-      setNearError('Location is not available on this device.');
-      return;
-    }
-    setNearBusy(toolId);
-    setNearError('');
-    setNearKindLabel(label);
-    try {
-      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 8000,
-          maximumAge: 60000
-        });
-      });
-      const searchContext = {
-        mode: 'onsite' as const,
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-        placeName: 'Current location',
-        country: ''
-      };
-      if (toolId === 'dining') {
-        const { items } = await generateDiningSuggestions({ apiKey, searchContext });
-        setNearResults(
-          items.slice(0, 5).map((p) => ({
-            name: p.name,
-            note: p.bestFor || p.description || p.why,
-            mapsUrl: p.mapsUrl
-          }))
-        );
-      } else if (kind) {
-        const { places } = await generateNearestPlaces(kind, { apiKey, searchContext });
-        setNearResults(
-          places.slice(0, 5).map((p) => ({
-            name: p.name,
-            note: p.note || p.address,
-            mapsUrl: p.mapsUrl
-          }))
-        );
-      }
-    } catch (err) {
-      setNearResults([]);
-      setNearError(err instanceof Error ? err.message : 'Could not find nearby places.');
-    } finally {
-      setNearBusy(null);
-    }
+  const openNearYou = (toolId: NearYouToolId | null): void => {
+    setNearToolId(toolId);
+    setTab('nearyou');
   };
+
+  const saveNearPlace = React.useCallback((place: { name: string; note?: string; mapsUrl?: string }): void => {
+    try {
+      const key = 'travelhub-near-you-saved';
+      const raw = window.localStorage.getItem(key);
+      const prev = raw ? (JSON.parse(raw) as unknown[]) : [];
+      const list = Array.isArray(prev) ? prev : [];
+      list.unshift({ ...place, savedAt: new Date().toISOString() });
+      window.localStorage.setItem(key, JSON.stringify(list.slice(0, 40)));
+      setNearActionMsg(`Saved ${place.name}`);
+      window.setTimeout(() => setNearActionMsg(''), 2500);
+    } catch {
+      setNearActionMsg('Could not save place on this device.');
+    }
+  }, []);
+
+  const addNearToItinerary = React.useCallback(
+    async (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string }): Promise<void> => {
+      if (!featuredTrip) {
+        setNearActionMsg('Open or create a trip first to add itinerary items.');
+        window.setTimeout(() => setNearActionMsg(''), 2800);
+        return;
+      }
+      try {
+        const daySvc = new DayService(spContext);
+        const days = await daySvc.getAll(featuredTrip.id);
+        const sorted = days.slice().sort((a, b) => a.dayNumber - b.dayNumber);
+        const day = sorted[0];
+        if (!day) {
+          setNearActionMsg('This trip has no days yet.');
+          return;
+        }
+        const itin = new ItineraryService(spContext);
+        await itin.create({
+          tripId: featuredTrip.id,
+          dayId: day.id,
+          title: place.name,
+          category: 'Activities',
+          location: place.note || '',
+          timeStart: '',
+          duration: '',
+          supplier: '',
+          notes: place.mapsUrl ? `Maps: ${place.mapsUrl}` : '',
+          decisionStatus: 'Idea',
+          bookingRequired: false,
+          bookingStatus: 'Not booked',
+          paymentStatus: 'Not paid',
+          amount: 0,
+          currency: 'NZD',
+          sortOrder: 999
+        });
+        setNearActionMsg(`Added “${place.name}” to ${featuredTrip.title}`);
+        window.setTimeout(() => setNearActionMsg(''), 2800);
+      } catch (err) {
+        setNearActionMsg(err instanceof Error ? err.message : 'Could not add to itinerary.');
+        window.setTimeout(() => setNearActionMsg(''), 3200);
+      }
+    },
+    [featuredTrip, spContext]
+  );
 
   const featuredHeroSrc = featuredTrip?.heroImageUrl
     ? resolveSharePointMediaSrc(featuredTrip.heroImageUrl, webAbsoluteUrl, webServerRelativeUrl)
@@ -474,7 +480,23 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
 
   let body: React.ReactNode;
   if (tab === 'nearyou') {
-    body = <MobileNearYouPage onBack={() => setTab('home')} />;
+    body = (
+      <MobileNearYouPage
+        onBack={() => {
+          setNearToolId(null);
+          setTab('home');
+        }}
+        initialToolId={nearToolId}
+        tripTitle={featuredTrip?.title}
+        tripDateRange={
+          featuredTrip ? formatDateRange(featuredTrip.dateStart, featuredTrip.dateEnd) : undefined
+        }
+        onSavePlace={saveNearPlace}
+        onAddToItinerary={(place) => {
+          void addNearToItinerary(place);
+        }}
+      />
+    );
   } else if (tab === 'profile') {
     body = (
       <div>
@@ -690,7 +712,11 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
 
         <div className={styles.sectionHead}>
           <h2 className={styles.sectionTitle}>Near you</h2>
-          <button type="button" className={styles.sectionLink} onClick={() => setTab('nearyou')}>
+          <button
+            type="button"
+            className={styles.sectionLink}
+            onClick={() => openNearYou(null)}
+          >
             See all
           </button>
         </div>
@@ -701,38 +727,16 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
               type="button"
               className={styles.nearItem}
               role="listitem"
-              onClick={() => {
-                runNearYou(tool.id, tool.label, tool.kind).catch(console.error);
-              }}
-              disabled={nearBusy !== null}
+              onClick={() => openNearYou(tool.id)}
             >
               <span className={styles.nearCircle} aria-hidden>
-                {nearBusy === tool.id ? '…' : HOME_NEAR_ICONS[tool.id] || tool.shortLabel[0]}
+                {HOME_NEAR_ICONS[tool.id] || tool.shortLabel[0]}
               </span>
               <span className={styles.nearLabel}>{tool.shortLabel}</span>
             </button>
           ))}
         </div>
-        {nearError ? <p className={`${styles.feedback} ${styles.errorText}`}>{nearError}</p> : null}
-        {nearResults.length ? (
-          <div className={styles.feedback} aria-live="polite">
-            <strong>{nearKindLabel} near you</strong>
-            <ul style={{ margin: '0.5rem 0 0', paddingLeft: '1.1rem' }}>
-              {nearResults.map((r) => (
-                <li key={`${r.name}-${r.note || ''}`}>
-                  {r.mapsUrl ? (
-                    <a href={r.mapsUrl} target="_blank" rel="noreferrer">
-                      {r.name}
-                    </a>
-                  ) : (
-                    r.name
-                  )}
-                  {r.note ? ` — ${r.note}` : ''}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
+        {nearActionMsg ? <p className={styles.feedback}>{nearActionMsg}</p> : null}
 
         <div className={styles.sectionHead}>
           <h2 className={styles.sectionTitle}>

@@ -52,27 +52,29 @@
   --color-rose-200: #FFADC0;
   --color-rose-600: #E0284F;
 
-  /* Category identity colours */
-  --color-cat-flights: var(--color-blue-600);
-  --color-cat-accommodation: var(--color-rose-600);
-  --color-cat-cruise: var(--color-blue-400);
-  --color-cat-food: var(--color-amber-600);
-  --color-cat-activities: var(--color-green-600);
-  --color-cat-transport: var(--color-purple-600);
-  --color-cat-other: var(--color-sand-600);
+  /* Category identity — Trip Leopard earthy palette (timeline + badges site-wide) */
+  --color-cat-flights: #3d5a80;
+  --color-cat-accommodation: #c45c3a;
+  --color-cat-cruise: #5b8fa8;
+  --color-cat-food: #c4783a;
+  --color-cat-activities: #6b7c3a;
+  --color-cat-transport: #5c6570;
+  --color-cat-other: #8a7a62;
+  --color-cat-overheads: #a8895a;
+  --color-cat-preparation: #6b6570;
+  --color-cat-location-info: #0e7585;
 
   /* Category background tints */
-  --color-cat-flights-bg: var(--color-blue-50);
-  --color-cat-accommodation-bg: var(--color-rose-50);
-  --color-cat-cruise-bg: var(--color-blue-50);
-  --color-cat-food-bg: var(--color-amber-50);
-  --color-cat-activities-bg: var(--color-green-50);
-  --color-cat-transport-bg: var(--color-purple-50);
+  --color-cat-flights-bg: #e8eef5;
+  --color-cat-accommodation-bg: #f8ebe6;
+  --color-cat-cruise-bg: #e6f0f4;
+  --color-cat-food-bg: #f8eee4;
+  --color-cat-activities-bg: #eef1e4;
+  --color-cat-transport-bg: #eceeef;
   --color-cat-other-bg: var(--color-sand-100);
-  --color-cat-overheads: var(--color-amber-600);
-  --color-cat-overheads-bg: var(--color-amber-50);
-  --color-cat-preparation: #6B7280;
-  --color-cat-preparation-bg: #F3F4F6;
+  --color-cat-overheads-bg: #f3ebe0;
+  --color-cat-preparation-bg: #f0efed;
+  --color-cat-location-info-bg: var(--color-teal-50);
 
   /* Semantic aliases */
   --color-hero-bg: var(--color-blue-800);
@@ -239,6 +241,11 @@ a:hover {
 .th-cat-other {
   --cat-color: var(--color-cat-other);
   --cat-bg: var(--color-cat-other-bg);
+}
+
+.th-cat-location-info {
+  --cat-color: var(--color-cat-location-info);
+  --cat-bg: var(--color-cat-location-info-bg);
 }
 
 .th-cat-badge {
