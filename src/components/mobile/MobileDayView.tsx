@@ -5,7 +5,6 @@ import { usePlaces } from '../../context/PlacesContext';
 import { useSpContext } from '../../context/SpContext';
 import { useTripMembers } from '../../hooks/useTripMembers';
 import { sortEntriesForDay, isPreTripDayRow, resolvePreTripDayId } from '../../utils/itineraryDayEntries';
-import { formatOrdinalDayDate, formatOrdinalDateRange } from '../../utils/formatTripDayDate';
 import {
   expandPlannerTimedItems,
   expandPlannerUnscheduledItems,
@@ -13,6 +12,7 @@ import {
 } from '../../utils/plannerCalendarItems';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { getCategorySlug } from '../../utils/categoryUtils';
+import { CategoryIcon } from '../shared/CategoryIcon';
 import { DayLocationInfoStrip } from '../itinerary/DayLocationInfoStrip';
 import { LocationInfoSlidePanel } from '../itinerary/LocationInfoSlidePanel';
 import { locationInfoEntriesForDay } from '../../utils/locationInfoDayResolve';
@@ -63,6 +63,28 @@ function shortDate(calendarDate: string | undefined): string {
   return d.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' });
 }
 
+/** Mockup-style range under trip title: "12 – 26 Jul 2025" */
+function shortDateRange(dateStart: string, dateEnd: string): string {
+  const s = new Date(`${dateStart.slice(0, 10)}T00:00:00`);
+  const e = new Date(`${dateEnd.slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return '';
+  const sameYear = s.getFullYear() === e.getFullYear();
+  const sameMonth = sameYear && s.getMonth() === e.getMonth();
+  const dayMonth = (d: Date, withYear: boolean): string =>
+    d.toLocaleDateString('en-NZ', {
+      day: 'numeric',
+      month: 'short',
+      ...(withYear ? { year: 'numeric' as const } : {})
+    });
+  if (sameMonth) {
+    return `${s.getDate()} – ${dayMonth(e, true)}`;
+  }
+  if (sameYear) {
+    return `${dayMonth(s, false)} – ${dayMonth(e, true)}`;
+  }
+  return `${dayMonth(s, true)} – ${dayMonth(e, true)}`;
+}
+
 function durationDays(dateStart: string, dateEnd: string): number {
   const s = new Date(`${dateStart.slice(0, 10)}T00:00:00`);
   const e = new Date(`${dateEnd.slice(0, 10)}T00:00:00`);
@@ -82,6 +104,14 @@ function newDraftId(): string {
     return `new-${crypto.randomUUID()}`;
   }
   return `new-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function placeShort(title: string | undefined): string {
+  return (title || '').split(',')[0].trim();
+}
+
+function mapsSearchUrl(query: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
 const MAX_VISIBLE_AVATARS = 3;
@@ -161,7 +191,6 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
 
   const dayIndex = days.findIndex((d) => d.id === (day?.id ?? ''));
 
-  // Scroll active day chip into view
   React.useEffect(() => {
     const ref = carouselRef.current;
     if (!ref || dayIndex < 0) return;
@@ -172,15 +201,14 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     }
   }, [dayIndex]);
 
-  // Hero image resolution
   const heroSrc = React.useMemo(() => {
     const raw = (trip?.heroImageUrl || '').trim();
     if (!raw) return null;
     return resolveSharePointMediaSrc(raw, sp.pageContext.web.absoluteUrl, sp.pageContext.web.serverRelativeUrl || '');
   }, [trip?.heroImageUrl, sp]);
 
-  // Primary place for current day
   const primaryPlace = day?.primaryPlaceId ? placeById(day.primaryPlaceId) : undefined;
+  const primaryPlaceLabel = placeShort(primaryPlace?.title);
 
   React.useEffect(() => {
     const key = (config.weatherApiKey || '').trim();
@@ -193,7 +221,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     }
     let cancelled = false;
     const units = config.temperatureUnit === 'Fahrenheit' ? 'us' : 'metric';
-    const unitSuffix = config.temperatureUnit === 'Fahrenheit' ? '°F' : '°C';
+    const unitSuffix = config.temperatureUnit === 'Fahrenheit' ? '°F' : '°';
     const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${lat},${lng}/${ymd}?key=${encodeURIComponent(key)}&unitGroup=${units}&include=days&contentType=json`;
     fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Weather ${r.status}`))))
@@ -207,7 +235,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
           return;
         }
         const tempPart = Number.isFinite(temp) ? `${Math.round(temp)}${unitSuffix}` : '';
-        setWeatherLabel([tempPart, conditions].filter(Boolean).join(' · '));
+        setWeatherLabel([tempPart, conditions].filter(Boolean).join(' '));
       })
       .catch(() => {
         if (!cancelled) setWeatherLabel('');
@@ -224,7 +252,6 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     day?.calendarDate
   ]);
 
-  // Travel tip from first location info entry's practicalTips
   const travelTip = React.useMemo(() => {
     for (const entry of dayLocationEntries) {
       const notes = parseLocationInfoNotes(entry.notes);
@@ -236,9 +263,8 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     return 'Tap a card for details. Use Ask AI for local ideas.';
   }, [dayLocationEntries]);
 
-  const tripDuration = trip?.dateStart && trip?.dateEnd
-    ? durationDays(trip.dateStart, trip.dateEnd)
-    : 0;
+  const tripDuration =
+    trip?.dateStart && trip?.dateEnd ? durationDays(trip.dateStart, trip.dateEnd) : 0;
 
   const visibleMembers = members.slice(0, MAX_VISIBLE_AVATARS);
   const extraMembers = Math.max(0, members.length - MAX_VISIBLE_AVATARS);
@@ -267,7 +293,6 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
       subItems: []
     };
     updateEntry(draft);
-    // Open the new card for editing after a short delay so context catches up
     window.setTimeout(() => {
       setAdding(false);
       setDetailEntryId(draft.id);
@@ -276,15 +301,26 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
 
   const handleAskAi = (): void => {
     const p = aiPrompt.trim();
-    if (onAskAi) {
-      onAskAi(p || undefined);
-    }
+    if (onAskAi) onAskAi(p || undefined);
     setAiPrompt('');
   };
 
   const tripStartYmd = (trip?.dateStart || '').slice(0, 10);
   const tripEndYmd = (trip?.dateEnd || '').slice(0, 10);
   const dayYmd = (day?.calendarDate || '').slice(0, 10);
+  const rangeLabel =
+    tripStartYmd && tripEndYmd ? shortDateRange(tripStartYmd, tripEndYmd) : '';
+  const dayHeaderLine = [
+    weekdayLabel(day?.calendarDate),
+    shortDate(day?.calendarDate),
+    day ? `Day ${day.dayNumber}` : ''
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const mapQuery = primaryPlace
+    ? [primaryPlace.title, primaryPlace.country].filter(Boolean).join(', ')
+    : trip?.title || 'trip';
 
   if (!trip || !day) return <p className={shellStyles.muted}>No trip days yet.</p>;
 
@@ -294,7 +330,6 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
         entry={detailEntry}
         onClose={() => {
           setDetailEntryId(null);
-          // If the entry is still pending (no SP ID yet), let context persist it
         }}
       />
     );
@@ -302,15 +337,12 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
 
   return (
     <div className={styles.itinRoot}>
-      {/* ── Trip header ────────────────────────────────────── */}
       <div className={styles.tripHeader}>
         <div className={styles.tripMeta}>
           <div className={styles.tripTitleRow}>
             <h2 className={styles.tripTitle}>{trip.title}</h2>
           </div>
-          {tripStartYmd && tripEndYmd ? (
-            <p className={styles.tripDateRange}>{formatOrdinalDateRange(tripStartYmd, tripEndYmd)}</p>
-          ) : null}
+          {rangeLabel ? <p className={styles.tripDateRange}>{rangeLabel}</p> : null}
         </div>
         <div className={styles.tripHeaderRight}>
           {heroSrc ? (
@@ -329,35 +361,53 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
               <circle cx="7" cy="6" r="3.5" stroke="currentColor" strokeWidth="1.5" />
               <path d="M1 17c0-3.314 2.686-6 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               <circle cx="14" cy="7" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M11.5 17c0-2.485 1.567-4.5 3.5-4.5s3.5 2.015 3.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <path
+                d="M11.5 17c0-2.485 1.567-4.5 3.5-4.5s3.5 2.015 3.5 4.5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
             </svg>
           </button>
         </div>
       </div>
 
-      {/* ── Stats row ──────────────────────────────────────── */}
       <div className={styles.statsRow}>
-        {tripStartYmd ? (
-          <>
-            <div className={styles.statItem}>
-              <span className={styles.statLabel}>Starts</span>
-              <span className={styles.statValue}>{shortDate(tripStartYmd)}</span>
-            </div>
-            <div className={styles.statDivider} />
-          </>
-        ) : null}
-        {tripDuration > 0 ? (
-          <>
-            <div className={styles.statItem}>
-              <span className={styles.statLabel}>Duration</span>
-              <span className={styles.statValue}>{tripDuration}d</span>
-            </div>
-            <div className={styles.statDivider} />
-          </>
-        ) : null}
-        {members.length > 0 ? (
-          <div className={styles.statItem}>
+        <div className={styles.statCard}>
+          <div className={styles.statCardTop}>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden>
+              <rect x="2" y="3.5" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+              <path d="M5 2v2.5M11 2v2.5M2 7h12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+            <span className={styles.statLabel}>Dates</span>
+          </div>
+          <span className={styles.statValue}>{rangeLabel || '—'}</span>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statCardTop}>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden>
+              <path
+                d="M4 5.5h8v7.5H4V5.5Z"
+                stroke="currentColor"
+                strokeWidth="1.3"
+                strokeLinejoin="round"
+              />
+              <path d="M6 5.5V4a2 2 0 0 1 4 0v1.5" stroke="currentColor" strokeWidth="1.3" />
+            </svg>
+            <span className={styles.statLabel}>Duration</span>
+          </div>
+          <span className={styles.statValue}>{tripDuration > 0 ? `${tripDuration} days` : '—'}</span>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statCardTop}>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden>
+              <circle cx="6" cy="5" r="2.2" stroke="currentColor" strokeWidth="1.3" />
+              <path d="M2 13c0-2.2 1.8-4 4-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+              <circle cx="11" cy="6" r="1.8" stroke="currentColor" strokeWidth="1.3" />
+            </svg>
             <span className={styles.statLabel}>Travellers</span>
+          </div>
+          {members.length > 0 ? (
             <div className={styles.avatarStack}>
               {visibleMembers.map((m) => (
                 <TravellerAvatar
@@ -368,20 +418,19 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
                   title={m.userDisplayName || m.userEmail}
                 />
               ))}
-              {extraMembers > 0 ? (
-                <span className={styles.avatarMore}>+{extraMembers}</span>
-              ) : null}
+              {extraMembers > 0 ? <span className={styles.avatarMore}>+{extraMembers}</span> : null}
             </div>
-          </div>
-        ) : null}
+          ) : (
+            <span className={styles.statValue}>—</span>
+          )}
+        </div>
       </div>
 
-      {/* ── Day carousel ──────────────────────────────────── */}
       <div className={styles.dayCarouselWrap}>
         <div className={styles.dayCarousel} ref={carouselRef}>
           {days.map((d, idx) => {
             const placeForDay = d.primaryPlaceId ? placeById(d.primaryPlaceId) : undefined;
-            const placeLabel = placeForDay ? (placeForDay.title || '').split(',')[0].trim() : '';
+            const placeLabel = placeShort(placeForDay?.title);
             const active = d.id === day.id;
             return (
               <button
@@ -392,16 +441,23 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
                 onClick={() => setSelectedDayId(d.id)}
                 aria-label={`Day ${d.dayNumber}`}
               >
-                <span className={styles.dayChipNum}>D{d.dayNumber}</span>
+                <span className={styles.dayChipNum}>Day {d.dayNumber}</span>
                 <span className={styles.dayChipDate}>{shortDate(d.calendarDate)}</span>
                 {placeLabel ? <span className={styles.dayChipPlace}>{placeLabel}</span> : null}
               </button>
             );
           })}
         </div>
+        {days.length > 3 ? (
+          <span className={styles.dayScrollHint} aria-hidden>
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M3.5 1.5 7 5 3.5 8.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+          </span>
+        ) : null}
+        <div className={styles.dayCarouselFade} aria-hidden />
       </div>
 
-      {/* ── Day nav bar ────────────────────────────────────── */}
       <div className={styles.dayNavBar}>
         <button type="button" className={styles.dayNavChip} onClick={() => jumpToDate(ymdToday())}>
           Today
@@ -438,27 +494,20 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
         />
       </div>
 
-      {/* ── Day header ─────────────────────────────────────── */}
       <div className={styles.dayHeader}>
         <div className={styles.dayHeaderLeft}>
-          <p className={styles.dayHeaderWeekday}>{weekdayLabel(day.calendarDate)}</p>
-          <p className={styles.dayHeaderDate}>
-            {day.calendarDate ? formatOrdinalDayDate(day.calendarDate) : day.displayTitle || `Day ${day.dayNumber}`}
-          </p>
-          <div className={styles.dayHeaderBadge}>
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
-              <rect x="1" y="2.5" width="8" height="7" rx="1" stroke="currentColor" strokeWidth="1.2" />
-              <path d="M3 1v2M7 1v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-            </svg>
-            Day {day.dayNumber}
-          </div>
-          {primaryPlace ? (
-            <div className={styles.placePinRow}>
+          <p className={styles.dayHeaderLine}>{dayHeaderLine}</p>
+          {primaryPlaceLabel ? (
+            <div className={styles.dayHeaderPlace}>
               <svg width="11" height="11" viewBox="0 0 12 14" fill="none" aria-hidden>
-                <path d="M6 1C3.79 1 2 2.79 2 5c0 3 4 8 4 8s4-5 4-8c0-2.21-1.79-4-4-4z" fill="currentColor" opacity="0.85" />
+                <path
+                  d="M6 1C3.79 1 2 2.79 2 5c0 3 4 8 4 8s4-5 4-8c0-2.21-1.79-4-4-4z"
+                  fill="currentColor"
+                  opacity="0.85"
+                />
                 <circle cx="6" cy="5" r="1.5" fill="white" />
               </svg>
-              {(primaryPlace.title || '').split(',')[0].trim()}
+              {primaryPlaceLabel}
             </div>
           ) : null}
         </div>
@@ -466,20 +515,25 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
           <div className={styles.weatherChip} aria-label={`Weather ${weatherLabel}`}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
               <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.6" />
-              <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              <path
+                d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
             </svg>
             <span>{weatherLabel}</span>
           </div>
         ) : null}
       </div>
 
-      {/* ── Location info strip ────────────────────────────── */}
       {dayLocationEntries.length ? (
         <div className={styles.locationStripWrap}>
           <DayLocationInfoStrip
             entries={dayLocationEntries}
             activeEntryId={locationPanelEntryId}
             onSelect={setLocationPanelEntryId}
+            variant="pills"
           />
         </div>
       ) : null}
@@ -489,99 +543,116 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
         onClose={() => setLocationPanelEntryId(null)}
       />
 
-      {/* ── Adding banner ──────────────────────────────────── */}
-      {adding ? (
-        <div className={styles.addingBanner}>
-          <div className={styles.addingSpinner} />
-          <span>Creating new item…</span>
-        </div>
-      ) : null}
+      <div className={styles.dayPanel}>
+        {adding ? (
+          <div className={styles.addingBanner}>
+            <div className={styles.addingSpinner} />
+            <span>Creating new item…</span>
+          </div>
+        ) : null}
 
-      {/* ── Unscheduled items ──────────────────────────────── */}
-      {unscheduled.length > 0 ? (
-        <div className={styles.unschedSection}>
-          <button type="button" className={styles.unschedToggle} onClick={() => setUnschedOpen((v) => !v)}>
-            <span>Unscheduled</span>
-            <span className={styles.unschedMeta}>
-              {unscheduled.length} · {unschedOpen ? 'Hide' : 'Show'}
-            </span>
-          </button>
-          {unschedOpen ? (
-            <div className={styles.unschedBody}>
-              {unscheduled.map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  className={styles.unschedCard}
-                  onClick={() => setDetailEntryId(item.entry.id)}
-                >
-                  <div className={styles.cardTitle}>{item.title}</div>
-                  <div className={styles.cardMeta}>
-                    {item.entry.category}
-                    {item.subItem ? ' · Option' : ''}
-                  </div>
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      {/* ── Timeline ───────────────────────────────────────── */}
-      {timed.length > 0 ? (
-        <div className={styles.timelineWrap}>
-          <div className={styles.timelineRail} aria-hidden />
-          {timed.map((item) => {
-            const categorySlug = getCategorySlug(item.category || item.entry.category);
-            const timeLabel = formatPlannerMinutes(item.startMinutes);
-            const locationLabel = item.entry.location?.trim() || '';
-            return (
-              <div key={item.key} className={styles.timelineRow}>
-                <div className={styles.timeCell}>{timeLabel}</div>
-                <div className={styles.nodeWrap}>
-                  <div className={styles.node} data-category={categorySlug}>
-                    <svg className={styles.nodeIcon} viewBox="0 0 7 7" fill="currentColor" aria-hidden>
-                      <circle cx="3.5" cy="3.5" r="2" />
-                    </svg>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className={styles.timelineCard}
-                  onClick={() => setDetailEntryId(item.entry.id)}
-                >
-                  <div className={styles.cardTitle}>{item.title}</div>
-                  <div className={styles.cardMeta}>
-                    {item.entry.category}
-                    {locationLabel ? ` · ${locationLabel}` : ''}
-                  </div>
-                </button>
+        {unscheduled.length > 0 ? (
+          <div className={styles.unschedSection}>
+            <button type="button" className={styles.unschedToggle} onClick={() => setUnschedOpen((v) => !v)}>
+              <span>Unscheduled</span>
+              <span className={styles.unschedMeta}>
+                {unscheduled.length} · {unschedOpen ? 'Hide' : 'Show'}
+              </span>
+            </button>
+            {unschedOpen ? (
+              <div className={styles.unschedBody}>
+                {unscheduled.map((item) => {
+                  const cat = item.entry.category;
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      className={styles.unschedCard}
+                      onClick={() => setDetailEntryId(item.entry.id)}
+                    >
+                      <span className={`${styles.unschedCat} th-cat-${getCategorySlug(cat)}`}>
+                        <CategoryIcon category={cat} size={12} color="white" />
+                      </span>
+                      <span className={styles.cardText}>
+                        <div className={styles.cardTitle}>{item.title}</div>
+                        <div className={styles.cardMeta}>
+                          {item.entry.category}
+                          {item.subItem ? ' · Option' : ''}
+                        </div>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
-      ) : timed.length === 0 && unscheduled.length === 0 ? (
-        <p className={styles.emptyDay}>No itinerary items for this day yet.</p>
-      ) : null}
+            ) : null}
+          </div>
+        ) : null}
 
-      {/* ── Ask AI bar ─────────────────────────────────────── */}
+        {timed.length > 0 ? (
+          <div className={styles.timelineWrap}>
+            <div className={styles.timelineRail} aria-hidden />
+            {timed.map((item) => {
+              const cat = item.category || item.entry.category;
+              const categorySlug = getCategorySlug(cat);
+              const timeLabel = formatPlannerMinutes(item.startMinutes);
+              const locationLabel = item.entry.location?.trim() || '';
+              return (
+                <div key={item.key} className={styles.timelineRow}>
+                  <div className={styles.timeCell}>{timeLabel}</div>
+                  <div className={styles.nodeWrap}>
+                    <div className={`${styles.catBubble} th-cat-${categorySlug}`}>
+                      <CategoryIcon category={cat} size={14} color="white" />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.timelineCard}
+                    onClick={() => setDetailEntryId(item.entry.id)}
+                  >
+                    <span className={styles.cardText}>
+                      <div className={styles.cardTitle}>{item.title}</div>
+                      <div className={styles.cardMeta}>
+                        {locationLabel || item.entry.category}
+                      </div>
+                    </span>
+                    <span className={`${styles.cardTrail} th-cat-${categorySlug}`}>
+                      <CategoryIcon category={cat} size={12} color="currentColor" />
+                    </span>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ) : timed.length === 0 && unscheduled.length === 0 ? (
+          <p className={styles.emptyDay}>No itinerary items for this day yet.</p>
+        ) : null}
+      </div>
+
       <div className={styles.aiBarWrap}>
         <div className={styles.aiBarInner}>
+          <span className={styles.aiSparkle} aria-hidden>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M8 1.5l1.1 3.4L12.5 6 9.1 7.1 8 10.5 6.9 7.1 3.5 6l3.4-1.1L8 1.5Z"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinejoin="round"
+              />
+              <path d="M12.5 10.5l.6 1.8 1.8.6-1.8.6-.6 1.8-.6-1.8-1.8-.6 1.8-.6.6-1.8Z" fill="currentColor" />
+            </svg>
+          </span>
           <input
             type="text"
             className={styles.aiBarInput}
-            placeholder={`Ask AI about ${primaryPlace ? (primaryPlace.title || '').split(',')[0] : 'this day'}…`}
+            placeholder={`Ask AI about ${primaryPlaceLabel || 'this day'}…`}
             value={aiPrompt}
             onChange={(e) => setAiPrompt(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleAskAi(); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleAskAi();
+            }}
             aria-label="Ask AI about this day"
           />
-          <button
-            type="button"
-            className={styles.aiBarSend}
-            onClick={handleAskAi}
-            aria-label="Ask AI"
-          >
+          <button type="button" className={styles.aiBarSend} onClick={handleAskAi} aria-label="Ask AI">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
               <path d="M2 8l12-6-6 12-2-4-4-2z" fill="currentColor" />
             </svg>
@@ -589,36 +660,39 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
         </div>
       </div>
 
-      {/* ── Bottom widgets ─────────────────────────────────── */}
       <div className={styles.bottomWidgets}>
-        <div className={styles.daySummaryCard}>
-          <div className={styles.daySummaryIcon}>
-            <svg width="16" height="16" viewBox="0 0 18 18" fill="none" aria-hidden>
-              <rect x="2" y="4" width="14" height="12" rx="2" stroke="white" strokeWidth="1.5" />
-              <path d="M6 2v3M12 2v3" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-              <path d="M5 10h8M5 13h5" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
-            </svg>
+        <a
+          className={styles.mapSnippet}
+          href={mapsSearchUrl(mapQuery)}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Open map for ${mapQuery}`}
+        >
+          <div className={styles.mapSnippetRoute}>
+            <span className={styles.mapDot} />
+            <span className={styles.mapLine} />
+            <span className={styles.mapDot} />
           </div>
-          <div className={styles.daySummaryBody}>
-            <p className={styles.daySummaryTitle}>Day overview</p>
-            <p className={styles.daySummaryMeta}>
-              {timed.length} timed · {unscheduled.length} unscheduled
-            </p>
+          <div>
+            <p className={styles.mapSnippetLabel}>{primaryPlaceLabel || 'Day map'}</p>
+            <p className={styles.mapSnippetMeta}>Open in Maps</p>
           </div>
-        </div>
+        </a>
         <div className={styles.travelTipCard}>
-          <div className={styles.travelTipIcon}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-              <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3" />
-              <path d="M8 7v4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              <circle cx="8" cy="5" r="0.8" fill="currentColor" />
-            </svg>
-          </div>
+          <p className={styles.travelTipTitle}>Travel tip</p>
           <p className={styles.travelTipText}>{travelTip}</p>
+          {dayLocationEntries[0] ? (
+            <button
+              type="button"
+              className={styles.travelTipMore}
+              onClick={() => setLocationPanelEntryId(dayLocationEntries[0].id)}
+            >
+              See more tips
+            </button>
+          ) : null}
         </div>
       </div>
 
-      {/* ── Editor FAB ─────────────────────────────────────── */}
       {isEditor ? (
         <button
           type="button"

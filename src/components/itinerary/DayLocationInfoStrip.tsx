@@ -14,6 +14,8 @@ export interface DayLocationInfoStripProps {
   entries: ItineraryEntry[];
   activeEntryId?: string | null;
   onSelect: (entryId: string) => void;
+  /** Mobile itinerary mockup: open pill chips without the desktop strip chrome. */
+  variant?: 'default' | 'pills';
 }
 
 function progressForEntry(entry: ItineraryEntry): { done: number; total: number } {
@@ -30,7 +32,8 @@ function progressForEntry(entry: ItineraryEntry): { done: number; total: number 
 export const DayLocationInfoStrip: React.FC<DayLocationInfoStripProps> = ({
   entries,
   activeEntryId,
-  onSelect
+  onSelect,
+  variant = 'default'
 }) => {
   const { placeById } = usePlaces();
   const locationEntries = React.useMemo(
@@ -41,7 +44,11 @@ export const DayLocationInfoStrip: React.FC<DayLocationInfoStripProps> = ({
   if (!locationEntries.length) return null;
 
   return (
-    <div className={styles.strip} role="navigation" aria-label="Places visited today">
+    <div
+      className={`${styles.strip} ${variant === 'pills' ? styles.stripPills : ''}`}
+      role="navigation"
+      aria-label="Places visited today"
+    >
       {locationEntries.map((entry) => {
         const data = parseLocationInfoNotes(entry.notes);
         const place = data ? placeById(data.placeId) : undefined;
@@ -58,7 +65,7 @@ export const DayLocationInfoStrip: React.FC<DayLocationInfoStripProps> = ({
           <button
             key={entry.id}
             type="button"
-            className={`${styles.chip} ${active ? styles.chipActive : ''} ${complete ? styles.chipComplete : ''}`}
+            className={`${styles.chip} ${variant === 'pills' ? styles.chipPill : ''} ${active ? styles.chipActive : ''} ${complete ? styles.chipComplete : ''}`}
             title={label}
             aria-label={`${label}${total ? ` — ${done} of ${total} done` : ''}`}
             onClick={() => onSelect(entry.id)}

@@ -164,8 +164,11 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
           onClose={() => setMembersOpen(false)}
         />
       ) : null}
-      <AiAssistantFab />
-      <span aria-hidden style={{ display: 'none' }}>v{SOLUTION_VERSION}</span>
+      {/* Itinerary tab has its own Ask AI bar + blue + FAB; keep floating AI on other tabs. */}
+      {tab !== 'today' ? <AiAssistantFab /> : null}
+      <span aria-hidden style={{ display: 'none' }}>
+        v{SOLUTION_VERSION}
+      </span>
     </div>
   );
 };
