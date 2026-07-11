@@ -77,12 +77,14 @@ const SELECT_PHASE7 = [
   'TransportFrom',
   'TransportTo',
   'TransportMode',
-  'TransportTransfers',
-  'BreakfastIncluded',
-  'ParkingIncluded'
+  'TransportTransfers'
 ];
 
-const SELECT = [...SELECT_BASE, ...SELECT_PHASE7].join(',');
+/** New columns — omitted from $select until present on the list (avoids 400 on full query). */
+const SELECT_PHASE7_OPTIONAL = ['BreakfastIncluded', 'ParkingIncluded'];
+
+const SELECT = [...SELECT_BASE, ...SELECT_PHASE7, ...SELECT_PHASE7_OPTIONAL].join(',');
+const SELECT_PHASE7_ONLY = [...SELECT_BASE, ...SELECT_PHASE7].join(',');
 const SELECT_FALLBACK = SELECT_BASE.join(',');
 
 /** SharePoint internal names for Phase 7 columns — omitted on 400 create/update fallback. */
@@ -128,6 +130,47 @@ function stripPhase7SpFields(item: Record<string, unknown>): Record<string, unkn
     delete out[key];
   });
   return out;
+}
+
+function stripOptionalSpFields(item: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...item };
+  for (const key of SELECT_PHASE7_OPTIONAL) {
+    delete out[key];
+  }
+  return out;
+}
+
+/** Try progressively narrower $select lists when SharePoint returns 400 (missing columns). */
+async function fetchWithSelectFallback(
+  fetchRaw: (selectList: string) => Promise<unknown[]>
+): Promise<unknown[]> {
+  const attempts = [SELECT, SELECT_PHASE7_ONLY, SELECT_FALLBACK];
+  let lastErr: unknown;
+  for (const selectList of attempts) {
+    try {
+      return await fetchRaw(selectList);
+    } catch (err) {
+      if (httpStatus(err) !== 400) throw err;
+      lastErr = err;
+    }
+  }
+  throw lastErr;
+}
+
+async function getByIdWithSelectFallback(
+  tryGet: (selectList: string) => Promise<unknown>
+): Promise<unknown> {
+  const attempts = [SELECT, SELECT_PHASE7_ONLY, SELECT_FALLBACK];
+  let lastErr: unknown;
+  for (const selectList of attempts) {
+    try {
+      return await tryGet(selectList);
+    } catch (err) {
+      if (httpStatus(err) !== 400) throw err;
+      lastErr = err;
+    }
+  }
+  throw lastErr;
 }
 
 function httpStatus(err: unknown): number | undefined {
@@ -469,27 +512,10 @@ export class ItineraryService {
   /** Fetch all entries (parents + sub-items) for a trip and return assembled tree. */
   async getAll(tripId: string): Promise<ItineraryEntry[]> {
     try {
-      const rows = await this.fetchItemsRaw(tripId, SELECT);
+      const rows = await fetchWithSelectFallback((selectList) => this.fetchItemsRaw(tripId, selectList));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return assembleTree(rows as any[]);
     } catch (err) {
-      const status = (err as Error & { status?: number }).status;
-      if (status === 400) {
-        // eslint-disable-next-line no-console
-        console.warn(
-          'ItineraryService.getAll: OData $select failed (likely missing Phase 7 columns). Retrying without extended fields.',
-          err
-        );
-        try {
-          const rows = await this.fetchItemsRaw(tripId, SELECT_FALLBACK);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return assembleTree(rows as any[]);
-        } catch (err2) {
-          // eslint-disable-next-line no-console
-          console.error('ItineraryService.getAll fallback failed', err2);
-          throw err2;
-        }
-      }
       // eslint-disable-next-line no-console
       console.error('ItineraryService.getAll', err);
       throw err;
@@ -509,19 +535,9 @@ export class ItineraryService {
       return resp.json();
     };
     try {
-      const item = await tryGet(SELECT);
+      const item = await getByIdWithSelectFallback(tryGet);
       return mapToEntry(item);
     } catch (err) {
-      const status = (err as Error & { status?: number }).status;
-      if (status === 400) {
-        // eslint-disable-next-line no-console
-        console.warn(
-          'ItineraryService.getById: OData $select failed (likely missing Phase 7 columns). Retrying without extended fields.',
-          err
-        );
-        const item = await tryGet(SELECT_FALLBACK);
-        return mapToEntry(item);
-      }
       // eslint-disable-next-line no-console
       console.error('ItineraryService.getById', err);
       throw err;
@@ -578,7 +594,21 @@ export class ItineraryService {
       if (httpStatus(err) === 400) {
         // eslint-disable-next-line no-console
         console.warn(
-          'ItineraryService.create: request failed (likely missing Phase 7 columns). Retrying without extended fields.',
+          'ItineraryService.create: request failed (likely missing optional columns). Retrying without optional fields.',
+          err
+        );
+        try {
+          return await this.postItem(stripOptionalSpFields(item));
+        } catch (errOptional) {
+          if (httpStatus(errOptional) !== 400) {
+            // eslint-disable-next-line no-console
+            console.error('ItineraryService.create optional fallback failed', errOptional);
+            throw errOptional;
+          }
+        }
+        // eslint-disable-next-line no-console
+        console.warn(
+          'ItineraryService.create: retrying without Phase 7 fields.',
           err
         );
         try {
@@ -603,7 +633,22 @@ export class ItineraryService {
       if (httpStatus(err) === 400) {
         // eslint-disable-next-line no-console
         console.warn(
-          'ItineraryService.update: request failed (likely missing Phase 7 columns). Retrying without extended fields.',
+          'ItineraryService.update: request failed (likely missing optional columns). Retrying without optional fields.',
+          err
+        );
+        try {
+          await this.patchItem(id, stripOptionalSpFields(item));
+          return;
+        } catch (errOptional) {
+          if (httpStatus(errOptional) !== 400) {
+            // eslint-disable-next-line no-console
+            console.error('ItineraryService.update optional fallback failed', errOptional);
+            throw errOptional;
+          }
+        }
+        // eslint-disable-next-line no-console
+        console.warn(
+          'ItineraryService.update: retrying without Phase 7 fields.',
           err
         );
         try {
