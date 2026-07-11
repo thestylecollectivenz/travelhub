@@ -16,6 +16,7 @@ import {
   transportLegDisplayAmount
 } from '../../utils/transportReturnPricing';
 import { useCanSeeFinancials } from '../../hooks/useCanSeeFinancials';
+import { useTripPermissions } from '../../hooks/useTripPermissions';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { SubItemList } from './SubItemList';
 import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
@@ -170,6 +171,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
     useTripWorkspace();
   const planView = usePlanView();
   const { config } = useConfig();
+  const { canUseAiHelpers } = useTripPermissions();
   const canSeeFinancials = useCanSeeFinancials();
   const { documents, links: allLinks, addDocument, addLink } = useAttachments();
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -754,10 +756,10 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
               place={placeById(locationInfoData.placeId)}
               geminiApiKey={config.geminiApiKey}
               hasAnyContent={locationInfoIsPopulated(locationInfoData)}
-              readOnly={readOnly}
+              readOnly={!canUseAiHelpers}
               onOpenSettings={() => window.dispatchEvent(new Event('travelhub-open-settings'))}
               onChange={(rows) => {
-                if (readOnly) return;
+                if (!canUseAiHelpers) return;
                 const prev = locationHighlightRowsRef.current;
                 const suppressed = recordSuppressedHighlightLabels(locationInfoData, prev, rows);
                 const marked = markHighlightRowsUserEdited(rows);
@@ -782,6 +784,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             place={placeById(locationInfoData.placeId)}
             data={locationInfoData}
             geminiApiKey={config.geminiApiKey}
+            readOnly={!canUseAiHelpers}
             onOpenSettings={() => window.dispatchEvent(new Event('travelhub-open-settings'))}
             onThreadChange={(thread) => {
               const next = normalizeLocationInfoNotes({ ...locationInfoData, aiQaThread: thread });

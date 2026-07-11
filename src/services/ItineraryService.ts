@@ -81,7 +81,15 @@ const SELECT_PHASE7 = [
 ];
 
 /** New columns — omitted from $select until present on the list (avoids 400 on full query). */
-const SELECT_PHASE7_OPTIONAL = ['BreakfastIncluded', 'ParkingIncluded', 'OnboardCredit'];
+const SELECT_PHASE7_OPTIONAL = [
+  'BreakfastIncluded',
+  'ParkingIncluded',
+  'OnboardCredit',
+  'AccPlannedArrivalTime',
+  'AccPlannedDepartureTime',
+  'CruisePlannedBoardingTime',
+  'CruisePlannedDisembarkTime'
+];
 
 const SELECT = [...SELECT_BASE, ...SELECT_PHASE7, ...SELECT_PHASE7_OPTIONAL].join(',');
 const SELECT_PHASE7_ONLY = [...SELECT_BASE, ...SELECT_PHASE7].join(',');
@@ -122,7 +130,11 @@ const SP_PHASE7_FIELD_KEYS = new Set([
   'TransportTransfers',
   'BreakfastIncluded',
   'ParkingIncluded',
-  'OnboardCredit'
+  'OnboardCredit',
+  'AccPlannedArrivalTime',
+  'AccPlannedDepartureTime',
+  'CruisePlannedBoardingTime',
+  'CruisePlannedDisembarkTime'
 ]);
 
 function stripPhase7SpFields(item: Record<string, unknown>): Record<string, unknown> {
@@ -310,6 +322,10 @@ function mapToEntry(item: any): ItineraryEntry {
     roomType: item.RoomType ?? undefined,
     checkInTime: parseTime(item.AccCheckInTime),
     checkOutTime: parseTime(item.AccCheckOutTime),
+    plannedArrivalTime: parseTime(item.AccPlannedArrivalTime),
+    plannedDepartureTime: parseTime(item.AccPlannedDepartureTime),
+    plannedBoardingTime: parseTime(item.CruisePlannedBoardingTime),
+    plannedDisembarkTime: parseTime(item.CruisePlannedDisembarkTime),
     streetAddress: item.StreetAddress ?? undefined,
     flightNumbers: item.FlightNumbers ?? undefined,
     checkInClosesTime: parseTime(item.CheckInClosesTime),
@@ -413,6 +429,10 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   if (entry.roomType !== undefined) item.RoomType = entry.roomType || null;
   if (entry.checkInTime !== undefined) item.AccCheckInTime = serializeTime(entry.checkInTime);
   if (entry.checkOutTime !== undefined) item.AccCheckOutTime = serializeTime(entry.checkOutTime);
+  if (entry.plannedArrivalTime !== undefined) item.AccPlannedArrivalTime = serializeTime(entry.plannedArrivalTime);
+  if (entry.plannedDepartureTime !== undefined) item.AccPlannedDepartureTime = serializeTime(entry.plannedDepartureTime);
+  if (entry.plannedBoardingTime !== undefined) item.CruisePlannedBoardingTime = serializeTime(entry.plannedBoardingTime);
+  if (entry.plannedDisembarkTime !== undefined) item.CruisePlannedDisembarkTime = serializeTime(entry.plannedDisembarkTime);
   if (entry.streetAddress !== undefined) item.StreetAddress = entry.streetAddress || null;
   if (entry.flightNumbers !== undefined) item.FlightNumbers = entry.flightNumbers || null;
   if (entry.checkInClosesTime !== undefined) item.CheckInClosesTime = serializeTime(entry.checkInClosesTime);

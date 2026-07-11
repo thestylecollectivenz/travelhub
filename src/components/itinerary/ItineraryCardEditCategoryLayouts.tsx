@@ -529,6 +529,26 @@ export const AccommodationEditLayout: React.FC<CategoryEditLayoutProps> = (props
         value={formatTimeHHMM(draft.checkOutTime ?? '')}
         onChange={(e) => patch({ checkOutTime: combineDayAndTime(calendarDate, e.target.value) })}
       />
+      <label className={styles.label} htmlFor={`pat-${draft.id}`}>
+        Planned arrival time (itinerary)
+      </label>
+      <input
+        id={`pat-${draft.id}`}
+        className={styles.input}
+        type="time"
+        value={formatTimeHHMM(draft.plannedArrivalTime ?? '')}
+        onChange={(e) => patch({ plannedArrivalTime: combineDayAndTime(calendarDate, e.target.value) })}
+      />
+      <label className={styles.label} htmlFor={`pdt-${draft.id}`}>
+        Planned departure time (itinerary)
+      </label>
+      <input
+        id={`pdt-${draft.id}`}
+        className={styles.input}
+        type="time"
+        value={formatTimeHHMM(draft.plannedDepartureTime ?? '')}
+        onChange={(e) => patch({ plannedDepartureTime: combineDayAndTime(calendarDate, e.target.value) })}
+      />
       <label className={styles.label} htmlFor={`addr-a-${draft.id}`}>
         Street address
       </label>

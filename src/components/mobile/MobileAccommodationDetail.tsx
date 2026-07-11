@@ -10,6 +10,7 @@ import {
   buildAccommodationDocLinkPills,
   type AccomGridCell
 } from '../../utils/mobileAccommodationDetail';
+import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { effectiveBookingStatus, findConfirmationDocument } from '../../utils/bookingStatusUtils';
 import { isRichTextEditorEmpty } from '../../utils/journalRichText';
 import { RichTextContent } from '../shared/RichTextContent';
@@ -25,6 +26,7 @@ export interface MobileAccommodationDetailProps {
   canEdit: boolean;
   onEdit: () => void;
   onBookNow: () => void;
+  onOpenPlannedActivity?: (subItemId: string) => void;
   mapsDirectionsUrl?: string;
   phoneNumber?: string;
 }
@@ -142,6 +144,7 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
   canEdit,
   onEdit,
   onBookNow,
+  onOpenPlannedActivity,
   mapsDirectionsUrl,
   phoneNumber
 }) => {
@@ -412,6 +415,30 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
                   </svg>
                 ) : null}
               </a>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {(entry.subItems ?? []).length > 0 ? (
+        <section className={styles.sectionCard}>
+          <div className={styles.sectionHead}>
+            <h2 className={styles.sectionTitle}>Activities planned</h2>
+          </div>
+          <div className={styles.plannedList}>
+            {(entry.subItems ?? []).map((sub) => (
+              <button
+                key={sub.id}
+                type="button"
+                className={styles.plannedRow}
+                onClick={() => onOpenPlannedActivity?.(sub.id)}
+              >
+                <span className={styles.plannedTitle}>{sub.title}</span>
+                <span className={styles.plannedMeta}>
+                  {[sub.startTime ? formatTimeHHMM(sub.startTime) : '', sub.category || 'Activity'].filter(Boolean).join(' · ')}
+                </span>
+                <span aria-hidden>›</span>
+              </button>
             ))}
           </div>
         </section>

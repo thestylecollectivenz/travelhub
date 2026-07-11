@@ -53,7 +53,7 @@ export interface LocationInfoSlidePanelProps {
 
 export const LocationInfoSlidePanel: React.FC<LocationInfoSlidePanelProps> = ({ entry, calendarDate, onClose }) => {
   const { editingCardId, setEditingCardId, updateEntry } = useTripWorkspace();
-  const { canEditItinerary } = useTripPermissions();
+  const { canEditItinerary, canUseAiHelpers } = useTripPermissions();
   const { placeById } = usePlaces();
   const [panelSize, setPanelSize] = React.useState<PanelSize>(() => loadPanelSize());
   const resizeRef = React.useRef<{
@@ -180,7 +180,7 @@ export const LocationInfoSlidePanel: React.FC<LocationInfoSlidePanelProps> = ({ 
           </div>
         </header>
         <div className={styles.body}>
-          <LocationInfoPanelContent entry={entry} readOnly={!canEditItinerary} />
+          <LocationInfoPanelContent entry={entry} readOnly={!canUseAiHelpers} />
         </div>
         <div
           className={styles.resizeHandle}

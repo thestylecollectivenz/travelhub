@@ -90,6 +90,14 @@ export interface ItineraryEntry {
   checkInTime?: string;
   /** Accommodation check-out time (HH:MM). */
   checkOutTime?: string;
+  /** Accommodation — itinerary placement on check-in day (falls back to checkInTime). */
+  plannedArrivalTime?: string;
+  /** Accommodation — itinerary placement on check-out day (falls back to checkOutTime). */
+  plannedDepartureTime?: string;
+  /** Cruise — itinerary placement on embark day (falls back to timeStart). */
+  plannedBoardingTime?: string;
+  /** Cruise — itinerary placement on disembark day (falls back to arrivalTime). */
+  plannedDisembarkTime?: string;
   /** Street or property address (maps link derived in UI). */
   streetAddress?: string;
   flightNumbers?: string;

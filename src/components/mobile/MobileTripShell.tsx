@@ -1,7 +1,9 @@
 import * as React from 'react';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
+import { useTripPermissions } from '../../hooks/useTripPermissions';
 import { logTripAccessOnce } from '../../services/TripAccessLogService';
+import { ItineraryService } from '../../services/ItineraryService';
 import { MobileDayView } from './MobileDayView';
 import { MobileJournalView } from './MobileJournalView';
 import { MobileListsView } from './MobileListsView';
@@ -80,8 +82,9 @@ const TABS: Array<{ id: MobileTab; label: string; icon: React.ReactNode }> = [
 ];
 
 export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initialTab }) => {
-  const { trip } = useTripWorkspace();
+  const { trip, tripDays, selectedDayId } = useTripWorkspace();
   const spContext = useSpContext();
+  const { canUseAiHelpers } = useTripPermissions();
   const [tab, setTab] = React.useState<MobileTab>(initialTab ?? 'today');
   const [membersOpen, setMembersOpen] = React.useState(false);
   const [askAiPrompt, setAskAiPrompt] = React.useState<string | null>(null);
@@ -109,6 +112,47 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
     closeCardDetailRef.current = close;
   }, []);
 
+  const saveNearPlace = React.useCallback((place: { name: string; note?: string; mapsUrl?: string }): void => {
+    try {
+      const key = 'travelhub-near-you-saved';
+      const raw = window.localStorage.getItem(key);
+      const prev = raw ? (JSON.parse(raw) as unknown[]) : [];
+      const list = Array.isArray(prev) ? prev : [];
+      list.unshift({ ...place, savedAt: new Date().toISOString() });
+      window.localStorage.setItem(key, JSON.stringify(list.slice(0, 40)));
+    } catch {
+      /* device storage unavailable */
+    }
+  }, []);
+
+  const addNearToItinerary = React.useCallback(
+    async (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string }): Promise<void> => {
+      if (!trip) return;
+      const day = tripDays.find((d) => d.id === selectedDayId) ?? tripDays[0];
+      if (!day) return;
+      const itin = new ItineraryService(spContext);
+      await itin.create({
+        tripId: trip.id,
+        dayId: day.id,
+        title: place.name,
+        category: 'Activities',
+        location: place.note || '',
+        timeStart: '',
+        duration: '',
+        supplier: '',
+        notes: place.mapsUrl ? `Maps: ${place.mapsUrl}` : '',
+        decisionStatus: 'Idea',
+        bookingRequired: false,
+        bookingStatus: 'Not booked',
+        paymentStatus: 'Not paid',
+        amount: 0,
+        currency: 'NZD',
+        sortOrder: 999
+      });
+    },
+    [trip, tripDays, selectedDayId, spContext]
+  );
+
   let body: React.ReactNode;
   switch (tab) {
     case 'journal':
@@ -124,7 +168,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
       body = <MobileTaskView />;
       break;
     default:
-      body = <MobileDayView onOpenMembers={handleOpenMembers} onAskAi={handleAskAi} onDetailChange={handleDetailChange} />;
+      body = <MobileDayView onOpenMembers={handleOpenMembers} onAskAi={handleAskAi} onDetailChange={handleDetailChange} onGoHome={onBack} />;
   }
 
   return (
@@ -193,7 +237,12 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
         />
       ) : null}
       {askAiPrompt ? (
-        <MobileAskAiResultsSheet prompt={askAiPrompt} onClose={() => setAskAiPrompt(null)} />
+        <MobileAskAiResultsSheet
+          prompt={askAiPrompt}
+          onClose={() => setAskAiPrompt(null)}
+          onSavePlace={canUseAiHelpers ? saveNearPlace : undefined}
+          onAddToItinerary={canUseAiHelpers ? addNearToItinerary : undefined}
+        />
       ) : null}
       {tab !== 'today' ? <AiAssistantFab /> : null}
       <span aria-hidden style={{ display: 'none' }}>

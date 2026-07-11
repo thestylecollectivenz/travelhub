@@ -5,7 +5,7 @@ export function itineraryEntryFromSubItem(parent: ItineraryEntry, sub: Itinerary
   return {
     ...parent,
     title: sub.title || parent.title,
-    category: sub.category || parent.category,
+    category: (sub.category?.trim() || 'Activities'),
     timeStart: sub.startTime || parent.timeStart,
     arrivalTime: sub.endTime || parent.arrivalTime,
     duration: sub.duration || parent.duration,

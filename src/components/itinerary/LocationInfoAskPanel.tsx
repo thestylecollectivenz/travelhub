@@ -6,7 +6,6 @@ import { useSpContext } from '../../context/SpContext';
 import { subscribeLocationInfoAIStatus } from '../../utils/locationInfoAIEvents';
 import { scheduleLocationInfoQuestion } from '../../utils/locationInfoGeneration';
 import { LinkifiedText } from '../shared/LinkifiedText';
-import { RichTextField } from '../shared/RichTextField';
 import { RichTextContent } from '../shared/RichTextContent';
 import { isLikelyJournalHtml, richTextToPlainText } from '../../utils/journalRichText';
 import { confirmUserAction } from '../../utils/confirmAction';
@@ -42,13 +41,10 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
   const [editDraft, setEditDraft] = React.useState('');
   const [voiceError, setVoiceError] = React.useState<string | undefined>();
   const [autoReadAnswers, setAutoReadAnswers] = React.useState(false);
+  const [expandedIds, setExpandedIds] = React.useState<Set<string>>(() => new Set());
   const { speechState, speak, pause, resume, stop: stopSpeech } = useSpeechOutput();
   const appendVoiceInput = React.useCallback((chunk: string) => {
-    setQuestion((prev) => {
-      const plain = richTextToPlainText(prev);
-      const next = `${plain}${plain ? ' ' : ''}${chunk}`;
-      return next ? `<p>${next}</p>` : prev;
-    });
+    setQuestion((prev) => `${prev}${prev ? ' ' : ''}${chunk}`);
   }, []);
   const { listening: voiceListening, toggleListening: toggleVoiceInput, stopListening: stopVoiceInput } =
     useContinuousSpeechInput(appendVoiceInput);
@@ -70,6 +66,16 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
     });
   }, [entry.id, stopVoiceInput]);
 
+  React.useEffect(() => {
+    if (!thread.length) return;
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      const last = thread[thread.length - 1];
+      if (last) next.add(last.id);
+      return next;
+    });
+  }, [thread.length, thread]);
+
   const lastReadIdRef = React.useRef<string | undefined>();
   React.useEffect(() => {
     if (!autoReadAnswers) return;
@@ -85,7 +91,7 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
 
   const submitQuestion = (): void => {
     if (!place || !hasKey || readOnly) return;
-    const q = richTextToPlainText(question);
+    const q = question.trim();
     if (!q) return;
     stopVoiceInput();
     setAskError(undefined);
@@ -102,6 +108,15 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
     speak(richTextToPlainText(answer));
   };
 
+  const toggleExpanded = (id: string): void => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   if (readOnly && !thread.length) {
     return null;
   }
@@ -114,87 +129,117 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
       </h4>
       {thread.length ? (
         <div className={styles.thread}>
-          {thread.map((item) => (
-            <div key={item.id} className={styles.qaBlock}>
-              <div className={styles.question}>Q: {item.question}</div>
-              {editingId === item.id ? (
-                <RichTextField value={editDraft} onChange={setEditDraft} minHeight="5rem" />
-              ) : isLikelyJournalHtml(item.answer) ? (
-                <div className={styles.answer}>
-                  <RichTextContent html={item.answer} />
-                </div>
-              ) : (
-                <div className={styles.answer}>
-                  <LinkifiedText text={item.answer} />
-                </div>
-              )}
-              {!readOnly && onThreadChange ? (
-                <div className={styles.qaActions}>
-                  <button type="button" className={styles.qaBtn} onClick={() => speakAnswer(item.answer)}>
-                    Read out
-                  </button>
-                  <SpeechPlaybackControls
-                    speechState={speechState}
-                    onPause={pause}
-                    onResume={resume}
-                    onStop={stopSpeech}
-                    buttonClassName={styles.qaBtn}
-                  />
-                  {editingId === item.id ? (
-                    <>
-                      <button
-                        type="button"
-                        className={styles.qaBtn}
-                        onClick={() => {
-                          const answer = editDraft.trim();
-                          if (!richTextToPlainText(answer)) return;
-                          updateThread(thread.map((t) => (t.id === item.id ? { ...t, answer } : t)));
-                          setEditingId(null);
-                        }}
-                      >
-                        Save
-                      </button>
-                      <button type="button" className={styles.qaBtn} onClick={() => setEditingId(null)}>
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        className={styles.qaBtn}
-                        onClick={() => {
-                          setEditingId(item.id);
-                          setEditDraft(item.answer);
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.qaBtnDanger}
-                        onClick={() => {
-                          void (async () => {
-                            if (!(await confirmUserAction('Delete this Q&A entry?'))) return;
-                            updateThread(thread.filter((t) => t.id !== item.id));
-                          })();
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </>
-                  )}
-                </div>
-              ) : null}
-            </div>
-          ))}
+          {thread.map((item) => {
+            const expanded = expandedIds.has(item.id);
+            return (
+              <section key={item.id} className={styles.qaSection}>
+                <button
+                  type="button"
+                  className={styles.qaToggle}
+                  aria-expanded={expanded}
+                  onClick={() => toggleExpanded(item.id)}
+                >
+                  <span className={styles.qaToggleLabel}>Q: {item.question}</span>
+                  <span className={styles.qaChevron} aria-hidden>
+                    {expanded ? '▾' : '▸'}
+                  </span>
+                </button>
+                {expanded ? (
+                  <div className={styles.qaBody}>
+                    {editingId === item.id ? (
+                      <textarea
+                        className={styles.editArea}
+                        rows={5}
+                        value={editDraft}
+                        onChange={(e) => setEditDraft(e.target.value)}
+                      />
+                    ) : isLikelyJournalHtml(item.answer) ? (
+                      <div className={styles.answer}>
+                        <RichTextContent html={item.answer} />
+                      </div>
+                    ) : (
+                      <div className={styles.answer}>
+                        <LinkifiedText text={item.answer} />
+                      </div>
+                    )}
+                    {!readOnly && onThreadChange ? (
+                      <div className={styles.qaActions}>
+                        <button type="button" className={styles.qaBtn} onClick={() => speakAnswer(item.answer)}>
+                          Read out
+                        </button>
+                        <SpeechPlaybackControls
+                          speechState={speechState}
+                          onPause={pause}
+                          onResume={resume}
+                          onStop={stopSpeech}
+                          buttonClassName={styles.qaBtn}
+                        />
+                        {editingId === item.id ? (
+                          <>
+                            <button
+                              type="button"
+                              className={styles.qaBtn}
+                              onClick={() => {
+                                const answer = editDraft.trim();
+                                if (!answer) return;
+                                updateThread(thread.map((t) => (t.id === item.id ? { ...t, answer } : t)));
+                                setEditingId(null);
+                              }}
+                            >
+                              Save
+                            </button>
+                            <button type="button" className={styles.qaBtn} onClick={() => setEditingId(null)}>
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              className={styles.qaBtn}
+                              onClick={() => {
+                                setEditingId(item.id);
+                                setEditDraft(richTextToPlainText(item.answer));
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.qaBtnDanger}
+                              onClick={() => {
+                                void (async () => {
+                                  if (!(await confirmUserAction('Delete this Q&A entry?'))) return;
+                                  updateThread(thread.filter((t) => t.id !== item.id));
+                                })();
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </section>
+            );
+          })}
         </div>
       ) : null}
       {!readOnly ? (
-        <div className={styles.askRow}>
-          <div className={styles.askRich}>
-            <RichTextField value={question} onChange={setQuestion} minHeight="4.5rem" />
-          </div>
+        <div className={styles.askSection}>
+          <label className={styles.askLabel} htmlFor={`ask-q-${entry.id}`}>
+            Your question
+          </label>
+          <textarea
+            id={`ask-q-${entry.id}`}
+            className={styles.askInput}
+            rows={3}
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="Ask anything about this place…"
+          />
           <div className={styles.askActions}>
             <button
               type="button"
@@ -220,7 +265,7 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
             <button
               type="button"
               className={styles.askBtn}
-              disabled={asking || !hasKey || !place || !richTextToPlainText(question)}
+              disabled={asking || !hasKey || !place || !question.trim()}
               onClick={submitQuestion}
             >
               {asking ? 'Asking…' : 'Ask AI'}

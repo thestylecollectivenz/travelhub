@@ -15,8 +15,46 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  max-height: 14rem;
-  overflow-y: auto;
+}
+
+.qaSection {
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  overflow: hidden;
+}
+
+.qaToggle {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.qaToggleLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-blue-800);
+  line-height: 1.45;
+}
+
+.qaChevron {
+  flex-shrink: 0;
+  color: var(--color-sand-600);
+  font-size: var(--font-size-sm);
+  line-height: 1.2;
+}
+
+.qaBody {
+  padding: 0 var(--space-3) var(--space-2);
+  border-top: var(--border-default);
 }
 
 .qaBlock {
@@ -76,6 +114,21 @@
 .askRich {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+.askSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: var(--border-default);
+  margin-top: var(--space-1);
+}
+
+.askLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-sand-700);
 }
 
 .askRow {

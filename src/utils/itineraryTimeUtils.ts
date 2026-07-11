@@ -5,6 +5,8 @@
  * When reading from SharePoint we extract HH:MM from the UTC time component.
  */
 
+import type { ItineraryEntry } from '../models/ItineraryEntry';
+
 function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n);
 }
@@ -47,4 +49,24 @@ export function combineDayAndTime(calendarDate: string, timeHHMM: string): strin
   const mNum = Math.min(59, Math.max(0, parseInt(parts[1] ?? '0', 10) || 0));
   // Return HH:MM only — date is irrelevant, timezone is irrelevant
   return `${pad2(hNum)}:${pad2(mNum)}`;
+}
+
+/** Timeline placement for accommodation check-in (planned overrides contractual check-in). */
+export function effectiveAccommodationArrivalTime(entry: ItineraryEntry): string {
+  return entry.plannedArrivalTime?.trim() || entry.checkInTime?.trim() || '';
+}
+
+/** Timeline placement for accommodation check-out. */
+export function effectiveAccommodationDepartureTime(entry: ItineraryEntry): string {
+  return entry.plannedDepartureTime?.trim() || entry.checkOutTime?.trim() || '';
+}
+
+/** Timeline placement for cruise embark / boarding. */
+export function effectiveCruiseBoardingTime(entry: ItineraryEntry): string {
+  return entry.plannedBoardingTime?.trim() || entry.timeStart?.trim() || '';
+}
+
+/** Timeline placement for cruise disembark. */
+export function effectiveCruiseDisembarkTime(entry: ItineraryEntry): string {
+  return entry.plannedDisembarkTime?.trim() || entry.arrivalTime?.trim() || '';
 }

@@ -17,6 +17,8 @@ import styles from './MobileAskAiResultsSheet.module.css';
 export interface MobileAskAiResultsSheetProps {
   prompt: string;
   onClose: () => void;
+  onSavePlace?: (place: { name: string; note?: string; mapsUrl?: string }) => void;
+  onAddToItinerary?: (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string }) => void;
 }
 
 function cardToResult(card: ItineraryAiSuggestionCard): NearYouResultCardData {
@@ -33,7 +35,12 @@ function cardToResult(card: ItineraryAiSuggestionCard): NearYouResultCardData {
   };
 }
 
-export const MobileAskAiResultsSheet: React.FC<MobileAskAiResultsSheetProps> = ({ prompt, onClose }) => {
+export const MobileAskAiResultsSheet: React.FC<MobileAskAiResultsSheetProps> = ({
+  prompt,
+  onClose,
+  onSavePlace,
+  onAddToItinerary
+}) => {
   const { config } = useConfig();
   const { trip, tripDays, localEntries, selectedDayId } = useTripWorkspace();
   const { placeById } = usePlaces();
@@ -133,6 +140,27 @@ export const MobileAskAiResultsSheet: React.FC<MobileAskAiResultsSheetProps> = (
               key={card.id}
               result={cardToResult(card)}
               categoryLabel={card.type === 'tip' ? 'Tip' : card.type === 'attraction' ? 'Sight' : 'Place'}
+              onSave={
+                onSavePlace
+                  ? () =>
+                      onSavePlace({
+                        name: card.name,
+                        note: card.description,
+                        mapsUrl: card.mapsUrl || placeQueryMapsUrl(card.name)
+                      })
+                  : undefined
+              }
+              onAddToItinerary={
+                onAddToItinerary
+                  ? () =>
+                      onAddToItinerary({
+                        name: card.name,
+                        note: card.description,
+                        mapsUrl: card.mapsUrl || placeQueryMapsUrl(card.name),
+                        websiteUrl: card.websiteUrl || placeWebsiteSearchUrl(card.name)
+                      })
+                  : undefined
+              }
             />
           ))}
         </div>

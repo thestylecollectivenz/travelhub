@@ -718,6 +718,26 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
               value={draft.disembarksDate ?? ''}
               onChange={(e) => patch({ disembarksDate: e.target.value })}
             />
+            <label className={styles.label} htmlFor={`pbt-${draft.id}`}>
+              Planned boarding time (itinerary)
+            </label>
+            <input
+              id={`pbt-${draft.id}`}
+              className={styles.input}
+              type="time"
+              value={formatTimeHHMM(draft.plannedBoardingTime ?? '')}
+              onChange={(e) => patch({ plannedBoardingTime: combineDayAndTime(calendarDate, e.target.value) })}
+            />
+            <label className={styles.label} htmlFor={`pdm-${draft.id}`}>
+              Planned disembark time (itinerary)
+            </label>
+            <input
+              id={`pdm-${draft.id}`}
+              className={styles.input}
+              type="time"
+              value={formatTimeHHMM(draft.plannedDisembarkTime ?? '')}
+              onChange={(e) => patch({ plannedDisembarkTime: combineDayAndTime(calendarDate, e.target.value) })}
+            />
           </>
         ) : null}
 
@@ -1067,6 +1087,26 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
               type="time"
               value={formatTimeHHMM(draft.checkOutTime ?? '')}
               onChange={(e) => patch({ checkOutTime: combineDayAndTime(calendarDate, e.target.value) })}
+            />
+            <label className={styles.label} htmlFor={`pat-${draft.id}`}>
+              Planned arrival time (itinerary)
+            </label>
+            <input
+              id={`pat-${draft.id}`}
+              className={styles.input}
+              type="time"
+              value={formatTimeHHMM(draft.plannedArrivalTime ?? '')}
+              onChange={(e) => patch({ plannedArrivalTime: combineDayAndTime(calendarDate, e.target.value) })}
+            />
+            <label className={styles.label} htmlFor={`pdt-${draft.id}`}>
+              Planned departure time (itinerary)
+            </label>
+            <input
+              id={`pdt-${draft.id}`}
+              className={styles.input}
+              type="time"
+              value={formatTimeHHMM(draft.plannedDepartureTime ?? '')}
+              onChange={(e) => patch({ plannedDepartureTime: combineDayAndTime(calendarDate, e.target.value) })}
             />
             <label className={styles.label} htmlFor={`addr-a-${draft.id}`}>
               Street address

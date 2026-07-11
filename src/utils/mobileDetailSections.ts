@@ -183,6 +183,16 @@ export function buildMobileCardSections(
       pair(field('Room type', entry.roomType), field('Transfers', entry.transportTransfers !== undefined ? String(entry.transportTransfers) : undefined))
     ].filter((r): r is MobileDetailRowPair => Boolean(r));
     if (stayRows.length) sections.push({ id: 'stay', title: 'Stay details', rows: stayRows });
+    for (const sub of entry.subItems ?? []) {
+      plannedActivities.push({
+        id: sub.id,
+        title: sub.title,
+        meta: [sub.startTime ? formatTimeHHMM(sub.startTime) : '', sub.category || 'Activity'].filter(Boolean).join(' · ')
+      });
+    }
+    if (plannedActivities.length) {
+      sections.push({ id: 'planned', title: 'Activities planned', rows: [] });
+    }
   } else if (cat === 'Flights') {
     showStatsBar = false;
     const flightRows = [

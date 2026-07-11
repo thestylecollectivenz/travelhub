@@ -711,8 +711,8 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
           <h2 className={styles.sectionTitle}>
             {featuredTrip ? `Your trip to ${featuredTrip.destination || featuredTrip.title}` : 'Your trips'}
           </h2>
-          <button type="button" className={styles.sectionLink} onClick={() => (featuredTrip ? onSelectTrip(featuredTrip.id) : setTab('trips'))}>
-            View trip
+          <button type="button" className={styles.sectionLink} onClick={() => setTab('trips')}>
+            View all
           </button>
         </div>
         {loading ? <div className={styles.feedback}>Loading trips…</div> : null}

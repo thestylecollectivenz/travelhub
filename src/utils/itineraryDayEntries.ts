@@ -3,7 +3,7 @@ import type { TripDay } from '../models/TripDay';
 import { formatActivityScheduleHero } from './activityScheduleLabel';
 import { formatCruisePortScheduleHero } from './cruisePlannerUtils';
 import { durationFromDateTimes } from './durationFromTimes';
-import { formatTimeHHMM, minutesFromTimeStart } from './itineraryTimeUtils';
+import { formatTimeHHMM, minutesFromTimeStart, effectiveAccommodationDepartureTime, effectiveCruiseBoardingTime, effectiveCruiseDisembarkTime } from './itineraryTimeUtils';
 import { dayHasPlaceId, isLocationInfoEntry, locationInfoPlaceId } from './locationInfoEntry';
 import { parseAdditionalPlaceRefs } from './tripDayPlaces';
 
@@ -111,9 +111,9 @@ export function effectivePlannerTimeStart(
   if (
     entry.category === 'Accommodation' &&
     isAccommodationCheckoutOnCalendarDate(entry, dayCalendarDate) &&
-    entry.checkOutTime?.trim()
+    effectiveAccommodationDepartureTime(entry)
   ) {
-    return entry.checkOutTime.trim();
+    return effectiveAccommodationDepartureTime(entry);
   }
   if (
     entry.category === 'Flights' &&
@@ -359,11 +359,11 @@ export function formatEntryScheduleHero(
       const dayNum = Math.floor((thisDay.getTime() - startDay.getTime()) / 86400000) + 1;
       return `Day ${dayNum} of ${totalDays}`;
     }
-    if (cal === embark && entry.timeStart?.trim()) {
-      return `Embarks ${formatTimeHHMM(entry.timeStart)}`;
+    if (cal === embark && effectiveCruiseBoardingTime(entry)) {
+      return `Embarks ${formatTimeHHMM(effectiveCruiseBoardingTime(entry))}`;
     }
-    if (cal === disembark && entry.arrivalTime?.trim()) {
-      return `Disembarks ${formatTimeHHMM(entry.arrivalTime)}`;
+    if (cal === disembark && effectiveCruiseDisembarkTime(entry)) {
+      return `Disembarks ${formatTimeHHMM(effectiveCruiseDisembarkTime(entry))}`;
     }
     return totalDays > 0 ? `${totalDays} day${totalDays === 1 ? '' : 's'}` : null;
   }

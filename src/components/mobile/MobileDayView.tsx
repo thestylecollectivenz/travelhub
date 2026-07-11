@@ -38,6 +38,7 @@ export interface MobileDayViewProps {
   onOpenMembers?: () => void;
   onAskAi?: (prompt?: string) => void;
   onDetailChange?: (open: boolean, close?: () => void) => void;
+  onGoHome?: () => void;
 }
 
 function ymdToday(): string {
@@ -127,7 +128,7 @@ function mapsSearchUrl(query: string): string {
 
 const MAX_VISIBLE_AVATARS = 3;
 
-export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onAskAi, onDetailChange }) => {
+export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onAskAi, onDetailChange, onGoHome }) => {
   const { trip, tripDays, localEntries, selectedDayId, setSelectedDayId, updateEntry } = useTripWorkspace();
   const { role } = useTripRole();
   const { placeById } = usePlaces();
@@ -382,6 +383,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
         sourceEntry={detailSourceEntry}
         displayEntry={detailDisplayEntry}
         calendarDate={day.calendarDate || ''}
+        optionSubItemId={detailTarget?.subItemId}
         onClose={closeDetail}
         onOpenPlannedActivity={(subItemId) => openDetail(detailSourceEntry.id, subItemId)}
       />
@@ -393,6 +395,11 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
       <div className={styles.tripHeader}>
         <div className={styles.tripMeta}>
           <div className={styles.tripTitleRow}>
+            {onGoHome ? (
+              <button type="button" className={styles.homeLink} onClick={onGoHome}>
+                Home
+              </button>
+            ) : null}
             <h2 className={styles.tripTitle}>{trip.title}</h2>
           </div>
           {rangeLabel ? <p className={styles.tripDateRange}>{rangeLabel}</p> : null}

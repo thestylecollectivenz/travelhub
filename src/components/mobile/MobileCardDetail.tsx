@@ -33,6 +33,7 @@ export interface MobileCardDetailProps {
   sourceEntry: ItineraryEntry;
   displayEntry: ItineraryEntry;
   calendarDate: string;
+  optionSubItemId?: string;
   onClose: () => void;
   onOpenPlannedActivity?: (subItemId: string) => void;
 }
@@ -73,6 +74,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
   sourceEntry,
   displayEntry,
   calendarDate,
+  optionSubItemId,
   onClose,
   onOpenPlannedActivity
 }) => {
@@ -99,9 +101,10 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
   );
   const slug = getCategorySlug(entry.category);
   const timeChip = entry.timeStart ? formatTimeHHMM(entry.timeStart) : entry.duration || '';
+  const isOptionView = Boolean(optionSubItemId);
   const isEditing = editingCardId === sourceEntry.id;
-  const isAccommodation = entry.category === 'Accommodation';
-  const isCruise = entry.category === 'Cruise';
+  const isAccommodation = !isOptionView && entry.category === 'Accommodation';
+  const isCruise = !isOptionView && entry.category === 'Cruise';
   const isDining = entry.category === 'Food & Dining' || entry.category === 'Dining';
   const title = entry.category === 'Transport' ? transportDisplayTitle(entry, calendarDate) : entry.title;
 
@@ -227,13 +230,14 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
     return (
       <div className={styles.page} ref={pageRef}>
         <MobileAccommodationDetail
-          entry={entry}
+          entry={sourceEntry}
           documents={entryDocs}
           links={entryLinks}
           canSeeFinancials={canSeeFinancials}
           canEdit={canEditItinerary}
           onEdit={() => setEditingCardId(sourceEntry.id)}
           onBookNow={() => setShowBookingSites(true)}
+          onOpenPlannedActivity={onOpenPlannedActivity}
           mapsDirectionsUrl={mapsDirectionsUrl}
           phoneNumber={entry.phoneNumber}
         />

@@ -352,3 +352,35 @@
   line-height: 1.45;
   color: #1e2a44;
 }
+
+.plannedList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.plannedRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  border: 1px solid color-mix(in srgb, #3d5a80 18%, transparent);
+  border-radius: 0.65rem;
+  background: white;
+  padding: 0.55rem 0.65rem;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: #1e2a44;
+}
+
+.plannedTitle {
+  flex: 1;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.plannedMeta {
+  font-size: 0.65rem;
+  color: #6b7280;
+}

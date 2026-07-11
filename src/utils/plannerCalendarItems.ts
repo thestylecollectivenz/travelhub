@@ -4,7 +4,7 @@ import { parseDurationMinutes, durationFromDateTimes } from './durationFromTimes
 import { cruisePortPlannerBlocks, isCruiseSeaOrScenicEntry } from './cruisePlannerUtils';
 import { effectivePlannerTimeStart } from './itineraryDayEntries';
 import { isLocationInfoEntry } from './locationInfoEntry';
-import { formatTimeHHMM, minutesFromTimeStart } from './itineraryTimeUtils';
+import { formatTimeHHMM, minutesFromTimeStart, effectiveAccommodationArrivalTime, effectiveAccommodationDepartureTime, effectiveCruiseBoardingTime, effectiveCruiseDisembarkTime } from './itineraryTimeUtils';
 
 export interface PlannerTimedItem {
   key: string;
@@ -86,24 +86,56 @@ export function accommodationPlannerBlocks(
   const base = entry.title?.trim() || 'Accommodation';
   const blocks: Array<{ keySuffix: string; startMinutes: number; durationMinutes: number; title: string; checkInFromLabel?: string }> = [];
   if (day && checkInDay === day) {
-    const start = minutesFromTimeStart(entry.checkInTime || '');
+    const start = minutesFromTimeStart(effectiveAccommodationArrivalTime(entry));
     if (start !== undefined) {
       blocks.push({
         keySuffix: 'checkin',
         startMinutes: start,
         durationMinutes: PORT_MARKER_MINUTES,
         title: `${base} · Check-in`,
-        checkInFromLabel: formatTimeHHMM(entry.checkInTime || '')
+        checkInFromLabel: formatTimeHHMM(effectiveAccommodationArrivalTime(entry))
       });
     }
   }
   if (day && checkOutDay === day) {
-    const start = minutesFromTimeStart(entry.checkOutTime || '');
+    const start = minutesFromTimeStart(effectiveAccommodationDepartureTime(entry));
     blocks.push({
       keySuffix: 'checkout',
       startMinutes: start ?? 8 * 60,
       durationMinutes: PORT_MARKER_MINUTES,
-      title: `${base} · Check-out${entry.checkOutTime ? ` ${formatTimeHHMM(entry.checkOutTime)}` : ''}`
+      title: `${base} · Check-out${effectiveAccommodationDepartureTime(entry) ? ` ${formatTimeHHMM(effectiveAccommodationDepartureTime(entry))}` : ''}`
+    });
+  }
+  return blocks;
+}
+
+export function wholeCruisePlannerBlocks(
+  entry: ItineraryEntry,
+  calendarDate: string
+): Array<{ keySuffix: string; startMinutes: number; durationMinutes: number; title: string }> {
+  const day = ymdSlice(calendarDate);
+  const embark = ymdSlice(entry.embarksDate);
+  const disembark = ymdSlice(entry.disembarksDate);
+  const base = entry.title?.trim() || 'Cruise';
+  const blocks: Array<{ keySuffix: string; startMinutes: number; durationMinutes: number; title: string }> = [];
+  if (day && embark === day) {
+    const start = minutesFromTimeStart(effectiveCruiseBoardingTime(entry));
+    if (start !== undefined) {
+      blocks.push({
+        keySuffix: 'boarding',
+        startMinutes: start,
+        durationMinutes: PORT_MARKER_MINUTES,
+        title: `${base} · Boarding`
+      });
+    }
+  }
+  if (day && disembark === day) {
+    const start = minutesFromTimeStart(effectiveCruiseDisembarkTime(entry));
+    blocks.push({
+      keySuffix: 'disembark',
+      startMinutes: start ?? 8 * 60,
+      durationMinutes: PORT_MARKER_MINUTES,
+      title: `${base} · Disembark${effectiveCruiseDisembarkTime(entry) ? ` ${formatTimeHHMM(effectiveCruiseDisembarkTime(entry))}` : ''}`
     });
   }
   return blocks;
@@ -255,7 +287,7 @@ export function isPlannerUnscheduledEntry(
 
 export function shouldRenderPlannerItem(item: PlannerTimedItem): boolean {
   if (item.subItem) return true;
-  if (item.key.includes('-port-') || item.key.includes('-acc-') || item.key.includes('-flt-') || item.key.includes('-trn-')) return true;
+  if (item.key.includes('-port-') || item.key.includes('-acc-') || item.key.includes('-cru-') || item.key.includes('-flt-') || item.key.includes('-trn-')) return true;
   if (item.key.includes('-opt')) return true;
   return !entryHasTimedSubs(item.entry);
 }
@@ -344,7 +376,8 @@ export function adjustPlannerAccommodationOrder(items: PlannerTimedItem[]): void
     const originalStart = item.startMinutes;
     if (originalStart >= latestJourneyEnd) continue;
     const fromLabel = formatTimeHHMM(
-      item.entry.checkInTime || `${Math.floor(originalStart / 60)}:${originalStart % 60}`
+      effectiveAccommodationArrivalTime(item.entry) ||
+        `${Math.floor(originalStart / 60)}:${String(originalStart % 60).padStart(2, '0')}`
     );
     item.startMinutes = Math.min(latestJourneyEnd + 5, MINUTES_PER_DAY - PORT_MARKER_MINUTES);
     if (fromLabel) {
@@ -370,6 +403,16 @@ export function expandPlannerTimedItems(
     const untimedSubs = subs.filter((s) => minutesFromTimeStart(s.startTime || '') === undefined);
 
     if (isWholeCruiseEntry(entry)) {
+      for (const block of wholeCruisePlannerBlocks(entry, calendarDate)) {
+        items.push({
+          key: `${entry.id}-cru-${block.keySuffix}`,
+          entry,
+          title: block.title,
+          category: entry.category,
+          startMinutes: block.startMinutes,
+          durationMinutes: block.durationMinutes
+        });
+      }
       pushTimedSubs(items, entry, timedSubs, entry.title || 'Cruise');
       pushUntimedSubs(items, entry, untimedSubs, entry.title || 'Cruise', timedSubs.length);
       continue;
