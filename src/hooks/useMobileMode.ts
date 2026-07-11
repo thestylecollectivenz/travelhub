@@ -1,23 +1,18 @@
 import * as React from 'react';
+import { useShellMode, isCompactTouchShell } from './useShellMode';
 
 const MOBILE_MAX_WIDTH_PX = 767;
 
+/** @deprecated Prefer `useShellMode()` — true for phone and iPad portrait compact shells. */
 export function useMobileMode(): boolean {
-  const [mobile, setMobile] = React.useState(() =>
-    typeof window !== 'undefined' ? window.innerWidth <= MOBILE_MAX_WIDTH_PX : false
-  );
-
-  React.useEffect(() => {
-    const mq = window.matchMedia(`(max-width: ${MOBILE_MAX_WIDTH_PX}px)`);
-    const onChange = (): void => setMobile(mq.matches);
-    onChange();
-    if (typeof mq.addEventListener === 'function') {
-      mq.addEventListener('change', onChange);
-      return () => mq.removeEventListener('change', onChange);
-    }
-    mq.addListener(onChange);
-    return () => mq.removeListener(onChange);
-  }, []);
-
-  return mobile;
+  const mode = useShellMode();
+  return isCompactTouchShell(mode);
 }
+
+/** True only for phone-width shell (≤767px). */
+export function usePhoneMode(): boolean {
+  const mode = useShellMode();
+  return mode === 'phone';
+}
+
+export { MOBILE_MAX_WIDTH_PX };

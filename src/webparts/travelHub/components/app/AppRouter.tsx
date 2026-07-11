@@ -5,14 +5,15 @@ import { TripWorkspace } from '../../../../components/workspace/TripWorkspace';
 import { ConfigPanel } from '../../../../components/workspace/ConfigPanel';
 import { TermsAndConditions } from './TermsAndConditions';
 import { AppFooter } from './AppFooter';
-import { useMobileMode } from '../../../../hooks/useMobileMode';
+import { useShellMode, isCompactTouchShell } from '../../../../hooks/useShellMode';
 import { MobileHomeShell } from '../../../../components/mobile/MobileHomeShell';
+import { IpadLandscapePlaceholder } from '../../../../components/ipad/IpadLandscapePlaceholder';
 import type { MobileTab } from '../../../../components/mobile/mobileTypes';
 
 type AppView = 'multiTrip' | 'singleTrip' | 'createTrip' | 'terms';
 
 export const AppRouter: React.FC = () => {
-  const isMobile = useMobileMode();
+  const shellMode = useShellMode();
   const [view, setView] = React.useState<AppView>('multiTrip');
   const [selectedTripId, setSelectedTripId] = React.useState<string>('');
   const [initialMobileTab, setInitialMobileTab] = React.useState<MobileTab | undefined>(undefined);
@@ -44,12 +45,15 @@ export const AppRouter: React.FC = () => {
         initialMobileTab={initialMobileTab}
       />
     );
-  } else if (isMobile) {
+  } else if (shellMode === 'ipad-landscape') {
+    content = <IpadLandscapePlaceholder context="home" />;
+  } else if (isCompactTouchShell(shellMode)) {
     content = (
       <MobileHomeShell
         onSelectTrip={goToTrip}
         onCreateTrip={() => setView('createTrip')}
         onOpenSettings={() => setConfigOpen(true)}
+        shellMode={shellMode === 'ipad-portrait' ? 'ipad-portrait' : 'phone'}
       />
     );
   } else {
@@ -62,13 +66,16 @@ export const AppRouter: React.FC = () => {
     );
   }
 
+  const hideFooter =
+    isCompactTouchShell(shellMode) || shellMode === 'ipad-landscape'
+      ? view === 'singleTrip' || view === 'multiTrip'
+      : false;
+
   return (
     <>
       {content}
       <ConfigPanel isOpen={configOpen} onClose={() => setConfigOpen(false)} />
-      {!(isMobile && (view === 'singleTrip' || view === 'multiTrip')) ? (
-        <AppFooter onOpenTerms={() => setView('terms')} />
-      ) : null}
+      {!hideFooter ? <AppFooter onOpenTerms={() => setView('terms')} /> : null}
       {view === 'createTrip' ? (
         <CreateTripPanel
           onCreated={(newTripId) => goToTrip(newTripId)}

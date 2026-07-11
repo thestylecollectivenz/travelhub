@@ -23,6 +23,7 @@ import { NearYouToolIcon } from '../shared/NearYouToolIcon';
 import { ItineraryService } from '../../services/ItineraryService';
 import { MobileNearYouPage } from './MobileNearYouPage';
 import '../../components/maps/LeafletCompat.css';
+import type { ShellMode } from '../../hooks/useShellMode';
 import styles from './MobileHome.module.css';
 
 export type MobileHomeTab = 'home' | 'trips' | 'spots' | 'profile' | 'nearyou';
@@ -31,6 +32,8 @@ export interface MobileHomeShellProps {
   onSelectTrip: (tripId: string, initialTab?: MobileTab) => void;
   onCreateTrip: () => void;
   onOpenSettings: () => void;
+  /** When `ipad-portrait`, enables tablet-width polish via `data-shell`. */
+  shellMode?: Extract<ShellMode, 'phone' | 'ipad-portrait'>;
 }
 
 type MapTripFilter = 'completed' | 'upcoming';
@@ -146,7 +149,8 @@ function IconBell(): React.ReactElement {
 export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   onSelectTrip,
   onCreateTrip,
-  onOpenSettings
+  onOpenSettings,
+  shellMode = 'phone'
 }) => {
   const spContext = useSpContext();
   const { config, greetingName } = useConfig();
@@ -759,7 +763,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   }
 
   return (
-    <div className={styles.homeRoot}>
+    <div className={styles.homeRoot} data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}>
       <main className={styles.scroll}>{body}</main>
       <nav className={styles.bottomNav} aria-label="Trip Leopard home navigation">
         <button

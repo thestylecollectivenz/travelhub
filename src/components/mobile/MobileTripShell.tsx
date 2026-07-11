@@ -13,6 +13,7 @@ import { TripMembersPanel } from '../workspace/TripMembersPanel';
 import { AiAssistantFab } from '../workspace/AiAssistantFab';
 import { MobileAskAiResultsSheet } from './MobileAskAiResultsSheet';
 import type { MobileTab } from './mobileTypes';
+import type { ShellMode } from '../../hooks/useShellMode';
 import { SOLUTION_VERSION } from '../../appVersion';
 import styles from './MobileShell.module.css';
 
@@ -21,6 +22,7 @@ export type { MobileTab } from './mobileTypes';
 export interface MobileTripShellProps {
   onBack: () => void;
   initialTab?: MobileTab;
+  shellMode?: Extract<ShellMode, 'phone' | 'ipad-portrait'>;
 }
 
 const TABS: Array<{ id: MobileTab; label: string; icon: React.ReactNode }> = [
@@ -81,7 +83,7 @@ const TABS: Array<{ id: MobileTab; label: string; icon: React.ReactNode }> = [
   }
 ];
 
-export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initialTab }) => {
+export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initialTab, shellMode = 'phone' }) => {
   const { trip, tripDays, selectedDayId } = useTripWorkspace();
   const spContext = useSpContext();
   const { canUseAiHelpers } = useTripPermissions();
@@ -172,7 +174,10 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
   }
 
   return (
-    <div className={styles.mobileRoot}>
+    <div
+      className={styles.mobileRoot}
+      data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}
+    >
       <header className={styles.mobileHeader}>
         {cardDetailOpen && tab === 'today' ? (
           <button

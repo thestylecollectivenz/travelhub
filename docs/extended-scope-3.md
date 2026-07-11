@@ -310,7 +310,7 @@ When editing an itinerary entry from within the Day Planner column view, the edi
 
 ### Item ES3-13 — Mobile Experience Priorities
 
-**What:** The mobile phone experience must work well for a defined set of core workflows. iPad functionality is already specified as identical to desktop and is unchanged.
+**What:** The mobile phone experience must work well for a defined set of core workflows. **iPad portrait** reuses the mobile shell with tablet polish; **iPad landscape** shows a placeholder until a dedicated touch landscape UI is built (see `docs/ipad-ui-phase-a.md` and functional spec §31.2).
 
 **Priority mobile workflows (must work well on phone):**
 

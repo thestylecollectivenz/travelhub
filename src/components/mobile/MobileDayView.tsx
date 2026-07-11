@@ -26,6 +26,7 @@ import { MobileStayCruiseTile } from './MobileStayCruiseTile';
 import { findStayTileForDay } from '../../utils/mobileDayStay';
 import { itineraryEntryFromSubItem } from '../../utils/mobileSubItemEntry';
 import { useMobileDetailHistory } from '../../hooks/useMobileDetailHistory';
+import { useShellMode } from '../../hooks/useShellMode';
 import styles from './MobileItinerary.module.css';
 import shellStyles from './MobileShell.module.css';
 
@@ -129,6 +130,7 @@ function mapsSearchUrl(query: string): string {
 const MAX_VISIBLE_AVATARS = 3;
 
 export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onAskAi, onDetailChange, onGoHome }) => {
+  const shellMode = useShellMode();
   const { trip, tripDays, localEntries, selectedDayId, setSelectedDayId, updateEntry } = useTripWorkspace();
   const { role } = useTripRole();
   const { placeById } = usePlaces();
@@ -391,7 +393,10 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   }
 
   return (
-    <div className={styles.itinRoot}>
+    <div
+      className={styles.itinRoot}
+      data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}
+    >
       <div className={styles.tripHeader}>
         <div className={styles.tripMeta}>
           <div className={styles.tripTitleRow}>

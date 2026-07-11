@@ -35,8 +35,9 @@ import { TripRoleProvider } from '../../context/TripRoleContext';
 import { LocationInfoTripOpenBackfill } from '../itinerary/LocationInfoTripOpenBackfill';
 import { AiAssistantFab } from './AiAssistantFab';
 import { OptionEditPortal } from '../itinerary/OptionEditPortal';
-import { useMobileMode } from '../../hooks/useMobileMode';
+import { useShellMode, isCompactTouchShell } from '../../hooks/useShellMode';
 import { MobileTripShell } from '../mobile/MobileTripShell';
+import { IpadLandscapePlaceholder } from '../ipad/IpadLandscapePlaceholder';
 import type { MobileTab } from '../mobile/mobileTypes';
 import { useSpContext } from '../../context/SpContext';
 import { logTripAccessOnce } from '../../services/TripAccessLogService';
@@ -666,9 +667,24 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
   );
 };
 
-const MobileAwareTripLayout: React.FC<ITripWorkspaceProps> = (props) => {
-  const isMobile = useMobileMode();
-  if (isMobile) return <MobileTripShell onBack={props.onBack} initialTab={props.initialMobileTab} />;
+const ShellAwareTripLayout: React.FC<ITripWorkspaceProps> = (props) => {
+  const shellMode = useShellMode();
+  const { trip } = useTripWorkspace();
+
+  if (shellMode === 'ipad-landscape') {
+    return (
+      <IpadLandscapePlaceholder context="trip" tripTitle={trip?.title} onBack={props.onBack} />
+    );
+  }
+  if (isCompactTouchShell(shellMode)) {
+    return (
+      <MobileTripShell
+        onBack={props.onBack}
+        initialTab={props.initialMobileTab}
+        shellMode={shellMode === 'ipad-portrait' ? 'ipad-portrait' : 'phone'}
+      />
+    );
+  }
   return <TripWorkspaceLayout {...props} />;
 };
 
@@ -682,7 +698,7 @@ export const TripWorkspace: React.FC<ITripWorkspaceProps> = (props) => {
             <PlacesProvider>
               <AttachmentsProvider>
                 <LocationInfoTripOpenBackfill />
-                <MobileAwareTripLayout {...props} />
+                <ShellAwareTripLayout {...props} />
               </AttachmentsProvider>
             </PlacesProvider>
           </JournalMediaSelectionProvider>

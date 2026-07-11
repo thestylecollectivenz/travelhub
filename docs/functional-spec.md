@@ -900,13 +900,24 @@ The PDF export must support:
 
 ## 31.1 Desktop
 
-Must support the full experience and full UI.
+Must support the full experience and full UI on large screens with fine-pointer input (mouse/trackpad).
 
-## 31.2 Tablet
+## 31.2 iPad / tablet
 
-Must also support the full experience and full UI.
+Travel Hub uses a **third shell** for touch tablets (primarily iPad Pro), separate from phone and desktop:
 
-## 31.3 Mobile
+| Orientation | Shell | Experience |
+|-------------|-------|------------|
+| **Portrait** | Mobile-derived (`data-shell="ipad-portrait"`) | Same component tree as phone with centred, wider column layout |
+| **Landscape** | iPad placeholder (Phase A) | “Rotate to portrait” message until dedicated touch landscape UI ships |
+
+**Routing:** `useShellMode()` in `src/hooks/useShellMode.ts` — tablet band 768–1366px on iPad-like or coarse-pointer devices; portrait vs landscape by viewport aspect ratio.
+
+**Future (Phase B):** iPad landscape will be a dedicated touch UI in `src/components/ipad/`, mirroring the updated desktop layout without mouse-only interactions. Desktop UI refresh is a prerequisite; landscape iPad follows that design.
+
+Laptops and desktops in the tablet width band still receive the **desktop** shell when fine pointer is detected.
+
+## 31.3 Mobile (phone)
 
 Mobile may use a reduced layout, but must work well for:
 - Journaling
@@ -1009,7 +1020,7 @@ This is not a UI design note only; it is the intended delivery shape:
 - Documents/photos/attachments living in SharePoint
 - Inline editing patterns
 - Separate private and shared rendering modes
-- Full desktop/tablet UI, reduced mobile mode
+- Full desktop UI on large/fine-pointer screens; phone + iPad portrait compact shells; iPad landscape placeholder until Phase B
 - Export services for Excel and PDF
 
 ---

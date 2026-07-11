@@ -15,7 +15,7 @@ Financial fields (amounts, budget cards, day totals, payment status, booking ref
 
 ## Mobile shell (MEMORY 3)
 
-Mobile shell is a separate component tree in `src/components/mobile/`. `useMobileMode` hook controls which tree renders. Desktop components are never conditionally modified for mobile — mobile has its own components.
+Three touch-related shells: **phone** and **iPad portrait** use `src/components/mobile/`; **iPad landscape** uses `src/components/ipad/IpadLandscapePlaceholder` until Phase B. `useShellMode()` controls routing; `useMobileMode()` is true for phone + iPad portrait only. Desktop components are never conditionally modified for mobile — mobile has its own components.
 
 ## User identity (MEMORY 4)
 
