@@ -14,6 +14,7 @@ import { effectiveBookingStatus, findConfirmationDocument } from '../../utils/bo
 import { isRichTextEditorEmpty } from '../../utils/journalRichText';
 import { RichTextContent } from '../shared/RichTextContent';
 import { MobilePencilButton } from './MobilePencilButton';
+import { openMobileExternalUrl } from '../../hooks/useMobileDetailHistory';
 import styles from './MobileAccommodationDetail.module.css';
 
 export interface MobileAccommodationDetailProps {
@@ -122,10 +123,10 @@ function GridCell({ cell: c }: { cell: AccomGridCell }): React.ReactElement {
   );
 }
 
-function GridRow({ cells }: { cells: AccomGridCell[] }): React.ReactElement | null {
+function GridRow({ cells, bordered }: { cells: AccomGridCell[]; bordered?: boolean }): React.ReactElement | null {
   if (!cells.length) return null;
   return (
-    <div className={styles.gridRow}>
+    <div className={`${styles.gridRow} ${bordered ? styles.gridRowBordered : ''}`}>
       {cells.map((c) => (
         <GridCell key={c.label} cell={c} />
       ))}
@@ -203,7 +204,13 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
       <div className={styles.actionGrid}>
         {booked ? (
           confirmationDoc?.fileUrl ? (
-            <a className={styles.actionTile} href={confirmationDoc.fileUrl} target="_blank" rel="noopener noreferrer">
+            <a
+              className={styles.actionTile}
+              href={confirmationDoc.fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => openMobileExternalUrl(confirmationDoc.fileUrl, e)}
+            >
               {actionIcon('booking')}
               <span>Open booking</span>
             </a>
@@ -220,7 +227,13 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
           </button>
         )}
         {mapsDirectionsUrl ? (
-          <a className={styles.actionTile} href={mapsDirectionsUrl} target="_blank" rel="noopener noreferrer">
+          <a
+            className={styles.actionTile}
+            href={mapsDirectionsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => openMobileExternalUrl(mapsDirectionsUrl, e)}
+          >
             {actionIcon('directions')}
             <span>Directions</span>
           </a>
@@ -302,13 +315,13 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
             <span className={styles.sectionIcon}>{sectionIcon('wallet')}</span>
             <h2 className={styles.sectionTitle}>Booking &amp; payment</h2>
           </div>
-          <GridRow cells={bookingRow1} />
+          <GridRow cells={bookingRow1} bordered />
           {bookingRow1.length && bookingRow2.length ? <div className={styles.rowDivider} /> : null}
-          <GridRow cells={bookingRow2} />
+          <GridRow cells={bookingRow2} bordered />
           {extraRow.length ? (
             <>
               <div className={styles.rowDivider} />
-              <GridRow cells={extraRow} />
+              <GridRow cells={extraRow} bordered />
             </>
           ) : null}
         </section>
@@ -321,6 +334,7 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
             <h2 className={styles.sectionTitle}>Booking &amp; payment</h2>
           </div>
           <GridRow
+            bordered
             cells={[
               ...(entry.bookingReference ? [{ label: 'Booking reference', value: entry.bookingReference }] : []),
               ...(entry.supplier ? [{ label: 'Supplier', value: entry.supplier }] : [])
@@ -334,23 +348,20 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
           <span className={styles.sectionIcon}>{sectionIcon('bed')}</span>
           <h2 className={styles.sectionTitle}>Stay details</h2>
         </div>
-        <GridRow cells={data.stayGrid} />
+        <GridRow cells={data.stayGrid} bordered />
         {data.cancellation ? (
-          <>
-            <div className={styles.rowDivider} />
-            <div className={styles.cancelRow}>
-              <span className={styles.cancelIcon} aria-hidden>
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M8 1.5 2.5 3v5c0 3.5 2.8 5.8 5.5 6.5C10.7 13.8 13.5 11.5 13.5 8V3L8 1.5Z" stroke="currentColor" strokeWidth="1.2" />
-                  <path d="M5.5 8.2 7.2 10l3.3-3.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                </svg>
-              </span>
-              <div>
-                <span className={styles.gridLabel}>Cancellation</span>
-                <p className={styles.cancelText}>{data.cancellation}</p>
-              </div>
+          <div className={styles.cancelRow}>
+            <span className={styles.cancelIcon} aria-hidden>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M8 1.5 2.5 3v5c0 3.5 2.8 5.8 5.5 6.5C10.7 13.8 13.5 11.5 13.5 8V3L8 1.5Z" stroke="currentColor" strokeWidth="1.2" />
+                <path d="M5.5 8.2 7.2 10l3.3-3.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+              </svg>
+            </span>
+            <div>
+              <span className={styles.gridLabel}>Cancellation</span>
+              <p className={styles.cancelText}>{data.cancellation}</p>
             </div>
-          </>
+          </div>
         ) : null}
       </section>
 
@@ -362,7 +373,14 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
           </div>
           <div className={styles.docPillRow}>
             {docLinkPills.map((p) => (
-              <a key={p.id} className={styles.docPill} href={p.href} target="_blank" rel="noopener noreferrer">
+              <a
+                key={p.id}
+                className={styles.docPill}
+                href={p.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => openMobileExternalUrl(p.href, e)}
+              >
                 {p.kind === 'document' ? (
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
                     <rect x="2" y="1.5" width="8" height="9" rx="1" stroke="currentColor" strokeWidth="1" />

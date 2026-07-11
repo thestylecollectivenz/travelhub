@@ -25,6 +25,7 @@ import { MobileLocationInfoSheet } from './MobileLocationInfoSheet';
 import { MobileStayCruiseTile } from './MobileStayCruiseTile';
 import { findStayTileForDay } from '../../utils/mobileDayStay';
 import { itineraryEntryFromSubItem } from '../../utils/mobileSubItemEntry';
+import { useMobileDetailHistory } from '../../hooks/useMobileDetailHistory';
 import styles from './MobileItinerary.module.css';
 import shellStyles from './MobileShell.module.css';
 
@@ -204,9 +205,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     setDetailTarget({ entryId, subItemId });
   }, []);
 
-  const closeDetail = React.useCallback(() => {
-    setDetailTarget(null);
-  }, []);
+  const { closeDetail } = useMobileDetailHistory(detailTarget, setDetailTarget);
 
   React.useEffect(() => {
     onDetailChange?.(Boolean(detailTarget), closeDetail);

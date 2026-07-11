@@ -46,6 +46,10 @@ function cell(label: string, value?: string, pill?: AccomGridCell['pill']): Acco
   return { label, value: text, pill };
 }
 
+function boolYesNo(value?: boolean): string {
+  return value === true ? 'Yes' : 'No';
+}
+
 function unitPricingLabel(entry: ItineraryEntry): string | undefined {
   if (!entry.unitType || !entry.unitAmount) return undefined;
   const unit = entry.unitType.replace('per ', '').replace('Per', 'per ');
@@ -113,7 +117,7 @@ export function buildAccommodationDetailData(
   ];
 
   const extraBookingGrid: Array<AccomGridCell | undefined> = [
-    cell('Booking required', entry.bookingRequired ? 'Yes' : 'No'),
+    booked !== 'Booked' ? cell('Booking required', entry.bookingRequired ? 'Yes' : 'No') : undefined,
     cell('Booking status', formatDisplayLabel(booked)),
     canSeeFinancials && entry.amountPaid
       ? cell('Amount paid', formatCurrency(entry.amountPaid, entry.paymentCurrency || entry.currency))
@@ -121,9 +125,9 @@ export function buildAccommodationDetailData(
   ];
 
   const stayGrid: Array<AccomGridCell | undefined> = [
-    cell('Room type', entry.roomType),
-    cell('Booking required', entry.bookingRequired ? 'Yes' : 'No'),
-    cell('Transfers', entry.transportTransfers !== undefined ? String(entry.transportTransfers) : undefined)
+    cell('Room type', entry.roomType || '—'),
+    { label: 'Breakfast included', value: boolYesNo(entry.breakfastIncluded) },
+    { label: 'Parking included', value: boolYesNo(entry.parkingIncluded) }
   ];
 
   return {

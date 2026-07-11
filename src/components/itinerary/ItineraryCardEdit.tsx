@@ -364,6 +364,8 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       paymentCurrency: draft.paymentCurrency || config.homeCurrency,
       bookingReference: draft.bookingReference?.trim() || undefined,
       roomType: draft.roomType?.trim() || undefined,
+      breakfastIncluded: draft.breakfastIncluded === true,
+      parkingIncluded: draft.parkingIncluded === true,
       checkInTime: draft.checkInTime?.trim() || undefined,
       checkOutTime: draft.checkOutTime?.trim() || undefined,
       streetAddress: draft.streetAddress?.trim() || undefined,

@@ -77,7 +77,9 @@ const SELECT_PHASE7 = [
   'TransportFrom',
   'TransportTo',
   'TransportMode',
-  'TransportTransfers'
+  'TransportTransfers',
+  'BreakfastIncluded',
+  'ParkingIncluded'
 ];
 
 const SELECT = [...SELECT_BASE, ...SELECT_PHASE7].join(',');
@@ -115,7 +117,9 @@ const SP_PHASE7_FIELD_KEYS = new Set([
   'TransportFrom',
   'TransportTo',
   'TransportMode',
-  'TransportTransfers'
+  'TransportTransfers',
+  'BreakfastIncluded',
+  'ParkingIncluded'
 ]);
 
 function stripPhase7SpFields(item: Record<string, unknown>): Record<string, unknown> {
@@ -291,7 +295,9 @@ function mapToEntry(item: any): ItineraryEntry {
     transportFrom: item.TransportFrom ?? undefined,
     transportTo: item.TransportTo ?? undefined,
     transportMode: item.TransportMode ?? undefined,
-    transportTransfers: typeof item.TransportTransfers === 'number' ? item.TransportTransfers : Number(item.TransportTransfers ?? 0) || 0
+    transportTransfers: typeof item.TransportTransfers === 'number' ? item.TransportTransfers : Number(item.TransportTransfers ?? 0) || 0,
+    breakfastIncluded: item.BreakfastIncluded === true,
+    parkingIncluded: item.ParkingIncluded === true
   };
 }
 
@@ -401,6 +407,8 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   if (entry.transportTransfers !== undefined && entry.transportTransfers > 0) {
     item.TransportTransfers = entry.transportTransfers;
   }
+  if (entry.breakfastIncluded !== undefined) item.BreakfastIncluded = entry.breakfastIncluded;
+  if (entry.parkingIncluded !== undefined) item.ParkingIncluded = entry.parkingIncluded;
   return item;
 }
 

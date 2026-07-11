@@ -493,6 +493,22 @@ export const AccommodationEditLayout: React.FC<CategoryEditLayoutProps> = (props
         value={draft.roomType ?? ''}
         onChange={(e) => patch({ roomType: e.target.value })}
       />
+      <label className={styles.label}>
+        <input
+          type="checkbox"
+          checked={draft.breakfastIncluded === true}
+          onChange={(e) => patch({ breakfastIncluded: e.target.checked })}
+        />{' '}
+        Breakfast included
+      </label>
+      <label className={styles.label}>
+        <input
+          type="checkbox"
+          checked={draft.parkingIncluded === true}
+          onChange={(e) => patch({ parkingIncluded: e.target.checked })}
+        />{' '}
+        Parking included
+      </label>
       <label className={styles.label} htmlFor={`cit-${draft.id}`}>
         Check-in time
       </label>

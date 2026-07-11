@@ -131,4 +131,8 @@ export interface ItineraryEntry {
   transportMode?: string;
   /** Train / bus — number of transfers (0 = direct). */
   transportTransfers?: number;
+  /** Accommodation — breakfast included in rate. */
+  breakfastIncluded?: boolean;
+  /** Accommodation — parking included in rate. */
+  parkingIncluded?: boolean;
 }
