@@ -349,8 +349,21 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
           <h2 className={styles.sectionTitle}>Stay details</h2>
         </div>
         <GridRow cells={data.stayGrid} bordered />
+        {data.perks ? (
+          <div className={styles.subDetailRow}>
+            <span className={styles.perksIcon} aria-hidden>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M8 2.5 9.8 6.2 14 6.7l-3 2.6.9 3.9L8 11.2 4.1 13.2l.9-3.9-3-2.6 4.2-.5L8 2.5Z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <div>
+              <span className={styles.gridLabel}>Perks</span>
+              <p className={styles.subDetailText}>{data.perks}</p>
+            </div>
+          </div>
+        ) : null}
         {data.cancellation ? (
-          <div className={styles.cancelRow}>
+          <div className={styles.subDetailRow}>
             <span className={styles.cancelIcon} aria-hidden>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                 <path d="M8 1.5 2.5 3v5c0 3.5 2.8 5.8 5.5 6.5C10.7 13.8 13.5 11.5 13.5 8V3L8 1.5Z" stroke="currentColor" strokeWidth="1.2" />
@@ -359,7 +372,7 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
             </span>
             <div>
               <span className={styles.gridLabel}>Cancellation</span>
-              <p className={styles.cancelText}>{data.cancellation}</p>
+              <p className={styles.subDetailText}>{data.cancellation}</p>
             </div>
           </div>
         ) : null}

@@ -298,7 +298,7 @@
   color: #5c6570;
 }
 
-.cancelRow {
+.subDetailRow {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 0.45rem;
@@ -308,17 +308,23 @@
   border-top: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
 }
 
+.perksIcon {
+  color: #8a7355;
+  margin-top: 0.15rem;
+}
+
 .cancelIcon {
   color: #3d6b4f;
   margin-top: 0.15rem;
 }
 
-.cancelText {
+.subDetailText {
   margin: 0.1rem 0 0;
   font-size: 0.72rem;
   font-weight: 650;
   color: #1e2a44;
   line-height: 1.35;
+  white-space: pre-wrap;
 }
 
 .docPillRow {

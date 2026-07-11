@@ -91,6 +91,7 @@ export function buildAccommodationDetailData(
   bookingGrid: AccomGridCell[];
   extraBookingGrid: AccomGridCell[];
   stayGrid: AccomGridCell[];
+  perks?: string;
   cancellation?: string;
 } {
   const { canSeeFinancials, hasConfirmationDoc } = options;
@@ -139,6 +140,7 @@ export function buildAccommodationDetailData(
     bookingGrid: bookingGrid.filter((c): c is AccomGridCell => Boolean(c)),
     extraBookingGrid: extraBookingGrid.filter((c): c is AccomGridCell => Boolean(c)),
     stayGrid: stayGrid.filter((c): c is AccomGridCell => Boolean(c)),
+    perks: (entry.perksIncluded || '').trim() || undefined,
     cancellation: (entry.cancellationPolicy || '').trim() || undefined
   };
 }
