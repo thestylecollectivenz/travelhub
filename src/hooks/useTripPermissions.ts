@@ -18,6 +18,7 @@ export interface TripPermissions {
 export function useTripPermissions(): TripPermissions {
   const { role, loading } = useTripRole();
   const isEditor = role === 'Editor';
+  const isCompanionOrEditor = role === 'Editor' || role === 'Companion';
   return {
     role,
     loading,
@@ -26,7 +27,7 @@ export function useTripPermissions(): TripPermissions {
     canEditDayMeta: isEditor,
     canUseExports: isEditor,
     canDeleteTrip: isEditor,
-    canSeeFinancials: isEditor,
+    canSeeFinancials: isCompanionOrEditor,
     isReadOnlyWorkspace: role === 'Follower'
   };
 }

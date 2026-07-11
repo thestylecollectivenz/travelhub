@@ -3,6 +3,9 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { JournalEntry, JournalPhoto } from '../../models';
 import type { TripDay } from '../../models/TripDay';
+import { useSpContext } from '../../context/SpContext';
+import { useTripRole } from '../../context/TripRoleContext';
+import { canEditOwnedRecord } from '../../utils/canEditOwnedRecord';
 import { JournalEntryCard } from './JournalEntryCard';
 import styles from './TripJournalFeed.module.css';
 
@@ -21,7 +24,13 @@ export const JournalEntrySortable: React.FC<JournalEntrySortableProps> = ({
   canModerate,
   isUnread
 }) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: entry.id });
+  const spContext = useSpContext();
+  const { role } = useTripRole();
+  const canEditEntry = canModerate && canEditOwnedRecord(spContext, entry.ownerEmail, role);
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: entry.id,
+    disabled: !canEditEntry
+  });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -37,7 +46,7 @@ export const JournalEntrySortable: React.FC<JournalEntrySortableProps> = ({
         journalDays={journalDays}
         canModerate={canModerate}
         isUnread={isUnread}
-        dragHandleProps={canModerate ? { ...attributes, ...listeners } : undefined}
+        dragHandleProps={canEditEntry ? { ...attributes, ...listeners } : undefined}
       />
     </div>
   );

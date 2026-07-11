@@ -1,7 +1,7 @@
 import { useTripRole } from '../context/TripRoleContext';
 
-/** Editors only — financial amounts, payment status, and booking references. */
+/** Editors and Companions — Followers remain read-only without financial detail. */
 export function useCanSeeFinancials(): boolean {
   const { role } = useTripRole();
-  return role === 'Editor';
+  return role === 'Editor' || role === 'Companion';
 }

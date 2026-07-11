@@ -172,7 +172,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
       preTripDayId,
       isPreTripDayRow(day),
       tripDays
-    ).filter((e) => e.dayId === day.id && !e.parentEntryId);
+    ).filter((e) => !e.parentEntryId);
   }, [day, trip, localEntries, preTripDayId, tripDays]);
 
   const unscheduled = React.useMemo(() => {

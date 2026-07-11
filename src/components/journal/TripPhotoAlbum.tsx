@@ -3,6 +3,9 @@ import type { JournalPhoto } from '../../models';
 import { useJournal } from '../../context/JournalContext';
 import { useJournalMediaSelection } from '../../context/JournalMediaSelectionContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { useSpContext } from '../../context/SpContext';
+import { useTripRole } from '../../context/TripRoleContext';
+import { canEditOwnedRecord } from '../../utils/canEditOwnedRecord';
 import { JournalEntryComposer } from './JournalEntryComposer';
 import { JournalImageLightbox } from './JournalImageLightbox';
 import { JournalPhotoBoard } from './JournalPhotoBoard';
@@ -24,6 +27,8 @@ export const TripPhotoAlbum: React.FC = () => {
   const { allTripPhotos, allEntries, addAlbumPhoto, addPhoto } = useJournal();
   const { selectedPhotoId, setSelectedPhotoId, setSelectedEntryId } = useJournalMediaSelection();
   const { trip, tripDays, selectedDayId, sharedPreview } = useTripWorkspace();
+  const spContext = useSpContext();
+  const { role } = useTripRole();
 
   const [layout, setLayout] = React.useState<AlbumLayout>('all');
   const [scopeDayId, setScopeDayId] = React.useState<string>('');
@@ -60,6 +65,18 @@ export const TripPhotoAlbum: React.FC = () => {
       return (Number(photo.id) || 0) > photosLastSeenMaxId;
     },
     [photosLastSeenMaxId]
+  );
+
+  const canModeratePhoto = React.useCallback(
+    (photo: JournalPhoto): boolean => {
+      if (sharedPreview || role === 'Follower') return false;
+      if (role === 'Editor') return true;
+      const entryId = photo.journalEntryId?.trim();
+      if (!entryId) return true;
+      const owner = allEntries.find((e) => e.id === entryId)?.ownerEmail;
+      return canEditOwnedRecord(spContext, owner, role);
+    },
+    [allEntries, role, sharedPreview, spContext]
   );
 
   const days = React.useMemo(() => {
@@ -458,7 +475,7 @@ export const TripPhotoAlbum: React.FC = () => {
                 setLightboxIndex(idx >= 0 ? idx : 0);
               }}
               footerOptional
-              renderFooter={(p) => <JournalPhotoCaptionFooter photo={p} canModerate={!sharedPreview} />}
+              renderFooter={(p) => <JournalPhotoCaptionFooter photo={p} canModerate={canModeratePhoto(p)} />}
             />
           </div>
         ))

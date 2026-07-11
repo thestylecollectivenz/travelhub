@@ -23,6 +23,7 @@ import {
 import { formatDisplayLabel, transportDisplayTitle } from '../../utils/mobileDisplayFormat';
 import { MobileAccommodationDetail } from './MobileAccommodationDetail';
 import { MobileCruiseDetail } from './MobileCruiseDetail';
+import { MobileDiningDetail } from './MobileDiningDetail';
 import { MobileBookingSiteSheet } from './MobileBookingSiteSheet';
 import { MobilePencilButton } from './MobilePencilButton';
 import cardStyles from '../itinerary/ItineraryCard.module.css';
@@ -76,7 +77,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
   onOpenPlannedActivity
 }) => {
   const pageRef = React.useRef<HTMLDivElement>(null);
-  const { editingCardId, setEditingCardId, updateEntry } = useTripWorkspace();
+  const { editingCardId, setEditingCardId, updateEntry, localEntries } = useTripWorkspace();
   const { canEditItinerary } = useTripPermissions();
   const { documents, links } = useAttachments();
   const canSeeFinancials = useCanSeeFinancials();
@@ -101,6 +102,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
   const isEditing = editingCardId === sourceEntry.id;
   const isAccommodation = entry.category === 'Accommodation';
   const isCruise = entry.category === 'Cruise';
+  const isDining = entry.category === 'Food & Dining' || entry.category === 'Dining';
   const title = entry.category === 'Transport' ? transportDisplayTitle(entry, calendarDate) : entry.title;
 
   React.useEffect(() => {
@@ -184,6 +186,23 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
         </div>
       </div>,
       document.body
+    );
+  }
+
+  if (isDining) {
+    return (
+      <div className={styles.page} ref={pageRef}>
+        <MobileDiningDetail
+          entry={entry}
+          documents={entryDocs}
+          links={entryLinks}
+          allEntries={localEntries}
+          calendarDate={calendarDate}
+          canSeeFinancials={canSeeFinancials}
+          canEdit={canEditItinerary}
+          onEdit={() => setEditingCardId(sourceEntry.id)}
+        />
+      </div>
     );
   }
 

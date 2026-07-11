@@ -1,0 +1,346 @@
+.hero {
+  display: grid;
+  grid-template-columns: 3.5rem 1fr;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.heroIcon {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px color-mix(in srgb, #1e2a44 12%, transparent);
+}
+
+.heroCopy {
+  min-width: 0;
+}
+
+.heroTitleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.title {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
+  font-size: 1.35rem;
+  font-weight: 500;
+  line-height: 1.15;
+  color: #1e2a44;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  background: color-mix(in srgb, white 88%, #f7f3eb);
+  border-radius: 999px;
+  padding: 0.18rem 0.48rem;
+  font-size: 0.65rem;
+  font-weight: 650;
+  color: #5c6570;
+}
+
+.chipCat {
+  border-color: transparent;
+}
+
+.chipStatus {
+  background: color-mix(in srgb, #3d6b4f 12%, white);
+  color: #3d6b4f;
+}
+
+.chipTime {
+  background: color-mix(in srgb, #1e2a44 6%, white);
+}
+
+.statusDot {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: #3d6b4f;
+}
+
+.locationLine {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.28rem;
+  margin: 0.45rem 0 0;
+  font-size: 0.72rem;
+  color: #5c6570;
+  line-height: 1.35;
+}
+
+.actionGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.actionTile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 4.1rem;
+  padding: 0.45rem 0.25rem;
+  border: 1px solid color-mix(in srgb, #8a7355 35%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, #f7f3eb 55%, white);
+  color: #5c4a38;
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.actionDisabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.summaryRow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin-bottom: 0.75rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  border-radius: 0.9rem;
+  background: white;
+  overflow: hidden;
+}
+
+.summaryCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0.55rem 0.3rem;
+  position: relative;
+}
+
+.summaryCell:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 12%;
+  bottom: 12%;
+  width: 1px;
+  background: color-mix(in srgb, #1e2a44 10%, transparent);
+}
+
+.summaryIcon {
+  color: #8a7355;
+  margin-bottom: 0.15rem;
+}
+
+.summaryLabel {
+  font-size: 0.55rem;
+  font-weight: 650;
+  color: #8a857d;
+  line-height: 1.2;
+}
+
+.summaryValue {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #1e2a44;
+  margin-top: 0.1rem;
+  line-height: 1.2;
+}
+
+.summaryHighlight {
+  color: #3d6b4f;
+}
+
+.sectionCard {
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  border-radius: 0.9rem;
+  background: white;
+  padding: 0.7rem 0.75rem 0.75rem;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.55rem;
+}
+
+.sectionIcon {
+  color: #8a7355;
+  display: inline-flex;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #1e2a44;
+}
+
+.gridRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+}
+
+.gridRowBordered {
+  margin-left: -0.75rem;
+  margin-right: -0.75rem;
+}
+
+.gridCell {
+  min-width: 0;
+  padding: 0.45rem 0.55rem;
+  position: relative;
+}
+
+.gridRowBordered .gridCell:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 12%;
+  bottom: 12%;
+  width: 1px;
+  background: color-mix(in srgb, #1e2a44 10%, transparent);
+}
+
+.gridLabel {
+  display: block;
+  font-size: 0.58rem;
+  color: #8a857d;
+  line-height: 1.25;
+  margin-bottom: 0.12rem;
+}
+
+.gridValue {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 750;
+  color: #1e2a44;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.rowDivider {
+  height: 1px;
+  background: color-mix(in srgb, #1e2a44 8%, transparent);
+  margin: 0;
+}
+
+.inlinePill {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.12rem 0.42rem;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+
+.pill_green {
+  background: color-mix(in srgb, #3d6b4f 16%, white);
+  color: #3d6b4f;
+}
+
+.pill_rust {
+  background: color-mix(in srgb, #c4783a 18%, white);
+  color: #8a5a2b;
+}
+
+.pill_neutral {
+  background: color-mix(in srgb, #1e2a44 8%, white);
+  color: #5c6570;
+}
+
+.diningRow2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.2fr;
+  gap: 0;
+  margin-left: -0.75rem;
+  margin-right: -0.75rem;
+}
+
+.diningRow2 .gridCell:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 12%;
+  bottom: 12%;
+  width: 1px;
+  background: color-mix(in srgb, #1e2a44 10%, transparent);
+}
+
+.cruiseCallout {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.45rem 0.55rem;
+  margin: 0.45rem -0.75rem -0.75rem;
+  border-top: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
+  background: color-mix(in srgb, #e8dfc8 45%, white);
+}
+
+.cruiseCalloutIcon {
+  color: #8a7355;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.cruiseCalloutText {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 650;
+  color: #1e2a44;
+  line-height: 1.35;
+}
+
+.docLinkRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.docLinkItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex: 1 1 calc(50% - 0.25rem);
+  min-width: 8rem;
+  border: 1px solid color-mix(in srgb, #3d5a80 25%, transparent);
+  border-radius: 0.65rem;
+  background: color-mix(in srgb, #e8eef5 70%, white);
+  color: #3d5a80;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.notesBody {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #1e2a44;
+}
