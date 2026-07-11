@@ -22,6 +22,7 @@ import {
 } from '../../utils/bookingStatusUtils';
 import { formatDisplayLabel, transportDisplayTitle } from '../../utils/mobileDisplayFormat';
 import { MobileAccommodationDetail } from './MobileAccommodationDetail';
+import { MobileCruiseDetail } from './MobileCruiseDetail';
 import { MobileBookingSiteSheet } from './MobileBookingSiteSheet';
 import { MobilePencilButton } from './MobilePencilButton';
 import cardStyles from '../itinerary/ItineraryCard.module.css';
@@ -99,6 +100,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
   const timeChip = entry.timeStart ? formatTimeHHMM(entry.timeStart) : entry.duration || '';
   const isEditing = editingCardId === sourceEntry.id;
   const isAccommodation = entry.category === 'Accommodation';
+  const isCruise = entry.category === 'Cruise';
   const title = entry.category === 'Transport' ? transportDisplayTitle(entry, calendarDate) : entry.title;
 
   React.useEffect(() => {
@@ -182,6 +184,23 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
         </div>
       </div>,
       document.body
+    );
+  }
+
+  if (isCruise) {
+    return (
+      <div className={styles.page} ref={pageRef}>
+        <MobileCruiseDetail
+          entry={entry}
+          documents={entryDocs}
+          links={entryLinks}
+          canSeeFinancials={canSeeFinancials}
+          canEdit={canEditItinerary}
+          onEdit={() => setEditingCardId(sourceEntry.id)}
+          mapsDirectionsUrl={mapsDirectionsUrl}
+          mapsPlaceUrl={mapsPlaceUrl}
+        />
+      </div>
     );
   }
 

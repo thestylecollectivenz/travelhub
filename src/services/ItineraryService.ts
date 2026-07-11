@@ -81,7 +81,7 @@ const SELECT_PHASE7 = [
 ];
 
 /** New columns — omitted from $select until present on the list (avoids 400 on full query). */
-const SELECT_PHASE7_OPTIONAL = ['BreakfastIncluded', 'ParkingIncluded'];
+const SELECT_PHASE7_OPTIONAL = ['BreakfastIncluded', 'ParkingIncluded', 'OnboardCredit'];
 
 const SELECT = [...SELECT_BASE, ...SELECT_PHASE7, ...SELECT_PHASE7_OPTIONAL].join(',');
 const SELECT_PHASE7_ONLY = [...SELECT_BASE, ...SELECT_PHASE7].join(',');
@@ -121,7 +121,8 @@ const SP_PHASE7_FIELD_KEYS = new Set([
   'TransportMode',
   'TransportTransfers',
   'BreakfastIncluded',
-  'ParkingIncluded'
+  'ParkingIncluded',
+  'OnboardCredit'
 ]);
 
 function stripPhase7SpFields(item: Record<string, unknown>): Record<string, unknown> {
@@ -335,6 +336,7 @@ function mapToEntry(item: any): ItineraryEntry {
     cabinTypeAndNumber: item.CabinTypeAndNumber ?? undefined,
     packageName: item.PackageName ?? undefined,
     packageInclusions: item.PackageInclusions ? String(item.PackageInclusions) : undefined,
+    onboardCredit: item.OnboardCredit ? String(item.OnboardCredit) : undefined,
     transportFrom: item.TransportFrom ?? undefined,
     transportTo: item.TransportTo ?? undefined,
     transportMode: item.TransportMode ?? undefined,
@@ -444,6 +446,7 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   if (entry.cabinTypeAndNumber !== undefined) item.CabinTypeAndNumber = entry.cabinTypeAndNumber || null;
   if (entry.packageName !== undefined) item.PackageName = entry.packageName || null;
   if (entry.packageInclusions !== undefined) item.PackageInclusions = entry.packageInclusions || null;
+  if (entry.onboardCredit !== undefined) item.OnboardCredit = entry.onboardCredit || null;
   if (entry.transportFrom !== undefined) item.TransportFrom = entry.transportFrom || null;
   if (entry.transportTo !== undefined) item.TransportTo = entry.transportTo || null;
   if (entry.transportMode !== undefined) item.TransportMode = entry.transportMode || null;

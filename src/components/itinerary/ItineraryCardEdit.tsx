@@ -388,6 +388,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       cabinTypeAndNumber: draft.cabinTypeAndNumber?.trim() || undefined,
       packageName: draft.packageName?.trim() || undefined,
       packageInclusions: draft.packageInclusions?.trim() || undefined,
+      onboardCredit: draft.onboardCredit?.trim() || undefined,
       transportFrom: draft.transportFrom?.trim() || undefined,
       transportTo: draft.transportTo?.trim() || undefined,
       transportMode: draft.transportMode?.trim() || undefined,
@@ -454,6 +455,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           (draft.cabinTypeAndNumber ?? '').trim() ||
           (draft.packageName ?? '').trim() ||
           (draft.packageInclusions ?? '').trim() ||
+          (draft.onboardCredit ?? '').trim() ||
           (draft.perksIncluded ?? '').trim() ||
           (draft.cancellationPolicy ?? '').trim() ||
           draft.amount > 0 ||
@@ -837,6 +839,17 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
               rows={3}
               value={draft.packageInclusions ?? ''}
               onChange={(e) => patch({ packageInclusions: e.target.value })}
+            />
+            <label className={`${styles.label} ${styles.fullRow}`} htmlFor={`obc-${draft.id}`}>
+              Onboard credit (OBC)
+            </label>
+            <textarea
+              id={`obc-${draft.id}`}
+              className={`${styles.textarea} ${styles.fullRow}`}
+              rows={3}
+              placeholder="One credit per line, e.g. $250 USD Shareholders benefit"
+              value={draft.onboardCredit ?? ''}
+              onChange={(e) => patch({ onboardCredit: e.target.value })}
             />
           </>
         ) : null}

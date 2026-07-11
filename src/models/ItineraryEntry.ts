@@ -126,6 +126,8 @@ export interface ItineraryEntry {
   cabinTypeAndNumber?: string;
   packageName?: string;
   packageInclusions?: string;
+  /** Cruise — onboard credit lines (one per line). */
+  onboardCredit?: string;
   transportFrom?: string;
   transportTo?: string;
   transportMode?: string;
