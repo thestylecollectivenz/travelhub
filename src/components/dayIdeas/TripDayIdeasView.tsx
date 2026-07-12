@@ -197,11 +197,12 @@ export const TripDayIdeasView: React.FC<TripDayIdeasViewProps> = ({
                       <div className={styles.body}>
                         <div className={styles.titleRow}>
                           {editing ? (
-                            <input
-                              className={styles.input}
+                            <textarea
+                              className={`${styles.input} ${styles.textarea}`}
                               value={editText}
                               onChange={(e) => setEditText(e.target.value)}
                               aria-label="Edit idea"
+                              rows={3}
                             />
                           ) : (
                             <p className={styles.text}>{row.reminderText || row.title}</p>

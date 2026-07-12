@@ -7,6 +7,9 @@ import { logTripAccessOnce } from '../../services/TripAccessLogService';
 import { createItineraryEntryFromNearYouPlace } from '../../utils/addPlaceToItinerary';
 import { saveNearYouSavedPlace } from '../../utils/nearYouSavedPlaces';
 import { consumePendingMobileItineraryEdit } from '../../utils/mobileItineraryEditPending';
+import { consumePendingMobileHomeAsk } from '../../utils/mobileHomePendingAsk';
+import { notifyExpandUnscheduled } from '../../utils/mobileItineraryUiEvents';
+import { confirmUserAction } from '../../utils/confirmAction';
 import { ItineraryCardEdit } from '../itinerary/ItineraryCardEdit';
 import cardStyles from '../itinerary/ItineraryCard.module.css';
 import { MobileDayView } from './MobileDayView';
@@ -101,6 +104,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
     editingCardId,
     setEditingCardId,
     updateEntry,
+    deleteEntry,
     reloadItineraryEntries
   } = useTripWorkspace();
   const spContext = useSpContext();
@@ -152,10 +156,17 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
     if (!pending) return;
     setTab('today');
     setSelectedDayId(pending.dayId);
+    notifyExpandUnscheduled();
     if (localEntries.some((e) => e.id === pending.entryId)) {
       setEditingCardId(pending.entryId);
     }
   }, [trip?.id, localEntries, setEditingCardId, setSelectedDayId]);
+
+  React.useEffect(() => {
+    if (!trip?.id) return;
+    const prompt = consumePendingMobileHomeAsk();
+    if (prompt) setAskAiPrompt(prompt);
+  }, [trip?.id]);
 
   const editingEntry = editingCardId ? localEntries.find((e) => e.id === editingCardId) : undefined;
   const editingDay = editingEntry ? tripDays.find((d) => d.id === editingEntry.dayId) : undefined;
@@ -294,7 +305,13 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
                     setEditingCardId(null);
                   }}
                   onCancel={() => setEditingCardId(null)}
-                  onDelete={() => setEditingCardId(null)}
+                  onDelete={() => {
+                    void (async () => {
+                      if (!(await confirmUserAction('Delete this itinerary item?'))) return;
+                      if (editingEntry) deleteEntry(editingEntry.id);
+                      setEditingCardId(null);
+                    })();
+                  }}
                 />
               </div>
             </div>,

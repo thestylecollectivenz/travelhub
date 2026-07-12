@@ -30,6 +30,7 @@ import { findStayTileForDay } from '../../utils/mobileDayStay';
 import { itineraryEntryFromSubItem } from '../../utils/mobileSubItemEntry';
 import { useMobileDetailHistory } from '../../hooks/useMobileDetailHistory';
 import { useShellMode } from '../../hooks/useShellMode';
+import { EXPAND_UNSCHEDULED_EVENT, notifyExpandUnscheduled } from '../../utils/mobileItineraryUiEvents';
 import styles from './MobileItinerary.module.css';
 import shellStyles from './MobileShell.module.css';
 
@@ -133,7 +134,8 @@ const MAX_VISIBLE_AVATARS = 3;
 
 export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onAskAi, onDetailChange }) => {
   const shellMode = useShellMode();
-  const { trip, tripDays, localEntries, selectedDayId, setSelectedDayId, updateEntry } = useTripWorkspace();
+  const { trip, tripDays, localEntries, selectedDayId, setSelectedDayId, updateEntry, setEditingCardId, loading } =
+    useTripWorkspace();
   const { role } = useTripRole();
   const { placeById } = usePlaces();
   const sp = useSpContext();
@@ -155,11 +157,13 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   const isEditor = role === 'Editor';
 
   const days = React.useMemo(
-    () =>
-      trip
-        ? tripDays.filter((d) => d.tripId === trip.id && !isPreTripDayRow(d)).sort((a, b) => a.dayNumber - b.dayNumber)
-        : [],
-    [trip, tripDays]
+    () => {
+      if (!trip) return [];
+      const rows = tripDays.filter((d) => d.tripId === trip.id);
+      const visible = isEditor ? rows : rows.filter((d) => !isPreTripDayRow(d));
+      return visible.sort((a, b) => a.dayNumber - b.dayNumber);
+    },
+    [trip, tripDays, isEditor]
   );
 
   React.useEffect(() => {
@@ -204,6 +208,12 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     if (!stayId) return unscheduledRaw;
     return unscheduledRaw.filter((item) => item.entry.id !== stayId);
   }, [unscheduledRaw, stayTile?.entry?.id]);
+
+  React.useEffect(() => {
+    const handler = (): void => setUnschedOpen(true);
+    window.addEventListener(EXPAND_UNSCHEDULED_EVENT, handler);
+    return () => window.removeEventListener(EXPAND_UNSCHEDULED_EVENT, handler);
+  }, []);
 
   const detailSourceEntry = detailTarget ? localEntries.find((e) => e.id === detailTarget.entryId) : undefined;
   const detailDisplayEntry = React.useMemo(() => {
@@ -349,9 +359,11 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     updateEntry(draft);
     window.setTimeout(() => {
       setAdding(false);
-      openDetail(draft.id);
+      setUnschedOpen(true);
+      setEditingCardId(draft.id);
+      notifyExpandUnscheduled();
     }, 300);
-  }, [trip, day, dayEntries.length, updateEntry, openDetail]);
+  }, [trip, day, dayEntries.length, updateEntry, setEditingCardId]);
 
   const handleAskAi = (): void => {
     const p = aiPrompt.trim();
@@ -393,7 +405,9 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     return pts;
   }, [dayLocationEntries, placeById, primaryPlace, primaryPlaceLabel]);
 
-  if (!trip || !day) return <p className={shellStyles.muted}>No trip days yet.</p>;
+  if (loading) return <p className={shellStyles.muted}>Loading your itinerary…</p>;
+  if (!trip) return <p className={shellStyles.muted}>Open a trip to view the itinerary.</p>;
+  if (!day) return <p className={shellStyles.muted}>This trip has no days yet — add dates in trip settings on desktop.</p>;
 
   if (detailSourceEntry && detailDisplayEntry) {
     return (
@@ -426,25 +440,6 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
           ) : (
             <div className={styles.heroThumbPlaceholder} />
           )}
-          <button
-            type="button"
-            className={styles.shareBtn}
-            onClick={onOpenMembers}
-            aria-label="Trip members"
-            title="Trip members"
-          >
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden>
-              <circle cx="7" cy="6" r="3.5" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M1 17c0-3.314 2.686-6 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              <circle cx="14" cy="7" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-              <path
-                d="M11.5 17c0-2.485 1.567-4.5 3.5-4.5s3.5 2.015 3.5 4.5"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
         </div>
       </div>
 
@@ -697,8 +692,9 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
                       <span className={styles.cardText}>
                         <div className={styles.cardTitle}>{item.title}</div>
                         <div className={styles.cardMeta}>
-                          {item.entry.category}
-                          {item.subItem ? ' · Option' : ''}
+                          {item.subItem
+                            ? (item.subItem.category || item.entry.category)
+                            : item.entry.category}
                         </div>
                       </span>
                     </button>

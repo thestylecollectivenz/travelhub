@@ -23,13 +23,15 @@ import { NearYouToolIcon } from '../shared/NearYouToolIcon';
 import { createItineraryEntryFromNearYouPlace } from '../../utils/addPlaceToItinerary';
 import { saveNearYouSavedPlace } from '../../utils/nearYouSavedPlaces';
 import { setPendingMobileItineraryEdit } from '../../utils/mobileItineraryEditPending';
+import { setPendingMobileHomeAsk } from '../../utils/mobileHomePendingAsk';
 import { MobileNearYouPage } from './MobileNearYouPage';
 import { MobileHomeSavedSpots } from './MobileHomeSavedSpots';
+import { MobileBookPage } from './MobileBookPage';
 import '../../components/maps/LeafletCompat.css';
 import type { ShellMode } from '../../hooks/useShellMode';
 import styles from './MobileHome.module.css';
 
-export type MobileHomeTab = 'home' | 'trips' | 'spots' | 'profile' | 'nearyou';
+export type MobileHomeTab = 'home' | 'trips' | 'spots' | 'find' | 'book';
 
 export interface MobileHomeShellProps {
   onSelectTrip: (tripId: string, initialTab?: MobileTab) => void;
@@ -114,19 +116,30 @@ function IconSpots(): React.ReactElement {
   );
 }
 
-function IconProfile(): React.ReactElement {
+function IconFind(): React.ReactElement {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M5 19.5c1.6-3.2 4-4.8 7-4.8s5.4 1.6 7 4.8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M12 21s6.5-5.2 6.5-10.2A6.5 6.5 0 0 0 12 4.3a6.5 6.5 0 0 0-6.5 6.5C5.5 15.8 12 21 12 21Z" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="12" cy="10.8" r="2.2" stroke="currentColor" strokeWidth="1.8" />
     </svg>
   );
 }
 
-function IconPlus(): React.ReactElement {
+function IconBook(): React.ReactElement {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M7 7h10l1 4H6L7 7Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M6 11h12v7a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-7Z" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M9 15h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconGear(): React.ReactElement {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4l1.4-1.4M17 7l1.4-1.4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
@@ -138,16 +151,6 @@ function IconSpark(): React.ReactElement {
     </svg>
   );
 }
-
-function IconBell(): React.ReactElement {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M6.5 9.5a5.5 5.5 0 0 1 11 0c0 4.2 1.5 5.5 1.5 5.5H5s1.5-1.3 1.5-5.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="M10 18.5a2 2 0 0 0 4 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 
 export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   onSelectTrip,
@@ -358,7 +361,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
 
   const openNearYou = (toolId: NearYouToolId | null): void => {
     setNearToolId(toolId);
-    setTab('nearyou');
+    setTab('find');
   };
 
   const saveNearPlace = React.useCallback((place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string; toolId?: string }): void => {
@@ -429,7 +432,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   };
 
   let body: React.ReactNode;
-  if (tab === 'nearyou') {
+  if (tab === 'find') {
     body = (
       <MobileNearYouPage
         onBack={() => {
@@ -447,18 +450,8 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
         }}
       />
     );
-  } else if (tab === 'profile') {
-    body = (
-      <div>
-        <h2 className={styles.sectionTitle}>Profile</h2>
-        <p className={styles.feedback} style={{ marginTop: 'var(--space-3)' }}>
-          Signed in as <strong>{displayName}</strong>
-        </p>
-        <button type="button" className={styles.primaryBtn} onClick={onOpenSettings}>
-          User settings
-        </button>
-      </div>
-    );
+  } else if (tab === 'book') {
+    body = <MobileBookPage destinationHint={featuredTrip?.title ?? ''} />;
   } else if (tab === 'spots') {
     body = (
       <div>
@@ -545,6 +538,12 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
         ) : null}
         {!loading && !error && trips.length > 0 ? (
           <>
+            <div className={styles.sectionHead}>
+              <h2 className={styles.sectionTitle}>Your trips</h2>
+              <button type="button" className={styles.sectionLink} onClick={onCreateTrip}>
+                New trip
+              </button>
+            </div>
             <div className={styles.toolbar} role="toolbar" aria-label="Trip list filters">
               {(['all', 'upcoming', 'completed'] as const).map((id) => (
                 <button
@@ -595,8 +594,8 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
             </div>
             <h1 className={styles.brandName}>Trip Leopard</h1>
           </div>
-          <button type="button" className={styles.iconBtn} aria-label="Notifications" onClick={() => setTab('trips')}>
-            <IconBell />
+          <button type="button" className={styles.iconBtn} aria-label="Settings" onClick={onOpenSettings}>
+            <IconGear />
           </button>
         </div>
 
@@ -609,7 +608,11 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
           className={styles.aiRow}
           onSubmit={(e) => {
             e.preventDefault();
-            openFeatured('today');
+            if (!featuredTrip) return;
+            const p = aiPrompt.trim();
+            if (p) setPendingMobileHomeAsk(p);
+            onSelectTrip(featuredTrip.id, 'today');
+            setAiPrompt('');
           }}
         >
           <input
@@ -633,7 +636,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
             <p className={styles.pillarTitle}>Plan</p>
             <p className={styles.pillarSub}>Itineraries, AI trip ideas</p>
           </button>
-          <button type="button" className={`${styles.pillar} ${styles.pillarBook}`} disabled={!featuredTrip} onClick={() => openFeatured('tasks')}>
+          <button type="button" className={`${styles.pillar} ${styles.pillarBook}`} onClick={() => setTab('book')}>
             <svg className={styles.pillarIcon} viewBox="0 0 24 24" fill="none" aria-hidden>
               <path d="M7 7h10l1 4H6L7 7Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
               <path d="M6 11h12v7a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-7Z" stroke="currentColor" strokeWidth="1.8" />
@@ -672,7 +675,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
           </button>
         </div>
         <div className={styles.nearRow} role="list">
-          {homeNearYouTools(5).map((tool) => (
+          {homeNearYouTools().map((tool) => (
             <button
               key={tool.id}
               type="button"
@@ -763,11 +766,6 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
           Trips
           {tab === 'trips' ? <span className={styles.navDot} /> : null}
         </button>
-        <div className={styles.fabSlot}>
-          <button type="button" className={styles.fab} aria-label="Add trip" onClick={onCreateTrip}>
-            <IconPlus />
-          </button>
-        </div>
         <button
           type="button"
           className={`${styles.navBtn} ${tab === 'spots' ? styles.navBtnActive : ''}`}
@@ -779,12 +777,21 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
         </button>
         <button
           type="button"
-          className={`${styles.navBtn} ${tab === 'profile' ? styles.navBtnActive : ''}`}
-          onClick={() => setTab('profile')}
+          className={`${styles.navBtn} ${tab === 'find' ? styles.navBtnActive : ''}`}
+          onClick={() => openNearYou(null)}
         >
-          <IconProfile />
-          Profile
-          {tab === 'profile' ? <span className={styles.navDot} /> : null}
+          <IconFind />
+          Find
+          {tab === 'find' ? <span className={styles.navDot} /> : null}
+        </button>
+        <button
+          type="button"
+          className={`${styles.navBtn} ${tab === 'book' ? styles.navBtnActive : ''}`}
+          onClick={() => setTab('book')}
+        >
+          <IconBook />
+          Book
+          {tab === 'book' ? <span className={styles.navDot} /> : null}
         </button>
       </nav>
     </div>

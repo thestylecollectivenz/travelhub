@@ -218,6 +218,13 @@
   font-size: var(--font-size-sm);
 }
 
+.textarea {
+  resize: vertical;
+  min-height: 3.5rem;
+  line-height: 1.35;
+  font-family: inherit;
+}
+
 .mobileRoot .title {
   font-family: Georgia, 'Palatino Linotype', Palatino, serif;
   font-weight: 500;

@@ -4,6 +4,7 @@ import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useTripPermissions } from '../../hooks/useTripPermissions';
+import { confirmUserAction } from '../../utils/confirmAction';
 import { CategoryIcon } from '../shared/CategoryIcon';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
@@ -81,7 +82,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
   onOpenPlannedActivity
 }) => {
   const pageRef = React.useRef<HTMLDivElement>(null);
-  const { editingCardId, setEditingCardId, updateEntry, localEntries } = useTripWorkspace();
+  const { editingCardId, setEditingCardId, updateEntry, deleteEntry, localEntries } = useTripWorkspace();
   const { canEditItinerary } = useTripPermissions();
   const { documents, links } = useAttachments();
   const canSeeFinancials = useCanSeeFinancials();
@@ -179,6 +180,15 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
     return rows.slice(0, 4);
   }, [booked, confirmationDoc, entry, entryDocs, entryLinks, mapsDirectionsUrl, mapsPlaceUrl]);
 
+  const handleDelete = React.useCallback(() => {
+    void (async () => {
+      if (!(await confirmUserAction('Delete this itinerary item?'))) return;
+      deleteEntry(sourceEntry.id);
+      setEditingCardId(null);
+      onClose();
+    })();
+  }, [deleteEntry, onClose, setEditingCardId, sourceEntry.id]);
+
   if (isEditing) {
     return ReactDOM.createPortal(
       <div className={cardStyles.portalEditRoot} role="presentation">
@@ -192,10 +202,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
               setEditingCardId(null);
             }}
             onCancel={() => setEditingCardId(null)}
-            onDelete={() => {
-              setEditingCardId(null);
-              onClose();
-            }}
+            onDelete={handleDelete}
           />
         </div>
       </div>,
@@ -344,16 +351,17 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
               </span>
             ) : null}
           </div>
-          {section.rows?.map((row, idx) => (
-            <div key={`${section.id}-row-${idx}`} className={styles.fieldGrid}>
+          {section.rows?.map((row, idx) => {
+            if (!row.left && !row.right) return null;
+            const single = row.left && !row.right;
+            return (
+            <div key={`${section.id}-row-${idx}`} className={single ? styles.fieldFull : styles.fieldGrid}>
               {row.left ? (
                 <div className={styles.fieldItem}>
                   <span className={styles.fieldLabel}>{row.left.label}</span>
                   <span className={`${styles.fieldValue} ${row.left.highlight ? styles.fieldHighlight : ''}`}>{row.left.value}</span>
                 </div>
-              ) : (
-                <div />
-              )}
+              ) : null}
               {row.right ? (
                 <div className={styles.fieldItem}>
                   <span className={styles.fieldLabel}>{row.right.label}</span>
@@ -361,7 +369,8 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
                 </div>
               ) : null}
             </div>
-          ))}
+            );
+          })}
           {section.fullWidthFields?.map((f) => (
             <div key={f.label} className={styles.fieldFull}>
               <span className={styles.fieldLabel}>{f.label}</span>

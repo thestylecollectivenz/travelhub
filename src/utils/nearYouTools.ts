@@ -1,6 +1,6 @@
 import type { NearestPlaceKind } from './locationInfoEntry';
 
-export type NearYouToolId = 'dining' | NearestPlaceKind;
+export type NearYouToolId = 'dining' | 'cafes' | NearestPlaceKind;
 
 export interface NearYouToolDef {
   id: NearYouToolId;
@@ -19,6 +19,13 @@ export const NEAR_YOU_TOOLS: NearYouToolDef[] = [
     label: 'Restaurants',
     shortLabel: 'Restaurants',
     description: 'Cafés, restaurants, and local food near you',
+    homePriority: 2
+  },
+  {
+    id: 'cafes',
+    label: 'Cafés',
+    shortLabel: 'Cafés',
+    description: 'Coffee shops and casual cafés near you',
     homePriority: 1
   },
   {
@@ -79,10 +86,9 @@ export const NEAR_YOU_TOOLS: NearYouToolDef[] = [
   }
 ];
 
-export function homeNearYouTools(limit = 5): NearYouToolDef[] {
-  return NEAR_YOU_TOOLS.slice()
-    .sort((a, b) => a.homePriority - b.homePriority)
-    .slice(0, limit);
+export function homeNearYouTools(limit?: number): NearYouToolDef[] {
+  const sorted = NEAR_YOU_TOOLS.slice().sort((a, b) => a.homePriority - b.homePriority);
+  return limit ? sorted.slice(0, limit) : sorted;
 }
 
 export function desktopNearestTools(): Array<{ kind: NearestPlaceKind; label: string }> {

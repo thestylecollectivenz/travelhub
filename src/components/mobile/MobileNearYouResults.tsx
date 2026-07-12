@@ -194,8 +194,12 @@ export const MobileNearYouResults: React.FC<MobileNearYouResultsProps> = ({
         setContextLabel(label);
 
         let cards: NearYouCachedResult[] = [];
-        if (toolId === 'dining') {
-          const { items } = await generateDiningSuggestions({ apiKey, searchContext });
+        if (toolId === 'dining' || toolId === 'cafes') {
+          const { items } = await generateDiningSuggestions({
+            apiKey,
+            searchContext,
+            venueFocus: toolId === 'cafes' ? 'cafes' : 'restaurants'
+          });
           cards = toCardsFromDining(items);
         } else if (tool.kind) {
           const { places } = await generateNearestPlaces(tool.kind as NearestPlaceKind, { apiKey, searchContext });

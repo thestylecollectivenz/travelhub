@@ -3,6 +3,8 @@ import * as ReactDOM from 'react-dom';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useTripPermissions } from '../../hooks/useTripPermissions';
+import { confirmUserAction } from '../../utils/confirmAction';
+import { notifyExpandUnscheduled } from '../../utils/mobileItineraryUiEvents';
 import { useSpContext } from '../../context/SpContext';
 import { compactPlaceLabel } from '../../utils/placeDisplayLabel';
 import { parseLocationInfoNotes, serializeLocationInfoNotes } from '../../utils/locationInfoEntry';
@@ -31,7 +33,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   calendarDate,
   onClose
 }) => {
-  const { trip, tripDays, selectedDayId, setSelectedDayId, editingCardId, setEditingCardId, updateEntry, reloadItineraryEntries, localEntries } =
+  const { trip, tripDays, selectedDayId, setSelectedDayId, editingCardId, setEditingCardId, updateEntry, deleteEntry, reloadItineraryEntries, localEntries } =
     useTripWorkspace();
   const { canEditItinerary, canUseAiHelpers } = useTripPermissions();
   const shellMode = useShellMode();
@@ -90,6 +92,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
         setNearToolId(null);
         setSelectedDayId(day.id);
         setEditingCardId(created.id);
+        notifyExpandUnscheduled();
         setNearActionMsg(`Review “${place.name}” and save when ready`);
         window.setTimeout(() => setNearActionMsg(''), 2800);
       } catch (err) {
@@ -137,8 +140,12 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
             }}
             onCancel={() => setEditingCardId(null)}
             onDelete={() => {
-              setEditingCardId(null);
-              onClose();
+              void (async () => {
+                if (!(await confirmUserAction('Delete this itinerary item?'))) return;
+                deleteEntry(entry.id);
+                setEditingCardId(null);
+                onClose();
+              })();
             }}
           />
         </div>

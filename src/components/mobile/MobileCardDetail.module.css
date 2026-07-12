@@ -56,6 +56,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  background: var(--cat-color);
+  color: white;
 }
 
 .heroCopy {
@@ -102,7 +104,7 @@
 .chipCat {
   color: white;
   border-color: transparent;
-  background: color-mix(in srgb, currentColor 18%, white);
+  background: var(--cat-color);
 }
 
 .chipConfirmed {
@@ -404,4 +406,26 @@
 
 .docRow:last-child {
   border-bottom: none;
+}
+
+[data-shell='ipad-portrait'] .heroIcon {
+  width: 4.25rem;
+  height: 4.25rem;
+}
+
+[data-shell='ipad-portrait'] .title {
+  font-size: 1.85rem;
+}
+
+[data-shell='ipad-portrait'] .sectionCard {
+  padding: 1rem 1.1rem;
+}
+
+[data-shell='ipad-portrait'] .fieldValue {
+  font-size: 1rem;
+}
+
+[data-shell='ipad-portrait'] .actionTile {
+  min-height: 3.25rem;
+  font-size: 0.92rem;
 }

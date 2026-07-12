@@ -8,6 +8,7 @@ const TONE: Record<
   { bg: string; fg: string; border: string }
 > = {
   dining: { bg: '#f8eee4', fg: '#c4783a', border: '#e8d4c0' },
+  cafes: { bg: '#f4ebe0', fg: '#8a7355', border: '#e0d0bc' },
   restroom: { bg: '#eef1f4', fg: '#5c6b7a', border: '#d8dee6' },
   atm: { bg: '#eef4e8', fg: '#6b7c3a', border: '#d4dfc4' },
   grocery: { bg: '#f8ebe6', fg: '#c45c3a', border: '#ecd4cc' },
@@ -23,6 +24,13 @@ function IconGlyph({ id }: { id: NearYouToolId }): React.ReactElement {
       return (
         <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" aria-hidden>
           <path d="M7 3v8M7 11v10M5 3c0 2.5 2 4 2 8M9 3c0 2.5-2 4-2 8M14 3v18M17 3v7a3 3 0 0 1-3 3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        </svg>
+      );
+    case 'cafes':
+      return (
+        <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path d="M4 8h12v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z" stroke="currentColor" strokeWidth="1.7" />
+          <path d="M16 10h2a2 2 0 0 1 0 4h-2M7 5v2M10 5v2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
         </svg>
       );
     case 'restroom':

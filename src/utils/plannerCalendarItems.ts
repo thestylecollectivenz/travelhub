@@ -313,32 +313,13 @@ function subItemDurationMinutes(sub: ItinerarySubItem): number {
 }
 
 function pushUntimedSubs(
-  items: PlannerTimedItem[],
-  entry: ItineraryEntry,
-  untimedSubs: ItinerarySubItem[],
-  parentTitle: string,
-  timedSubsCount = 0
+  _items: PlannerTimedItem[],
+  _entry: ItineraryEntry,
+  _untimedSubs: ItinerarySubItem[],
+  _parentTitle: string,
+  _timedSubsCount = 0
 ): void {
-  if (!untimedSubs.length) return;
-  if (timedSubsCount > 0) return;
-  const related = items.filter((i) => i.entry.id === entry.id);
-  let slot =
-    related.length > 0
-      ? Math.max(...related.map((i) => i.startMinutes + i.durationMinutes)) + 10
-      : 9 * 60;
-  for (const sub of untimedSubs) {
-    items.push({
-      key: `${entry.id}-${sub.id}-opt`,
-      entry,
-      subItem: sub,
-      parentTitle,
-      title: sub.title || 'Untitled option',
-      category: (sub.category || entry.category || 'Other').trim(),
-      startMinutes: Math.min(slot, 23 * 60),
-      durationMinutes: 45
-    });
-    slot += 50;
-  }
+  // Untimed options belong in the unscheduled list only — not on the timeline with synthetic times.
 }
 function pushTimedSubs(
   items: PlannerTimedItem[],

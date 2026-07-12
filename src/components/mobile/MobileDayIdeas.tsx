@@ -142,11 +142,12 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId }) => {
                 />
                 <div className={styles.dayIdeaBody}>
                   {editing ? (
-                    <input
-                      className={styles.dayIdeaInput}
+                    <textarea
+                      className={`${styles.dayIdeaInput} ${styles.dayIdeaTextarea}`}
                       value={editText}
                       onChange={(e) => setEditText(e.target.value)}
                       aria-label="Edit idea"
+                      rows={3}
                     />
                   ) : (
                     <div className={styles.dayIdeaTextRow}>

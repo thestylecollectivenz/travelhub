@@ -543,22 +543,27 @@ const NEAREST_KIND_LABEL: Record<NearestPlaceKind, string> = {
   transport: 'public transport stop, bus stop, train/metro station, or taxi stand'
 };
 
-function buildDiningPrompt(ctx: LocationSearchContext): string {
+function buildDiningPrompt(ctx: LocationSearchContext, venueFocus: 'restaurants' | 'cafes' = 'restaurants'): string {
   const geo = `Coordinates: ${ctx.latitude.toFixed(5)}, ${ctx.longitude.toFixed(5)}`;
   const placeLine =
     ctx.mode === 'onsite'
       ? `The traveller is on-site near ${ctx.placeName}, ${ctx.country}. Use their current GPS as the search anchor.`
       : `Trip destination: ${ctx.placeName}, ${ctx.country}. Suggest venues a visitor would realistically try while there.`;
+  const venueLine =
+    venueFocus === 'cafes'
+      ? 'Focus on coffee shops, bakeries, and casual cafés — not full-service restaurants.'
+      : 'Focus on restaurants and substantial dining — include some cafés only if they are standouts.';
   return `You are a local dining guide.
 
 ${placeLine}
 ${geo}
+${venueLine}
 
 Respond with ONLY a compact JSON object (no markdown, no code fences):
 {"items":[{"name":"venue","description":"one short sentence","why":"why go","bestFor":"short phrase","priceLevel":"$$","rating":4.4,"ratingSource":"google","mapsUrl":"","reviewsUrl":"","websiteUrl":""}]}
 
 Rules:
-- Exactly 4 venues (restaurants, cafés, or food markets)
+- Exactly 4 venues
 - Keep each string under 120 characters
 - Real or highly plausible for the area
 - Prefer local food/drink highlights
@@ -633,10 +638,11 @@ async function callGeminiJson<T>(
 }
 
 export async function generateDiningSuggestions(
-  options: GeminiServiceOptions & { searchContext: LocationSearchContext }
+  options: GeminiServiceOptions & { searchContext: LocationSearchContext; venueFocus?: 'restaurants' | 'cafes' }
 ): Promise<{ items: DiningSuggestionRow[]; model: string }> {
   const apiKey = (options.apiKey || '').trim();
   if (!apiKey) throw new GeminiServiceError('NO_KEY', 'Gemini API key is not set.');
+  const venueFocus = options.venueFocus ?? 'restaurants';
   const { parsed, model } = await callGeminiJson<{
     items?: Array<{
       name?: string;
@@ -650,7 +656,7 @@ export async function generateDiningSuggestions(
       reviewsUrl?: string;
       websiteUrl?: string;
     }>;
-  }>(buildDiningPrompt(options.searchContext), apiKey, options.model);
+  }>(buildDiningPrompt(options.searchContext, venueFocus), apiKey, options.model);
   const items: DiningSuggestionRow[] = [];
   const arr = parsed.items ?? [];
   for (let i = 0; i < arr.length; i++) {

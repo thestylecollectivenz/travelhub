@@ -1,0 +1,102 @@
+.root {
+  padding-bottom: 1rem;
+}
+
+.title {
+  margin: 0;
+  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
+  font-size: 1.35rem;
+  font-weight: 500;
+  color: #1e2a44;
+}
+
+.sub {
+  margin: 0.25rem 0 0.85rem;
+  font-size: 0.72rem;
+  color: #6b6570;
+}
+
+.searchLabel {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #8a7355;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.searchInput {
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  border-radius: 999px;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #1e2a44;
+}
+
+.group {
+  margin-bottom: 0.85rem;
+}
+
+.groupTitle {
+  margin: 0 0 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8a7355;
+}
+
+.list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.card {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.85rem;
+  background: white;
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  text-decoration: none;
+  color: inherit;
+}
+
+.cardLabel {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1e2a44;
+}
+
+.cardDesc {
+  font-size: 0.68rem;
+  color: #6b6570;
+}
+
+[data-shell='ipad-portrait'] .title {
+  font-size: 1.85rem;
+}
+
+[data-shell='ipad-portrait'] .sub {
+  font-size: 0.92rem;
+}
+
+[data-shell='ipad-portrait'] .searchInput {
+  font-size: 1rem;
+  padding: 0.72rem 1rem;
+}
+
+[data-shell='ipad-portrait'] .card {
+  padding: 0.95rem 1rem;
+}
+
+[data-shell='ipad-portrait'] .cardLabel {
+  font-size: 1.05rem;
+}
+
+[data-shell='ipad-portrait'] .cardDesc {
+  font-size: 0.82rem;
+}

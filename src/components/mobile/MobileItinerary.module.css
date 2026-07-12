@@ -1070,6 +1070,14 @@
   font-size: 0.78rem;
 }
 
+.dayIdeaTextarea {
+  border-radius: 0.75rem;
+  resize: vertical;
+  min-height: 3.5rem;
+  line-height: 1.35;
+  font-family: inherit;
+}
+
 .dayIdeasAddBtn {
   border: none;
   border-radius: 999px;
