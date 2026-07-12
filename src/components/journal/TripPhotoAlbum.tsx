@@ -23,7 +23,7 @@ function isAllowedImage(file: File): boolean {
   return okExt && okMime;
 }
 
-export const TripPhotoAlbum: React.FC = () => {
+export const TripPhotoAlbum: React.FC<{ mobileLayout?: boolean }> = ({ mobileLayout = false }) => {
   const { allTripPhotos, allEntries, addAlbumPhoto, addPhoto } = useJournal();
   const { selectedPhotoId, setSelectedPhotoId, setSelectedEntryId } = useJournalMediaSelection();
   const { trip, tripDays, selectedDayId, sharedPreview } = useTripWorkspace();
@@ -267,11 +267,13 @@ export const TripPhotoAlbum: React.FC = () => {
   );
 
   return (
-    <section className={styles.root} aria-label="Trip photo album">
-      <header className={styles.header}>
-        <h2 className={styles.title}>Photos</h2>
-        <p className={styles.subtitle}>Journal and album images for this trip</p>
-      </header>
+    <section className={`${styles.root} ${mobileLayout ? styles.mobileRoot : ''}`} aria-label="Trip photo album">
+      {!mobileLayout ? (
+        <header className={styles.header}>
+          <h2 className={styles.title}>Photos</h2>
+          <p className={styles.subtitle}>Journal and album images for this trip</p>
+        </header>
+      ) : null}
 
       <div className={styles.toolbar}>
         <div className={styles.segment} role="group" aria-label="Album layout">

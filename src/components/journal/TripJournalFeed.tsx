@@ -67,7 +67,7 @@ function JournalDaySection({
   );
 }
 
-export const TripJournalFeed: React.FC = () => {
+export const TripJournalFeed: React.FC<{ mobileLayout?: boolean }> = ({ mobileLayout = false }) => {
   const {
     allEntries,
     photosForEntry,
@@ -386,10 +386,12 @@ export const TripJournalFeed: React.FC = () => {
   );
 
   return (
-    <section className={styles.root} aria-label="Trip journal">
+    <section className={`${styles.root} ${mobileLayout ? styles.mobileRoot : ''}`} aria-label="Trip journal">
+      {!mobileLayout ? (
       <header className={styles.header}>
         <h2 className={styles.title}>Journal</h2>
       </header>
+      ) : null}
 
       <div className={styles.toolbar}>
         <div className={styles.segment} role="group" aria-label="Journal layout">

@@ -446,3 +446,74 @@
   border: var(--border-default);
   background: var(--color-surface-raised);
 }
+
+.mobileRoot {
+  padding: 0;
+  width: 100%;
+}
+
+.mobileRoot .toolbar {
+  margin-bottom: 0.75rem;
+}
+
+.mobileRoot .segment {
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  padding: 0.2rem;
+  background: white;
+  overflow: hidden;
+}
+
+.mobileRoot .segmentButton {
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.5rem 0.85rem;
+}
+
+.mobileRoot .segmentButton + .segmentButton {
+  border-left: none;
+}
+
+.mobileRoot .segmentActive {
+  background: #1e2a44;
+  color: white;
+}
+
+.mobileRoot .addButton,
+.mobileRoot .secondaryButton {
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.mobileRoot .addButton {
+  background: #6b7c3a;
+  color: white;
+  border-color: transparent;
+}
+
+.mobileRoot .sectionTitle {
+  border-left: 4px solid #6b7c3a;
+  padding-left: 0.65rem;
+  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
+  color: #8a7355;
+}
+
+.mobileRoot .thumb {
+  border-radius: 0.85rem;
+}
+
+[data-shell='ipad-portrait'] .mobileRoot .segmentButton {
+  font-size: 0.92rem;
+  padding: 0.62rem 1rem;
+}
+
+[data-shell='ipad-portrait'] .mobileRoot .thumb {
+  height: 12rem;
+}
+
+[data-shell='ipad-portrait'] .mobileRoot .heartBtn {
+  width: 2.25rem;
+  height: 2.25rem;
+}
