@@ -918,6 +918,133 @@
   font-size: 1rem;
 }
 
+.dayIdeasSection {
+  margin: 0.85rem var(--space-3) 0;
+  padding: 0.85rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  background: color-mix(in srgb, #f7f3eb 45%, white);
+}
+
+.dayIdeasHead {
+  margin-bottom: 0.55rem;
+}
+
+.dayIdeasTitle {
+  margin: 0;
+  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #8a7355;
+}
+
+.dayIdeasHint {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.68rem;
+  color: var(--tl-muted);
+}
+
+.dayIdeasList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.dayIdeaRow {
+  display: flex;
+  gap: 0.45rem;
+  align-items: flex-start;
+  padding: 0.55rem 0.6rem;
+  border-radius: 0.75rem;
+  background: white;
+  border: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
+}
+
+.dayIdeaDone .dayIdeaText {
+  text-decoration: line-through;
+  color: var(--tl-muted);
+}
+
+.dayIdeaCheck {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.dayIdeaBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.dayIdeaText {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: #1e2a44;
+}
+
+.dayIdeaMeta {
+  margin: 0.2rem 0 0;
+  font-size: 0.62rem;
+  color: var(--tl-muted);
+}
+
+.dayIdeaActions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+.dayIdeaBtn {
+  border: none;
+  background: none;
+  color: #6b7c3a;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+}
+
+.dayIdeasEmpty {
+  margin: 0 0 0.55rem;
+  font-size: 0.72rem;
+  color: var(--tl-muted);
+}
+
+.dayIdeasAdd {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.dayIdeaInput {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  border-radius: 999px;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.78rem;
+}
+
+.dayIdeasAddBtn {
+  border: none;
+  border-radius: 999px;
+  background: #6b7c3a;
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+}
+
+.dayIdeasAddBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .itinRoot[data-shell='ipad-portrait'] .cardMeta {
   font-size: 0.82rem;
 }

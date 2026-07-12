@@ -1,9 +1,14 @@
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
 import { useTripPermissions } from '../../hooks/useTripPermissions';
 import { logTripAccessOnce } from '../../services/TripAccessLogService';
-import { ItineraryService } from '../../services/ItineraryService';
+import { createItineraryEntryFromNearYouPlace } from '../../utils/addPlaceToItinerary';
+import { saveNearYouSavedPlace } from '../../utils/nearYouSavedPlaces';
+import { consumePendingMobileItineraryEdit } from '../../utils/mobileItineraryEditPending';
+import { ItineraryCardEdit } from '../itinerary/ItineraryCardEdit';
+import cardStyles from '../itinerary/ItineraryCard.module.css';
 import { MobileDayView } from './MobileDayView';
 import { MobileJournalView } from './MobileJournalView';
 import { MobileListsView } from './MobileListsView';
@@ -84,9 +89,19 @@ const TABS: Array<{ id: MobileTab; label: string; icon: React.ReactNode }> = [
 ];
 
 export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initialTab, shellMode = 'phone' }) => {
-  const { trip, tripDays, selectedDayId, reloadItineraryEntries } = useTripWorkspace();
+  const {
+    trip,
+    tripDays,
+    selectedDayId,
+    setSelectedDayId,
+    localEntries,
+    editingCardId,
+    setEditingCardId,
+    updateEntry,
+    reloadItineraryEntries
+  } = useTripWorkspace();
   const spContext = useSpContext();
-  const { canUseAiHelpers, canEditItinerary } = useTripPermissions();
+  const { canEditItinerary } = useTripPermissions();
   const [tab, setTab] = React.useState<MobileTab>(initialTab ?? 'today');
   const [membersOpen, setMembersOpen] = React.useState(false);
   const [askAiPrompt, setAskAiPrompt] = React.useState<string | null>(null);
@@ -114,46 +129,36 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
     closeCardDetailRef.current = close;
   }, []);
 
-  const saveNearPlace = React.useCallback((place: { name: string; note?: string; mapsUrl?: string }): void => {
-    try {
-      const key = 'travelhub-near-you-saved';
-      const raw = window.localStorage.getItem(key);
-      const prev = raw ? (JSON.parse(raw) as unknown[]) : [];
-      const list = Array.isArray(prev) ? prev : [];
-      list.unshift({ ...place, savedAt: new Date().toISOString() });
-      window.localStorage.setItem(key, JSON.stringify(list.slice(0, 40)));
-    } catch {
-      /* device storage unavailable */
+  React.useEffect(() => {
+    if (!trip?.id || !localEntries.length) return;
+    const pending = consumePendingMobileItineraryEdit();
+    if (!pending) return;
+    setTab('today');
+    setSelectedDayId(pending.dayId);
+    if (localEntries.some((e) => e.id === pending.entryId)) {
+      setEditingCardId(pending.entryId);
     }
+  }, [trip?.id, localEntries, setEditingCardId, setSelectedDayId]);
+
+  const editingEntry = editingCardId ? localEntries.find((e) => e.id === editingCardId) : undefined;
+  const editingDay = editingEntry ? tripDays.find((d) => d.id === editingEntry.dayId) : undefined;
+
+  const saveNearPlace = React.useCallback((place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string }): void => {
+    saveNearYouSavedPlace(place);
   }, []);
 
   const addNearToItinerary = React.useCallback(
     async (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string }): Promise<void> => {
-      if (!trip) return;
+      if (!trip) throw new Error('No trip open.');
       const day = tripDays.find((d) => d.id === selectedDayId) ?? tripDays[0];
-      if (!day) return;
-      const itin = new ItineraryService(spContext);
-      await itin.create({
-        tripId: trip.id,
-        dayId: day.id,
-        title: place.name,
-        category: 'Activities',
-        location: place.note || '',
-        timeStart: '',
-        duration: '',
-        supplier: '',
-        notes: place.mapsUrl ? `Maps: ${place.mapsUrl}` : '',
-        decisionStatus: 'Idea',
-        bookingRequired: false,
-        bookingStatus: 'Not booked',
-        paymentStatus: 'Not paid',
-        amount: 0,
-        currency: 'NZD',
-        sortOrder: 999
-      });
+      if (!day) throw new Error('This trip has no days yet.');
+      const created = await createItineraryEntryFromNearYouPlace(spContext, trip, day.id, place);
       await reloadItineraryEntries();
+      setTab('today');
+      setSelectedDayId(day.id);
+      setEditingCardId(created.id);
     },
-    [trip, tripDays, selectedDayId, spContext, reloadItineraryEntries]
+    [trip, tripDays, selectedDayId, spContext, reloadItineraryEntries, setEditingCardId, setSelectedDayId]
   );
 
   let body: React.ReactNode;
@@ -250,10 +255,30 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
         <MobileAskAiResultsSheet
           prompt={askAiPrompt}
           onClose={() => setAskAiPrompt(null)}
-          onSavePlace={canUseAiHelpers ? saveNearPlace : undefined}
+          onSavePlace={canEditItinerary ? saveNearPlace : undefined}
           onAddToItinerary={canEditItinerary ? addNearToItinerary : undefined}
         />
       ) : null}
+      {editingEntry && !cardDetailOpen
+        ? ReactDOM.createPortal(
+            <div className={cardStyles.portalEditRoot} role="presentation">
+              <div className={cardStyles.portalEditInner}>
+                <ItineraryCardEdit
+                  key={editingEntry.id}
+                  entry={editingEntry}
+                  calendarDate={editingDay?.calendarDate || ''}
+                  onSave={(saved) => {
+                    updateEntry(saved);
+                    setEditingCardId(null);
+                  }}
+                  onCancel={() => setEditingCardId(null)}
+                  onDelete={() => setEditingCardId(null)}
+                />
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
       {tab !== 'today' ? <AiAssistantFab /> : null}
       <span aria-hidden style={{ display: 'none' }}>
         v{SOLUTION_VERSION}

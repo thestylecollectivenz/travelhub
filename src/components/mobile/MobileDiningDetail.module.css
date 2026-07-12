@@ -1,3 +1,10 @@
+.emptyHint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #8a7355;
+  line-height: 1.4;
+}
+
 .hero {
   display: grid;
   grid-template-columns: 3.5rem 1fr;

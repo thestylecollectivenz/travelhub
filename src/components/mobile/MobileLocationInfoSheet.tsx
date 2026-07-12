@@ -7,8 +7,8 @@ import { useSpContext } from '../../context/SpContext';
 import { compactPlaceLabel } from '../../utils/placeDisplayLabel';
 import { parseLocationInfoNotes, serializeLocationInfoNotes } from '../../utils/locationInfoEntry';
 import { appendNearYouPlaceToLocationInfo } from '../../utils/nearYouLocationSave';
+import { createItineraryEntryFromNearYouPlace } from '../../utils/addPlaceToItinerary';
 import { usePlaces } from '../../context/PlacesContext';
-import { ItineraryService } from '../../services/ItineraryService';
 import { ItineraryCardEdit } from '../itinerary/ItineraryCardEdit';
 import { MobileLocationInfoContent } from './MobileLocationInfoContent';
 import { MobileLocationHighlightsEdit } from './MobileLocationHighlightsEdit';
@@ -31,7 +31,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   calendarDate,
   onClose
 }) => {
-  const { trip, tripDays, selectedDayId, editingCardId, setEditingCardId, updateEntry, reloadItineraryEntries } =
+  const { trip, tripDays, selectedDayId, setSelectedDayId, editingCardId, setEditingCardId, updateEntry, reloadItineraryEntries, localEntries } =
     useTripWorkspace();
   const { canEditItinerary, canUseAiHelpers } = useTripPermissions();
   const shellMode = useShellMode();
@@ -43,8 +43,9 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
 
   const saveNearPlace = React.useCallback(
     (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string }): boolean => {
-      const data = parseLocationInfoNotes(entry?.notes);
-      if (!entry || !data || !nearToolId) {
+      const liveEntry = entry ? localEntries.find((e) => e.id === entry.id) ?? entry : null;
+      const data = parseLocationInfoNotes(liveEntry?.notes);
+      if (!liveEntry || !data || !nearToolId) {
         setNearActionMsg('Could not save to this location.');
         window.setTimeout(() => setNearActionMsg(''), 2500);
         return false;
@@ -64,12 +65,12 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
         window.setTimeout(() => setNearActionMsg(''), 2500);
         return false;
       }
-      updateEntry({ ...entry, notes: serializeLocationInfoNotes(updated) });
+      updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(updated) });
       setNearActionMsg(`Saved ${place.name}`);
       window.setTimeout(() => setNearActionMsg(''), 2500);
       return true;
     },
-    [entry, nearToolId, updateEntry]
+    [entry, localEntries, nearToolId, updateEntry]
   );
 
   const addNearToItinerary = React.useCallback(
@@ -84,34 +85,20 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
           setNearActionMsg('This trip has no days yet.');
           return;
         }
-        const itin = new ItineraryService(spContext);
-        await itin.create({
-          tripId: trip.id,
-          dayId: day.id,
-          title: place.name,
-          category: 'Activities',
-          location: place.note || '',
-          timeStart: '',
-          duration: '',
-          supplier: '',
-          notes: place.mapsUrl ? `Maps: ${place.mapsUrl}` : '',
-          decisionStatus: 'Idea',
-          bookingRequired: false,
-          bookingStatus: 'Not booked',
-          paymentStatus: 'Not paid',
-          amount: 0,
-          currency: 'NZD',
-          sortOrder: 999
-        });
+        const created = await createItineraryEntryFromNearYouPlace(spContext, trip, day.id, place);
         await reloadItineraryEntries();
-        setNearActionMsg(`Added “${place.name}” to itinerary`);
+        setNearToolId(null);
+        setSelectedDayId(day.id);
+        setEditingCardId(created.id);
+        setNearActionMsg(`Review “${place.name}” and save when ready`);
         window.setTimeout(() => setNearActionMsg(''), 2800);
       } catch (err) {
         setNearActionMsg(err instanceof Error ? err.message : 'Could not add to itinerary.');
         window.setTimeout(() => setNearActionMsg(''), 3200);
+        throw err;
       }
     },
-    [trip, tripDays, selectedDayId, spContext, reloadItineraryEntries]
+    [trip, tripDays, selectedDayId, spContext, reloadItineraryEntries, setEditingCardId, setSelectedDayId]
   );
 
   React.useEffect(() => {
@@ -186,7 +173,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
                 : undefined
             }
             onBack={() => setNearToolId(null)}
-            onSavePlace={canUseAiHelpers ? saveNearPlace : undefined}
+            onSavePlace={canEditItinerary ? saveNearPlace : undefined}
             onAddToItinerary={canEditItinerary ? addNearToItinerary : undefined}
           />
           {nearActionMsg ? <p className={styles.nearFeedback}>{nearActionMsg}</p> : null}
@@ -223,6 +210,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
             entry={entry}
             place={place}
             readOnly={!canUseAiHelpers}
+            canEditSavedPlaces={canEditItinerary}
             canEditHighlights={canEditItinerary}
             onEditHighlights={() => setHighlightsEditOpen(true)}
             onOpenNearTool={(toolId) => setNearToolId(toolId)}

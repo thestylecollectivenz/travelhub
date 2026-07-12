@@ -20,8 +20,11 @@ import { resolveSharePointMediaSrc } from '../../utils/sharePointUrl';
 import { getCurrentUserDisplayName } from '../../utils/currentUserEmail';
 import { homeNearYouTools, type NearYouToolId } from '../../utils/nearYouTools';
 import { NearYouToolIcon } from '../shared/NearYouToolIcon';
-import { ItineraryService } from '../../services/ItineraryService';
+import { createItineraryEntryFromNearYouPlace } from '../../utils/addPlaceToItinerary';
+import { saveNearYouSavedPlace } from '../../utils/nearYouSavedPlaces';
+import { setPendingMobileItineraryEdit } from '../../utils/mobileItineraryEditPending';
 import { MobileNearYouPage } from './MobileNearYouPage';
+import { MobileHomeSavedSpots } from './MobileHomeSavedSpots';
 import '../../components/maps/LeafletCompat.css';
 import type { ShellMode } from '../../hooks/useShellMode';
 import styles from './MobileHome.module.css';
@@ -358,14 +361,9 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
     setTab('nearyou');
   };
 
-  const saveNearPlace = React.useCallback((place: { name: string; note?: string; mapsUrl?: string }): void => {
+  const saveNearPlace = React.useCallback((place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string; toolId?: string }): void => {
     try {
-      const key = 'travelhub-near-you-saved';
-      const raw = window.localStorage.getItem(key);
-      const prev = raw ? (JSON.parse(raw) as unknown[]) : [];
-      const list = Array.isArray(prev) ? prev : [];
-      list.unshift({ ...place, savedAt: new Date().toISOString() });
-      window.localStorage.setItem(key, JSON.stringify(list.slice(0, 40)));
+      saveNearYouSavedPlace(place);
       setNearActionMsg(`Saved ${place.name}`);
       window.setTimeout(() => setNearActionMsg(''), 2500);
     } catch {
@@ -378,44 +376,23 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
       if (!featuredTrip) {
         setNearActionMsg('Open or create a trip first to add itinerary items.');
         window.setTimeout(() => setNearActionMsg(''), 2800);
-        return;
+        throw new Error('No trip');
       }
-      try {
-        const daySvc = new DayService(spContext);
-        const days = await daySvc.getAll(featuredTrip.id);
-        const sorted = days.slice().sort((a, b) => a.dayNumber - b.dayNumber);
-        const day = sorted[0];
-        if (!day) {
-          setNearActionMsg('This trip has no days yet.');
-          return;
-        }
-        const itin = new ItineraryService(spContext);
-        await itin.create({
-          tripId: featuredTrip.id,
-          dayId: day.id,
-          title: place.name,
-          category: 'Activities',
-          location: place.note || '',
-          timeStart: '',
-          duration: '',
-          supplier: '',
-          notes: place.mapsUrl ? `Maps: ${place.mapsUrl}` : '',
-          decisionStatus: 'Idea',
-          bookingRequired: false,
-          bookingStatus: 'Not booked',
-          paymentStatus: 'Not paid',
-          amount: 0,
-          currency: 'NZD',
-          sortOrder: 999
-        });
-        setNearActionMsg(`Added “${place.name}” to ${featuredTrip.title}`);
-        window.setTimeout(() => setNearActionMsg(''), 2800);
-      } catch (err) {
-        setNearActionMsg(err instanceof Error ? err.message : 'Could not add to itinerary.');
-        window.setTimeout(() => setNearActionMsg(''), 3200);
+      const daySvc = new DayService(spContext);
+      const days = await daySvc.getAll(featuredTrip.id);
+      const sorted = days.filter((d) => d.dayNumber > 0).sort((a, b) => a.dayNumber - b.dayNumber);
+      const day = sorted.find((d) => d.calendarDate.slice(0, 10) >= todayYmdLocal()) ?? sorted[0];
+      if (!day) {
+        setNearActionMsg('This trip has no days yet.');
+        throw new Error('No days');
       }
+      const created = await createItineraryEntryFromNearYouPlace(spContext, featuredTrip, day.id, place);
+      setPendingMobileItineraryEdit(created.id, day.id);
+      onSelectTrip(featuredTrip.id, 'today');
+      setNearActionMsg(`Opening editor for “${place.name}”…`);
+      window.setTimeout(() => setNearActionMsg(''), 2800);
     },
-    [featuredTrip, spContext]
+    [featuredTrip, spContext, onSelectTrip]
   );
 
   const featuredHeroSrc = featuredTrip?.heroImageUrl
@@ -485,6 +462,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   } else if (tab === 'spots') {
     body = (
       <div>
+        <MobileHomeSavedSpots />
         <div className={styles.sectionHead}>
           <h2 className={styles.sectionTitle}>Spots</h2>
         </div>
@@ -709,6 +687,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
             </button>
           ))}
         </div>
+        <MobileHomeSavedSpots compact onOpenAll={() => setTab('spots')} />
         {nearActionMsg ? <p className={styles.feedback}>{nearActionMsg}</p> : null}
 
         <div className={styles.sectionHead}>

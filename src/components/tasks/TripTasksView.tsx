@@ -19,6 +19,7 @@ import { paymentDueTaskTitle, paymentDueDateHint } from '../../utils/paymentDueL
 import { confirmUserAction } from '../../utils/confirmAction';
 import { loadTripAssignees, rememberTripAssignee } from '../../utils/tripAssignees';
 import { reminderTaskCategory, TASK_FILTER_UNCATEGORISED, matchesTaskCompletionFilter } from '../../utils/taskFilters';
+import { isDayIdeaReminder } from '../../utils/dayIdeas';
 import {
   buildTaskCategoryOptions,
   rememberTripTaskCategory,
@@ -352,9 +353,10 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
   const manualTodos = React.useMemo(() => {
     let rows = manual.filter(
       (m) =>
-        m.reminderType === 'Manual' ||
+        !isDayIdeaReminder(m) &&
+        (m.reminderType === 'Manual' ||
         m.reminderType === 'ManualEntryTask' ||
-        m.reminderType === 'Custom'
+        m.reminderType === 'Custom')
     );
     rows = rows.filter((m) => matchesTaskCompletionFilter(m.isComplete, taskCompletionFilter));
     rows = rows.filter(matchesReminderFilters);

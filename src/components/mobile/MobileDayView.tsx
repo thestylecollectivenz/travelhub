@@ -24,6 +24,7 @@ import { MobileCardDetail } from './MobileCardDetail';
 import { MobileLocationInfoSheet } from './MobileLocationInfoSheet';
 import { MobileWeatherSheet } from './MobileWeatherSheet';
 import { MobileStayCruiseTile } from './MobileStayCruiseTile';
+import { MobileDayIdeas } from './MobileDayIdeas';
 import { WeatherIcon } from '../shared/WeatherIcon';
 import { findStayTileForDay } from '../../utils/mobileDayStay';
 import { itineraryEntryFromSubItem } from '../../utils/mobileSubItemEntry';
@@ -746,6 +747,8 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
         ) : timed.length === 0 && unscheduled.length === 0 ? (
           <p className={styles.emptyDay}>No itinerary items for this day yet.</p>
         ) : null}
+
+        <MobileDayIdeas dayId={day.id} readOnly={!isEditor} />
       </div>
 
       <div className={styles.aiBarWrap}>

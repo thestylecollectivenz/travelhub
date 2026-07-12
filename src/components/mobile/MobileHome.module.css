@@ -555,6 +555,70 @@
   cursor: pointer;
 }
 
+.savedSpotsSection {
+  margin-top: 0.75rem;
+}
+
+.savedSpotsHint {
+  margin: 0 0 0.55rem;
+  font-size: 0.72rem;
+  color: var(--tl-muted);
+}
+
+.savedSpotsList {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.savedSpotCard {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.85rem;
+  background: white;
+  border: 1px solid color-mix(in srgb, var(--tl-navy) 10%, transparent);
+}
+
+.savedSpotMain {
+  min-width: 0;
+  flex: 1;
+}
+
+.savedSpotName {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--tl-navy);
+}
+
+.savedSpotNote,
+.savedSpotMeta {
+  margin: 0.15rem 0 0;
+  font-size: 0.68rem;
+  color: var(--tl-muted);
+}
+
+.savedSpotActions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.savedSpotBtn {
+  border: 1px solid color-mix(in srgb, var(--tl-navy) 12%, transparent);
+  background: color-mix(in srgb, #f7f3eb 50%, white);
+  color: var(--tl-navy);
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.25rem 0.55rem;
+  text-decoration: none;
+  cursor: pointer;
+  text-align: center;
+}
+
 /* iPad portrait — full width with comfortable padding. */
 .homeRoot[data-shell='ipad-portrait'] .scroll {
   padding-left: max(1rem, env(safe-area-inset-left, 0));

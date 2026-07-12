@@ -24,8 +24,10 @@ import { formatDisplayLabel, transportDisplayTitle } from '../../utils/mobileDis
 import { MobileAccommodationDetail } from './MobileAccommodationDetail';
 import { MobileCruiseDetail } from './MobileCruiseDetail';
 import { MobileDiningDetail } from './MobileDiningDetail';
+import { MobileDocsLinksSection } from './MobileDocsLinksSection';
 import { MobileBookingSiteSheet } from './MobileBookingSiteSheet';
 import { MobilePencilButton } from './MobilePencilButton';
+import { buildMobileDocLinkItems } from '../../utils/mobileDocLinkItems';
 import cardStyles from '../itinerary/ItineraryCard.module.css';
 import styles from './MobileCardDetail.module.css';
 
@@ -98,6 +100,15 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
   const { stats, sections, plannedActivities, showStatsBar } = React.useMemo(
     () => buildMobileCardSections(entry, { canSeeFinancials, hasConfirmationDoc: Boolean(confirmationDoc), calendarDate }),
     [entry, canSeeFinancials, confirmationDoc, calendarDate]
+  );
+  const docLinkItems = React.useMemo(
+    () =>
+      buildMobileDocLinkItems(entryDocs, entryLinks, {
+        placeName: entry.title || entry.location,
+        placeAddress: entry.streetAddress || entry.location,
+        notesText: typeof entry.notes === 'string' ? entry.notes : ''
+      }),
+    [entryDocs, entryLinks, entry.title, entry.location, entry.streetAddress, entry.notes]
   );
   const slug = getCategorySlug(entry.category);
   const timeChip = entry.timeStart ? formatTimeHHMM(entry.timeStart) : entry.duration || '';
@@ -416,29 +427,10 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
         </div>
       ) : null}
 
-      {entryDocs.length ? (
-        <section className={styles.sectionCard}>
-          <h3 className={styles.sectionTitle}>Documents</h3>
-          {entryDocs.map((d) => (
-            <a key={d.id} className={styles.docRow} href={d.fileUrl} target="_blank" rel="noopener noreferrer">
-              <span>{d.title || d.fileName || 'Document'}</span>
-              <span aria-hidden>›</span>
-            </a>
-          ))}
-        </section>
-      ) : null}
-
-      {entryLinks.length ? (
-        <section className={styles.sectionCard}>
-          <h3 className={styles.sectionTitle}>Links</h3>
-          {entryLinks.map((l) => (
-            <a key={l.id} className={styles.docRow} href={l.url} target="_blank" rel="noopener noreferrer">
-              <span>{l.linkTitle || l.title || l.url}</span>
-              <span aria-hidden>›</span>
-            </a>
-          ))}
-        </section>
-      ) : null}
+      <MobileDocsLinksSection
+        items={docLinkItems}
+        emptyHint={canEditItinerary ? 'No documents or links yet — tap the pencil to add attachments when editing.' : undefined}
+      />
 
       {showBookingSites ? (
         <MobileBookingSiteSheet

@@ -379,7 +379,7 @@ export const MobileNearYouResults: React.FC<MobileNearYouResultsProps> = ({
               onSavePlace
                 ? () => {
                     const saved = onSavePlace({ name: r.name, note: r.note, mapsUrl: r.mapsUrl, websiteUrl: r.websiteUrl });
-                    if (saved !== false && !locationEntryId) showToast(`Saved · ${r.name}`);
+                    if (saved !== false) showToast(locationEntryId ? `Saved · ${r.name}` : `Saved · ${r.name}`);
                   }
                 : undefined
             }
@@ -393,9 +393,14 @@ export const MobileNearYouResults: React.FC<MobileNearYouResultsProps> = ({
                         mapsUrl: r.mapsUrl,
                         websiteUrl: r.websiteUrl
                       })
-                    ).then(() => {
-                      if (!locationEntryId) showToast('Added to itinerary');
-                    });
+                    )
+                      .then(() => {
+                        if (!locationEntryId) showToast('Opening itinerary editor…');
+                      })
+                      .catch(() => {
+                        setToast('Could not add to itinerary.');
+                        window.setTimeout(() => setToast(''), 2800);
+                      });
                   }
                 : undefined
             }

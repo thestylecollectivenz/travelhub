@@ -279,3 +279,32 @@
     flex-wrap: wrap;
   }
 }
+
+.savedList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.savedRow {
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, #f7f3eb 35%, white);
+  border: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
+}
+
+.savedName {
+  display: block;
+  font-size: 0.85rem;
+  color: #1e2a44;
+}
+
+.savedMeta,
+.savedAddr {
+  margin: 0.2rem 0 0;
+  font-size: 0.72rem;
+  color: var(--tl-muted, #8a7355);
+  line-height: 1.35;
+}

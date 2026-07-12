@@ -21,6 +21,7 @@ import { NearYouToolIcon } from '../shared/NearYouToolIcon';
 import { LocationHighlightIcon } from './LocationHighlightIcon';
 import { MobilePencilButton } from './MobilePencilButton';
 import { NEAR_YOU_TOOLS, type NearYouToolId } from '../../utils/nearYouTools';
+import { MobileLocationSavedPlaces } from './MobileLocationSavedPlaces';
 import styles from './MobileLocationInfoContent.module.css';
 
 const HIGHLIGHT_LABEL: Record<LocationHighlightKind, string> = {
@@ -39,6 +40,7 @@ export interface MobileLocationInfoContentProps {
   entry: ItineraryEntry;
   place: Place | undefined;
   readOnly?: boolean;
+  canEditSavedPlaces?: boolean;
   canEditHighlights?: boolean;
   onOpenNearTool?: (toolId: NearYouToolId) => void;
   onEditHighlights?: () => void;
@@ -48,6 +50,7 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
   entry,
   place,
   readOnly = false,
+  canEditSavedPlaces = false,
   canEditHighlights = false,
   onOpenNearTool,
   onEditHighlights
@@ -201,6 +204,8 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
           <p className={styles.empty}>Open Shopping, ATM, or Medical from the icons above to find essentials.</p>
         )}
       </section>
+
+      <MobileLocationSavedPlaces data={data} readOnly={!canEditSavedPlaces} onChange={persist} />
 
       {data.practicalTips.trim() ? (
         <section className={styles.section}>
