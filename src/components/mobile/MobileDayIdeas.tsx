@@ -1,20 +1,34 @@
 import * as React from 'react';
 import { useSpContext } from '../../context/SpContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { useTripRole } from '../../context/TripRoleContext';
+import { useTripMembers } from '../../hooks/useTripMembers';
+import { useTripPermissions } from '../../hooks/useTripPermissions';
 import { ReminderService } from '../../services/ReminderService';
-import { DAY_IDEA_REMINDER_TYPE, formatDayIdeaStamp } from '../../utils/dayIdeas';
-import { getCurrentUserDisplayName } from '../../utils/currentUserEmail';
 import { confirmUserAction } from '../../utils/confirmAction';
+import {
+  buildDayIdeaMetaForCreate,
+  DAY_IDEA_REMINDER_TYPE,
+  formatDayIdeaStamp,
+  isDayIdeaAuthor,
+  isDayIdeaUnread
+} from '../../utils/dayIdeas';
+import { getCurrentUserDisplayName } from '../../utils/currentUserEmail';
+import { notifyDayIdeasChanged } from '../../hooks/useTripDayIdeas';
 import styles from './MobileItinerary.module.css';
 
 export interface MobileDayIdeasProps {
   dayId: string;
-  readOnly?: boolean;
 }
 
-export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId, readOnly = false }) => {
+export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId }) => {
   const spContext = useSpContext();
   const { trip } = useTripWorkspace();
+  const { role } = useTripRole();
+  const { members } = useTripMembers(trip?.id);
+  const { canEditItinerary } = useTripPermissions();
+  const canContribute = role === 'Editor' || role === 'Companion';
+
   const [rows, setRows] = React.useState<Awaited<ReturnType<ReminderService['getForTrip']>>>([]);
   const [draft, setDraft] = React.useState('');
   const [editingId, setEditingId] = React.useState<string | null>(null);
@@ -37,9 +51,23 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId, readOnly 
     refresh();
   }, [refresh]);
 
+  React.useEffect(() => {
+    const handler = (): void => refresh();
+    window.addEventListener('travelhub-day-ideas-changed', handler);
+    return () => window.removeEventListener('travelhub-day-ideas-changed', handler);
+  }, [refresh]);
+
+  const canManageRow = React.useCallback(
+    (row: (typeof rows)[0]): boolean => {
+      if (canEditItinerary) return true;
+      return isDayIdeaAuthor(row, spContext, members);
+    },
+    [canEditItinerary, spContext, members]
+  );
+
   const addIdea = async (): Promise<void> => {
     const text = draft.trim();
-    if (!text || !trip?.id || readOnly) return;
+    if (!text || !trip?.id || !canContribute) return;
     setBusy(true);
     try {
       const svc = new ReminderService(spContext);
@@ -49,6 +77,7 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId, readOnly 
         dayId,
         reminderType: DAY_IDEA_REMINDER_TYPE,
         reminderText: text,
+        taskNote: buildDayIdeaMetaForCreate(spContext),
         assignedTo: getCurrentUserDisplayName(spContext),
         isComplete: false,
         dueDate: new Date().toISOString(),
@@ -56,6 +85,7 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId, readOnly 
       });
       setDraft('');
       refresh();
+      notifyDayIdeasChanged();
     } finally {
       setBusy(false);
     }
@@ -69,29 +99,43 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId, readOnly 
     setEditingId(null);
     setEditText('');
     refresh();
+    notifyDayIdeasChanged();
   };
+
+  const dayUnread = rows.filter((r) => isDayIdeaUnread(r, spContext, members)).length;
 
   return (
     <section className={styles.dayIdeasSection}>
       <div className={styles.dayIdeasHead}>
-        <h3 className={styles.dayIdeasTitle}>Ideas for this day</h3>
-        <span className={styles.dayIdeasHint}>Swap ideas as you plan — check off when agreed</span>
+        <div className={styles.dayIdeasTitleRow}>
+          <h3 className={styles.dayIdeasTitle}>Ideas for this day</h3>
+          {dayUnread > 0 ? <span className={styles.dayIdeasNewBadge}>{dayUnread} new</span> : null}
+        </div>
+        <span className={styles.dayIdeasHint}>Swap ideas as you plan — check off when agreed. See all in Lists → Day ideas.</span>
       </div>
       {rows.length ? (
         <ul className={styles.dayIdeasList}>
           {rows.map((row) => {
             const editing = editingId === row.id;
+            const unread = isDayIdeaUnread(row, spContext, members);
+            const manageable = canManageRow(row);
             return (
-              <li key={row.id} className={`${styles.dayIdeaRow} ${row.isComplete ? styles.dayIdeaDone : ''}`}>
+              <li
+                key={row.id}
+                className={`${styles.dayIdeaRow} ${row.isComplete ? styles.dayIdeaDone : ''} ${unread ? styles.dayIdeaUnread : ''}`}
+              >
                 <input
                   className={styles.dayIdeaCheck}
                   type="checkbox"
                   checked={row.isComplete}
-                  disabled={readOnly}
+                  disabled={!canContribute}
                   aria-label={row.isComplete ? 'Mark as open idea' : 'Mark idea as agreed'}
                   onChange={() => {
                     const svc = new ReminderService(spContext);
-                    void svc.update(row.id, { isComplete: !row.isComplete }).then(refresh);
+                    void svc.update(row.id, { isComplete: !row.isComplete }).then(() => {
+                      refresh();
+                      notifyDayIdeasChanged();
+                    });
                   }}
                 />
                 <div className={styles.dayIdeaBody}>
@@ -103,14 +147,17 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId, readOnly 
                       aria-label="Edit idea"
                     />
                   ) : (
-                    <p className={styles.dayIdeaText}>{row.reminderText || row.title}</p>
+                    <div className={styles.dayIdeaTextRow}>
+                      <p className={styles.dayIdeaText}>{row.reminderText || row.title}</p>
+                      {unread ? <span className={styles.dayIdeaItemBadge}>New</span> : null}
+                    </div>
                   )}
                   <p className={styles.dayIdeaMeta}>
                     {row.assignedTo?.trim() ? `${row.assignedTo.trim()} · ` : ''}
                     {formatDayIdeaStamp(row.dueDate)}
                   </p>
                 </div>
-                {!readOnly ? (
+                {manageable ? (
                   <div className={styles.dayIdeaActions}>
                     {editing ? (
                       <>
@@ -142,6 +189,7 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId, readOnly 
                               const svc = new ReminderService(spContext);
                               await svc.delete(row.id);
                               refresh();
+                              notifyDayIdeasChanged();
                             })();
                           }}
                         >
@@ -158,7 +206,7 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId, readOnly 
       ) : (
         <p className={styles.dayIdeasEmpty}>No ideas yet — add one below.</p>
       )}
-      {!readOnly ? (
+      {canContribute ? (
         <div className={styles.dayIdeasAdd}>
           <input
             className={styles.dayIdeaInput}

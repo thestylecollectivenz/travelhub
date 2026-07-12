@@ -79,6 +79,30 @@
   padding: 0.2rem;
 }
 
+.segmented3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.segmentBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: #c45c3e;
+  color: white;
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.segmentActive .segmentBadge {
+  background: white;
+  color: #c45c3e;
+}
+
 .segmentBtn {
   display: inline-flex;
   align-items: center;
@@ -110,6 +134,12 @@
 
 .pageSub {
   margin: 0 0 0.75rem;
+  font-size: 0.72rem;
+  color: #6b6570;
+}
+
+.muted {
+  margin: 0;
   font-size: 0.72rem;
   color: #6b6570;
 }

@@ -748,7 +748,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
           <p className={styles.emptyDay}>No itinerary items for this day yet.</p>
         ) : null}
 
-        <MobileDayIdeas dayId={day.id} readOnly={!isEditor} />
+        <MobileDayIdeas dayId={day.id} />
       </div>
 
       <div className={styles.aiBarWrap}>

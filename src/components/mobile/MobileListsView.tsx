@@ -4,6 +4,8 @@ import { MobilePackingList } from './MobilePackingList';
 import { MobileShoppingList } from './MobileShoppingList';
 import { MobileShoppingFilters } from './MobileShoppingFilters';
 import { MobilePackingFilters } from './MobilePackingFilters';
+import { MobileTripIdeasList } from './MobileTripIdeasList';
+import { useTripDayIdeas } from '../../hooks/useTripDayIdeas';
 import { useTripMembers } from '../../hooks/useTripMembers';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useTripRole } from '../../context/TripRoleContext';
@@ -22,13 +24,14 @@ function StatIcon({ children, tone }: { children: React.ReactNode; tone: 'olive'
 }
 
 const MobileListsBody: React.FC = () => {
-  const [sub, setSub] = React.useState<'packing' | 'shopping'>('packing');
+  const [sub, setSub] = React.useState<'packing' | 'shopping' | 'ideas'>('packing');
   const { trip } = useTripWorkspace();
   const planView = usePlanView();
   const spContext = useSpContext();
   const shellMode = useShellMode();
   const { role } = useTripRole();
   const { members, travellers } = useTripMembers(trip?.id);
+  const { unreadCount: ideasUnread } = useTripDayIdeas();
   useCompanionListDefaults(planView, role, members);
 
   const [packingTotal, setPackingTotal] = React.useState(0);
@@ -57,9 +60,13 @@ const MobileListsBody: React.FC = () => {
   return (
     <div data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}>
       <h1 className={chrome.pageTitle}>Lists</h1>
-      <p className={chrome.pageSub}>Packing and shopping for this trip</p>
+      <p className={chrome.pageSub}>Packing, shopping, and trip day ideas</p>
 
-      <div className={chrome.segmented} role="tablist" aria-label="List type">
+      <div
+        className={`${chrome.segmented} ${role === 'Editor' || role === 'Companion' ? chrome.segmented3 : ''}`}
+        role="tablist"
+        aria-label="List type"
+      >
         <button
           type="button"
           role="tab"
@@ -87,9 +94,26 @@ const MobileListsBody: React.FC = () => {
           </svg>
           Shopping
         </button>
+        {(role === 'Editor' || role === 'Companion') ? (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={sub === 'ideas'}
+            className={`${chrome.segmentBtn} ${sub === 'ideas' ? chrome.segmentActive : ''}`}
+            onClick={() => setSub('ideas')}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M9 5h11M9 12h11M9 19h11M4 5h.01M4 12h.01M4 19h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+            Day ideas
+            {ideasUnread > 0 ? <span className={chrome.segmentBadge}>{ideasUnread}</span> : null}
+          </button>
+        ) : null}
       </div>
 
-      {sub === 'packing' ? (
+      {sub === 'ideas' ? (
+        <MobileTripIdeasList />
+      ) : sub === 'packing' ? (
         <div className={`${chrome.statRow} ${chrome.statRow3}`}>
           <div className={chrome.statCard}>
             <StatIcon tone="navy">
@@ -160,8 +184,8 @@ const MobileListsBody: React.FC = () => {
         </div>
       )}
 
-      {sub === 'packing' ? <MobilePackingFilters travellers={travellers} /> : <MobileShoppingFilters travellers={travellers} />}
-      {sub === 'packing' ? <MobilePackingList embedded /> : <MobileShoppingList embedded />}
+      {sub === 'ideas' ? null : sub === 'packing' ? <MobilePackingFilters travellers={travellers} /> : <MobileShoppingFilters travellers={travellers} />}
+      {sub === 'ideas' ? null : sub === 'packing' ? <MobilePackingList embedded /> : <MobileShoppingList embedded />}
     </div>
   );
 };

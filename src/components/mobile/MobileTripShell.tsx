@@ -19,6 +19,9 @@ import { AiAssistantFab } from '../workspace/AiAssistantFab';
 import { MobileAskAiResultsSheet } from './MobileAskAiResultsSheet';
 import type { MobileTab } from './mobileTypes';
 import type { ShellMode } from '../../hooks/useShellMode';
+import { GO_TO_DAY_EVENT } from './MobileTripIdeasList';
+import { useTripDayIdeas } from '../../hooks/useTripDayIdeas';
+import { useTripRole } from '../../context/TripRoleContext';
 import { SOLUTION_VERSION } from '../../appVersion';
 import styles from './MobileShell.module.css';
 
@@ -102,6 +105,9 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
   } = useTripWorkspace();
   const spContext = useSpContext();
   const { canEditItinerary } = useTripPermissions();
+  const { role } = useTripRole();
+  const { unreadCount: ideasUnread } = useTripDayIdeas();
+  const showIdeasBadge = (role === 'Editor' || role === 'Companion') && ideasUnread > 0;
   const [tab, setTab] = React.useState<MobileTab>(initialTab ?? 'today');
   const [membersOpen, setMembersOpen] = React.useState(false);
   const [askAiPrompt, setAskAiPrompt] = React.useState<string | null>(null);
@@ -128,6 +134,17 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
     setCardDetailOpen(open);
     closeCardDetailRef.current = close;
   }, []);
+
+  React.useEffect(() => {
+    const handler = (e: Event): void => {
+      const dayId = (e as CustomEvent<{ dayId?: string }>).detail?.dayId;
+      if (!dayId) return;
+      setTab('today');
+      setSelectedDayId(dayId);
+    };
+    window.addEventListener(GO_TO_DAY_EVENT, handler);
+    return () => window.removeEventListener(GO_TO_DAY_EVENT, handler);
+  }, [setSelectedDayId]);
 
   React.useEffect(() => {
     if (!trip?.id || !localEntries.length) return;
@@ -240,6 +257,11 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
           >
             {t.icon}
             <span>{t.label}</span>
+            {t.id === 'lists' && showIdeasBadge ? (
+              <span className={styles.tabBadge} aria-label={`${ideasUnread} new day ideas`}>
+                {ideasUnread}
+              </span>
+            ) : null}
             {tab === t.id ? <span className={styles.tabDot} aria-hidden /> : null}
           </button>
         ))}

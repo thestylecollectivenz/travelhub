@@ -930,6 +930,47 @@
   margin-bottom: 0.55rem;
 }
 
+.dayIdeasTitleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dayIdeasNewBadge {
+  border-radius: 999px;
+  padding: 0.12rem 0.45rem;
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #c45c3e;
+  color: white;
+}
+
+.dayIdeaUnread {
+  background: color-mix(in srgb, #c45c3e 6%, white);
+  border-color: color-mix(in srgb, #c45c3e 18%, transparent);
+}
+
+.dayIdeaTextRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.dayIdeaItemBadge {
+  border-radius: 999px;
+  padding: 0.08rem 0.4rem;
+  font-size: 0.55rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #c45c3e;
+  color: white;
+}
+
 .dayIdeasTitle {
   margin: 0;
   font-family: Georgia, 'Palatino Linotype', Palatino, serif;

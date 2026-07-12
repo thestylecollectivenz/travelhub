@@ -1,0 +1,234 @@
+.root {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-800);
+}
+
+.sub {
+  margin: 0.25rem 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-sand-600);
+}
+
+.markAllBtn {
+  border: 1px solid color-mix(in srgb, #6b7c3a 40%, white);
+  background: color-mix(in srgb, #6b7c3a 12%, white);
+  color: #55632e;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.filter,
+.filterOn {
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font-size: var(--font-size-xs);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.filter {
+  border: var(--border-default);
+  background: var(--color-surface-raised);
+  color: var(--color-blue-800);
+}
+
+.filterOn {
+  border: 1px solid color-mix(in srgb, #6b7c3a 45%, white);
+  background: color-mix(in srgb, #6b7c3a 18%, white);
+  color: #55632e;
+}
+
+.empty {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-sand-600);
+}
+
+.dayGroup {
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  overflow: hidden;
+}
+
+.dayHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: color-mix(in srgb, #f7f3eb 50%, white);
+  border-bottom: var(--border-default);
+}
+
+.dayTitleBtn {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-blue-800);
+  cursor: pointer;
+  text-align: left;
+}
+
+.dayTitleBtn:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.groupBadge {
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  font-size: 10px;
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #c45c3e;
+  color: white;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding: var(--space-2) var(--space-3);
+  border-top: var(--border-default);
+}
+
+.row:first-child {
+  border-top: none;
+}
+
+.rowUnread {
+  background: color-mix(in srgb, #c45c3e 6%, white);
+}
+
+.rowDone .text {
+  text-decoration: line-through;
+  color: var(--color-sand-600);
+}
+
+.check {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.text {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
+  color: var(--color-blue-900);
+}
+
+.meta {
+  margin: 0.2rem 0 0;
+  font-size: 10px;
+  color: var(--color-sand-600);
+}
+
+.newBadge {
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  font-size: 9px;
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: #c45c3e;
+  color: white;
+}
+
+.agreedBadge {
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  font-size: 9px;
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: color-mix(in srgb, #6b7c3a 20%, white);
+  color: #55632e;
+  border: 1px solid color-mix(in srgb, #6b7c3a 35%, white);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+.actionBtn {
+  border: none;
+  background: none;
+  color: #6b7c3a;
+  font-size: 10px;
+  font-weight: var(--font-weight-bold);
+  padding: 0;
+  cursor: pointer;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.5rem;
+  font-size: var(--font-size-sm);
+}
+
+.mobileRoot .title {
+  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
+  font-weight: 500;
+  color: #8a7355;
+}
+
+.mobileRoot .dayGroup {
+  border-radius: 1rem;
+}
+
+.mobileRoot .filter,
+.mobileRoot .filterOn {
+  font-size: 0.72rem;
+}

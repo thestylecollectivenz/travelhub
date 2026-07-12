@@ -13,6 +13,8 @@ import { TripBudgetDetailView } from '../budget/TripBudgetDetailView';
 import { PackingListView } from '../packing/PackingListView';
 import { ShoppingListView } from '../shopping/ShoppingListView';
 import { PackingTemplatesManager } from '../packing/PackingTemplatesManager';
+import { TripDayIdeasView } from '../dayIdeas/TripDayIdeasView';
+import { useTripDayIdeas } from '../../hooks/useTripDayIdeas';
 import { TripSidebar } from '../sidebar/TripSidebar';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
@@ -63,6 +65,57 @@ import {
 } from '../../utils/workspacePaneLayout';
 import { useTripPermissions } from '../../hooks/useTripPermissions';
 import styles from './TripWorkspace.module.css';
+
+const DayIdeasPlanTabButton: React.FC<{
+  active: boolean;
+  onClick: () => void;
+}> = ({ active, onClick }) => {
+  const { unreadCount } = useTripDayIdeas();
+  return (
+    <button
+      type="button"
+      className={dayHeaderStyles.journalButton}
+      style={active ? { borderColor: 'var(--color-primary)', boxShadow: '0 0 0 1px var(--color-primary)' } : undefined}
+      onClick={onClick}
+    >
+      Day ideas
+      {unreadCount > 0 ? (
+        <span
+          style={{
+            marginLeft: '0.35rem',
+            borderRadius: '999px',
+            padding: '0.1rem 0.45rem',
+            fontSize: '10px',
+            fontWeight: 700,
+            background: '#c45c3e',
+            color: 'white'
+          }}
+        >
+          {unreadCount} new
+        </span>
+      ) : null}
+    </button>
+  );
+};
+
+const PlanDayIdeasSection: React.FC = () => {
+  const { ideas, unreadCount, refresh, markRead, markAllRead } = useTripDayIdeas();
+  const { setSelectedDayId, setMainWorkspaceTab } = useTripWorkspace();
+
+  return (
+    <TripDayIdeasView
+      ideas={ideas}
+      unreadCount={unreadCount}
+      onRefresh={refresh}
+      onMarkRead={markRead}
+      onMarkAllRead={markAllRead}
+      onGoToDay={(dayId) => {
+        setSelectedDayId(dayId);
+        setMainWorkspaceTab('itinerary');
+      }}
+    />
+  );
+};
 
 const TripContentInner: React.FC = () => {
   const spContext = useSpContext();
@@ -386,6 +439,12 @@ const TripContentInner: React.FC = () => {
               >
                 Shopping
               </button>
+              <RoleGate requiredRole="Companion">
+                <DayIdeasPlanTabButton
+                  active={planView?.planTab === 'day_ideas'}
+                  onClick={() => planView?.setPlanTab('day_ideas')}
+                />
+              </RoleGate>
               <RoleGate requiredRole="Editor">
               <button
                 type="button"
@@ -423,6 +482,8 @@ const TripContentInner: React.FC = () => {
               <PackingTemplatesManager />
             ) : planView?.planTab === 'shopping' ? (
               <ShoppingListView />
+            ) : planView?.planTab === 'day_ideas' ? (
+              <PlanDayIdeasSection />
             ) : (
               <TripTasksView variant={planView?.planTab === 'missing_costs' ? 'missing_costs' : 'tasks'} />
             )}
