@@ -10,6 +10,7 @@ import { usePlaces } from '../../context/PlacesContext';
 import { ItineraryService } from '../../services/ItineraryService';
 import { ItineraryCardEdit } from '../itinerary/ItineraryCardEdit';
 import { MobileLocationInfoContent } from './MobileLocationInfoContent';
+import { MobileLocationHighlightsEdit } from './MobileLocationHighlightsEdit';
 import { MobileNearYouResults } from './MobileNearYouResults';
 import { MobilePencilButton } from './MobilePencilButton';
 import type { NearYouToolId } from '../../utils/nearYouTools';
@@ -32,6 +33,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   const spContext = useSpContext();
   const { placeById } = usePlaces();
   const [nearToolId, setNearToolId] = React.useState<NearYouToolId | null>(null);
+  const [highlightsEditOpen, setHighlightsEditOpen] = React.useState(false);
   const [nearActionMsg, setNearActionMsg] = React.useState('');
 
   const saveNearPlace = React.useCallback((place: { name: string; note?: string; mapsUrl?: string }): void => {
@@ -95,12 +97,13 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     const onKey = (ev: KeyboardEvent): void => {
       if (ev.key === 'Escape') {
         if (nearToolId) setNearToolId(null);
+        else if (highlightsEditOpen) setHighlightsEditOpen(false);
         else if (editingCardId !== entry.id) onClose();
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [entry, onClose, editingCardId, nearToolId]);
+  }, [entry, onClose, editingCardId, nearToolId, highlightsEditOpen]);
 
   if (!entry) return null;
 
@@ -132,6 +135,16 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
         </div>
       </div>,
       document.body
+    );
+  }
+
+  if (highlightsEditOpen) {
+    return (
+      <MobileLocationHighlightsEdit
+        entry={entry}
+        place={place}
+        onBack={() => setHighlightsEditOpen(false)}
+      />
     );
   }
 
@@ -187,6 +200,8 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
             entry={entry}
             place={place}
             readOnly={!canUseAiHelpers}
+            canEditHighlights={canEditItinerary}
+            onEditHighlights={() => setHighlightsEditOpen(true)}
             onOpenNearTool={(toolId) => setNearToolId(toolId)}
           />
         </div>

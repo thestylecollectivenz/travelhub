@@ -12,13 +12,14 @@ import {
   type LocationHighlightKind,
   type LocationHighlightRow,
   type LocationInfoNotes,
-  type NearestPlaceKind,
   type NearestPlaceRow
 } from '../../utils/locationInfoEntry';
 import { placeQueryDirectionsUrl, placeQueryMapsUrl } from '../../utils/googleMapsLink';
 import { RichTextContent } from '../shared/RichTextContent';
 import { LocationInfoAskPanel } from '../itinerary/LocationInfoAskPanel';
 import { NearYouToolIcon } from '../shared/NearYouToolIcon';
+import { MobilePencilButton } from './MobilePencilButton';
+import { NEAR_YOU_TOOLS, type NearYouToolId } from '../../utils/nearYouTools';
 import styles from './MobileLocationInfoContent.module.css';
 
 const HIGHLIGHT_KINDS: LocationHighlightKind[] = ['sight', 'food', 'drink', 'souvenir'];
@@ -29,7 +30,7 @@ const HIGHLIGHT_LABEL: Record<LocationHighlightKind, string> = {
   souvenir: 'Souvenirs'
 };
 
-const ESSENTIAL_KINDS: NearestPlaceKind[] = ['grocery', 'pharmacy', 'atm'];
+const ESSENTIAL_KINDS: Array<'grocery' | 'pharmacy' | 'atm'> = ['grocery', 'pharmacy', 'atm'];
 
 function highlightKey(row: LocationHighlightRow): string {
   return `${row.kind}::${row.id}`;
@@ -39,27 +40,23 @@ export interface MobileLocationInfoContentProps {
   entry: ItineraryEntry;
   place: Place | undefined;
   readOnly?: boolean;
-  onOpenNearTool?: (toolId: 'dining' | 'restroom' | 'atm' | 'grocery' | 'transport') => void;
+  canEditHighlights?: boolean;
+  onOpenNearTool?: (toolId: NearYouToolId) => void;
+  onEditHighlights?: () => void;
 }
 
 export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps> = ({
   entry,
   place,
   readOnly = false,
-  onOpenNearTool
+  canEditHighlights = false,
+  onOpenNearTool,
+  onEditHighlights
 }) => {
   const { config } = useConfig();
   const { updateEntry } = useTripWorkspace();
   const data = parseLocationInfoNotes(entry.notes);
-  if (!data) {
-    return <p className={styles.empty}>No location data for this place yet.</p>;
-  }
-
-  const persist = (next: LocationInfoNotes): void => {
-    updateEntry({ ...entry, notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(next)) });
-  };
-
-  const rows = locationHighlightRows(data);
+  const rows = data ? locationHighlightRows(data) : [];
   const rowsByKind = React.useMemo(() => {
     const map: Record<LocationHighlightKind, LocationHighlightRow[]> = {
       sight: [],
@@ -70,6 +67,14 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
     for (const row of rows) map[row.kind].push(row);
     return map;
   }, [rows]);
+
+  if (!data) {
+    return <p className={styles.empty}>No location data for this place yet.</p>;
+  }
+
+  const persist = (next: LocationInfoNotes): void => {
+    updateEntry({ ...entry, notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(next)) });
+  };
 
   const nearest = data.nearestPlaces ?? {};
   const essentials = ESSENTIAL_KINDS.map((kind) => ({
@@ -82,22 +87,14 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
     persist({ ...data, ...splitHighlightRows(nextRows) });
   };
 
-  const nearTools: Array<{ id: 'dining' | 'restroom' | 'atm' | 'grocery' | 'transport'; label: string }> = [
-    { id: 'dining', label: 'Restaurants' },
-    { id: 'restroom', label: 'Restrooms' },
-    { id: 'atm', label: 'ATM' },
-    { id: 'grocery', label: 'Shopping' },
-    { id: 'transport', label: 'Transport' }
-  ];
-
   return (
     <div className={styles.root}>
       {onOpenNearTool ? (
         <nav className={styles.toolRow} aria-label="Near this place">
-          {nearTools.map((t) => (
+          {NEAR_YOU_TOOLS.map((t) => (
             <button key={t.id} type="button" className={styles.toolBtn} onClick={() => onOpenNearTool(t.id)}>
               <NearYouToolIcon toolId={t.id} size="md" />
-              <span className={styles.toolLabel}>{t.label}</span>
+              <span className={styles.toolLabel}>{t.shortLabel}</span>
             </button>
           ))}
         </nav>
@@ -115,13 +112,16 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
       <section className={styles.section}>
         <div className={styles.sectionHead}>
           <h3 className={styles.sectionTitle}>Highlights</h3>
+          {canEditHighlights && onEditHighlights ? (
+            <MobilePencilButton onClick={onEditHighlights} ariaLabel="Edit highlights" />
+          ) : null}
         </div>
         <div className={styles.highlightsGrid}>
           {HIGHLIGHT_KINDS.map((kind) => (
             <div key={kind} className={styles.highlightCol}>
               <p className={styles.highlightKind}>{HIGHLIGHT_LABEL[kind]}</p>
               <ul className={styles.highlightList}>
-                {(rowsByKind[kind] ?? []).slice(0, 6).map((row) => (
+                {(rowsByKind[kind] ?? []).map((row) => (
                   <li key={highlightKey(row)} className={styles.highlightItem}>
                     <label className={styles.highlightCheck}>
                       <input

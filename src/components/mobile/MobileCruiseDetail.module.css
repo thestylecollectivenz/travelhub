@@ -188,6 +188,11 @@
   color: #8a5a2b;
 }
 
+.pill_red {
+  background: color-mix(in srgb, #b44a4a 14%, white);
+  color: #9a3a3a;
+}
+
 .pill_neutral {
   background: color-mix(in srgb, #1e2a44 8%, white);
   color: #5c6570;

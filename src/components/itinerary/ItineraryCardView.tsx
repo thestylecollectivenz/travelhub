@@ -17,7 +17,7 @@ import {
 } from '../../utils/transportReturnPricing';
 import { useCanSeeFinancials } from '../../hooks/useCanSeeFinancials';
 import { useTripPermissions } from '../../hooks/useTripPermissions';
-import { formatTimeHHMM, formatAccommodationCheckInLabel } from '../../utils/itineraryTimeUtils';
+import { formatTimeHHMM, formatAccommodationArriveLabel } from '../../utils/itineraryTimeUtils';
 import { filterSubItemsForDay } from '../../utils/subItemDateUtils';
 import { SubItemList } from './SubItemList';
 import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
@@ -41,7 +41,7 @@ import {
   isAccommodationCheckoutOnCalendarDate,
   isAccommodationNightOnCalendarDate
 } from '../../utils/itineraryDayEntries';
-import type { TransportTimelineLeg } from '../../utils/itineraryDayEntries';
+import type { AccommodationTimelineLeg, TransportTimelineLeg } from '../../utils/itineraryDayEntries';
 import { formatActivityScheduleLabel } from '../../utils/activityScheduleLabel';
 import {
   isLocationInfoEntry,
@@ -78,6 +78,8 @@ export interface ItineraryCardViewProps {
   suppressCarryoverUi?: boolean;
   /** Show a single outbound or return leg of a return transport entry on the timeline. */
   transportLeg?: TransportTimelineLeg;
+  /** Show arrive or depart leg of a one-day accommodation stay on the timeline. */
+  accommodationLeg?: AccommodationTimelineLeg;
   hasTask?: boolean;
   linkedEntryTask?: LinkedEntryTask;
   linkedEntryTasks?: LinkedEntryTask[];
@@ -149,6 +151,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   calendarDate,
   suppressCarryoverUi = false,
   transportLeg,
+  accommodationLeg,
   hasTask = false,
   linkedEntryTask,
   linkedEntryTasks,
@@ -313,17 +316,27 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const legDurationLabel = transportLegDurationLabel(entry, calendarDate, tripDays, transportLeg);
   const entryScheduleHero = formatEntryScheduleHero(entry, calendarDate, tripDays, {
     transportLeg,
+    accommodationLeg,
     allEntries: localEntries
   });
   const isCheckoutMorningOnly =
     entry.category === 'Accommodation' &&
     isAccommodationCheckoutOnCalendarDate(entry, calendarDate) &&
     !isAccommodationNightOnCalendarDate(entry, calendarDate);
-  const hhmm = formatTimeHHMM(effectiveTransportLegTime(entry, calendarDate, tripDays, transportLeg));
+  const hhmm = formatTimeHHMM(
+    effectiveTransportLegTime(entry, calendarDate, tripDays, transportLeg, accommodationLeg, localEntries)
+  );
   const timeChip = isActivities
     ? formatActivityScheduleLabel({
         calendarDate,
-        timeStart: effectiveTransportLegTime(entry, calendarDate, tripDays, transportLeg),
+        timeStart: effectiveTransportLegTime(
+          entry,
+          calendarDate,
+          tripDays,
+          transportLeg,
+          accommodationLeg,
+          localEntries
+        ),
         duration: entry.duration,
         arrivalTime: entry.arrivalTime
       }) ?? null
@@ -671,7 +684,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
       {entry.category === 'Accommodation' && !entryScheduleHero && (entry.checkInTime || entry.plannedArrivalTime || entry.bookingReference?.trim()) ? (
         <div className={styles.categorySummary}>
           {entry.checkInTime || entry.plannedArrivalTime ? (
-            <span>{formatAccommodationCheckInLabel(entry)}</span>
+            <span>{formatAccommodationArriveLabel(entry)}</span>
           ) : null}
           {(entry.checkInTime || entry.plannedArrivalTime) && canSeeFinancials && entry.bookingReference?.trim() ? (
             <span aria-hidden> · </span>

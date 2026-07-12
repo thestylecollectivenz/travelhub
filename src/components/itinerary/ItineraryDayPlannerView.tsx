@@ -13,8 +13,8 @@ import {
   resolvePreTripDayId,
   sortEntriesForDay
 } from '../../utils/itineraryDayEntries';
-import type { TransportTimelineLeg } from '../../utils/itineraryDayEntries';
-import { formatTimeHHMM, minutesFromTimeStart } from '../../utils/itineraryTimeUtils';
+import type { AccommodationTimelineLeg, TransportTimelineLeg } from '../../utils/itineraryDayEntries';
+import { formatTimeHHMM, minutesFromTimeStart, effectiveAccommodationArrivalTime, effectiveAccommodationDepartureTime } from '../../utils/itineraryTimeUtils';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { openDocumentUrl } from '../../utils/openDocumentUrl';
 import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
@@ -132,8 +132,10 @@ function plannerBlockScheduleHero(
   tripEntries: ItineraryEntry[]
 ): string | null {
   const leg = plannerItemTransportLeg(item, item.entry, calendarDate);
+  const accLeg = plannerItemAccommodationLeg(item);
   return formatEntryScheduleHero(item.entry, calendarDate, tripDays, {
     transportLeg: leg,
+    accommodationLeg: accLeg,
     subItem: item.subItem,
     allEntries: tripEntries
   });
@@ -197,8 +199,8 @@ function plannerBlockMeta(item: PlannerTimedItem, calendarDate: string, tripDays
     return '—';
   }
   if (item.key.includes('-acc-')) {
-    if (item.key.endsWith('-checkin')) return formatTimeHHMM(item.entry.checkInTime || '') || '—';
-    if (item.key.endsWith('-checkout')) return formatTimeHHMM(item.entry.checkOutTime || '') || '—';
+    if (item.key.endsWith('-checkin')) return formatTimeHHMM(effectiveAccommodationArrivalTime(item.entry)) || '—';
+    if (item.key.endsWith('-checkout')) return formatTimeHHMM(effectiveAccommodationDepartureTime(item.entry)) || '—';
   }
   if (isCruisePortEntry(item.entry)) {
     const arrive = formatTimeHHMM(item.entry.timeStart || '');
@@ -271,6 +273,12 @@ function plannerItemTransportLeg(
   if (item.key.endsWith('-outbound') || item.key.includes('-trn-outbound')) return 'outbound';
   if (isTransportReturnOnCalendarDate(entry, calendarDate)) return 'return';
   return 'outbound';
+}
+
+function plannerItemAccommodationLeg(item: { key: string }): AccommodationTimelineLeg | undefined {
+  if (item.key.endsWith('-acc-checkin')) return 'arrive';
+  if (item.key.endsWith('-acc-checkout')) return 'depart';
+  return undefined;
 }
 
 type PlannerPreviewContext = {

@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { getCategorySlug } from '../../utils/categoryUtils';
-import type { TransportTimelineLeg } from '../../utils/itineraryDayEntries';
+import type { AccommodationTimelineLeg, TransportTimelineLeg } from '../../utils/itineraryDayEntries';
 import { isLocationInfoEntry } from '../../utils/locationInfoEntry';
 import { ItineraryCardEdit } from './ItineraryCardEdit';
 import { ItineraryCardView } from './ItineraryCardView';
@@ -26,6 +26,8 @@ export interface ItineraryCardProps {
   useEditPortal?: boolean;
   /** When set, show a single outbound or return leg of a return transport entry. */
   transportLeg?: TransportTimelineLeg;
+  /** When set, show arrive or depart leg of a one-day accommodation stay. */
+  accommodationLeg?: AccommodationTimelineLeg;
   /** Unique id for drag-sort (defaults to entry.id; timeline legs use row keys). */
   sortableId?: string;
 }
@@ -54,6 +56,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
   hasCancellationDeadlineReminder = false,
   useEditPortal = true,
   transportLeg,
+  accommodationLeg,
   sortableId
 }) => {
   const { editingCardId, setEditingCardId, focusedEntryId, updateEntry, deleteEntry, duplicateEntry } = useTripWorkspace();
@@ -142,6 +145,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
           calendarDate={calendarDate}
           suppressCarryoverUi={suppressCarryoverUi}
           transportLeg={transportLeg}
+          accommodationLeg={accommodationLeg}
           hasTask={hasTask}
           linkedEntryTask={linkedEntryTask}
           linkedEntryTasks={linkedEntryTasks}

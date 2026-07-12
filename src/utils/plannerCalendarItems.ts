@@ -4,7 +4,7 @@ import { parseDurationMinutes, durationFromDateTimes } from './durationFromTimes
 import { cruisePortPlannerBlocks, isCruiseSeaOrScenicEntry } from './cruisePlannerUtils';
 import { effectivePlannerTimeStart } from './itineraryDayEntries';
 import { isLocationInfoEntry } from './locationInfoEntry';
-import { formatTimeHHMM, minutesFromTimeStart, effectiveAccommodationArrivalTime, effectiveAccommodationDepartureTime, effectiveCruiseBoardingTime, effectiveCruiseDisembarkTime, formatAccommodationCheckInLabel, formatAccommodationCheckOutLabel } from './itineraryTimeUtils';
+import { formatTimeHHMM, minutesFromTimeStart, effectiveAccommodationArrivalTime, effectiveAccommodationDepartureTime, effectiveCruiseBoardingTime, effectiveCruiseDisembarkTime, formatAccommodationArriveLabel, formatAccommodationDepartLabel } from './itineraryTimeUtils';
 import { filterSubItemsForDay } from './subItemDateUtils';
 
 export interface PlannerTimedItem {
@@ -93,7 +93,7 @@ export function accommodationPlannerBlocks(
         keySuffix: 'checkin',
         startMinutes: start,
         durationMinutes: PORT_MARKER_MINUTES,
-        title: `${base} · ${formatAccommodationCheckInLabel(entry)}`
+        title: `${base} · ${formatAccommodationArriveLabel(entry)}`
       });
     }
   }
@@ -103,7 +103,7 @@ export function accommodationPlannerBlocks(
       keySuffix: 'checkout',
       startMinutes: start ?? 8 * 60,
       durationMinutes: PORT_MARKER_MINUTES,
-      title: `${base} · ${formatAccommodationCheckOutLabel(entry)}`
+      title: `${base} · ${formatAccommodationDepartLabel(entry)}`
     });
   }
   return blocks;
@@ -380,7 +380,7 @@ export function adjustPlannerAccommodationOrder(items: PlannerTimedItem[]): void
     item.startMinutes = Math.min(latestJourneyEnd + 5, MINUTES_PER_DAY - PORT_MARKER_MINUTES);
     if (fromLabel) {
       const base = item.entry.title?.trim() || 'Accommodation';
-      item.title = `${base} · ${formatAccommodationCheckInLabel(item.entry)}`;
+      item.title = `${base} · ${formatAccommodationArriveLabel(item.entry)}`;
     }
   }
 }
@@ -403,16 +403,6 @@ export function expandPlannerTimedItems(
     const untimedSubs = subs.filter((s) => minutesFromTimeStart(s.startTime || '') === undefined);
 
     if (isWholeCruiseEntry(entry)) {
-      for (const block of wholeCruisePlannerBlocks(entry, calendarDate)) {
-        items.push({
-          key: `${entry.id}-cru-${block.keySuffix}`,
-          entry,
-          title: block.title,
-          category: entry.category,
-          startMinutes: block.startMinutes,
-          durationMinutes: block.durationMinutes
-        });
-      }
       pushTimedSubs(items, entry, timedSubs, entry.title || 'Cruise');
       pushUntimedSubs(items, entry, untimedSubs, entry.title || 'Cruise', timedSubs.length);
       continue;

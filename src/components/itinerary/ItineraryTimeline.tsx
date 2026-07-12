@@ -139,7 +139,8 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
     const rows = sortTimelineDisplayRowsByTime(
       expandTimelineDisplayRows(ordered, calendarDate, tripDays),
       calendarDate,
-      tripDays
+      tripDays,
+      localEntries
     );
     return trip ? applyDayViewTimelineRowOrder(trip.id, dayId, rows, calendarDate, tripDays) : rows;
   }, [localEntries, dayId, calendarDate, dayType, preTripDayId, dayMeta, trip, tripDays]);
@@ -279,7 +280,14 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
           const categorySlug = getCategorySlug(entry.category);
           const editing = editingCardId === entry.id;
           const timeLabel = formatTimeHHMM(
-            effectiveTransportLegTime(entry, calendarDate, tripDays, row.transportLeg)
+            effectiveTransportLegTime(
+              entry,
+              calendarDate,
+              tripDays,
+              row.transportLeg,
+              row.accommodationLeg,
+              localEntries
+            )
           );
           return (
             <div key={row.key} className={styles.row}>
@@ -298,6 +306,7 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
                   draggable
                   sortableId={row.key}
                   transportLeg={row.transportLeg}
+                  accommodationLeg={row.accommodationLeg}
                   hasTask={taskEntryIds.has(entry.id)}
                   linkedEntryTask={entryLinkedTask.get(entry.id)}
                   linkedEntryTasks={entryLinkedTasks.get(entry.id)}

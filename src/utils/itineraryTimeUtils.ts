@@ -71,45 +71,57 @@ export function effectiveCruiseDisembarkTime(entry: ItineraryEntry): string {
   return entry.plannedDisembarkTime?.trim() || entry.arrivalTime?.trim() || '';
 }
 
-/** Schedule hero / timeline label for accommodation check-in. */
-export function formatAccommodationCheckInLabel(entry: ItineraryEntry, nights?: number): string {
+/** Schedule hero / timeline label for planned accommodation arrival. */
+export function formatAccommodationArriveLabel(entry: ItineraryEntry, nights?: number): string {
   const planned = formatTimeHHMM(effectiveAccommodationArrivalTime(entry));
   const contractual = entry.checkInTime?.trim() ? formatTimeHHMM(entry.checkInTime) : '';
   if (!planned && !contractual) {
-    return nights && nights > 0 ? `${nights} night${nights === 1 ? '' : 's'}` : 'Check-in';
+    return nights && nights > 0 ? `${nights} night${nights === 1 ? '' : 's'}` : 'Arrive';
   }
   const time = planned || contractual;
   const suffix = planned && contractual && planned !== contractual ? ` (${contractual} onwards)` : '';
   const nightsPart = nights && nights > 0 ? ` · ${nights} night${nights === 1 ? '' : 's'}` : '';
-  return `Check-in ${time}${suffix}${nightsPart}`;
+  return `Arrive ${time}${suffix}${nightsPart}`;
 }
 
-/** Schedule hero / timeline label for accommodation check-out. */
-export function formatAccommodationCheckOutLabel(entry: ItineraryEntry): string {
+/** @deprecated Use formatAccommodationArriveLabel */
+export const formatAccommodationCheckInLabel = formatAccommodationArriveLabel;
+
+/** Schedule hero / timeline label for planned accommodation departure. */
+export function formatAccommodationDepartLabel(entry: ItineraryEntry): string {
   const planned = formatTimeHHMM(effectiveAccommodationDepartureTime(entry));
   const contractual = entry.checkOutTime?.trim() ? formatTimeHHMM(entry.checkOutTime) : '';
-  if (!planned && !contractual) return 'Check-out';
+  if (!planned && !contractual) return 'Depart';
   const time = planned || contractual;
   const suffix = planned && contractual && planned !== contractual ? ` (${contractual} latest)` : '';
-  return `Check-out ${time}${suffix}`;
+  return `Depart ${time}${suffix}`;
 }
 
-/** Mobile / detail check-in line, e.g. "Check-in 25 Oct 2026 23:59 (from 15:00)". */
-export function formatAccommodationCheckInDetail(dateLabel: string, entry: ItineraryEntry): string {
+/** @deprecated Use formatAccommodationDepartLabel */
+export const formatAccommodationCheckOutLabel = formatAccommodationDepartLabel;
+
+/** Mobile / detail arrival line, e.g. "Arrive 25 Oct 2026 23:59 (from 15:00)". */
+export function formatAccommodationArriveDetail(dateLabel: string, entry: ItineraryEntry): string {
   const planned = formatTimeHHMM(effectiveAccommodationArrivalTime(entry));
   const contractual = entry.checkInTime?.trim() ? formatTimeHHMM(entry.checkInTime) : '';
   const time = planned || contractual;
   if (!time) return dateLabel;
   const suffix = planned && contractual && planned !== contractual ? ` (from ${contractual})` : '';
-  return `Check-in ${dateLabel} ${time}${suffix}`;
+  return `Arrive ${dateLabel} ${time}${suffix}`;
 }
 
-/** Mobile / detail check-out line. */
-export function formatAccommodationCheckOutDetail(dateLabel: string, entry: ItineraryEntry): string {
+/** @deprecated Use formatAccommodationArriveDetail */
+export const formatAccommodationCheckInDetail = formatAccommodationArriveDetail;
+
+/** Mobile / detail departure line. */
+export function formatAccommodationDepartDetail(dateLabel: string, entry: ItineraryEntry): string {
   const planned = formatTimeHHMM(effectiveAccommodationDepartureTime(entry));
   const contractual = entry.checkOutTime?.trim() ? formatTimeHHMM(entry.checkOutTime) : '';
   const time = planned || contractual;
   if (!time) return dateLabel;
   const suffix = planned && contractual && planned !== contractual ? ` (${contractual} latest)` : '';
-  return `Check-out ${dateLabel} ${time}${suffix}`;
+  return `Depart ${dateLabel} ${time}${suffix}`;
 }
+
+/** @deprecated Use formatAccommodationDepartDetail */
+export const formatAccommodationCheckOutDetail = formatAccommodationDepartDetail;

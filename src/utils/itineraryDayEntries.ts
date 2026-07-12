@@ -3,7 +3,8 @@ import type { TripDay } from '../models/TripDay';
 import { formatActivityScheduleHero } from './activityScheduleLabel';
 import { formatCruisePortScheduleHero } from './cruisePlannerUtils';
 import { durationFromDateTimes } from './durationFromTimes';
-import { formatTimeHHMM, minutesFromTimeStart, effectiveAccommodationDepartureTime, effectiveCruiseBoardingTime, effectiveCruiseDisembarkTime, formatAccommodationCheckInLabel, formatAccommodationCheckOutLabel } from './itineraryTimeUtils';
+import { formatTimeHHMM, minutesFromTimeStart, effectiveAccommodationDepartureTime, effectiveAccommodationArrivalTime, effectiveCruiseBoardingTime, effectiveCruiseDisembarkTime, formatAccommodationArriveLabel, formatAccommodationDepartLabel } from './itineraryTimeUtils';
+import { cruisePortPlannerBlocks } from './cruisePlannerUtils';
 import { dayHasPlaceId, isLocationInfoEntry, locationInfoPlaceId } from './locationInfoEntry';
 import { parseAdditionalPlaceRefs } from './tripDayPlaces';
 
@@ -93,8 +94,21 @@ function entryHomeCalendarYmd(entry: ItineraryEntry, tripDays: TripDay[] | undef
 export function effectivePlannerTimeStart(
   entry: ItineraryEntry,
   dayCalendarDate: string,
-  tripDays?: TripDay[]
+  tripDays?: TripDay[],
+  allEntries?: ItineraryEntry[]
 ): string {
+  if (entry.category === 'Cruise' && entry.embarksDate?.trim() && entry.disembarksDate?.trim()) {
+    return '';
+  }
+  if (entry.category === 'Cruise port' && tripDays?.length && allEntries?.length) {
+    const blocks = cruisePortPlannerBlocks(entry, dayCalendarDate, tripDays, allEntries);
+    if (blocks.length > 0) {
+      const m = blocks[0].startMinutes;
+      const h = Math.floor(m / 60);
+      const min = m % 60;
+      return formatTimeHHMM(`${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`);
+    }
+  }
   if (entry.category === 'Transport' && entry.journeyType === 'return') {
     const retHere = isTransportReturnOnCalendarDate(entry, dayCalendarDate);
     const outHere = isTransportDepartureOnCalendarDate(entry, dayCalendarDate, tripDays);
@@ -114,6 +128,13 @@ export function effectivePlannerTimeStart(
     effectiveAccommodationDepartureTime(entry)
   ) {
     return effectiveAccommodationDepartureTime(entry);
+  }
+  if (
+    entry.category === 'Accommodation' &&
+    isAccommodationCheckinOnCalendarDate(entry, dayCalendarDate) &&
+    effectiveAccommodationArrivalTime(entry)
+  ) {
+    return effectiveAccommodationArrivalTime(entry);
   }
   if (
     entry.category === 'Flights' &&
@@ -137,12 +158,22 @@ export type EntryCalendarMatchContext = {
   viewingDayId?: string;
 };
 
-function accommodationNights(entry: ItineraryEntry): number {
+export function accommodationNights(entry: ItineraryEntry): number {
   if (!entry.dateStart || !entry.dateEnd) return 0;
   const start = new Date(`${entry.dateStart}T00:00:00.000Z`);
   const end = new Date(`${entry.dateEnd}T00:00:00.000Z`);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
   return Math.max(0, Math.floor((end.getTime() - start.getTime()) / 86400000));
+}
+
+export function isOneDayAccommodation(entry: ItineraryEntry): boolean {
+  if (entry.category !== 'Accommodation') return false;
+  return accommodationNights(entry) === 0 || ymdSlice(entry.dateStart) === ymdSlice(entry.dateEnd);
+}
+
+export function isAccommodationCheckinOnCalendarDate(entry: ItineraryEntry, calendarDate: string): boolean {
+  if (entry.category !== 'Accommodation' || !entry.dateStart || !calendarDate) return false;
+  return ymdSlice(entry.dateStart) === ymdSlice(calendarDate);
 }
 
 /** Guest is staying this night (check-in day through night before check-out). */
@@ -281,7 +312,12 @@ export function formatEntryScheduleHero(
   entry: ItineraryEntry,
   calendarDate: string,
   tripDays: TripDay[] | undefined,
-  options?: { transportLeg?: TransportTimelineLeg; subItem?: ItinerarySubItem; allEntries?: ItineraryEntry[] }
+  options?: {
+    transportLeg?: TransportTimelineLeg;
+    accommodationLeg?: AccommodationTimelineLeg;
+    subItem?: ItinerarySubItem;
+    allEntries?: ItineraryEntry[];
+  }
 ): string | null {
   const sub = options?.subItem;
   if (sub) {
@@ -322,6 +358,12 @@ export function formatEntryScheduleHero(
     const start = ymdSlice(entry.dateStart);
     const end = ymdSlice(entry.dateEnd);
     const nights = accommodationNights(entry);
+    if (options?.accommodationLeg === 'arrive') {
+      return formatAccommodationArriveLabel(entry, nights);
+    }
+    if (options?.accommodationLeg === 'depart') {
+      return formatAccommodationDepartLabel(entry);
+    }
     if (cal > start && cal < end) {
       const thisDay = new Date(`${cal}T00:00:00.000Z`);
       const startDay = new Date(`${start}T00:00:00.000Z`);
@@ -329,10 +371,10 @@ export function formatEntryScheduleHero(
       return nights > 0 ? `Night ${nightNum} of ${nights}` : null;
     }
     if (cal === start) {
-      return formatAccommodationCheckInLabel(entry, nights);
+      return formatAccommodationArriveLabel(entry, nights);
     }
     if (cal === end) {
-      return formatAccommodationCheckOutLabel(entry);
+      return formatAccommodationDepartLabel(entry);
     }
     if (cal === start && !entry.checkInTime?.trim() && nights > 0) {
       return `${nights} night${nights === 1 ? '' : 's'}`;
@@ -355,11 +397,13 @@ export function formatEntryScheduleHero(
       const dayNum = Math.floor((thisDay.getTime() - startDay.getTime()) / 86400000) + 1;
       return `Day ${dayNum} of ${totalDays}`;
     }
-    if (cal === embark && effectiveCruiseBoardingTime(entry)) {
-      return `Embarks ${formatTimeHHMM(effectiveCruiseBoardingTime(entry))}`;
+    if (cal === embark) {
+      const depart = formatTimeHHMM(entry.timeStart || '');
+      return depart ? `Departs ${depart}` : null;
     }
-    if (cal === disembark && effectiveCruiseDisembarkTime(entry)) {
-      return `Disembarks ${formatTimeHHMM(effectiveCruiseDisembarkTime(entry))}`;
+    if (cal === disembark) {
+      const arrive = formatTimeHHMM(entry.arrivalTime || '');
+      return arrive ? `Arrives ${arrive}` : null;
     }
     return totalDays > 0 ? `${totalDays} day${totalDays === 1 ? '' : 's'}` : null;
   }
@@ -537,10 +581,13 @@ export function sortEntriesForDay(
   return Array.from(map.values()).sort(compareLocationInfoFirst(calendarDate, tripDays));
 }
 
+export type AccommodationTimelineLeg = 'arrive' | 'depart';
+
 export interface TimelineDisplayRow {
   key: string;
   entry: ItineraryEntry;
   transportLeg?: TransportTimelineLeg;
+  accommodationLeg?: AccommodationTimelineLeg;
 }
 
 /** Split return transport into separate outbound/return timeline rows when both legs fall on this day. */
@@ -568,6 +615,11 @@ export function expandTimelineDisplayRows(
         continue;
       }
     }
+    if (entry.category === 'Accommodation' && isOneDayAccommodation(entry) && isAccommodationCheckinOnCalendarDate(entry, calendarDate)) {
+      rows.push({ key: `${entry.id}-arrive`, entry, accommodationLeg: 'arrive' });
+      rows.push({ key: `${entry.id}-depart`, entry, accommodationLeg: 'depart' });
+      continue;
+    }
     rows.push({ key: entry.id, entry });
   }
   return rows;
@@ -577,18 +629,23 @@ export function effectiveTransportLegTime(
   entry: ItineraryEntry,
   calendarDate: string,
   tripDays: TripDay[] | undefined,
-  leg?: TransportTimelineLeg
+  leg?: TransportTimelineLeg,
+  accommodationLeg?: AccommodationTimelineLeg,
+  allEntries?: ItineraryEntry[]
 ): string {
+  if (accommodationLeg === 'arrive') return effectiveAccommodationArrivalTime(entry);
+  if (accommodationLeg === 'depart') return effectiveAccommodationDepartureTime(entry);
   if (leg === 'return' && entry.returnTime?.trim()) return entry.returnTime.trim();
   if (leg === 'outbound' && entry.timeStart?.trim()) return entry.timeStart.trim();
-  return effectivePlannerTimeStart(entry, calendarDate, tripDays);
+  return effectivePlannerTimeStart(entry, calendarDate, tripDays, allEntries);
 }
 
 /** Sort expanded timeline rows by leg start time (outbound/return legs independently). */
 export function sortTimelineDisplayRowsByTime(
   rows: TimelineDisplayRow[],
   calendarDate: string,
-  tripDays?: TripDay[]
+  tripDays?: TripDay[],
+  allEntries?: ItineraryEntry[]
 ): TimelineDisplayRow[] {
   return rows.slice().sort((a, b) => {
     const aLoc = isLocationInfoEntry(a.entry) ? 0 : 1;
@@ -596,10 +653,10 @@ export function sortTimelineDisplayRowsByTime(
     if (aLoc !== bLoc) return aLoc - bLoc;
 
     const aMin = minutesFromTimeStart(
-      effectiveTransportLegTime(a.entry, calendarDate, tripDays, a.transportLeg)
+      effectiveTransportLegTime(a.entry, calendarDate, tripDays, a.transportLeg, a.accommodationLeg, allEntries)
     );
     const bMin = minutesFromTimeStart(
-      effectiveTransportLegTime(b.entry, calendarDate, tripDays, b.transportLeg)
+      effectiveTransportLegTime(b.entry, calendarDate, tripDays, b.transportLeg, b.accommodationLeg, allEntries)
     );
     const aHas = aMin !== undefined;
     const bHas = bMin !== undefined;
