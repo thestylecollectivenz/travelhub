@@ -84,6 +84,7 @@
   --color-accent-light: var(--color-green-50);
   --color-transport: var(--color-teal-600);
   --color-surface: var(--color-sand-50);
+  --color-surface-base: var(--color-sand-50);
   --color-surface-raised: #FFFFFF;
   --color-surface-card: var(--color-sand-100);
   --color-warning: var(--color-amber-600);

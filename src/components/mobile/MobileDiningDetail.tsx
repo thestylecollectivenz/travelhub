@@ -334,15 +334,13 @@ export const MobileDiningDetail: React.FC<MobileDiningDetailProps> = ({
         </div>
         <GridRow cells={data.diningRow1} bordered />
         {data.onCruiseItinerary ? (
-          <div className={styles.diningRow2}>
-            <div className={styles.cruiseCallout}>
-              <span className={styles.cruiseCalloutIcon} aria-hidden>
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M2 11h12M4 9V6l4-2 4 2v3" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-                </svg>
-              </span>
-              <p className={styles.cruiseCalloutText}>This dinner is part of your cruise itinerary.</p>
-            </div>
+          <div className={styles.cruiseCallout}>
+            <span className={styles.cruiseCalloutIcon} aria-hidden>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M2 11h12M4 9V6l4-2 4 2v3" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <p className={styles.cruiseCalloutText}>This dinner is part of your cruise itinerary.</p>
           </div>
         ) : null}
       </section>

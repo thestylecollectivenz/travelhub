@@ -8,12 +8,21 @@ import styles from './NearYouResultCard.module.css';
 
 export type NearYouResultCardData = NearYouCachedResult;
 
+export interface NearYouResultCardAction {
+  id: string;
+  label: string;
+  href?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+}
+
 export interface NearYouResultCardProps {
   result: NearYouResultCardData;
   categoryLabel: string;
   onSave?: () => void;
   onAddToItinerary?: () => void;
   saveLabel?: string;
+  actions?: NearYouResultCardAction[];
 }
 
 function IconDirections(): React.ReactElement {
@@ -55,11 +64,37 @@ export const NearYouResultCard: React.FC<NearYouResultCardProps> = ({
   categoryLabel,
   onSave,
   onAddToItinerary,
-  saveLabel = 'Save'
+  saveLabel = 'Save',
+  actions
 }) => {
   const directions = placeQueryDirectionsUrl(result.name, result.address) || result.mapsUrl;
   const website = result.websiteUrl || placeWebsiteSearchUrl(result.name, result.address);
   const meta = [categoryLabel, result.priceLevel, result.note].filter(Boolean).join(' · ');
+
+  const renderAction = (action: NearYouResultCardAction): React.ReactNode => {
+    if (action.disabled) {
+      return (
+        <span key={action.id} className={styles.actionBtnDisabled}>
+          <IconDirections />
+          <span>{action.label}</span>
+        </span>
+      );
+    }
+    if (action.href) {
+      return (
+        <a key={action.id} className={styles.actionBtn} href={action.href} target="_blank" rel="noopener noreferrer" title={action.label}>
+          <IconDirections />
+          <span>{action.label}</span>
+        </a>
+      );
+    }
+    return (
+      <button key={action.id} type="button" className={styles.actionBtn} onClick={action.onClick} title={action.label}>
+        <IconDirections />
+        <span>{action.label}</span>
+      </button>
+    );
+  };
 
   return (
     <article className={styles.card}>
@@ -85,35 +120,41 @@ export const NearYouResultCard: React.FC<NearYouResultCardProps> = ({
         </div>
       </div>
       <div className={styles.actions}>
-        {directions ? (
-          <a className={styles.actionBtn} href={directions} target="_blank" rel="noopener noreferrer" title="Directions">
-            <IconDirections />
-            <span>Directions</span>
-          </a>
+        {actions?.length ? (
+          actions.map((action) => renderAction(action))
         ) : (
-          <span className={styles.actionBtnDisabled}>
-            <IconDirections />
-            <span>Directions</span>
-          </span>
+          <>
+            {directions ? (
+              <a className={styles.actionBtn} href={directions} target="_blank" rel="noopener noreferrer" title="Directions">
+                <IconDirections />
+                <span>Directions</span>
+              </a>
+            ) : (
+              <span className={styles.actionBtnDisabled}>
+                <IconDirections />
+                <span>Directions</span>
+              </span>
+            )}
+            {onSave ? (
+              <button type="button" className={styles.actionBtn} onClick={onSave} title={saveLabel}>
+                <IconSave />
+                <span>{saveLabel}</span>
+              </button>
+            ) : null}
+            {onAddToItinerary ? (
+              <button type="button" className={styles.actionBtn} onClick={onAddToItinerary} title="Add to itinerary">
+                <IconItinerary />
+                <span>Add to itinerary</span>
+              </button>
+            ) : null}
+            {website ? (
+              <a className={styles.actionBtn} href={website} target="_blank" rel="noopener noreferrer" title="Website">
+                <IconWebsite />
+                <span>Website</span>
+              </a>
+            ) : null}
+          </>
         )}
-        {onSave ? (
-          <button type="button" className={styles.actionBtn} onClick={onSave} title={saveLabel}>
-            <IconSave />
-            <span>{saveLabel}</span>
-          </button>
-        ) : null}
-        {onAddToItinerary ? (
-          <button type="button" className={styles.actionBtn} onClick={onAddToItinerary} title="Add to itinerary">
-            <IconItinerary />
-            <span>Add to itinerary</span>
-          </button>
-        ) : null}
-        {website ? (
-          <a className={styles.actionBtn} href={website} target="_blank" rel="noopener noreferrer" title="Website">
-            <IconWebsite />
-            <span>Website</span>
-          </a>
-        ) : null}
       </div>
     </article>
   );

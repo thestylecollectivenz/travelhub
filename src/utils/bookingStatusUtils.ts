@@ -61,6 +61,18 @@ export function findConfirmationDocument(documents: EntryDocument[]): EntryDocum
   });
 }
 
+function documentLabel(d: EntryDocument): string {
+  return `${d.title || ''} ${d.fileName || ''}`.toLowerCase();
+}
+
+export function findBoardingPassDocument(documents: EntryDocument[]): EntryDocument | undefined {
+  return documents.find((d) => /boarding\s*pass|boardingpass|e-?ticket/.test(documentLabel(d)));
+}
+
+export function findDeckPlanDocument(documents: EntryDocument[]): EntryDocument | undefined {
+  return documents.find((d) => /deck\s*plan|deckplan|ship\s*map/.test(documentLabel(d)));
+}
+
 export function bookingPartnerSearchUrls(placeName: string, checkIn?: string, checkOut?: string): Array<{
   id: string;
   label: string;

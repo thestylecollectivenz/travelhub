@@ -18,7 +18,7 @@
 
   position: fixed;
   inset: 0;
-  z-index: 2;
+  z-index: 5000;
   display: flex;
   flex-direction: column;
   height: 100dvh;
@@ -553,25 +553,13 @@
   cursor: pointer;
 }
 
-/* iPad portrait — centred column within mobile shell (Phase A). */
+/* iPad portrait — full width with comfortable padding. */
 .homeRoot[data-shell='ipad-portrait'] .scroll {
-  max-width: 40rem;
-  margin-left: auto;
-  margin-right: auto;
-  width: 100%;
-}
-
-.homeRoot[data-shell='ipad-portrait'] .tripCard,
-.homeRoot[data-shell='ipad-portrait'] .nearGrid {
-  max-width: 36rem;
+  padding-left: max(1rem, env(safe-area-inset-left, 0));
+  padding-right: max(1rem, env(safe-area-inset-right, 0));
 }
 
 .homeRoot[data-shell='ipad-portrait'] .bottomNav {
-  max-width: 40rem;
-  margin-left: auto;
-  margin-right: auto;
-  width: 100%;
-  box-sizing: border-box;
-  border-left: 1px solid var(--tl-line);
-  border-right: 1px solid var(--tl-line);
+  padding-left: max(0.75rem, env(safe-area-inset-left, 0));
+  padding-right: max(0.75rem, env(safe-area-inset-right, 0));
 }

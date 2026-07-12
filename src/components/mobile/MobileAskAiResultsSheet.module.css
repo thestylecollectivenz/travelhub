@@ -2,7 +2,7 @@
   position: fixed;
   inset: 0;
   z-index: 12800;
-  background: color-mix(in srgb, #1a1f2e 42%, transparent);
+  background: rgba(26, 31, 46, 0.72);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -120,4 +120,17 @@
 .error {
   color: #c45c3a;
   font-size: 0.85rem;
+}
+
+@media (min-width: 768px) {
+  .backdrop {
+    align-items: stretch;
+  }
+
+  .sheet {
+    max-width: none;
+    height: 100%;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
 }

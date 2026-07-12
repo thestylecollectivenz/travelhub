@@ -1,14 +1,14 @@
 .mobileRoot {
   position: fixed;
   inset: 0;
-  z-index: 2;
+  z-index: 5000;
   display: flex;
   flex-direction: column;
   height: 100dvh;
   max-height: 100dvh;
   min-height: 0;
   overflow: hidden;
-  background: var(--color-surface-base);
+  background: var(--color-surface-base, var(--color-surface, #faf8f4));
 }
 
 .mobileHeader {
@@ -780,20 +780,13 @@
   margin-bottom: var(--space-1);
 }
 
-/* iPad portrait — centred column (Phase A). */
+/* iPad portrait — use full width; comfortable side padding only. */
 .mobileRoot[data-shell='ipad-portrait'] .mobileMain {
-  max-width: 40rem;
-  margin-left: auto;
-  margin-right: auto;
-  width: 100%;
-  box-sizing: border-box;
+  padding-left: max(var(--space-3), env(safe-area-inset-left, 0));
+  padding-right: max(var(--space-3), env(safe-area-inset-right, 0));
 }
 
-.mobileRoot[data-shell='ipad-portrait'] .mobileHeader,
-.mobileRoot[data-shell='ipad-portrait'] .tabBar {
-  max-width: 40rem;
-  margin-left: auto;
-  margin-right: auto;
-  width: 100%;
-  box-sizing: border-box;
+.mobileRoot[data-shell='ipad-portrait'] .mobileHeader {
+  padding-left: max(var(--space-3), env(safe-area-inset-left, 0));
+  padding-right: max(var(--space-3), env(safe-area-inset-right, 0));
 }

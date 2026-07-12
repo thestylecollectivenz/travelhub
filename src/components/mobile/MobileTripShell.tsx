@@ -86,7 +86,7 @@ const TABS: Array<{ id: MobileTab; label: string; icon: React.ReactNode }> = [
 export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initialTab, shellMode = 'phone' }) => {
   const { trip, tripDays, selectedDayId } = useTripWorkspace();
   const spContext = useSpContext();
-  const { canUseAiHelpers } = useTripPermissions();
+  const { canUseAiHelpers, canEditItinerary } = useTripPermissions();
   const [tab, setTab] = React.useState<MobileTab>(initialTab ?? 'today');
   const [membersOpen, setMembersOpen] = React.useState(false);
   const [askAiPrompt, setAskAiPrompt] = React.useState<string | null>(null);
@@ -248,7 +248,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
           prompt={askAiPrompt}
           onClose={() => setAskAiPrompt(null)}
           onSavePlace={canUseAiHelpers ? saveNearPlace : undefined}
-          onAddToItinerary={canUseAiHelpers ? addNearToItinerary : undefined}
+          onAddToItinerary={canEditItinerary ? addNearToItinerary : undefined}
         />
       ) : null}
       {tab !== 'today' ? <AiAssistantFab /> : null}

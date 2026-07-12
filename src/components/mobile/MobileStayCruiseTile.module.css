@@ -110,11 +110,18 @@
 
 .actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.35rem;
   margin-top: 0.65rem;
   padding-top: 0.55rem;
   border-top: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.actions::-webkit-scrollbar {
+  display: none;
 }
 
 .pill {
@@ -133,6 +140,8 @@
   text-decoration: none;
   cursor: pointer;
   white-space: nowrap;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .pillPrimaryRust {

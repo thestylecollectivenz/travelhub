@@ -165,7 +165,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
             }
             onBack={() => setNearToolId(null)}
             onSavePlace={canUseAiHelpers ? saveNearPlace : undefined}
-            onAddToItinerary={canUseAiHelpers ? addNearToItinerary : undefined}
+            onAddToItinerary={canEditItinerary ? addNearToItinerary : undefined}
           />
           {nearActionMsg ? <p className={styles.nearFeedback}>{nearActionMsg}</p> : null}
         </div>

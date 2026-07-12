@@ -3,13 +3,15 @@ import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { CategoryIcon } from '../shared/CategoryIcon';
 import { getCategorySlug } from '../../utils/categoryUtils';
-import { formatAccommodationCheckInLabel, formatAccommodationCheckOutLabel } from '../../utils/itineraryTimeUtils';
+import { formatAccommodationArriveLabel, formatAccommodationDepartLabel } from '../../utils/itineraryTimeUtils';
 import { isAccommodationCheckoutOnCalendarDate } from '../../utils/itineraryDayEntries';
 import { entryMapsDirectionsUrl } from '../../utils/googleMapsLink';
 import {
   bookingPartnerSearchUrls,
   effectiveBookingStatus,
-  findConfirmationDocument
+  findBoardingPassDocument,
+  findConfirmationDocument,
+  findDeckPlanDocument
 } from '../../utils/bookingStatusUtils';
 import { MobileBookingSiteSheet } from './MobileBookingSiteSheet';
 import styles from './MobileStayCruiseTile.module.css';
@@ -29,7 +31,7 @@ function nightsBetween(start?: string, end?: string): number {
   return Math.max(1, Math.floor((b.getTime() - a.getTime()) / 86400000));
 }
 
-function pillIcon(kind: 'booking' | 'directions' | 'call' | 'info'): React.ReactNode {
+function pillIcon(kind: 'booking' | 'directions' | 'call' | 'info' | 'doc'): React.ReactNode {
   if (kind === 'booking') {
     return (
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
@@ -59,6 +61,14 @@ function pillIcon(kind: 'booking' | 'directions' | 'call' | 'info'): React.React
       </svg>
     );
   }
+  if (kind === 'doc') {
+    return (
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+        <path d="M4 1.5h5l3 3V14.5H4V1.5Z" stroke="currentColor" strokeWidth="1.2" />
+        <path d="M9 1.5V5h3" stroke="currentColor" strokeWidth="1.2" />
+      </svg>
+    );
+  }
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
       <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2" />
@@ -84,6 +94,8 @@ export const MobileStayCruiseTile: React.FC<MobileStayCruiseTileProps> = ({
   const nights = isAcc ? nightsBetween(entry.dateStart, entry.dateEnd) : 0;
   const entryDocs = documents.filter((d) => d.entryId === entry.id);
   const confirmationDoc = findConfirmationDocument(entryDocs);
+  const boardingPassDoc = findBoardingPassDocument(entryDocs);
+  const deckPlanDoc = findDeckPlanDocument(entryDocs);
   const booked = effectiveBookingStatus(entry, { hasConfirmationDoc: Boolean(confirmationDoc) });
 
   const statusLabel = isAcc
@@ -96,6 +108,8 @@ export const MobileStayCruiseTile: React.FC<MobileStayCruiseTileProps> = ({
     () => bookingPartnerSearchUrls(entry.title || entry.location || 'hotel', entry.dateStart, entry.dateEnd),
     [entry.dateStart, entry.dateEnd, entry.location, entry.title]
   );
+
+  const primaryPillClass = isAcc ? styles.pillPrimaryRust : styles.pillPrimaryBlue;
 
   return (
     <>
@@ -118,9 +132,9 @@ export const MobileStayCruiseTile: React.FC<MobileStayCruiseTileProps> = ({
                 {isAcc ? (
                   <div className={styles.times}>
                     {isAccommodationCheckoutOnCalendarDate(entry, calendarDate) ? (
-                      <span>{formatAccommodationCheckOutLabel(entry)}</span>
+                      <span>{formatAccommodationDepartLabel(entry)}</span>
                     ) : (
-                      <span>{formatAccommodationCheckInLabel(entry)}</span>
+                      <span>{formatAccommodationArriveLabel(entry)}</span>
                     )}
                   </div>
                 ) : (
@@ -144,7 +158,7 @@ export const MobileStayCruiseTile: React.FC<MobileStayCruiseTileProps> = ({
                 booked ? (
                   confirmationDoc?.fileUrl ? (
                     <a
-                      className={`${styles.pill} ${styles.pillPrimaryBlue}`}
+                      className={`${styles.pill} ${primaryPillClass}`}
                       href={confirmationDoc.fileUrl}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -153,13 +167,13 @@ export const MobileStayCruiseTile: React.FC<MobileStayCruiseTileProps> = ({
                       Open booking
                     </a>
                   ) : (
-                    <span className={`${styles.pill} ${styles.pillPrimaryBlue} ${styles.pillDisabled}`} aria-disabled="true">
+                    <span className={`${styles.pill} ${primaryPillClass} ${styles.pillDisabled}`} aria-disabled="true">
                       {pillIcon('booking')}
                       Open booking
                     </span>
                   )
                 ) : (
-                  <button type="button" className={`${styles.pill} ${styles.pillPrimaryRust}`} onClick={() => setShowBookingSites(true)}>
+                  <button type="button" className={`${styles.pill} ${primaryPillClass}`} onClick={() => setShowBookingSites(true)}>
                     {pillIcon('booking')}
                     Book now
                   </button>
@@ -169,6 +183,18 @@ export const MobileStayCruiseTile: React.FC<MobileStayCruiseTileProps> = ({
                 <a className={styles.pill} href={directions} target="_blank" rel="noopener noreferrer">
                   {pillIcon('directions')}
                   Directions
+                </a>
+              ) : null}
+              {!isAcc && boardingPassDoc?.fileUrl ? (
+                <a className={`${styles.pill} ${primaryPillClass}`} href={boardingPassDoc.fileUrl} target="_blank" rel="noopener noreferrer">
+                  {pillIcon('doc')}
+                  Boarding pass
+                </a>
+              ) : null}
+              {!isAcc && deckPlanDoc?.fileUrl ? (
+                <a className={`${styles.pill} ${primaryPillClass}`} href={deckPlanDoc.fileUrl} target="_blank" rel="noopener noreferrer">
+                  {pillIcon('doc')}
+                  Deck plan
                 </a>
               ) : null}
               {entry.phoneNumber ? (
