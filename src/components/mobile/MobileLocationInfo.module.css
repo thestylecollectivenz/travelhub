@@ -160,6 +160,17 @@
   -webkit-overflow-scrolling: touch;
 }
 
+.travelTip {
+  margin: 0.75rem 0 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.65rem;
+  background: color-mix(in srgb, white 88%, #f7f3eb);
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #3d4a5c;
+}
+
 .nearOverlay {
   position: fixed;
   inset: 0;

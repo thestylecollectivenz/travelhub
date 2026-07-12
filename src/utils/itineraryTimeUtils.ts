@@ -70,3 +70,46 @@ export function effectiveCruiseBoardingTime(entry: ItineraryEntry): string {
 export function effectiveCruiseDisembarkTime(entry: ItineraryEntry): string {
   return entry.plannedDisembarkTime?.trim() || entry.arrivalTime?.trim() || '';
 }
+
+/** Schedule hero / timeline label for accommodation check-in. */
+export function formatAccommodationCheckInLabel(entry: ItineraryEntry, nights?: number): string {
+  const planned = formatTimeHHMM(effectiveAccommodationArrivalTime(entry));
+  const contractual = entry.checkInTime?.trim() ? formatTimeHHMM(entry.checkInTime) : '';
+  if (!planned && !contractual) {
+    return nights && nights > 0 ? `${nights} night${nights === 1 ? '' : 's'}` : 'Check-in';
+  }
+  const time = planned || contractual;
+  const suffix = planned && contractual && planned !== contractual ? ` (${contractual} onwards)` : '';
+  const nightsPart = nights && nights > 0 ? ` · ${nights} night${nights === 1 ? '' : 's'}` : '';
+  return `Check-in ${time}${suffix}${nightsPart}`;
+}
+
+/** Schedule hero / timeline label for accommodation check-out. */
+export function formatAccommodationCheckOutLabel(entry: ItineraryEntry): string {
+  const planned = formatTimeHHMM(effectiveAccommodationDepartureTime(entry));
+  const contractual = entry.checkOutTime?.trim() ? formatTimeHHMM(entry.checkOutTime) : '';
+  if (!planned && !contractual) return 'Check-out';
+  const time = planned || contractual;
+  const suffix = planned && contractual && planned !== contractual ? ` (${contractual} latest)` : '';
+  return `Check-out ${time}${suffix}`;
+}
+
+/** Mobile / detail check-in line, e.g. "Check-in 25 Oct 2026 23:59 (from 15:00)". */
+export function formatAccommodationCheckInDetail(dateLabel: string, entry: ItineraryEntry): string {
+  const planned = formatTimeHHMM(effectiveAccommodationArrivalTime(entry));
+  const contractual = entry.checkInTime?.trim() ? formatTimeHHMM(entry.checkInTime) : '';
+  const time = planned || contractual;
+  if (!time) return dateLabel;
+  const suffix = planned && contractual && planned !== contractual ? ` (from ${contractual})` : '';
+  return `Check-in ${dateLabel} ${time}${suffix}`;
+}
+
+/** Mobile / detail check-out line. */
+export function formatAccommodationCheckOutDetail(dateLabel: string, entry: ItineraryEntry): string {
+  const planned = formatTimeHHMM(effectiveAccommodationDepartureTime(entry));
+  const contractual = entry.checkOutTime?.trim() ? formatTimeHHMM(entry.checkOutTime) : '';
+  const time = planned || contractual;
+  if (!time) return dateLabel;
+  const suffix = planned && contractual && planned !== contractual ? ` (${contractual} latest)` : '';
+  return `Check-out ${dateLabel} ${time}${suffix}`;
+}

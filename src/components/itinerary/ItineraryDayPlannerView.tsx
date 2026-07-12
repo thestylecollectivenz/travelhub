@@ -1159,7 +1159,9 @@ export const ItineraryDayPlannerView: React.FC = () => {
           {displayDays.map((day) => {
             const cal = day.calendarDate || '';
             const list = entriesForPlannerColumn(day);
-            const timed = expandPlannerTimedItems(list, cal, tripDays, entriesForTrip).filter(shouldRenderPlannerItem);
+            const timed = expandPlannerTimedItems(list, cal, tripDays, entriesForTrip).filter((item) =>
+              shouldRenderPlannerItem(item, cal)
+            );
             const unsched = expandPlannerUnscheduledItems(list, cal, tripDays, entriesForTrip);
             const accommodationEntry = findAccommodationAnchor(list);
             const collapsed = Boolean(unschedCollapsed[day.id]);
@@ -1566,7 +1568,9 @@ export const ItineraryDayPlannerView: React.FC = () => {
               {displayDays.map((day) => {
                   const cal = day.calendarDate || '';
                   const list = entriesForPlannerColumn(day);
-                  const timed = expandPlannerTimedItems(list, cal, tripDays, entriesForTrip).filter(shouldRenderPlannerItem);
+                  const timed = expandPlannerTimedItems(list, cal, tripDays, entriesForTrip).filter((item) =>
+              shouldRenderPlannerItem(item, cal)
+            );
                   return (
                     <div
                       key={`t-${day.id}`}

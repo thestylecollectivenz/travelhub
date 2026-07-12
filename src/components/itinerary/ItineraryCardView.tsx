@@ -17,7 +17,8 @@ import {
 } from '../../utils/transportReturnPricing';
 import { useCanSeeFinancials } from '../../hooks/useCanSeeFinancials';
 import { useTripPermissions } from '../../hooks/useTripPermissions';
-import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
+import { formatTimeHHMM, formatAccommodationCheckInLabel } from '../../utils/itineraryTimeUtils';
+import { filterSubItemsForDay } from '../../utils/subItemDateUtils';
 import { SubItemList } from './SubItemList';
 import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
 import { requestViewTask, scrollToReminderRow } from '../../utils/viewTaskFocus';
@@ -90,10 +91,11 @@ export interface ItineraryCardViewProps {
   onMenuOpenChange?: (open: boolean) => void;
 }
 
-function emptySubItem(parent?: ItineraryEntry): Omit<ItinerarySubItem, 'id'> {
+function emptySubItem(parent?: ItineraryEntry, calendarDate?: string): Omit<ItinerarySubItem, 'id'> {
   return {
     title: '',
     category: 'Other',
+    optionDate: calendarDate?.slice(0, 10) || undefined,
     location: parent?.location?.trim() || undefined,
     decisionStatus: 'Idea',
     paymentStatus: 'Not paid',
@@ -447,7 +449,11 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         : styles.paymentUnpaid;
   const categorySlug = getCategorySlug(entry.category);
   const subItems = entry.subItems ?? [];
-  const hasSubItems = subItems.length > 0;
+  const daySubItems = React.useMemo(
+    () => filterSubItemsForDay(subItems, calendarDate),
+    [subItems, calendarDate]
+  );
+  const hasSubItems = daySubItems.length > 0;
   const subPaid = subItems.reduce((sum, s) => {
     if (s.paymentStatus === 'Fully paid') {
       return sum + convertToHomeCurrency(s.amount, s.currency || 'NZD');
@@ -476,9 +482,9 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
   const handleStartAddSubItem = React.useCallback(() => {
     if (readOnly) return;
     setSubItemsOpen(true);
-    const tempId = addSubItem(entry.id, emptySubItem(entry));
+    const tempId = addSubItem(entry.id, emptySubItem(entry, calendarDate));
     setEditingSubItem({ parentEntryId: entry.id, subItemId: tempId });
-  }, [addSubItem, entry, readOnly, setEditingSubItem]);
+  }, [addSubItem, calendarDate, entry, readOnly, setEditingSubItem]);
 
   const handleUploadDocument = React.useCallback(
     async (file: File, documentType: EntryDocumentType, notes: string, title?: string) => {
@@ -662,10 +668,14 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
           </span>
         </div>
       ) : null}
-      {entry.category === 'Accommodation' && !entryScheduleHero && (entry.checkInTime || entry.bookingReference?.trim()) ? (
+      {entry.category === 'Accommodation' && !entryScheduleHero && (entry.checkInTime || entry.plannedArrivalTime || entry.bookingReference?.trim()) ? (
         <div className={styles.categorySummary}>
-          {entry.checkInTime ? <span>Check-in {formatTimeHHMM(entry.checkInTime)}</span> : null}
-          {entry.checkInTime && canSeeFinancials && entry.bookingReference?.trim() ? <span aria-hidden> · </span> : null}
+          {entry.checkInTime || entry.plannedArrivalTime ? (
+            <span>{formatAccommodationCheckInLabel(entry)}</span>
+          ) : null}
+          {(entry.checkInTime || entry.plannedArrivalTime) && canSeeFinancials && entry.bookingReference?.trim() ? (
+            <span aria-hidden> · </span>
+          ) : null}
           {canSeeFinancials && entry.bookingReference?.trim() ? <span>Ref {entry.bookingReference.trim()}</span> : null}
         </div>
       ) : null}
@@ -1191,7 +1201,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         ) : null}
         {hasSubItems ? (
           <button type="button" className={styles.relatedToggle} onClick={() => setSubItemsOpen((o) => !o)}>
-            {subItemsOpen ? `Hide related items ▴` : `Show ${subItems.length} related items ▾`}
+            {subItemsOpen ? `Hide related items ▴` : `Show ${daySubItems.length} related items ▾`}
           </button>
         ) : null}
       </div>
@@ -1377,7 +1387,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
 
       {showSubItemContent ? (
         <div className={`${styles.relatedContent} ${subItemsOpen || editingSubItem?.parentEntryId === entry.id ? styles.relatedContentOpen : ''}`}>
-          <SubItemList subItems={subItems} entryId={entry.id} />
+          <SubItemList subItems={daySubItems} entryId={entry.id} />
         </div>
       ) : null}
       {entryMenuPortal}

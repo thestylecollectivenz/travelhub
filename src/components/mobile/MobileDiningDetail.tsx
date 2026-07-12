@@ -9,6 +9,7 @@ import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import {
   buildDiningDetailData,
   buildDiningDocLinkItems,
+  findDiningBookingUrl,
   findDiningMenuLink,
   type DiningGridCell,
   type DiningSummaryCell
@@ -183,6 +184,7 @@ export const MobileDiningDetail: React.FC<MobileDiningDetailProps> = ({
   const notesRef = React.useRef<HTMLElement>(null);
   const confirmationDoc = findConfirmationDocument(documents);
   const menuUrl = findDiningMenuLink(links, documents);
+  const bookingUrl = findDiningBookingUrl(links);
   const slug = getCategorySlug(entry.category);
   const locationLabel = (entry.location ?? '').trim();
   const timeChip = entry.timeStart ? formatTimeHHMM(entry.timeStart) : '';
@@ -274,26 +276,32 @@ export const MobileDiningDetail: React.FC<MobileDiningDetailProps> = ({
             <span>Menu</span>
           </span>
         )}
-        {confirmationDoc?.fileUrl ? (
+        {bookingUrl ? (
           <a
             className={styles.actionTile}
-            href={confirmationDoc.fileUrl}
+            href={bookingUrl}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={(e) => openUrl(confirmationDoc.fileUrl, e)}
+            onClick={(e) => openUrl(bookingUrl, e)}
           >
-            {actionIcon('save')}
-            <span>Save</span>
+            {actionIcon('confirm')}
+            <span>Book</span>
           </a>
         ) : (
           <span className={`${styles.actionTile} ${styles.actionDisabled}`} aria-disabled="true">
-            {actionIcon('save')}
-            <span>Save</span>
+            {actionIcon('confirm')}
+            <span>Book</span>
           </span>
         )}
-        <button type="button" className={styles.actionTile} onClick={scrollToNotes}>
+        <button
+          type="button"
+          className={`${styles.actionTile} ${!hasNotes ? styles.actionDisabled : ''}`}
+          onClick={hasNotes ? scrollToNotes : undefined}
+          disabled={!hasNotes}
+          aria-disabled={!hasNotes}
+        >
           {actionIcon('note')}
-          <span>Add note</span>
+          <span>View notes</span>
         </button>
       </div>
 
@@ -325,12 +333,8 @@ export const MobileDiningDetail: React.FC<MobileDiningDetailProps> = ({
           <h2 className={styles.sectionTitle}>Dining details</h2>
         </div>
         <GridRow cells={data.diningRow1} bordered />
-        <div className={styles.rowDivider} />
-        <div className={styles.diningRow2}>
-          {data.diningRow2.map((c) => (
-            <GridCell key={c.label} cell={c} />
-          ))}
-          {data.onCruiseItinerary ? (
+        {data.onCruiseItinerary ? (
+          <div className={styles.diningRow2}>
             <div className={styles.cruiseCallout}>
               <span className={styles.cruiseCalloutIcon} aria-hidden>
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -339,10 +343,8 @@ export const MobileDiningDetail: React.FC<MobileDiningDetailProps> = ({
               </span>
               <p className={styles.cruiseCalloutText}>This dinner is part of your cruise itinerary.</p>
             </div>
-          ) : (
-            <div />
-          )}
-        </div>
+          </div>
+        ) : null}
       </section>
 
       {docLinkItems.length ? (
@@ -392,9 +394,7 @@ export const MobileDiningDetail: React.FC<MobileDiningDetailProps> = ({
             <RichTextContent html={entry.notes} />
           </div>
         </section>
-      ) : (
-        <section className={styles.sectionCard} id="dining-notes" ref={notesRef} aria-hidden />
-      )}
+      ) : null}
     </>
   );
 };

@@ -3,7 +3,7 @@ import type { TripDay } from '../models/TripDay';
 import { formatActivityScheduleHero } from './activityScheduleLabel';
 import { formatCruisePortScheduleHero } from './cruisePlannerUtils';
 import { durationFromDateTimes } from './durationFromTimes';
-import { formatTimeHHMM, minutesFromTimeStart, effectiveAccommodationDepartureTime, effectiveCruiseBoardingTime, effectiveCruiseDisembarkTime } from './itineraryTimeUtils';
+import { formatTimeHHMM, minutesFromTimeStart, effectiveAccommodationDepartureTime, effectiveCruiseBoardingTime, effectiveCruiseDisembarkTime, formatAccommodationCheckInLabel, formatAccommodationCheckOutLabel } from './itineraryTimeUtils';
 import { dayHasPlaceId, isLocationInfoEntry, locationInfoPlaceId } from './locationInfoEntry';
 import { parseAdditionalPlaceRefs } from './tripDayPlaces';
 
@@ -328,15 +328,11 @@ export function formatEntryScheduleHero(
       const nightNum = Math.floor((thisDay.getTime() - startDay.getTime()) / 86400000) + 1;
       return nights > 0 ? `Night ${nightNum} of ${nights}` : null;
     }
-    if (cal === start && entry.checkInTime?.trim()) {
-      const checkIn = formatTimeHHMM(entry.checkInTime);
-      return nights > 0 ? `Check-in ${checkIn} · ${nights} night${nights === 1 ? '' : 's'}` : `Check-in ${checkIn}`;
+    if (cal === start) {
+      return formatAccommodationCheckInLabel(entry, nights);
     }
     if (cal === end) {
-      if (entry.checkOutTime?.trim()) {
-        return `Check-out ${formatTimeHHMM(entry.checkOutTime)}`;
-      }
-      return 'Check-out';
+      return formatAccommodationCheckOutLabel(entry);
     }
     if (cal === start && !entry.checkInTime?.trim() && nights > 0) {
       return `${nights} night${nights === 1 ? '' : 's'}`;

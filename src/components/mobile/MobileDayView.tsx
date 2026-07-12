@@ -22,7 +22,9 @@ import { useConfig } from '../../context/ConfigContext';
 import { MobileDayMapSnippet } from './MobileDayMapSnippet';
 import { MobileCardDetail } from './MobileCardDetail';
 import { MobileLocationInfoSheet } from './MobileLocationInfoSheet';
+import { MobileWeatherSheet } from './MobileWeatherSheet';
 import { MobileStayCruiseTile } from './MobileStayCruiseTile';
+import { WeatherIcon } from '../shared/WeatherIcon';
 import { findStayTileForDay } from '../../utils/mobileDayStay';
 import { itineraryEntryFromSubItem } from '../../utils/mobileSubItemEntry';
 import { useMobileDetailHistory } from '../../hooks/useMobileDetailHistory';
@@ -39,7 +41,6 @@ export interface MobileDayViewProps {
   onOpenMembers?: () => void;
   onAskAi?: (prompt?: string) => void;
   onDetailChange?: (open: boolean, close?: () => void) => void;
-  onGoHome?: () => void;
 }
 
 function ymdToday(): string {
@@ -129,7 +130,7 @@ function mapsSearchUrl(query: string): string {
 
 const MAX_VISIBLE_AVATARS = 3;
 
-export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onAskAi, onDetailChange, onGoHome }) => {
+export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onAskAi, onDetailChange }) => {
   const shellMode = useShellMode();
   const { trip, tripDays, localEntries, selectedDayId, setSelectedDayId, updateEntry } = useTripWorkspace();
   const { role } = useTripRole();
@@ -145,6 +146,8 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   const [aiPrompt, setAiPrompt] = React.useState('');
   const [adding, setAdding] = React.useState(false);
   const [weatherLabel, setWeatherLabel] = React.useState('');
+  const [weatherIconCode, setWeatherIconCode] = React.useState('');
+  const [weatherOpen, setWeatherOpen] = React.useState(false);
 
   const carouselRef = React.useRef<HTMLDivElement>(null);
 
@@ -185,8 +188,8 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
 
   const timed = React.useMemo(() => {
     if (!day) return [];
-    return expandPlannerTimedItems(dayEntries, day.calendarDate, tripDays, localEntries).filter(
-      shouldRenderPlannerItem
+    return expandPlannerTimedItems(dayEntries, day.calendarDate, tripDays, localEntries).filter((item) =>
+      shouldRenderPlannerItem(item, day.calendarDate)
     );
   }, [day, dayEntries, tripDays, localEntries]);
 
@@ -254,6 +257,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     const ymd = (day?.calendarDate || '').slice(0, 10);
     if (!key || !primaryPlace || !Number.isFinite(lat) || !Number.isFinite(lng) || !ymd) {
       setWeatherLabel('');
+      setWeatherIconCode('');
       return;
     }
     let cancelled = false;
@@ -269,13 +273,18 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
         const conditions = String(row.conditions ?? '').trim();
         if (!Number.isFinite(temp) && !conditions) {
           setWeatherLabel('');
+          setWeatherIconCode('');
           return;
         }
         const tempPart = Number.isFinite(temp) ? `${Math.round(temp)}${unitSuffix}` : '';
         setWeatherLabel([tempPart, conditions].filter(Boolean).join(' '));
+        setWeatherIconCode(String(row.icon ?? ''));
       })
       .catch(() => {
-        if (!cancelled) setWeatherLabel('');
+        if (!cancelled) {
+          setWeatherLabel('');
+          setWeatherIconCode('');
+        }
       });
     return () => {
       cancelled = true;
@@ -400,11 +409,6 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
       <div className={styles.tripHeader}>
         <div className={styles.tripMeta}>
           <div className={styles.tripTitleRow}>
-            {onGoHome ? (
-              <button type="button" className={styles.homeLink} onClick={onGoHome}>
-                Home
-              </button>
-            ) : null}
             <h2 className={styles.tripTitle}>{trip.title}</h2>
           </div>
           {rangeLabel ? <p className={styles.tripDateRange}>{rangeLabel}</p> : null}
@@ -587,21 +591,18 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
             </div>
           ) : null}
         </div>
-        {weatherLabel ? (
-          <div className={styles.weatherChip} aria-label={`Weather ${weatherLabel}`}>
+        {weatherLabel && primaryPlace ? (
+          <button
+            type="button"
+            className={styles.weatherChip}
+            aria-label={`Weather ${weatherLabel}. Tap for full forecast.`}
+            onClick={() => setWeatherOpen(true)}
+          >
             <span className={styles.weatherIcon} aria-hidden>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.6" />
-                <path
-                  d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                />
-              </svg>
+              <WeatherIcon iconCode={weatherIconCode || 'cloudy'} size={18} />
             </span>
             <span className={styles.weatherText}>{weatherLabel}</span>
-          </div>
+          </button>
         ) : null}
       </div>
 
@@ -620,6 +621,14 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
         calendarDate={day.calendarDate || ''}
         onClose={() => setLocationPanelEntryId(null)}
       />
+      {weatherOpen && primaryPlace ? (
+        <MobileWeatherSheet
+          place={primaryPlace}
+          calendarDate={day.calendarDate || ''}
+          travelTip={travelTip}
+          onClose={() => setWeatherOpen(false)}
+        />
+      ) : null}
 
       <div
         className={styles.dayPanel}

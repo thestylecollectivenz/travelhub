@@ -2,7 +2,11 @@ import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { EntryDocument } from '../models/EntryDocument';
 import type { EntryLink } from '../models/EntryLink';
 import { formatCurrency } from './financialUtils';
-import { formatTimeHHMM } from './itineraryTimeUtils';
+import {
+  formatTimeHHMM,
+  formatAccommodationCheckInDetail,
+  formatAccommodationCheckOutDetail
+} from './itineraryTimeUtils';
 import { effectiveBookingStatus } from './bookingStatusUtils';
 import { formatDisplayLabel } from './mobileDisplayFormat';
 
@@ -134,9 +138,13 @@ export function buildAccommodationDetailData(
   return {
     nights,
     checkInDate: ymd(entry.dateStart),
-    checkInTime: entry.checkInTime ? formatTimeHHMM(entry.checkInTime) : '',
+    checkInTime: entry.dateStart
+      ? formatAccommodationCheckInDetail(ymd(entry.dateStart), entry)
+      : formatTimeHHMM(entry.plannedArrivalTime || entry.checkInTime || ''),
     checkOutDate: ymd(entry.dateEnd),
-    checkOutTime: entry.checkOutTime ? formatTimeHHMM(entry.checkOutTime) : '',
+    checkOutTime: entry.dateEnd
+      ? formatAccommodationCheckOutDetail(ymd(entry.dateEnd), entry)
+      : formatTimeHHMM(entry.plannedDepartureTime || entry.checkOutTime || ''),
     bookingGrid: bookingGrid.filter((c): c is AccomGridCell => Boolean(c)),
     extraBookingGrid: extraBookingGrid.filter((c): c is AccomGridCell => Boolean(c)),
     stayGrid: stayGrid.filter((c): c is AccomGridCell => Boolean(c)),

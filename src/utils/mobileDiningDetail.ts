@@ -32,15 +32,8 @@ function paymentPillTone(status: string): 'green' | 'rust' | 'red' | 'neutral' {
   return 'rust';
 }
 
-function formatJourneyType(value?: string): string {
-  if (value === 'return') return 'Return';
-  if (value === 'oneway') return 'One way';
-  return value ? formatDisplayLabel(value) : '—';
-}
-
-function formatCabinClass(value?: string): string {
-  if (!value) return '—';
-  return value.replace(/_/g, ' ');
+function formatMealType(value?: string): string {
+  return value?.trim() || '—';
 }
 
 export function isDiningOnCruiseItinerary(
@@ -56,6 +49,14 @@ export function isDiningOnCruiseItinerary(
     if (!start || !end) return false;
     return ymd >= start && ymd <= end;
   });
+}
+
+export function findDiningBookingUrl(links: EntryLink[]): string | undefined {
+  for (const l of links) {
+    const name = `${l.linkTitle || ''} ${l.title || ''} ${l.url}`.toLowerCase();
+    if (/book|reserve|reservation|opentable|resy|sevenrooms|website|dining/i.test(name)) return l.url;
+  }
+  return links.find((l) => /^https?:/i.test(l.url))?.url;
 }
 
 export function findDiningMenuLink(links: EntryLink[], documents: EntryDocument[]): string | undefined {
@@ -97,7 +98,6 @@ export function buildDiningDetailData(
   bookingRow1: DiningGridCell[];
   bookingRow2: DiningGridCell[];
   diningRow1: DiningGridCell[];
-  diningRow2: DiningGridCell[];
   onCruiseItinerary: boolean;
 } {
   const { canSeeFinancials, hasConfirmationDoc, calendarDate, allEntries } = options;
@@ -152,12 +152,7 @@ export function buildDiningDetailData(
   const diningRow1: DiningGridCell[] = [
     { label: 'Supplier / operator', value: entry.supplier?.trim() || '—' },
     { label: 'Category', value: entry.category || '—' },
-    { label: 'Journey type', value: formatJourneyType(entry.journeyType) }
-  ];
-
-  const diningRow2: DiningGridCell[] = [
-    { label: 'Transfers', value: entry.transportTransfers !== undefined ? String(entry.transportTransfers) : '0' },
-    { label: 'Cabin class', value: formatCabinClass(entry.cabinClass) }
+    { label: 'Meal type', value: formatMealType(entry.mealType) }
   ];
 
   return {
@@ -165,7 +160,6 @@ export function buildDiningDetailData(
     bookingRow1,
     bookingRow2,
     diningRow1,
-    diningRow2,
     onCruiseItinerary: isDiningOnCruiseItinerary(calendarDate, allEntries)
   };
 }

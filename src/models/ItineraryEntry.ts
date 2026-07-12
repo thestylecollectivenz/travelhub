@@ -16,11 +16,21 @@ export type CabinClass = 'economy' | 'premium_economy' | 'business';
 
 export type TransportJourneyType = 'oneway' | 'return';
 
+export type MealType =
+  | 'A la carte'
+  | 'Degustation'
+  | 'Fixed price'
+  | 'Buffet'
+  | 'Set menu'
+  | 'Other';
+
 export interface ItinerarySubItem {
   id: string;
   title: string;
   /** Option category (Food & Dining, Transport, Activities, etc.) — independent of parent card. */
   category?: string;
+  /** Calendar day (YYYY-MM-DD) when this option appears on the itinerary; stored as DateStart on child row. */
+  optionDate?: string;
   /** Optional HH:MM start time used by Day Planner plotting. */
   startTime?: string;
   /** Optional HH:MM end time used by Day Planner plotting. */
@@ -145,4 +155,6 @@ export interface ItineraryEntry {
   breakfastIncluded?: boolean;
   /** Accommodation — parking included in rate. */
   parkingIncluded?: boolean;
+  /** Food & Dining — meal service style. */
+  mealType?: MealType | string;
 }

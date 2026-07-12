@@ -32,10 +32,11 @@ function paymentBadgeClass(status: ItinerarySubItem['paymentStatus']): string {
 }
 
 function timeRangeLabel(s: ItinerarySubItem, calendarDate?: string): string | undefined {
+  const scheduleDate = s.optionDate?.slice(0, 10) || calendarDate;
   const activitySchedule =
     (s.category || '').trim() === 'Activities' || s.duration?.trim()
       ? formatActivityScheduleLabel({
-          calendarDate,
+          calendarDate: scheduleDate,
           timeStart: s.startTime,
           duration: s.duration,
           arrivalTime: s.endTime

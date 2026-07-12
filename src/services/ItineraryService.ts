@@ -88,7 +88,8 @@ const SELECT_PHASE7_OPTIONAL = [
   'AccPlannedArrivalTime',
   'AccPlannedDepartureTime',
   'CruisePlannedBoardingTime',
-  'CruisePlannedDisembarkTime'
+  'CruisePlannedDisembarkTime',
+  'MealType'
 ];
 
 const SELECT = [...SELECT_BASE, ...SELECT_PHASE7, ...SELECT_PHASE7_OPTIONAL].join(',');
@@ -134,7 +135,8 @@ const SP_PHASE7_FIELD_KEYS = new Set([
   'AccPlannedArrivalTime',
   'AccPlannedDepartureTime',
   'CruisePlannedBoardingTime',
-  'CruisePlannedDisembarkTime'
+  'CruisePlannedDisembarkTime',
+  'MealType'
 ]);
 
 function stripPhase7SpFields(item: Record<string, unknown>): Record<string, unknown> {
@@ -358,7 +360,8 @@ function mapToEntry(item: any): ItineraryEntry {
     transportMode: item.TransportMode ?? undefined,
     transportTransfers: typeof item.TransportTransfers === 'number' ? item.TransportTransfers : Number(item.TransportTransfers ?? 0) || 0,
     breakfastIncluded: item.BreakfastIncluded === true,
-    parkingIncluded: item.ParkingIncluded === true
+    parkingIncluded: item.ParkingIncluded === true,
+    mealType: item.MealType ? String(item.MealType) : undefined
   };
 }
 
@@ -367,6 +370,7 @@ function mapToSubItem(item: any): ItinerarySubItem {
   return {
     id: String(item.ID),
     title: item.Title ?? '',
+    optionDate: parseDate(item.DateStart) || undefined,
     category: item.Category ?? undefined,
     startTime: parseTime(item.TimeStart),
     endTime: parseTime(item.ArrivalTime),
@@ -475,6 +479,7 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   }
   if (entry.breakfastIncluded !== undefined) item.BreakfastIncluded = entry.breakfastIncluded;
   if (entry.parkingIncluded !== undefined) item.ParkingIncluded = entry.parkingIncluded;
+  if (entry.mealType !== undefined) item.MealType = entry.mealType?.trim() || null;
   return item;
 }
 
@@ -731,6 +736,7 @@ export class ItineraryService {
       DayId: parentEntry.dayId,
       Category: subItem.category?.trim() || 'Other',
       ParentEntryId: parentEntry.id,
+      DateStart: subItem.optionDate ? serializeDate(subItem.optionDate) : null,
       TimeStart: serializeTime(subItem.startTime),
       ArrivalTime: serializeTime(subItem.endTime),
       Duration: subItem.duration ?? '',

@@ -84,6 +84,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   const isActivities = draft.category === 'Activities';
   const isLocationInfo = isLocationInfoEntry(draft);
   const isOption = variant === 'option';
+  const isDining = draft.category === 'Food & Dining';
   const needsComputedEndTime = isFlights || isTransport || isActivities || isOption;
   const { documents, links, addDocument, addLink } = useAttachments();
 
@@ -625,6 +626,21 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           value={timeValue}
           onChange={(e) => patch({ timeStart: combineDayAndTime(calendarDate, e.target.value) })}
         />
+
+        {isOption ? (
+          <>
+            <label className={styles.label} htmlFor={`opt-date-${draft.id}`}>
+              Date
+            </label>
+            <input
+              id={`opt-date-${draft.id}`}
+              className={styles.input}
+              type="date"
+              value={draft.dateStart ?? calendarDate}
+              onChange={(e) => patch({ dateStart: e.target.value })}
+            />
+          </>
+        ) : null}
 
         <label className={styles.label} htmlFor={`dur-${draft.id}`}>
           Duration
@@ -1196,6 +1212,28 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
               value={draft.streetAddress ?? ''}
               onChange={(e) => patch({ streetAddress: e.target.value })}
             />
+          </>
+        ) : null}
+
+        {isDining && !isOption ? (
+          <>
+            <label className={styles.label} htmlFor={`meal-${draft.id}`}>
+              Meal type
+            </label>
+            <select
+              id={`meal-${draft.id}`}
+              className={styles.select}
+              value={draft.mealType ?? ''}
+              onChange={(e) => patch({ mealType: e.target.value || undefined })}
+            >
+              <option value="">—</option>
+              <option value="A la carte">A la carte</option>
+              <option value="Degustation">Degustation</option>
+              <option value="Fixed price">Fixed price</option>
+              <option value="Buffet">Buffet</option>
+              <option value="Set menu">Set menu</option>
+              <option value="Other">Other</option>
+            </select>
           </>
         ) : null}
 

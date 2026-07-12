@@ -4,7 +4,8 @@ import { parseDurationMinutes, durationFromDateTimes } from './durationFromTimes
 import { cruisePortPlannerBlocks, isCruiseSeaOrScenicEntry } from './cruisePlannerUtils';
 import { effectivePlannerTimeStart } from './itineraryDayEntries';
 import { isLocationInfoEntry } from './locationInfoEntry';
-import { formatTimeHHMM, minutesFromTimeStart, effectiveAccommodationArrivalTime, effectiveAccommodationDepartureTime, effectiveCruiseBoardingTime, effectiveCruiseDisembarkTime } from './itineraryTimeUtils';
+import { formatTimeHHMM, minutesFromTimeStart, effectiveAccommodationArrivalTime, effectiveAccommodationDepartureTime, effectiveCruiseBoardingTime, effectiveCruiseDisembarkTime, formatAccommodationCheckInLabel, formatAccommodationCheckOutLabel } from './itineraryTimeUtils';
+import { filterSubItemsForDay } from './subItemDateUtils';
 
 export interface PlannerTimedItem {
   key: string;
@@ -79,12 +80,12 @@ export function cruisePortTimedBlocks(
 export function accommodationPlannerBlocks(
   entry: ItineraryEntry,
   calendarDate: string
-): Array<{ keySuffix: string; startMinutes: number; durationMinutes: number; title: string; checkInFromLabel?: string }> {
+): Array<{ keySuffix: string; startMinutes: number; durationMinutes: number; title: string }> {
   const day = ymdSlice(calendarDate);
   const checkInDay = ymdSlice(entry.dateStart);
   const checkOutDay = ymdSlice(entry.dateEnd);
   const base = entry.title?.trim() || 'Accommodation';
-  const blocks: Array<{ keySuffix: string; startMinutes: number; durationMinutes: number; title: string; checkInFromLabel?: string }> = [];
+  const blocks: Array<{ keySuffix: string; startMinutes: number; durationMinutes: number; title: string }> = [];
   if (day && checkInDay === day) {
     const start = minutesFromTimeStart(effectiveAccommodationArrivalTime(entry));
     if (start !== undefined) {
@@ -92,8 +93,7 @@ export function accommodationPlannerBlocks(
         keySuffix: 'checkin',
         startMinutes: start,
         durationMinutes: PORT_MARKER_MINUTES,
-        title: `${base} · Check-in`,
-        checkInFromLabel: formatTimeHHMM(effectiveAccommodationArrivalTime(entry))
+        title: `${base} · ${formatAccommodationCheckInLabel(entry)}`
       });
     }
   }
@@ -103,7 +103,7 @@ export function accommodationPlannerBlocks(
       keySuffix: 'checkout',
       startMinutes: start ?? 8 * 60,
       durationMinutes: PORT_MARKER_MINUTES,
-      title: `${base} · Check-out${effectiveAccommodationDepartureTime(entry) ? ` ${formatTimeHHMM(effectiveAccommodationDepartureTime(entry))}` : ''}`
+      title: `${base} · ${formatAccommodationCheckOutLabel(entry)}`
     });
   }
   return blocks;
@@ -250,8 +250,9 @@ export function parsePlannerDurationMinutes(duration: string | undefined): numbe
   return parsed > 0 ? parsed : 60;
 }
 
-export function entryHasTimedSubs(entry: ItineraryEntry): boolean {
-  return (entry.subItems ?? []).some((s) => minutesFromTimeStart(s.startTime || '') !== undefined);
+export function entryHasTimedSubs(entry: ItineraryEntry, calendarDate?: string): boolean {
+  const subs = calendarDate ? filterSubItemsForDay(entry.subItems, calendarDate) : (entry.subItems ?? []);
+  return subs.some((s) => minutesFromTimeStart(s.startTime || '') !== undefined);
 }
 
 function entryHasParentTimedBlock(
@@ -281,15 +282,15 @@ export function isPlannerUnscheduledEntry(
   if (isCruiseSeaOrScenicEntry(entry)) return true;
   const all = tripEntries ?? [];
   if (entryHasParentTimedBlock(entry, calendarDate, tripDays, all)) return false;
-  if (entryHasTimedSubs(entry)) return false;
+  if (entryHasTimedSubs(entry, calendarDate)) return false;
   return true;
 }
 
-export function shouldRenderPlannerItem(item: PlannerTimedItem): boolean {
+export function shouldRenderPlannerItem(item: PlannerTimedItem, calendarDate: string): boolean {
   if (item.subItem) return true;
   if (item.key.includes('-port-') || item.key.includes('-acc-') || item.key.includes('-cru-') || item.key.includes('-flt-') || item.key.includes('-trn-')) return true;
   if (item.key.includes('-opt')) return true;
-  return !entryHasTimedSubs(item.entry);
+  return !entryHasTimedSubs(item.entry, calendarDate);
 }
 
 function timedBlockDurationMinutes(
@@ -375,14 +376,11 @@ export function adjustPlannerAccommodationOrder(items: PlannerTimedItem[]): void
     if (!item.key.endsWith('-acc-checkin')) continue;
     const originalStart = item.startMinutes;
     if (originalStart >= latestJourneyEnd) continue;
-    const fromLabel = formatTimeHHMM(
-      effectiveAccommodationArrivalTime(item.entry) ||
-        `${Math.floor(originalStart / 60)}:${String(originalStart % 60).padStart(2, '0')}`
-    );
+    const fromLabel = formatTimeHHMM(effectiveAccommodationArrivalTime(item.entry));
     item.startMinutes = Math.min(latestJourneyEnd + 5, MINUTES_PER_DAY - PORT_MARKER_MINUTES);
     if (fromLabel) {
       const base = item.entry.title?.trim() || 'Accommodation';
-      item.title = `${base} · Check-in from ${fromLabel}`;
+      item.title = `${base} · ${formatAccommodationCheckInLabel(item.entry)}`;
     }
   }
 }
@@ -398,7 +396,9 @@ export function expandPlannerTimedItems(
   const items: PlannerTimedItem[] = [];
   for (const entry of entries) {
     if (isLocationInfoEntry(entry)) continue;
-    const subs = [...(entry.subItems ?? [])].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    const subs = filterSubItemsForDay(entry.subItems, calendarDate).sort(
+      (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+    );
     const timedSubs = subs.filter((s) => minutesFromTimeStart(s.startTime || '') !== undefined);
     const untimedSubs = subs.filter((s) => minutesFromTimeStart(s.startTime || '') === undefined);
 
@@ -465,7 +465,7 @@ export function expandPlannerTimedItems(
       }
       if (!transportPlannerBlocks(entry, calendarDate, tripDays).length) {
         const entryStart = minutesFromTimeStart(effectivePlannerTimeStart(entry, calendarDate, tripDays));
-        if (entryStart !== undefined && !entryHasTimedSubs(entry)) {
+        if (entryStart !== undefined && !entryHasTimedSubs(entry, calendarDate)) {
           items.push({
             key: entry.id,
             entry,
@@ -495,7 +495,7 @@ export function expandPlannerTimedItems(
     }
 
     const entryStart = minutesFromTimeStart(effectivePlannerTimeStart(entry, calendarDate, tripDays));
-    if (entryStart !== undefined && !entryHasTimedSubs(entry) && !isAccommodationEntry(entry)) {
+    if (entryStart !== undefined && !entryHasTimedSubs(entry, calendarDate) && !isAccommodationEntry(entry)) {
       const endField = entry.arrivalTime;
       items.push({
         key: entry.id,
@@ -526,11 +526,11 @@ export function expandPlannerUnscheduledItems(
   const items: PlannerUnscheduledItem[] = [];
   for (const entry of entries) {
     if (isLocationInfoEntry(entry)) continue;
-    const untimedSubs = (entry.subItems ?? []).filter(
+    const untimedSubs = filterSubItemsForDay(entry.subItems, calendarDate).filter(
       (s) => minutesFromTimeStart(s.startTime || '') === undefined
     );
     const parentOnTimeline = expandPlannerTimedItems([entry], calendarDate, tripDays, all)
-      .filter((item) => shouldRenderPlannerItem(item) && !item.subItem)
+      .filter((item) => shouldRenderPlannerItem(item, calendarDate) && !item.subItem)
       .some((item) => item.entry.id === entry.id);
 
     if (isPlannerUnscheduledEntry(entry, calendarDate, tripDays, all)) {

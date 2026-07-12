@@ -291,8 +291,7 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
                 </svg>
               </span>
               <span className={styles.summaryMetaLabel}>Check-in</span>
-              <span className={styles.summaryValue}>{data.checkInDate}</span>
-              {data.checkInTime ? <span className={styles.summarySub}>{data.checkInTime}</span> : null}
+              <span className={styles.summaryValue}>{data.checkInTime || data.checkInDate}</span>
             </div>
           ) : null}
           {data.checkOutDate ? (
@@ -305,8 +304,7 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
                 </svg>
               </span>
               <span className={styles.summaryMetaLabel}>Check-out</span>
-              <span className={styles.summaryValue}>{data.checkOutDate}</span>
-              {data.checkOutTime ? <span className={styles.summarySub}>{data.checkOutTime}</span> : null}
+              <span className={styles.summaryValue}>{data.checkOutTime || data.checkOutDate}</span>
             </div>
           ) : null}
         </section>

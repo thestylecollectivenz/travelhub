@@ -170,7 +170,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
       body = <MobileTaskView />;
       break;
     default:
-      body = <MobileDayView onOpenMembers={handleOpenMembers} onAskAi={handleAskAi} onDetailChange={handleDetailChange} onGoHome={onBack} />;
+      body = <MobileDayView onOpenMembers={handleOpenMembers} onAskAi={handleAskAi} onDetailChange={handleDetailChange} />;
   }
 
   return (
@@ -191,6 +191,13 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
             </svg>
             Back
           </button>
+        ) : tab === 'today' ? (
+          <button type="button" className={styles.backBtn} onClick={onBack} aria-label="Home">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ verticalAlign: 'middle', marginRight: 3 }} aria-hidden>
+              <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Home
+          </button>
         ) : (
           <span className={styles.headerSpacer} aria-hidden />
         )}
@@ -210,11 +217,6 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
               <path d="M11.5 17c0-2.485 1.567-4.5 3.5-4.5s3.5 2.015 3.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           </button>
-          {!cardDetailOpen ? (
-            <button type="button" className={styles.allTripsLink} onClick={onBack} aria-label="All trips">
-              All trips
-            </button>
-          ) : null}
         </div>
       </header>
       <main className={styles.mobileMain} data-mobile-scroll>

@@ -411,18 +411,19 @@
   background: color-mix(in srgb, white 90%, var(--tl-cream));
   border: 1px solid var(--tl-line);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--tl-navy) 5%, transparent);
+  cursor: pointer;
+  font: inherit;
 }
 
 .weatherIcon {
   display: inline-flex;
-  color: var(--tl-olive);
   flex-shrink: 0;
 }
 
 .weatherText {
-  color: var(--tl-rust);
+  color: var(--tl-navy);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.25;
 }
 

@@ -7,6 +7,7 @@ export function subItemToEditableEntry(parent: ItineraryEntry, sub: ItinerarySub
     id: sub.id,
     dayId: parent.dayId,
     tripId: parent.tripId,
+    dateStart: sub.optionDate,
     title: sub.title,
     category: sub.category?.trim() || 'Other',
     timeStart: sub.startTime ?? '',
@@ -50,6 +51,7 @@ export function editableEntryToSubItem(
   return {
     id: entry.id,
     title: entry.title,
+    optionDate: entry.dateStart?.trim() || calendarDate?.slice(0, 10) || undefined,
     category: entry.category?.trim() || 'Other',
     startTime: entry.timeStart?.trim() || undefined,
     endTime,

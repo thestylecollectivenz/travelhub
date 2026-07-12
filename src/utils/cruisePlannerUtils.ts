@@ -1,7 +1,7 @@
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { TripDay } from '../models/TripDay';
 import { formatLocationText } from './placeDisplayLabel';
-import { formatTimeHHMM, minutesFromTimeStart } from './itineraryTimeUtils';
+import { formatTimeHHMM, minutesFromTimeStart, effectiveCruiseBoardingTime, effectiveCruiseDisembarkTime } from './itineraryTimeUtils';
 
 export function isCruiseSeaOrScenicEntry(entry: ItineraryEntry): boolean {
   if (entry.category === 'Cruise at sea') return true;
@@ -107,8 +107,26 @@ export function formatCruisePortScheduleHero(
   const embarkCruises = cruisesEmbarkingOn(entryYmd, tripEntries);
   if (disembarkCruises.length || embarkCruises.length) {
     const parts: string[] = [];
-    if (disembarkCruises.length && arrive) parts.push(`Disembark ${arrive}`);
-    if (embarkCruises.length && depart) parts.push(`Departs ${depart}`);
+    for (const cruise of disembarkCruises) {
+      const disembark = formatTimeHHMM(effectiveCruiseDisembarkTime(cruise));
+      if (disembark && arrive) {
+        parts.push(arrive !== disembark ? `Disembark ${disembark} (Arrives ${arrive})` : `Disembark ${disembark}`);
+      } else if (disembark) {
+        parts.push(`Disembark ${disembark}`);
+      } else if (arrive) {
+        parts.push(`Arrives ${arrive}`);
+      }
+    }
+    for (const cruise of embarkCruises) {
+      const board = formatTimeHHMM(effectiveCruiseBoardingTime(cruise));
+      if (board && depart) {
+        parts.push(`Board at ${board} (Departs ${depart})`);
+      } else if (depart) {
+        parts.push(`Departs ${depart}`);
+      } else if (board) {
+        parts.push(`Board at ${board}`);
+      }
+    }
     return parts.length ? parts.join(' · ') : null;
   }
 
@@ -160,24 +178,40 @@ export function cruisePortPlannerBlocks(
   const blocks: CruisePortPlannerBlock[] = [];
 
   for (const cruise of disembarkCruises) {
-    if (arrive === undefined) continue;
+    const disembarkM = minutesFromTimeStart(effectiveCruiseDisembarkTime(cruise));
+    const start = disembarkM ?? arrive;
+    if (start === undefined) continue;
     const ship = cruiseShipLabel(cruise);
-    const title = ship ? `${ship} · Disembark ${place}` : `Disembark ${place}`;
+    const disembark = formatTimeHHMM(effectiveCruiseDisembarkTime(cruise));
+    const arriveLabel = formatTimeHHMM(entry.timeStart || '');
+    const schedule =
+      disembark && arriveLabel && disembark !== arriveLabel
+        ? `Disembark ${disembark} (Arrives ${arriveLabel})`
+        : disembark
+          ? `Disembark ${disembark}`
+          : `Disembark ${place}`;
+    const title = ship ? `${ship} · ${schedule}` : schedule;
     blocks.push({
       keySuffix: `disembark-${cruise.id}`,
-      startMinutes: arrive,
+      startMinutes: start,
       durationMinutes: markerMinutes,
       title
     });
   }
 
   for (const cruise of embarkCruises) {
-    if (depart === undefined) continue;
+    const boardM = minutesFromTimeStart(effectiveCruiseBoardingTime(cruise));
+    const start = boardM ?? depart;
+    if (start === undefined) continue;
     const ship = cruiseShipLabel(cruise);
-    const title = ship ? `${ship} departs from ${place}` : `Departs from ${place}`;
+    const board = formatTimeHHMM(effectiveCruiseBoardingTime(cruise));
+    const departLabel = formatTimeHHMM(entry.arrivalTime || '');
+    const schedule =
+      board && departLabel ? `Board at ${board} (Departs ${departLabel})` : departLabel ? `Departs ${departLabel}` : `Board at ${board}`;
+    const title = ship ? `${ship} · ${schedule}` : schedule;
     blocks.push({
       keySuffix: `embark-${cruise.id}`,
-      startMinutes: depart,
+      startMinutes: start,
       durationMinutes: markerMinutes,
       title
     });

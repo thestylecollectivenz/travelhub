@@ -3,7 +3,8 @@ import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { CategoryIcon } from '../shared/CategoryIcon';
 import { getCategorySlug } from '../../utils/categoryUtils';
-import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
+import { formatAccommodationCheckInLabel, formatAccommodationCheckOutLabel } from '../../utils/itineraryTimeUtils';
+import { isAccommodationCheckoutOnCalendarDate } from '../../utils/itineraryDayEntries';
 import { entryMapsDirectionsUrl } from '../../utils/googleMapsLink';
 import {
   bookingPartnerSearchUrls,
@@ -116,8 +117,11 @@ export const MobileStayCruiseTile: React.FC<MobileStayCruiseTileProps> = ({
                 <span className={`${styles.badge} ${booked ? styles.badgeBooked : styles.badgePending}`}>{statusLabel}</span>
                 {isAcc ? (
                   <div className={styles.times}>
-                    {entry.checkInTime ? <span>Check-in {formatTimeHHMM(entry.checkInTime)}</span> : null}
-                    {entry.checkOutTime ? <span>Check-out {formatTimeHHMM(entry.checkOutTime)}</span> : null}
+                    {isAccommodationCheckoutOnCalendarDate(entry, calendarDate) ? (
+                      <span>{formatAccommodationCheckOutLabel(entry)}</span>
+                    ) : (
+                      <span>{formatAccommodationCheckInLabel(entry)}</span>
+                    )}
                   </div>
                 ) : (
                   <p className={styles.sub}>

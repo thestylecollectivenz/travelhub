@@ -840,6 +840,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
           .update(slot.id, {
             title: slot.title,
             category: slot.category,
+            dateStart: slot.optionDate,
             timeStart: slot.startTime,
             arrivalTime: slot.endTime,
             duration: slot.duration,

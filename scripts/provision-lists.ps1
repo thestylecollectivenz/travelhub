@@ -265,6 +265,7 @@ Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'TransportFro
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'TransportTo' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'TransportMode' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'TransportTransfers' -FieldType 'Number'
+Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'MealType' -FieldType 'Text'
 
 # --- TripReminders ---
 Ensure-CustomList -Title 'TripReminders'
