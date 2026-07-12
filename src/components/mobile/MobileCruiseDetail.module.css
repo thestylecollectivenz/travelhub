@@ -244,16 +244,34 @@
   gap: 0.35rem;
   min-height: 4.1rem;
   padding: 0.45rem 0.25rem;
-  border: 1px solid color-mix(in srgb, #8a7355 35%, transparent);
+  border: 1px solid color-mix(in srgb, #1e2a44 28%, transparent);
   border-radius: 0.75rem;
-  background: color-mix(in srgb, #f7f3eb 55%, white);
-  color: #5c4a38;
+  background: color-mix(in srgb, #1e2a44 10%, white);
+  color: #1e2a44;
   font-size: 0.58rem;
   font-weight: 700;
   text-align: center;
   text-decoration: none;
   cursor: pointer;
   line-height: 1.2;
+}
+
+.actionPrimary {
+  background: #1e2a44;
+  border-color: #1e2a44;
+  color: white;
+}
+
+.actionWashBlue {
+  background: color-mix(in srgb, #1e2a44 14%, white);
+  border-color: color-mix(in srgb, #1e2a44 30%, white);
+  color: #1e2a44;
+}
+
+.actionWashBlue[aria-disabled='true'] {
+  opacity: 0.48;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .actionDisabled {

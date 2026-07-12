@@ -29,6 +29,12 @@ const HIGHLIGHT_LABEL: Record<LocationHighlightKind, string> = {
   drink: 'Drink',
   souvenir: 'Souvenirs'
 };
+const HIGHLIGHT_ICON: Record<LocationHighlightKind, string> = {
+  sight: '🏛',
+  food: '🍽',
+  drink: '🍷',
+  souvenir: '🎁'
+};
 
 const ESSENTIAL_KINDS: Array<'grocery' | 'pharmacy' | 'atm'> = ['grocery', 'pharmacy', 'atm'];
 
@@ -93,7 +99,7 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
         <nav className={styles.toolRow} aria-label="Near this place">
           {NEAR_YOU_TOOLS.map((t) => (
             <button key={t.id} type="button" className={styles.toolBtn} onClick={() => onOpenNearTool(t.id)}>
-              <NearYouToolIcon toolId={t.id} size="md" />
+              <NearYouToolIcon toolId={t.id} size="lg" />
               <span className={styles.toolLabel}>{t.shortLabel}</span>
             </button>
           ))}
@@ -119,7 +125,12 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
         <div className={styles.highlightsGrid}>
           {HIGHLIGHT_KINDS.map((kind) => (
             <div key={kind} className={styles.highlightCol}>
-              <p className={styles.highlightKind}>{HIGHLIGHT_LABEL[kind]}</p>
+              <p className={styles.highlightKind}>
+                <span className={styles.highlightKindIcon} aria-hidden>
+                  {HIGHLIGHT_ICON[kind]}
+                </span>
+                {HIGHLIGHT_LABEL[kind]}
+              </p>
               <ul className={styles.highlightList}>
                 {(rowsByKind[kind] ?? []).map((row) => (
                   <li key={highlightKey(row)} className={styles.highlightItem}>
@@ -148,7 +159,7 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
           <h3 className={styles.sectionTitle}>Nearby essentials</h3>
         </div>
         {essentials.length ? (
-          <div className={styles.essentialsGrid}>
+          <div className={styles.essentialsRow}>
             {essentials.map(({ kind, place: p }) => {
               if (!p) return null;
               const directions = placeQueryDirectionsUrl(p.name, p.address) || p.mapsUrl;
@@ -156,7 +167,7 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
               return (
                 <article key={kind} className={styles.essentialCard}>
                   <div className={styles.essentialTop}>
-                    <NearYouToolIcon toolId={kind === 'grocery' ? 'grocery' : kind === 'pharmacy' ? 'pharmacy' : 'atm'} size="sm" />
+                    <NearYouToolIcon toolId={kind === 'grocery' ? 'grocery' : kind === 'pharmacy' ? 'pharmacy' : 'atm'} size="md" />
                     <strong className={styles.essentialName}>{p.name}</strong>
                   </div>
                   {p.note ? <p className={styles.essentialDist}>{p.note}</p> : null}
@@ -165,14 +176,14 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
                   <div className={styles.essentialActions}>
                     {directions ? (
                       <a className={styles.essentialAction} href={directions} target="_blank" rel="noopener noreferrer" title="Directions" aria-label="Directions">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                           <path d="M12 2 4 20l8-4 8 4L12 2Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
                         </svg>
                       </a>
                     ) : null}
                     {maps ? (
                       <a className={styles.essentialAction} href={maps} target="_blank" rel="noopener noreferrer" title="Map" aria-label="Map">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                           <path d="M12 21s7-4.35 7-10a7 7 0 1 0-14 0c0 5.65 7 10 7 10Z" stroke="currentColor" strokeWidth="1.5" />
                           <circle cx="12" cy="11" r="2" fill="currentColor" />
                         </svg>

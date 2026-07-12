@@ -896,10 +896,33 @@
 }
 
 .itinRoot[data-shell='ipad-portrait'] .tripTitle {
-  font-size: 1.75rem;
+  font-size: 1.85rem;
 }
 
 .itinRoot[data-shell='ipad-portrait'] .tripHeader {
   padding-left: var(--space-4);
   padding-right: var(--space-4);
+}
+
+.itinRoot[data-shell='ipad-portrait'] .dayChip {
+  font-size: 0.82rem;
+  padding: 0.55rem 0.75rem;
+}
+
+.itinRoot[data-shell='ipad-portrait'] .timeCell {
+  font-size: 0.85rem;
+  width: 52px;
+}
+
+.itinRoot[data-shell='ipad-portrait'] .cardTitle {
+  font-size: 1rem;
+}
+
+.itinRoot[data-shell='ipad-portrait'] .cardMeta {
+  font-size: 0.82rem;
+}
+
+.itinRoot[data-shell='ipad-portrait'] .catBubble {
+  width: 2.5rem;
+  height: 2.5rem;
 }

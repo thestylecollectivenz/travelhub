@@ -23,6 +23,16 @@ export interface MobileStayCruiseTileProps {
   onOpenDetail: () => void;
 }
 
+interface TilePill {
+  key: string;
+  label: string;
+  icon: 'booking' | 'directions' | 'call' | 'info' | 'doc';
+  href?: string;
+  onClick?: () => void;
+  primary?: boolean;
+  disabled?: boolean;
+}
+
 function nightsBetween(start?: string, end?: string): number {
   if (!start || !end) return 1;
   const a = new Date(`${start.slice(0, 10)}T00:00:00.000Z`);
@@ -31,7 +41,7 @@ function nightsBetween(start?: string, end?: string): number {
   return Math.max(1, Math.floor((b.getTime() - a.getTime()) / 86400000));
 }
 
-function pillIcon(kind: 'booking' | 'directions' | 'call' | 'info' | 'doc'): React.ReactNode {
+function pillIcon(kind: TilePill['icon']): React.ReactNode {
   if (kind === 'booking') {
     return (
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
@@ -109,7 +119,82 @@ export const MobileStayCruiseTile: React.FC<MobileStayCruiseTileProps> = ({
     [entry.dateStart, entry.dateEnd, entry.location, entry.title]
   );
 
-  const primaryPillClass = isAcc ? styles.pillPrimaryRust : styles.pillPrimaryBlue;
+  const pills = React.useMemo((): TilePill[] => {
+    const list: TilePill[] = [];
+    if (isAcc) {
+      if (booked) {
+        list.push({
+          key: 'booking',
+          label: 'Open booking',
+          icon: 'booking',
+          href: confirmationDoc?.fileUrl,
+          primary: true,
+          disabled: !confirmationDoc?.fileUrl
+        });
+      } else {
+        list.push({
+          key: 'book',
+          label: 'Book now',
+          icon: 'booking',
+          onClick: () => setShowBookingSites(true),
+          primary: true
+        });
+      }
+    }
+    if (directions) {
+      list.push({ key: 'directions', label: 'Directions', icon: 'directions', href: directions });
+    }
+    if (!isAcc) {
+      list.push({
+        key: 'boarding',
+        label: 'Boarding pass',
+        icon: 'doc',
+        href: boardingPassDoc?.fileUrl,
+        primary: Boolean(boardingPassDoc?.fileUrl),
+        disabled: !boardingPassDoc?.fileUrl
+      });
+      list.push({
+        key: 'deck',
+        label: 'Deck plan',
+        icon: 'doc',
+        href: deckPlanDoc?.fileUrl,
+        primary: Boolean(deckPlanDoc?.fileUrl),
+        disabled: !deckPlanDoc?.fileUrl
+      });
+    }
+    if (entry.phoneNumber?.trim()) {
+      list.push({ key: 'call', label: 'Call', icon: 'call', href: `tel:${entry.phoneNumber.trim()}` });
+    }
+    list.push({
+      key: 'info',
+      label: isAcc ? 'Room details' : 'Cruise info',
+      icon: 'info',
+      onClick: onOpenDetail
+    });
+    return list;
+  }, [
+    isAcc,
+    booked,
+    confirmationDoc?.fileUrl,
+    directions,
+    boardingPassDoc?.fileUrl,
+    deckPlanDoc?.fileUrl,
+    entry.phoneNumber,
+    onOpenDetail
+  ]);
+
+  const pillClass = (pill: TilePill): string => {
+    const parts = [styles.pill];
+    if (pill.disabled) parts.push(styles.pillDisabled);
+    if (pill.primary) {
+      parts.push(isAcc ? styles.pillPrimaryRust : styles.pillPrimaryBlue);
+    } else if (isAcc) {
+      parts.push(styles.pillWashRust);
+    } else {
+      parts.push(styles.pillWashBlue);
+    }
+    return parts.join(' ');
+  };
 
   return (
     <>
@@ -128,7 +213,17 @@ export const MobileStayCruiseTile: React.FC<MobileStayCruiseTileProps> = ({
               </div>
               <div className={styles.copy}>
                 <h3 className={styles.title}>{title}</h3>
-                <span className={`${styles.badge} ${booked ? styles.badgeBooked : styles.badgePending}`}>{statusLabel}</span>
+                <div className={styles.badgeRow}>
+                  <span className={`${styles.badge} ${booked ? styles.badgeBooked : styles.badgePending}`}>
+                    {isAcc ? (booked ? 'Booked' : 'Not booked') : statusLabel}
+                  </span>
+                  {isAcc && nights > 0 ? (
+                    <span className={`${styles.badge} ${styles.badgeWash}`}>{nights} night{nights === 1 ? '' : 's'}</span>
+                  ) : null}
+                  {!isAcc && entry.cruiseLineName ? (
+                    <span className={`${styles.badge} ${styles.badgeWash}`}>{entry.cruiseLineName}</span>
+                  ) : null}
+                </div>
                 {isAcc ? (
                   <div className={styles.times}>
                     {isAccommodationCheckoutOnCalendarDate(entry, calendarDate) ? (
@@ -154,59 +249,31 @@ export const MobileStayCruiseTile: React.FC<MobileStayCruiseTileProps> = ({
               </div>
             </button>
             <div className={styles.actions}>
-              {isAcc ? (
-                booked ? (
-                  confirmationDoc?.fileUrl ? (
-                    <a
-                      className={`${styles.pill} ${primaryPillClass}`}
-                      href={confirmationDoc.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {pillIcon('booking')}
-                      Open booking
+              {pills.map((pill) => {
+                const className = pillClass(pill);
+                if (pill.href && !pill.disabled) {
+                  return (
+                    <a key={pill.key} className={className} href={pill.href} target="_blank" rel="noopener noreferrer">
+                      {pillIcon(pill.icon)}
+                      {pill.label}
                     </a>
-                  ) : (
-                    <span className={`${styles.pill} ${primaryPillClass} ${styles.pillDisabled}`} aria-disabled="true">
-                      {pillIcon('booking')}
-                      Open booking
-                    </span>
-                  )
-                ) : (
-                  <button type="button" className={`${styles.pill} ${primaryPillClass}`} onClick={() => setShowBookingSites(true)}>
-                    {pillIcon('booking')}
-                    Book now
-                  </button>
-                )
-              ) : null}
-              {directions ? (
-                <a className={styles.pill} href={directions} target="_blank" rel="noopener noreferrer">
-                  {pillIcon('directions')}
-                  Directions
-                </a>
-              ) : null}
-              {!isAcc && boardingPassDoc?.fileUrl ? (
-                <a className={`${styles.pill} ${primaryPillClass}`} href={boardingPassDoc.fileUrl} target="_blank" rel="noopener noreferrer">
-                  {pillIcon('doc')}
-                  Boarding pass
-                </a>
-              ) : null}
-              {!isAcc && deckPlanDoc?.fileUrl ? (
-                <a className={`${styles.pill} ${primaryPillClass}`} href={deckPlanDoc.fileUrl} target="_blank" rel="noopener noreferrer">
-                  {pillIcon('doc')}
-                  Deck plan
-                </a>
-              ) : null}
-              {entry.phoneNumber ? (
-                <a className={styles.pill} href={`tel:${entry.phoneNumber}`}>
-                  {pillIcon('call')}
-                  Call
-                </a>
-              ) : null}
-              <button type="button" className={styles.pill} onClick={onOpenDetail}>
-                {pillIcon('info')}
-                {isAcc ? 'Room details' : 'Cruise info'}
-              </button>
+                  );
+                }
+                if (pill.onClick && !pill.disabled) {
+                  return (
+                    <button key={pill.key} type="button" className={className} onClick={pill.onClick}>
+                      {pillIcon(pill.icon)}
+                      {pill.label}
+                    </button>
+                  );
+                }
+                return (
+                  <span key={pill.key} className={className} aria-disabled="true">
+                    {pillIcon(pill.icon)}
+                    {pill.label}
+                  </span>
+                );
+              })}
             </div>
           </div>
         ) : null}

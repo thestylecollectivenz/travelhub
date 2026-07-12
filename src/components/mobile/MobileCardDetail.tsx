@@ -390,7 +390,9 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
       {actions.length ? (
         <div className={styles.actions}>
           {actions.map((a) => {
-            const className = `${styles.actionBtn} ${a.primary ? (a.primaryRust ? styles.actionRust : styles.actionPrimary) : ''} ${a.disabled ? styles.actionDisabled : ''}`;
+            const className = `${styles.actionBtn} ${
+              a.primary ? (a.primaryRust ? styles.actionRust : styles.actionPrimary) : styles.actionWash
+            } ${a.disabled ? styles.actionDisabled : ''}`;
             if (a.href && !a.disabled) {
               return (
                 <a key={a.label} className={className} href={a.href} target="_blank" rel="noopener noreferrer">

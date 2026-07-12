@@ -10,7 +10,7 @@ import {
   findCruiseDeckMapLink,
   type CruiseOverviewCell
 } from '../../utils/mobileCruiseDetail';
-import { findConfirmationDocument } from '../../utils/bookingStatusUtils';
+import { findBoardingPassDocument, findConfirmationDocument, findDeckPlanDocument } from '../../utils/bookingStatusUtils';
 import { isRichTextEditorEmpty } from '../../utils/journalRichText';
 import { RichTextContent } from '../shared/RichTextContent';
 import { MobilePencilButton } from './MobilePencilButton';
@@ -155,7 +155,10 @@ export const MobileCruiseDetail: React.FC<MobileCruiseDetailProps> = ({
   mapsPlaceUrl
 }) => {
   const confirmationDoc = findConfirmationDocument(documents);
+  const boardingPassDoc = findBoardingPassDocument(documents);
+  const deckPlanDoc = findDeckPlanDocument(documents);
   const deckLink = findCruiseDeckMapLink(links);
+  const deckHref = deckPlanDoc?.fileUrl || deckLink?.url;
   const slug = getCategorySlug(entry.category);
   const locationLabel = (entry.location ?? '').trim();
   const hasNotes = !isRichTextEditorEmpty(entry.notes);
@@ -245,43 +248,43 @@ export const MobileCruiseDetail: React.FC<MobileCruiseDetailProps> = ({
       ) : null}
 
       <div className={styles.actionGrid}>
-        {confirmationDoc?.fileUrl ? (
+        {boardingPassDoc?.fileUrl || confirmationDoc?.fileUrl ? (
           <a
-            className={styles.actionTile}
-            href={confirmationDoc.fileUrl}
+            className={`${styles.actionTile} ${styles.actionPrimary}`}
+            href={boardingPassDoc?.fileUrl || confirmationDoc?.fileUrl}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={(e) => openUrl(confirmationDoc.fileUrl, e)}
+            onClick={(e) => openUrl(boardingPassDoc?.fileUrl || confirmationDoc?.fileUrl || '', e)}
           >
             {actionIcon('boarding')}
             <span>Boarding pass</span>
           </a>
         ) : (
-          <span className={`${styles.actionTile} ${styles.actionDisabled}`} aria-disabled="true">
+          <span className={`${styles.actionTile} ${styles.actionWashBlue}`} aria-disabled="true">
             {actionIcon('boarding')}
             <span>Boarding pass</span>
           </span>
         )}
-        {deckLink?.url ? (
+        {deckHref ? (
           <a
-            className={styles.actionTile}
-            href={deckLink.url}
+            className={`${styles.actionTile} ${styles.actionWashBlue}`}
+            href={deckHref}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={(e) => openUrl(deckLink.url, e)}
+            onClick={(e) => openUrl(deckHref, e)}
           >
             {actionIcon('deck')}
-            <span>Deck map</span>
+            <span>Deck plan</span>
           </a>
         ) : (
-          <span className={`${styles.actionTile} ${styles.actionDisabled}`} aria-disabled="true">
+          <span className={`${styles.actionTile} ${styles.actionWashBlue}`} aria-disabled="true">
             {actionIcon('deck')}
-            <span>Deck map</span>
+            <span>Deck plan</span>
           </span>
         )}
         {mapsPlaceUrl ? (
           <a
-            className={styles.actionTile}
+            className={`${styles.actionTile} ${styles.actionWashBlue}`}
             href={mapsPlaceUrl}
             target="_blank"
             rel="noopener noreferrer"
@@ -291,14 +294,14 @@ export const MobileCruiseDetail: React.FC<MobileCruiseDetailProps> = ({
             <span>Port map</span>
           </a>
         ) : (
-          <span className={`${styles.actionTile} ${styles.actionDisabled}`} aria-disabled="true">
+          <span className={`${styles.actionTile} ${styles.actionWashBlue}`} aria-disabled="true">
             {actionIcon('port')}
             <span>Port map</span>
           </span>
         )}
         {mapsDirectionsUrl ? (
           <a
-            className={styles.actionTile}
+            className={`${styles.actionTile} ${styles.actionWashBlue}`}
             href={mapsDirectionsUrl}
             target="_blank"
             rel="noopener noreferrer"
@@ -308,7 +311,7 @@ export const MobileCruiseDetail: React.FC<MobileCruiseDetailProps> = ({
             <span>Directions</span>
           </a>
         ) : (
-          <span className={`${styles.actionTile} ${styles.actionDisabled}`} aria-disabled="true">
+          <span className={`${styles.actionTile} ${styles.actionWashBlue}`} aria-disabled="true">
             {actionIcon('directions')}
             <span>Directions</span>
           </span>

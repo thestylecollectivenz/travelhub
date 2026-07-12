@@ -14,6 +14,7 @@ import { MobileLocationHighlightsEdit } from './MobileLocationHighlightsEdit';
 import { MobileNearYouResults } from './MobileNearYouResults';
 import { MobilePencilButton } from './MobilePencilButton';
 import type { NearYouToolId } from '../../utils/nearYouTools';
+import { useShellMode } from '../../hooks/useShellMode';
 import cardStyles from '../itinerary/ItineraryCard.module.css';
 import styles from './MobileLocationInfo.module.css';
 
@@ -30,6 +31,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
 }) => {
   const { trip, tripDays, selectedDayId, editingCardId, setEditingCardId, updateEntry } = useTripWorkspace();
   const { canEditItinerary, canUseAiHelpers } = useTripPermissions();
+  const shellMode = useShellMode();
   const spContext = useSpContext();
   const { placeById } = usePlaces();
   const [nearToolId, setNearToolId] = React.useState<NearYouToolId | null>(null);
@@ -181,6 +183,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}
         onClick={(e) => e.stopPropagation()}
       >
         <header className={styles.header}>

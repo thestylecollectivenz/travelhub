@@ -50,6 +50,15 @@ function IconItinerary(): React.ReactElement {
   );
 }
 
+function IconLocate(): React.ReactElement {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M12 21s7-4.35 7-10a7 7 0 1 0-14 0c0 5.65 7 10 7 10Z" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="12" cy="11" r="2" fill="currentColor" />
+    </svg>
+  );
+}
+
 function IconWebsite(): React.ReactElement {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -57,6 +66,15 @@ function IconWebsite(): React.ReactElement {
       <path d="M8 6V4h8v2M10 11h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
+}
+
+function actionIcon(id: string): React.ReactElement {
+  if (id === 'add') return <IconItinerary />;
+  if (id === 'view') return <IconWebsite />;
+  if (id === 'locate' || id === 'directions') return <IconLocate />;
+  if (id === 'save') return <IconSave />;
+  if (id === 'task') return <IconItinerary />;
+  return <IconDirections />;
 }
 
 export const NearYouResultCard: React.FC<NearYouResultCardProps> = ({
@@ -72,10 +90,11 @@ export const NearYouResultCard: React.FC<NearYouResultCardProps> = ({
   const meta = [categoryLabel, result.priceLevel, result.note].filter(Boolean).join(' · ');
 
   const renderAction = (action: NearYouResultCardAction): React.ReactNode => {
+    const icon = actionIcon(action.id);
     if (action.disabled) {
       return (
         <span key={action.id} className={styles.actionBtnDisabled}>
-          <IconDirections />
+          {icon}
           <span>{action.label}</span>
         </span>
       );
@@ -83,14 +102,14 @@ export const NearYouResultCard: React.FC<NearYouResultCardProps> = ({
     if (action.href) {
       return (
         <a key={action.id} className={styles.actionBtn} href={action.href} target="_blank" rel="noopener noreferrer" title={action.label}>
-          <IconDirections />
+          {icon}
           <span>{action.label}</span>
         </a>
       );
     }
     return (
       <button key={action.id} type="button" className={styles.actionBtn} onClick={action.onClick} title={action.label}>
-        <IconDirections />
+        {icon}
         <span>{action.label}</span>
       </button>
     );

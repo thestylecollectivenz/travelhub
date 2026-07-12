@@ -172,13 +172,6 @@ export const MobileAskAiResultsSheet: React.FC<MobileAskAiResultsSheetProps> = (
     const matched = matchItineraryEntry(card.name, localEntries);
     const maps = card.mapsUrl || placeQueryMapsUrl(card.name);
     const website = card.websiteUrl || placeWebsiteSearchUrl(card.name);
-    const save = onSavePlace
-      ? (): void => {
-          onSavePlace({ name: card.name, note: card.description, mapsUrl: maps });
-          setActionMsg(`Saved ${card.name}`);
-          window.setTimeout(() => setActionMsg(''), 2200);
-        }
-      : undefined;
     const add = canEditItinerary && onAddToItinerary
       ? (): void => {
           void onAddToItinerary({
@@ -230,30 +223,25 @@ export const MobileAskAiResultsSheet: React.FC<MobileAskAiResultsSheetProps> = (
     if (card.type === 'tip') {
       return [
         { id: 'task', label: 'Create task', onClick: () => void createTaskForCard(card) },
-        { id: 'directions', label: 'Directions', href: placeQueryDirectionsUrl(card.name) || maps, disabled: !maps }
+        { id: 'locate', label: 'Locate', href: placeQueryDirectionsUrl(card.name) || maps, disabled: !maps }
       ];
     }
 
-    if (card.type === 'attraction') {
-      const actions: NearYouResultCardAction[] = [
-        { id: 'info', label: 'View info', href: website || maps, disabled: !website && !maps }
-      ];
-      if (add) actions.unshift({ id: 'add', label: 'Add to itinerary', onClick: add });
+    if (card.type === 'place' || card.type === 'attraction' || card.type === 'activity' || card.type === 'restaurant') {
+      const actions: NearYouResultCardAction[] = [];
+      if (add) actions.push({ id: 'add', label: 'Add', onClick: add });
+      actions.push({ id: 'view', label: 'View', href: website, disabled: !website });
+      actions.push({ id: 'locate', label: 'Locate', href: maps, disabled: !maps });
       return actions;
-    }
-
-    if (card.type === 'place') {
-      return [
-        { id: 'view', label: 'View place', href: maps, disabled: !maps },
-        ...(save ? [{ id: 'save', label: 'Save', onClick: save }] : [])
-      ];
     }
 
     const bookUrl = bookingPartnerSearchUrls(card.name)[0]?.href || website;
     const actions: NearYouResultCardAction[] = [
+      { id: 'view', label: 'View', href: website, disabled: !website },
+      { id: 'locate', label: 'Locate', href: maps, disabled: !maps },
       { id: 'book', label: 'Book', href: bookUrl, disabled: !bookUrl }
     ];
-    if (add) actions.push({ id: 'add', label: 'Add to itinerary', onClick: add });
+    if (add) actions.unshift({ id: 'add', label: 'Add', onClick: add });
     return actions;
   };
 

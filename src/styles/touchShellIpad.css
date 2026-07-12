@@ -1,0 +1,133 @@
+/**
+ * Shared typographic / spacing scale for phone + iPad portrait touch shells.
+ * Set data-shell="ipad-portrait" on shell roots; children inherit via CSS variables.
+ */
+[data-shell='ipad-portrait'] {
+  --touch-scale: 1.16;
+  --touch-title-scale: 1.22;
+  --touch-pad: 1.2;
+}
+
+[data-shell='ipad-portrait'] .mobileMain,
+[data-shell='ipad-portrait'] .scroll {
+  font-size: calc(1rem * var(--touch-scale));
+  padding-left: max(calc(var(--space-3) * var(--touch-pad)), env(safe-area-inset-left, 0));
+  padding-right: max(calc(var(--space-3) * var(--touch-pad)), env(safe-area-inset-right, 0));
+}
+
+[data-shell='ipad-portrait'] .mobileHeader {
+  padding-top: max(var(--space-2), env(safe-area-inset-top, 0));
+  padding-left: max(calc(var(--space-3) * var(--touch-pad)), env(safe-area-inset-left, 0));
+  padding-right: max(calc(var(--space-3) * var(--touch-pad)), env(safe-area-inset-right, 0));
+}
+
+[data-shell='ipad-portrait'] .tabBar,
+[data-shell='ipad-portrait'] .bottomNav {
+  padding-left: max(0.85rem, env(safe-area-inset-left, 0));
+  padding-right: max(0.85rem, env(safe-area-inset-right, 0));
+  padding-bottom: max(0.65rem, env(safe-area-inset-bottom, 0));
+}
+
+[data-shell='ipad-portrait'] .tabBtn,
+[data-shell='ipad-portrait'] .navBtn {
+  font-size: 0.78rem;
+}
+
+[data-shell='ipad-portrait'] .headerTitle {
+  font-size: calc(var(--font-size-md) * var(--touch-title-scale));
+}
+
+/* Card detail views */
+[data-shell='ipad-portrait'] .page {
+  font-size: calc(1rem * var(--touch-scale));
+}
+
+[data-shell='ipad-portrait'] .title {
+  font-size: calc(1.35rem * var(--touch-title-scale));
+}
+
+[data-shell='ipad-portrait'] .chip,
+[data-shell='ipad-portrait'] .actionBtn {
+  font-size: 0.82rem;
+  padding: 0.62rem 1rem;
+}
+
+[data-shell='ipad-portrait'] .sectionTitle {
+  font-size: 1rem;
+}
+
+[data-shell='ipad-portrait'] .fieldLabel {
+  font-size: 0.72rem;
+}
+
+[data-shell='ipad-portrait'] .fieldValue {
+  font-size: 0.9rem;
+}
+
+[data-shell='ipad-portrait'] .statLabel {
+  font-size: 0.68rem;
+}
+
+[data-shell='ipad-portrait'] .statValue {
+  font-size: 0.88rem;
+}
+
+[data-shell='ipad-portrait'] .flightTime {
+  font-size: 1.35rem;
+}
+
+[data-shell='ipad-portrait'] .flightPlace {
+  font-size: 0.85rem;
+}
+
+[data-shell='ipad-portrait'] .actionTile {
+  min-height: 4.75rem;
+  font-size: 0.72rem;
+  padding: 0.55rem 0.35rem;
+}
+
+[data-shell='ipad-portrait'] .gridLabel,
+[data-shell='ipad-portrait'] .bookingLabel {
+  font-size: 0.72rem;
+}
+
+[data-shell='ipad-portrait'] .gridValue,
+[data-shell='ipad-portrait'] .bookingValue {
+  font-size: 0.9rem;
+}
+
+[data-shell='ipad-portrait'] .summaryValue {
+  font-size: 0.95rem;
+}
+
+[data-shell='ipad-portrait'] .docPill {
+  font-size: 0.78rem;
+  padding: 0.48rem 0.8rem;
+}
+
+/* Location info sheet */
+[data-shell='ipad-portrait'] .sheet .title {
+  font-size: 1.75rem;
+}
+
+[data-shell='ipad-portrait'] .sheet .sectionTitle {
+  font-size: 1.35rem;
+}
+
+[data-shell='ipad-portrait'] .sheet .overviewBody,
+[data-shell='ipad-portrait'] .sheet .highlightCheck {
+  font-size: 1rem;
+}
+
+[data-shell='ipad-portrait'] .sheet .toolLabel {
+  font-size: 0.82rem;
+}
+
+[data-shell='ipad-portrait'] .sheet .essentialCard {
+  flex: 0 0 min(18rem, 42vw);
+}
+
+[data-shell='ipad-portrait'] .sheet .body {
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}

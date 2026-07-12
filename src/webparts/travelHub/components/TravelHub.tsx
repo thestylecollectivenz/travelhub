@@ -1,5 +1,6 @@
 import * as React from 'react';
 import '../../../styles/global.css';
+import '../../../styles/touchShellIpad.css';
 import type { ITravelHubProps } from './ITravelHubProps';
 import { LicenceGate } from './app/LicenceGate';
 import { AppRouter } from './app/AppRouter';

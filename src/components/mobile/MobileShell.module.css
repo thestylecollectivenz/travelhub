@@ -8,6 +8,7 @@
   max-height: 100dvh;
   min-height: 0;
   overflow: hidden;
+  box-sizing: border-box;
   background: var(--color-surface-base, var(--color-surface, #faf8f4));
 }
 
@@ -16,7 +17,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  padding: max(var(--space-2), env(safe-area-inset-top, 0)) var(--space-3) var(--space-2);
   border-bottom: var(--border-default);
   background: var(--color-surface-raised);
 }
@@ -145,6 +146,7 @@
 
 .tabBar {
   flex-shrink: 0;
+  z-index: 20;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   border-top: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);

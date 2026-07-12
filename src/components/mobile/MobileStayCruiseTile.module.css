@@ -74,15 +74,21 @@
   color: #1e2a44;
 }
 
+.badgeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.25rem;
+}
+
 .badge {
-  display: inline-block;
-  margin-top: 0.2rem;
+  display: inline-flex;
+  align-items: center;
   font-size: 0.65rem;
   font-weight: 700;
-  color: #3d6b4f;
-  background: color-mix(in srgb, #3d6b4f 12%, white);
   border-radius: 999px;
-  padding: 0.12rem 0.45rem;
+  padding: 0.14rem 0.5rem;
+  white-space: nowrap;
 }
 
 .times {
@@ -129,13 +135,11 @@
   align-items: center;
   justify-content: center;
   gap: 0.3rem;
-  border: 1px solid color-mix(in srgb, #1e2a44 14%, transparent);
-  background: white;
+  border: 1px solid transparent;
   border-radius: 999px;
-  padding: 0.42rem 0.65rem;
-  font-size: 0.62rem;
+  padding: 0.48rem 0.75rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  color: #1e2a44;
   text-align: center;
   text-decoration: none;
   cursor: pointer;
@@ -156,6 +160,18 @@
   color: white;
 }
 
+.pillWashRust {
+  background: color-mix(in srgb, #c4783a 22%, white);
+  border-color: color-mix(in srgb, #c4783a 40%, white);
+  color: #8a5a2b;
+}
+
+.pillWashBlue {
+  background: color-mix(in srgb, #1e2a44 14%, white);
+  border-color: color-mix(in srgb, #1e2a44 28%, white);
+  color: #1e2a44;
+}
+
 .pillDisabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -163,13 +179,21 @@
 }
 
 .badgeBooked {
-  color: #3d6b4f;
-  background: color-mix(in srgb, #3d6b4f 12%, white);
+  color: #2d5a40;
+  background: color-mix(in srgb, #3d6b4f 28%, white);
+  border: 1px solid color-mix(in srgb, #3d6b4f 45%, white);
 }
 
 .badgePending {
   color: #8a5a2b;
-  background: color-mix(in srgb, #c4783a 14%, white);
+  background: color-mix(in srgb, #c4783a 24%, white);
+  border: 1px solid color-mix(in srgb, #c4783a 40%, white);
+}
+
+.badgeWash {
+  color: #5c6570;
+  background: color-mix(in srgb, var(--tile-accent, #8a7355) 16%, white);
+  border: 1px solid color-mix(in srgb, var(--tile-accent, #8a7355) 30%, white);
 }
 
 .action {
@@ -183,4 +207,18 @@
   text-align: center;
   text-decoration: none;
   cursor: pointer;
+}
+
+[data-shell='ipad-portrait'] .title {
+  font-size: 1.28rem;
+}
+
+[data-shell='ipad-portrait'] .pill {
+  font-size: 0.78rem;
+  padding: 0.55rem 0.9rem;
+}
+
+[data-shell='ipad-portrait'] .thumb {
+  width: 4.25rem;
+  height: 4.25rem;
 }

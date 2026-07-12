@@ -208,7 +208,7 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
         {booked ? (
           confirmationDoc?.fileUrl ? (
             <a
-              className={styles.actionTile}
+              className={`${styles.actionTile} ${styles.actionPrimary}`}
               href={confirmationDoc.fileUrl}
               target="_blank"
               rel="noopener noreferrer"
@@ -218,20 +218,20 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
               <span>Open booking</span>
             </a>
           ) : (
-            <span className={`${styles.actionTile} ${styles.actionDisabled}`} aria-disabled="true">
+            <span className={`${styles.actionTile} ${styles.actionWashRust}`} aria-disabled="true">
               {actionIcon('booking')}
               <span>Open booking</span>
             </span>
           )
         ) : (
-          <button type="button" className={`${styles.actionTile} ${styles.actionRust}`} onClick={onBookNow}>
+          <button type="button" className={`${styles.actionTile} ${styles.actionPrimary}`} onClick={onBookNow}>
             {actionIcon('booking')}
             <span>Book now</span>
           </button>
         )}
         {mapsDirectionsUrl ? (
           <a
-            className={styles.actionTile}
+            className={`${styles.actionTile} ${styles.actionWashRust}`}
             href={mapsDirectionsUrl}
             target="_blank"
             rel="noopener noreferrer"
@@ -241,23 +241,23 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
             <span>Directions</span>
           </a>
         ) : (
-          <span className={`${styles.actionTile} ${styles.actionDisabled}`} aria-disabled="true">
+          <span className={`${styles.actionTile} ${styles.actionWashRust}`} aria-disabled="true">
             {actionIcon('directions')}
             <span>Directions</span>
           </span>
         )}
         {phoneNumber ? (
-          <a className={styles.actionTile} href={`tel:${phoneNumber}`}>
+          <a className={`${styles.actionTile} ${styles.actionWashRust}`} href={`tel:${phoneNumber}`}>
             {actionIcon('call')}
             <span>Call</span>
           </a>
         ) : (
-          <span className={`${styles.actionTile} ${styles.actionDisabled}`} aria-disabled="true">
+          <span className={`${styles.actionTile} ${styles.actionWashRust}`} aria-disabled="true">
             {actionIcon('call')}
             <span>Call</span>
           </span>
         )}
-        <button type="button" className={styles.actionTile} onClick={scrollToStay}>
+        <button type="button" className={`${styles.actionTile} ${styles.actionWashRust}`} onClick={scrollToStay}>
           {actionIcon('room')}
           <span>Room details</span>
         </button>

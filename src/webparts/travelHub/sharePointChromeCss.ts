@@ -147,7 +147,14 @@ body.${TRAVEL_HUB_PAGE_CLASS} .th-app-root,
 body.${TRAVEL_HUB_PAGE_CLASS} #spPageCanvasContent:has([data-th-app-root]),
 body.${TRAVEL_HUB_PAGE_CLASS} .sp-canvasPage:has([data-th-app-root]) {
   min-height: 100dvh !important;
+  height: 100dvh !important;
   background: #faf8f4 !important;
   overflow: hidden !important;
+}
+
+body.${TRAVEL_HUB_PAGE_CLASS}:has([data-th-app-root]) {
+  background: #faf8f4 !important;
+  overflow: hidden !important;
+  height: 100dvh !important;
 }
 `;

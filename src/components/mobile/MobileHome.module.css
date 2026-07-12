@@ -25,6 +25,7 @@
   max-height: 100dvh;
   min-height: 0;
   overflow: hidden;
+  box-sizing: border-box;
   background:
     radial-gradient(ellipse 80% 50% at 10% -10%, color-mix(in srgb, var(--tl-olive) 18%, transparent), transparent 55%),
     radial-gradient(ellipse 70% 45% at 95% 5%, color-mix(in srgb, var(--tl-gold) 22%, transparent), transparent 50%),
@@ -40,7 +41,7 @@
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: var(--space-4) var(--space-4) calc(5.5rem + env(safe-area-inset-bottom, 0));
+  padding: max(var(--space-4), env(safe-area-inset-top, 0)) var(--space-4) calc(5.5rem + env(safe-area-inset-bottom, 0));
   -webkit-overflow-scrolling: touch;
 }
 
@@ -475,6 +476,7 @@
   left: 0;
   right: 0;
   bottom: 0;
+  z-index: 20;
   display: grid;
   grid-template-columns: 1fr 1fr 3.4rem 1fr 1fr;
   align-items: end;

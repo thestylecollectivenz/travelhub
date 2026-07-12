@@ -117,10 +117,23 @@
   line-height: 1.2;
 }
 
-.actionRust {
+.actionRust,
+.actionPrimary {
   background: #c4783a;
   border-color: #c4783a;
   color: white;
+}
+
+.actionWashRust {
+  background: color-mix(in srgb, #c4783a 22%, white);
+  border-color: color-mix(in srgb, #c4783a 40%, white);
+  color: #8a5a2b;
+}
+
+.actionWashRust[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .actionDisabled {

@@ -355,7 +355,7 @@
 
 .actionBtn {
   border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
-  background: white;
+  background: color-mix(in srgb, #1e2a44 10%, white);
   border-radius: 999px;
   padding: 0.55rem 0.85rem;
   font-size: 0.72rem;
@@ -376,6 +376,12 @@
   background: #c4783a;
   border-color: #c4783a;
   color: white;
+}
+
+.actionWash {
+  background: color-mix(in srgb, #1e2a44 12%, white);
+  border-color: color-mix(in srgb, #1e2a44 26%, white);
+  color: #1e2a44;
 }
 
 .actionDisabled {
