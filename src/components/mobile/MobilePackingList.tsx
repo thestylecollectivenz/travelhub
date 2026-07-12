@@ -8,6 +8,7 @@ import { canEditOwnedRecord } from '../../utils/canEditOwnedRecord';
 import { useTripMembers } from '../../hooks/useTripMembers';
 import { useCompanionListDefaults } from '../../hooks/useCompanionListDefaults';
 import { assigneeLabelsMatch, resolveOwnerEmailForAssignee } from '../../utils/tripMemberIdentity';
+import { MOBILE_OPEN_PACKING_ADD } from '../../utils/mobileHomePendingAction';
 import styles from './MobileShell.module.css';
 
 const CATEGORIES = ['Clothing', 'Shoes', 'Accessories', 'Toiletries', 'Electronics', 'Documents', 'Medications', 'Other'];
@@ -29,6 +30,12 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
   const [qty, setQty] = React.useState(1);
   const [sortAlpha, setSortAlpha] = React.useState(true);
   const [groupByCategory, setGroupByCategory] = React.useState(true);
+
+  React.useEffect(() => {
+    const handler = (): void => setAddOpen(true);
+    window.addEventListener(MOBILE_OPEN_PACKING_ADD, handler);
+    return () => window.removeEventListener(MOBILE_OPEN_PACKING_ADD, handler);
+  }, []);
 
   const canEditItem = React.useCallback(
     (item: PackingItem) => canEditOwnedRecord(spContext, item.ownerEmail, role, item.traveller, members),

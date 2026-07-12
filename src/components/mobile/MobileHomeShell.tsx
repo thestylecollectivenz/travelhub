@@ -9,7 +9,6 @@ import type { Trip } from '../../models';
 import type { MobileTab } from './mobileTypes';
 import {
   orderTripsForList,
-  pickNextUpTrip,
   todayYmdLocal,
   tripEndYmd,
   type CompletedSort,
@@ -21,11 +20,22 @@ import { getCurrentUserDisplayName } from '../../utils/currentUserEmail';
 import { homeNearYouTools, type NearYouToolId } from '../../utils/nearYouTools';
 import { NearYouToolIcon } from '../shared/NearYouToolIcon';
 import { createItineraryEntryFromNearYouPlace } from '../../utils/addPlaceToItinerary';
-import { saveNearYouSavedPlace } from '../../utils/nearYouSavedPlaces';
+import { resolveHomeContextTrip } from '../../utils/homeContextTrip';
+import { homeAiSuggestionChips } from '../../utils/tripJotterIdeas';
+import {
+  migrateLocalSavedSpotsToTrip,
+  saveTripSavedSpot
+} from '../../utils/tripSavedSpots';
 import { setPendingMobileItineraryEdit } from '../../utils/mobileItineraryEditPending';
 import { setPendingMobileHomeAsk } from '../../utils/mobileHomePendingAsk';
+import { useContinuousSpeechInput } from '../../hooks/useContinuousSpeechInput';
+import { useCurrentUserRole } from '../../hooks/useCurrentUserRole';
+import { useTripMembers } from '../../hooks/useTripMembers';
+import { TravellerAvatar } from '../shared/TravellerAvatar';
 import { MobileNearYouPage } from './MobileNearYouPage';
-import { MobileHomeSavedSpots } from './MobileHomeSavedSpots';
+import { MobileIdeasJotter } from './MobileIdeasJotter';
+import { MobileHomeUpcoming } from './MobileHomeUpcoming';
+import { MobileAddToTripMenu } from './MobileAddToTripMenu';
 import { MobileBookPage } from './MobileBookPage';
 import '../../components/maps/LeafletCompat.css';
 import type { ShellMode } from '../../hooks/useShellMode';
@@ -224,17 +234,24 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   }, [loadTrips]);
 
   const todayYmd = React.useMemo(() => todayYmdLocal(), []);
+  const contextTrip = React.useMemo(() => resolveHomeContextTrip(trips, todayYmd), [trips, todayYmd]);
+  const { members: contextMembers, myMember } = useTripMembers(contextTrip?.id);
+  const { role: contextRole } = useCurrentUserRole(contextTrip?.id);
+  const appendVoice = React.useCallback((chunk: string) => {
+    setAiPrompt((prev) => `${prev}${prev ? ' ' : ''}${chunk}`);
+  }, []);
+  const { listening, toggleListening } = useContinuousSpeechInput(appendVoice);
+  const aiChips = React.useMemo(() => homeAiSuggestionChips(contextTrip), [contextTrip]);
   const { ordered: listTrips, nextUpId } = React.useMemo(
     () => orderTripsForList(trips, listFilter, upcomingSort, completedSort, todayYmd),
     [trips, listFilter, upcomingSort, completedSort, todayYmd]
   );
-  const featuredTrip = React.useMemo(() => {
-    const upcoming = trips.filter((t) => {
-      const end = tripEndYmd(t);
-      return !end || end >= todayYmd;
-    });
-    return pickNextUpTrip(upcoming, todayYmd) ?? trips[0];
-  }, [trips, todayYmd]);
+  const featuredTrip = contextTrip;
+
+  React.useEffect(() => {
+    if (!contextTrip?.id) return;
+    void migrateLocalSavedSpotsToTrip(spContext, contextTrip.id, contextMembers).catch(console.error);
+  }, [contextTrip?.id, spContext, contextMembers]);
 
   const filteredTrips = React.useMemo(() => {
     return trips.filter((t) => {
@@ -364,15 +381,25 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
     setTab('find');
   };
 
-  const saveNearPlace = React.useCallback((place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string; toolId?: string }): void => {
-    try {
-      saveNearYouSavedPlace(place);
-      setNearActionMsg(`Saved ${place.name}`);
-      window.setTimeout(() => setNearActionMsg(''), 2500);
-    } catch {
-      setNearActionMsg('Could not save place on this device.');
-    }
-  }, []);
+  const saveNearPlace = React.useCallback(
+    (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string; toolId?: string }): void => {
+      if (!contextTrip?.id) {
+        setNearActionMsg('Open or create a trip first to save places.');
+        window.setTimeout(() => setNearActionMsg(''), 2800);
+        return;
+      }
+      void saveTripSavedSpot(spContext, contextTrip.id, place, contextMembers)
+        .then(() => {
+          setNearActionMsg(`Saved ${place.name}`);
+          window.setTimeout(() => setNearActionMsg(''), 2500);
+        })
+        .catch(() => {
+          setNearActionMsg('Could not save place.');
+          window.setTimeout(() => setNearActionMsg(''), 2800);
+        });
+    },
+    [contextTrip?.id, spContext, contextMembers]
+  );
 
   const addNearToItinerary = React.useCallback(
     async (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string }): Promise<void> => {
@@ -440,6 +467,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
           setTab('home');
         }}
         initialToolId={nearToolId}
+        tripId={contextTrip?.id}
         tripTitle={featuredTrip?.title}
         tripDateRange={
           featuredTrip ? formatDateRange(featuredTrip.dateStart, featuredTrip.dateEnd) : undefined
@@ -455,7 +483,6 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   } else if (tab === 'spots') {
     body = (
       <div>
-        <MobileHomeSavedSpots />
         <div className={styles.sectionHead}>
           <h2 className={styles.sectionTitle}>Spots</h2>
         </div>
@@ -594,9 +621,16 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
             </div>
             <h1 className={styles.brandName}>Trip Leopard</h1>
           </div>
-          <button type="button" className={styles.iconBtn} aria-label="Settings" onClick={onOpenSettings}>
-            <IconGear />
-          </button>
+          <div className={styles.topBarActions}>
+            <TravellerAvatar
+              displayName={myMember?.userDisplayName || greetingName || displayName}
+              avatarUrl={myMember?.avatarUrl}
+              size={36}
+            />
+            <button type="button" className={styles.iconBtn} aria-label="Settings" onClick={onOpenSettings}>
+              <IconGear />
+            </button>
+          </div>
         </div>
 
         <p className={styles.greeting}>
@@ -615,6 +649,17 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
             setAiPrompt('');
           }}
         >
+          <button
+            type="button"
+            className={`${styles.aiMic} ${listening ? styles.aiMicActive : ''}`}
+            aria-label={listening ? 'Stop listening' : 'Speak your question'}
+            onClick={() => toggleListening()}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" strokeWidth="1.8" />
+              <path d="M6 11a6 6 0 0 0 12 0M12 17v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+          </button>
           <input
             className={styles.aiInput}
             value={aiPrompt}
@@ -626,6 +671,25 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
             <IconSpark />
           </button>
         </form>
+
+        <div className={styles.aiChips} role="list" aria-label="AI suggestions">
+          {aiChips.map((chip) => (
+            <button
+              key={chip}
+              type="button"
+              className={styles.aiChip}
+              role="listitem"
+              disabled={!featuredTrip}
+              onClick={() => {
+                if (!featuredTrip) return;
+                setPendingMobileHomeAsk(chip);
+                onSelectTrip(featuredTrip.id, 'today');
+              }}
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
 
         <div className={styles.pillarGrid}>
           <button type="button" className={`${styles.pillar} ${styles.pillarPlan}`} disabled={!featuredTrip} onClick={() => openFeatured('today')}>
@@ -690,8 +754,14 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
             </button>
           ))}
         </div>
-        <MobileHomeSavedSpots compact onOpenAll={() => setTab('spots')} />
         {nearActionMsg ? <p className={styles.feedback}>{nearActionMsg}</p> : null}
+
+        <div className={styles.homeSplitRow}>
+          <MobileHomeUpcoming trip={featuredTrip} onOpenTrip={onSelectTrip} />
+          <MobileIdeasJotter trip={featuredTrip} />
+        </div>
+
+        <MobileAddToTripMenu tripId={featuredTrip?.id} role={contextRole} onSelectTrip={onSelectTrip} />
 
         <div className={styles.sectionHead}>
           <h2 className={styles.sectionTitle}>

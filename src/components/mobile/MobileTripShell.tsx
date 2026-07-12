@@ -5,7 +5,18 @@ import { useSpContext } from '../../context/SpContext';
 import { useTripPermissions } from '../../hooks/useTripPermissions';
 import { logTripAccessOnce } from '../../services/TripAccessLogService';
 import { createItineraryEntryFromNearYouPlace } from '../../utils/addPlaceToItinerary';
-import { saveNearYouSavedPlace } from '../../utils/nearYouSavedPlaces';
+import {
+  MOBILE_OPEN_JOURNAL_COMPOSER,
+  MOBILE_OPEN_LISTS_IDEAS,
+  MOBILE_OPEN_PACKING_ADD,
+  MOBILE_OPEN_PHOTO_UPLOAD,
+  MOBILE_OPEN_SHOPPING_ADD,
+  MOBILE_OPEN_TASK_ADD,
+  MOBILE_START_ITINERARY_ADD,
+  consumePendingMobileHomeAdd
+} from '../../utils/mobileHomePendingAction';
+import { saveTripSavedSpot } from '../../utils/tripSavedSpots';
+import { useTripMembers } from '../../hooks/useTripMembers';
 import { consumePendingMobileItineraryEdit } from '../../utils/mobileItineraryEditPending';
 import { consumePendingMobileHomeAsk } from '../../utils/mobileHomePendingAsk';
 import { notifyExpandUnscheduled } from '../../utils/mobileItineraryUiEvents';
@@ -118,6 +129,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
   const [askAiPrompt, setAskAiPrompt] = React.useState<string | null>(null);
   const [cardDetailOpen, setCardDetailOpen] = React.useState(false);
   const closeCardDetailRef = React.useRef<(() => void) | undefined>(undefined);
+  const { members } = useTripMembers(trip?.id);
 
   React.useEffect(() => {
     if (initialTab) setTab(initialTab);
@@ -169,12 +181,81 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
     if (prompt) setAskAiPrompt(prompt);
   }, [trip?.id]);
 
+  React.useEffect(() => {
+    if (!trip?.id) return;
+    const action = consumePendingMobileHomeAdd();
+    if (!action) return;
+    const dispatchChild = (): void => {
+      switch (action) {
+        case 'itinerary_item':
+          window.dispatchEvent(new Event(MOBILE_START_ITINERARY_ADD));
+          break;
+        case 'journal_entry':
+          window.dispatchEvent(new Event(MOBILE_OPEN_JOURNAL_COMPOSER));
+          break;
+        case 'journal_photo':
+          window.dispatchEvent(new Event(MOBILE_OPEN_PHOTO_UPLOAD));
+          break;
+        case 'task':
+          window.dispatchEvent(new Event(MOBILE_OPEN_TASK_ADD));
+          break;
+        case 'packing_item':
+          window.dispatchEvent(new Event(MOBILE_OPEN_PACKING_ADD));
+          break;
+        case 'shopping_item':
+          window.dispatchEvent(new Event(MOBILE_OPEN_SHOPPING_ADD));
+          break;
+        case 'day_idea':
+          window.dispatchEvent(new Event(MOBILE_OPEN_LISTS_IDEAS));
+          break;
+        default:
+          break;
+      }
+    };
+    switch (action) {
+      case 'itinerary_item':
+        setTab('today');
+        window.setTimeout(dispatchChild, 80);
+        break;
+      case 'journal_entry':
+        setTab('journal');
+        window.setTimeout(dispatchChild, 80);
+        break;
+      case 'journal_photo':
+        setTab('journal');
+        window.setTimeout(dispatchChild, 120);
+        break;
+      case 'task':
+        setTab('tasks');
+        window.setTimeout(dispatchChild, 80);
+        break;
+      case 'packing_item':
+        setTab('lists');
+        window.setTimeout(dispatchChild, 80);
+        break;
+      case 'shopping_item':
+        setTab('lists');
+        window.setTimeout(dispatchChild, 80);
+        break;
+      case 'day_idea':
+        setTab('lists');
+        window.setTimeout(dispatchChild, 80);
+        break;
+      default:
+        break;
+    }
+  }, [trip?.id]);
+
   const editingEntry = editingCardId ? localEntries.find((e) => e.id === editingCardId) : undefined;
   const editingDay = editingEntry ? tripDays.find((d) => d.id === editingEntry.dayId) : undefined;
 
-  const saveNearPlace = React.useCallback((place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string }): void => {
-    saveNearYouSavedPlace(place);
-  }, []);
+  const saveNearPlace = React.useCallback(
+    (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string; toolId?: string }): void => {
+      if (!trip?.id) return;
+      void saveTripSavedSpot(spContext, trip.id, place, members).catch(console.error);
+    },
+    [trip?.id, spContext, members]
+  );
 
   const addNearToItinerary = React.useCallback(
     async (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string }): Promise<void> => {

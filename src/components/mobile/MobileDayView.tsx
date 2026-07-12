@@ -365,6 +365,14 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     }, 300);
   }, [trip, day, dayEntries.length, updateEntry, setEditingCardId]);
 
+  React.useEffect(() => {
+    const handler = (): void => {
+      handleAddItem();
+    };
+    window.addEventListener('travelhub-mobile-start-itinerary-add', handler);
+    return () => window.removeEventListener('travelhub-mobile-start-itinerary-add', handler);
+  }, [handleAddItem]);
+
   const handleAskAi = (): void => {
     const p = aiPrompt.trim();
     if (onAskAi) onAskAi(p || undefined);

@@ -10,6 +10,7 @@ export interface MobileNearYouPageProps {
   onBack: () => void;
   /** When set, open straight into results for this tool. */
   initialToolId?: NearYouToolId | null;
+  tripId?: string;
   tripTitle?: string;
   tripDateRange?: string;
   onAddToItinerary?: (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string }) => void;
@@ -19,6 +20,7 @@ export interface MobileNearYouPageProps {
 export const MobileNearYouPage: React.FC<MobileNearYouPageProps> = ({
   onBack,
   initialToolId = null,
+  tripId,
   tripTitle,
   tripDateRange,
   onAddToItinerary,
@@ -67,7 +69,7 @@ export const MobileNearYouPage: React.FC<MobileNearYouPageProps> = ({
                 <span className={styles.categoryDesc}>{tool.description}</span>
               </span>
             </button>
-            <MobileFindSavedRow toolId={tool.id} />
+            <MobileFindSavedRow toolId={tool.id} tripId={tripId} />
           </div>
         ))}
       </div>

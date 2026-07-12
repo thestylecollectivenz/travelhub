@@ -3,10 +3,17 @@ import { TripJournalFeed } from '../journal/TripJournalFeed';
 import { TripPhotoAlbum } from '../journal/TripPhotoAlbum';
 import { useShellMode } from '../../hooks/useShellMode';
 import chrome from './MobileTabChrome.module.css';
+import { MOBILE_OPEN_PHOTO_UPLOAD } from '../../utils/mobileHomePendingAction';
 
 export const MobileJournalView: React.FC = () => {
   const [sub, setSub] = React.useState<'journal' | 'photos'>('journal');
   const shellMode = useShellMode();
+
+  React.useEffect(() => {
+    const handler = (): void => setSub('photos');
+    window.addEventListener(MOBILE_OPEN_PHOTO_UPLOAD, handler);
+    return () => window.removeEventListener(MOBILE_OPEN_PHOTO_UPLOAD, handler);
+  }, []);
 
   return (
     <div data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}>

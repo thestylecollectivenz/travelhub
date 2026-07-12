@@ -90,6 +90,15 @@ export const TripPhotoAlbum: React.FC<{ mobileLayout?: boolean }> = ({ mobileLay
     }
   }, [days, uploadDayId]);
 
+  React.useEffect(() => {
+    const handler = (): void => {
+      if (days.length && !uploadDayId) setUploadDayId(days[0].id);
+      setUploadOpen(true);
+    };
+    window.addEventListener('travelhub-mobile-open-photo-upload', handler);
+    return () => window.removeEventListener('travelhub-mobile-open-photo-upload', handler);
+  }, [days, uploadDayId]);
+
   const uploadEntriesForDay = React.useMemo(() => {
     if (!uploadDayId) return [];
     return allEntries

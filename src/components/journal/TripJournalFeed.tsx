@@ -256,6 +256,12 @@ export const TripJournalFeed: React.FC<{ mobileLayout?: boolean }> = ({ mobileLa
     setComposerOpen(true);
   }, [resolveDefaultComposerDayId]);
 
+  React.useEffect(() => {
+    const handler = (): void => openNewEntry();
+    window.addEventListener('travelhub-mobile-open-journal-composer', handler);
+    return () => window.removeEventListener('travelhub-mobile-open-journal-composer', handler);
+  }, [openNewEntry]);
+
   const entryIdSet = React.useMemo(() => new Set(allEntries.map((e) => e.id)), [allEntries]);
 
   const sensors = useSensors(

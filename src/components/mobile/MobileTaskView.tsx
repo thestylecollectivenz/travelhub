@@ -7,6 +7,9 @@ import { useCompanionListDefaults } from '../../hooks/useCompanionListDefaults';
 import { useTripRole } from '../../context/TripRoleContext';
 import { ReminderService } from '../../services/ReminderService';
 import { dueYmdBucket, localTodayYmd, ymdFromIso } from '../../utils/taskDueBuckets';
+import { isDayIdeaReminder } from '../../utils/dayIdeas';
+import { isJotterIdeaReminder } from '../../utils/tripJotterIdeas';
+import { isSavedSpotReminder } from '../../utils/tripSavedSpots';
 import { TripTasksView } from '../tasks/TripTasksView';
 import { MobileTaskFilters } from './MobileTaskFilters';
 import { useShellMode } from '../../hooks/useShellMode';
@@ -39,10 +42,13 @@ const MobileTaskBody: React.FC = () => {
     void svc.getForTrip(trip.id).then((rows) => {
       const manual = rows.filter(
         (r) =>
-          r.reminderType === 'Manual' ||
+          !isDayIdeaReminder(r) &&
+          !isSavedSpotReminder(r) &&
+          !isJotterIdeaReminder(r) &&
+          (r.reminderType === 'Manual' ||
           r.reminderType === 'ManualEntryTask' ||
           r.reminderType === 'Custom' ||
-          r.reminderType === 'CancellationDeadline'
+          r.reminderType === 'CancellationDeadline')
       );
       let open = 0;
       let overdue = 0;

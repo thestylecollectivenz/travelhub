@@ -16,6 +16,11 @@ import { PackingService } from '../../services/PackingService';
 import { ShoppingListService } from '../../services/ShoppingListService';
 import { useShellMode } from '../../hooks/useShellMode';
 import chrome from './MobileTabChrome.module.css';
+import {
+  MOBILE_OPEN_LISTS_IDEAS,
+  MOBILE_OPEN_PACKING_ADD,
+  MOBILE_OPEN_SHOPPING_ADD
+} from '../../utils/mobileHomePendingAction';
 
 function StatIcon({ children, tone }: { children: React.ReactNode; tone: 'olive' | 'rust' | 'navy' | 'tan' }): React.ReactElement {
   const cls =
@@ -33,6 +38,20 @@ const MobileListsBody: React.FC = () => {
   const { members, travellers } = useTripMembers(trip?.id);
   const { unreadCount: ideasUnread } = useTripDayIdeas();
   useCompanionListDefaults(planView, role, members);
+
+  React.useEffect(() => {
+    const openPacking = (): void => setSub('packing');
+    const openShopping = (): void => setSub('shopping');
+    const openIdeas = (): void => setSub('ideas');
+    window.addEventListener(MOBILE_OPEN_PACKING_ADD, openPacking);
+    window.addEventListener(MOBILE_OPEN_SHOPPING_ADD, openShopping);
+    window.addEventListener(MOBILE_OPEN_LISTS_IDEAS, openIdeas);
+    return () => {
+      window.removeEventListener(MOBILE_OPEN_PACKING_ADD, openPacking);
+      window.removeEventListener(MOBILE_OPEN_SHOPPING_ADD, openShopping);
+      window.removeEventListener(MOBILE_OPEN_LISTS_IDEAS, openIdeas);
+    };
+  }, []);
 
   const [packingTotal, setPackingTotal] = React.useState(0);
   const [packingPacked, setPackingPacked] = React.useState(0);

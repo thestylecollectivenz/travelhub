@@ -1,43 +1,51 @@
 import * as React from 'react';
+import { useSpContext } from '../../context/SpContext';
 import {
-  loadNearYouSavedPlaces,
-  removeNearYouSavedPlace,
-  updateNearYouSavedPlaceNote,
-  type NearYouSavedPlace
-} from '../../utils/nearYouSavedPlaces';
+  deleteTripSavedSpot,
+  loadTripSavedSpots,
+  SAVED_SPOTS_CHANGED_EVENT,
+  updateTripSavedSpotNote,
+  type TripSavedSpot
+} from '../../utils/tripSavedSpots';
 import { placeQueryDirectionsUrl } from '../../utils/googleMapsLink';
 import type { NearYouToolId } from '../../utils/nearYouTools';
 import styles from './MobileNearYouPage.module.css';
 
 export interface MobileFindSavedRowProps {
   toolId: NearYouToolId;
+  tripId?: string;
 }
 
-export const MobileFindSavedRow: React.FC<MobileFindSavedRowProps> = ({ toolId }) => {
-  const [rows, setRows] = React.useState<NearYouSavedPlace[]>([]);
+export const MobileFindSavedRow: React.FC<MobileFindSavedRowProps> = ({ toolId, tripId }) => {
+  const spContext = useSpContext();
+  const [rows, setRows] = React.useState<TripSavedSpot[]>([]);
   const [open, setOpen] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [noteDraft, setNoteDraft] = React.useState('');
 
   const refresh = React.useCallback(() => {
-    setRows(loadNearYouSavedPlaces().filter((x) => x.toolId === toolId));
-  }, [toolId]);
+    if (!tripId) {
+      setRows([]);
+      return;
+    }
+    void loadTripSavedSpots(spContext, tripId)
+      .then((all) => setRows(all.filter((x) => x.toolId === toolId)))
+      .catch(console.error);
+  }, [spContext, tripId, toolId]);
 
   React.useEffect(() => {
     refresh();
     const handler = (): void => refresh();
-    window.addEventListener('travelhub-near-you-saved-changed', handler);
-    return () => window.removeEventListener('travelhub-near-you-saved-changed', handler);
+    window.addEventListener(SAVED_SPOTS_CHANGED_EVENT, handler);
+    return () => window.removeEventListener(SAVED_SPOTS_CHANGED_EVENT, handler);
   }, [refresh]);
 
-  if (!rows.length) return null;
+  if (!tripId || !rows.length) return null;
 
   return (
     <div className={styles.savedBlock}>
       <button type="button" className={styles.savedToggle} onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-        <span>
-          Saved ({rows.length})
-        </span>
+        <span>Saved ({rows.length})</span>
         <span aria-hidden>{open ? '▾' : '▸'}</span>
       </button>
       {open ? (
@@ -68,9 +76,11 @@ export const MobileFindSavedRow: React.FC<MobileFindSavedRowProps> = ({ toolId }
                         type="button"
                         className={styles.savedBtn}
                         onClick={() => {
-                          updateNearYouSavedPlaceNote(row.id, noteDraft);
-                          setEditingId(null);
-                          setNoteDraft('');
+                          void updateTripSavedSpotNote(spContext, row.id, noteDraft).then(() => {
+                            setEditingId(null);
+                            setNoteDraft('');
+                            refresh();
+                          });
                         }}
                       >
                         Save note
@@ -103,7 +113,13 @@ export const MobileFindSavedRow: React.FC<MobileFindSavedRowProps> = ({ toolId }
                       >
                         Note
                       </button>
-                      <button type="button" className={styles.savedBtnDanger} onClick={() => removeNearYouSavedPlace(row.id)}>
+                      <button
+                        type="button"
+                        className={styles.savedBtnDanger}
+                        onClick={() => {
+                          void deleteTripSavedSpot(spContext, row.id).then(refresh);
+                        }}
+                      >
                         Delete
                       </button>
                     </>

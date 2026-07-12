@@ -16,6 +16,7 @@ import { useCanSeeFinancials } from '../../hooks/useCanSeeFinancials';
 import { useTripMembers } from '../../hooks/useTripMembers';
 import { useCompanionListDefaults } from '../../hooks/useCompanionListDefaults';
 import { assigneeLabelsMatch, resolveOwnerEmailForAssignee } from '../../utils/tripMemberIdentity';
+import { MOBILE_OPEN_SHOPPING_ADD } from '../../utils/mobileHomePendingAction';
 import styles from './MobileShell.module.css';
 
 export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
@@ -61,6 +62,12 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
   React.useEffect(() => {
     refresh();
   }, [refresh]);
+
+  React.useEffect(() => {
+    const handler = (): void => setAddOpen(true);
+    window.addEventListener(MOBILE_OPEN_SHOPPING_ADD, handler);
+    return () => window.removeEventListener(MOBILE_OPEN_SHOPPING_ADD, handler);
+  }, []);
 
   React.useEffect(() => {
     if (category && !categories.some((c) => c.toLowerCase() === category.toLowerCase())) {

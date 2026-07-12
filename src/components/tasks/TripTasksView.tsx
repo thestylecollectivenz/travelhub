@@ -20,6 +20,8 @@ import { confirmUserAction } from '../../utils/confirmAction';
 import { loadTripAssignees, rememberTripAssignee } from '../../utils/tripAssignees';
 import { reminderTaskCategory, TASK_FILTER_UNCATEGORISED, matchesTaskCompletionFilter } from '../../utils/taskFilters';
 import { isDayIdeaReminder } from '../../utils/dayIdeas';
+import { isJotterIdeaReminder } from '../../utils/tripJotterIdeas';
+import { isSavedSpotReminder } from '../../utils/tripSavedSpots';
 import {
   buildTaskCategoryOptions,
   rememberTripTaskCategory,
@@ -27,6 +29,7 @@ import {
 } from '../../utils/tripTaskCategories';
 import { openTasksPrintPreview, type TasksPrintSection } from '../../utils/tasksPrintHtml';
 import { INSIGHT_FOCUS_EVENT, type InsightFocusDetail } from '../../utils/insightFocus';
+import { MOBILE_OPEN_TASK_ADD } from '../../utils/mobileHomePendingAction';
 import { localTodayYmd, matchesTaskDueFilter, type TaskDueFilter } from '../../utils/taskDueBuckets';
 import { useTripRole } from '../../context/TripRoleContext';
 import { useTripMembers } from '../../hooks/useTripMembers';
@@ -207,7 +210,17 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
   const [bookingDueFilter, setBookingDueFilter] = React.useState<TaskDueFilter>('all');
   const [paymentDueFilter, setPaymentDueFilter] = React.useState<TaskDueFilter>('all');
   const [tasksInsightFocus, setTasksInsightFocus] = React.useState<string | null>(null);
+  const addTaskInputRef = React.useRef<HTMLInputElement | null>(null);
   const todayYmd = React.useMemo(() => localTodayYmd(), []);
+
+  React.useEffect(() => {
+    const handler = (): void => {
+      setViewMode('list');
+      window.setTimeout(() => addTaskInputRef.current?.focus(), 100);
+    };
+    window.addEventListener(MOBILE_OPEN_TASK_ADD, handler);
+    return () => window.removeEventListener(MOBILE_OPEN_TASK_ADD, handler);
+  }, []);
 
   React.useEffect(() => {
     const handler = (event: Event): void => {
@@ -354,6 +367,8 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
     let rows = manual.filter(
       (m) =>
         !isDayIdeaReminder(m) &&
+        !isSavedSpotReminder(m) &&
+        !isJotterIdeaReminder(m) &&
         (m.reminderType === 'Manual' ||
         m.reminderType === 'ManualEntryTask' ||
         m.reminderType === 'Custom')
@@ -760,6 +775,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                 <option value="reminder">Reminder</option>
               </select>
               <input
+                ref={addTaskInputRef}
                 className={styles.input}
                 placeholder={createKind === 'task' ? 'Task description' : 'Reminder text'}
                 value={text}
