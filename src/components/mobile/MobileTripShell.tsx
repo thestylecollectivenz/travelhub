@@ -19,6 +19,7 @@ import { MobileMapView } from './MobileMapView';
 import { MobileTaskView } from './MobileTaskView';
 import { TripMembersPanel } from '../workspace/TripMembersPanel';
 import { AiAssistantFab } from '../workspace/AiAssistantFab';
+import { OptionEditPortal } from '../itinerary/OptionEditPortal';
 import { MobileAskAiResultsSheet } from './MobileAskAiResultsSheet';
 import type { MobileTab } from './mobileTypes';
 import type { ShellMode } from '../../hooks/useShellMode';
@@ -319,6 +320,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
           )
         : null}
       {tab !== 'today' ? <AiAssistantFab /> : null}
+      <OptionEditPortal />
       <span aria-hidden style={{ display: 'none' }}>
         v{SOLUTION_VERSION}
       </span>

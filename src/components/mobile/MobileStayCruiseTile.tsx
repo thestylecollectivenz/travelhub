@@ -13,6 +13,7 @@ import {
   findConfirmationDocument,
   findDeckPlanDocument
 } from '../../utils/bookingStatusUtils';
+import { stayTileAiImageUrl } from '../../utils/stayTileAiImage';
 import { MobileBookingSiteSheet } from './MobileBookingSiteSheet';
 import styles from './MobileStayCruiseTile.module.css';
 
@@ -118,6 +119,11 @@ export const MobileStayCruiseTile: React.FC<MobileStayCruiseTileProps> = ({
     () => bookingPartnerSearchUrls(entry.title || entry.location || 'hotel', entry.dateStart, entry.dateEnd),
     [entry.dateStart, entry.dateEnd, entry.location, entry.title]
   );
+  const heroUrl = React.useMemo(
+    () => stayTileAiImageUrl(entry.id, title, entry.location || entry.title || '', mode),
+    [entry.id, entry.location, entry.title, mode, title]
+  );
+  const [heroFailed, setHeroFailed] = React.useState(false);
 
   const pills = React.useMemo((): TilePill[] => {
     const list: TilePill[] = [];
@@ -209,7 +215,16 @@ export const MobileStayCruiseTile: React.FC<MobileStayCruiseTileProps> = ({
           <div className={styles.body}>
             <button type="button" className={styles.main} onClick={onOpenDetail}>
               <div className={`${styles.thumb} th-cat-${getCategorySlug(entry.category)}`}>
-                <CategoryIcon category={entry.category} size={22} color="white" />
+                {!heroFailed ? (
+                  <img
+                    className={styles.thumbImg}
+                    src={heroUrl}
+                    alt=""
+                    onError={() => setHeroFailed(true)}
+                  />
+                ) : (
+                  <CategoryIcon category={entry.category} size={22} color="white" />
+                )}
               </div>
               <div className={styles.copy}>
                 <h3 className={styles.title}>{title}</h3>

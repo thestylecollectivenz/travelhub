@@ -14,6 +14,7 @@ import { findBoardingPassDocument, findConfirmationDocument, findDeckPlanDocumen
 import { isRichTextEditorEmpty } from '../../utils/journalRichText';
 import { RichTextContent } from '../shared/RichTextContent';
 import { MobilePencilButton } from './MobilePencilButton';
+import { MobileDetailAiPanel } from './MobileDetailAiPanel';
 import { openMobileExternalUrl } from '../../hooks/useMobileDetailHistory';
 import styles from './MobileCruiseDetail.module.css';
 
@@ -439,6 +440,8 @@ export const MobileCruiseDetail: React.FC<MobileCruiseDetailProps> = ({
           </div>
         </section>
       ) : null}
+
+      <MobileDetailAiPanel entry={entry} hint="Cruise embarkation, ports, and onboard info." />
     </>
   );
 };

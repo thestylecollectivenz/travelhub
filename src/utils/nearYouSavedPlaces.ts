@@ -61,3 +61,27 @@ export function removeNearYouSavedPlace(id: string): void {
   window.localStorage.setItem(NEAR_YOU_SAVED_STORAGE_KEY, JSON.stringify(list));
   window.dispatchEvent(new Event('travelhub-near-you-saved-changed'));
 }
+
+export function updateNearYouSavedPlaceNote(id: string, note: string): void {
+  const list = loadNearYouSavedPlaces().map((x) =>
+    x.id === id ? { ...x, note: note.trim() || undefined } : x
+  );
+  window.localStorage.setItem(NEAR_YOU_SAVED_STORAGE_KEY, JSON.stringify(list));
+  window.dispatchEvent(new Event('travelhub-near-you-saved-changed'));
+}
+
+export function savedPlacesByToolId(toolId?: string): NearYouSavedPlace[] {
+  if (!toolId) return [];
+  return loadNearYouSavedPlaces().filter((x) => x.toolId === toolId);
+}
+
+export function groupSavedPlacesByTool(): Map<string, NearYouSavedPlace[]> {
+  const map = new Map<string, NearYouSavedPlace[]>();
+  for (const row of loadNearYouSavedPlaces()) {
+    const key = row.toolId || 'other';
+    const list = map.get(key) ?? [];
+    list.push(row);
+    map.set(key, list);
+  }
+  return map;
+}

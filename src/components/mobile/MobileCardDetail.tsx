@@ -5,6 +5,8 @@ import { useAttachments } from '../../context/AttachmentsContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useTripPermissions } from '../../hooks/useTripPermissions';
 import { confirmUserAction } from '../../utils/confirmAction';
+import { isPendingSubItemId } from '../../utils/itineraryEntryIds';
+import { editableEntryToSubItem, subItemToEditableEntry } from '../../utils/optionEntryAdapter';
 import { CategoryIcon } from '../shared/CategoryIcon';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
@@ -29,6 +31,7 @@ import { MobileDocsLinksSection } from './MobileDocsLinksSection';
 import { MobileBookingSiteSheet } from './MobileBookingSiteSheet';
 import { MobilePencilButton } from './MobilePencilButton';
 import { buildMobileDocLinkItems } from '../../utils/mobileDocLinkItems';
+import { MobileDetailAiPanel } from './MobileDetailAiPanel';
 import cardStyles from '../itinerary/ItineraryCard.module.css';
 import styles from './MobileCardDetail.module.css';
 
@@ -82,7 +85,17 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
   onOpenPlannedActivity
 }) => {
   const pageRef = React.useRef<HTMLDivElement>(null);
-  const { editingCardId, setEditingCardId, updateEntry, deleteEntry, localEntries } = useTripWorkspace();
+  const {
+    editingCardId,
+    setEditingCardId,
+    editingSubItem,
+    setEditingSubItem,
+    updateEntry,
+    updateSubItem,
+    deleteSubItem,
+    deleteEntry,
+    localEntries
+  } = useTripWorkspace();
   const { canEditItinerary } = useTripPermissions();
   const { documents, links } = useAttachments();
   const canSeeFinancials = useCanSeeFinancials();
@@ -114,7 +127,17 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
   const slug = getCategorySlug(entry.category);
   const timeChip = entry.timeStart ? formatTimeHHMM(entry.timeStart) : entry.duration || '';
   const isOptionView = Boolean(optionSubItemId);
-  const isEditing = editingCardId === sourceEntry.id;
+  const optionSub = isOptionView
+    ? (sourceEntry.subItems ?? []).find((s) => s.id === optionSubItemId)
+    : undefined;
+  const isEditingOption =
+    isOptionView &&
+    Boolean(
+      optionSubItemId &&
+        editingSubItem?.parentEntryId === sourceEntry.id &&
+        editingSubItem?.subItemId === optionSubItemId
+    );
+  const isEditing = !isOptionView && editingCardId === sourceEntry.id;
   const isAccommodation = !isOptionView && entry.category === 'Accommodation';
   const isCruise = !isOptionView && entry.category === 'Cruise';
   const isDining = entry.category === 'Food & Dining' || entry.category === 'Dining';
@@ -180,6 +203,14 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
     return rows.slice(0, 4);
   }, [booked, confirmationDoc, entry, entryDocs, entryLinks, mapsDirectionsUrl, mapsPlaceUrl]);
 
+  const openEdit = React.useCallback(() => {
+    if (isOptionView && optionSubItemId) {
+      setEditingSubItem({ parentEntryId: sourceEntry.id, subItemId: optionSubItemId });
+      return;
+    }
+    setEditingCardId(sourceEntry.id);
+  }, [isOptionView, optionSubItemId, setEditingCardId, setEditingSubItem, sourceEntry.id]);
+
   const handleDelete = React.useCallback(() => {
     void (async () => {
       if (!(await confirmUserAction('Delete this itinerary item?'))) return;
@@ -188,6 +219,44 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
       onClose();
     })();
   }, [deleteEntry, onClose, setEditingCardId, sourceEntry.id]);
+
+  if (isEditingOption && optionSub) {
+    const editable = subItemToEditableEntry(sourceEntry, optionSub);
+    return ReactDOM.createPortal(
+      <div className={cardStyles.portalEditRoot} role="presentation">
+        <div className={cardStyles.portalEditInner}>
+          <ItineraryCardEdit
+            key={editable.id}
+            entry={editable}
+            calendarDate={calendarDate}
+            variant="option"
+            onSave={(saved) => {
+              updateSubItem(sourceEntry.id, editableEntryToSubItem(saved, optionSub, calendarDate));
+              setEditingSubItem(null);
+            }}
+            onCancel={() => {
+              void (async () => {
+                if (isPendingSubItemId(optionSub.id) && !optionSub.title.trim()) {
+                  if (!(await confirmUserAction('Discard this new option?'))) return;
+                  deleteSubItem(sourceEntry.id, optionSub.id);
+                }
+                setEditingSubItem(null);
+              })();
+            }}
+            onDelete={() => {
+              void (async () => {
+                if (!(await confirmUserAction('Delete this related option?'))) return;
+                deleteSubItem(sourceEntry.id, optionSub.id);
+                setEditingSubItem(null);
+                onClose();
+              })();
+            }}
+          />
+        </div>
+      </div>,
+      document.body
+    );
+  }
 
   if (isEditing) {
     return ReactDOM.createPortal(
@@ -221,7 +290,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
           calendarDate={calendarDate}
           canSeeFinancials={canSeeFinancials}
           canEdit={canEditItinerary}
-          onEdit={() => setEditingCardId(sourceEntry.id)}
+          onEdit={openEdit}
         />
       </div>
     );
@@ -236,7 +305,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
           links={entryLinks}
           canSeeFinancials={canSeeFinancials}
           canEdit={canEditItinerary}
-          onEdit={() => setEditingCardId(sourceEntry.id)}
+          onEdit={openEdit}
           mapsDirectionsUrl={mapsDirectionsUrl}
           mapsPlaceUrl={mapsPlaceUrl}
         />
@@ -253,7 +322,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
           links={entryLinks}
           canSeeFinancials={canSeeFinancials}
           canEdit={canEditItinerary}
-          onEdit={() => setEditingCardId(sourceEntry.id)}
+          onEdit={openEdit}
           onBookNow={() => setShowBookingSites(true)}
           onOpenPlannedActivity={onOpenPlannedActivity}
           mapsDirectionsUrl={mapsDirectionsUrl}
@@ -280,7 +349,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
           <div className={styles.heroTitleRow}>
             <h1 className={styles.title}>{title}</h1>
             {canEditItinerary ? (
-              <MobilePencilButton onClick={() => setEditingCardId(sourceEntry.id)} ariaLabel="Edit itinerary item" />
+              <MobilePencilButton onClick={openEdit} ariaLabel="Edit itinerary item" />
             ) : null}
           </div>
           <div className={styles.chips}>
@@ -435,6 +504,16 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
           })}
         </div>
       ) : null}
+
+      <MobileDetailAiPanel
+        entry={entry}
+        calendarDate={calendarDate}
+        optionContext={
+          isOptionView && optionSubItemId
+            ? { parentEntryId: sourceEntry.id, subItemId: optionSubItemId }
+            : undefined
+        }
+      />
 
       <MobileDocsLinksSection
         items={docLinkItems}

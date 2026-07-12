@@ -3,6 +3,7 @@ import { NEAR_YOU_TOOLS, type NearYouToolId } from '../../utils/nearYouTools';
 import { NearYouToolIcon } from '../shared/NearYouToolIcon';
 import { useShellMode } from '../../hooks/useShellMode';
 import { MobileNearYouResults } from './MobileNearYouResults';
+import { MobileFindSavedRow } from './MobileFindSavedRow';
 import styles from './MobileNearYouPage.module.css';
 
 export interface MobileNearYouPageProps {
@@ -12,7 +13,7 @@ export interface MobileNearYouPageProps {
   tripTitle?: string;
   tripDateRange?: string;
   onAddToItinerary?: (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string }) => void;
-  onSavePlace?: (place: { name: string; note?: string; mapsUrl?: string }) => void;
+  onSavePlace?: (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string; toolId?: string }) => void;
 }
 
 export const MobileNearYouPage: React.FC<MobileNearYouPageProps> = ({
@@ -58,13 +59,16 @@ export const MobileNearYouPage: React.FC<MobileNearYouPageProps> = ({
       <p className={styles.intro}>Uses your device GPS. Pick a category to open the full results page.</p>
       <div className={styles.list}>
         {NEAR_YOU_TOOLS.map((tool) => (
-          <button key={tool.id} type="button" className={styles.categoryCard} onClick={() => setToolId(tool.id)}>
-            <NearYouToolIcon toolId={tool.id} size="lg" />
-            <span>
-              <span className={styles.categoryLabel}>{tool.label}</span>
-              <span className={styles.categoryDesc}>{tool.description}</span>
-            </span>
-          </button>
+          <div key={tool.id} className={styles.categoryWrap}>
+            <button type="button" className={styles.categoryCard} onClick={() => setToolId(tool.id)}>
+              <NearYouToolIcon toolId={tool.id} size="lg" />
+              <span>
+                <span className={styles.categoryLabel}>{tool.label}</span>
+                <span className={styles.categoryDesc}>{tool.description}</span>
+              </span>
+            </button>
+            <MobileFindSavedRow toolId={tool.id} />
+          </div>
         ))}
       </div>
     </div>

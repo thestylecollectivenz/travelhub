@@ -21,6 +21,7 @@ import {
 } from '../../utils/dayIdeas';
 import { travellerLabelForCurrentUser } from '../../utils/tripMemberIdentity';
 import { notifyDayIdeasChanged } from '../../hooks/useTripDayIdeas';
+import { DayIdeaReplies } from './DayIdeaReplies';
 import styles from './TripDayIdeasView.module.css';
 
 export interface TripDayIdeasViewProps {
@@ -214,6 +215,14 @@ export const TripDayIdeasView: React.FC<TripDayIdeasViewProps> = ({
                           {authorLabel ? `${authorLabel} · ` : ''}
                           {formatDayIdeaStamp(row.dueDate)}
                         </p>
+                        <DayIdeaReplies
+                          row={row}
+                          spContext={spContext}
+                          members={members}
+                          canContribute={canContribute}
+                          canEditItinerary={canEditItinerary}
+                          onUpdated={onRefresh}
+                        />
                       </div>
                       {manageable ? (
                         <div className={styles.actions}>

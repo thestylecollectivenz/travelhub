@@ -82,6 +82,14 @@
   color: #8a7355;
 }
 
+.localGreeting {
+  margin: 0.15rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: #1e2a44;
+  font-style: italic;
+}
+
 .title {
   margin: 0.15rem 0 0;
   font-family: Georgia, 'Palatino Linotype', Palatino, serif;

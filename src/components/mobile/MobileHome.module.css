@@ -629,3 +629,43 @@
   padding-left: max(0.75rem, env(safe-area-inset-left, 0));
   padding-right: max(0.75rem, env(safe-area-inset-right, 0));
 }
+
+.homeRoot[data-shell='ipad-portrait'] .nearItem {
+  min-width: 4.6rem;
+}
+
+.homeRoot[data-shell='ipad-portrait'] .nearCircle {
+  width: 3.4rem;
+  height: 3.4rem;
+}
+
+.homeRoot[data-shell='ipad-portrait'] .nearLabel {
+  font-size: 0.78rem;
+}
+
+.homeRoot[data-shell='ipad-portrait'] .pillar {
+  min-height: 6.5rem;
+  padding: 0.85rem 0.65rem;
+}
+
+.homeRoot[data-shell='ipad-portrait'] .pillarIcon {
+  width: 1.65rem;
+  height: 1.65rem;
+}
+
+.homeRoot[data-shell='ipad-portrait'] .pillarTitle {
+  font-size: 0.95rem;
+}
+
+.homeRoot[data-shell='ipad-portrait'] .tripCardMedia {
+  min-height: 7.5rem;
+}
+
+.homeRoot[data-shell='ipad-portrait'] .tripCardTitle {
+  font-size: 1.15rem;
+}
+
+.homeRoot[data-shell='ipad-portrait'] .navBtn {
+  font-size: 0.72rem;
+  padding-top: 0.45rem;
+}

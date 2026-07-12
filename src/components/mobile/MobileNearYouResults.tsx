@@ -33,7 +33,7 @@ export interface MobileNearYouResultsProps {
     mapsUrl?: string;
     websiteUrl?: string;
   }) => void | Promise<void>;
-  onSavePlace?: (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string }) => boolean | void;
+  onSavePlace?: (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string; toolId?: string }) => boolean | void;
 }
 
 type ViewMode = 'map' | 'list' | 'ai';
@@ -382,7 +382,13 @@ export const MobileNearYouResults: React.FC<MobileNearYouResultsProps> = ({
             onSave={
               onSavePlace
                 ? () => {
-                    const saved = onSavePlace({ name: r.name, note: r.note, mapsUrl: r.mapsUrl, websiteUrl: r.websiteUrl });
+                    const saved = onSavePlace({
+                      name: r.name,
+                      note: r.note,
+                      mapsUrl: r.mapsUrl,
+                      websiteUrl: r.websiteUrl,
+                      toolId
+                    });
                     if (saved !== false) showToast(locationEntryId ? `Saved · ${r.name}` : `Saved · ${r.name}`);
                   }
                 : undefined

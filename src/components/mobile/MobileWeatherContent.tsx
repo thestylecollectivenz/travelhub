@@ -7,6 +7,7 @@ import { WeatherIcon } from '../shared/WeatherIcon';
 import { placeDisplayLabel } from '../../utils/placeDisplayLabel';
 import { placeQueryMapsUrl } from '../../utils/googleMapsLink';
 import { forecastDatesFromToday, forecastDayLabelFromToday, todayYmd } from '../../utils/placeForecastDates';
+import { localGreetingForCountry } from '../../utils/localGreetings';
 import styles from './MobileWeatherSheet.module.css';
 
 function formatPlaceLocalDateTime(date: Date, timeZone: string): string {
@@ -245,6 +246,8 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
     return `${part} ${d.toLocaleString('en-NZ', { month: 'long', timeZone: 'UTC' })}`;
   })();
 
+  const localHello = localGreetingForCountry(place.countryCode);
+
   return (
     <>
       <div className={styles.hero}>
@@ -253,6 +256,7 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
         </div>
         <div className={styles.heroCopy}>
           <p className={styles.kicker}>Weather &amp; tips</p>
+          {localHello ? <p className={styles.localGreeting}>{localHello}</p> : null}
           <h2 className={styles.title}>{placeDisplayLabel(place)}</h2>
           <p className={styles.location}>
             <svg width="11" height="11" viewBox="0 0 12 14" fill="none" aria-hidden>

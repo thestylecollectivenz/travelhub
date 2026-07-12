@@ -18,6 +18,7 @@ import { findConfirmationDocument } from '../../utils/bookingStatusUtils';
 import { isRichTextEditorEmpty } from '../../utils/journalRichText';
 import { RichTextContent } from '../shared/RichTextContent';
 import { MobilePencilButton } from './MobilePencilButton';
+import { MobileDetailAiPanel } from './MobileDetailAiPanel';
 import { openMobileExternalUrl } from '../../hooks/useMobileDetailHistory';
 import styles from './MobileDiningDetail.module.css';
 
@@ -393,6 +394,8 @@ export const MobileDiningDetail: React.FC<MobileDiningDetailProps> = ({
           </div>
         </section>
       ) : null}
+
+      <MobileDetailAiPanel entry={entry} calendarDate={calendarDate} hint="Dining and restaurant context." />
     </>
   );
 };

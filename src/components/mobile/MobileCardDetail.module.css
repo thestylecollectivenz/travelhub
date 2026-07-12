@@ -429,3 +429,13 @@
   min-height: 3.25rem;
   font-size: 0.92rem;
 }
+
+[data-shell='ipad-portrait'] .chip {
+  font-size: 0.82rem;
+  padding: 0.32rem 0.65rem;
+}
+
+[data-shell='ipad-portrait'] .statusPill {
+  font-size: 0.78rem;
+  padding: 0.28rem 0.6rem;
+}

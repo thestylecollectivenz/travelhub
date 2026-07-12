@@ -1102,3 +1102,16 @@
   width: 2.5rem;
   height: 2.5rem;
 }
+
+.itinRoot[data-shell='ipad-portrait'] .statCard {
+  min-height: 3.4rem;
+}
+
+.itinRoot[data-shell='ipad-portrait'] .statValue {
+  font-size: 0.95rem;
+}
+
+.itinRoot[data-shell='ipad-portrait'] .aiBarInput {
+  font-size: 0.92rem;
+  padding: 0.55rem 0.85rem;
+}

@@ -15,6 +15,7 @@ import { effectiveBookingStatus, findConfirmationDocument } from '../../utils/bo
 import { isRichTextEditorEmpty } from '../../utils/journalRichText';
 import { RichTextContent } from '../shared/RichTextContent';
 import { MobilePencilButton } from './MobilePencilButton';
+import { MobileDetailAiPanel } from './MobileDetailAiPanel';
 import { openMobileExternalUrl } from '../../hooks/useMobileDetailHistory';
 import styles from './MobileAccommodationDetail.module.css';
 
@@ -453,6 +454,8 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
           </div>
         </section>
       ) : null}
+
+      <MobileDetailAiPanel entry={entry} hint="Accommodation and stay logistics." />
     </>
   );
 };

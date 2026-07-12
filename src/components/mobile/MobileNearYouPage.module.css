@@ -78,3 +78,112 @@
 [data-shell='ipad-portrait'] .categoryDesc {
   font-size: 0.85rem;
 }
+
+.categoryWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.savedBlock {
+  margin: -0.15rem 0 0.15rem 2.6rem;
+}
+
+.savedToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #6b6570;
+  font-size: 0.72rem;
+  font-weight: 650;
+  padding: 0.25rem 0.35rem;
+  cursor: pointer;
+}
+
+.savedList {
+  list-style: none;
+  margin: 0.15rem 0 0.35rem;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.savedItem {
+  border: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
+  border-radius: 0.65rem;
+  background: color-mix(in srgb, #f7f3eb 55%, white);
+  padding: 0.45rem 0.55rem;
+}
+
+.savedMain {
+  min-width: 0;
+}
+
+.savedName {
+  display: block;
+  font-size: 0.78rem;
+  color: #1e2a44;
+}
+
+.savedNote,
+.savedNoteInput {
+  margin: 0.2rem 0 0;
+  font-size: 0.7rem;
+  color: #6b6570;
+  line-height: 1.35;
+}
+
+.savedNoteInput {
+  width: 100%;
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  border-radius: 0.45rem;
+  padding: 0.3rem 0.4rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.savedActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.35rem;
+}
+
+.savedBtn,
+.savedBtnDanger {
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.savedBtn {
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  background: white;
+  color: #1e2a44;
+}
+
+.savedBtnDanger {
+  border: 1px solid color-mix(in srgb, var(--color-rust-500) 35%, white);
+  background: color-mix(in srgb, var(--color-rust-500) 8%, white);
+  color: var(--color-rust-600);
+}
+
+[data-shell='ipad-portrait'] .savedName {
+  font-size: 0.9rem;
+}
+
+[data-shell='ipad-portrait'] .savedNote {
+  font-size: 0.82rem;
+}
+
+[data-shell='ipad-portrait'] .savedBtn,
+[data-shell='ipad-portrait'] .savedBtnDanger {
+  font-size: 0.78rem;
+  padding: 0.28rem 0.65rem;
+}

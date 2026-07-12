@@ -16,6 +16,7 @@ import {
 } from '../../utils/dayIdeas';
 import { travellerLabelForCurrentUser } from '../../utils/tripMemberIdentity';
 import { notifyDayIdeasChanged } from '../../hooks/useTripDayIdeas';
+import { DayIdeaReplies } from '../dayIdeas/DayIdeaReplies';
 import styles from './MobileItinerary.module.css';
 
 export interface MobileDayIdeasProps {
@@ -159,6 +160,15 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId }) => {
                     {authorLabel ? `${authorLabel} · ` : ''}
                     {formatDayIdeaStamp(row.dueDate)}
                   </p>
+                  <DayIdeaReplies
+                    row={row}
+                    spContext={spContext}
+                    members={members}
+                    canContribute={canContribute}
+                    canEditItinerary={canEditItinerary}
+                    onUpdated={refresh}
+                    compact
+                  />
                 </div>
                 {manageable ? (
                   <div className={styles.dayIdeaActions}>
