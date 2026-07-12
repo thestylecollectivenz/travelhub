@@ -18,7 +18,7 @@ import { collectMissingAmountRows } from '../../utils/missingAmountEntries';
 import { paymentDueTaskTitle, paymentDueDateHint } from '../../utils/paymentDueLabels';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { loadTripAssignees, rememberTripAssignee } from '../../utils/tripAssignees';
-import { reminderTaskCategory, TASK_FILTER_UNCATEGORISED } from '../../utils/taskFilters';
+import { reminderTaskCategory, TASK_FILTER_UNCATEGORISED, matchesTaskCompletionFilter } from '../../utils/taskFilters';
 import {
   buildTaskCategoryOptions,
   rememberTripTaskCategory,
@@ -65,12 +65,11 @@ function DueFilterChips(props: {
   );
 }
 
-type TaskFilter = 'incomplete' | 'all';
-
 export interface TripTasksViewProps {
   variant?: 'tasks' | 'missing_costs';
   mobileLayout?: boolean;
 }
+
 type CreateKind = 'task' | 'reminder';
 type ViewMode = 'list' | 'calendar';
 type CalendarLayout = 'grid' | 'list';
@@ -179,7 +178,9 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
     [spContext, role, members]
   );
   const [manual, setManual] = React.useState<TripReminder[]>([]);
-  const [filter, setFilter] = React.useState<TaskFilter>('incomplete');
+  const taskCompletionFilter = planView?.taskCompletionFilter ?? 'all';
+  const showCompletedOnly = taskCompletionFilter === 'completed';
+  const showDerivedTaskSections = !showCompletedOnly;
   const [viewMode, setViewMode] = React.useState<ViewMode>(planView?.tasksViewMode ?? 'list');
   const [calendarLayout, setCalendarLayout] = React.useState<CalendarLayout>('grid');
   const [calendarRange, setCalendarRange] = React.useState<CalendarRangeFilter>('all');
@@ -355,10 +356,10 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
         m.reminderType === 'ManualEntryTask' ||
         m.reminderType === 'Custom'
     );
-    if (filter === 'incomplete') rows = rows.filter((m) => !m.isComplete);
+    rows = rows.filter((m) => matchesTaskCompletionFilter(m.isComplete, taskCompletionFilter));
     rows = rows.filter(matchesReminderFilters);
     return sortRemindersByDueDate(rows, dueDateSort);
-  }, [manual, filter, matchesReminderFilters, dueDateSort]);
+  }, [manual, taskCompletionFilter, matchesReminderFilters, dueDateSort]);
 
   const filteredManualTodos = React.useMemo(() => {
     let rows = manualTodos.filter((m) => matchesTaskDueFilter(m.dueDate, taskDueFilter, todayYmd));
@@ -370,9 +371,9 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
 
   const cancellationReminders = React.useMemo(() => {
     let rows = manual.filter((m) => m.reminderType === 'CancellationDeadline');
-    if (filter === 'incomplete') rows = rows.filter((m) => !m.isComplete);
+    rows = rows.filter((m) => matchesTaskCompletionFilter(m.isComplete, taskCompletionFilter));
     return rows.filter(matchesReminderFilters);
-  }, [manual, filter, matchesReminderFilters]);
+  }, [manual, taskCompletionFilter, matchesReminderFilters]);
 
   React.useEffect(() => {
     const id = planView?.focusedReminderId;
@@ -441,7 +442,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
 
   const calendarEvents = React.useMemo((): CalendarEvent[] => {
     const out: CalendarEvent[] = [];
-    for (const m of [...manualTodos, ...cancellationReminders].filter((x) => !x.isComplete && x.dueDate)) {
+    for (const m of [...manualTodos, ...cancellationReminders].filter((x) => x.dueDate)) {
       const date = ymdFromIso(m.dueDate);
       if (!date) continue;
       out.push({
@@ -453,32 +454,34 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
         dayId: m.dayId
       });
     }
-    for (const e of bookingTasks) {
-      if (e.bookingDueDate) {
-        out.push({
-          id: `book-${e.id}`,
-          date: e.bookingDueDate,
-          title: `Book: ${e.title || 'Untitled'}`,
-          kind: 'booking',
-          entryId: e.id,
-          dayId: e.dayId
-        });
+    if (showDerivedTaskSections) {
+      for (const e of bookingTasks) {
+        if (e.bookingDueDate) {
+          out.push({
+            id: `book-${e.id}`,
+            date: e.bookingDueDate,
+            title: `Book: ${e.title || 'Untitled'}`,
+            kind: 'booking',
+            entryId: e.id,
+            dayId: e.dayId
+          });
+        }
       }
-    }
-    for (const e of paymentTasks) {
-      if (e.paymentDueDate) {
-        out.push({
-          id: `pay-${e.id}`,
-          date: e.paymentDueDate,
-          title: paymentDueTaskTitle(e),
-          kind: 'payment',
-          entryId: e.id,
-          dayId: e.dayId
-        });
+      for (const e of paymentTasks) {
+        if (e.paymentDueDate) {
+          out.push({
+            id: `pay-${e.id}`,
+            date: e.paymentDueDate,
+            title: paymentDueTaskTitle(e),
+            kind: 'payment',
+            entryId: e.id,
+            dayId: e.dayId
+          });
+        }
       }
     }
     return out;
-  }, [manualTodos, cancellationReminders, bookingTasks, paymentTasks]);
+  }, [manualTodos, cancellationReminders, bookingTasks, paymentTasks, showDerivedTaskSections]);
 
   const showMissingCosts = variant === 'missing_costs';
   const showStandardSections = !showMissingCosts;
@@ -592,12 +595,6 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
       <div className={`${styles.filterBar} ${styles.noPrint}`}>
         <div className={styles.filterBarMain}>
           {!mobileLayout ? <h2 className={styles.title}>Tasks &amp; reminders</h2> : null}
-          {showStandardSections ? (
-            <select className={styles.select} value={filter} onChange={(e) => setFilter(e.target.value as TaskFilter)}>
-              <option value="incomplete">Incomplete only</option>
-              <option value="all">All</option>
-            </select>
-          ) : null}
           <select className={styles.select} value={viewMode} onChange={(e) => setViewMode(e.target.value as ViewMode)}>
             <option value="list">List</option>
             <option value="calendar">Calendar</option>
@@ -645,10 +642,10 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
           {showTaskSection('todo') ? (
             <DueFilterChips ariaLabel="Filter tasks by due date" value={taskDueFilter} onChange={setTaskDueFilter} />
           ) : null}
-          {showTaskSection('bookings') ? (
+          {showDerivedTaskSections && showTaskSection('bookings') ? (
             <DueFilterChips ariaLabel="Filter bookings by due date" value={bookingDueFilter} onChange={setBookingDueFilter} />
           ) : null}
-          {showTaskSection('payments') ? (
+          {showDerivedTaskSections && showTaskSection('payments') ? (
             <DueFilterChips ariaLabel="Filter payments by due date" value={paymentDueFilter} onChange={setPaymentDueFilter} />
           ) : null}
         </div>
@@ -752,6 +749,8 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
         <>
           {showTaskSection('todo') ? (
           <div className={styles.group}>
+            {!showCompletedOnly ? (
+              <>
             <h3 className={styles.composeHeading}>Add new task or reminder</h3>
             <div className={`${styles.filters} ${styles.addRow}`}>
               <select className={styles.select} value={createKind} onChange={(e) => setCreateKind(e.target.value as CreateKind)}>
@@ -851,8 +850,10 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                 Add {createKind === 'task' ? 'task' : 'reminder'}
               </button>
             </div>
+              </>
+            ) : null}
             <div className={styles.todoHeadingRow}>
-              <h3 className={styles.todoHeading}>To do</h3>
+              <h3 className={styles.todoHeading}>{showCompletedOnly ? 'Completed tasks' : 'To do'}</h3>
               <button
                 type="button"
                 className={styles.sortDueBtn}
@@ -865,6 +866,11 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
               </button>
             </div>
             <DueFilterChips ariaLabel="Filter tasks by due date" value={taskDueFilter} onChange={setTaskDueFilter} />
+            {filteredManualTodos.length === 0 ? (
+              <p className={styles.sectionHelp}>
+                {showCompletedOnly ? 'No completed tasks yet.' : 'No tasks match these filters.'}
+              </p>
+            ) : null}
             {filteredManualTodos.map((m) => {
               const target = resolveReminderItineraryTarget(m, localEntries);
               const isEditing = editingReminderId === m.id;
@@ -872,7 +878,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                 <div
                   key={m.id}
                   data-reminder-id={m.id}
-                  className={`${styles.item} ${planView?.focusedReminderId === m.id ? styles.itemFocused : ''}`}
+                  className={`${styles.item} ${m.isComplete ? styles.itemComplete : ''} ${planView?.focusedReminderId === m.id ? styles.itemFocused : ''}`}
                 >
                   {!isEditing ? (
                     <input
@@ -946,7 +952,10 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                       </div>
                     ) : (
                       <>
-                        <div>{reminderDisplayTitle(m)}</div>
+                        <div className={styles.itemTitleRow}>
+                          <span>{reminderDisplayTitle(m)}</span>
+                          {m.isComplete ? <span className={styles.completeBadge}>Complete</span> : null}
+                        </div>
                         <div className={styles.meta}>
                           {m.dueDate ? `Due ${new Date(m.dueDate).toLocaleDateString('en-NZ')}` : 'No due date'}
                           {m.assignedTo?.trim() ? (
@@ -1019,7 +1028,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
           </div>
           ) : null}
 
-          {showTaskSection('bookings') ? (
+          {showDerivedTaskSections && showTaskSection('bookings') ? (
           <div className={styles.group}>
             <h3 className={styles.title}>Bookings needed</h3>
             <DueFilterChips ariaLabel="Filter bookings by due date" value={bookingDueFilter} onChange={setBookingDueFilter} />
@@ -1073,7 +1082,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
           </div>
           ) : null}
 
-          {showTaskSection('payments') ? (
+          {showDerivedTaskSections && showTaskSection('payments') ? (
           <div className={styles.group}>
             <h3 className={styles.title}>Payments due</h3>
             <DueFilterChips ariaLabel="Filter payments by due date" value={paymentDueFilter} onChange={setPaymentDueFilter} />
@@ -1151,9 +1160,13 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
 
           {showTaskSection('cancellations') ? (
           <div className={styles.group}>
-            <h3 className={styles.title}>Cancellation deadline reminders</h3>
+            <h3 className={styles.title}>
+              {showCompletedOnly ? 'Completed cancellation reminders' : 'Cancellation deadline reminders'}
+            </h3>
             {cancellationReminders.length === 0 ? (
-              <p className={styles.sectionHelp}>No cancellation reminders.</p>
+              <p className={styles.sectionHelp}>
+                {showCompletedOnly ? 'No completed cancellation reminders.' : 'No cancellation reminders.'}
+              </p>
             ) : (
               cancellationReminders.map((m) => {
                 const target = resolveReminderItineraryTarget(m, localEntries);
@@ -1161,7 +1174,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                   <div
                     key={m.id}
                     data-reminder-id={m.id}
-                    className={`${styles.item} ${planView?.focusedReminderId === m.id ? styles.itemFocused : ''}`}
+                    className={`${styles.item} ${m.isComplete ? styles.itemComplete : ''} ${planView?.focusedReminderId === m.id ? styles.itemFocused : ''}`}
                   >
                     <input
                       className={styles.completeCheck}
@@ -1171,7 +1184,10 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                       onChange={() => svc.update(m.id, { isComplete: !m.isComplete }).then(refresh).catch(console.error)}
                     />
                     <div className={styles.itemBody}>
-                      <div>{reminderDisplayTitle(m)}</div>
+                      <div className={styles.itemTitleRow}>
+                        <span>{reminderDisplayTitle(m)}</span>
+                        {m.isComplete ? <span className={styles.completeBadge}>Complete</span> : null}
+                      </div>
                       <div className={styles.meta}>
                         {m.dueDate ? `Due ${new Date(m.dueDate).toLocaleString('en-NZ')}` : 'No due date'}
                         {m.assignedTo?.trim() ? (

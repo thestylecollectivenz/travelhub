@@ -11,6 +11,7 @@ import { SidebarPackingCategories } from './SidebarPackingCategories';
 import { SidebarTaskCategories } from './SidebarTaskCategories';
 import { SidebarTaskAssignees } from './SidebarTaskAssignees';
 import { SidebarTaskSections } from './SidebarTaskSections';
+import { SidebarTaskCompletion } from './SidebarTaskCompletion';
 import { SidebarCollapsibleFilters } from './SidebarCollapsibleFilters';
 import { SharedSidebarDayList } from './SharedSidebarDayList';
 import { usePlanView } from '../../context/PlanViewContext';
@@ -257,6 +258,7 @@ export const TripSidebar: React.FC = () => {
               <SidebarTaskAssignees hideHeading />
               <SidebarTaskSections />
             </SidebarCollapsibleFilters>
+            <SidebarTaskCompletion />
             <SidebarCollapsibleFilters title="Filter by category">
               <SidebarTaskCategories hideHeading />
             </SidebarCollapsibleFilters>

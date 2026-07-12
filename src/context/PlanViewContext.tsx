@@ -4,6 +4,8 @@ export type PlanTab = 'tasks' | 'shopping' | 'packing' | 'packing_templates' | '
 
 export type TaskSectionKey = 'todo' | 'bookings' | 'payments' | 'cancellations';
 
+export type TaskCompletionFilter = 'incomplete' | 'all' | 'completed';
+
 export interface PlanViewContextValue {
   planTab: PlanTab;
   setPlanTab: (tab: PlanTab) => void;
@@ -18,6 +20,9 @@ export interface PlanViewContextValue {
   /** When set, tasks view shows only the selected section. */
   taskSectionFilter: TaskSectionKey | null;
   setTaskSectionFilter: (section: TaskSectionKey | null) => void;
+  /** Open only, all tasks, or completed tasks/reminders. */
+  taskCompletionFilter: TaskCompletionFilter;
+  setTaskCompletionFilter: (filter: TaskCompletionFilter) => void;
   tasksViewMode: 'list' | 'calendar';
   setTasksViewMode: (mode: 'list' | 'calendar') => void;
   /** null = all packing items for the trip */
@@ -42,6 +47,7 @@ export const PlanViewProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [taskCategoryFilter, setTaskCategoryFilter] = React.useState<string | null>(null);
   const [taskAssigneeFilter, setTaskAssigneeFilter] = React.useState<string | null>(null);
   const [taskSectionFilter, setTaskSectionFilter] = React.useState<TaskSectionKey | null>(null);
+  const [taskCompletionFilter, setTaskCompletionFilter] = React.useState<TaskCompletionFilter>('all');
   const [tasksViewMode, setTasksViewMode] = React.useState<'list' | 'calendar'>('list');
   const [packingTraveller, setPackingTraveller] = React.useState<string | null>(null);
   const [focusedReminderId, setFocusedReminderId] = React.useState<string | null>(null);
@@ -61,6 +67,8 @@ export const PlanViewProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setTaskAssigneeFilter,
       taskSectionFilter,
       setTaskSectionFilter,
+      taskCompletionFilter,
+      setTaskCompletionFilter,
       tasksViewMode,
       setTasksViewMode,
       packingTraveller,
@@ -74,7 +82,7 @@ export const PlanViewProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       shoppingMonthFilter,
       setShoppingMonthFilter
     }),
-    [planTab, packingCategory, taskCategoryFilter, taskAssigneeFilter, taskSectionFilter, tasksViewMode, packingTraveller, focusedReminderId, shoppingTraveller, shoppingCategory, shoppingMonthFilter]
+    [planTab, packingCategory, taskCategoryFilter, taskAssigneeFilter, taskSectionFilter, taskCompletionFilter, tasksViewMode, packingTraveller, focusedReminderId, shoppingTraveller, shoppingCategory, shoppingMonthFilter]
   );
 
   return <PlanViewContext.Provider value={value}>{children}</PlanViewContext.Provider>;

@@ -3,7 +3,7 @@ import { usePlanView } from '../../context/PlanViewContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
 import { ReminderService } from '../../services/ReminderService';
-import { TASK_FILTER_UNCATEGORISED } from '../../utils/taskFilters';
+import { TASK_FILTER_UNCATEGORISED, type TaskCompletionFilter, taskCompletionFilterLabel } from '../../utils/taskFilters';
 import chrome from './MobileTabChrome.module.css';
 
 export interface MobileTaskFiltersProps {
@@ -69,9 +69,27 @@ export const MobileTaskFilters: React.FC<MobileTaskFiltersProps> = ({ travellers
 
   const assignee = plan.taskAssigneeFilter ?? null;
   const category = plan.taskCategoryFilter ?? null;
+  const completion = plan.taskCompletionFilter;
+
+  const completionKeys: TaskCompletionFilter[] = ['all', 'incomplete', 'completed'];
 
   return (
     <div className={chrome.filterPanel}>
+      <div>
+        <p className={chrome.filterGroupTitle}>Show tasks</p>
+        <div className={chrome.chipRow}>
+          {completionKeys.map((key) => (
+            <button
+              key={key}
+              type="button"
+              className={`${chrome.chip} ${completion === key ? chrome.chipActive : ''}`}
+              onClick={() => plan.setTaskCompletionFilter(key)}
+            >
+              {taskCompletionFilterLabel(key)}
+            </button>
+          ))}
+        </div>
+      </div>
       <div>
         <p className={chrome.filterGroupTitle}>Assigned to</p>
         <div className={chrome.chipRow}>
