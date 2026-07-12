@@ -86,12 +86,7 @@
   color: #8a7355;
   display: flex;
   align-items: center;
-  gap: 0.35rem;
-}
-
-.highlightKindIcon {
-  font-size: 1rem;
-  line-height: 1;
+  gap: 0.45rem;
 }
 
 .highlightList {
@@ -227,6 +222,18 @@
 [data-shell='ipad-portrait'] .highlightsGrid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.15rem 1.35rem;
+}
+
+[data-shell='ipad-portrait'] .highlightKind {
+  font-size: 0.95rem;
+}
+
+[data-shell='ipad-portrait'] .highlightCheck {
+  font-size: 0.98rem;
+}
+
+[data-shell='ipad-portrait'] .sectionTitle {
+  font-size: 1.35rem;
 }
 
 @media (min-width: 1024px) {

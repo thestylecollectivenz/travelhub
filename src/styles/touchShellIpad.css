@@ -3,9 +3,10 @@
  * Set data-shell="ipad-portrait" on shell roots; children inherit via CSS variables.
  */
 [data-shell='ipad-portrait'] {
-  --touch-scale: 1.16;
-  --touch-title-scale: 1.22;
-  --touch-pad: 1.2;
+  --touch-scale: 1.32;
+  --touch-title-scale: 1.38;
+  --touch-pad: 1.35;
+  --touch-icon-scale: 1.45;
 }
 
 [data-shell='ipad-portrait'] .mobileMain,
@@ -30,7 +31,13 @@
 
 [data-shell='ipad-portrait'] .tabBtn,
 [data-shell='ipad-portrait'] .navBtn {
-  font-size: 0.78rem;
+  font-size: 0.88rem;
+}
+
+[data-shell='ipad-portrait'] .tabBtn svg,
+[data-shell='ipad-portrait'] .navBtn svg {
+  width: calc(1.35rem * var(--touch-icon-scale));
+  height: calc(1.35rem * var(--touch-icon-scale));
 }
 
 [data-shell='ipad-portrait'] .headerTitle {
@@ -48,86 +55,112 @@
 
 [data-shell='ipad-portrait'] .chip,
 [data-shell='ipad-portrait'] .actionBtn {
-  font-size: 0.82rem;
-  padding: 0.62rem 1rem;
+  font-size: 0.95rem;
+  padding: 0.72rem 1.15rem;
 }
 
 [data-shell='ipad-portrait'] .sectionTitle {
-  font-size: 1rem;
+  font-size: 1.15rem;
 }
 
 [data-shell='ipad-portrait'] .fieldLabel {
-  font-size: 0.72rem;
-}
-
-[data-shell='ipad-portrait'] .fieldValue {
-  font-size: 0.9rem;
-}
-
-[data-shell='ipad-portrait'] .statLabel {
-  font-size: 0.68rem;
-}
-
-[data-shell='ipad-portrait'] .statValue {
-  font-size: 0.88rem;
-}
-
-[data-shell='ipad-portrait'] .flightTime {
-  font-size: 1.35rem;
-}
-
-[data-shell='ipad-portrait'] .flightPlace {
   font-size: 0.85rem;
 }
 
+[data-shell='ipad-portrait'] .fieldValue {
+  font-size: 1.05rem;
+}
+
+[data-shell='ipad-portrait'] .statLabel {
+  font-size: 0.82rem;
+}
+
+[data-shell='ipad-portrait'] .statValue {
+  font-size: 1.05rem;
+}
+
+[data-shell='ipad-portrait'] .flightTime {
+  font-size: 1.55rem;
+}
+
+[data-shell='ipad-portrait'] .flightPlace {
+  font-size: 1rem;
+}
+
 [data-shell='ipad-portrait'] .actionTile {
-  min-height: 4.75rem;
-  font-size: 0.72rem;
-  padding: 0.55rem 0.35rem;
+  min-height: 5.5rem;
+  font-size: 0.88rem;
+  padding: 0.65rem 0.45rem;
+}
+
+[data-shell='ipad-portrait'] .actionTile svg {
+  width: calc(1.5rem * var(--touch-icon-scale));
+  height: calc(1.5rem * var(--touch-icon-scale));
 }
 
 [data-shell='ipad-portrait'] .gridLabel,
 [data-shell='ipad-portrait'] .bookingLabel {
-  font-size: 0.72rem;
+  font-size: 0.85rem;
 }
 
 [data-shell='ipad-portrait'] .gridValue,
 [data-shell='ipad-portrait'] .bookingValue {
-  font-size: 0.9rem;
+  font-size: 1.05rem;
 }
 
 [data-shell='ipad-portrait'] .summaryValue {
-  font-size: 0.95rem;
+  font-size: 1.1rem;
 }
 
 [data-shell='ipad-portrait'] .docPill {
-  font-size: 0.78rem;
-  padding: 0.48rem 0.8rem;
+  font-size: 0.92rem;
+  padding: 0.58rem 0.95rem;
 }
 
 /* Location info sheet */
 [data-shell='ipad-portrait'] .sheet .title {
-  font-size: 1.75rem;
+  font-size: 1.95rem;
 }
 
 [data-shell='ipad-portrait'] .sheet .sectionTitle {
-  font-size: 1.35rem;
+  font-size: 1.5rem;
 }
 
 [data-shell='ipad-portrait'] .sheet .overviewBody,
 [data-shell='ipad-portrait'] .sheet .highlightCheck {
-  font-size: 1rem;
+  font-size: 1.1rem;
 }
 
 [data-shell='ipad-portrait'] .sheet .toolLabel {
-  font-size: 0.82rem;
+  font-size: 0.95rem;
 }
 
 [data-shell='ipad-portrait'] .sheet .essentialCard {
-  flex: 0 0 min(18rem, 42vw);
+  flex: 0 0 min(20rem, 42vw);
 }
 
 [data-shell='ipad-portrait'] .sheet .body {
-  padding-left: 1.25rem;
-  padding-right: 1.25rem;
+  padding-left: 1.45rem;
+  padding-right: 1.45rem;
+}
+
+/* Weather full-page sheet */
+[data-shell='ipad-portrait'] .heroIcon {
+  width: 4.75rem;
+  height: 4.75rem;
+}
+
+[data-shell='ipad-portrait'] .forecastDay {
+  min-width: 4.5rem;
+}
+
+[data-shell='ipad-portrait'] .sectionIcon {
+  width: 2.65rem;
+  height: 2.65rem;
+}
+
+[data-shell='ipad-portrait'] .closeBtn {
+  width: 2.55rem;
+  height: 2.55rem;
+  font-size: 1.45rem;
 }

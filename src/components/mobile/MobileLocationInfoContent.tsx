@@ -18,6 +18,7 @@ import { placeQueryDirectionsUrl, placeQueryMapsUrl } from '../../utils/googleMa
 import { RichTextContent } from '../shared/RichTextContent';
 import { LocationInfoAskPanel } from '../itinerary/LocationInfoAskPanel';
 import { NearYouToolIcon } from '../shared/NearYouToolIcon';
+import { LocationHighlightIcon } from './LocationHighlightIcon';
 import { MobilePencilButton } from './MobilePencilButton';
 import { NEAR_YOU_TOOLS, type NearYouToolId } from '../../utils/nearYouTools';
 import styles from './MobileLocationInfoContent.module.css';
@@ -29,13 +30,6 @@ const HIGHLIGHT_LABEL: Record<LocationHighlightKind, string> = {
   drink: 'Drink',
   souvenir: 'Souvenirs'
 };
-const HIGHLIGHT_ICON: Record<LocationHighlightKind, string> = {
-  sight: '🏛',
-  food: '🍽',
-  drink: '🍷',
-  souvenir: '🎁'
-};
-
 const ESSENTIAL_KINDS: Array<'grocery' | 'pharmacy' | 'atm'> = ['grocery', 'pharmacy', 'atm'];
 
 function highlightKey(row: LocationHighlightRow): string {
@@ -126,9 +120,7 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
           {HIGHLIGHT_KINDS.map((kind) => (
             <div key={kind} className={styles.highlightCol}>
               <p className={styles.highlightKind}>
-                <span className={styles.highlightKindIcon} aria-hidden>
-                  {HIGHLIGHT_ICON[kind]}
-                </span>
+                <LocationHighlightIcon kind={kind} size="sm" />
                 {HIGHLIGHT_LABEL[kind]}
               </p>
               <ul className={styles.highlightList}>
