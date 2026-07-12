@@ -176,4 +176,72 @@
   }
 }
 
+.mobileRoot {
+  min-height: 0;
+  height: auto;
+  border-top: none;
+  background: transparent;
+  gap: 0.65rem;
+}
+
+.mobileRoot .emptyHint {
+  padding: 0.65rem 0;
+  font-size: 0.78rem;
+  color: #6b6570;
+  border-radius: 1rem;
+  background: white;
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+}
+
+.mobileRoot .map {
+  min-height: 42vh;
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  box-shadow: 0 4px 16px color-mix(in srgb, #1e2a44 8%, transparent);
+}
+
+.mobileRoot .stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  padding: 0;
+  border-top: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.mobileRoot .statChip {
+  background: white;
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  border-radius: 0.85rem;
+  padding: 0.55rem 0.35rem;
+  border-right: none;
+}
+
+.mobileRoot .statValue {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #1e2a44;
+}
+
+.mobileRoot .statLabel {
+  font-size: 0.58rem;
+  font-weight: 650;
+  color: #6b6570;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+[data-shell='ipad-portrait'] .mobileRoot .map {
+  min-height: 52vh;
+}
+
+[data-shell='ipad-portrait'] .mobileRoot .statValue {
+  font-size: 1.2rem;
+}
+
+[data-shell='ipad-portrait'] .mobileRoot .statLabel {
+  font-size: 0.72rem;
+}
 

@@ -39,7 +39,7 @@ function addResilientTileLayer(map: L.Map): void {
   primary.addTo(map);
 }
 
-export const TripMap: React.FC = () => {
+export const TripMap: React.FC<{ mobileLayout?: boolean }> = ({ mobileLayout = false }) => {
   const { trip, tripDays, localEntries } = useTripWorkspace();
   const { placeById } = usePlaces();
   const mapRef = React.useRef<HTMLDivElement | null>(null);
@@ -247,7 +247,7 @@ export const TripMap: React.FC = () => {
   );
 
   return (
-    <section className={styles.root} aria-label="Trip map">
+    <section className={`${styles.root} ${mobileLayout ? styles.mobileRoot : ''}`} aria-label="Trip map">
       {!routeMarkers.length ? (
         <p className={styles.emptyHint}>
           Transport stops (flights, cruise, and transport items) with a mapped day location appear here.
