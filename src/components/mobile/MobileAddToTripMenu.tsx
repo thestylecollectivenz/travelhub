@@ -55,22 +55,35 @@ export const MobileAddToTripMenu: React.FC<MobileAddToTripMenuProps> = ({ tripId
   if (!canAdd) return null;
 
   return (
-    <div className={styles.addBannerWrap} ref={menuRef}>
-      <button type="button" className={styles.addBanner} onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-        <span>Add to trip</span>
-        <span className={styles.addPlus} aria-hidden>
-          +
-        </span>
-      </button>
-      {open ? (
-        <div className={styles.addMenu} role="menu" aria-label="Add to trip">
-          {options.map((opt) => (
-            <button key={opt.action} type="button" className={styles.addMenuItem} role="menuitem" onClick={() => pick(opt)}>
-              {opt.label}
-            </button>
-          ))}
+    <div className={styles.addCtaCard} ref={menuRef}>
+      <div className={styles.addCtaArt} aria-hidden>
+        <svg width="48" height="40" viewBox="0 0 48 40" fill="none">
+          <rect x="8" y="14" width="22" height="18" rx="3" stroke="currentColor" strokeWidth="1.6" />
+          <path d="M14 14V10h10v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          <circle cx="34" cy="12" r="5" stroke="currentColor" strokeWidth="1.6" />
+          <path d="M32 12h4M34 10v4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+      </div>
+      <div className={styles.addCtaBody}>
+        <h3 className={styles.addCtaTitle}>Make the most of your trip</h3>
+        <p className={styles.addCtaText}>
+          Add places, activities and notes as you go. Everything is saved in one place.
+        </p>
+        <div className={styles.addCtaBtnWrap}>
+          <button type="button" className={styles.addCtaBtn} onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+            Add to trip +
+          </button>
+          {open ? (
+            <div className={styles.addMenu} role="menu" aria-label="Add to trip">
+              {options.map((opt) => (
+                <button key={opt.action} type="button" className={styles.addMenuItem} role="menuitem" onClick={() => pick(opt)}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
-      ) : null}
+      </div>
     </div>
   );
 };

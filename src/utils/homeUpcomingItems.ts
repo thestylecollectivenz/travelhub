@@ -1,5 +1,6 @@
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { TripDay } from '../models/TripDay';
+import { isPreTripDayRow } from './itineraryDayEntries';
 import { formatTimeHHMM } from './itineraryTimeUtils';
 import { todayYmdLocal } from './tripListSort';
 
@@ -40,7 +41,8 @@ export function buildHomeUpcomingItems(
   const rows: Array<{ ymd: string; time: string; entry: ItineraryEntry; day: TripDay | undefined }> = [];
   for (const e of parents) {
     const day = dayById.get(e.dayId);
-    const ymd = (day?.calendarDate || '').slice(0, 10);
+    if (!day || isPreTripDayRow(day)) continue;
+    const ymd = (day.calendarDate || '').slice(0, 10);
     if (!ymd || ymd < todayYmd) continue;
     const time = (e.timeStart || '').trim();
     if (!time && e.category !== 'Flights' && e.category !== 'Accommodation') continue;

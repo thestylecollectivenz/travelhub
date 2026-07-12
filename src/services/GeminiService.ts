@@ -533,6 +533,57 @@ Reply for the CURRENT FOCUS day, date, and location. Ask a brief clarifying ques
   throw lastErr ?? new GeminiServiceError('API_ERROR', 'No Gemini models available.');
 }
 
+/** Simple list generation without travel-chat CURRENT FOCUS wrapper. */
+export async function generatePlainTextLines(
+  apiKey: string,
+  userPrompt: string,
+  maxLines = 3
+): Promise<string[]> {
+  const key = (apiKey || '').trim();
+  if (!key) throw new GeminiServiceError('NO_KEY', 'Add a Gemini API key in User settings.');
+
+  const prompt = `${userPrompt.trim()}
+
+Reply with ONLY ${maxLines} short lines (one idea per line). No numbering, no labels, no markdown, no preamble.`;
+
+  const models = [...GEMINI_MODEL_FALLBACK_CHAIN];
+  let lastErr: GeminiServiceError | undefined;
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.85, maxOutputTokens: 400 }
+        })
+      });
+      if (!resp.ok) {
+        throw new GeminiServiceError('API_ERROR', `Gemini API returned ${resp.status}`, resp.status);
+      }
+      const data = await resp.json();
+      const text = extractResponseText(data).trim();
+      if (!text) throw new GeminiServiceError('PARSE_ERROR', 'Gemini returned an empty response.');
+      const lines = text
+        .split(/\n+/)
+        .map((line) => line.replace(/^[\s*\-•\d.)]+/, '').trim())
+        .filter((line) => line.length > 8);
+      return Array.from(new Set(lines)).slice(0, maxLines);
+    } catch (err) {
+      if (!(err instanceof GeminiServiceError)) {
+        throw new GeminiServiceError('API_ERROR', err instanceof Error ? err.message : 'Gemini request failed.');
+      }
+      lastErr = err;
+      if (err.code === 'NO_KEY') throw err;
+      if (i < models.length - 1 && isQuotaOrModelBlockedError(err)) continue;
+      throw err;
+    }
+  }
+  throw lastErr ?? new GeminiServiceError('API_ERROR', 'No Gemini models available.');
+}
+
 const NEAREST_KIND_LABEL: Record<NearestPlaceKind, string> = {
   pharmacy: 'pharmacy or chemist',
   grocery: 'grocery store or supermarket',

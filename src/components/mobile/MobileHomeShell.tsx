@@ -162,6 +162,22 @@ function IconSpark(): React.ReactElement {
   );
 }
 
+function IconSend(): React.ReactElement {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="m4 12 16-7-7 16-2-7-7-2Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconChevron(): React.ReactElement {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden className={styles.pillarChevron}>
+      <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   onSelectTrip,
   onCreateTrip,
@@ -622,11 +638,13 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
             <h1 className={styles.brandName}>Trip Leopard</h1>
           </div>
           <div className={styles.topBarActions}>
-            <TravellerAvatar
-              displayName={myMember?.userDisplayName || greetingName || displayName}
-              avatarUrl={myMember?.avatarUrl}
-              size={36}
-            />
+            <button type="button" className={styles.avatarBtn} aria-label="User settings" onClick={onOpenSettings}>
+              <TravellerAvatar
+                displayName={myMember?.userDisplayName || greetingName || displayName}
+                avatarUrl={myMember?.avatarUrl}
+                size={36}
+              />
+            </button>
             <button type="button" className={styles.iconBtn} aria-label="Settings" onClick={onOpenSettings}>
               <IconGear />
             </button>
@@ -649,6 +667,16 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
             setAiPrompt('');
           }}
         >
+          <span className={styles.aiSpark} aria-hidden>
+            <IconSpark />
+          </span>
+          <input
+            className={styles.aiInput}
+            value={aiPrompt}
+            onChange={(e) => setAiPrompt(e.target.value)}
+            placeholder="Ask AI anything about your trip…"
+            aria-label="Ask AI about your trip"
+          />
           <button
             type="button"
             className={`${styles.aiMic} ${listening ? styles.aiMicActive : ''}`}
@@ -660,15 +688,8 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
               <path d="M6 11a6 6 0 0 0 12 0M12 17v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
             </svg>
           </button>
-          <input
-            className={styles.aiInput}
-            value={aiPrompt}
-            onChange={(e) => setAiPrompt(e.target.value)}
-            placeholder="Ask AI anything about your trip…"
-            aria-label="Ask AI about your trip"
-          />
           <button type="submit" className={styles.aiGo} aria-label="Ask AI" disabled={!featuredTrip}>
-            <IconSpark />
+            <IconSend />
           </button>
         </form>
 
@@ -689,6 +710,9 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
               {chip}
             </button>
           ))}
+          <button type="button" className={styles.aiChip} aria-label="More suggestions" disabled={!featuredTrip}>
+            …
+          </button>
         </div>
 
         <div className={styles.pillarGrid}>
@@ -697,8 +721,11 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
               <rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="1.8" />
               <path d="M8 3.5v3M16 3.5v3M4 10h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
             </svg>
-            <p className={styles.pillarTitle}>Plan</p>
-            <p className={styles.pillarSub}>Itineraries, AI trip ideas</p>
+            <div className={styles.pillarCopy}>
+              <p className={styles.pillarTitle}>Plan</p>
+              <p className={styles.pillarSub}>Itineraries, AI trip ideas</p>
+            </div>
+            <IconChevron />
           </button>
           <button type="button" className={`${styles.pillar} ${styles.pillarBook}`} onClick={() => setTab('book')}>
             <svg className={styles.pillarIcon} viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -706,16 +733,22 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
               <path d="M6 11h12v7a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-7Z" stroke="currentColor" strokeWidth="1.8" />
               <path d="M9 15h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
             </svg>
-            <p className={styles.pillarTitle}>Book</p>
-            <p className={styles.pillarSub}>Flights, stays, tours & more</p>
+            <div className={styles.pillarCopy}>
+              <p className={styles.pillarTitle}>Book</p>
+              <p className={styles.pillarSub}>Flights, stays, tours & more</p>
+            </div>
+            <IconChevron />
           </button>
           <button type="button" className={`${styles.pillar} ${styles.pillarRoam}`} disabled={!featuredTrip} onClick={() => openFeatured('map')}>
             <svg className={styles.pillarIcon} viewBox="0 0 24 24" fill="none" aria-hidden>
               <path d="M12 21s6.5-5.2 6.5-10.2A6.5 6.5 0 0 0 12 4.3a6.5 6.5 0 0 0-6.5 6.5C5.5 15.8 12 21 12 21Z" stroke="currentColor" strokeWidth="1.8" />
               <circle cx="12" cy="10.8" r="2.2" stroke="currentColor" strokeWidth="1.8" />
             </svg>
-            <p className={styles.pillarTitle}>Roam</p>
-            <p className={styles.pillarSub}>Near me, maps, essentials</p>
+            <div className={styles.pillarCopy}>
+              <p className={styles.pillarTitle}>Roam</p>
+              <p className={styles.pillarSub}>Near me, maps, essentials</p>
+            </div>
+            <IconChevron />
           </button>
           <button type="button" className={`${styles.pillar} ${styles.pillarShare}`} disabled={!featuredTrip} onClick={() => openFeatured('journal')}>
             <svg className={styles.pillarIcon} viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -723,8 +756,11 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
               <circle cx="16" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.8" />
               <path d="M3.5 18c1.2-2.4 3-3.6 4.5-3.6S10.3 15.6 11.5 18M12.5 18c1.2-2.4 3-3.6 4.5-3.6s3.3 1.2 4.5 3.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
             </svg>
-            <p className={styles.pillarTitle}>Share</p>
-            <p className={styles.pillarSub}>Journal, photos, share updates</p>
+            <div className={styles.pillarCopy}>
+              <p className={styles.pillarTitle}>Share</p>
+              <p className={styles.pillarSub}>Journal, photos, updates</p>
+            </div>
+            <IconChevron />
           </button>
         </div>
 
@@ -756,13 +792,6 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
         </div>
         {nearActionMsg ? <p className={styles.feedback}>{nearActionMsg}</p> : null}
 
-        <div className={styles.homeSplitRow}>
-          <MobileHomeUpcoming trip={featuredTrip} onOpenTrip={onSelectTrip} />
-          <MobileIdeasJotter trip={featuredTrip} />
-        </div>
-
-        <MobileAddToTripMenu tripId={featuredTrip?.id} role={contextRole} onSelectTrip={onSelectTrip} />
-
         <div className={styles.sectionHead}>
           <h2 className={styles.sectionTitle}>
             {featuredTrip ? `Your trip to ${featuredTrip.destination || featuredTrip.title}` : 'Your trips'}
@@ -791,7 +820,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
         {featuredTrip ? (
           <button
             type="button"
-            className={styles.tripCard}
+            className={`${styles.tripCard} ${styles.tripCardFeatured}`}
             onClick={() => onSelectTrip(featuredTrip.id)}
             aria-label={`Open trip ${featuredTrip.title}`}
           >
@@ -810,6 +839,13 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
             </div>
           </button>
         ) : null}
+
+        <div className={styles.homeSplitRow}>
+          <MobileHomeUpcoming trip={featuredTrip} onOpenTrip={onSelectTrip} />
+          <MobileIdeasJotter trip={featuredTrip} />
+        </div>
+
+        <MobileAddToTripMenu tripId={featuredTrip?.id} role={contextRole} onSelectTrip={onSelectTrip} />
       </div>
     );
   }

@@ -145,12 +145,20 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-bottom: var(--space-5);
-  padding: 0.35rem 0.35rem 0.35rem 1rem;
+  margin-bottom: var(--space-3);
+  padding: 0.35rem 0.35rem 0.35rem 0.75rem;
   border-radius: 999px;
-  background: color-mix(in srgb, white 88%, var(--tl-cream));
+  background: color-mix(in srgb, white 92%, var(--tl-cream));
   border: 1px solid var(--tl-line);
   box-shadow: 0 8px 24px color-mix(in srgb, var(--tl-navy) 6%, transparent);
+}
+
+.aiSpark {
+  flex-shrink: 0;
+  color: var(--tl-gold-deep);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .aiInput {
@@ -173,7 +181,7 @@
   height: 2.6rem;
   border: none;
   border-radius: 999px;
-  background: var(--tl-navy);
+  background: #3b6fd9;
   color: white;
   display: inline-flex;
   align-items: center;
@@ -197,9 +205,23 @@
   cursor: pointer;
   min-height: 6.5rem;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   gap: var(--space-2);
   box-shadow: 0 10px 22px color-mix(in srgb, var(--tl-navy) 12%, transparent);
+}
+
+.pillarCopy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.pillarChevron {
+  flex-shrink: 0;
+  opacity: 0.9;
 }
 
 .pillar:disabled {
@@ -676,6 +698,15 @@
   gap: var(--space-2);
 }
 
+.avatarBtn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 999px;
+  line-height: 0;
+}
+
 .aiMic {
   flex-shrink: 0;
   width: 2rem;
@@ -779,11 +810,31 @@
 .upcomingItem {
   width: 100%;
   border: none;
-  background: color-mix(in srgb, var(--tl-cream-deep) 45%, white);
+  background: transparent;
   border-radius: 0.75rem;
-  padding: 0.55rem 0.65rem;
+  padding: 0.55rem 0;
   text-align: left;
   cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.upcomingMain {
+  min-width: 0;
+  flex: 1;
+}
+
+.upcomingPill {
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--tl-muted);
+  background: color-mix(in srgb, var(--tl-cream-deep) 55%, white);
+  border-radius: 999px;
+  padding: 0.2rem 0.45rem;
+  white-space: nowrap;
 }
 
 .upcomingDay {
@@ -825,8 +876,48 @@
 }
 
 .jotterAddBtn {
-  width: 2rem;
-  height: 2rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--tl-navy);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.45rem 0.75rem;
+}
+
+.jotterItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  font-size: 0.8rem;
+  color: var(--tl-ink);
+  padding: 0.35rem 0;
+}
+
+.jotterText {
+  display: block;
+  line-height: 1.35;
+}
+
+.homeCardFooter {
+  margin-top: 0.65rem;
+  border: none;
+  background: transparent;
+  color: var(--tl-rust);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.jotterHeadAdd {
+  width: 1.75rem;
+  height: 1.75rem;
   border: none;
   border-radius: 999px;
   background: var(--tl-navy);
@@ -836,17 +927,98 @@
   cursor: pointer;
 }
 
-.jotterItem {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.35rem;
-  font-size: 0.8rem;
-  color: var(--tl-ink);
+.jotterIcon {
+  flex-shrink: 0;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 0.45rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.jotterText {
+.jotterIcon_idea {
+  background: color-mix(in srgb, var(--tl-gold) 35%, white);
+  color: var(--tl-gold-deep);
+}
+
+.jotterIcon_place {
+  background: color-mix(in srgb, var(--tl-olive) 25%, white);
+  color: var(--tl-olive-deep);
+}
+
+.jotterIcon_photo {
+  background: color-mix(in srgb, var(--tl-rust) 20%, white);
+  color: var(--tl-rust-deep);
+}
+
+.jotterMain {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.jotterDate {
+  font-size: 0.65rem;
+  color: var(--tl-muted);
+}
+
+.tripCardFeatured {
+  margin-bottom: var(--space-4);
+}
+
+.addCtaCard {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  border-radius: 1.15rem;
+  background: color-mix(in srgb, var(--tl-olive) 12%, var(--tl-cream));
+  border: 1px solid color-mix(in srgb, var(--tl-olive) 18%, transparent);
+}
+
+.addCtaArt {
+  flex-shrink: 0;
+  color: var(--tl-olive-deep);
+  opacity: 0.85;
+}
+
+.addCtaBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.addCtaTitle {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--tl-navy);
+}
+
+.addCtaText {
+  margin: 0 0 0.65rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--tl-muted);
+}
+
+.addCtaBtnWrap {
+  position: relative;
+  display: inline-block;
+}
+
+.addCtaBtn {
+  border: none;
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
+  background: var(--tl-navy);
+  color: white;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .aiBadge {
@@ -860,44 +1032,12 @@
   padding: 0.1rem 0.35rem;
 }
 
-.addBannerWrap {
-  position: relative;
-  margin-bottom: var(--space-5);
-}
 
-.addBanner {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  border: none;
-  border-radius: 1rem;
-  padding: 0.85rem 1rem;
-  background: linear-gradient(135deg, var(--tl-olive), var(--tl-olive-deep));
-  color: white;
-  font-size: 0.95rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.addPlus {
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, white 22%, transparent);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  line-height: 1;
-}
-
-.addMenu {
+.addCtaCard .addMenu {
   position: absolute;
   left: 0;
-  right: 0;
   bottom: calc(100% + 0.35rem);
+  min-width: 12rem;
   z-index: 20;
   display: grid;
   gap: 0.25rem;
@@ -920,6 +1060,37 @@
   cursor: pointer;
 }
 
+.homeRoot[data-shell='ipad-portrait'] .tripCardFeatured {
+  grid-template-columns: 9rem 1fr;
+}
+
+.homeRoot[data-shell='ipad-portrait'] .tripCardFeatured .tripCardMedia {
+  min-height: 8.5rem;
+}
+
+.homeRoot[data-shell='ipad-portrait'] .tripCardFeatured .tripCardTitle {
+  font-size: 1.05rem;
+}
+
+.homeRoot[data-shell='ipad-portrait'] .pillar {
+  min-height: 5.5rem;
+}
+
+.homeRoot[data-shell='ipad-portrait'] .nearRow {
+  flex-wrap: wrap;
+  overflow: visible;
+  justify-content: space-between;
+}
+
 .homeRoot[data-shell='ipad-portrait'] .homeSplitRow {
   grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.homeRoot[data-shell='ipad-portrait'] .homeCard {
+  padding: var(--space-4);
+}
+
+.homeRoot[data-shell='ipad-portrait'] .addCtaCard {
+  padding: var(--space-5);
 }

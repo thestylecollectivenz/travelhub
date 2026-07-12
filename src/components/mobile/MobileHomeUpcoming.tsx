@@ -12,6 +12,12 @@ export interface MobileHomeUpcomingProps {
   onOpenTrip: (tripId: string, initialTab?: MobileTab) => void;
 }
 
+function countdownLabel(daysUntil: number): string {
+  if (daysUntil === 0) return 'Today';
+  if (daysUntil === 1) return 'In 1 day';
+  return `In ${daysUntil} days`;
+}
+
 export const MobileHomeUpcoming: React.FC<MobileHomeUpcomingProps> = ({ trip, onOpenTrip }) => {
   const spContext = useSpContext();
   const [items, setItems] = React.useState<HomeUpcomingItem[]>([]);
@@ -55,12 +61,7 @@ export const MobileHomeUpcoming: React.FC<MobileHomeUpcomingProps> = ({ trip, on
 
   return (
     <section className={styles.homeCard} aria-label="Upcoming">
-      <div className={styles.homeCardHead}>
-        <h3 className={styles.homeCardTitle}>Upcoming</h3>
-        <button type="button" className={styles.homeCardLink} onClick={() => onOpenTrip(trip.id, 'today')}>
-          Itinerary
-        </button>
-      </div>
+      <h3 className={styles.homeCardTitle}>Upcoming</h3>
       {loading ? <p className={styles.homeCardHint}>Loading…</p> : null}
       {!loading && !items.length ? (
         <p className={styles.homeCardHint}>No timed items coming up on this trip.</p>
@@ -73,16 +74,20 @@ export const MobileHomeUpcoming: React.FC<MobileHomeUpcomingProps> = ({ trip, on
               className={styles.upcomingItem}
               onClick={() => onOpenTrip(trip.id, 'today')}
             >
-              <span className={styles.upcomingDay}>
-                {item.dayLabel}
-                {item.daysUntil === 0 ? ' · Today' : item.daysUntil === 1 ? ' · Tomorrow' : item.daysUntil > 1 ? ` · in ${item.daysUntil}d` : ''}
+              <span className={styles.upcomingMain}>
+                <span className={styles.upcomingDay}>{item.dayLabel}</span>
+                <span className={styles.upcomingTitle}>{item.title}</span>
+                {item.sub ? <span className={styles.upcomingSub}>{item.sub}</span> : null}
               </span>
-              <span className={styles.upcomingTitle}>{item.title}</span>
-              {item.sub ? <span className={styles.upcomingSub}>{item.sub}</span> : null}
+              <span className={styles.upcomingPill}>{countdownLabel(item.daysUntil)}</span>
             </button>
           </li>
         ))}
       </ul>
+      <button type="button" className={styles.homeCardFooter} onClick={() => onOpenTrip(trip.id, 'today')}>
+        View full itinerary
+        <span aria-hidden> ›</span>
+      </button>
     </section>
   );
 };

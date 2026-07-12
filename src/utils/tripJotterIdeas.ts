@@ -1,12 +1,14 @@
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import { ReminderService, type TripReminder } from '../services/ReminderService';
-import { answerTravelChat } from '../services/GeminiService';
+import { generatePlainTextLines } from '../services/GeminiService';
 import { getCurrentUserEmail } from './currentUserEmail';
 import { travellerLabelForCurrentUser } from './tripMemberIdentity';
 import type { TripMember } from '../models/TripMember';
 import type { Trip } from '../models/Trip';
 
 export const JOTTER_IDEA_REMINDER_TYPE = 'JotterIdea';
+
+export type JotterIconKind = 'idea' | 'place' | 'photo';
 
 export interface JotterIdeaMeta {
   authorEmail?: string;
@@ -22,7 +24,14 @@ export interface JotterIdeaRow {
   isAi: boolean;
 }
 
+export interface JotterDisplayRow extends JotterIdeaRow {
+  ephemeral?: boolean;
+  icon: JotterIconKind;
+}
+
 export const JOTTER_IDEAS_CHANGED_EVENT = 'travelhub-jotter-ideas-changed';
+
+const JOTTER_ICON_CYCLE: JotterIconKind[] = ['idea', 'place', 'photo'];
 
 function notifyChanged(): void {
   window.dispatchEvent(new Event(JOTTER_IDEAS_CHANGED_EVENT));
@@ -58,13 +67,53 @@ function rowFromReminder(r: TripReminder): JotterIdeaRow {
   };
 }
 
+const INVALID_JOTTER_PATTERNS = [
+  /^current focus:/i,
+  /^latest traveller message:/i,
+  /^background trip data:/i,
+  /^reply for the current focus/i,
+  /^you are a helpful travel/i,
+  /^assistant:/i,
+  /^traveller:/i
+];
+
+export function isValidJotterIdeaText(text: string): boolean {
+  const t = text.trim();
+  if (t.length < 8 || t.length > 220) return false;
+  if (INVALID_JOTTER_PATTERNS.some((re) => re.test(t))) return false;
+  if (/^#{1,6}\s/.test(t)) return false;
+  return true;
+}
+
+function iconForIndex(index: number): JotterIconKind {
+  return JOTTER_ICON_CYCLE[index % JOTTER_ICON_CYCLE.length];
+}
+
 export async function loadJotterIdeas(spContext: WebPartContext, tripId: string): Promise<JotterIdeaRow[]> {
   const svc = new ReminderService(spContext);
   const rows = await svc.getForTrip(tripId);
   return rows
     .filter(isJotterIdeaReminder)
     .map(rowFromReminder)
+    .filter((r) => isValidJotterIdeaText(r.text))
     .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+}
+
+/** Remove persisted AI jotter rows with invalid/garbage text. */
+export async function purgeInvalidJotterAiIdeas(spContext: WebPartContext, tripId: string): Promise<void> {
+  const svc = new ReminderService(spContext);
+  const rows = await svc.getForTrip(tripId);
+  const invalid = rows.filter((r) => {
+    if (!isJotterIdeaReminder(r)) return false;
+    const meta = parseMeta(r.taskNote);
+    if (!meta.isAi) return false;
+    const text = r.reminderText || r.title || '';
+    return !isValidJotterIdeaText(text);
+  });
+  for (const row of invalid) {
+    await svc.delete(row.id);
+  }
+  if (invalid.length) notifyChanged();
 }
 
 export async function createJotterIdea(
@@ -75,6 +124,9 @@ export async function createJotterIdea(
   isAi = false
 ): Promise<JotterIdeaRow> {
   const trimmed = text.trim();
+  if (!isValidJotterIdeaText(trimmed)) {
+    throw new Error('Invalid jotter idea text');
+  }
   const svc = new ReminderService(spContext);
   const created = await svc.create({
     title: trimmed.slice(0, 80),
@@ -107,54 +159,88 @@ export function homeAiSuggestionChips(trip?: Trip): string[] {
   ];
 }
 
-function parseIdeaLines(answer: string, limit: number): string[] {
-  const lines = answer
-    .split(/\n+/)
-    .map((line) => line.replace(/^[\s*\-•\d.)]+/, '').trim())
-    .filter((line) => line.length > 8);
-  const unique = Array.from(new Set(lines));
-  return unique.slice(0, limit);
+function normalizeExcludeKey(text: string): string {
+  return text.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-/** Ask Gemini for short trip ideas (one line each). */
-export async function generateJotterAiIdeas(
+/** Ask Gemini for one fresh idea, avoiding itinerary and existing jotter text. */
+export async function fetchEphemeralJotterAiIdea(
   apiKey: string,
   trip: Trip | undefined,
-  count: number
-): Promise<string[]> {
+  excludeTexts: string[]
+): Promise<string | null> {
+  const key = (apiKey || '').trim();
+  if (!key) return null;
   const place = (trip?.destination || trip?.title || 'the trip').trim();
   const dates =
-    trip?.dateStart && trip?.dateEnd ? ` Dates: ${trip.dateStart.slice(0, 10)} to ${trip.dateEnd.slice(0, 10)}.` : '';
-  const prompt = `Suggest exactly ${count} short, specific travel ideas (one line each, no numbering) for ${place}.${dates} Mix activities, food, and experiences. Plain text only, one idea per line.`;
-  const { answer } = await answerTravelChat(apiKey, [{ role: 'user', text: prompt }], undefined, undefined);
-  return parseIdeaLines(answer, count);
+    trip?.dateStart && trip?.dateEnd ? ` Trip dates: ${trip.dateStart.slice(0, 10)} to ${trip.dateEnd.slice(0, 10)}.` : '';
+  const exclude = Array.from(new Set(excludeTexts.map(normalizeExcludeKey).filter(Boolean))).slice(0, 40);
+  const variety = `${Date.now() % 9973}`;
+  const excludeBlock = exclude.length
+    ? `\nDo NOT suggest anything already on the itinerary or jotter. Already covered:\n${exclude.map((x) => `- ${x}`).join('\n')}\n`
+    : '';
+  const prompt = `Suggest exactly 1 short, specific new travel idea (one line only) for ${place}.${dates}${excludeBlock}
+Mix activities, food, or experiences. Variety seed: ${variety}. Plain text only.`;
+  try {
+    const lines = await generatePlainTextLines(key, prompt, 1);
+    const line = lines.find((l) => isValidJotterIdeaText(l));
+    return line?.trim() || null;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('fetchEphemeralJotterAiIdea failed', err);
+    return null;
+  }
 }
 
-/** Load jotter ideas and top up with AI-labelled rows when fewer than minCount. */
-export async function ensureJotterDisplayIdeas(
+/**
+ * Home jotter display: prioritise user ideas, always include 1 fresh ephemeral AI idea.
+ */
+export async function buildJotterHomeDisplay(
   spContext: WebPartContext,
   tripId: string,
   trip: Trip | undefined,
   members: TripMember[] | undefined,
   apiKey: string | undefined,
-  minCount = 3
-): Promise<JotterIdeaRow[]> {
-  let rows = await loadJotterIdeas(spContext, tripId);
-  if (rows.length >= minCount) return rows.slice(0, minCount);
-  const need = minCount - rows.length;
-  const key = (apiKey || '').trim();
-  if (need > 0 && key) {
-    try {
-      const generated = await generateJotterAiIdeas(key, trip, need);
-      for (const text of generated) {
-        if (!text.trim()) continue;
-        await createJotterIdea(spContext, tripId, text, members, true);
-      }
-      rows = await loadJotterIdeas(spContext, tripId);
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn('ensureJotterDisplayIdeas: AI top-up failed', err);
-    }
+  itineraryTitles: string[],
+  displayLimit = 3
+): Promise<JotterDisplayRow[]> {
+  await purgeInvalidJotterAiIdeas(spContext, tripId).catch(console.error);
+
+  const all = await loadJotterIdeas(spContext, tripId);
+  const userIdeas = all.filter((r) => !r.isAi);
+  const excludeTexts = [
+    ...all.map((r) => r.text),
+    ...itineraryTitles.filter(Boolean)
+  ];
+
+  const expanded = displayLimit > 3;
+  const maxUser = userIdeas.length > 0 ? (expanded ? userIdeas.length : Math.min(2, displayLimit - 1)) : 0;
+  const pickedUsers = userIdeas.slice(0, maxUser);
+  const rows: JotterDisplayRow[] = pickedUsers.map((r, i) => ({
+    ...r,
+    icon: iconForIndex(i)
+  }));
+
+  const aiText = await fetchEphemeralJotterAiIdea(apiKey || '', trip, excludeTexts);
+  if (aiText) {
+    rows.push({
+      id: `ephemeral-ai-${Date.now()}`,
+      tripId,
+      text: aiText,
+      createdAt: new Date().toISOString(),
+      authorLabel: 'AI',
+      isAi: true,
+      ephemeral: true,
+      icon: iconForIndex(rows.length)
+    });
   }
-  return rows.slice(0, minCount);
+
+  let nextUserIdx = maxUser;
+  while (rows.length < displayLimit && nextUserIdx < userIdeas.length) {
+    const r = userIdeas[nextUserIdx];
+    rows.push({ ...r, icon: iconForIndex(rows.length) });
+    nextUserIdx += 1;
+  }
+
+  return rows.slice(0, displayLimit);
 }

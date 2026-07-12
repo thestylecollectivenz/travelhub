@@ -125,7 +125,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
         position: 'fixed',
         inset: 0,
         background: 'rgba(0,0,0,0.28)',
-        zIndex: 1200,
+        zIndex: 10050,
         display: 'flex',
         justifyContent: 'flex-end'
       }}
