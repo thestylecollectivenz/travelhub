@@ -28,6 +28,42 @@ export function assigneeLabelMatchesCurrentUser(
   return false;
 }
 
+/** Resolve a stored assignee label or email to the trip member display name when possible. */
+export function resolveTravellerDisplayLabel(
+  labelOrEmail: string | undefined,
+  members?: TripMember[]
+): string | undefined {
+  const raw = (labelOrEmail ?? '').trim();
+  if (!raw) return undefined;
+  const n = norm(raw);
+  for (const m of members ?? []) {
+    const email = norm(m.userEmail);
+    const display = norm(m.userDisplayName);
+    if (email === n || display === n) {
+      const name = (m.userDisplayName || '').trim();
+      return name || m.userEmail;
+    }
+    const local = m.userEmail.split('@')[0];
+    if (local && norm(local) === n) {
+      const name = (m.userDisplayName || '').trim();
+      return name || m.userEmail;
+    }
+  }
+  if (!raw.includes('@')) return raw;
+  return undefined;
+}
+
+/** Label for new rows — prefers TripMembers traveller name over SharePoint login/email. */
+export function travellerLabelForCurrentUser(ctx: WebPartContext, members?: TripMember[]): string {
+  const fromCompanion = companionAssigneeLabel(ctx, members ?? []);
+  if (fromCompanion) return fromCompanion;
+  const display = ctx.pageContext.user.displayName?.trim();
+  if (display && !display.includes('@')) return display;
+  const resolved = resolveTravellerDisplayLabel(getCurrentUserEmail(ctx), members);
+  if (resolved && !resolved.includes('@')) return resolved;
+  return display || resolved || getCurrentUserEmail(ctx);
+}
+
 /** True when filter label matches item label (exact or same user identity). */
 export function assigneeLabelsMatch(
   ctx: WebPartContext,

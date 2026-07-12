@@ -9,11 +9,12 @@ import { confirmUserAction } from '../../utils/confirmAction';
 import {
   buildDayIdeaMetaForCreate,
   DAY_IDEA_REMINDER_TYPE,
+  formatDayIdeaAuthor,
   formatDayIdeaStamp,
   isDayIdeaAuthor,
   isDayIdeaUnread
 } from '../../utils/dayIdeas';
-import { getCurrentUserDisplayName } from '../../utils/currentUserEmail';
+import { travellerLabelForCurrentUser } from '../../utils/tripMemberIdentity';
 import { notifyDayIdeasChanged } from '../../hooks/useTripDayIdeas';
 import styles from './MobileItinerary.module.css';
 
@@ -78,7 +79,7 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId }) => {
         reminderType: DAY_IDEA_REMINDER_TYPE,
         reminderText: text,
         taskNote: buildDayIdeaMetaForCreate(spContext),
-        assignedTo: getCurrentUserDisplayName(spContext),
+        assignedTo: travellerLabelForCurrentUser(spContext, members),
         isComplete: false,
         dueDate: new Date().toISOString(),
         entryId: ''
@@ -119,6 +120,7 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId }) => {
             const editing = editingId === row.id;
             const unread = isDayIdeaUnread(row, spContext, members);
             const manageable = canManageRow(row);
+            const authorLabel = formatDayIdeaAuthor(row, members);
             return (
               <li
                 key={row.id}
@@ -153,7 +155,7 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId }) => {
                     </div>
                   )}
                   <p className={styles.dayIdeaMeta}>
-                    {row.assignedTo?.trim() ? `${row.assignedTo.trim()} · ` : ''}
+                    {authorLabel ? `${authorLabel} · ` : ''}
                     {formatDayIdeaStamp(row.dueDate)}
                   </p>
                 </div>

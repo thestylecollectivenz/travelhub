@@ -2,7 +2,7 @@ import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import type { TripMember } from '../models/TripMember';
 import type { TripReminder } from '../services/ReminderService';
 import { getCurrentUserEmail } from './currentUserEmail';
-import { assigneeLabelMatchesCurrentUser } from './tripMemberIdentity';
+import { assigneeLabelMatchesCurrentUser, resolveTravellerDisplayLabel } from './tripMemberIdentity';
 
 export const DAY_IDEA_REMINDER_TYPE = 'DayIdea';
 
@@ -25,6 +25,19 @@ export function formatDayIdeaStamp(iso?: string): string {
     hour: 'numeric',
     minute: '2-digit'
   });
+}
+
+/** Traveller-facing author label — resolves email/login to TripMembers display name. */
+export function formatDayIdeaAuthor(reminder: TripReminder, members?: TripMember[]): string | undefined {
+  const fromAssigned = resolveTravellerDisplayLabel(reminder.assignedTo, members);
+  if (fromAssigned) return fromAssigned;
+  const meta = parseDayIdeaMeta(reminder.taskNote);
+  if (meta.authorEmail) {
+    const fromAuthor = resolveTravellerDisplayLabel(meta.authorEmail, members);
+    if (fromAuthor) return fromAuthor;
+  }
+  const fallback = (reminder.assignedTo ?? '').trim();
+  return fallback || undefined;
 }
 
 function normEmail(email: string | undefined): string {

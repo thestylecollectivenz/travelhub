@@ -1,6 +1,7 @@
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import * as React from 'react';
 import type { TripDay } from '../../models/TripDay';
+import type { TripMember } from '../../models/TripMember';
 import type { TripReminder } from '../../services/ReminderService';
 import { useSpContext } from '../../context/SpContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
@@ -11,13 +12,14 @@ import { ReminderService } from '../../services/ReminderService';
 import { confirmUserAction } from '../../utils/confirmAction';
 import {
   buildDayIdeaMetaForCreate,
+  formatDayIdeaAuthor,
   formatDayIdeaStamp,
   isDayIdeaAuthor,
   isDayIdeaUnread,
   matchesDayIdeaStatus,
   type DayIdeaStatusFilter
 } from '../../utils/dayIdeas';
-import { getCurrentUserDisplayName } from '../../utils/currentUserEmail';
+import { travellerLabelForCurrentUser } from '../../utils/tripMemberIdentity';
 import { notifyDayIdeasChanged } from '../../hooks/useTripDayIdeas';
 import styles from './TripDayIdeasView.module.css';
 
@@ -175,6 +177,7 @@ export const TripDayIdeasView: React.FC<TripDayIdeasViewProps> = ({
                   const unread = isDayIdeaUnread(row, spContext, members);
                   const editing = editingId === row.id;
                   const manageable = canManageRow(row);
+                  const authorLabel = formatDayIdeaAuthor(row, members);
                   return (
                     <li
                       key={row.id}
@@ -207,7 +210,7 @@ export const TripDayIdeasView: React.FC<TripDayIdeasViewProps> = ({
                           {row.isComplete ? <span className={styles.agreedBadge}>Agreed</span> : null}
                         </div>
                         <p className={styles.meta}>
-                          {row.assignedTo?.trim() ? `${row.assignedTo.trim()} · ` : ''}
+                          {authorLabel ? `${authorLabel} · ` : ''}
                           {formatDayIdeaStamp(row.dueDate)}
                         </p>
                       </div>
@@ -258,7 +261,7 @@ export async function createDayIdea(
   tripId: string,
   dayId: string,
   text: string,
-  authorDisplayName: string
+  members?: TripMember[]
 ): Promise<void> {
   const svc = new ReminderService(spContext);
   await svc.create({
@@ -268,7 +271,7 @@ export async function createDayIdea(
     reminderType: 'DayIdea',
     reminderText: text,
     taskNote: buildDayIdeaMetaForCreate(spContext),
-    assignedTo: authorDisplayName,
+    assignedTo: travellerLabelForCurrentUser(spContext, members),
     isComplete: false,
     dueDate: new Date().toISOString(),
     entryId: ''
