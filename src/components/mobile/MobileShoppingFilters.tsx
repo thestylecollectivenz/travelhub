@@ -5,7 +5,8 @@ import { useSpContext } from '../../context/SpContext';
 import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
 import { useTripPermissions } from '../../hooks/useTripPermissions';
 import { confirmUserAction } from '../../utils/confirmAction';
-import styles from './MobileShell.module.css';
+import chrome from './MobileTabChrome.module.css';
+import shell from './MobileShell.module.css';
 
 /** Compact shopping category + traveller filters for mobile lists tab. */
 export const MobileShoppingFilters: React.FC<{ travellers: string[] }> = ({ travellers }) => {
@@ -24,23 +25,32 @@ export const MobileShoppingFilters: React.FC<{ travellers: string[] }> = ({ trav
   const traveller = plan.shoppingTraveller ?? null;
   const category = plan.shoppingCategory ?? '__all__';
 
+  const month = plan.shoppingMonthFilter ?? null;
+
   return (
-    <div className={styles.mobileListFilters}>
-      <div className={styles.filterGroup}>
-        <span className={styles.filterLabel}>Traveller</span>
-        <div className={styles.filterChips}>
+    <div className={chrome.filterPanel}>
+      <div>
+        <p className={chrome.filterGroupTitle}>Assigned to</p>
+        <div className={chrome.chipRow}>
           <button
             type="button"
-            className={`${styles.pagerBtn} ${traveller === null ? styles.pagerBtnActive : ''}`}
+            className={`${chrome.chip} ${traveller === null ? chrome.chipActive : ''}`}
             onClick={() => plan.setShoppingTraveller(null)}
           >
             All
+          </button>
+          <button
+            type="button"
+            className={`${chrome.chip} ${traveller === '__unassigned__' ? chrome.chipActive : ''}`}
+            onClick={() => plan.setShoppingTraveller('__unassigned__')}
+          >
+            Unassigned
           </button>
           {travellers.map((name) => (
             <button
               key={name}
               type="button"
-              className={`${styles.pagerBtn} ${traveller === name ? styles.pagerBtnActive : ''}`}
+              className={`${chrome.chip} ${traveller === name ? chrome.chipActive : ''}`}
               onClick={() => plan.setShoppingTraveller(name)}
             >
               {name}
@@ -49,21 +59,28 @@ export const MobileShoppingFilters: React.FC<{ travellers: string[] }> = ({ trav
         </div>
       </div>
 
-      <div className={styles.filterGroup}>
-        <span className={styles.filterLabel}>Categories</span>
-        <div className={styles.filterChips}>
+      <div>
+        <p className={chrome.filterGroupTitle}>Categories</p>
+        <div className={chrome.chipRow}>
           <button
             type="button"
-            className={`${styles.pagerBtn} ${category === '__all__' ? styles.pagerBtnActive : ''}`}
+            className={`${chrome.chip} ${category === '__all__' ? chrome.chipActive : ''}`}
             onClick={() => plan.setShoppingCategory('__all__')}
           >
             All
+          </button>
+          <button
+            type="button"
+            className={`${chrome.chip} ${category === '__uncategorised__' ? chrome.chipActive : ''}`}
+            onClick={() => plan.setShoppingCategory('__uncategorised__')}
+          >
+            Uncategorised
           </button>
           {categories.map((c) => (
             <button
               key={c}
               type="button"
-              className={`${styles.pagerBtn} ${category === c ? styles.pagerBtnActive : ''}`}
+              className={`${chrome.chip} ${category === c ? chrome.chipActive : ''}`}
               onClick={() => plan.setShoppingCategory(c)}
             >
               {c}
@@ -71,9 +88,9 @@ export const MobileShoppingFilters: React.FC<{ travellers: string[] }> = ({ trav
           ))}
         </div>
         {canManageTrip ? (
-        <div className={styles.filterAddRow}>
+        <div className={shell.filterAddRow}>
           <input
-            className={styles.dateInput}
+            className={shell.dateInput}
             placeholder="New category"
             value={newCategoryName}
             onChange={(e) => setNewCategoryName(e.target.value)}
@@ -88,7 +105,7 @@ export const MobileShoppingFilters: React.FC<{ travellers: string[] }> = ({ trav
           />
           <button
             type="button"
-            className={styles.pagerBtn}
+            className={chrome.chip}
             onClick={() => {
               const next = newCategoryName.trim();
               if (!next) return;
@@ -105,26 +122,26 @@ export const MobileShoppingFilters: React.FC<{ travellers: string[] }> = ({ trav
           <>
             <button
               type="button"
-              className={styles.pagerBtn}
+              className={chrome.chip}
               onClick={() => setManageOpen((v) => !v)}
             >
               {manageOpen ? 'Hide category manager' : 'Manage categories'}
             </button>
             {manageOpen ? (
-          <ul className={styles.categoryManageList}>
+          <ul className={shell.categoryManageList}>
             {categories.map((c) => (
-              <li key={c} className={styles.categoryManageRow}>
+              <li key={c} className={shell.categoryManageRow}>
                 {editingCategory === c ? (
                   <>
                     <input
-                      className={styles.dateInput}
+                      className={shell.dateInput}
                       value={editCategoryName}
                       onChange={(e) => setEditCategoryName(e.target.value)}
                       aria-label="Category name"
                     />
                     <button
                       type="button"
-                      className={styles.pagerBtn}
+                      className={chrome.chip}
                       onClick={() => {
                         void (async () => {
                           const next = editCategoryName.trim();
@@ -143,13 +160,13 @@ export const MobileShoppingFilters: React.FC<{ travellers: string[] }> = ({ trav
                   </>
                 ) : (
                   <>
-                    <span className={styles.filterLabel}>{c}</span>
-                    <button type="button" className={styles.pagerBtn} onClick={() => { setEditingCategory(c); setEditCategoryName(c); }}>
+                    <span className={shell.filterLabel}>{c}</span>
+                    <button type="button" className={chrome.chip} onClick={() => { setEditingCategory(c); setEditCategoryName(c); }}>
                       Rename
                     </button>
                     <button
                       type="button"
-                      className={styles.pagerBtn}
+                      className={chrome.chip}
                       onClick={() => {
                         void (async () => {
                           if (!(await confirmUserAction(`Delete category "${c}"?`))) return;
@@ -168,6 +185,26 @@ export const MobileShoppingFilters: React.FC<{ travellers: string[] }> = ({ trav
             ) : null}
           </>
         ) : null}
+      </div>
+
+      <div>
+        <p className={chrome.filterGroupTitle}>Buy by month</p>
+        <div className={chrome.chipRow}>
+          <button
+            type="button"
+            className={`${chrome.chip} ${month === null ? chrome.chipActive : ''}`}
+            onClick={() => plan.setShoppingMonthFilter(null)}
+          >
+            All months
+          </button>
+          <button
+            type="button"
+            className={`${chrome.chip} ${month === '__unscheduled__' ? chrome.chipActive : ''}`}
+            onClick={() => plan.setShoppingMonthFilter('__unscheduled__')}
+          >
+            Unscheduled
+          </button>
+        </div>
       </div>
     </div>
   );

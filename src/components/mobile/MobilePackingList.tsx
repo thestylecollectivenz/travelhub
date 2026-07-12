@@ -12,7 +12,7 @@ import styles from './MobileShell.module.css';
 
 const CATEGORIES = ['Clothing', 'Shoes', 'Accessories', 'Toiletries', 'Electronics', 'Documents', 'Medications', 'Other'];
 
-export const MobilePackingList: React.FC = () => {
+export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const spContext = useSpContext();
   const { trip } = useTripWorkspace();
   const planView = usePlanView();
@@ -113,20 +113,29 @@ export const MobilePackingList: React.FC = () => {
 
   return (
     <section className={styles.mobileListSection} aria-label="Packing list">
-      <div className={styles.mobileListHeader}>
-        <div>
-          <h2 className={styles.mobileListTitle}>Packing</h2>
-          <p className={styles.mobileListMeta}>
-            {packedCount} of {filtered.length} packed
-            {activeTraveller ? ` · ${activeTraveller}` : ''}
-          </p>
+      {!embedded ? (
+        <div className={styles.mobileListHeader}>
+          <div>
+            <h2 className={styles.mobileListTitle}>Packing</h2>
+            <p className={styles.mobileListMeta}>
+              {packedCount} of {filtered.length} packed
+              {activeTraveller ? ` · ${activeTraveller}` : ''}
+            </p>
+          </div>
+          {canAdd ? (
+            <button type="button" className={styles.mobileFab} onClick={() => setAddOpen((v) => !v)}>
+              {addOpen ? 'Close' : '+ Add'}
+            </button>
+          ) : null}
         </div>
-        {canAdd ? (
+      ) : canAdd ? (
+        <div className={styles.mobileListHeader}>
+          <span />
           <button type="button" className={styles.mobileFab} onClick={() => setAddOpen((v) => !v)}>
-            {addOpen ? 'Close' : '+ Add'}
+            {addOpen ? 'Close' : '+ Add item'}
           </button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
       <div className={styles.mobileListOptionsRow}>
         <button type="button" className={styles.pagerBtn} onClick={() => setSortAlpha((v) => !v)}>
           {sortAlpha ? 'A-Z' : 'By category'}

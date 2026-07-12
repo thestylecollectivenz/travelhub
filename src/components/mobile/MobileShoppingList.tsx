@@ -18,7 +18,7 @@ import { useCompanionListDefaults } from '../../hooks/useCompanionListDefaults';
 import { assigneeLabelsMatch, resolveOwnerEmailForAssignee } from '../../utils/tripMemberIdentity';
 import styles from './MobileShell.module.css';
 
-export const MobileShoppingList: React.FC = () => {
+export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const spContext = useSpContext();
   const { trip } = useTripWorkspace();
   const { config } = useConfig();
@@ -167,23 +167,32 @@ export const MobileShoppingList: React.FC = () => {
 
   return (
     <section className={styles.mobileListSection} aria-label="Shopping list">
-      <div className={styles.mobileListHeader}>
-        <div>
-          <h2 className={styles.mobileListTitle}>Shopping</h2>
-          <p className={styles.mobileListMeta}>
-            {filtered.length} items
-            {activeTraveller ? ` · ${activeTraveller}` : ''}
-            {canSeeFinancials
-              ? ` · Budget ${formatCurrency(summary.totals.budget, config.homeCurrency)}`
-              : ''}
-          </p>
+      {!embedded ? (
+        <div className={styles.mobileListHeader}>
+          <div>
+            <h2 className={styles.mobileListTitle}>Shopping</h2>
+            <p className={styles.mobileListMeta}>
+              {filtered.length} items
+              {activeTraveller ? ` · ${activeTraveller}` : ''}
+              {canSeeFinancials
+                ? ` · Budget ${formatCurrency(summary.totals.budget, config.homeCurrency)}`
+                : ''}
+            </p>
+          </div>
+          {canAdd ? (
+            <button type="button" className={styles.mobileFab} onClick={() => setAddOpen((v) => !v)}>
+              {addOpen ? 'Close' : '+ Add'}
+            </button>
+          ) : null}
         </div>
-        {canAdd ? (
+      ) : canAdd ? (
+        <div className={styles.mobileListHeader}>
+          <span />
           <button type="button" className={styles.mobileFab} onClick={() => setAddOpen((v) => !v)}>
-            {addOpen ? 'Close' : '+ Add'}
+            {addOpen ? 'Close' : '+ Add item'}
           </button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
       <div className={styles.mobileListOptionsRow}>
         <button type="button" className={styles.pagerBtn} onClick={() => setSortAlpha((v) => !v)}>
           {sortAlpha ? 'A-Z' : 'Created'}
