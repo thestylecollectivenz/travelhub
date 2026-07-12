@@ -84,7 +84,7 @@ const TABS: Array<{ id: MobileTab; label: string; icon: React.ReactNode }> = [
 ];
 
 export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initialTab, shellMode = 'phone' }) => {
-  const { trip, tripDays, selectedDayId } = useTripWorkspace();
+  const { trip, tripDays, selectedDayId, reloadItineraryEntries } = useTripWorkspace();
   const spContext = useSpContext();
   const { canUseAiHelpers, canEditItinerary } = useTripPermissions();
   const [tab, setTab] = React.useState<MobileTab>(initialTab ?? 'today');
@@ -151,8 +151,9 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
         currency: 'NZD',
         sortOrder: 999
       });
+      await reloadItineraryEntries();
     },
-    [trip, tripDays, selectedDayId, spContext]
+    [trip, tripDays, selectedDayId, spContext, reloadItineraryEntries]
   );
 
   let body: React.ReactNode;
@@ -179,6 +180,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
       data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}
     >
       <header className={styles.mobileHeader}>
+        <div className={styles.headerStart}>
         {cardDetailOpen && tab === 'today' ? (
           <button
             type="button"
@@ -201,6 +203,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
         ) : (
           <span className={styles.headerSpacer} aria-hidden />
         )}
+        </div>
         <h1 className={styles.headerTitle}>{trip?.title ?? 'Trip'}</h1>
         <div className={styles.headerActions}>
           <button

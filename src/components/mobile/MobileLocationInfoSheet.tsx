@@ -5,7 +5,8 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useTripPermissions } from '../../hooks/useTripPermissions';
 import { useSpContext } from '../../context/SpContext';
 import { compactPlaceLabel } from '../../utils/placeDisplayLabel';
-import { parseLocationInfoNotes } from '../../utils/locationInfoEntry';
+import { parseLocationInfoNotes, serializeLocationInfoNotes } from '../../utils/locationInfoEntry';
+import { appendNearYouPlaceToLocationInfo } from '../../utils/nearYouLocationSave';
 import { usePlaces } from '../../context/PlacesContext';
 import { ItineraryService } from '../../services/ItineraryService';
 import { ItineraryCardEdit } from '../itinerary/ItineraryCardEdit';
@@ -14,6 +15,7 @@ import { MobileLocationHighlightsEdit } from './MobileLocationHighlightsEdit';
 import { MobileNearYouResults } from './MobileNearYouResults';
 import { MobilePencilButton } from './MobilePencilButton';
 import type { NearYouToolId } from '../../utils/nearYouTools';
+import { NEAR_YOU_TOOLS } from '../../utils/nearYouTools';
 import { useShellMode } from '../../hooks/useShellMode';
 import cardStyles from '../itinerary/ItineraryCard.module.css';
 import styles from './MobileLocationInfo.module.css';
@@ -29,7 +31,8 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   calendarDate,
   onClose
 }) => {
-  const { trip, tripDays, selectedDayId, editingCardId, setEditingCardId, updateEntry } = useTripWorkspace();
+  const { trip, tripDays, selectedDayId, editingCardId, setEditingCardId, updateEntry, reloadItineraryEntries } =
+    useTripWorkspace();
   const { canEditItinerary, canUseAiHelpers } = useTripPermissions();
   const shellMode = useShellMode();
   const spContext = useSpContext();
@@ -38,20 +41,36 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   const [highlightsEditOpen, setHighlightsEditOpen] = React.useState(false);
   const [nearActionMsg, setNearActionMsg] = React.useState('');
 
-  const saveNearPlace = React.useCallback((place: { name: string; note?: string; mapsUrl?: string }): void => {
-    try {
-      const key = 'travelhub-near-you-saved';
-      const raw = window.localStorage.getItem(key);
-      const prev = raw ? (JSON.parse(raw) as unknown[]) : [];
-      const list = Array.isArray(prev) ? prev : [];
-      list.unshift({ ...place, savedAt: new Date().toISOString() });
-      window.localStorage.setItem(key, JSON.stringify(list.slice(0, 40)));
+  const saveNearPlace = React.useCallback(
+    (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string }): boolean => {
+      const data = parseLocationInfoNotes(entry?.notes);
+      if (!entry || !data || !nearToolId) {
+        setNearActionMsg('Could not save to this location.');
+        window.setTimeout(() => setNearActionMsg(''), 2500);
+        return false;
+      }
+      const toolKind = NEAR_YOU_TOOLS.find((t) => t.id === nearToolId)?.kind;
+      const countFor = (notes: typeof data): number =>
+        nearToolId === 'dining'
+          ? (notes.diningSuggestions ?? []).length
+          : toolKind
+            ? (notes.nearestPlaces?.[toolKind] ?? []).length
+            : 0;
+      const before = countFor(data);
+      const updated = appendNearYouPlaceToLocationInfo(data, nearToolId, place);
+      const after = countFor(updated);
+      if (after <= before) {
+        setNearActionMsg(`${place.name} is already saved here.`);
+        window.setTimeout(() => setNearActionMsg(''), 2500);
+        return false;
+      }
+      updateEntry({ ...entry, notes: serializeLocationInfoNotes(updated) });
       setNearActionMsg(`Saved ${place.name}`);
       window.setTimeout(() => setNearActionMsg(''), 2500);
-    } catch {
-      setNearActionMsg('Could not save place on this device.');
-    }
-  }, []);
+      return true;
+    },
+    [entry, nearToolId, updateEntry]
+  );
 
   const addNearToItinerary = React.useCallback(
     async (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string }): Promise<void> => {
@@ -84,6 +103,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
           currency: 'NZD',
           sortOrder: 999
         });
+        await reloadItineraryEntries();
         setNearActionMsg(`Added “${place.name}” to itinerary`);
         window.setTimeout(() => setNearActionMsg(''), 2800);
       } catch (err) {
@@ -91,7 +111,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
         window.setTimeout(() => setNearActionMsg(''), 3200);
       }
     },
-    [trip, tripDays, selectedDayId, spContext]
+    [trip, tripDays, selectedDayId, spContext, reloadItineraryEntries]
   );
 
   React.useEffect(() => {

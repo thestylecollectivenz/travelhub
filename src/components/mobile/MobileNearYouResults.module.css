@@ -5,13 +5,13 @@
   --ny-muted: #6b6570;
   --ny-line: color-mix(in srgb, #1e2a44 10%, transparent);
   --ny-serif: Georgia, 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
-  padding-bottom: 5rem;
+  padding-bottom: calc(5.75rem + env(safe-area-inset-bottom, 0));
   color: var(--ny-navy);
 }
 
 .topBar {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr minmax(0, 2fr) 1fr;
   gap: 0.75rem;
   align-items: center;
   margin-bottom: 0.75rem;
@@ -25,11 +25,16 @@
   font-weight: 650;
   cursor: pointer;
   padding: 0;
+  justify-self: start;
+  grid-column: 1;
+  text-align: left;
 }
 
 .tripMeta {
   min-width: 0;
   text-align: center;
+  grid-column: 2;
+  justify-self: center;
 }
 
 .tripTitle {
@@ -77,6 +82,8 @@
   font-size: 1rem;
   cursor: pointer;
   line-height: 1;
+  grid-column: 3;
+  justify-self: end;
 }
 
 .refreshBtn:disabled {

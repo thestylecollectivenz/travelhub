@@ -69,9 +69,23 @@
 }
 
 .highlightsGrid {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
+}
+
+.highlightsRow {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 0;
+  align-items: stretch;
+}
+
+.highlightSep {
+  width: 1px;
+  background: color-mix(in srgb, #1e2a44 12%, transparent);
+  margin: 0 0.65rem;
+  align-self: stretch;
 }
 
 .highlightCol {
@@ -213,15 +227,13 @@
 }
 
 @media (min-width: 480px) {
-  .highlightsGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem 1.15rem;
+  .highlightsRow {
+    gap: 0;
   }
 }
 
 [data-shell='ipad-portrait'] .highlightsGrid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.15rem 1.35rem;
+  gap: 1.15rem;
 }
 
 [data-shell='ipad-portrait'] .highlightKind {
@@ -238,7 +250,6 @@
 
 @media (min-width: 1024px) {
   .highlightsGrid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 1rem;
   }
 

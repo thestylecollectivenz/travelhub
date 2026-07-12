@@ -20,6 +20,8 @@ export interface LocationInfoAskPanelProps {
   data: LocationInfoNotes;
   geminiApiKey: string;
   readOnly?: boolean;
+  mobileLayout?: boolean;
+  hideIntro?: boolean;
   onOpenSettings?: () => void;
   onThreadChange?: (thread: LocationInfoQaEntry[]) => void;
 }
@@ -30,6 +32,8 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
   data,
   geminiApiKey,
   readOnly = false,
+  mobileLayout = false,
+  hideIntro = false,
   onOpenSettings,
   onThreadChange
 }) => {
@@ -38,7 +42,8 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
   const [asking, setAsking] = React.useState(false);
   const [askError, setAskError] = React.useState<string | undefined>();
   const [editingId, setEditingId] = React.useState<string | null>(null);
-  const [editDraft, setEditDraft] = React.useState('');
+  const [editQuestionDraft, setEditQuestionDraft] = React.useState('');
+  const [editAnswerDraft, setEditAnswerDraft] = React.useState('');
   const [voiceError, setVoiceError] = React.useState<string | undefined>();
   const [autoReadAnswers, setAutoReadAnswers] = React.useState(false);
   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(() => new Set());
@@ -122,11 +127,17 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
   }
 
   return (
-    <section className={styles.root} aria-label="Ask about this place">
+    <section className={`${styles.root} ${mobileLayout ? styles.mobileRoot : ''}`} aria-label="Ask about this place">
+      {!hideIntro ? (
       <h4 className={styles.intro}>
         Ask AI about this place (separate from highlights and overview). Answers are saved here and never overwrite your
         lists.
       </h4>
+      ) : (
+        <p className={styles.mobileIntro}>
+          Ask AI about this place. Answers are saved here and never overwrite your lists.
+        </p>
+      )}
       {thread.length ? (
         <div className={styles.thread}>
           {thread.map((item) => {
@@ -147,12 +158,28 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
                 {expanded ? (
                   <div className={styles.qaBody}>
                     {editingId === item.id ? (
-                      <textarea
-                        className={styles.editArea}
-                        rows={5}
-                        value={editDraft}
-                        onChange={(e) => setEditDraft(e.target.value)}
-                      />
+                      <div className={styles.editStack}>
+                        <label className={styles.editLabel} htmlFor={`qa-q-edit-${item.id}`}>
+                          Question
+                        </label>
+                        <textarea
+                          id={`qa-q-edit-${item.id}`}
+                          className={styles.editArea}
+                          rows={2}
+                          value={editQuestionDraft}
+                          onChange={(e) => setEditQuestionDraft(e.target.value)}
+                        />
+                        <label className={styles.editLabel} htmlFor={`qa-a-edit-${item.id}`}>
+                          Answer
+                        </label>
+                        <textarea
+                          id={`qa-a-edit-${item.id}`}
+                          className={styles.editArea}
+                          rows={5}
+                          value={editAnswerDraft}
+                          onChange={(e) => setEditAnswerDraft(e.target.value)}
+                        />
+                      </div>
                     ) : isLikelyJournalHtml(item.answer) ? (
                       <div className={styles.answer}>
                         <RichTextContent html={item.answer} />
@@ -180,15 +207,26 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
                               type="button"
                               className={styles.qaBtn}
                               onClick={() => {
-                                const answer = editDraft.trim();
-                                if (!answer) return;
-                                updateThread(thread.map((t) => (t.id === item.id ? { ...t, answer } : t)));
+                                const question = editQuestionDraft.trim();
+                                const answer = editAnswerDraft.trim();
+                                if (!question || !answer) return;
+                                updateThread(
+                                  thread.map((t) => (t.id === item.id ? { ...t, question, answer } : t))
+                                );
                                 setEditingId(null);
                               }}
                             >
                               Save
                             </button>
-                            <button type="button" className={styles.qaBtn} onClick={() => setEditingId(null)}>
+                            <button
+                              type="button"
+                              className={styles.qaBtn}
+                              onClick={() => {
+                                setEditingId(null);
+                                setEditQuestionDraft('');
+                                setEditAnswerDraft('');
+                              }}
+                            >
                               Cancel
                             </button>
                           </>
@@ -199,7 +237,8 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
                               className={styles.qaBtn}
                               onClick={() => {
                                 setEditingId(item.id);
-                                setEditDraft(richTextToPlainText(item.answer));
+                                setEditQuestionDraft(item.question);
+                                setEditAnswerDraft(richTextToPlainText(item.answer));
                               }}
                             >
                               Edit

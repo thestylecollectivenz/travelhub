@@ -181,7 +181,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     ).filter((e) => !e.parentEntryId);
   }, [day, trip, localEntries, preTripDayId, tripDays]);
 
-  const unscheduled = React.useMemo(() => {
+  const unscheduledRaw = React.useMemo(() => {
     if (!day) return [];
     return expandPlannerUnscheduledItems(dayEntries, day.calendarDate, tripDays, localEntries);
   }, [day, dayEntries, tripDays, localEntries]);
@@ -197,6 +197,12 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     if (!day?.calendarDate) return undefined;
     return findStayTileForDay(localEntries, day.calendarDate);
   }, [day?.calendarDate, localEntries]);
+
+  const unscheduled = React.useMemo(() => {
+    const stayId = stayTile?.entry?.id;
+    if (!stayId) return unscheduledRaw;
+    return unscheduledRaw.filter((item) => item.entry.id !== stayId);
+  }, [unscheduledRaw, stayTile?.entry?.id]);
 
   const detailSourceEntry = detailTarget ? localEntries.find((e) => e.id === detailTarget.entryId) : undefined;
   const detailDisplayEntry = React.useMemo(() => {

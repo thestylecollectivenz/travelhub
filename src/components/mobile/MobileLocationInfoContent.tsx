@@ -23,7 +23,6 @@ import { MobilePencilButton } from './MobilePencilButton';
 import { NEAR_YOU_TOOLS, type NearYouToolId } from '../../utils/nearYouTools';
 import styles from './MobileLocationInfoContent.module.css';
 
-const HIGHLIGHT_KINDS: LocationHighlightKind[] = ['sight', 'food', 'drink', 'souvenir'];
 const HIGHLIGHT_LABEL: Record<LocationHighlightKind, string> = {
   sight: 'Sights',
   food: 'Food',
@@ -117,30 +116,42 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
           ) : null}
         </div>
         <div className={styles.highlightsGrid}>
-          {HIGHLIGHT_KINDS.map((kind) => (
-            <div key={kind} className={styles.highlightCol}>
-              <p className={styles.highlightKind}>
-                <LocationHighlightIcon kind={kind} size="sm" />
-                {HIGHLIGHT_LABEL[kind]}
-              </p>
-              <ul className={styles.highlightList}>
-                {(rowsByKind[kind] ?? []).map((row) => (
-                  <li key={highlightKey(row)} className={styles.highlightItem}>
-                    <label className={styles.highlightCheck}>
-                      <input
-                        type="checkbox"
-                        checked={row.done}
-                        disabled={readOnly}
-                        onChange={() => toggleHighlight(highlightKey(row))}
-                      />
-                      <span className={row.done ? styles.done : undefined}>{row.label}</span>
-                    </label>
-                  </li>
-                ))}
-                {!rowsByKind[kind]?.length ? (
-                  <li className={styles.highlightEmpty}>None yet</li>
-                ) : null}
-              </ul>
+          {(
+            [
+              ['sight', 'food'],
+              ['drink', 'souvenir']
+            ] as const
+          ).map((pair, rowIdx) => (
+            <div key={rowIdx === 0 ? 'row-top' : 'row-bottom'} className={styles.highlightsRow}>
+              {pair.map((kind, colIdx) => (
+                <React.Fragment key={kind}>
+                  {colIdx === 1 ? <div className={styles.highlightSep} aria-hidden /> : null}
+                  <div className={styles.highlightCol}>
+                    <p className={styles.highlightKind}>
+                      <LocationHighlightIcon kind={kind} size="sm" />
+                      {HIGHLIGHT_LABEL[kind]}
+                    </p>
+                    <ul className={styles.highlightList}>
+                      {(rowsByKind[kind] ?? []).map((row) => (
+                        <li key={highlightKey(row)} className={styles.highlightItem}>
+                          <label className={styles.highlightCheck}>
+                            <input
+                              type="checkbox"
+                              checked={row.done}
+                              disabled={readOnly}
+                              onChange={() => toggleHighlight(highlightKey(row))}
+                            />
+                            <span className={row.done ? styles.done : undefined}>{row.label}</span>
+                          </label>
+                        </li>
+                      ))}
+                      {!rowsByKind[kind]?.length ? (
+                        <li className={styles.highlightEmpty}>None yet</li>
+                      ) : null}
+                    </ul>
+                  </div>
+                </React.Fragment>
+              ))}
             </div>
           ))}
         </div>
@@ -202,15 +213,14 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
 
       <section className={styles.section}>
         <h3 className={styles.sectionTitle}>Ask AI</h3>
-        <p className={styles.askHint}>
-          Ask AI about this place. Answers are saved here and never overwrite your lists.
-        </p>
         <LocationInfoAskPanel
           entry={entry}
           place={place}
           data={data}
           geminiApiKey={config.geminiApiKey || ''}
           readOnly={readOnly}
+          mobileLayout
+          hideIntro
           onThreadChange={(thread) => persist({ ...data, aiQaThread: thread })}
         />
       </section>

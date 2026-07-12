@@ -27,8 +27,13 @@ export interface MobileNearYouResultsProps {
   place?: Place;
   locationEntryId?: string;
   locationLabel?: string;
-  onAddToItinerary?: (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string }) => void;
-  onSavePlace?: (place: { name: string; note?: string; mapsUrl?: string }) => void;
+  onAddToItinerary?: (place: {
+    name: string;
+    note?: string;
+    mapsUrl?: string;
+    websiteUrl?: string;
+  }) => void | Promise<void>;
+  onSavePlace?: (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string }) => boolean | void;
 }
 
 type ViewMode = 'map' | 'list' | 'ai';
@@ -370,19 +375,30 @@ export const MobileNearYouResults: React.FC<MobileNearYouResultsProps> = ({
             result={r}
             categoryLabel={tool.shortLabel}
             saveLabel={saveLabel}
-            onSave={() => {
-              onSavePlace?.({ name: r.name, note: r.note, mapsUrl: r.mapsUrl });
-              showToast(`Saved · ${r.name}`);
-            }}
-            onAddToItinerary={() => {
-              onAddToItinerary?.({
-                name: r.name,
-                note: r.note,
-                mapsUrl: r.mapsUrl,
-                websiteUrl: r.websiteUrl
-              });
-              showToast('Added to itinerary');
-            }}
+            onSave={
+              onSavePlace
+                ? () => {
+                    const saved = onSavePlace({ name: r.name, note: r.note, mapsUrl: r.mapsUrl, websiteUrl: r.websiteUrl });
+                    if (saved !== false && !locationEntryId) showToast(`Saved · ${r.name}`);
+                  }
+                : undefined
+            }
+            onAddToItinerary={
+              onAddToItinerary
+                ? () => {
+                    void Promise.resolve(
+                      onAddToItinerary({
+                        name: r.name,
+                        note: r.note,
+                        mapsUrl: r.mapsUrl,
+                        websiteUrl: r.websiteUrl
+                      })
+                    ).then(() => {
+                      if (!locationEntryId) showToast('Added to itinerary');
+                    });
+                  }
+                : undefined
+            }
           />
         ))}
       </div>

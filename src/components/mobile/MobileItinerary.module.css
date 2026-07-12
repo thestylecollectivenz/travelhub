@@ -23,7 +23,7 @@
   color: var(--tl-ink);
   min-height: 0;
   background: var(--tl-cream);
-  padding-bottom: 5.5rem;
+  padding-bottom: calc(5.75rem + env(safe-area-inset-bottom, 0));
 }
 
 /* ─── Trip hero header ────────────────────────────────────────────── */
