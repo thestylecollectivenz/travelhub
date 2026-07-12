@@ -69,6 +69,7 @@ type TaskFilter = 'incomplete' | 'all';
 
 export interface TripTasksViewProps {
   variant?: 'tasks' | 'missing_costs';
+  mobileLayout?: boolean;
 }
 type CreateKind = 'task' | 'reminder';
 type ViewMode = 'list' | 'calendar';
@@ -155,7 +156,7 @@ function ymdFromIso(iso?: string): string {
   return (iso || '').slice(0, 10);
 }
 
-export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' }) => {
+export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks', mobileLayout = false }) => {
   const spContext = useSpContext();
   const {
     trip,
@@ -587,10 +588,10 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
   }, [trip, manualTodos, localEntries, showTaskSection, dayName]);
 
   return (
-    <section className={styles.root} id="trip-tasks-print-root">
+    <section className={`${styles.root} ${mobileLayout ? styles.mobileRoot : ''}`} id="trip-tasks-print-root">
       <div className={`${styles.filterBar} ${styles.noPrint}`}>
         <div className={styles.filterBarMain}>
-          <h2 className={styles.title}>Tasks &amp; reminders</h2>
+          {!mobileLayout ? <h2 className={styles.title}>Tasks &amp; reminders</h2> : null}
           {showStandardSections ? (
             <select className={styles.select} value={filter} onChange={(e) => setFilter(e.target.value as TaskFilter)}>
               <option value="incomplete">Incomplete only</option>
@@ -630,7 +631,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks' 
             </div>
           ) : null}
         </div>
-        {viewMode === 'list' && showStandardSections ? (
+        {viewMode === 'list' && showStandardSections && !mobileLayout ? (
           <div className={styles.filterBarActions}>
             <button className={dayHeaderStyles.journalButton} type="button" onClick={printTasks}>
               Print
