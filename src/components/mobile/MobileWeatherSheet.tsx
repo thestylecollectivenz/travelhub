@@ -1,8 +1,9 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import type { Place } from '../../models/Place';
-import { PlaceInfoPanel } from '../day/PlaceInfoPanel';
-import styles from './MobileLocationInfo.module.css';
+import { useShellMode } from '../../hooks/useShellMode';
+import { MobileWeatherContent } from './MobileWeatherContent';
+import styles from './MobileWeatherSheet.module.css';
 
 export interface MobileWeatherSheetProps {
   place: Place;
@@ -17,6 +18,8 @@ export const MobileWeatherSheet: React.FC<MobileWeatherSheetProps> = ({
   travelTip,
   onClose
 }) => {
+  const shellMode = useShellMode();
+
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') onClose();
@@ -32,22 +35,17 @@ export const MobileWeatherSheet: React.FC<MobileWeatherSheetProps> = ({
         role="dialog"
         aria-modal="true"
         aria-label={`Weather for ${place.title}`}
+        data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}
         onClick={(e) => e.stopPropagation()}
       >
         <header className={styles.header}>
-          <h2 className={styles.title}>Weather &amp; tips</h2>
+          <span />
           <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close">
             ×
           </button>
         </header>
         <div className={styles.body}>
-          <PlaceInfoPanel
-            place={place}
-            weatherAnchorDate={calendarDate}
-            forecastDates={[calendarDate.slice(0, 10)]}
-            showHeader
-          />
-          {travelTip ? <p className={styles.travelTip}>{travelTip}</p> : null}
+          <MobileWeatherContent place={place} weatherAnchorDate={calendarDate} travelTip={travelTip} />
         </div>
       </div>
     </div>,
