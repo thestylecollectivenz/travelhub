@@ -8,8 +8,8 @@
   --tl-navy-soft: #2a3a5c;
   --tl-rust: #c45c3a;
   --tl-rust-deep: #a3482e;
-  --tl-cream: #f7f3eb;
-  --tl-cream-deep: #efe8dc;
+  --tl-cream: var(--tl-mobile-surface, #fafaf9);
+  --tl-cream-deep: var(--tl-mobile-surface-muted, #f3f2f0);
   --tl-ink: #1a1f2e;
   --tl-muted: #6b6570;
   --tl-line: color-mix(in srgb, var(--tl-navy) 12%, transparent);
@@ -27,10 +27,10 @@
   overflow: hidden;
   box-sizing: border-box;
   background:
-    radial-gradient(ellipse 80% 50% at 10% -10%, color-mix(in srgb, var(--tl-olive) 18%, transparent), transparent 55%),
-    radial-gradient(ellipse 70% 45% at 95% 5%, color-mix(in srgb, var(--tl-gold) 22%, transparent), transparent 50%),
-    radial-gradient(ellipse 60% 40% at 80% 90%, color-mix(in srgb, var(--tl-rust) 12%, transparent), transparent 55%),
-    radial-gradient(ellipse 50% 35% at 0% 85%, color-mix(in srgb, var(--tl-navy) 10%, transparent), transparent 50%),
+    radial-gradient(ellipse 80% 50% at 10% -10%, color-mix(in srgb, var(--tl-olive) 7%, transparent), transparent 55%),
+    radial-gradient(ellipse 70% 45% at 95% 5%, color-mix(in srgb, var(--tl-gold) 9%, transparent), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 80% 90%, color-mix(in srgb, var(--tl-rust) 5%, transparent), transparent 55%),
+    radial-gradient(ellipse 50% 35% at 0% 85%, color-mix(in srgb, var(--tl-navy) 4%, transparent), transparent 50%),
     var(--tl-cream);
   color: var(--tl-ink);
   font-family: var(--tl-sans);
@@ -41,7 +41,7 @@
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: max(var(--space-4), env(safe-area-inset-top, 0)) var(--space-4) calc(5.5rem + env(safe-area-inset-bottom, 0));
+  padding: max(1.35rem, env(safe-area-inset-top, 0)) var(--space-4) calc(5.5rem + env(safe-area-inset-bottom, 0));
   -webkit-overflow-scrolling: touch;
 }
 
@@ -50,7 +50,8 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  margin-bottom: var(--space-4);
+  padding-top: 0.65rem;
+  margin-bottom: 2rem;
 }
 
 .brandRow {
@@ -126,7 +127,7 @@
 }
 
 .greeting {
-  margin: 0 0 0.15rem;
+  margin: 0.5rem 0 0.4rem;
   font-size: var(--font-size-md);
   font-weight: 600;
   color: var(--tl-navy);
@@ -135,7 +136,7 @@
 }
 
 .prompt {
-  margin: 0.35rem 0 var(--space-4);
+  margin: 0.65rem 0 var(--space-4);
   font-family: var(--tl-serif);
   font-size: 2.35rem;
   line-height: 1.05;
@@ -649,7 +650,7 @@
 
 .savedSpotBtn {
   border: 1px solid color-mix(in srgb, var(--tl-navy) 12%, transparent);
-  background: color-mix(in srgb, #f7f3eb 50%, white);
+  background: color-mix(in srgb, var(--tl-mobile-surface, #fafaf9) 50%, white);
   color: var(--tl-navy);
   border-radius: 999px;
   font-size: 0.65rem;
@@ -664,15 +665,27 @@
 .homeRoot[data-shell='ipad-portrait'] .scroll {
   padding-left: max(1rem, env(safe-area-inset-left, 0));
   padding-right: max(1rem, env(safe-area-inset-right, 0));
+  padding-top: max(1.5rem, env(safe-area-inset-top, 0));
 }
 
-.homeRoot[data-shell='ipad-portrait'] .pillarGrid {
-  grid-template-columns: repeat(4, 1fr);
+.homeRoot[data-shell='ipad-portrait'] .topBar {
+  padding-top: 1.1rem;
+  margin-bottom: 2.75rem;
+}
+
+.homeRoot[data-shell='ipad-portrait'] .greeting {
+  margin-top: 0.35rem;
+  margin-bottom: 0.5rem;
 }
 
 .homeRoot[data-shell='ipad-portrait'] .prompt {
   font-size: 2.75rem;
-  margin-top: 0.45rem;
+  margin-top: 0.85rem;
+  margin-bottom: var(--space-5);
+}
+
+.homeRoot[data-shell='ipad-portrait'] .pillarGrid {
+  grid-template-columns: repeat(4, 1fr);
 }
 
 .homeRoot[data-shell='ipad-portrait'] .brandName {

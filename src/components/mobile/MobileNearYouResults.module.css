@@ -1,5 +1,5 @@
 .page {
-  --ny-cream: #f7f3eb;
+  --ny-cream: var(--tl-mobile-surface, #fafaf9);
   --ny-navy: #1e2a44;
   --ny-olive: #6b7c3a;
   --ny-muted: #6b6570;

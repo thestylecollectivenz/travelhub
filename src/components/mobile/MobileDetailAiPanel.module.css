@@ -2,7 +2,7 @@
   margin: 0.65rem 0;
   border: 1px solid color-mix(in srgb, var(--color-blue-800) 10%, transparent);
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, #f7f3eb 45%, white);
+  background: color-mix(in srgb, var(--tl-mobile-surface, #fafaf9) 45%, white);
   overflow: hidden;
 }
 

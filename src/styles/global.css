@@ -26,6 +26,10 @@
   --color-teal-800: #074C57;
   --color-teal-900: #032D34;
 
+  /* Trip Leopard — mobile/iPad shell surfaces */
+  --tl-mobile-surface: #fafaf9;
+  --tl-mobile-surface-muted: #f3f2f0;
+
   /* Warm Sand — backgrounds, cards, neutral surfaces */
   --color-sand-50: #FAF8F4;
   --color-sand-100: #F0EBE0;

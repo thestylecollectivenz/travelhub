@@ -237,7 +237,7 @@
 
 .chip {
   border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
-  background: color-mix(in srgb, #f7f3eb 55%, white);
+  background: color-mix(in srgb, var(--tl-mobile-surface, #fafaf9) 55%, white);
   border-radius: 999px;
   padding: 0.35rem 0.7rem;
   font-size: 0.72rem;
@@ -267,7 +267,7 @@
   align-items: center;
   width: 100%;
   border: none;
-  background: color-mix(in srgb, #f7f3eb 50%, white);
+  background: color-mix(in srgb, var(--tl-mobile-surface, #fafaf9) 50%, white);
   padding: 0.65rem 0.75rem;
   cursor: pointer;
   text-align: left;

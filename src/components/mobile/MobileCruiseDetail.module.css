@@ -49,7 +49,7 @@
   align-items: center;
   gap: 0.28rem;
   border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
-  background: color-mix(in srgb, white 88%, #f7f3eb);
+  background: color-mix(in srgb, white 88%, var(--tl-mobile-surface, #fafaf9));
   border-radius: 999px;
   padding: 0.18rem 0.48rem;
   font-size: 0.65rem;
@@ -289,7 +289,7 @@
   margin-bottom: 0.75rem;
   border: 1px solid color-mix(in srgb, #8a7355 22%, transparent);
   border-radius: 0.9rem;
-  background: color-mix(in srgb, #f7f3eb 70%, white);
+  background: color-mix(in srgb, var(--tl-mobile-surface, #fafaf9) 70%, white);
 }
 
 .packageIcon {
@@ -347,7 +347,7 @@
 .obcCard {
   border: 1px solid color-mix(in srgb, #8a7355 28%, transparent);
   border-radius: 0.9rem;
-  background: color-mix(in srgb, #e8dfc8 55%, #f7f3eb);
+  background: color-mix(in srgb, #e8dfc8 55%, var(--tl-mobile-surface, #fafaf9));
   padding: 0.7rem 0.75rem;
   margin-bottom: 0.75rem;
 }

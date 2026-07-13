@@ -2,7 +2,7 @@
   position: fixed;
   inset: 0;
   z-index: 12700;
-  background: #f7f3eb;
+  background: var(--tl-mobile-surface, #fafaf9);
   display: flex;
   flex-direction: column;
 }
@@ -50,7 +50,7 @@
   width: 2rem;
   height: 2rem;
   border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
-  background: color-mix(in srgb, white 90%, #f7f3eb);
+  background: color-mix(in srgb, white 90%, var(--tl-mobile-surface, #fafaf9));
   color: #1e2a44;
   border-radius: 999px;
   font-size: 1.2rem;

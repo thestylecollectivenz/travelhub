@@ -11,7 +11,7 @@
 .sheet {
   width: 100%;
   max-width: 32rem;
-  background: #f7f3eb;
+  background: var(--tl-mobile-surface, #fafaf9);
   border-radius: 1.25rem 1.25rem 0 0;
   padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom, 0));
 }

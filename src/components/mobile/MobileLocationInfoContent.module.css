@@ -157,7 +157,7 @@
   flex: 0 0 min(16rem, 78vw);
   border: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
   border-radius: 1rem;
-  background: color-mix(in srgb, #f7f3eb 55%, white);
+  background: color-mix(in srgb, var(--tl-mobile-surface, #fafaf9) 55%, white);
   padding: 0.75rem;
   min-width: 0;
   display: flex;
@@ -291,7 +291,7 @@
 .savedRow {
   padding: 0.55rem 0.65rem;
   border-radius: 0.75rem;
-  background: color-mix(in srgb, #f7f3eb 35%, white);
+  background: color-mix(in srgb, var(--tl-mobile-surface, #fafaf9) 35%, white);
   border: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
 }
 

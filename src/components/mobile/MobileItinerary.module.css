@@ -8,8 +8,8 @@
   --tl-navy-soft: #2a3a5c;
   --tl-charcoal: #2c3338;
   --tl-rust: #c45c3a;
-  --tl-cream: #f7f3eb;
-  --tl-cream-deep: #efe8dc;
+  --tl-cream: var(--tl-mobile-surface, #fafaf9);
+  --tl-cream-deep: var(--tl-mobile-surface-muted, #f3f2f0);
   --tl-ink: #1a1f2e;
   --tl-muted: #6b6570;
   --tl-line: color-mix(in srgb, var(--tl-navy) 10%, transparent);
@@ -923,7 +923,7 @@
   padding: 0.85rem;
   border-radius: 1rem;
   border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
-  background: color-mix(in srgb, #f7f3eb 45%, white);
+  background: color-mix(in srgb, var(--tl-mobile-surface, #fafaf9) 45%, white);
 }
 
 .dayIdeasHead {

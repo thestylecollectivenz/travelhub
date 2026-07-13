@@ -1,7 +1,7 @@
 .tile {
   border-radius: 1rem;
   border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
-  background: color-mix(in srgb, white 94%, #f7f3eb);
+  background: color-mix(in srgb, white 94%, var(--tl-mobile-surface, #fafaf9));
   margin-bottom: 0.75rem;
   overflow: hidden;
 }

@@ -13,7 +13,7 @@
   max-width: 32rem;
   max-height: 88vh;
   overflow: auto;
-  background: #f7f3eb;
+  background: var(--tl-mobile-surface, #fafaf9);
   border-radius: 1.25rem 1.25rem 0 0;
   padding: 1rem 0.85rem calc(1.25rem + env(safe-area-inset-bottom, 0));
   box-shadow: 0 -8px 28px color-mix(in srgb, #1a1f2e 18%, transparent);

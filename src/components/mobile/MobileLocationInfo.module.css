@@ -12,7 +12,7 @@
   width: 100%;
   max-width: 32rem;
   height: min(92vh, 100%);
-  background: #f7f3eb;
+  background: var(--tl-mobile-surface, #fafaf9);
   border-radius: 1.25rem 1.25rem 0 0;
   display: flex;
   flex-direction: column;
@@ -50,7 +50,7 @@
 .editBtn,
 .closeBtn {
   border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
-  background: color-mix(in srgb, white 90%, #f7f3eb);
+  background: color-mix(in srgb, white 90%, var(--tl-mobile-surface, #fafaf9));
   color: #1e2a44;
   border-radius: 999px;
   padding: 0.35rem 0.7rem;
@@ -164,7 +164,7 @@
   margin: 0.75rem 0 0;
   padding: 0.65rem 0.75rem;
   border-radius: 0.65rem;
-  background: color-mix(in srgb, white 88%, #f7f3eb);
+  background: color-mix(in srgb, white 88%, var(--tl-mobile-surface, #fafaf9));
   border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
   font-size: 0.82rem;
   line-height: 1.45;
@@ -175,7 +175,7 @@
   position: fixed;
   inset: 0;
   z-index: 12700;
-  background: #f7f3eb;
+  background: var(--tl-mobile-surface, #fafaf9);
   overflow: auto;
 }
 
