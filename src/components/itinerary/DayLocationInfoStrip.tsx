@@ -73,7 +73,10 @@ export const DayLocationInfoStrip: React.FC<DayLocationInfoStripProps> = ({
             <span className={styles.chipIcon}>
               <LocationInfoStripPinIcon />
             </span>
-            <span className={styles.chipLabel}>{short}</span>
+            <span className={styles.chipLabel}>
+              {short}
+              {variant === 'pills' ? <span aria-hidden> ›</span> : null}
+            </span>
             {partial ? <span className={styles.chipDot} aria-hidden /> : null}
           </button>
         );

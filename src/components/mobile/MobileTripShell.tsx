@@ -19,7 +19,11 @@ import {
   peekCameFromHome,
   setPendingItineraryAdd
 } from '../../utils/mobileHomePendingAction';
-import { consumePendingTripDay } from '../../utils/mobileTripDayPending';
+import {
+  consumePendingTripDay,
+  peekPendingTripDayPayload,
+  resolvePendingTripDayId
+} from '../../utils/mobileTripDayPending';
 import { saveTripSavedSpot } from '../../utils/tripSavedSpots';
 import { useTripMembers } from '../../hooks/useTripMembers';
 import { consumePendingMobileItineraryEdit } from '../../utils/mobileItineraryEditPending';
@@ -43,6 +47,7 @@ import { GO_TO_DAY_EVENT } from './MobileTripIdeasList';
 import { useTripDayIdeas } from '../../hooks/useTripDayIdeas';
 import { useTripRole } from '../../context/TripRoleContext';
 import { SOLUTION_VERSION } from '../../appVersion';
+import { MobileBrandHeader } from './MobileBrandHeader';
 import styles from './MobileShell.module.css';
 
 export type { MobileTab } from './mobileTypes';
@@ -189,10 +194,12 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
 
   React.useEffect(() => {
     if (!trip?.id || !tripDays.length) return;
-    const dayId = consumePendingTripDay(trip.id);
-    if (dayId && tripDays.some((d) => d.id === dayId)) {
+    if (!peekPendingTripDayPayload(trip.id)) return;
+    const dayId = resolvePendingTripDayId(trip.id, tripDays);
+    if (dayId) {
       setTab('today');
       setSelectedDayId(dayId);
+      consumePendingTripDay(trip.id, tripDays);
     }
   }, [trip?.id, tripDays, setSelectedDayId]);
 
@@ -353,10 +360,10 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
       className={styles.mobileRoot}
       data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}
     >
-      <header className={styles.mobileHeader}>
-        <div className={styles.headerStart}>{renderHeaderBack()}</div>
-        <h1 className={styles.headerTitle}>{trip?.title ?? 'Trip'}</h1>
-        <div className={styles.headerActions}>
+      <MobileBrandHeader
+        navRow={renderHeaderBack()}
+        title={trip?.title ?? 'Trip'}
+        actions={
           <button
             type="button"
             className={styles.headerIconBtn}
@@ -371,8 +378,8 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
               <path d="M11.5 17c0-2.485 1.567-4.5 3.5-4.5s3.5 2.015 3.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           </button>
-        </div>
-      </header>
+        }
+      />
       <main className={styles.mobileMain} data-mobile-scroll>
         {body}
       </main>

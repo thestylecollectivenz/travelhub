@@ -14,7 +14,11 @@ import { FxService } from '../services/FxService';
 import { mergeTripDisplayPrefs, saveTripDisplayPrefs } from '../utils/tripDisplayPrefs';
 import { useSpContext } from './SpContext';
 import { repairPreTripCalendarIfCollidingWithFirstDay } from '../utils/tripPreTripCalendarAnchor';
-import { peekPendingTripDay, consumePendingTripDay } from '../utils/mobileTripDayPending';
+import {
+  defaultTripDayId,
+  peekPendingTripDayPayload,
+  resolvePendingTripDayId
+} from '../utils/mobileTripDayPending';
 import { calendarDayBefore, planChronologicalRenumber, ymdSlice } from '../utils/tripDateRangeSync';
 import { formatTimeHHMM } from '../utils/itineraryTimeUtils';
 import {
@@ -278,12 +282,12 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
         console.error('FX init failed — proceeding without FX conversion', err);
       }
       if (anchoredDays.length > 0) {
-        const pendingDayId = peekPendingTripDay(tripId);
-        if (pendingDayId && anchoredDays.some((d) => d.id === pendingDayId)) {
+        const pendingDayId = resolvePendingTripDayId(tripId, anchoredDays);
+        if (pendingDayId) {
           setSelectedDayId(pendingDayId);
-          consumePendingTripDay(tripId);
-        } else {
-          setSelectedDayId(anchoredDays[0].id);
+        } else if (!peekPendingTripDayPayload(tripId)) {
+          const fallback = defaultTripDayId(anchoredDays);
+          if (fallback) setSelectedDayId(fallback);
         }
       }
     } catch (err) {

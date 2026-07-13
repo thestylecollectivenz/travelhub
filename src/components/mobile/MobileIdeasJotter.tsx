@@ -8,12 +8,14 @@ import type { Trip } from '../../models';
 import {
   buildJotterHomeDisplay,
   createJotterIdea,
+  isValidJotterIdeaText,
   JOTTER_IDEAS_CHANGED_EVENT,
   jotterAiRefreshIntervalMs,
   type JotterDisplayRow,
   type JotterIconKind
 } from '../../utils/tripJotterIdeas';
 import styles from './MobileHome.module.css';
+import { usePlaces } from '../../context/PlacesContext';
 
 export interface MobileIdeasJotterProps {
   trip?: Trip;
@@ -58,11 +60,13 @@ export const MobileIdeasJotter: React.FC<MobileIdeasJotterProps> = ({ trip, home
   const spContext = useSpContext();
   const { config } = useConfig();
   const { members } = useTripMembers(trip?.id);
+  const { placeById } = usePlaces();
   const [ideas, setIdeas] = React.useState<JotterDisplayRow[]>([]);
   const [draft, setDraft] = React.useState('');
   const [composeOpen, setComposeOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState('');
 
   const refresh = React.useCallback(
     async (ensureFreshAi = false): Promise<void> => {
@@ -90,7 +94,7 @@ export const MobileIdeasJotter: React.FC<MobileIdeasJotterProps> = ({ trip, home
           itineraryTitles,
           itineraryPlaces,
           3,
-          { ensureFreshAi, tripDays }
+          { ensureFreshAi, tripDays, entries, placeById }
         );
         setIdeas(rows);
       } catch (err) {
@@ -100,7 +104,7 @@ export const MobileIdeasJotter: React.FC<MobileIdeasJotterProps> = ({ trip, home
         setLoading(false);
       }
     },
-    [trip, spContext, members, config.geminiApiKey]
+    [trip, spContext, members, config.geminiApiKey, placeById]
   );
 
   React.useEffect(() => {
@@ -126,13 +130,19 @@ export const MobileIdeasJotter: React.FC<MobileIdeasJotterProps> = ({ trip, home
   const addIdea = async (): Promise<void> => {
     const text = draft.trim();
     if (!trip?.id || !text || saving) return;
+    if (!isValidJotterIdeaText(text)) {
+      setSaveError('Ideas need at least 8 characters of real text.');
+      return;
+    }
+    setSaveError('');
     setSaving(true);
     try {
       await createJotterIdea(spContext, trip.id, text, members, false);
       setDraft('');
-      setComposeOpen(true);
+      setComposeOpen(false);
       await refresh();
     } catch (err) {
+      setSaveError('Could not save that idea. Try a longer description.');
       // eslint-disable-next-line no-console
       console.error('MobileIdeasJotter: save failed', err);
     } finally {
@@ -174,12 +184,16 @@ export const MobileIdeasJotter: React.FC<MobileIdeasJotterProps> = ({ trip, home
           <input
             className={styles.jotterInput}
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              if (saveError) setSaveError('');
+            }}
             placeholder="Jot an idea…"
             aria-label="New idea"
             disabled={saving}
             autoFocus
           />
+          {saveError ? <p className={styles.homeCardHint}>{saveError}</p> : null}
           <button type="submit" className={styles.jotterAddBtn} disabled={!draft.trim() || saving}>
             Add
           </button>

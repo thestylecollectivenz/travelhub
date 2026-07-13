@@ -8,7 +8,6 @@ import { getCurrentUserEmail } from '../../utils/currentUserEmail';
 import {
   canManageDayIdeaReply,
   dayIdeaReplies,
-  formatDayIdeaReplyAuthor,
   formatDayIdeaStamp,
   isDayIdeaReminder,
   parseDayIdeaMeta,
@@ -25,6 +24,7 @@ import {
 import { notifyDayIdeasChanged } from '../../hooks/useTripDayIdeas';
 import { JOTTER_IDEAS_CHANGED_EVENT } from '../../utils/tripJotterIdeas';
 import { notifyTripIdeasChanged } from '../../utils/tripIdeasUnified';
+import { TravellerAvatar } from '../shared/TravellerAvatar';
 import styles from './DayIdeaReplies.module.css';
 
 export interface TripIdeaRepliesProps {
@@ -41,6 +41,18 @@ function notifyAll(): void {
   notifyDayIdeasChanged();
   window.dispatchEvent(new Event(JOTTER_IDEAS_CHANGED_EVENT));
   notifyTripIdeasChanged();
+}
+
+function replyAuthorMeta(
+  reply: { authorEmail: string },
+  members?: TripMember[]
+): { name: string; avatarUrl?: string } {
+  const email = (reply.authorEmail || '').trim().toLowerCase();
+  const match = members?.find((m) => m.userEmail.trim().toLowerCase() === email);
+  return {
+    name: match?.userDisplayName || match?.userEmail || reply.authorEmail || 'Traveller',
+    avatarUrl: match?.avatarUrl
+  };
 }
 
 export const TripIdeaReplies: React.FC<TripIdeaRepliesProps> = ({
@@ -113,20 +125,25 @@ export const TripIdeaReplies: React.FC<TripIdeaRepliesProps> = ({
           {replies.length ? (
             <ul className={styles.list}>
               {replies.map((reply) => {
-                const author = formatDayIdeaReplyAuthor(reply, members);
+                const author = replyAuthorMeta(reply, members);
                 const manageable = canManageDayIdeaReply(reply, spContext, members, canEditItinerary);
                 return (
                   <li key={reply.id} className={styles.reply}>
-                    <p className={styles.replyText}>{reply.text}</p>
-                    <div className={styles.replyMeta}>
-                      <span>
-                        {author} · {formatDayIdeaStamp(reply.createdAt)}
-                      </span>
-                      {manageable ? (
-                        <button type="button" className={styles.replyDelete} onClick={() => void deleteReply(reply.id)}>
-                          Delete
-                        </button>
-                      ) : null}
+                    <div className={styles.replyRow}>
+                      <TravellerAvatar displayName={author.name} avatarUrl={author.avatarUrl} size={28} />
+                      <div className={styles.replyBody}>
+                        <p className={styles.replyText}>{reply.text}</p>
+                        <div className={styles.replyMeta}>
+                          <span>
+                            {author.name} · {formatDayIdeaStamp(reply.createdAt)}
+                          </span>
+                          {manageable ? (
+                            <button type="button" className={styles.replyDelete} onClick={() => void deleteReply(reply.id)}>
+                              Delete
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
                   </li>
                 );

@@ -7,7 +7,10 @@ import type { TripMember } from '../models/TripMember';
 import type { Trip } from '../models/Trip';
 
 import type { TripDay } from '../models/TripDay';
+import type { Place } from '../models/Place';
+import type { ItineraryEntry } from '../models/ItineraryEntry';
 import { isPreTripDayRow } from './itineraryDayEntries';
+import { itineraryLocationsForDay, resolveDayStopLabel } from './ideaLocationLabel';
 
 export const JOTTER_IDEA_REMINDER_TYPE = 'JotterIdea';
 
@@ -247,18 +250,23 @@ export async function setJotterIdeaComplete(spContext: WebPartContext, id: strin
 
 const AI_DAY_CURSOR_KEY = 'travelhub-jotter-ai-day';
 
-function dayLocationLabel(day: TripDay | undefined, trip?: Trip): string | undefined {
-  if (!day) return trip?.destination?.trim() || undefined;
-  const title = (day.displayTitle || '').trim();
-  if (title) return title;
-  return trip?.destination?.trim() || undefined;
+function dayLocationLabel(
+  day: TripDay | undefined,
+  trip?: Trip,
+  placeById?: (id: string) => Place | undefined,
+  entries: ItineraryEntry[] = []
+): string | undefined {
+  if (!day) return undefined;
+  return resolveDayStopLabel(day, placeById || (() => undefined), itineraryLocationsForDay(day.id, entries), trip);
 }
 
 /** Rotate through itinerary days so AI ideas spread across the trip. */
 export function nextAiFocusDay(
   tripId: string,
   tripDays: TripDay[],
-  trip?: Trip
+  trip?: Trip,
+  placeById?: (id: string) => Place | undefined,
+  entries: ItineraryEntry[] = []
 ): { dayId: string; label: string } | null {
   const eligible = [...tripDays].filter((d) => !isPreTripDayRow(d)).sort((a, b) => a.dayNumber - b.dayNumber);
   if (!eligible.length) return null;
@@ -275,7 +283,7 @@ export function nextAiFocusDay(
   } catch {
     /* ignore */
   }
-  const label = dayLocationLabel(day, trip);
+  const label = dayLocationLabel(day, trip, placeById, entries);
   return { dayId: day.id, label: label || `Day ${day.dayNumber}` };
 }
 
@@ -354,9 +362,11 @@ export async function createPersistedJotterAiIdea(
   apiKey: string | undefined,
   excludeTexts: string[],
   itineraryPlaces: string[] = [],
-  tripDays: TripDay[] = []
+  tripDays: TripDay[] = [],
+  placeById?: (id: string) => Place | undefined,
+  entries: ItineraryEntry[] = []
 ): Promise<JotterIdeaRow | null> {
-  const focus = nextAiFocusDay(tripId, tripDays, trip);
+  const focus = nextAiFocusDay(tripId, tripDays, trip, placeById, entries);
   const text = await fetchJotterAiIdeaText(
     apiKey || '',
     trip,
@@ -395,7 +405,7 @@ export async function buildJotterHomeDisplay(
   itineraryTitles: string[],
   itineraryPlaces: string[] = [],
   displayLimit = 3,
-  options?: { ensureFreshAi?: boolean; tripDays?: TripDay[] }
+  options?: { ensureFreshAi?: boolean; tripDays?: TripDay[]; entries?: ItineraryEntry[]; placeById?: (id: string) => Place | undefined }
 ): Promise<JotterDisplayRow[]> {
   await purgeInvalidJotterAiIdeas(spContext, tripId).catch(console.error);
 
@@ -410,6 +420,8 @@ export async function buildJotterHomeDisplay(
   const aiNeeded = Math.max(0, displayLimit - pickedUsers.length);
 
   const tripDays = options?.tripDays ?? [];
+  const entries = options?.entries ?? [];
+  const placeById = options?.placeById;
 
   if (options?.ensureFreshAi && aiNeeded > 0 && (apiKey || '').trim()) {
     const fresh = await createPersistedJotterAiIdea(
@@ -420,7 +432,9 @@ export async function buildJotterHomeDisplay(
       apiKey,
       excludeTexts,
       itineraryPlaces,
-      tripDays
+      tripDays,
+      placeById,
+      entries
     );
     if (fresh) {
       aiIdeas = [fresh, ...aiIdeas.filter((r) => r.id !== fresh.id)];
@@ -437,7 +451,9 @@ export async function buildJotterHomeDisplay(
       apiKey,
       excludeTexts,
       itineraryPlaces,
-      tripDays
+      tripDays,
+      placeById,
+      entries
     );
     if (!created) break;
     aiIdeas = [...aiIdeas, created];

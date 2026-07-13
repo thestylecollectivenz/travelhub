@@ -1,6 +1,7 @@
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import type { TripDay } from '../models/TripDay';
 import type { Place } from '../models/Place';
+import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { TripReminder } from '../services/ReminderService';
 import { ReminderService } from '../services/ReminderService';
 import {
@@ -19,6 +20,7 @@ import {
 } from './tripJotterIdeas';
 import { getCurrentUserEmail } from './currentUserEmail';
 import type { TripMember } from '../models/TripMember';
+import { itineraryLocationsForDay, resolveIdeaLocationLabel } from './ideaLocationLabel';
 
 export type UnifiedIdeaSource = 'jotter' | 'day';
 
@@ -39,20 +41,12 @@ export interface UnifiedTripIdea {
   replyCount: number;
 }
 
-function placeLabel(place: Place | undefined, day?: TripDay): string | undefined {
-  if (place?.title) {
-    const country = (place.country || '').trim();
-    return country ? `${place.title}, ${country}` : place.title;
-  }
-  const title = (day?.displayTitle || '').trim();
-  return title || undefined;
-}
-
 function rowFromReminder(
   reminder: TripReminder,
   tripDays: TripDay[],
   placeById: (id: string) => Place | undefined,
-  tripDestination?: string
+  tripDestination?: string,
+  localEntries: ItineraryEntry[] = []
 ): UnifiedTripIdea | null {
   const text = (reminder.reminderText || reminder.title || '').trim();
   if (!text) return null;
@@ -62,7 +56,7 @@ function rowFromReminder(
     const meta = parseJotterIdeaMeta(reminder.taskNote);
     const replies = jotterIdeaReplies(meta);
     const day = meta.focusDayId ? tripDays.find((d) => d.id === meta.focusDayId) : undefined;
-    const dayPlace = day?.primaryPlaceId ? placeById(day.primaryPlaceId) : undefined;
+    const dayLocations = day ? itineraryLocationsForDay(day.id, localEntries) : [];
     return {
       id: reminder.id,
       source: 'jotter',
@@ -74,7 +68,7 @@ function rowFromReminder(
       authorLabel: reminder.assignedTo,
       authorEmail: meta.authorEmail,
       dayId: meta.focusDayId || reminder.dayId || undefined,
-      locationLabel: meta.location || placeLabel(dayPlace, day) || tripDestination,
+      locationLabel: resolveIdeaLocationLabel(day, meta.location, placeById, dayLocations, tripDestination),
       replyCount: replies.length
     };
   }
@@ -83,7 +77,7 @@ function rowFromReminder(
     const meta = parseDayIdeaMeta(reminder.taskNote);
     const replies = dayIdeaReplies(meta);
     const day = reminder.dayId ? tripDays.find((d) => d.id === reminder.dayId) : undefined;
-    const dayPlace = day?.primaryPlaceId ? placeById(day.primaryPlaceId) : undefined;
+    const dayLocations = day ? itineraryLocationsForDay(day.id, localEntries) : [];
     return {
       id: reminder.id,
       source: 'day',
@@ -95,7 +89,7 @@ function rowFromReminder(
       authorLabel: formatDayIdeaAuthor(reminder) || reminder.assignedTo,
       authorEmail: meta.authorEmail,
       dayId: reminder.dayId || undefined,
-      locationLabel: placeLabel(dayPlace, day) || tripDestination,
+      locationLabel: resolveIdeaLocationLabel(day, undefined, placeById, dayLocations, tripDestination),
       replyCount: replies.length
     };
   }
@@ -108,12 +102,13 @@ export async function loadUnifiedTripIdeas(
   tripId: string,
   tripDays: TripDay[],
   placeById: (id: string) => Place | undefined,
-  tripDestination?: string
+  tripDestination?: string,
+  localEntries: ItineraryEntry[] = []
 ): Promise<UnifiedTripIdea[]> {
   const svc = new ReminderService(spContext);
   const rows = await svc.getForTrip(tripId);
   return rows
-    .map((r) => rowFromReminder(r, tripDays, placeById, tripDestination))
+    .map((r) => rowFromReminder(r, tripDays, placeById, tripDestination, localEntries))
     .filter((r): r is UnifiedTripIdea => Boolean(r))
     .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '') || a.id.localeCompare(b.id));
 }
@@ -145,6 +140,13 @@ export function matchesTripIdeasFilter(
   if (filter === 'yours') return isUnifiedIdeaYours(idea, spContext, members);
   if (filter === 'replies') return idea.replyCount > 0;
   return true;
+}
+
+export function isIdeaRecentlyAdded(iso?: string, withinHours = 48): boolean {
+  if (!iso) return false;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return false;
+  return Date.now() - d.getTime() < withinHours * 60 * 60 * 1000;
 }
 
 export function formatIdeaTime(iso?: string): string {

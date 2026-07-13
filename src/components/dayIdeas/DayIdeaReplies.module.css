@@ -40,6 +40,17 @@
   margin: 0;
 }
 
+.replyRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.replyBody {
+  flex: 1;
+  min-width: 0;
+}
+
 .replyText {
   margin: 0;
   font-size: var(--font-size-xs);

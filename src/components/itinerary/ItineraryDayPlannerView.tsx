@@ -999,7 +999,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
         setEditingSubItem({ parentEntryId: entryId, subItemId });
       } else {
         setEditingSubItem(null);
-        setEditingCardId(entryId);
+      setEditingCardId(entryId);
       }
     },
     [focusDay, setEditingCardId, setEditingSubItem]
@@ -1048,36 +1048,36 @@ export const ItineraryDayPlannerView: React.FC = () => {
         ))}
       </div>
       <div className={styles.rangeToolbar}>
-        <div className={styles.rangeBar} aria-label="Planner time range">
-          <label className={styles.rangeLabel}>
-            Start{' '}
-            <input className={styles.rangeInput} type="time" value={rangeStartOverride} onChange={(e) => setRangeStartOverride(e.target.value)} />
-          </label>
-          <label className={styles.rangeLabel}>
-            End{' '}
-            <input className={styles.rangeInput} type="time" value={rangeEndOverride} onChange={(e) => setRangeEndOverride(e.target.value)} />
-          </label>
-          <button
-            type="button"
-            className={styles.rangeReset}
-            onClick={() => {
-              setRangeStartOverride('');
-              setRangeEndOverride('');
-              if (trip?.id) {
-                try {
-                  const { rangeStart, rangeEnd } = plannerStorageKeys(trip.id);
-                  window.localStorage.removeItem(rangeStart);
-                  window.localStorage.removeItem(rangeEnd);
-                } catch {
-                  /* ignore */
-                }
+      <div className={styles.rangeBar} aria-label="Planner time range">
+        <label className={styles.rangeLabel}>
+          Start{' '}
+          <input className={styles.rangeInput} type="time" value={rangeStartOverride} onChange={(e) => setRangeStartOverride(e.target.value)} />
+        </label>
+        <label className={styles.rangeLabel}>
+          End{' '}
+          <input className={styles.rangeInput} type="time" value={rangeEndOverride} onChange={(e) => setRangeEndOverride(e.target.value)} />
+        </label>
+        <button
+          type="button"
+          className={styles.rangeReset}
+          onClick={() => {
+            setRangeStartOverride('');
+            setRangeEndOverride('');
+            if (trip?.id) {
+              try {
+                const { rangeStart, rangeEnd } = plannerStorageKeys(trip.id);
+                window.localStorage.removeItem(rangeStart);
+                window.localStorage.removeItem(rangeEnd);
+              } catch {
+                /* ignore */
               }
-            }}
-          >
-            Reset
-          </button>
-          {anyUnscheduledAcrossFilter ? (
-            <>
+            }
+          }}
+        >
+          Reset
+        </button>
+        {anyUnscheduledAcrossFilter ? (
+          <>
               <button
                 type="button"
                 className={styles.rangeReset}
@@ -1085,14 +1085,14 @@ export const ItineraryDayPlannerView: React.FC = () => {
               >
                 {unschedSectionHidden ? 'Show unscheduled section' : 'Hide unscheduled section'}
               </button>
-              <button type="button" className={styles.rangeReset} onClick={expandAllUnscheduled}>
-                Show all unscheduled
-              </button>
-              <button type="button" className={styles.rangeReset} onClick={collapseAllUnscheduled}>
-                Hide all unscheduled
-              </button>
-            </>
-          ) : null}
+            <button type="button" className={styles.rangeReset} onClick={expandAllUnscheduled}>
+              Show all unscheduled
+            </button>
+            <button type="button" className={styles.rangeReset} onClick={collapseAllUnscheduled}>
+              Hide all unscheduled
+            </button>
+          </>
+        ) : null}
           {plannerFullscreen ? (
             <button
               type="button"
@@ -1232,7 +1232,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                     }
                                   >
                                     {label}
-                                  </button>
+                                </button>
                                   {cancel ? <div className={styles.blockCancel}>{cancel}</div> : null}
                                 </div>
                                 <div className={styles.blockActions} onMouseDown={stopPlannerBlockPointer} onClick={stopPlannerBlockPointer}>
@@ -1415,15 +1415,15 @@ export const ItineraryDayPlannerView: React.FC = () => {
               <div className={styles.plannerScrollGhost} />
             </div>
             <div className={styles.plannerHeadHScroll} ref={plannerHeadHScrollRef}>
-              <div
-                className={styles.plannerGrid}
-                style={{
+          <div
+            className={styles.plannerGrid}
+            style={{
                   gridTemplateColumns: gridColTemplate,
                   minWidth: plannerGridMinWidth
-                }}
-              >
-                <div className={styles.cornerCell} aria-hidden />
-                {displayDays.map((day) => (
+            }}
+          >
+            <div className={styles.cornerCell} aria-hidden />
+            {displayDays.map((day) => (
                   <PlannerDayHead key={`h-${day.id}`} day={day} className={styles.dayHead} />
                 ))}
               </div>
@@ -1471,8 +1471,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
                 className={styles.unschedRowGrid}
                 style={{ gridTemplateColumns: gridColTemplate, minWidth: plannerGridMinWidth }}
               >
-                <div className={styles.cornerCell} aria-hidden />
-                {displayDays.map((day) => {
+            <div className={styles.cornerCell} aria-hidden />
+            {displayDays.map((day) => {
               const cal = day.calendarDate || '';
               const list = entriesForPlannerColumn(day);
               const unsched = expandPlannerUnscheduledItems(list, cal, tripDays, entriesForTrip);
@@ -1519,7 +1519,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                                     }
                                   >
                                     {label}
-                                  </button>
+                                </button>
                                   {cancel ? <div className={styles.blockCancel}>{cancel}</div> : null}
                                 </div>
                                 <div className={styles.blockActions} onMouseDown={stopPlannerBlockPointer} onClick={stopPlannerBlockPointer}>
@@ -1561,19 +1561,19 @@ export const ItineraryDayPlannerView: React.FC = () => {
               </div>
             ) : null}
             <div className={styles.trackInner} style={{ gridTemplateColumns: gridColTemplate, minWidth: plannerGridMinWidth }}>
-              <div className={styles.timeAxis} style={{ height: `${trackHeight}px` }}>
-                {hoursTicks.map((h) => {
-                  const m = h * 60;
-                  const top = ((m - globalRange.start) / (globalRange.end - globalRange.start)) * trackHeight;
-                  const label = `${pad2(h)}:00`;
-                  return (
-                    <div key={h} className={styles.tick} style={{ top: `${top}px` }}>
-                      {label}
-                    </div>
-                  );
-                })}
-              </div>
-              {displayDays.map((day) => {
+                <div className={styles.timeAxis} style={{ height: `${trackHeight}px` }}>
+                  {hoursTicks.map((h) => {
+                    const m = h * 60;
+                    const top = ((m - globalRange.start) / (globalRange.end - globalRange.start)) * trackHeight;
+                    const label = `${pad2(h)}:00`;
+                    return (
+                      <div key={h} className={styles.tick} style={{ top: `${top}px` }}>
+                        {label}
+                      </div>
+                    );
+                  })}
+                </div>
+                {displayDays.map((day) => {
                   const cal = day.calendarDate || '';
                   const list = entriesForPlannerColumn(day);
                   const timed = expandPlannerTimedItems(list, cal, tripDays, entriesForTrip).filter((item) =>
@@ -1705,8 +1705,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
                     </div>
                   );
                 })}
+              </div>
             </div>
-          </div>
           </div>
         </div>
       )}
@@ -1731,10 +1731,10 @@ export const ItineraryDayPlannerView: React.FC = () => {
               {previewEntry.category ? <span>{previewEntry.category}</span> : null}
               {previewEntry.category && !previewScheduleHero ? <span> · </span> : null}
               {!previewScheduleHero ? (
-                <span>
-                  {formatTimeHHMM(previewEntry.timeStart) || 'Unscheduled'}
-                  {previewEntry.duration ? ` · ${previewEntry.duration}` : null}
-                </span>
+              <span>
+                {formatTimeHHMM(previewEntry.timeStart) || 'Unscheduled'}
+                {previewEntry.duration ? ` · ${previewEntry.duration}` : null}
+              </span>
               ) : null}
               {previewEntry.location ? (
                 <>

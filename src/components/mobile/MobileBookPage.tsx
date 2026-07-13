@@ -7,9 +7,10 @@ import styles from './MobileBookPage.module.css';
 
 export interface MobileBookPageProps {
   destinationHint?: string;
+  showTitle?: boolean;
 }
 
-export const MobileBookPage: React.FC<MobileBookPageProps> = ({ destinationHint = '' }) => {
+export const MobileBookPage: React.FC<MobileBookPageProps> = ({ destinationHint = '', showTitle = true }) => {
   const [query, setQuery] = React.useState(destinationHint);
   const groups = React.useMemo(
     () => groupBookingAffiliateLinks(homeBookingAffiliateLinks(query)),
@@ -18,8 +19,8 @@ export const MobileBookPage: React.FC<MobileBookPageProps> = ({ destinationHint 
 
   return (
     <div className={styles.root}>
-      <h2 className={styles.title}>Book</h2>
-      <p className={styles.sub}>Search partner sites for stays, flights, tours, and more.</p>
+      {showTitle ? <h2 className={styles.title}>Book</h2> : null}
+      {showTitle ? <p className={styles.sub}>Search partner sites for stays, flights, tours, and more.</p> : null}
       <label className={styles.searchLabel}>
         Destination or trip name
         <input

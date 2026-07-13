@@ -8,7 +8,12 @@
 }
 
 .ideaCardDone {
-  opacity: 0.72;
+  opacity: 0.85;
+}
+
+.ideaCardNew {
+  border-color: color-mix(in srgb, #3b6fd9 35%, var(--tl-line));
+  box-shadow: 0 4px 16px color-mix(in srgb, #3b6fd9 8%, transparent);
 }
 
 .ideaCardHead {
@@ -68,6 +73,12 @@
   background: color-mix(in srgb, #3b6fd9 12%, white);
   color: #2f5eb8;
   border: 1px solid color-mix(in srgb, #3b6fd9 25%, white);
+}
+
+.badgeNew {
+  background: color-mix(in srgb, #3b6fd9 18%, white);
+  color: #1f4f9c;
+  border: 1px solid color-mix(in srgb, #3b6fd9 35%, white);
 }
 
 .ideaCardActions {
@@ -142,9 +153,10 @@
   color: var(--tl-ink);
 }
 
-.ideaTextDone {
-  text-decoration: line-through;
-  color: var(--tl-muted);
+.composeError {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #b42318;
 }
 
 .locationStamp {
@@ -278,6 +290,23 @@
   padding: 0.3rem 0.55rem;
   cursor: pointer;
   white-space: nowrap;
+}
+
+.howPanel {
+  margin-top: 0.45rem;
+  border-radius: 0.85rem;
+  border: 1px solid color-mix(in srgb, #d4b84a 35%, white);
+  background: color-mix(in srgb, #fff9e6 70%, white);
+  padding: 0.75rem 0.85rem;
+  display: grid;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--tl-ink);
+}
+
+.howPanel p {
+  margin: 0;
 }
 
 .aiAvatar {

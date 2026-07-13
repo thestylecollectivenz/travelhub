@@ -42,6 +42,7 @@ import { TripMembersPanel } from '../workspace/TripMembersPanel';
 import { TripRoleProvider } from '../../context/TripRoleContext';
 import '../../components/maps/LeafletCompat.css';
 import type { ShellMode } from '../../hooks/useShellMode';
+import { MobileBrandHeader } from './MobileBrandHeader';
 import styles from './MobileHome.module.css';
 
 export type MobileHomeTab = 'home' | 'trips' | 'spots' | 'find' | 'book';
@@ -510,13 +511,10 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
       />
     );
   } else if (tab === 'book') {
-    body = <MobileBookPage destinationHint={featuredTrip?.title ?? ''} />;
+    body = <MobileBookPage destinationHint={featuredTrip?.title ?? ''} showTitle={false} />;
   } else if (tab === 'spots') {
     body = (
       <div>
-        <div className={styles.sectionHead}>
-          <h2 className={styles.sectionTitle}>Spots</h2>
-        </div>
         <section className={styles.mapWrap} aria-label="All trips places map">
           <div className={styles.mapHeader}>
             <h3 className={styles.mapTitle}>Map</h3>
@@ -571,11 +569,8 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   } else if (tab === 'trips') {
     body = (
       <div>
-        <button type="button" className={styles.tripsBackBtn} onClick={() => setTab('home')}>
-          ← Home
-        </button>
         <div className={styles.sectionHead}>
-          <h2 className={styles.sectionTitle}>Trips</h2>
+          <h2 className={styles.sectionTitle}>Your trips</h2>
           <button type="button" className={styles.sectionLink} onClick={onCreateTrip}>
             Add trip
           </button>
@@ -599,12 +594,6 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
         ) : null}
         {!loading && !error && trips.length > 0 ? (
           <>
-            <div className={styles.sectionHead}>
-              <h2 className={styles.sectionTitle}>Your trips</h2>
-              <button type="button" className={styles.sectionLink} onClick={onCreateTrip}>
-                New trip
-              </button>
-            </div>
             <div className={styles.toolbar} role="toolbar" aria-label="Trip list filters">
               {(['all', 'upcoming', 'completed'] as const).map((id) => (
                 <button
@@ -889,9 +878,57 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
     );
   }
 
+  const homeBrandActions = (
+    <>
+      <button
+        type="button"
+        className={styles.avatarBtn}
+        aria-label="Trip access"
+        disabled={!contextTrip?.id}
+        onClick={() => setMembersOpen(true)}
+      >
+        <TravellerAvatar
+          displayName={myMember?.userDisplayName || greetingName || displayName}
+          avatarUrl={myMember?.avatarUrl}
+          size={36}
+        />
+      </button>
+      <button type="button" className={styles.iconBtn} aria-label="Traveller profile" onClick={onOpenSettings}>
+        <IconGear />
+      </button>
+    </>
+  );
+
+  const homeTabTitle =
+    tab === 'trips' ? 'Trips' : tab === 'spots' ? 'Spots' : tab === 'book' ? 'Book' : tab === 'find' ? 'Find' : '';
+  const homeTabSub =
+    tab === 'trips'
+      ? 'Your travel plans'
+      : tab === 'spots'
+        ? 'Mapped places across your trips'
+        : tab === 'book'
+          ? 'Partner booking links'
+          : tab === 'find'
+            ? 'Tools and suggestions near you'
+            : '';
+
   return (
     <div className={styles.homeRoot} data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}>
-      <main className={styles.scroll}>{body}</main>
+      <main className={styles.scroll}>
+        {tab !== 'home' ? (
+          <MobileBrandHeader
+            actions={homeBrandActions}
+            navRow={
+              <button type="button" className={styles.tripsBackBtn} onClick={() => setTab('home')}>
+                ← Home
+              </button>
+            }
+            title={homeTabTitle}
+            subtitle={homeTabSub}
+          />
+        ) : null}
+        {body}
+      </main>
       {contextTrip?.id ? (
         <TripRoleProvider tripId={contextTrip.id}>
           <TripMembersPanel tripId={contextTrip.id} isOpen={membersOpen} onClose={() => setMembersOpen(false)} />

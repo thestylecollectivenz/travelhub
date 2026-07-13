@@ -20,6 +20,7 @@ import {
 import { notifyDayIdeasChanged } from '../../hooks/useTripDayIdeas';
 import {
   formatIdeaTime,
+  isIdeaRecentlyAdded,
   isUnifiedIdeaYours,
   loadUnifiedTripIdeas,
   matchesTripIdeasFilter,
@@ -50,7 +51,7 @@ function memberForIdea(
 
 export const MobileTripJotterList: React.FC = () => {
   const spContext = useSpContext();
-  const { trip, tripDays } = useTripWorkspace();
+  const { trip, tripDays, localEntries } = useTripWorkspace();
   const { placeById } = usePlaces();
   const { members } = useTripMembers(trip?.id);
   const { role } = useTripRole();
@@ -65,6 +66,8 @@ export const MobileTripJotterList: React.FC = () => {
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editText, setEditText] = React.useState('');
   const [menuId, setMenuId] = React.useState<string | null>(null);
+  const [howOpen, setHowOpen] = React.useState(false);
+  const [composeError, setComposeError] = React.useState('');
 
   const canContribute = role === 'Editor' || role === 'Companion';
 
@@ -78,10 +81,11 @@ export const MobileTripJotterList: React.FC = () => {
       trip.id,
       tripDays,
       placeById,
-      trip.destination
+      trip.destination,
+      localEntries
     );
     setRows(all);
-  }, [trip?.id, trip?.destination, tripDays, spContext, placeById]);
+  }, [trip?.id, trip?.destination, tripDays, spContext, placeById, localEntries]);
 
   React.useEffect(() => {
     void refresh().catch(console.error);
@@ -147,6 +151,7 @@ export const MobileTripJotterList: React.FC = () => {
   const addIdea = async (): Promise<void> => {
     const text = draft.trim();
     if (!trip?.id || !text || busy) return;
+    setComposeError('');
     setBusy(true);
     try {
       await createJotterIdea(spContext, trip.id, text, members, false);
@@ -155,6 +160,7 @@ export const MobileTripJotterList: React.FC = () => {
       await refresh();
       notifyTripIdeasChanged();
     } catch (err) {
+      setComposeError('Ideas need at least 8 characters of real text.');
       // eslint-disable-next-line no-console
       console.error('MobileTripIdeasTab: add failed', err);
     } finally {
@@ -278,12 +284,16 @@ export const MobileTripJotterList: React.FC = () => {
           <textarea
             className={styles.composeInput}
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              if (composeError) setComposeError('');
+            }}
             placeholder="Jot an idea for the trip…"
             aria-label="New idea"
             disabled={busy}
             autoFocus
           />
+          {composeError ? <p className={styles.composeError}>{composeError}</p> : null}
           <div className={styles.composeActions}>
             <button type="button" className={styles.composeCancel} onClick={() => setComposeOpen(false)}>
               Cancel
@@ -302,8 +312,9 @@ export const MobileTripJotterList: React.FC = () => {
         const editing = editingId === idea.id;
         const manageable = canManage(idea);
         const canDelete = manageable || (idea.isAi && canEditItinerary);
+        const isNew = !idea.isComplete && isIdeaRecentlyAdded(idea.createdAt);
         return (
-          <article key={idea.id} className={`${styles.ideaCard} ${idea.isComplete ? styles.ideaCardDone : ''}`}>
+          <article key={idea.id} className={`${styles.ideaCard} ${idea.isComplete ? styles.ideaCardDone : ''} ${isNew ? styles.ideaCardNew : ''}`}>
             <div className={styles.ideaCardHead}>
               {idea.isAi ? (
                 <span className={styles.aiAvatar} style={{ width: 34, height: 34 }} aria-hidden>
@@ -322,6 +333,7 @@ export const MobileTripJotterList: React.FC = () => {
                   ) : isUnifiedIdeaYours(idea, spContext, members) ? (
                     <span className={`${styles.ideaBadge} ${styles.badgeYours}`}>Yours</span>
                   ) : null}
+                  {isNew ? <span className={`${styles.ideaBadge} ${styles.badgeNew}`}>New</span> : null}
                 </div>
                 <p className={styles.ideaCardTime}>{formatIdeaTime(idea.createdAt)}</p>
               </div>
@@ -398,7 +410,7 @@ export const MobileTripJotterList: React.FC = () => {
                 </div>
               </>
             ) : (
-              <p className={`${styles.ideaText} ${idea.isComplete ? styles.ideaTextDone : ''}`}>{idea.text}</p>
+              <p className={styles.ideaText}>{idea.text}</p>
             )}
 
             {idea.locationLabel ? (
@@ -426,10 +438,23 @@ export const MobileTripJotterList: React.FC = () => {
 
       <div className={styles.banner}>
         <p className={styles.bannerText}>💡 Ideas are better together</p>
-        <button type="button" className={styles.bannerBtn}>
+        <button type="button" className={styles.bannerBtn} onClick={() => setHowOpen((v) => !v)} aria-expanded={howOpen}>
           How it works
         </button>
       </div>
+      {howOpen ? (
+        <div className={styles.howPanel} role="region" aria-label="How trip ideas work">
+          <p>
+            Capture ideas on the home jotter or here in Lists. AI suggestions rotate across your itinerary days and tag
+            the stop they relate to.
+          </p>
+          <p>
+            Tap an idea to expand replies — companions can add detail, links, or votes. Mark complete when you have
+            booked or decided; completed ideas move to the Complete filter without disappearing.
+          </p>
+          <p>Use the + Add idea button or the home jotter to start a new one any time.</p>
+        </div>
+      ) : null}
     </div>
   );
 };

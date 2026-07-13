@@ -91,7 +91,7 @@ export const MobileHomeUpcoming: React.FC<MobileHomeUpcomingProps> = ({ trip, on
               type="button"
               className={styles.upcomingItem}
               onClick={() => {
-                setPendingTripDay(trip.id, item.dayId);
+                setPendingTripDay(trip.id, item.dayId, item.ymd);
                 onOpenTrip(trip.id, 'today');
               }}
             >

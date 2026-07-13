@@ -27,6 +27,10 @@ import { MobileStayCruiseTile } from './MobileStayCruiseTile';
 import { MobileDayIdeas } from './MobileDayIdeas';
 import { WeatherIcon } from '../shared/WeatherIcon';
 import { findStayTileForDay } from '../../utils/mobileDayStay';
+import {
+  defaultTripDayId,
+  peekPendingTripDayPayload
+} from '../../utils/mobileTripDayPending';
 import { itineraryEntryFromSubItem } from '../../utils/mobileSubItemEntry';
 import { useMobileDetailHistory } from '../../hooks/useMobileDetailHistory';
 import { useShellMode } from '../../hooks/useShellMode';
@@ -170,8 +174,12 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   );
 
   React.useEffect(() => {
-    if (!selectedDayId && days.length) setSelectedDayId(days[0].id);
-  }, [days, selectedDayId, setSelectedDayId]);
+    if (!days.length) return;
+    if (selectedDayId && days.some((d) => d.id === selectedDayId)) return;
+    if (trip?.id && peekPendingTripDayPayload(trip.id)) return;
+    const fallback = defaultTripDayId(days);
+    if (fallback) setSelectedDayId(fallback);
+  }, [days, selectedDayId, setSelectedDayId, trip?.id]);
 
   const day = days.find((d) => d.id === selectedDayId) ?? days[0];
   const preTripDayId = resolvePreTripDayId(tripDays, trip?.id ?? '');
@@ -240,6 +248,18 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     if (!day || !trip) return [];
     return locationInfoEntriesForDay(day, localEntries, trip.id);
   }, [day, localEntries, trip]);
+
+  React.useEffect(() => {
+    if (!dayLocationEntries.length) {
+      setLocationPanelEntryId(null);
+      return;
+    }
+    setLocationPanelEntryId((current) => {
+      if (current && dayLocationEntries.some((e) => e.id === current)) return current;
+      return dayLocationEntries[0].id;
+    });
+  }, [day?.id, dayLocationEntries]);
+
   const locationPanelEntry = locationPanelEntryId
     ? localEntries.find((e) => e.id === locationPanelEntryId) ?? null
     : null;
@@ -655,6 +675,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
 
       {dayLocationEntries.length ? (
         <div className={styles.locationStripWrap}>
+          <p className={styles.locationStripHint}>Tap a place for weather, tips, currency and saved suggestions.</p>
           <DayLocationInfoStrip
             entries={dayLocationEntries}
             activeEntryId={locationPanelEntryId}

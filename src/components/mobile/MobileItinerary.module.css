@@ -377,14 +377,15 @@
 
 .dayHeaderLine {
   margin: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 650;
-  color: var(--tl-charcoal);
-  line-height: 1.3;
+  font-family: var(--tl-serif, Georgia, 'Palatino Linotype', Palatino, serif);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--tl-navy);
+  line-height: 1.25;
 }
 
 .dayHeaderWeekday {
-  color: var(--tl-rust);
+  color: var(--tl-navy);
 }
 
 .dayHeaderRest {
@@ -444,7 +445,16 @@
 
 /* ─── Location strip ──────────────────────────────────────────────── */
 .locationStripWrap {
-  padding: 0 var(--space-4) var(--space-2);
+  padding: 0 var(--space-4) var(--space-3);
+  display: grid;
+  gap: 0.45rem;
+}
+
+.locationStripHint {
+  margin: 0;
+  font-size: 0.68rem;
+  color: var(--tl-muted, #6b6570);
+  line-height: 1.35;
 }
 
 /* ─── Timeline (icon-led rows) ─────────────────────────────────────── */

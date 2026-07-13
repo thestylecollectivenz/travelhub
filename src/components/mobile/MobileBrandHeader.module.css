@@ -1,0 +1,118 @@
+.root {
+  --tl-olive: #6b7c3a;
+  --tl-gold: #c4a574;
+  --tl-navy: #1e2a44;
+  --tl-rust: #c45c3a;
+  --tl-ink: #1a1f2e;
+  --tl-muted: #6b6570;
+  --tl-serif: Georgia, 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
+
+  flex-shrink: 0;
+  padding: max(1.1rem, env(safe-area-inset-top, 0)) var(--space-4) 0.65rem;
+  background: var(--color-surface-raised, white);
+  border-bottom: 1px solid color-mix(in srgb, var(--tl-navy) 10%, transparent);
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: 0.55rem;
+}
+
+.brandRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.pebbleMark {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+}
+
+.pebble {
+  width: 100%;
+  height: 100%;
+}
+
+.pebble:nth-child(1) {
+  background: var(--tl-olive);
+  border-radius: 55% 45% 60% 40% / 50% 55% 45% 50%;
+  transform: rotate(-12deg);
+}
+
+.pebble:nth-child(2) {
+  background: var(--tl-gold);
+  border-radius: 40% 60% 45% 55% / 55% 40% 60% 45%;
+  transform: rotate(18deg) scale(0.92);
+}
+
+.pebble:nth-child(3) {
+  background: var(--tl-navy);
+  border-radius: 60% 40% 50% 50% / 45% 55% 45% 55%;
+  transform: rotate(8deg) scale(0.95);
+}
+
+.pebble:nth-child(4) {
+  background: var(--tl-rust);
+  border-radius: 45% 55% 40% 60% / 50% 45% 55% 50%;
+  transform: rotate(-20deg);
+}
+
+.brandName {
+  margin: 0;
+  font-family: var(--tl-serif);
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--tl-navy);
+  letter-spacing: -0.02em;
+}
+
+.topBarActions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.navRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.pageTitle {
+  margin: 0.15rem 0 0.2rem;
+  font-family: var(--tl-serif);
+  font-size: 1.55rem;
+  font-weight: 600;
+  color: var(--tl-navy);
+  line-height: 1.15;
+}
+
+.pageSub {
+  margin: 0 0 0.35rem;
+  font-size: 0.82rem;
+  color: var(--tl-muted);
+}
+
+[data-shell='ipad-portrait'] .root {
+  padding-top: max(1.35rem, env(safe-area-inset-top, 0));
+}
+
+[data-shell='ipad-portrait'] .brandName {
+  font-size: 1.5rem;
+}
+
+[data-shell='ipad-portrait'] .pageTitle {
+  font-size: 1.85rem;
+}

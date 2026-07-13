@@ -13,7 +13,7 @@ import {
   findConfirmationDocument,
   findDeckPlanDocument
 } from '../../utils/bookingStatusUtils';
-import { stayTileAiImageUrl } from '../../utils/stayTileAiImage';
+import { resolveStayHeroImageUrl, stayHeroPlaceholderUrl } from '../../utils/stayTileHeroImage';
 import { MobileBookingSiteSheet } from './MobileBookingSiteSheet';
 import styles from './MobileStayCruiseTile.module.css';
 
@@ -119,11 +119,23 @@ export const MobileStayCruiseTile: React.FC<MobileStayCruiseTileProps> = ({
     () => bookingPartnerSearchUrls(entry.title || entry.location || 'hotel', entry.dateStart, entry.dateEnd),
     [entry.dateStart, entry.dateEnd, entry.location, entry.title]
   );
-  const heroUrl = React.useMemo(
-    () => stayTileAiImageUrl(entry.id, title, entry.location || entry.title || '', mode),
-    [entry.id, entry.location, entry.title, mode, title]
+  const locationLabel = entry.location || entry.title || '';
+  const [heroUrl, setHeroUrl] = React.useState(() =>
+    stayHeroPlaceholderUrl(title, locationLabel, mode)
   );
   const [heroFailed, setHeroFailed] = React.useState(false);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setHeroFailed(false);
+    setHeroUrl(stayHeroPlaceholderUrl(title, locationLabel, mode));
+    void resolveStayHeroImageUrl(title, locationLabel, mode).then((url) => {
+      if (!cancelled && url) setHeroUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [title, locationLabel, mode]);
 
   const pills = React.useMemo((): TilePill[] => {
     const list: TilePill[] = [];

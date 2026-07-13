@@ -78,13 +78,19 @@
   background: color-mix(in srgb, white 92%, #f0fdfa);
   color: #0f766e;
   font-weight: 600;
-  padding: 0.28rem 0.65rem 0.28rem 0.45rem;
+  font-size: 0.82rem;
+  padding: 0.42rem 0.8rem 0.42rem 0.55rem;
   box-shadow: 0 1px 2px color-mix(in srgb, #0f766e 8%, transparent);
-  max-width: 9.5rem;
+  max-width: 11rem;
 }
 
 .chipPill.chipActive {
-  border-color: #0d9488;
-  background: color-mix(in srgb, #99f6e4 28%, white);
-  color: #115e59;
+  border-color: #0f766e;
+  background: #0f766e;
+  color: white;
+  box-shadow: 0 2px 8px color-mix(in srgb, #0f766e 28%, transparent);
+}
+
+.chipPill.chipActive .chipIcon {
+  color: white;
 }
