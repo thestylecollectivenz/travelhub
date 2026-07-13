@@ -64,8 +64,8 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2px;
-  width: 1.85rem;
-  height: 1.85rem;
+  width: 2.25rem;
+  height: 2.25rem;
   flex-shrink: 0;
 }
 
@@ -102,7 +102,7 @@
 .brandName {
   margin: 0;
   font-family: var(--tl-serif);
-  font-size: 1.15rem;
+  font-size: 1.35rem;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--tl-navy);
@@ -126,19 +126,23 @@
 }
 
 .greeting {
-  margin: 0 0 var(--space-1);
+  margin: 0 0 -0.15rem;
   font-size: var(--font-size-md);
   font-weight: 600;
   color: var(--tl-navy);
+  position: relative;
+  z-index: 0;
 }
 
 .prompt {
-  margin: 0 0 var(--space-4);
+  margin: -0.35rem 0 var(--space-4);
   font-family: var(--tl-serif);
-  font-size: 1.65rem;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
+  font-size: 2.35rem;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
   color: var(--tl-ink);
+  position: relative;
+  z-index: 1;
 }
 
 .aiRow {
@@ -205,10 +209,12 @@
   cursor: pointer;
   min-height: 6.5rem;
   display: flex;
-  flex-direction: row;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: var(--space-2);
   box-shadow: 0 10px 22px color-mix(in srgb, var(--tl-navy) 12%, transparent);
+  position: relative;
 }
 
 .pillarCopy {
@@ -217,11 +223,14 @@
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
+  width: 100%;
 }
 
 .pillarChevron {
   flex-shrink: 0;
   opacity: 0.9;
+  align-self: flex-end;
+  margin-top: auto;
 }
 
 .pillar:disabled {
@@ -248,6 +257,10 @@
 .pillarIcon {
   width: 1.5rem;
   height: 1.5rem;
+  padding: 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, white 18%, transparent);
+  box-sizing: content-box;
 }
 
 .pillarTitle {
@@ -647,6 +660,23 @@
   padding-right: max(1rem, env(safe-area-inset-right, 0));
 }
 
+.homeRoot[data-shell='ipad-portrait'] .pillarGrid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.homeRoot[data-shell='ipad-portrait'] .prompt {
+  font-size: 2.75rem;
+}
+
+.homeRoot[data-shell='ipad-portrait'] .brandName {
+  font-size: 1.5rem;
+}
+
+.homeRoot[data-shell='ipad-portrait'] .pebbleMark {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
 .homeRoot[data-shell='ipad-portrait'] .bottomNav {
   padding-left: max(0.75rem, env(safe-area-inset-left, 0));
   padding-right: max(0.75rem, env(safe-area-inset-right, 0));
@@ -666,8 +696,8 @@
 }
 
 .homeRoot[data-shell='ipad-portrait'] .pillar {
-  min-height: 6.5rem;
-  padding: 0.85rem 0.65rem;
+  min-height: 7.25rem;
+  padding: var(--space-3);
 }
 
 .homeRoot[data-shell='ipad-portrait'] .pillarIcon {
@@ -777,10 +807,36 @@
 }
 
 .homeCardTitle {
-  margin: 0;
+  margin: 0 0 var(--space-2);
   font-family: var(--tl-serif);
   font-size: 1rem;
   color: var(--tl-navy);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.upcomingHeadIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--tl-gold) 75%, white);
+  color: white;
+  flex-shrink: 0;
+}
+
+.tripsBackBtn {
+  border: none;
+  background: transparent;
+  color: var(--tl-navy);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  margin: 0 0 var(--space-3);
 }
 
 .homeCardLink {
@@ -804,21 +860,52 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 0.45rem;
+  gap: 0;
+}
+
+.upcomingList > li + li {
+  border-top: 1px solid color-mix(in srgb, var(--tl-line) 70%, transparent);
 }
 
 .upcomingItem {
   width: 100%;
   border: none;
   background: transparent;
-  border-radius: 0.75rem;
-  padding: 0.55rem 0;
+  border-radius: 0;
+  padding: 0.65rem 0;
   text-align: left;
   cursor: pointer;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.55rem;
+}
+
+.upcomingDateBlock {
+  flex-shrink: 0;
+  width: 2.35rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05rem;
+  line-height: 1.1;
+}
+
+.upcomingWeekday,
+.upcomingMonth {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--tl-muted);
+}
+
+.upcomingDayNum {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--tl-navy);
+  line-height: 1;
 }
 
 .upcomingMain {
@@ -826,15 +913,34 @@
   flex: 1;
 }
 
+.upcomingTitleRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.upcomingCatIcon {
+  flex-shrink: 0;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  margin-top: 0.05rem;
+}
+
 .upcomingPill {
   flex-shrink: 0;
   font-size: 0.62rem;
   font-weight: 700;
-  color: var(--tl-muted);
-  background: color-mix(in srgb, var(--tl-cream-deep) 55%, white);
+  color: var(--tl-navy);
+  background: color-mix(in srgb, #3b6fd9 14%, white);
   border-radius: 999px;
-  padding: 0.2rem 0.45rem;
+  padding: 0.25rem 0.5rem;
   white-space: nowrap;
+  align-self: center;
 }
 
 .upcomingDay {
@@ -1070,10 +1176,6 @@
 
 .homeRoot[data-shell='ipad-portrait'] .tripCardFeatured .tripCardTitle {
   font-size: 1.05rem;
-}
-
-.homeRoot[data-shell='ipad-portrait'] .pillar {
-  min-height: 5.5rem;
 }
 
 .homeRoot[data-shell='ipad-portrait'] .nearRow {

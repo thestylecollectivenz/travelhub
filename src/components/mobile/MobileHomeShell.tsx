@@ -21,13 +21,12 @@ import { homeNearYouTools, type NearYouToolId } from '../../utils/nearYouTools';
 import { NearYouToolIcon } from '../shared/NearYouToolIcon';
 import { createItineraryEntryFromNearYouPlace } from '../../utils/addPlaceToItinerary';
 import { resolveHomeContextTrip } from '../../utils/homeContextTrip';
-import { homeAiSuggestionChips } from '../../utils/tripJotterIdeas';
+import { homeAiVisibleChips } from '../../utils/tripJotterIdeas';
 import {
   migrateLocalSavedSpotsToTrip,
   saveTripSavedSpot
 } from '../../utils/tripSavedSpots';
 import { setPendingMobileItineraryEdit } from '../../utils/mobileItineraryEditPending';
-import { setPendingMobileHomeAsk } from '../../utils/mobileHomePendingAsk';
 import { useContinuousSpeechInput } from '../../hooks/useContinuousSpeechInput';
 import { useCurrentUserRole } from '../../hooks/useCurrentUserRole';
 import { useTripMembers } from '../../hooks/useTripMembers';
@@ -37,6 +36,9 @@ import { MobileIdeasJotter } from './MobileIdeasJotter';
 import { MobileHomeUpcoming } from './MobileHomeUpcoming';
 import { MobileAddToTripMenu } from './MobileAddToTripMenu';
 import { MobileBookPage } from './MobileBookPage';
+import { MobileHomeAskAiSheet } from './MobileHomeAskAiSheet';
+import { TripMembersPanel } from '../workspace/TripMembersPanel';
+import { TripRoleProvider } from '../../context/TripRoleContext';
 import '../../components/maps/LeafletCompat.css';
 import type { ShellMode } from '../../hooks/useShellMode';
 import styles from './MobileHome.module.css';
@@ -148,8 +150,17 @@ function IconBook(): React.ReactElement {
 function IconGear(): React.ReactElement {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4l1.4-1.4M17 7l1.4-1.4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path
+        d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M19.4 13a7.97 7.97 0 0 0 .1-2l2-1.2-2-3.5-2.3 1a8.1 8.1 0 0 0-1.7-1L15 3h-6l-.5 2.3a8.1 8.1 0 0 0-1.7 1l-2.3-1-2 3.5L4.5 11a7.97 7.97 0 0 0 .1 2L4.4 14l2 3.5 2.3-1a8.1 8.1 0 0 0 1.7 1L9 21h6l.5-2.3a8.1 8.1 0 0 0 1.7-1l2.3 1 2-3.5-1.9-1Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -199,6 +210,9 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   const [completedSort, setCompletedSort] = React.useState<CompletedSort>('newest');
   const [mapTripFilter, setMapTripFilter] = React.useState<MapTripFilter>('upcoming');
   const [aiPrompt, setAiPrompt] = React.useState('');
+  const [homeAskPrompt, setHomeAskPrompt] = React.useState<string | null>(null);
+  const [aiChipOffset, setAiChipOffset] = React.useState(0);
+  const [membersOpen, setMembersOpen] = React.useState(false);
   const [nearToolId, setNearToolId] = React.useState<NearYouToolId | null>(null);
   const [nearActionMsg, setNearActionMsg] = React.useState('');
   const mapRef = React.useRef<HTMLDivElement | null>(null);
@@ -257,7 +271,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
     setAiPrompt((prev) => `${prev}${prev ? ' ' : ''}${chunk}`);
   }, []);
   const { listening, toggleListening } = useContinuousSpeechInput(appendVoice);
-  const aiChips = React.useMemo(() => homeAiSuggestionChips(contextTrip), [contextTrip]);
+  const aiChips = React.useMemo(() => homeAiVisibleChips(contextTrip, aiChipOffset, 2), [contextTrip, aiChipOffset]);
   const { ordered: listTrips, nextUpId } = React.useMemo(
     () => orderTripsForList(trips, listFilter, upcomingSort, completedSort, todayYmd),
     [trips, listFilter, upcomingSort, completedSort, todayYmd]
@@ -556,6 +570,9 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   } else if (tab === 'trips') {
     body = (
       <div>
+        <button type="button" className={styles.tripsBackBtn} onClick={() => setTab('home')}>
+          ← Home
+        </button>
         <div className={styles.sectionHead}>
           <h2 className={styles.sectionTitle}>Trips</h2>
           <button type="button" className={styles.sectionLink} onClick={onCreateTrip}>
@@ -638,14 +655,20 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
             <h1 className={styles.brandName}>Trip Leopard</h1>
           </div>
           <div className={styles.topBarActions}>
-            <button type="button" className={styles.avatarBtn} aria-label="User settings" onClick={onOpenSettings}>
+            <button
+              type="button"
+              className={styles.avatarBtn}
+              aria-label="Trip access"
+              disabled={!contextTrip?.id}
+              onClick={() => setMembersOpen(true)}
+            >
               <TravellerAvatar
                 displayName={myMember?.userDisplayName || greetingName || displayName}
                 avatarUrl={myMember?.avatarUrl}
                 size={36}
               />
             </button>
-            <button type="button" className={styles.iconBtn} aria-label="Settings" onClick={onOpenSettings}>
+            <button type="button" className={styles.iconBtn} aria-label="Traveller profile" onClick={onOpenSettings}>
               <IconGear />
             </button>
           </div>
@@ -662,8 +685,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
             e.preventDefault();
             if (!featuredTrip) return;
             const p = aiPrompt.trim();
-            if (p) setPendingMobileHomeAsk(p);
-            onSelectTrip(featuredTrip.id, 'today');
+            if (p) setHomeAskPrompt(p);
             setAiPrompt('');
           }}
         >
@@ -703,14 +725,19 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
               disabled={!featuredTrip}
               onClick={() => {
                 if (!featuredTrip) return;
-                setPendingMobileHomeAsk(chip);
-                onSelectTrip(featuredTrip.id, 'today');
+                setHomeAskPrompt(chip);
               }}
             >
               {chip}
             </button>
           ))}
-          <button type="button" className={styles.aiChip} aria-label="More suggestions" disabled={!featuredTrip}>
+          <button
+            type="button"
+            className={styles.aiChip}
+            aria-label="More suggestions"
+            disabled={!featuredTrip}
+            onClick={() => setAiChipOffset((o) => o + 2)}
+          >
             …
           </button>
         </div>
@@ -842,7 +869,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
 
         <div className={styles.homeSplitRow}>
           <MobileHomeUpcoming trip={featuredTrip} onOpenTrip={onSelectTrip} />
-          <MobileIdeasJotter trip={featuredTrip} />
+          <MobileIdeasJotter trip={featuredTrip} homeActive={tab === 'home'} />
         </div>
 
         <MobileAddToTripMenu tripId={featuredTrip?.id} role={contextRole} onSelectTrip={onSelectTrip} />
@@ -853,6 +880,26 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   return (
     <div className={styles.homeRoot} data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}>
       <main className={styles.scroll}>{body}</main>
+      {contextTrip?.id ? (
+        <TripRoleProvider tripId={contextTrip.id}>
+          <TripMembersPanel tripId={contextTrip.id} isOpen={membersOpen} onClose={() => setMembersOpen(false)} />
+        </TripRoleProvider>
+      ) : null}
+      {homeAskPrompt && contextTrip?.id ? (
+        <MobileHomeAskAiSheet
+          tripId={contextTrip.id}
+          prompt={homeAskPrompt}
+          onClose={() => setHomeAskPrompt(null)}
+          onAddToItinerary={
+            contextRole === 'Editor'
+              ? (place) => {
+                  void addNearToItinerary(place);
+                  setHomeAskPrompt(null);
+                }
+              : undefined
+          }
+        />
+      ) : null}
       <nav className={styles.bottomNav} aria-label="Trip Leopard home navigation">
         <button
           type="button"

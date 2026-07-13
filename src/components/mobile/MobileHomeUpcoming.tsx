@@ -4,6 +4,8 @@ import { DayService } from '../../services/DayService';
 import { ItineraryService } from '../../services/ItineraryService';
 import type { Trip } from '../../models';
 import type { MobileTab } from './mobileTypes';
+import { CategoryIcon } from '../shared/CategoryIcon';
+import { getCategorySlug } from '../../utils/categoryUtils';
 import { buildHomeUpcomingItems, type HomeUpcomingItem } from '../../utils/homeUpcomingItems';
 import styles from './MobileHome.module.css';
 
@@ -16,6 +18,17 @@ function countdownLabel(daysUntil: number): string {
   if (daysUntil === 0) return 'Today';
   if (daysUntil === 1) return 'In 1 day';
   return `In ${daysUntil} days`;
+}
+
+function UpcomingHeaderIcon(): React.ReactElement {
+  return (
+    <span className={styles.upcomingHeadIcon} aria-hidden>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+        <rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M8 3.5v3M16 3.5v3M4 10h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    </span>
+  );
 }
 
 export const MobileHomeUpcoming: React.FC<MobileHomeUpcomingProps> = ({ trip, onOpenTrip }) => {
@@ -61,7 +74,10 @@ export const MobileHomeUpcoming: React.FC<MobileHomeUpcomingProps> = ({ trip, on
 
   return (
     <section className={styles.homeCard} aria-label="Upcoming">
-      <h3 className={styles.homeCardTitle}>Upcoming</h3>
+      <h3 className={styles.homeCardTitle}>
+        <UpcomingHeaderIcon />
+        Upcoming
+      </h3>
       {loading ? <p className={styles.homeCardHint}>Loading…</p> : null}
       {!loading && !items.length ? (
         <p className={styles.homeCardHint}>No timed items coming up on this trip.</p>
@@ -74,9 +90,18 @@ export const MobileHomeUpcoming: React.FC<MobileHomeUpcomingProps> = ({ trip, on
               className={styles.upcomingItem}
               onClick={() => onOpenTrip(trip.id, 'today')}
             >
+              <span className={styles.upcomingDateBlock} aria-hidden>
+                <span className={styles.upcomingWeekday}>{item.weekdayShort}</span>
+                <span className={styles.upcomingDayNum}>{item.dayNum}</span>
+                <span className={styles.upcomingMonth}>{item.monthShort}</span>
+              </span>
               <span className={styles.upcomingMain}>
-                <span className={styles.upcomingDay}>{item.dayLabel}</span>
-                <span className={styles.upcomingTitle}>{item.title}</span>
+                <span className={styles.upcomingTitleRow}>
+                  <span className={`${styles.upcomingCatIcon} th-cat-${getCategorySlug(item.category)}`}>
+                    <CategoryIcon category={item.category} size={14} color="currentColor" />
+                  </span>
+                  <span className={styles.upcomingTitle}>{item.title}</span>
+                </span>
                 {item.sub ? <span className={styles.upcomingSub}>{item.sub}</span> : null}
               </span>
               <span className={styles.upcomingPill}>{countdownLabel(item.daysUntil)}</span>

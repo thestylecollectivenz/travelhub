@@ -155,8 +155,23 @@ export function homeAiSuggestionChips(trip?: Trip): string[] {
   return [
     `Ideas for 3 days in ${place}`,
     `Best things to do in ${place}`,
-    `What should I pack for ${place}?`
+    `What should I pack for ${place}?`,
+    `Local food spots in ${place}`,
+    `Hidden gems near ${place}`,
+    `Rainy day plans for ${place}`
   ];
+}
+
+/** Visible chips on home (first two) plus overflow via the … control. */
+export function homeAiVisibleChips(trip: Trip | undefined, offset: number, visibleCount = 2): string[] {
+  const all = homeAiSuggestionChips(trip);
+  if (!all.length) return [];
+  const start = ((offset % all.length) + all.length) % all.length;
+  const out: string[] = [];
+  for (let i = 0; i < Math.min(visibleCount, all.length); i += 1) {
+    out.push(all[(start + i) % all.length]);
+  }
+  return out;
 }
 
 function normalizeExcludeKey(text: string): string {
@@ -164,10 +179,11 @@ function normalizeExcludeKey(text: string): string {
 }
 
 /** Ask Gemini for one fresh idea, avoiding itinerary and existing jotter text. */
-export async function fetchEphemeralJotterAiIdea(
+export async function fetchJotterAiIdeaText(
   apiKey: string,
   trip: Trip | undefined,
-  excludeTexts: string[]
+  excludeTexts: string[],
+  itineraryPlaces: string[] = []
 ): Promise<string | null> {
   const key = (apiKey || '').trim();
   if (!key) return null;
@@ -175,25 +191,56 @@ export async function fetchEphemeralJotterAiIdea(
   const dates =
     trip?.dateStart && trip?.dateEnd ? ` Trip dates: ${trip.dateStart.slice(0, 10)} to ${trip.dateEnd.slice(0, 10)}.` : '';
   const exclude = Array.from(new Set(excludeTexts.map(normalizeExcludeKey).filter(Boolean))).slice(0, 40);
+  const placeHints = Array.from(new Set(itineraryPlaces.map((p) => p.trim()).filter(Boolean))).slice(0, 12);
   const variety = `${Date.now() % 9973}`;
   const excludeBlock = exclude.length
-    ? `\nDo NOT suggest anything already on the itinerary or jotter. Already covered:\n${exclude.map((x) => `- ${x}`).join('\n')}\n`
+    ? `\nDo NOT repeat anything already on the itinerary or jotter. Already covered:\n${exclude.map((x) => `- ${x}`).join('\n')}\n`
     : '';
-  const prompt = `Suggest exactly 1 short, specific new travel idea (one line only) for ${place}.${dates}${excludeBlock}
-Mix activities, food, or experiences. Variety seed: ${variety}. Plain text only.`;
+  const placeBlock = placeHints.length
+    ? `\nOnly suggest ideas relevant to this trip's destinations and stops: ${placeHints.join(', ')}. Do not suggest other countries or cities.\n`
+    : `\nOnly suggest ideas relevant to ${place}. Do not suggest unrelated destinations.\n`;
+  const prompt = `Suggest exactly 1 short, specific new travel idea (one line only) for the trip to ${place}.${dates}${placeBlock}${excludeBlock}
+Mix activities, food, or experiences tied to the trip. Variety seed: ${variety}. Plain text only.`;
   try {
     const lines = await generatePlainTextLines(key, prompt, 1);
     const line = lines.find((l) => isValidJotterIdeaText(l));
     return line?.trim() || null;
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.warn('fetchEphemeralJotterAiIdea failed', err);
+    console.warn('fetchJotterAiIdeaText failed', err);
     return null;
   }
 }
 
+/** Create and persist one new AI jotter idea when home display needs more. */
+export async function createPersistedJotterAiIdea(
+  spContext: WebPartContext,
+  tripId: string,
+  trip: Trip | undefined,
+  members: TripMember[] | undefined,
+  apiKey: string | undefined,
+  excludeTexts: string[],
+  itineraryPlaces: string[] = []
+): Promise<JotterIdeaRow | null> {
+  const text = await fetchJotterAiIdeaText(apiKey || '', trip, excludeTexts, itineraryPlaces);
+  if (!text) return null;
+  try {
+    return await createJotterIdea(spContext, tripId, text, members, true);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('createPersistedJotterAiIdea failed', err);
+    return null;
+  }
+}
+
+const JOTTER_AI_REFRESH_MS = 3 * 60 * 1000;
+
+export function jotterAiRefreshIntervalMs(): number {
+  return JOTTER_AI_REFRESH_MS;
+}
+
 /**
- * Home jotter display: prioritise user ideas, always include 1 fresh ephemeral AI idea.
+ * Home jotter display: up to 2 user ideas + enough persisted AI rows to fill the limit (min 1 AI on home).
  */
 export async function buildJotterHomeDisplay(
   spContext: WebPartContext,
@@ -202,38 +249,58 @@ export async function buildJotterHomeDisplay(
   members: TripMember[] | undefined,
   apiKey: string | undefined,
   itineraryTitles: string[],
-  displayLimit = 3
+  itineraryPlaces: string[] = [],
+  displayLimit = 3,
+  options?: { ensureFreshAi?: boolean }
 ): Promise<JotterDisplayRow[]> {
   await purgeInvalidJotterAiIdeas(spContext, tripId).catch(console.error);
 
   const all = await loadJotterIdeas(spContext, tripId);
   const userIdeas = all.filter((r) => !r.isAi);
-  const excludeTexts = [
-    ...all.map((r) => r.text),
-    ...itineraryTitles.filter(Boolean)
-  ];
+  let aiIdeas = all.filter((r) => r.isAi);
+  const excludeTexts = [...all.map((r) => r.text), ...itineraryTitles.filter(Boolean)];
 
   const expanded = displayLimit > 3;
-  const maxUser = userIdeas.length > 0 ? (expanded ? userIdeas.length : Math.min(2, displayLimit - 1)) : 0;
+  const maxUser = expanded ? userIdeas.length : Math.min(2, displayLimit);
   const pickedUsers = userIdeas.slice(0, maxUser);
-  const rows: JotterDisplayRow[] = pickedUsers.map((r, i) => ({
-    ...r,
-    icon: iconForIndex(i)
-  }));
+  const aiNeeded = Math.max(0, displayLimit - pickedUsers.length);
 
-  const aiText = await fetchEphemeralJotterAiIdea(apiKey || '', trip, excludeTexts);
-  if (aiText) {
-    rows.push({
-      id: `ephemeral-ai-${Date.now()}`,
+  if (options?.ensureFreshAi && aiNeeded > 0 && (apiKey || '').trim()) {
+    const fresh = await createPersistedJotterAiIdea(
+      spContext,
       tripId,
-      text: aiText,
-      createdAt: new Date().toISOString(),
-      authorLabel: 'AI',
-      isAi: true,
-      ephemeral: true,
-      icon: iconForIndex(rows.length)
-    });
+      trip,
+      members,
+      apiKey,
+      excludeTexts,
+      itineraryPlaces
+    );
+    if (fresh) {
+      aiIdeas = [fresh, ...aiIdeas.filter((r) => r.id !== fresh.id)];
+      excludeTexts.push(fresh.text);
+    }
   }
+
+  while (aiIdeas.length < aiNeeded && (apiKey || '').trim()) {
+    const created = await createPersistedJotterAiIdea(
+      spContext,
+      tripId,
+      trip,
+      members,
+      apiKey,
+      excludeTexts,
+      itineraryPlaces
+    );
+    if (!created) break;
+    aiIdeas = [...aiIdeas, created];
+    excludeTexts.push(created.text);
+  }
+
+  const pickedAi = aiIdeas.slice(0, aiNeeded);
+  const rows: JotterDisplayRow[] = [
+    ...pickedUsers.map((r, i) => ({ ...r, icon: iconForIndex(i) })),
+    ...pickedAi.map((r, i) => ({ ...r, icon: iconForIndex(pickedUsers.length + i) }))
+  ];
 
   let nextUserIdx = maxUser;
   while (rows.length < displayLimit && nextUserIdx < userIdeas.length) {

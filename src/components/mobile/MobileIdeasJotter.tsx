@@ -8,7 +8,7 @@ import {
   buildJotterHomeDisplay,
   createJotterIdea,
   JOTTER_IDEAS_CHANGED_EVENT,
-  loadJotterIdeas,
+  jotterAiRefreshIntervalMs,
   type JotterDisplayRow,
   type JotterIconKind
 } from '../../utils/tripJotterIdeas';
@@ -16,6 +16,8 @@ import styles from './MobileHome.module.css';
 
 export interface MobileIdeasJotterProps {
   trip?: Trip;
+  /** When true, periodically refresh AI suggestions while visible on home. */
+  homeActive?: boolean;
 }
 
 function formatJotterDate(iso?: string): string {
@@ -50,56 +52,66 @@ function JotterRowIcon({ kind }: { kind: JotterIconKind }): React.ReactElement {
   );
 }
 
-export const MobileIdeasJotter: React.FC<MobileIdeasJotterProps> = ({ trip }) => {
+export const MobileIdeasJotter: React.FC<MobileIdeasJotterProps> = ({ trip, homeActive = false }) => {
   const spContext = useSpContext();
   const { config } = useConfig();
   const { members } = useTripMembers(trip?.id);
   const [ideas, setIdeas] = React.useState<JotterDisplayRow[]>([]);
-  const [allUserCount, setAllUserCount] = React.useState(0);
   const [draft, setDraft] = React.useState('');
   const [composeOpen, setComposeOpen] = React.useState(false);
   const [showAll, setShowAll] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
 
-  const refresh = React.useCallback(async (): Promise<void> => {
-    if (!trip?.id) {
-      setIdeas([]);
-      setAllUserCount(0);
-      return;
-    }
-    setLoading(true);
-    try {
-      const entrySvc = new ItineraryService(spContext);
-      const [entries, allRows] = await Promise.all([
-        entrySvc.getAll(trip.id),
-        loadJotterIdeas(spContext, trip.id)
-      ]);
-      const itineraryTitles = entries
-        .filter((e) => !e.parentEntryId)
-        .flatMap((e) => [e.title, e.location].filter(Boolean) as string[]);
-      setAllUserCount(allRows.filter((r) => !r.isAi).length);
-      const rows = await buildJotterHomeDisplay(
-        spContext,
-        trip.id,
-        trip,
-        members,
-        config.geminiApiKey,
-        itineraryTitles,
-        showAll ? 12 : 3
-      );
-      setIdeas(rows);
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('MobileIdeasJotter: load failed', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [trip, spContext, members, config.geminiApiKey, showAll]);
+  const refresh = React.useCallback(
+    async (ensureFreshAi = false): Promise<void> => {
+      if (!trip?.id) {
+        setIdeas([]);
+        return;
+      }
+      setLoading(true);
+      try {
+        const entrySvc = new ItineraryService(spContext);
+        const entries = await entrySvc.getAll(trip.id);
+        const itineraryTitles = entries
+          .filter((e) => !e.parentEntryId)
+          .flatMap((e) => [e.title, e.location].filter(Boolean) as string[]);
+        const itineraryPlaces = entries
+          .filter((e) => !e.parentEntryId)
+          .flatMap((e) => [e.location, trip.destination].filter(Boolean) as string[]);
+        const rows = await buildJotterHomeDisplay(
+          spContext,
+          trip.id,
+          trip,
+          members,
+          config.geminiApiKey,
+          itineraryTitles,
+          itineraryPlaces,
+          showAll ? 12 : 3,
+          { ensureFreshAi }
+        );
+        setIdeas(rows);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('MobileIdeasJotter: load failed', err);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [trip, spContext, members, config.geminiApiKey, showAll]
+  );
 
   React.useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  React.useEffect(() => {
+    if (!homeActive || !trip?.id) return;
+    const id = window.setInterval(() => {
+      void refresh(true);
+    }, jotterAiRefreshIntervalMs());
+    return () => window.clearInterval(id);
+  }, [homeActive, trip?.id, refresh]);
 
   React.useEffect(() => {
     const handler = (): void => {
@@ -181,7 +193,7 @@ export const MobileIdeasJotter: React.FC<MobileIdeasJotterProps> = ({ trip }) =>
             </span>
             <span className={styles.jotterMain}>
               <span className={styles.jotterText}>{idea.text}</span>
-              {idea.createdAt && !idea.ephemeral ? (
+              {idea.createdAt ? (
                 <span className={styles.jotterDate}>{formatJotterDate(idea.createdAt)}</span>
               ) : idea.isAi ? (
                 <span className={styles.jotterDate}>Just now</span>
@@ -192,12 +204,10 @@ export const MobileIdeasJotter: React.FC<MobileIdeasJotterProps> = ({ trip }) =>
         ))}
       </ul>
 
-      {allUserCount > 3 ? (
-        <button type="button" className={styles.homeCardFooter} onClick={() => setShowAll((v) => !v)}>
-          {showAll ? 'Show fewer' : 'View all notes'}
-          <span aria-hidden> ›</span>
-        </button>
-      ) : null}
+      <button type="button" className={styles.homeCardFooter} onClick={() => setShowAll((v) => !v)}>
+        {showAll ? 'Show fewer' : 'View all ideas'}
+        <span aria-hidden> ›</span>
+      </button>
     </section>
   );
 };

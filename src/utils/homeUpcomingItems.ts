@@ -9,6 +9,10 @@ export interface HomeUpcomingItem {
   title: string;
   sub?: string;
   dayLabel: string;
+  weekdayShort: string;
+  dayNum: string;
+  monthShort: string;
+  category: string;
   ymd: string;
   daysUntil: number;
 }
@@ -25,9 +29,23 @@ function weekdayShort(ymd: string): string {
   return d.toLocaleDateString('en-NZ', { weekday: 'short' }).toUpperCase();
 }
 
-function dateShort(ymd: string): string {
+function monthShort(ymd: string): string {
   const d = new Date(`${ymd}T12:00:00`);
-  return d.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' }).toUpperCase();
+  return d.toLocaleDateString('en-NZ', { month: 'short' }).toUpperCase();
+}
+
+function dayNum(ymd: string): string {
+  const d = new Date(`${ymd}T12:00:00`);
+  return String(d.getDate());
+}
+
+function formatUpcomingSub(entry: ItineraryEntry, time: string): string | undefined {
+  const t = time ? formatTimeHHMM(time) : '';
+  if (entry.category === 'Flights' && t) return `Departs ${t}`;
+  if (entry.category === 'Accommodation' && t) return `From ${t}`;
+  if (t) return t;
+  if (entry.location?.trim()) return entry.location.trim();
+  return undefined;
 }
 
 export function buildHomeUpcomingItems(
@@ -53,16 +71,17 @@ export function buildHomeUpcomingItems(
     if (d !== 0) return d;
     return (a.time || '99:99').localeCompare(b.time || '99:99');
   });
-  return rows.slice(0, limit).map(({ ymd, time, entry, day }) => {
+  return rows.slice(0, limit).map(({ ymd, time, entry }) => {
     const until = daysUntil(ymd, todayYmd);
-    const subParts: string[] = [];
-    if (time) subParts.push(formatTimeHHMM(time));
-    if (entry.location?.trim()) subParts.push(entry.location.trim());
     return {
       id: entry.id,
       title: entry.title || entry.category || 'Itinerary item',
-      sub: subParts.join(' · ') || undefined,
-      dayLabel: `${weekdayShort(ymd)} ${dateShort(ymd)}`,
+      sub: formatUpcomingSub(entry, time),
+      dayLabel: `${weekdayShort(ymd)} ${dayNum(ymd)} ${monthShort(ymd)}`,
+      weekdayShort: weekdayShort(ymd),
+      dayNum: dayNum(ymd),
+      monthShort: monthShort(ymd),
+      category: entry.category || 'Activities',
       ymd,
       daysUntil: until
     };
