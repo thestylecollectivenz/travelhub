@@ -6,6 +6,8 @@ export interface AppConfigContextValue {
   /** In-memory map for the session — keys match SharePoint AppConfig.ConfigKey. */
   appConfig: Map<string, string>;
   getAppConfig(key: string): string | undefined;
+  reloadAppConfig: () => Promise<void>;
+  saveAppConfigValue: (key: string, value: string) => Promise<void>;
 }
 
 const AppConfigContext = React.createContext<AppConfigContextValue | undefined>(undefined);
@@ -14,21 +16,15 @@ export const AppConfigProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const spContext = useSpContext();
   const [appConfig, setAppConfig] = React.useState<Map<string, string>>(() => new Map());
 
-  React.useEffect(() => {
-    let cancelled = false;
+  const reloadAppConfig = React.useCallback(async (): Promise<void> => {
     const svc = new AppConfigService(spContext);
-    svc
-      .getAll()
-      .then((m) => {
-        if (!cancelled) setAppConfig(m);
-      })
-      .catch(() => {
-        if (!cancelled) setAppConfig(new Map());
-      });
-    return () => {
-      cancelled = true;
-    };
+    const m = await svc.getAll();
+    setAppConfig(m);
   }, [spContext]);
+
+  React.useEffect(() => {
+    void reloadAppConfig().catch(console.error);
+  }, [reloadAppConfig]);
 
   const getAppConfig = React.useCallback(
     (key: string): string | undefined => {
@@ -38,7 +34,19 @@ export const AppConfigProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     [appConfig]
   );
 
-  const value = React.useMemo<AppConfigContextValue>(() => ({ appConfig, getAppConfig }), [appConfig, getAppConfig]);
+  const saveAppConfigValue = React.useCallback(
+    async (key: string, value: string): Promise<void> => {
+      const svc = new AppConfigService(spContext);
+      await svc.setValue(key, value);
+      await reloadAppConfig();
+    },
+    [spContext, reloadAppConfig]
+  );
+
+  const value = React.useMemo<AppConfigContextValue>(
+    () => ({ appConfig, getAppConfig, reloadAppConfig, saveAppConfigValue }),
+    [appConfig, getAppConfig, reloadAppConfig, saveAppConfigValue]
+  );
 
   return <AppConfigContext.Provider value={value}>{children}</AppConfigContext.Provider>;
 };

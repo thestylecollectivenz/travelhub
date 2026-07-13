@@ -15,6 +15,8 @@ import {
 } from '../../utils/speechVoice';
 import { CurrencySelect } from '../shared/CurrencySelect';
 import { SecretApiKeyField } from '../shared/SecretApiKeyField';
+import { useCanManageSiteConfig } from '../../hooks/useCanManageSiteConfig';
+import { BookingAffiliateSettingsPanel } from './BookingAffiliateSettingsPanel';
 
 export interface ConfigPanelProps {
   isOpen: boolean;
@@ -34,6 +36,8 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
   const [browserVoicesLoading, setBrowserVoicesLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState('');
+  const [affiliateSettingsOpen, setAffiliateSettingsOpen] = React.useState(false);
+  const canManageSite = useCanManageSiteConfig();
 
   const hasWeatherKey = Boolean((config.weatherApiKey || '').trim());
   const hasGeminiKey = Boolean((config.geminiApiKey || '').trim());
@@ -382,6 +386,33 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
               Show day budget breakdown by default
             </span>
           </label>
+          {canManageSite ? (
+            <div style={{ borderTop: 'var(--border-default)', paddingTop: 'var(--space-3)' }}>
+              <p style={{ margin: '0 0 var(--space-2)', fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-800)', fontWeight: 700 }}>
+                Site settings
+              </p>
+              <button
+                type="button"
+                onClick={() => setAffiliateSettingsOpen(true)}
+                style={{
+                  border: 'var(--border-default)',
+                  background: 'transparent',
+                  color: 'var(--color-blue-700)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: 'var(--space-2) var(--space-3)',
+                  cursor: 'pointer',
+                  fontSize: 'var(--font-size-sm)',
+                  width: '100%',
+                  textAlign: 'left'
+                }}
+              >
+                Booking affiliate partners…
+              </button>
+              <p style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--font-size-xs)', color: 'var(--color-sand-600)' }}>
+                Configure site-wide partner links and affiliate IDs (owners / editors).
+              </p>
+            </div>
+          ) : null}
           {saveError ? (
             <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--color-warning)' }}>{saveError}</p>
           ) : null}
@@ -459,6 +490,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
           </button>
         </div>
       </aside>
+      {affiliateSettingsOpen ? <BookingAffiliateSettingsPanel onClose={() => setAffiliateSettingsOpen(false)} /> : null}
     </div>
   );
 };

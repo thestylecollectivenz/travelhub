@@ -1,0 +1,40 @@
+.logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background: white;
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.logoSm {
+  width: 2rem;
+  height: 2rem;
+}
+
+.img {
+  width: 70%;
+  height: 70%;
+  object-fit: contain;
+  display: block;
+}
+
+.fallback {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #1e2a44;
+}
+
+[data-shell='ipad-portrait'] .logo {
+  width: 2.85rem;
+  height: 2.85rem;
+}
+
+[data-shell='ipad-portrait'] .logoSm {
+  width: 2.35rem;
+  height: 2.35rem;
+}

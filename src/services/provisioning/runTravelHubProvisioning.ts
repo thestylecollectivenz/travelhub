@@ -4,6 +4,7 @@ import { ensureOwnerEmailColumns } from './ensureOwnerEmailColumns';
 import { ensureTripAccessLogList } from './ensureTripAccessLogList';
 import { ensureEditorEmailOnTrips } from './ensureEditorEmailOnTrips';
 import { ensureUserConfigColumns } from './ensureUserConfigColumns';
+import { ensureAppConfigList } from './ensureAppConfigList';
 import { runOwnerEmailBackfill } from './backfillOwnerEmail';
 import { runTripEditorEmailBackfill } from './backfillTripEditorEmail';
 
@@ -20,6 +21,7 @@ export function runTravelHubProvisioning(ctx: WebPartContext): void {
   void (async () => {
     try {
       await ensureUserConfigColumns(ctx);
+      await ensureAppConfigList(ctx);
       await ensureTripMembersList(ctx);
       await ensureOwnerEmailColumns(ctx);
       await ensureTripAccessLogList(ctx);

@@ -37,6 +37,7 @@ import { MobileHomeUpcoming } from './MobileHomeUpcoming';
 import { MobileAddToTripMenu } from './MobileAddToTripMenu';
 import { setPendingMobileListsIdeas } from '../../utils/mobileHomePendingAction';
 import { MobileBookPage } from './MobileBookPage';
+import { MobileBookAllPartners } from './MobileBookAllPartners';
 import { MobileHomeAskAiSheet } from './MobileHomeAskAiSheet';
 import { TripMembersPanel } from '../workspace/TripMembersPanel';
 import { TripRoleProvider } from '../../context/TripRoleContext';
@@ -216,6 +217,12 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   const [aiChipOffset, setAiChipOffset] = React.useState(0);
   const [membersOpen, setMembersOpen] = React.useState(false);
   const [nearToolId, setNearToolId] = React.useState<NearYouToolId | null>(null);
+  const [bookView, setBookView] = React.useState<'main' | 'all'>('main');
+  const [bookDestination, setBookDestination] = React.useState('');
+
+  React.useEffect(() => {
+    if (tab !== 'book') setBookView('main');
+  }, [tab]);
   const [nearActionMsg, setNearActionMsg] = React.useState('');
   const mapRef = React.useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = React.useRef<L.Map | null>(null);
@@ -511,7 +518,26 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
       />
     );
   } else if (tab === 'book') {
-    body = <MobileBookPage destinationHint={featuredTrip?.title ?? ''} showTitle={false} />;
+    body =
+      bookView === 'all' ? (
+        <MobileBookAllPartners destinationHint={bookDestination || featuredTrip?.title || ''} onBack={() => setBookView('main')} />
+      ) : (
+        <MobileBookPage
+          destinationHint={featuredTrip?.title ?? ''}
+          showTitle={false}
+          onViewAllPartners={(dest) => {
+            setBookDestination(dest || featuredTrip?.title || '');
+            setBookView('all');
+          }}
+          onViewTripOverview={
+            featuredTrip?.id
+              ? () => {
+                  onSelectTrip(featuredTrip.id);
+                }
+              : undefined
+          }
+        />
+      );
   } else if (tab === 'spots') {
     body = (
       <div>

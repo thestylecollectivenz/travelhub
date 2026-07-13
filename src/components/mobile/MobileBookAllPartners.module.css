@@ -1,0 +1,42 @@
+.root {
+  padding-bottom: 1.25rem;
+}
+
+.backBtn {
+  border: none;
+  background: transparent;
+  color: #2f5eb8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0 0 0.5rem;
+  cursor: pointer;
+}
+
+.title {
+  margin: 0;
+  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
+  font-size: 1.35rem;
+  font-weight: 500;
+  color: #1e2a44;
+}
+
+.sub {
+  margin: 0.25rem 0 0.85rem;
+  font-size: 0.78rem;
+  color: #6b6570;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.55rem;
+}
+
+[data-shell='ipad-portrait'] .title {
+  font-size: 1.85rem;
+}
+
+[data-shell='ipad-portrait'] .grid {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.7rem;
+}
