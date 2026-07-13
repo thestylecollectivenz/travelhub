@@ -21,7 +21,7 @@ function StatIcon({ children, tone }: { children: React.ReactNode; tone: 'olive'
   return <span className={`${chrome.statIcon} ${cls}`}>{children}</span>;
 }
 
-const MobileTaskBody: React.FC = () => {
+const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
   const { trip } = useTripWorkspace();
   const spContext = useSpContext();
   const shellMode = useShellMode();
@@ -73,8 +73,12 @@ const MobileTaskBody: React.FC = () => {
 
   return (
     <div data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}>
-      <h1 className={chrome.pageTitle}>Tasks</h1>
-      <p className={chrome.pageSub}>Reminders, bookings, and payments</p>
+      {hideChrome ? null : (
+        <>
+          <h1 className={chrome.pageTitle}>Tasks</h1>
+          <p className={chrome.pageSub}>Reminders, bookings, and payments</p>
+        </>
+      )}
 
       <div className={chrome.statRow}>
         <div className={chrome.statCard}>
@@ -124,8 +128,8 @@ const MobileTaskBody: React.FC = () => {
   );
 };
 
-export const MobileTaskView: React.FC = () => (
+export const MobileTaskView: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => (
   <PlanViewProvider>
-    <MobileTaskBody />
+    <MobileTaskBody hideChrome={hideChrome} />
   </PlanViewProvider>
 );

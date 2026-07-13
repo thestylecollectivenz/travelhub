@@ -25,7 +25,7 @@ export const MobileBookAllPartners: React.FC<MobileBookAllPartnersProps> = ({ de
   return (
     <div className={styles.root} data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}>
       <button type="button" className={styles.backBtn} onClick={onBack}>
-        ← Book
+        {'< Book'}
       </button>
       <h2 className={styles.title}>All partners</h2>
       <p className={styles.sub}>Every booking partner available on this site.</p>

@@ -382,19 +382,43 @@
 }
 
 [data-shell='ipad-portrait'] .recGrid {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
 }
 
 [data-shell='ipad-portrait'] .recCard {
-  padding: 0.85rem 0.75rem;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr;
+  justify-items: center;
+  align-content: start;
+  text-align: center;
+  gap: 0.65rem;
+  padding: 1.15rem 0.85rem 1rem;
+  min-height: 11.5rem;
+  aspect-ratio: 1 / 1.02;
+}
+
+[data-shell='ipad-portrait'] .recBody {
+  justify-items: center;
+}
+
+[data-shell='ipad-portrait'] .recTop {
+  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+}
+
+[data-shell='ipad-portrait'] .recChevron {
+  display: none;
 }
 
 [data-shell='ipad-portrait'] .recName {
-  font-size: 0.88rem;
+  font-size: 0.92rem;
 }
 
 [data-shell='ipad-portrait'] .recDesc {
-  font-size: 0.72rem;
+  font-size: 0.74rem;
+  -webkit-line-clamp: 3;
 }
 
 [data-shell='ipad-portrait'] .moreCard {

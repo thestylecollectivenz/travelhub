@@ -856,6 +856,18 @@
   flex-shrink: 0;
 }
 
+.jotterHeadIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--tl-olive) 72%, white);
+  color: white;
+  flex-shrink: 0;
+}
+
 .tripsBackBtn {
   border: none;
   background: transparent;
@@ -864,7 +876,7 @@
   font-weight: 700;
   cursor: pointer;
   padding: 0;
-  margin: 0 0 var(--space-3);
+  margin: 0;
 }
 
 .homeCardLink {

@@ -249,20 +249,15 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     return locationInfoEntriesForDay(day, localEntries, trip.id);
   }, [day, localEntries, trip]);
 
+  // Clear open sheet when day changes; do not auto-open location info on itinerary load.
   React.useEffect(() => {
-    if (!dayLocationEntries.length) {
-      setLocationPanelEntryId(null);
-      return;
-    }
-    setLocationPanelEntryId((current) => {
-      if (current && dayLocationEntries.some((e) => e.id === current)) return current;
-      return dayLocationEntries[0].id;
-    });
-  }, [day?.id, dayLocationEntries]);
+    setLocationPanelEntryId(null);
+  }, [day?.id]);
 
   const locationPanelEntry = locationPanelEntryId
     ? localEntries.find((e) => e.id === locationPanelEntryId) ?? null
     : null;
+  const primaryLocationEntryId = dayLocationEntries[0]?.id;
 
   const jumpToDate = (ymd: string): void => {
     const match = days.find((d) => (d.calendarDate || '').slice(0, 10) === ymd);
@@ -646,7 +641,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
           </p>
           {primaryPlaceLabel ? (
             <div className={styles.dayHeaderPlace}>
-              <svg width="11" height="11" viewBox="0 0 12 14" fill="none" aria-hidden>
+              <svg width="14" height="14" viewBox="0 0 12 14" fill="none" aria-hidden>
                 <path
                   d="M6 1C3.79 1 2 2.79 2 5c0 3 4 8 4 8s4-5 4-8c0-2.21-1.79-4-4-4z"
                   fill="currentColor"
@@ -679,6 +674,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
           <DayLocationInfoStrip
             entries={dayLocationEntries}
             activeEntryId={locationPanelEntryId}
+            primaryEntryId={primaryLocationEntryId}
             onSelect={setLocationPanelEntryId}
             variant="pills"
           />

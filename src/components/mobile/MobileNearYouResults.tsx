@@ -285,7 +285,7 @@ export const MobileNearYouResults: React.FC<MobileNearYouResultsProps> = ({
     <div className={styles.page}>
       <header className={styles.topBar}>
         <button type="button" className={styles.back} onClick={onBack}>
-          ← {locationEntryId ? locationLabel || 'Location' : 'Near you'}
+          {`< ${locationEntryId ? locationLabel || 'Location' : 'Near you'}`}
         </button>
         <div className={styles.tripMeta}>
           <p className={styles.tripTitle}>{tripTitle || 'Near you'}</p>

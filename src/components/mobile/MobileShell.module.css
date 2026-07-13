@@ -1,4 +1,9 @@
 .mobileRoot {
+  --tl-olive: #6b7c3a;
+  --tl-gold: #c4a574;
+  --tl-navy: #1e2a44;
+  --tl-rust: #c45c3a;
+
   position: fixed;
   inset: 0;
   z-index: 5000;
@@ -9,7 +14,12 @@
   min-height: 0;
   overflow: hidden;
   box-sizing: border-box;
-  background: var(--tl-mobile-surface, #fafaf9);
+  background:
+    radial-gradient(ellipse 80% 50% at 10% -10%, color-mix(in srgb, var(--tl-olive) 7%, transparent), transparent 55%),
+    radial-gradient(ellipse 70% 45% at 95% 5%, color-mix(in srgb, var(--tl-gold) 9%, transparent), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 80% 90%, color-mix(in srgb, var(--tl-rust) 5%, transparent), transparent 55%),
+    radial-gradient(ellipse 50% 35% at 0% 85%, color-mix(in srgb, var(--tl-navy) 4%, transparent), transparent 50%),
+    var(--tl-mobile-surface, #fafaf9);
 }
 
 .mobileHeader {

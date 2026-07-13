@@ -1,1 +1,1 @@
-export type MobileTab = 'today' | 'journal' | 'lists' | 'map' | 'tasks';
+export type MobileTab = 'today' | 'journal' | 'lists' | 'map' | 'tasks' | 'book';

@@ -5,6 +5,7 @@ import { MobileShoppingList } from './MobileShoppingList';
 import { MobileShoppingFilters } from './MobileShoppingFilters';
 import { MobilePackingFilters } from './MobilePackingFilters';
 import { MobileTripJotterList } from './MobileTripJotterList';
+import { MobileTaskView } from './MobileTaskView';
 import { useTripMembers } from '../../hooks/useTripMembers';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useTripRole } from '../../context/TripRoleContext';
@@ -20,6 +21,7 @@ import {
   MOBILE_OPEN_JOTTER_COMPOSE,
   MOBILE_OPEN_PACKING_ADD,
   MOBILE_OPEN_SHOPPING_ADD,
+  MOBILE_OPEN_TASK_ADD,
   consumePendingMobileListsIdeas
 } from '../../utils/mobileHomePendingAction';
 
@@ -30,7 +32,7 @@ function StatIcon({ children, tone }: { children: React.ReactNode; tone: 'olive'
 }
 
 const MobileListsBody: React.FC = () => {
-  const [sub, setSub] = React.useState<'packing' | 'shopping' | 'ideas'>('packing');
+  const [sub, setSub] = React.useState<'packing' | 'shopping' | 'ideas' | 'tasks'>('packing');
   const { trip } = useTripWorkspace();
   const planView = usePlanView();
   const spContext = useSpContext();
@@ -43,16 +45,19 @@ const MobileListsBody: React.FC = () => {
     const openPacking = (): void => setSub('packing');
     const openShopping = (): void => setSub('shopping');
     const openIdeas = (): void => setSub('ideas');
+    const openTasks = (): void => setSub('tasks');
     window.addEventListener(MOBILE_OPEN_PACKING_ADD, openPacking);
     window.addEventListener(MOBILE_OPEN_SHOPPING_ADD, openShopping);
     window.addEventListener(MOBILE_OPEN_LISTS_IDEAS, openIdeas);
     window.addEventListener(MOBILE_OPEN_JOTTER_COMPOSE, openIdeas);
+    window.addEventListener(MOBILE_OPEN_TASK_ADD, openTasks);
     if (consumePendingMobileListsIdeas()) setSub('ideas');
     return () => {
       window.removeEventListener(MOBILE_OPEN_PACKING_ADD, openPacking);
       window.removeEventListener(MOBILE_OPEN_SHOPPING_ADD, openShopping);
       window.removeEventListener(MOBILE_OPEN_LISTS_IDEAS, openIdeas);
       window.removeEventListener(MOBILE_OPEN_JOTTER_COMPOSE, openIdeas);
+      window.removeEventListener(MOBILE_OPEN_TASK_ADD, openTasks);
     };
   }, []);
 
@@ -78,17 +83,15 @@ const MobileListsBody: React.FC = () => {
   }, [trip?.id, spContext]);
 
   const shoppingToBuy = Math.max(0, shoppingTotal - shoppingBought - shoppingOrdered);
+  const canIdeas = role === 'Editor' || role === 'Companion';
+  const segmentClass = canIdeas ? `${chrome.segmented} ${chrome.segmented4}` : `${chrome.segmented} ${chrome.segmented3}`;
 
   return (
     <div data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}>
       <h1 className={chrome.pageTitle}>Lists</h1>
-      <p className={chrome.pageSub}>Packing, shopping, and trip ideas</p>
+      <p className={chrome.pageSub}>Packing, shopping, tasks, and trip ideas</p>
 
-      <div
-        className={`${chrome.segmented} ${role === 'Editor' || role === 'Companion' ? chrome.segmented3 : ''}`}
-        role="tablist"
-        aria-label="List type"
-      >
+      <div className={segmentClass} role="tablist" aria-label="List type">
         <button
           type="button"
           role="tab"
@@ -116,7 +119,20 @@ const MobileListsBody: React.FC = () => {
           </svg>
           Shopping
         </button>
-        {(role === 'Editor' || role === 'Companion') ? (
+        <button
+          type="button"
+          role="tab"
+          aria-selected={sub === 'tasks'}
+          className={`${chrome.segmentBtn} ${sub === 'tasks' ? chrome.segmentActive : ''}`}
+          onClick={() => setSub('tasks')}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M5 12l4 4 10-10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+          Tasks
+        </button>
+        {canIdeas ? (
           <button
             type="button"
             role="tab"
@@ -134,79 +150,86 @@ const MobileListsBody: React.FC = () => {
 
       {sub === 'ideas' ? (
         <MobileTripJotterList />
+      ) : sub === 'tasks' ? (
+        <MobileTaskView hideChrome />
       ) : sub === 'packing' ? (
-        <div className={`${chrome.statRow} ${chrome.statRow3}`}>
-          <div className={chrome.statCard}>
-            <StatIcon tone="navy">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <rect x="5" y="7" width="14" height="13" rx="2" stroke="currentColor" strokeWidth="1.6" />
-              </svg>
-            </StatIcon>
-            <span className={chrome.statValue}>{packingTotal}</span>
-            <span className={chrome.statLabel}>Total items</span>
+        <>
+          <div className={`${chrome.statRow} ${chrome.statRow3}`}>
+            <div className={chrome.statCard}>
+              <StatIcon tone="navy">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <rect x="5" y="7" width="14" height="13" rx="2" stroke="currentColor" strokeWidth="1.6" />
+                </svg>
+              </StatIcon>
+              <span className={chrome.statValue}>{packingTotal}</span>
+              <span className={chrome.statLabel}>Total items</span>
+            </div>
+            <div className={chrome.statCard}>
+              <StatIcon tone="olive">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path d="M6 12l4 4 8-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </StatIcon>
+              <span className={chrome.statValue}>{packingPacked}</span>
+              <span className={chrome.statLabel}>Packed</span>
+            </div>
+            <div className={chrome.statCard}>
+              <StatIcon tone="rust">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path d="M6 7h15l-1.5 9H7.5L6 7Z" stroke="currentColor" strokeWidth="1.6" />
+                </svg>
+              </StatIcon>
+              <span className={chrome.statValue}>{shoppingTotal}</span>
+              <span className={chrome.statLabel}>Shopping</span>
+            </div>
           </div>
-          <div className={chrome.statCard}>
-            <StatIcon tone="olive">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path d="M6 12l4 4 8-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </StatIcon>
-            <span className={chrome.statValue}>{packingPacked}</span>
-            <span className={chrome.statLabel}>Packed</span>
-          </div>
-          <div className={chrome.statCard}>
-            <StatIcon tone="rust">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path d="M6 7h15l-1.5 9H7.5L6 7Z" stroke="currentColor" strokeWidth="1.6" />
-              </svg>
-            </StatIcon>
-            <span className={chrome.statValue}>{shoppingTotal}</span>
-            <span className={chrome.statLabel}>Shopping</span>
-          </div>
-        </div>
+          <MobilePackingFilters travellers={travellers} />
+          <MobilePackingList embedded />
+        </>
       ) : (
-        <div className={chrome.statRow}>
-          <div className={chrome.statCard}>
-            <StatIcon tone="navy">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path d="M6 7h15l-1.5 9H7.5L6 7Z" stroke="currentColor" strokeWidth="1.6" />
-              </svg>
-            </StatIcon>
-            <span className={chrome.statValue}>{shoppingTotal}</span>
-            <span className={chrome.statLabel}>Total items</span>
+        <>
+          <div className={chrome.statRow}>
+            <div className={chrome.statCard}>
+              <StatIcon tone="navy">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path d="M6 7h15l-1.5 9H7.5L6 7Z" stroke="currentColor" strokeWidth="1.6" />
+                </svg>
+              </StatIcon>
+              <span className={chrome.statValue}>{shoppingTotal}</span>
+              <span className={chrome.statLabel}>Total items</span>
+            </div>
+            <div className={chrome.statCard}>
+              <StatIcon tone="rust">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.6" strokeDasharray="3 3" />
+                </svg>
+              </StatIcon>
+              <span className={chrome.statValue}>{shoppingToBuy}</span>
+              <span className={chrome.statLabel}>To buy</span>
+            </div>
+            <div className={chrome.statCard}>
+              <StatIcon tone="tan">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <rect x="4" y="6" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="1.6" />
+                </svg>
+              </StatIcon>
+              <span className={chrome.statValue}>{shoppingOrdered}</span>
+              <span className={chrome.statLabel}>Ordered</span>
+            </div>
+            <div className={chrome.statCard}>
+              <StatIcon tone="olive">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path d="M6 12l4 4 8-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
+              </StatIcon>
+              <span className={chrome.statValue}>{shoppingBought}</span>
+              <span className={chrome.statLabel}>Bought</span>
+            </div>
           </div>
-          <div className={chrome.statCard}>
-            <StatIcon tone="rust">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.6" strokeDasharray="3 3" />
-              </svg>
-            </StatIcon>
-            <span className={chrome.statValue}>{shoppingToBuy}</span>
-            <span className={chrome.statLabel}>To buy</span>
-          </div>
-          <div className={chrome.statCard}>
-            <StatIcon tone="tan">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <rect x="4" y="6" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="1.6" />
-              </svg>
-            </StatIcon>
-            <span className={chrome.statValue}>{shoppingOrdered}</span>
-            <span className={chrome.statLabel}>Ordered</span>
-          </div>
-          <div className={chrome.statCard}>
-            <StatIcon tone="olive">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path d="M6 12l4 4 8-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              </svg>
-            </StatIcon>
-            <span className={chrome.statValue}>{shoppingBought}</span>
-            <span className={chrome.statLabel}>Bought</span>
-          </div>
-        </div>
+          <MobileShoppingFilters travellers={travellers} />
+          <MobileShoppingList embedded />
+        </>
       )}
-
-      {sub === 'ideas' ? null : sub === 'packing' ? <MobilePackingFilters travellers={travellers} /> : <MobileShoppingFilters travellers={travellers} />}
-      {sub === 'ideas' ? null : sub === 'packing' ? <MobilePackingList embedded /> : <MobileShoppingList embedded />}
     </div>
   );
 };

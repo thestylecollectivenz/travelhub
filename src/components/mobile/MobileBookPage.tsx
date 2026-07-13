@@ -78,7 +78,7 @@ export const MobileBookPage: React.FC<MobileBookPageProps> = ({
   return (
     <div className={styles.root} data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}>
       {showTitle ? <h2 className={styles.title}>Book</h2> : null}
-      {showTitle ? <p className={styles.sub}>Search partner sites for stays, flights, tours, and more.</p> : null}
+      {showTitle ? <p className={styles.sub}>Search partner sites for stays, flights, tours and more.</p> : null}
 
       {canManageSite ? (
         <div className={styles.adminRow}>

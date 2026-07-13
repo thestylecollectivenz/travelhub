@@ -74,23 +74,40 @@
 }
 
 .chipPill {
-  border: 1px solid color-mix(in srgb, #0f766e 28%, transparent);
+  border: 1.5px solid color-mix(in srgb, #0f766e 32%, transparent);
   background: color-mix(in srgb, white 92%, #f0fdfa);
   color: #0f766e;
-  font-weight: 600;
-  font-size: 0.82rem;
-  padding: 0.42rem 0.8rem 0.42rem 0.55rem;
+  font-weight: 700;
+  font-size: 1.05rem;
+  padding: 0.7rem 1.1rem 0.7rem 0.7rem;
   box-shadow: 0 1px 2px color-mix(in srgb, #0f766e 8%, transparent);
-  max-width: 11rem;
+  max-width: 14rem;
 }
 
-.chipPill.chipActive {
+.chipPill.chipPrimary {
   border-color: #0f766e;
   background: #0f766e;
   color: white;
   box-shadow: 0 2px 8px color-mix(in srgb, #0f766e 28%, transparent);
 }
 
-.chipPill.chipActive .chipIcon {
+.chipPill.chipPrimary .chipIcon {
   color: white;
+}
+
+.chipPill.chipActive:not(.chipPrimary) {
+  border-color: #115e59;
+  background: color-mix(in srgb, #99f6e4 35%, white);
+  color: #115e59;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #0f766e 25%, transparent);
+}
+
+.chipPill.chipActive.chipPrimary {
+  box-shadow: 0 0 0 2px color-mix(in srgb, #0f766e 40%, transparent), 0 2px 8px color-mix(in srgb, #0f766e 28%, transparent);
+}
+
+[data-shell='ipad-portrait'] .chipPill {
+  font-size: 1.2rem;
+  padding: 0.8rem 1.25rem 0.8rem 0.8rem;
+  max-width: 16rem;
 }

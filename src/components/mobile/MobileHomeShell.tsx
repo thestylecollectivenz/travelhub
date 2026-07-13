@@ -505,6 +505,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
           setNearToolId(null);
           setTab('home');
         }}
+        hideBack
         initialToolId={nearToolId}
         tripId={contextTrip?.id}
         tripTitle={featuredTrip?.title}
@@ -514,6 +515,11 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
         onSavePlace={saveNearPlace}
         onAddToItinerary={(place) => {
           void addNearToItinerary(place);
+        }}
+        askAiEnabled={Boolean(featuredTrip)}
+        onAskAi={(prompt) => {
+          if (!featuredTrip) return;
+          setHomeAskPrompt(prompt);
         }}
       />
     );
@@ -933,7 +939,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
       : tab === 'spots'
         ? 'Mapped places across your trips'
         : tab === 'book'
-          ? 'Partner booking links'
+          ? 'Search partner sites for stays, flights, tours and more.'
           : tab === 'find'
             ? 'Tools and suggestions near you'
             : '';
@@ -943,10 +949,11 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
       <main className={styles.scroll}>
         {tab !== 'home' ? (
           <MobileBrandHeader
+            safeAreaTop={false}
             actions={homeBrandActions}
             navRow={
               <button type="button" className={styles.tripsBackBtn} onClick={() => setTab('home')}>
-                ← Home
+                {'< Home'}
               </button>
             }
             title={homeTabTitle}

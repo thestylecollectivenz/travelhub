@@ -152,7 +152,16 @@ export const MobileIdeasJotter: React.FC<MobileIdeasJotterProps> = ({ trip, home
   if (!trip) {
     return (
       <section className={styles.homeCard} aria-label="Ideas jotter">
-        <h3 className={styles.homeCardTitle}>Ideas jotter</h3>
+        <h3 className={styles.homeCardTitle}>
+          <span className={styles.jotterHeadIcon} aria-hidden>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" strokeWidth="1.8" />
+              <circle cx="9" cy="10" r="1.5" fill="currentColor" />
+              <path d="m5 17 4-4 3 3 4-5 3 4" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+            </svg>
+          </span>
+          Ideas jotter
+        </h3>
         <p className={styles.homeCardHint}>Create a trip to capture ideas.</p>
       </section>
     );
@@ -161,7 +170,16 @@ export const MobileIdeasJotter: React.FC<MobileIdeasJotterProps> = ({ trip, home
   return (
     <section className={styles.homeCard} aria-label="Ideas jotter">
       <div className={styles.homeCardHead}>
-        <h3 className={styles.homeCardTitle}>Ideas jotter</h3>
+        <h3 className={styles.homeCardTitle}>
+          <span className={styles.jotterHeadIcon} aria-hidden>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" strokeWidth="1.8" />
+              <circle cx="9" cy="10" r="1.5" fill="currentColor" />
+              <path d="m5 17 4-4 3 3 4-5 3 4" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+            </svg>
+          </span>
+          Ideas jotter
+        </h3>
         <button
           type="button"
           className={styles.jotterHeadAdd}

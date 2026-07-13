@@ -36,7 +36,7 @@ import { MobileDayView } from './MobileDayView';
 import { MobileJournalView } from './MobileJournalView';
 import { MobileListsView } from './MobileListsView';
 import { MobileMapView } from './MobileMapView';
-import { MobileTaskView } from './MobileTaskView';
+import { MobileBookPage } from './MobileBookPage';
 import { TripMembersPanel } from '../workspace/TripMembersPanel';
 import { AiAssistantFab } from '../workspace/AiAssistantFab';
 import { OptionEditPortal } from '../itinerary/OptionEditPortal';
@@ -95,22 +95,23 @@ const TABS: Array<{ id: MobileTab; label: string; icon: React.ReactNode }> = [
     )
   },
   {
-    id: 'tasks',
-    label: 'Tasks',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
-        <path d="M5 10l3 3 7-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        <rect x="3" y="4" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" />
-      </svg>
-    )
-  },
-  {
     id: 'map',
     label: 'Map',
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
         <path d="M10 3C7.24 3 5 5.24 5 8c0 4.25 5 9 5 9s5-4.75 5-9c0-2.76-2.24-5-5-5z" stroke="currentColor" strokeWidth="1.5" />
         <circle cx="10" cy="8" r="1.8" stroke="currentColor" strokeWidth="1.3" />
+      </svg>
+    )
+  },
+  {
+    id: 'book',
+    label: 'Book',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+        <path d="M4 6h12l1 3.5H3L4 6Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+        <path d="M3 9.5h14V15a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 013 15V9.5Z" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M7 12.5h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
       </svg>
     )
   }
@@ -134,7 +135,10 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
   const { role } = useTripRole();
   const { unreadCount: ideasUnread } = useTripDayIdeas();
   const showIdeasBadge = (role === 'Editor' || role === 'Companion') && ideasUnread > 0;
-  const [tab, setTab] = React.useState<MobileTab>(initialTab ?? 'today');
+  const [tab, setTab] = React.useState<MobileTab>(() => {
+    if (initialTab === 'tasks') return 'lists';
+    return initialTab ?? 'today';
+  });
   const [cameFromHome] = React.useState(() => peekCameFromHome());
   const [membersOpen, setMembersOpen] = React.useState(false);
   const [askAiPrompt, setAskAiPrompt] = React.useState<string | null>(null);
@@ -143,7 +147,15 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
   const { members } = useTripMembers(trip?.id);
 
   React.useEffect(() => {
-    if (initialTab) setTab(initialTab);
+    if (!initialTab) return;
+    if (initialTab === 'tasks') {
+      setTab('lists');
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent(MOBILE_OPEN_TASK_ADD));
+      }, 0);
+      return;
+    }
+    setTab(initialTab);
   }, [initialTab, trip?.id]);
 
   React.useEffect(() => {
@@ -251,7 +263,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
         window.setTimeout(dispatchChild, 120);
         break;
       case 'task':
-        setTab('tasks');
+        setTab('lists');
         window.setTimeout(dispatchChild, 80);
         break;
       case 'packing_item':
@@ -343,13 +355,19 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
       body = <MobileJournalView />;
       break;
     case 'lists':
+    case 'tasks':
       body = <MobileListsView />;
       break;
     case 'map':
       body = <MobileMapView />;
       break;
-    case 'tasks':
-      body = <MobileTaskView />;
+    case 'book':
+      body = (
+        <MobileBookPage
+          destinationHint={trip?.destination || trip?.title || ''}
+          showTitle
+        />
+      );
       break;
     default:
       body = <MobileDayView onOpenMembers={handleOpenMembers} onAskAi={handleAskAi} onDetailChange={handleDetailChange} />;

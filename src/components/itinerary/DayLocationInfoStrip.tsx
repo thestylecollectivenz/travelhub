@@ -13,6 +13,8 @@ import styles from './DayLocationInfoStrip.module.css';
 export interface DayLocationInfoStripProps {
   entries: ItineraryEntry[];
   activeEntryId?: string | null;
+  /** Day primary overnight / first place — darker pill when variant is pills. */
+  primaryEntryId?: string | null;
   onSelect: (entryId: string) => void;
   /** Mobile itinerary mockup: open pill chips without the desktop strip chrome. */
   variant?: 'default' | 'pills';
@@ -32,6 +34,7 @@ function progressForEntry(entry: ItineraryEntry): { done: number; total: number 
 export const DayLocationInfoStrip: React.FC<DayLocationInfoStripProps> = ({
   entries,
   activeEntryId,
+  primaryEntryId,
   onSelect,
   variant = 'default'
 }) => {
@@ -42,6 +45,8 @@ export const DayLocationInfoStrip: React.FC<DayLocationInfoStripProps> = ({
   );
 
   if (!locationEntries.length) return null;
+
+  const resolvedPrimary = primaryEntryId || locationEntries[0]?.id;
 
   return (
     <div
@@ -60,14 +65,15 @@ export const DayLocationInfoStrip: React.FC<DayLocationInfoStripProps> = ({
         const complete = total > 0 && done === total;
         const partial = total > 0 && done > 0 && done < total;
         const active = activeEntryId === entry.id;
+        const isPrimary = variant === 'pills' && entry.id === resolvedPrimary;
 
         return (
           <button
             key={entry.id}
             type="button"
-            className={`${styles.chip} ${variant === 'pills' ? styles.chipPill : ''} ${active ? styles.chipActive : ''} ${complete ? styles.chipComplete : ''}`}
+            className={`${styles.chip} ${variant === 'pills' ? styles.chipPill : ''} ${isPrimary ? styles.chipPrimary : ''} ${active ? styles.chipActive : ''} ${complete ? styles.chipComplete : ''}`}
             title={label}
-            aria-label={`${label}${total ? ` — ${done} of ${total} done` : ''}`}
+            aria-label={`${label}${total ? ` — ${done} of ${total} done` : ''}${isPrimary ? ' (primary)' : ''}`}
             onClick={() => onSelect(entry.id)}
           >
             <span className={styles.chipIcon}>

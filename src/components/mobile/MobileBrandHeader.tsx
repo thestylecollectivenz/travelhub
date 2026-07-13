@@ -6,11 +6,19 @@ export interface MobileBrandHeaderProps {
   navRow?: React.ReactNode;
   title?: string;
   subtitle?: string;
+  /** When true (default), apply safe-area top padding. Set false when already inside a padded scroll shell. */
+  safeAreaTop?: boolean;
 }
 
-export const MobileBrandHeader: React.FC<MobileBrandHeaderProps> = ({ actions, navRow, title, subtitle }) => {
+export const MobileBrandHeader: React.FC<MobileBrandHeaderProps> = ({
+  actions,
+  navRow,
+  title,
+  subtitle,
+  safeAreaTop = true
+}) => {
   return (
-    <header className={styles.root}>
+    <header className={`${styles.root} ${safeAreaTop ? '' : styles.rootEmbedded}`.trim()}>
       <div className={styles.topBar}>
         <div className={styles.brandRow}>
           <div className={styles.pebbleMark} aria-hidden>

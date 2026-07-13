@@ -31,6 +31,80 @@
   line-height: 1.4;
 }
 
+.aiRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.35rem 0.35rem 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, white 92%, #fafaf9);
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  box-shadow: 0 8px 24px color-mix(in srgb, #1e2a44 6%, transparent);
+}
+
+.aiSpark {
+  flex-shrink: 0;
+  color: #a8895a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.aiInput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-size: 0.85rem;
+  color: #1a1f2e;
+  outline: none;
+}
+
+.aiInput::placeholder {
+  color: #6b6570;
+}
+
+.aiMic {
+  flex-shrink: 0;
+  width: 2.35rem;
+  height: 2.35rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #6b6570;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.aiMicActive {
+  color: #c45c3a;
+  background: color-mix(in srgb, #c45c3a 12%, white);
+}
+
+.aiGo {
+  flex-shrink: 0;
+  width: 2.6rem;
+  height: 2.6rem;
+  border: none;
+  border-radius: 999px;
+  background: #3b6fd9;
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.aiGo:disabled,
+.aiMic:disabled,
+.aiInput:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .allSavedLink {
   display: inline-flex;
   align-items: center;

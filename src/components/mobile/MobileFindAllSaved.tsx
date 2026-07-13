@@ -43,7 +43,7 @@ export const MobileFindAllSaved: React.FC<MobileFindAllSavedProps> = ({ tripId, 
     <div className={styles.root}>
       <div className={styles.backRow}>
         <button type="button" className={styles.backBtn} onClick={onBack}>
-          ← Near you
+          {'< Near you'}
         </button>
       </div>
       <h2 className={styles.title}>Saved places</h2>
