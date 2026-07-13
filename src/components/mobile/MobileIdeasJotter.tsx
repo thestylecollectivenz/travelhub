@@ -15,7 +15,6 @@ import {
   type JotterIconKind
 } from '../../utils/tripJotterIdeas';
 import styles from './MobileHome.module.css';
-import { usePlaces } from '../../context/PlacesContext';
 
 export interface MobileIdeasJotterProps {
   trip?: Trip;
@@ -60,7 +59,6 @@ export const MobileIdeasJotter: React.FC<MobileIdeasJotterProps> = ({ trip, home
   const spContext = useSpContext();
   const { config } = useConfig();
   const { members } = useTripMembers(trip?.id);
-  const { placeById } = usePlaces();
   const [ideas, setIdeas] = React.useState<JotterDisplayRow[]>([]);
   const [draft, setDraft] = React.useState('');
   const [composeOpen, setComposeOpen] = React.useState(false);
@@ -85,6 +83,7 @@ export const MobileIdeasJotter: React.FC<MobileIdeasJotterProps> = ({ trip, home
         const itineraryPlaces = entries
           .filter((e) => !e.parentEntryId)
           .flatMap((e) => [e.location, trip.destination].filter(Boolean) as string[]);
+        // Home shell is outside PlacesProvider — resolve labels from days/entries only.
         const rows = await buildJotterHomeDisplay(
           spContext,
           trip.id,
@@ -94,7 +93,7 @@ export const MobileIdeasJotter: React.FC<MobileIdeasJotterProps> = ({ trip, home
           itineraryTitles,
           itineraryPlaces,
           3,
-          { ensureFreshAi, tripDays, entries, placeById }
+          { ensureFreshAi, tripDays, entries }
         );
         setIdeas(rows);
       } catch (err) {
@@ -104,7 +103,7 @@ export const MobileIdeasJotter: React.FC<MobileIdeasJotterProps> = ({ trip, home
         setLoading(false);
       }
     },
-    [trip, spContext, members, config.geminiApiKey, placeById]
+    [trip, spContext, members, config.geminiApiKey]
   );
 
   React.useEffect(() => {
