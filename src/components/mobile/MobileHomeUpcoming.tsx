@@ -7,6 +7,7 @@ import type { MobileTab } from './mobileTypes';
 import { CategoryIcon } from '../shared/CategoryIcon';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { buildHomeUpcomingItems, type HomeUpcomingItem } from '../../utils/homeUpcomingItems';
+import { setPendingTripDay } from '../../utils/mobileTripDayPending';
 import styles from './MobileHome.module.css';
 
 export interface MobileHomeUpcomingProps {
@@ -88,7 +89,10 @@ export const MobileHomeUpcoming: React.FC<MobileHomeUpcomingProps> = ({ trip, on
             <button
               type="button"
               className={styles.upcomingItem}
-              onClick={() => onOpenTrip(trip.id, 'today')}
+              onClick={() => {
+                setPendingTripDay(trip.id, item.dayId);
+                onOpenTrip(trip.id, 'today');
+              }}
             >
               <span className={styles.upcomingDateBlock} aria-hidden>
                 <span className={styles.upcomingWeekday}>{item.weekdayShort}</span>

@@ -6,6 +6,7 @@ import { todayYmdLocal } from './tripListSort';
 
 export interface HomeUpcomingItem {
   id: string;
+  dayId: string;
   title: string;
   sub?: string;
   dayLabel: string;
@@ -75,6 +76,7 @@ export function buildHomeUpcomingItems(
     const until = daysUntil(ymd, todayYmd);
     return {
       id: entry.id,
+      dayId: entry.dayId,
       title: entry.title || entry.category || 'Itinerary item',
       sub: formatUpcomingSub(entry, time),
       dayLabel: `${weekdayShort(ymd)} ${dayNum(ymd)} ${monthShort(ymd)}`,

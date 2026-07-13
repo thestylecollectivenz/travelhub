@@ -31,6 +31,7 @@ import { itineraryEntryFromSubItem } from '../../utils/mobileSubItemEntry';
 import { useMobileDetailHistory } from '../../hooks/useMobileDetailHistory';
 import { useShellMode } from '../../hooks/useShellMode';
 import { EXPAND_UNSCHEDULED_EVENT, notifyExpandUnscheduled } from '../../utils/mobileItineraryUiEvents';
+import { consumePendingItineraryAdd } from '../../utils/mobileHomePendingAction';
 import styles from './MobileItinerary.module.css';
 import shellStyles from './MobileShell.module.css';
 
@@ -364,6 +365,13 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
       notifyExpandUnscheduled();
     }, 300);
   }, [trip, day, dayEntries.length, updateEntry, setEditingCardId]);
+
+  React.useEffect(() => {
+    if (!day || !trip) return;
+    if (consumePendingItineraryAdd()) {
+      handleAddItem();
+    }
+  }, [day, trip, handleAddItem]);
 
   React.useEffect(() => {
     const handler = (): void => {

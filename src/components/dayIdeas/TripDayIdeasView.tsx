@@ -130,7 +130,9 @@ export const TripDayIdeasView: React.FC<TripDayIdeasViewProps> = ({
       <div className={styles.head}>
         <div>
           <h2 className={styles.title}>Trip ideas</h2>
-          <p className={styles.sub}>All day ideas from editors and companions in one place.</p>
+      <p className={styles.sub}>
+        Per-day brainstorming on the itinerary. Open = still discussing. Done = agreed you will do it. Delete ideas you are not pursuing.
+      </p>
         </div>
         {unreadCount > 0 && onMarkAllRead ? (
           <button type="button" className={styles.markAllBtn} onClick={() => void onMarkAllRead()}>
@@ -147,7 +149,7 @@ export const TripDayIdeasView: React.FC<TripDayIdeasViewProps> = ({
             className={status === key ? styles.filterOn : styles.filter}
             onClick={() => setStatus(key)}
           >
-            {key === 'all' ? 'All' : key === 'open' ? 'Open' : 'Agreed'}
+            {key === 'all' ? 'All' : key === 'open' ? 'Open' : 'Done'}
           </button>
         ))}
       </div>

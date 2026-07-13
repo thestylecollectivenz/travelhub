@@ -4,8 +4,7 @@ import { MobilePackingList } from './MobilePackingList';
 import { MobileShoppingList } from './MobileShoppingList';
 import { MobileShoppingFilters } from './MobileShoppingFilters';
 import { MobilePackingFilters } from './MobilePackingFilters';
-import { MobileTripIdeasList } from './MobileTripIdeasList';
-import { useTripDayIdeas } from '../../hooks/useTripDayIdeas';
+import { MobileTripJotterList } from './MobileTripJotterList';
 import { useTripMembers } from '../../hooks/useTripMembers';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useTripRole } from '../../context/TripRoleContext';
@@ -18,8 +17,10 @@ import { useShellMode } from '../../hooks/useShellMode';
 import chrome from './MobileTabChrome.module.css';
 import {
   MOBILE_OPEN_LISTS_IDEAS,
+  MOBILE_OPEN_JOTTER_COMPOSE,
   MOBILE_OPEN_PACKING_ADD,
-  MOBILE_OPEN_SHOPPING_ADD
+  MOBILE_OPEN_SHOPPING_ADD,
+  consumePendingMobileListsIdeas
 } from '../../utils/mobileHomePendingAction';
 
 function StatIcon({ children, tone }: { children: React.ReactNode; tone: 'olive' | 'rust' | 'navy' | 'tan' }): React.ReactElement {
@@ -36,7 +37,6 @@ const MobileListsBody: React.FC = () => {
   const shellMode = useShellMode();
   const { role } = useTripRole();
   const { members, travellers } = useTripMembers(trip?.id);
-  const { unreadCount: ideasUnread } = useTripDayIdeas();
   useCompanionListDefaults(planView, role, members);
 
   React.useEffect(() => {
@@ -46,10 +46,13 @@ const MobileListsBody: React.FC = () => {
     window.addEventListener(MOBILE_OPEN_PACKING_ADD, openPacking);
     window.addEventListener(MOBILE_OPEN_SHOPPING_ADD, openShopping);
     window.addEventListener(MOBILE_OPEN_LISTS_IDEAS, openIdeas);
+    window.addEventListener(MOBILE_OPEN_JOTTER_COMPOSE, openIdeas);
+    if (consumePendingMobileListsIdeas()) setSub('ideas');
     return () => {
       window.removeEventListener(MOBILE_OPEN_PACKING_ADD, openPacking);
       window.removeEventListener(MOBILE_OPEN_SHOPPING_ADD, openShopping);
       window.removeEventListener(MOBILE_OPEN_LISTS_IDEAS, openIdeas);
+      window.removeEventListener(MOBILE_OPEN_JOTTER_COMPOSE, openIdeas);
     };
   }, []);
 
@@ -79,7 +82,7 @@ const MobileListsBody: React.FC = () => {
   return (
     <div data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}>
       <h1 className={chrome.pageTitle}>Lists</h1>
-      <p className={chrome.pageSub}>Packing, shopping, and trip day ideas</p>
+      <p className={chrome.pageSub}>Packing, shopping, and trip ideas</p>
 
       <div
         className={`${chrome.segmented} ${role === 'Editor' || role === 'Companion' ? chrome.segmented3 : ''}`}
@@ -124,14 +127,13 @@ const MobileListsBody: React.FC = () => {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path d="M9 5h11M9 12h11M9 19h11M4 5h.01M4 12h.01M4 19h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
             </svg>
-            Day ideas
-            {ideasUnread > 0 ? <span className={chrome.segmentBadge}>{ideasUnread}</span> : null}
+            Ideas
           </button>
         ) : null}
       </div>
 
       {sub === 'ideas' ? (
-        <MobileTripIdeasList />
+        <MobileTripJotterList />
       ) : sub === 'packing' ? (
         <div className={`${chrome.statRow} ${chrome.statRow3}`}>
           <div className={chrome.statCard}>

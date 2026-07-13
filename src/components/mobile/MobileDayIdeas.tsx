@@ -113,7 +113,7 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId }) => {
           <h3 className={styles.dayIdeasTitle}>Ideas for this day</h3>
           {dayUnread > 0 ? <span className={styles.dayIdeasNewBadge}>{dayUnread} new</span> : null}
         </div>
-        <span className={styles.dayIdeasHint}>Swap ideas as you plan — check off when agreed. See all in Lists → Day ideas.</span>
+        <span className={styles.dayIdeasHint}>Swap ideas as you plan — check off when agreed. Day ideas also appear under Lists → Ideas when moved to the jotter.</span>
       </div>
       {rows.length ? (
         <ul className={styles.dayIdeasList}>

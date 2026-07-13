@@ -26,7 +26,7 @@ const EDITOR_OPTIONS: AddOption[] = [
   { action: 'task', label: 'Task', tab: 'tasks' },
   { action: 'packing_item', label: 'Packing item', tab: 'lists' },
   { action: 'shopping_item', label: 'Shopping item', tab: 'lists' },
-  { action: 'day_idea', label: 'Day idea', tab: 'lists' }
+  { action: 'jotter_idea', label: 'Idea', tab: 'lists' }
 ];
 
 export const MobileAddToTripMenu: React.FC<MobileAddToTripMenuProps> = ({ tripId, role, onSelectTrip }) => {

@@ -8,6 +8,7 @@ import styles from './MobileNearYouPage.module.css';
 
 export interface MobileNearYouPageProps {
   onBack: () => void;
+  onOpenAllSaved?: () => void;
   /** When set, open straight into results for this tool. */
   initialToolId?: NearYouToolId | null;
   tripId?: string;
@@ -19,6 +20,7 @@ export interface MobileNearYouPageProps {
 
 export const MobileNearYouPage: React.FC<MobileNearYouPageProps> = ({
   onBack,
+  onOpenAllSaved,
   initialToolId = null,
   tripId,
   tripTitle,
@@ -59,6 +61,12 @@ export const MobileNearYouPage: React.FC<MobileNearYouPageProps> = ({
       </div>
       <h2 className={styles.title}>Near you</h2>
       <p className={styles.intro}>Uses your device GPS. Pick a category to open the full results page.</p>
+      {tripId && onOpenAllSaved ? (
+        <button type="button" className={styles.allSavedLink} onClick={onOpenAllSaved}>
+          All saved places
+          <span aria-hidden> ›</span>
+        </button>
+      ) : null}
       <div className={styles.list}>
         {NEAR_YOU_TOOLS.map((tool) => (
           <div key={tool.id} className={styles.categoryWrap}>

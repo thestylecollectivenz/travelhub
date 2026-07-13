@@ -126,7 +126,7 @@
 }
 
 .greeting {
-  margin: 0 0 -0.15rem;
+  margin: 0 0 0.15rem;
   font-size: var(--font-size-md);
   font-weight: 600;
   color: var(--tl-navy);
@@ -135,7 +135,7 @@
 }
 
 .prompt {
-  margin: -0.35rem 0 var(--space-4);
+  margin: 0.35rem 0 var(--space-4);
   font-family: var(--tl-serif);
   font-size: 2.35rem;
   line-height: 1.05;
@@ -299,6 +299,12 @@
   font-weight: 600;
   cursor: pointer;
   padding: 0;
+}
+
+.sectionLinks {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
 }
 
 .nearRow {
@@ -666,6 +672,7 @@
 
 .homeRoot[data-shell='ipad-portrait'] .prompt {
   font-size: 2.75rem;
+  margin-top: 0.45rem;
 }
 
 .homeRoot[data-shell='ipad-portrait'] .brandName {

@@ -138,6 +138,71 @@
   color: #6b6570;
 }
 
+.pageBackRow {
+  margin: 0 0 0.85rem;
+}
+
+.pageBackBtn {
+  border: none;
+  background: transparent;
+  color: #1e2a44;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0.15rem 0;
+  line-height: 1.35;
+}
+
+.pageTitleAfterBack {
+  margin-top: 0.1rem;
+}
+
+.filterChipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.65rem;
+}
+
+.filterChip,
+.filterChipOn {
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: white;
+  color: #5c6570;
+}
+
+.filterChipOn {
+  background: #1e2a44;
+  color: white;
+  border-color: #1e2a44;
+}
+
+.inlinePrimaryBtn {
+  border: none;
+  border-radius: 999px;
+  background: #1e2a44;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.45rem 0.85rem;
+  cursor: pointer;
+}
+
+.textBtn {
+  border: none;
+  background: transparent;
+  color: #8a7355;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.15rem;
+}
+
 .muted {
   margin: 0;
   font-size: 0.72rem;

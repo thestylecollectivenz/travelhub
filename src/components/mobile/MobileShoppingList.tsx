@@ -25,7 +25,7 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
   const { config } = useConfig();
   const planView = usePlanView();
   const service = React.useMemo(() => new ShoppingListService(spContext), [spContext]);
-  const { categories } = useTripShoppingCategories(trip?.id, spContext);
+  const { categories, addCategory } = useTripShoppingCategories(trip?.id, spContext);
   const { role } = useTripRole();
   const { members, travellers } = useTripMembers(trip?.id);
   useCompanionListDefaults(planView, role, members);
@@ -64,10 +64,21 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
   }, [refresh]);
 
   React.useEffect(() => {
-    const handler = (): void => setAddOpen(true);
+    const handler = (): void => {
+      let cat = category;
+      if (!categories.length && trip?.id) {
+        const next = addCategory('General');
+        cat = next[0] || 'General';
+        setCategory(cat);
+      } else if (!cat && categories.length) {
+        cat = categories[0];
+        setCategory(cat);
+      }
+      setAddOpen(true);
+    };
     window.addEventListener(MOBILE_OPEN_SHOPPING_ADD, handler);
     return () => window.removeEventListener(MOBILE_OPEN_SHOPPING_ADD, handler);
-  }, []);
+  }, [trip?.id, categories, category, addCategory]);
 
   React.useEffect(() => {
     if (category && !categories.some((c) => c.toLowerCase() === category.toLowerCase())) {
@@ -141,7 +152,7 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
     activeTraveller && activeTraveller !== '__unassigned__'
       ? activeTraveller
       : travellers[0] || 'Traveller 1';
-  const canAdd = (role === 'Editor' || role === 'Companion') && categories.length > 0;
+  const canAdd = role === 'Editor' || role === 'Companion';
 
   const addItem = (): void => {
     if (!trip?.id || !name.trim() || !category.trim()) return;

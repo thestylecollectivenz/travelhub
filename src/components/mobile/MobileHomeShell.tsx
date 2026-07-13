@@ -35,6 +35,8 @@ import { MobileNearYouPage } from './MobileNearYouPage';
 import { MobileIdeasJotter } from './MobileIdeasJotter';
 import { MobileHomeUpcoming } from './MobileHomeUpcoming';
 import { MobileAddToTripMenu } from './MobileAddToTripMenu';
+import { setPendingMobileListsIdeas } from '../../utils/mobileHomePendingAction';
+import { MobileFindAllSaved } from './MobileFindAllSaved';
 import { MobileBookPage } from './MobileBookPage';
 import { MobileHomeAskAiSheet } from './MobileHomeAskAiSheet';
 import { TripMembersPanel } from '../workspace/TripMembersPanel';
@@ -131,8 +133,8 @@ function IconSpots(): React.ReactElement {
 function IconFind(): React.ReactElement {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M12 21s6.5-5.2 6.5-10.2A6.5 6.5 0 0 0 12 4.3a6.5 6.5 0 0 0-6.5 6.5C5.5 15.8 12 21 12 21Z" stroke="currentColor" strokeWidth="1.8" />
-      <circle cx="12" cy="10.8" r="2.2" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.8" />
+      <path d="m16.5 16.5 5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
@@ -214,6 +216,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   const [aiChipOffset, setAiChipOffset] = React.useState(0);
   const [membersOpen, setMembersOpen] = React.useState(false);
   const [nearToolId, setNearToolId] = React.useState<NearYouToolId | null>(null);
+  const [findShowSaved, setFindShowSaved] = React.useState(false);
   const [nearActionMsg, setNearActionMsg] = React.useState('');
   const mapRef = React.useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = React.useRef<L.Map | null>(null);
@@ -490,12 +493,18 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
 
   let body: React.ReactNode;
   if (tab === 'find') {
-    body = (
+    body = findShowSaved ? (
+      <MobileFindAllSaved
+        tripId={contextTrip?.id}
+        onBack={() => setFindShowSaved(false)}
+      />
+    ) : (
       <MobileNearYouPage
         onBack={() => {
           setNearToolId(null);
           setTab('home');
         }}
+        onOpenAllSaved={() => setFindShowSaved(true)}
         initialToolId={nearToolId}
         tripId={contextTrip?.id}
         tripTitle={featuredTrip?.title}
@@ -793,13 +802,27 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
 
         <div className={styles.sectionHead}>
           <h2 className={styles.sectionTitle}>Near you</h2>
-          <button
-            type="button"
-            className={styles.sectionLink}
-            onClick={() => openNearYou(null)}
-          >
-            See all
-          </button>
+          <div className={styles.sectionLinks}>
+            {contextTrip?.id ? (
+              <button
+                type="button"
+                className={styles.sectionLink}
+                onClick={() => {
+                  setFindShowSaved(true);
+                  setTab('find');
+                }}
+              >
+                Saved
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className={styles.sectionLink}
+              onClick={() => openNearYou(null)}
+            >
+              See all
+            </button>
+          </div>
         </div>
         <div className={styles.nearRow} role="list">
           {homeNearYouTools().map((tool) => (
@@ -869,7 +892,18 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
 
         <div className={styles.homeSplitRow}>
           <MobileHomeUpcoming trip={featuredTrip} onOpenTrip={onSelectTrip} />
-          <MobileIdeasJotter trip={featuredTrip} homeActive={tab === 'home'} />
+          <MobileIdeasJotter
+            trip={featuredTrip}
+            homeActive={tab === 'home'}
+            onViewAllIdeas={
+              featuredTrip
+                ? () => {
+                    setPendingMobileListsIdeas(false);
+                    onSelectTrip(featuredTrip.id, 'lists');
+                  }
+                : undefined
+            }
+          />
         </div>
 
         <MobileAddToTripMenu tripId={featuredTrip?.id} role={contextRole} onSelectTrip={onSelectTrip} />

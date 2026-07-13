@@ -7,14 +7,19 @@ import { logTripAccessOnce } from '../../services/TripAccessLogService';
 import { createItineraryEntryFromNearYouPlace } from '../../utils/addPlaceToItinerary';
 import {
   MOBILE_OPEN_JOURNAL_COMPOSER,
+  MOBILE_OPEN_JOTTER_COMPOSE,
   MOBILE_OPEN_LISTS_IDEAS,
   MOBILE_OPEN_PACKING_ADD,
   MOBILE_OPEN_PHOTO_UPLOAD,
   MOBILE_OPEN_SHOPPING_ADD,
   MOBILE_OPEN_TASK_ADD,
   MOBILE_START_ITINERARY_ADD,
-  consumePendingMobileHomeAdd
+  clearCameFromHome,
+  consumePendingMobileHomeAdd,
+  peekCameFromHome,
+  setPendingItineraryAdd
 } from '../../utils/mobileHomePendingAction';
+import { consumePendingTripDay } from '../../utils/mobileTripDayPending';
 import { saveTripSavedSpot } from '../../utils/tripSavedSpots';
 import { useTripMembers } from '../../hooks/useTripMembers';
 import { consumePendingMobileItineraryEdit } from '../../utils/mobileItineraryEditPending';
@@ -125,6 +130,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
   const { unreadCount: ideasUnread } = useTripDayIdeas();
   const showIdeasBadge = (role === 'Editor' || role === 'Companion') && ideasUnread > 0;
   const [tab, setTab] = React.useState<MobileTab>(initialTab ?? 'today');
+  const [cameFromHome] = React.useState(() => peekCameFromHome());
   const [membersOpen, setMembersOpen] = React.useState(false);
   const [askAiPrompt, setAskAiPrompt] = React.useState<string | null>(null);
   const [cardDetailOpen, setCardDetailOpen] = React.useState(false);
@@ -183,6 +189,15 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
 
   React.useEffect(() => {
     if (!trip?.id) return;
+    const dayId = consumePendingTripDay(trip.id);
+    if (dayId) {
+      setTab('today');
+      setSelectedDayId(dayId);
+    }
+  }, [trip?.id, setSelectedDayId]);
+
+  React.useEffect(() => {
+    if (!trip?.id) return;
     const action = consumePendingMobileHomeAdd();
     if (!action) return;
     const dispatchChild = (): void => {
@@ -205,8 +220,9 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
         case 'shopping_item':
           window.dispatchEvent(new Event(MOBILE_OPEN_SHOPPING_ADD));
           break;
-        case 'day_idea':
+        case 'jotter_idea':
           window.dispatchEvent(new Event(MOBILE_OPEN_LISTS_IDEAS));
+          window.dispatchEvent(new Event(MOBILE_OPEN_JOTTER_COMPOSE));
           break;
         default:
           break;
@@ -214,8 +230,10 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
     };
     switch (action) {
       case 'itinerary_item':
+        setPendingItineraryAdd();
         setTab('today');
-        window.setTimeout(dispatchChild, 80);
+        window.setTimeout(dispatchChild, 200);
+        window.setTimeout(dispatchChild, 600);
         break;
       case 'journal_entry':
         setTab('journal');
@@ -237,9 +255,9 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
         setTab('lists');
         window.setTimeout(dispatchChild, 80);
         break;
-      case 'day_idea':
+      case 'jotter_idea':
         setTab('lists');
-        window.setTimeout(dispatchChild, 80);
+        window.setTimeout(dispatchChild, 120);
         break;
       default:
         break;
@@ -248,6 +266,47 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
 
   const editingEntry = editingCardId ? localEntries.find((e) => e.id === editingCardId) : undefined;
   const editingDay = editingEntry ? tripDays.find((d) => d.id === editingEntry.dayId) : undefined;
+
+  const handleBack = React.useCallback(() => {
+    clearCameFromHome();
+    onBack();
+  }, [onBack]);
+
+  const renderHeaderBack = (): React.ReactNode => {
+    if (cardDetailOpen && tab === 'today') {
+      return (
+        <button
+          type="button"
+          className={styles.backBtn}
+          onClick={() => closeCardDetailRef.current?.()}
+          aria-label="Back to day"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ verticalAlign: 'middle', marginRight: 3 }} aria-hidden>
+            <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Back
+        </button>
+      );
+    }
+    if (cameFromHome || tab === 'today') {
+      return (
+        <button type="button" className={styles.backBtn} onClick={handleBack} aria-label="Home">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ verticalAlign: 'middle', marginRight: 3 }} aria-hidden>
+            <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Home
+        </button>
+      );
+    }
+    return (
+      <button type="button" className={styles.backBtn} onClick={() => setTab('today')} aria-label="Back to itinerary">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ verticalAlign: 'middle', marginRight: 3 }} aria-hidden>
+          <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        Itinerary
+      </button>
+    );
+  };
 
   const saveNearPlace = React.useCallback(
     (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string; toolId?: string }): void => {
@@ -295,30 +354,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
       data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}
     >
       <header className={styles.mobileHeader}>
-        <div className={styles.headerStart}>
-        {cardDetailOpen && tab === 'today' ? (
-          <button
-            type="button"
-            className={styles.backBtn}
-            onClick={() => closeCardDetailRef.current?.()}
-            aria-label="Back to day"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ verticalAlign: 'middle', marginRight: 3 }} aria-hidden>
-              <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Back
-          </button>
-        ) : tab === 'today' ? (
-          <button type="button" className={styles.backBtn} onClick={onBack} aria-label="Home">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ verticalAlign: 'middle', marginRight: 3 }} aria-hidden>
-              <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Home
-          </button>
-        ) : (
-          <span className={styles.headerSpacer} aria-hidden />
-        )}
-        </div>
+        <div className={styles.headerStart}>{renderHeaderBack()}</div>
         <h1 className={styles.headerTitle}>{trip?.title ?? 'Trip'}</h1>
         <div className={styles.headerActions}>
           <button
