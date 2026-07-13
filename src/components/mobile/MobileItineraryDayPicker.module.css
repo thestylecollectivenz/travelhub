@@ -1,0 +1,85 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 13500;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: var(--space-3);
+  box-sizing: border-box;
+}
+
+.sheet {
+  width: min(480px, 100%);
+  max-height: min(70vh, 520px);
+  overflow: auto;
+  border-radius: 1.1rem 1.1rem 0.5rem 0.5rem;
+  background: white;
+  border: 1px solid var(--tl-line);
+  box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.12);
+  padding: var(--space-4);
+  box-sizing: border-box;
+}
+
+.title {
+  margin: 0 0 0.35rem;
+  font-family: var(--tl-serif);
+  font-size: 1.1rem;
+  color: var(--tl-navy);
+}
+
+.sub {
+  margin: 0 0 var(--space-3);
+  font-size: 0.8rem;
+  color: var(--tl-muted);
+  line-height: 1.4;
+}
+
+.list {
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.dayBtn {
+  width: 100%;
+  border: 1px solid var(--tl-line);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--tl-cream) 40%, white);
+  padding: 0.65rem 0.85rem;
+  text-align: left;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--tl-ink);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.preTrip {
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--tl-muted);
+  background: color-mix(in srgb, var(--tl-line) 50%, white);
+  border-radius: 999px;
+  padding: 0.15rem 0.45rem;
+}
+
+.cancelBtn {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--tl-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.5rem;
+}

@@ -645,20 +645,20 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
         body += `</div></div>`;
       }
     } else {
-      body += `<div class="print-front-matter"><div class="print-cover-page ${rawHero ? 'hasHero' : 'noHero'}">`;
-      if (rawHero) {
+    body += `<div class="print-front-matter"><div class="print-cover-page ${rawHero ? 'hasHero' : 'noHero'}">`;
+    if (rawHero) {
         body += `<img class="print-cover-hero" src="${coverHeroAttr}" alt="" crossorigin="anonymous" />`;
-      }
+    }
       body += `<div class="print-cover-content"><h1>${esc(trip.title)}</h1><p>${esc(trip.destination)}</p><p>${esc(formatOrdinalDateRange(trip.dateStart, trip.dateEnd))}</p></div></div>`;
-      if (showSummary) {
-        body += `<div class="print-cover-summary">`;
-        body += `<div><strong>Total days</strong><span>${printableDays.length}</span></div>`;
-        body += `<div><strong>Journal entries</strong><span>${entries.length}</span></div>`;
-        body += `<div><strong>Photos</strong><span>${photos.length}</span></div>`;
-        body += `<div><strong>Budget</strong><span>Not included in journal export</span></div>`;
-        body += `</div>`;
-      }
+    if (showSummary) {
+      body += `<div class="print-cover-summary">`;
+      body += `<div><strong>Total days</strong><span>${printableDays.length}</span></div>`;
+      body += `<div><strong>Journal entries</strong><span>${entries.length}</span></div>`;
+      body += `<div><strong>Photos</strong><span>${photos.length}</span></div>`;
+      body += `<div><strong>Budget</strong><span>Not included in journal export</span></div>`;
       body += `</div>`;
+    }
+    body += `</div>`;
     }
   }
 

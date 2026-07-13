@@ -3,6 +3,7 @@ import { useSpContext } from '../../context/SpContext';
 import { useConfig } from '../../context/ConfigContext';
 import { useTripMembers } from '../../hooks/useTripMembers';
 import { ItineraryService } from '../../services/ItineraryService';
+import { DayService } from '../../services/DayService';
 import type { Trip } from '../../models';
 import {
   buildJotterHomeDisplay,
@@ -72,7 +73,8 @@ export const MobileIdeasJotter: React.FC<MobileIdeasJotterProps> = ({ trip, home
       setLoading(true);
       try {
         const entrySvc = new ItineraryService(spContext);
-        const entries = await entrySvc.getAll(trip.id);
+        const daySvc = new DayService(spContext);
+        const [entries, tripDays] = await Promise.all([entrySvc.getAll(trip.id), daySvc.getAll(trip.id)]);
         const itineraryTitles = entries
           .filter((e) => !e.parentEntryId)
           .flatMap((e) => [e.title, e.location].filter(Boolean) as string[]);
@@ -88,7 +90,7 @@ export const MobileIdeasJotter: React.FC<MobileIdeasJotterProps> = ({ trip, home
           itineraryTitles,
           itineraryPlaces,
           3,
-          { ensureFreshAi }
+          { ensureFreshAi, tripDays }
         );
         setIdeas(rows);
       } catch (err) {
@@ -185,6 +187,7 @@ export const MobileIdeasJotter: React.FC<MobileIdeasJotterProps> = ({ trip, home
       ) : null}
 
       {loading && !ideas.length ? <p className={styles.homeCardHint}>Loading ideas…</p> : null}
+      <div className={styles.homeCardBody}>
       <ul className={styles.jotterList}>
         {ideas.map((idea) => (
           <li key={idea.id} className={styles.jotterItem}>
@@ -203,6 +206,7 @@ export const MobileIdeasJotter: React.FC<MobileIdeasJotterProps> = ({ trip, home
           </li>
         ))}
       </ul>
+      </div>
 
       <button
         type="button"

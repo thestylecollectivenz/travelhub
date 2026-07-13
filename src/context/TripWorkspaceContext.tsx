@@ -14,6 +14,7 @@ import { FxService } from '../services/FxService';
 import { mergeTripDisplayPrefs, saveTripDisplayPrefs } from '../utils/tripDisplayPrefs';
 import { useSpContext } from './SpContext';
 import { repairPreTripCalendarIfCollidingWithFirstDay } from '../utils/tripPreTripCalendarAnchor';
+import { peekPendingTripDay, consumePendingTripDay } from '../utils/mobileTripDayPending';
 import { calendarDayBefore, planChronologicalRenumber, ymdSlice } from '../utils/tripDateRangeSync';
 import { formatTimeHHMM } from '../utils/itineraryTimeUtils';
 import {
@@ -276,8 +277,14 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       } catch (err) {
         console.error('FX init failed — proceeding without FX conversion', err);
       }
-      if (loadedDays.length > 0) {
-        setSelectedDayId(loadedDays[0].id);
+      if (anchoredDays.length > 0) {
+        const pendingDayId = peekPendingTripDay(tripId);
+        if (pendingDayId && anchoredDays.some((d) => d.id === pendingDayId)) {
+          setSelectedDayId(pendingDayId);
+          consumePendingTripDay(tripId);
+        } else {
+          setSelectedDayId(anchoredDays[0].id);
+        }
       }
     } catch (err) {
       // eslint-disable-next-line no-console

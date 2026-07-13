@@ -188,13 +188,13 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
   }, [trip?.id]);
 
   React.useEffect(() => {
-    if (!trip?.id) return;
+    if (!trip?.id || !tripDays.length) return;
     const dayId = consumePendingTripDay(trip.id);
-    if (dayId) {
+    if (dayId && tripDays.some((d) => d.id === dayId)) {
       setTab('today');
       setSelectedDayId(dayId);
     }
-  }, [trip?.id, setSelectedDayId]);
+  }, [trip?.id, tripDays, setSelectedDayId]);
 
   React.useEffect(() => {
     if (!trip?.id) return;
@@ -230,7 +230,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
     };
     switch (action) {
       case 'itinerary_item':
-        setPendingItineraryAdd();
+        setPendingItineraryAdd(true);
         setTab('today');
         window.setTimeout(dispatchChild, 200);
         window.setTimeout(dispatchChild, 600);

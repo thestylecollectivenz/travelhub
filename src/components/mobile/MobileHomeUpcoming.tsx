@@ -83,6 +83,7 @@ export const MobileHomeUpcoming: React.FC<MobileHomeUpcomingProps> = ({ trip, on
       {!loading && !items.length ? (
         <p className={styles.homeCardHint}>No timed items coming up on this trip.</p>
       ) : null}
+      <div className={styles.homeCardBody}>
       <ul className={styles.upcomingList}>
         {items.map((item) => (
           <li key={item.id}>
@@ -113,6 +114,7 @@ export const MobileHomeUpcoming: React.FC<MobileHomeUpcomingProps> = ({ trip, on
           </li>
         ))}
       </ul>
+      </div>
       <button type="button" className={styles.homeCardFooter} onClick={() => onOpenTrip(trip.id, 'today')}>
         View full itinerary
         <span aria-hidden> ›</span>

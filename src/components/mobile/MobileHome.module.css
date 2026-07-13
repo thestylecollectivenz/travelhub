@@ -803,6 +803,14 @@
   background: color-mix(in srgb, white 82%, var(--tl-cream));
   border: 1px solid var(--tl-line);
   box-shadow: 0 6px 18px color-mix(in srgb, var(--tl-navy) 5%, transparent);
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.homeCardBody {
+  flex: 1;
+  min-height: 0;
 }
 
 .homeCardHead {
@@ -1015,17 +1023,21 @@
 }
 
 .homeCardFooter {
-  margin-top: 0.65rem;
+  margin-top: auto;
+  padding-top: 0.65rem;
   border: none;
   background: transparent;
   color: var(--tl-rust);
   font-size: 0.75rem;
   font-weight: 700;
   cursor: pointer;
-  padding: 0;
+  padding-left: 0;
+  padding-right: 0;
+  padding-bottom: 0;
   display: inline-flex;
   align-items: center;
   gap: 0.15rem;
+  align-self: flex-start;
 }
 
 .jotterHeadAdd {
@@ -1194,6 +1206,7 @@
 .homeRoot[data-shell='ipad-portrait'] .homeSplitRow {
   grid-template-columns: 1fr 1fr;
   gap: var(--space-4);
+  align-items: stretch;
 }
 
 .homeRoot[data-shell='ipad-portrait'] .homeCard {

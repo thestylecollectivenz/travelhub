@@ -31,7 +31,8 @@ import { itineraryEntryFromSubItem } from '../../utils/mobileSubItemEntry';
 import { useMobileDetailHistory } from '../../hooks/useMobileDetailHistory';
 import { useShellMode } from '../../hooks/useShellMode';
 import { EXPAND_UNSCHEDULED_EVENT, notifyExpandUnscheduled } from '../../utils/mobileItineraryUiEvents';
-import { consumePendingItineraryAdd } from '../../utils/mobileHomePendingAction';
+import { consumePendingItineraryAdd, consumePendingItineraryPickDay, peekPendingItineraryAdd, peekPendingItineraryPickDay } from '../../utils/mobileHomePendingAction';
+import { MobileItineraryDayPicker } from './MobileItineraryDayPicker';
 import styles from './MobileItinerary.module.css';
 import shellStyles from './MobileShell.module.css';
 
@@ -149,6 +150,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   const [unschedOpen, setUnschedOpen] = React.useState(false);
   const [aiPrompt, setAiPrompt] = React.useState('');
   const [adding, setAdding] = React.useState(false);
+  const [dayPickOpen, setDayPickOpen] = React.useState(false);
   const [weatherLabel, setWeatherLabel] = React.useState('');
   const [weatherIconCode, setWeatherIconCode] = React.useState('');
   const [weatherOpen, setWeatherOpen] = React.useState(false);
@@ -334,52 +336,79 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   const visibleMembers = travellerMembers.slice(0, MAX_VISIBLE_AVATARS);
   const extraMembers = Math.max(0, travellerMembers.length - MAX_VISIBLE_AVATARS);
 
-  const handleAddItem = React.useCallback(() => {
-    if (!trip || !day) return;
-    setAdding(true);
-    const draft = {
-      id: newDraftId(),
-      tripId: trip.id,
-      dayId: day.id,
-      title: 'New item',
-      category: 'Other',
-      location: '',
-      timeStart: '',
-      duration: '',
-      supplier: '',
-      notes: '',
-      decisionStatus: 'Idea' as const,
-      bookingRequired: false,
-      bookingStatus: 'Not booked' as const,
-      paymentStatus: 'Not paid' as const,
-      amount: 0,
-      currency: 'NZD',
-      sortOrder: dayEntries.length + 1,
-      subItems: []
-    };
-    updateEntry(draft);
-    window.setTimeout(() => {
-      setAdding(false);
-      setUnschedOpen(true);
-      setEditingCardId(draft.id);
-      notifyExpandUnscheduled();
-    }, 300);
-  }, [trip, day, dayEntries.length, updateEntry, setEditingCardId]);
+  const handleAddItem = React.useCallback(
+    (targetDayId?: string) => {
+      if (!trip) return;
+      const targetDay = days.find((d) => d.id === targetDayId) ?? day;
+      if (!targetDay) return;
+      setAdding(true);
+      const targetEntries = sortEntriesForDay(
+        localEntries,
+        targetDay.id,
+        targetDay.calendarDate,
+        targetDay.dayType,
+        preTripDayId,
+        isPreTripDayRow(targetDay),
+        tripDays
+      ).filter((e) => !e.parentEntryId);
+      const draft = {
+        id: newDraftId(),
+        tripId: trip.id,
+        dayId: targetDay.id,
+        title: 'New item',
+        category: 'Other',
+        location: '',
+        timeStart: '',
+        duration: '',
+        supplier: '',
+        notes: '',
+        decisionStatus: 'Idea' as const,
+        bookingRequired: false,
+        bookingStatus: 'Not booked' as const,
+        paymentStatus: 'Not paid' as const,
+        amount: 0,
+        currency: 'NZD',
+        sortOrder: targetEntries.length + 1,
+        subItems: []
+      };
+      if (targetDay.id !== selectedDayId) {
+        setSelectedDayId(targetDay.id);
+      }
+      updateEntry(draft);
+      window.setTimeout(() => {
+        setAdding(false);
+        setUnschedOpen(true);
+        setEditingCardId(draft.id);
+        notifyExpandUnscheduled();
+      }, 300);
+    },
+    [trip, day, days, localEntries, preTripDayId, tripDays, selectedDayId, setSelectedDayId, updateEntry, setEditingCardId]
+  );
 
-  React.useEffect(() => {
-    if (!day || !trip) return;
+  const beginItineraryAdd = React.useCallback(() => {
+    if (peekPendingItineraryPickDay()) {
+      consumePendingItineraryPickDay();
+      setDayPickOpen(true);
+      return;
+    }
     if (consumePendingItineraryAdd()) {
       handleAddItem();
     }
-  }, [day, trip, handleAddItem]);
+  }, [handleAddItem]);
+
+  React.useEffect(() => {
+    if (!trip || !days.length) return;
+    if (!peekPendingItineraryPickDay() && !peekPendingItineraryAdd()) return;
+    beginItineraryAdd();
+  }, [trip, days.length, beginItineraryAdd]);
 
   React.useEffect(() => {
     const handler = (): void => {
-      handleAddItem();
+      beginItineraryAdd();
     };
     window.addEventListener('travelhub-mobile-start-itinerary-add', handler);
     return () => window.removeEventListener('travelhub-mobile-start-itinerary-add', handler);
-  }, [handleAddItem]);
+  }, [beginItineraryAdd]);
 
   const handleAskAi = (): void => {
     const p = aiPrompt.trim();
@@ -822,12 +851,23 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
         <button
           type="button"
           className={styles.addFab}
-          onClick={handleAddItem}
+          onClick={() => handleAddItem()}
           aria-label="Add itinerary item"
           title="Add item to this day"
         >
           +
         </button>
+      ) : null}
+      {dayPickOpen ? (
+        <MobileItineraryDayPicker
+          days={days}
+          showPreTrip={isEditor}
+          onSelect={(dayId) => {
+            setDayPickOpen(false);
+            handleAddItem(dayId);
+          }}
+          onCancel={() => setDayPickOpen(false)}
+        />
       ) : null}
     </div>
   );

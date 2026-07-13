@@ -1,5 +1,6 @@
 const KEY = 'travelhub-pending-home-add';
 const KEY_ITINERARY_ADD = 'travelhub-pending-itinerary-add';
+const KEY_ITINERARY_PICK_DAY = 'travelhub-pending-itinerary-pick-day';
 const KEY_CAME_FROM_HOME = 'travelhub-came-from-home';
 const KEY_LISTS_IDEAS = 'travelhub-pending-lists-ideas';
 const KEY_JOTTER_COMPOSE = 'travelhub-pending-jotter-compose';
@@ -49,11 +50,41 @@ export function clearCameFromHome(): void {
   }
 }
 
-export function setPendingItineraryAdd(): void {
+export function setPendingItineraryAdd(requireDayPick = false): void {
   try {
+    if (requireDayPick) {
+      window.sessionStorage.setItem(KEY_ITINERARY_PICK_DAY, '1');
+      return;
+    }
     window.sessionStorage.setItem(KEY_ITINERARY_ADD, '1');
   } catch {
     /* ignore */
+  }
+}
+
+export function consumePendingItineraryPickDay(): boolean {
+  try {
+    const v = window.sessionStorage.getItem(KEY_ITINERARY_PICK_DAY);
+    window.sessionStorage.removeItem(KEY_ITINERARY_PICK_DAY);
+    return v === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function peekPendingItineraryPickDay(): boolean {
+  try {
+    return window.sessionStorage.getItem(KEY_ITINERARY_PICK_DAY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function peekPendingItineraryAdd(): boolean {
+  try {
+    return window.sessionStorage.getItem(KEY_ITINERARY_ADD) === '1';
+  } catch {
+    return false;
   }
 }
 

@@ -36,6 +36,9 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
   const [name, setName] = React.useState('');
   const [category, setCategory] = React.useState('');
   const [purchaseMonth, setPurchaseMonth] = React.useState('');
+  const [websiteUrl, setWebsiteUrl] = React.useState('');
+  const [notes, setNotes] = React.useState('');
+  const [budgetAmount, setBudgetAmount] = React.useState('');
   const [sortAlpha, setSortAlpha] = React.useState(true);
   const [groupByCategory, setGroupByCategory] = React.useState(true);
 
@@ -156,6 +159,7 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
 
   const addItem = (): void => {
     if (!trip?.id || !name.trim() || !category.trim()) return;
+    const budget = Number(budgetAmount);
     rememberTripShoppingCategory(trip.id, category.trim());
     service
       .create({
@@ -163,18 +167,21 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
         itemName: name.trim(),
         category: category.trim(),
         traveller: assignTraveller,
-        budgetAmount: 0,
+        budgetAmount: Number.isFinite(budget) ? budget : 0,
         actualAmount: 0,
         currency: config.homeCurrency,
         purchaseMonth: purchaseMonth.trim(),
-        websiteUrl: '',
-        notes: '',
+        websiteUrl: websiteUrl.trim(),
+        notes: notes.trim(),
         isPurchased: false,
         ownerEmail: resolveOwnerEmailForAssignee(spContext, assignTraveller, members)
       })
       .then(() => {
         setName('');
         setPurchaseMonth('');
+        setWebsiteUrl('');
+        setNotes('');
+        setBudgetAmount('');
         setAddOpen(false);
         refresh();
       })
@@ -247,6 +254,30 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
             onChange={(e) => setPurchaseMonth(e.target.value)}
             aria-label="Purchase month"
           />
+          <input
+            className={styles.mobileField}
+            placeholder="Website URL"
+            value={websiteUrl}
+            onChange={(e) => setWebsiteUrl(e.target.value)}
+          />
+          <textarea
+            className={styles.mobileField}
+            placeholder="Notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+          />
+          {canSeeFinancials ? (
+            <input
+              className={styles.mobileField}
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder={`Budget (${config.homeCurrency})`}
+              value={budgetAmount}
+              onChange={(e) => setBudgetAmount(e.target.value)}
+            />
+          ) : null}
           <button
             type="button"
             className={styles.mobilePrimaryBtn}
@@ -369,6 +400,36 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
                             }
                           }}
                         />
+                        {canSeeFinancials ? (
+                          <>
+                            <input
+                              className={styles.mobileField}
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              placeholder={`Budget (${config.homeCurrency})`}
+                              defaultValue={item.budgetAmount || ''}
+                              onBlur={(e) => {
+                                const v = Number(e.target.value);
+                                if (!Number.isFinite(v) || v === item.budgetAmount) return;
+                                service.update(item.id, { budgetAmount: v }).then(refresh).catch(console.error);
+                              }}
+                            />
+                            <input
+                              className={styles.mobileField}
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              placeholder={`Actual (${config.homeCurrency})`}
+                              defaultValue={item.actualAmount || ''}
+                              onBlur={(e) => {
+                                const v = Number(e.target.value);
+                                if (!Number.isFinite(v) || v === item.actualAmount) return;
+                                service.update(item.id, { actualAmount: v }).then(refresh).catch(console.error);
+                              }}
+                            />
+                          </>
+                        ) : null}
                         <button
                           type="button"
                           className={styles.mobileDangerBtn}

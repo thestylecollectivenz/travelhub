@@ -36,7 +36,6 @@ import { MobileIdeasJotter } from './MobileIdeasJotter';
 import { MobileHomeUpcoming } from './MobileHomeUpcoming';
 import { MobileAddToTripMenu } from './MobileAddToTripMenu';
 import { setPendingMobileListsIdeas } from '../../utils/mobileHomePendingAction';
-import { MobileFindAllSaved } from './MobileFindAllSaved';
 import { MobileBookPage } from './MobileBookPage';
 import { MobileHomeAskAiSheet } from './MobileHomeAskAiSheet';
 import { TripMembersPanel } from '../workspace/TripMembersPanel';
@@ -216,7 +215,6 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   const [aiChipOffset, setAiChipOffset] = React.useState(0);
   const [membersOpen, setMembersOpen] = React.useState(false);
   const [nearToolId, setNearToolId] = React.useState<NearYouToolId | null>(null);
-  const [findShowSaved, setFindShowSaved] = React.useState(false);
   const [nearActionMsg, setNearActionMsg] = React.useState('');
   const mapRef = React.useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = React.useRef<L.Map | null>(null);
@@ -493,18 +491,12 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
 
   let body: React.ReactNode;
   if (tab === 'find') {
-    body = findShowSaved ? (
-      <MobileFindAllSaved
-        tripId={contextTrip?.id}
-        onBack={() => setFindShowSaved(false)}
-      />
-    ) : (
+    body = (
       <MobileNearYouPage
         onBack={() => {
           setNearToolId(null);
           setTab('home');
         }}
-        onOpenAllSaved={() => setFindShowSaved(true)}
         initialToolId={nearToolId}
         tripId={contextTrip?.id}
         tripTitle={featuredTrip?.title}
@@ -802,27 +794,13 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
 
         <div className={styles.sectionHead}>
           <h2 className={styles.sectionTitle}>Near you</h2>
-          <div className={styles.sectionLinks}>
-            {contextTrip?.id ? (
-              <button
-                type="button"
-                className={styles.sectionLink}
-                onClick={() => {
-                  setFindShowSaved(true);
-                  setTab('find');
-                }}
-              >
-                Saved
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className={styles.sectionLink}
-              onClick={() => openNearYou(null)}
-            >
-              See all
-            </button>
-          </div>
+          <button
+            type="button"
+            className={styles.sectionLink}
+            onClick={() => openNearYou(null)}
+          >
+            See all
+          </button>
         </div>
         <div className={styles.nearRow} role="list">
           {homeNearYouTools().map((tool) => (

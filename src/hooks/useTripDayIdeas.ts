@@ -16,6 +16,7 @@ const CHANGED_EVENT = 'travelhub-day-ideas-changed';
 
 export function notifyDayIdeasChanged(): void {
   window.dispatchEvent(new Event(CHANGED_EVENT));
+  window.dispatchEvent(new Event('travelhub-trip-ideas-changed'));
 }
 
 export function useTripDayIdeas(): {
