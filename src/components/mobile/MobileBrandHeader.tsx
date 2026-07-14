@@ -4,12 +4,16 @@ import styles from './MobileBrandHeader.module.css';
 export interface MobileBrandHeaderProps {
   actions?: React.ReactNode;
   navRow?: React.ReactNode;
-  /** Primary heading under the back link (page name, or trip name on detail views). */
+  /** Primary heading under the back link (page name). */
   title?: string;
   /** Short page description under the primary heading. */
   subtitle?: string;
-  /** Smaller trip name shown under the subtitle on tab pages. */
+  /** Trip name in the trip summary row (tabs) or alone on detail views. */
   tripName?: string;
+  /** Trip date range under the trip name (tab pages only). */
+  tripDates?: string;
+  /** Trip hero thumbnail; when set (including null), shows thumb / placeholder. */
+  tripHeroSrc?: string | null;
   /** When true (default), apply safe-area top padding. Set false when already inside a padded scroll shell. */
   safeAreaTop?: boolean;
 }
@@ -20,8 +24,12 @@ export const MobileBrandHeader: React.FC<MobileBrandHeaderProps> = ({
   title,
   subtitle,
   tripName,
+  tripDates,
+  tripHeroSrc,
   safeAreaTop = true
 }) => {
+  const showTripRow = Boolean(tripName || tripDates || tripHeroSrc !== undefined);
+
   return (
     <header className={`${styles.root} ${safeAreaTop ? '' : styles.rootEmbedded}`.trim()}>
       <div className={styles.topBar}>
@@ -39,7 +47,25 @@ export const MobileBrandHeader: React.FC<MobileBrandHeaderProps> = ({
       {navRow ? <div className={styles.navRow}>{navRow}</div> : null}
       {title ? <h2 className={styles.pageTitle}>{title}</h2> : null}
       {subtitle ? <p className={styles.pageSub}>{subtitle}</p> : null}
-      {tripName ? <p className={styles.tripName}>{tripName}</p> : null}
+      {showTripRow ? (
+        tripHeroSrc !== undefined || tripDates ? (
+          <div className={styles.tripHeader}>
+            <div className={styles.tripMeta}>
+              {tripName ? <p className={styles.tripName}>{tripName}</p> : null}
+              {tripDates ? <p className={styles.tripDates}>{tripDates}</p> : null}
+            </div>
+            {tripHeroSrc !== undefined ? (
+              tripHeroSrc ? (
+                <img src={tripHeroSrc} alt="" className={styles.heroThumb} />
+              ) : (
+                <div className={styles.heroThumbPlaceholder} aria-hidden />
+              )
+            ) : null}
+          </div>
+        ) : tripName ? (
+          <p className={styles.tripNameSolo}>{tripName}</p>
+        ) : null
+      ) : null}
     </header>
   );
 };

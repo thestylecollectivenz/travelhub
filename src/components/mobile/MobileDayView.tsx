@@ -2,7 +2,6 @@ import * as React from 'react';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useTripRole } from '../../context/TripRoleContext';
 import { usePlaces } from '../../context/PlacesContext';
-import { useSpContext } from '../../context/SpContext';
 import { useTripMembers } from '../../hooks/useTripMembers';
 import { sortEntriesForDay, isPreTripDayRow, resolvePreTripDayId } from '../../utils/itineraryDayEntries';
 import {
@@ -17,7 +16,6 @@ import { DayLocationInfoStrip } from '../itinerary/DayLocationInfoStrip';
 import { locationInfoEntriesForDay } from '../../utils/locationInfoDayResolve';
 import { parseLocationInfoNotes } from '../../utils/locationInfoEntry';
 import { TravellerAvatar } from '../shared/TravellerAvatar';
-import { resolveSharePointMediaSrc } from '../../utils/sharePointUrl';
 import { useConfig } from '../../context/ConfigContext';
 import { MobileDayMapSnippet } from './MobileDayMapSnippet';
 import { MobileCardDetail } from './MobileCardDetail';
@@ -144,7 +142,6 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     useTripWorkspace();
   const { role } = useTripRole();
   const { placeById } = usePlaces();
-  const sp = useSpContext();
   const { config } = useConfig();
   const { members } = useTripMembers(trip?.id);
 
@@ -281,12 +278,6 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
       active.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     }
   }, [dayIndex]);
-
-  const heroSrc = React.useMemo(() => {
-    const raw = (trip?.heroImageUrl || '').trim();
-    if (!raw) return null;
-    return resolveSharePointMediaSrc(raw, sp.pageContext.web.absoluteUrl, sp.pageContext.web.serverRelativeUrl || '');
-  }, [trip?.heroImageUrl, sp]);
 
   const primaryPlace = day?.primaryPlaceId ? placeById(day.primaryPlaceId) : undefined;
   const primaryPlaceLabel = placeShort(primaryPlace?.title);
@@ -528,22 +519,6 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
       className={styles.itinRoot}
       data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}
     >
-      <div className={styles.tripHeader}>
-        <div className={styles.tripMeta}>
-          <div className={styles.tripTitleRow}>
-            <h2 className={styles.tripTitle}>{trip.title}</h2>
-          </div>
-          {rangeLabel ? <p className={styles.tripDateRange}>{rangeLabel}</p> : null}
-        </div>
-        <div className={styles.tripHeaderRight}>
-          {heroSrc ? (
-            <img src={heroSrc} alt="" className={styles.heroThumb} />
-          ) : (
-            <div className={styles.heroThumbPlaceholder} />
-          )}
-        </div>
-      </div>
-
       <div className={styles.statsRow}>
         <div className={styles.statCard}>
           <div className={styles.statCardTop}>

@@ -106,12 +106,37 @@
 }
 
 .pageSub {
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.85rem;
   font-size: 0.82rem;
   color: var(--tl-muted);
 }
 
+.tripHeader {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-3);
+  align-items: flex-start;
+  margin: 0.1rem 0 0.45rem;
+}
+
+.tripMeta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
 .tripName {
+  margin: 0;
+  font-family: var(--tl-serif);
+  font-size: 1.35rem;
+  font-weight: 400;
+  color: var(--tl-navy);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.tripNameSolo {
   margin: 0.2rem 0 0.35rem;
   font-family: var(--tl-serif);
   font-size: 1.55rem;
@@ -119,6 +144,36 @@
   color: var(--tl-navy);
   line-height: 1.2;
   letter-spacing: -0.02em;
+}
+
+.tripDates {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--tl-muted);
+}
+
+.heroThumb {
+  width: 5.25rem;
+  height: 4.25rem;
+  border-radius: 0.85rem;
+  object-fit: cover;
+  background: linear-gradient(160deg, #2a3a5c, #6b7c3a);
+  display: block;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--tl-navy) 12%, transparent);
+}
+
+.heroThumbPlaceholder {
+  width: 5.25rem;
+  height: 4.25rem;
+  border-radius: 0.85rem;
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--tl-navy) 55%, transparent),
+    color-mix(in srgb, var(--tl-olive) 50%, transparent)
+  );
+  flex-shrink: 0;
 }
 
 [data-shell='ipad-portrait'] .root {
@@ -138,9 +193,30 @@
   font-size: 1.85rem;
 }
 
+[data-shell='ipad-portrait'] .pageSub {
+  margin-bottom: 1rem;
+  font-size: 0.88rem;
+}
+
 [data-shell='ipad-portrait'] .tripName {
+  font-size: 1.55rem;
+  font-weight: 400;
+}
+
+[data-shell='ipad-portrait'] .tripNameSolo {
   font-size: 1.85rem;
   font-weight: 400;
+}
+
+[data-shell='ipad-portrait'] .tripDates {
+  font-size: 0.8rem;
+}
+
+[data-shell='ipad-portrait'] .heroThumb,
+[data-shell='ipad-portrait'] .heroThumbPlaceholder {
+  width: 6rem;
+  height: 4.75rem;
+  border-radius: 0.95rem;
 }
 
 [data-shell='ipad-portrait'] .navRow {

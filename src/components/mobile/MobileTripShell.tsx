@@ -48,6 +48,7 @@ import { useTripDayIdeas } from '../../hooks/useTripDayIdeas';
 import { useTripRole } from '../../context/TripRoleContext';
 import { SOLUTION_VERSION } from '../../appVersion';
 import { MobileBrandHeader } from './MobileBrandHeader';
+import { resolveSharePointMediaSrc } from '../../utils/sharePointUrl';
 import styles from './MobileShell.module.css';
 
 export type { MobileTab } from './mobileTypes';
@@ -56,6 +57,27 @@ export interface MobileTripShellProps {
   onBack: () => void;
   initialTab?: MobileTab;
   shellMode?: Extract<ShellMode, 'phone' | 'ipad-portrait'>;
+}
+
+function shortDateRange(dateStart: string, dateEnd: string): string {
+  const s = new Date(`${dateStart.slice(0, 10)}T00:00:00`);
+  const e = new Date(`${dateEnd.slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return '';
+  const sameYear = s.getFullYear() === e.getFullYear();
+  const sameMonth = sameYear && s.getMonth() === e.getMonth();
+  const dayMonth = (d: Date, withYear: boolean): string =>
+    d.toLocaleDateString('en-NZ', {
+      day: 'numeric',
+      month: 'short',
+      ...(withYear ? { year: 'numeric' as const } : {})
+    });
+  if (sameMonth) {
+    return `${s.getDate()} – ${dayMonth(e, true)}`;
+  }
+  if (sameYear) {
+    return `${dayMonth(s, false)} – ${dayMonth(e, true)}`;
+  }
+  return `${dayMonth(s, true)} – ${dayMonth(e, true)}`;
 }
 
 const TABS: Array<{ id: MobileTab; label: string; icon: React.ReactNode }> = [
@@ -374,33 +396,79 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
   }
 
   const pageChrome = React.useMemo(() => {
+    const tripLabel = trip?.title || undefined;
+    const start = (trip?.dateStart || '').slice(0, 10);
+    const end = (trip?.dateEnd || '').slice(0, 10);
+    const dates = start && end ? shortDateRange(start, end) : undefined;
+
     if (cardDetailOpen) {
-      // Trip name uses .tripName (not bold); page titles like Itinerary stay on .pageTitle.
+      // Detail views: trip name only (no dates/thumb row).
       return {
         title: undefined as string | undefined,
         subtitle: undefined as string | undefined,
-        tripName: trip?.title ?? 'Trip'
+        tripName: tripLabel ?? 'Trip',
+        tripDates: undefined as string | undefined,
+        showTripHero: false
       };
     }
-    const tripLabel = trip?.title || undefined;
+
     switch (tab) {
       case 'journal':
-        return { title: 'Journal', subtitle: 'Entries and photos from your trip', tripName: tripLabel };
+        return {
+          title: 'Journal',
+          subtitle: 'Entries and photos from your trip',
+          tripName: tripLabel,
+          tripDates: dates,
+          showTripHero: true
+        };
       case 'lists':
       case 'tasks':
-        return { title: 'Lists', subtitle: 'Packing, shopping, tasks, and trip ideas', tripName: tripLabel };
+        return {
+          title: 'Lists',
+          subtitle: 'Packing, shopping, tasks, and trip ideas',
+          tripName: tripLabel,
+          tripDates: dates,
+          showTripHero: true
+        };
       case 'map':
-        return { title: 'Map', subtitle: 'Transport stops and your route across the trip', tripName: tripLabel };
+        return {
+          title: 'Map',
+          subtitle: 'Transport stops and your route across the trip',
+          tripName: tripLabel,
+          tripDates: dates,
+          showTripHero: true
+        };
       case 'book':
         return {
           title: 'Book',
           subtitle: 'Search partner sites for stays, flights, tours and more.',
-          tripName: tripLabel
+          tripName: tripLabel,
+          tripDates: dates,
+          showTripHero: true
         };
       default:
-        return { title: 'Itinerary', subtitle: 'Your day-by-day plan', tripName: undefined };
+        return {
+          title: 'Itinerary',
+          subtitle: 'Your day-by-day plan',
+          tripName: tripLabel,
+          tripDates: dates,
+          showTripHero: true
+        };
     }
-  }, [cardDetailOpen, tab, trip?.title]);
+  }, [cardDetailOpen, tab, trip?.title, trip?.dateStart, trip?.dateEnd]);
+
+  const tripHeroSrc = React.useMemo(() => {
+    if (!pageChrome.showTripHero) return undefined;
+    const raw = (trip?.heroImageUrl || '').trim();
+    if (!raw) return null;
+    return (
+      resolveSharePointMediaSrc(
+        raw,
+        spContext.pageContext.web.absoluteUrl,
+        spContext.pageContext.web.serverRelativeUrl || ''
+      ) || null
+    );
+  }, [pageChrome.showTripHero, trip?.heroImageUrl, spContext]);
 
   return (
     <div
@@ -412,6 +480,8 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
         title={pageChrome.title}
         subtitle={pageChrome.subtitle}
         tripName={pageChrome.tripName}
+        tripDates={pageChrome.tripDates}
+        tripHeroSrc={tripHeroSrc}
         actions={
           <button
             type="button"

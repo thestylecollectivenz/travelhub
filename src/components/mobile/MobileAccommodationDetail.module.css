@@ -568,8 +568,14 @@
 [data-shell='ipad-portrait'] .overviewMain {
   grid-template-columns: minmax(12rem, 38%) 1fr;
   gap: 1rem;
-  align-items: start;
+  align-items: stretch;
   margin-bottom: 0.9rem;
+}
+
+[data-shell='ipad-portrait'] .heroCopy {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 [data-shell='ipad-portrait'] .heroPhotoWrap {
@@ -602,7 +608,8 @@
 
 [data-shell='ipad-portrait'] .actionGrid {
   gap: 0.5rem;
-  margin-top: 1rem;
+  margin-top: auto;
+  padding-top: 0.75rem;
 }
 
 [data-shell='ipad-portrait'] .actionTile {
