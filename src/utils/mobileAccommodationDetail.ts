@@ -4,8 +4,8 @@ import type { EntryLink } from '../models/EntryLink';
 import { formatCurrency } from './financialUtils';
 import {
   formatTimeHHMM,
-  formatAccommodationCheckInDetail,
-  formatAccommodationCheckOutDetail
+  effectiveAccommodationArrivalTime,
+  effectiveAccommodationDepartureTime
 } from './itineraryTimeUtils';
 import { effectiveBookingStatus } from './bookingStatusUtils';
 import { formatDisplayLabel } from './mobileDisplayFormat';
@@ -13,6 +13,7 @@ import { formatDisplayLabel } from './mobileDisplayFormat';
 export interface AccomGridCell {
   label: string;
   value: string;
+  subValue?: string;
   pill?: { label: string; tone: 'green' | 'rust' | 'red' | 'neutral' };
 }
 
@@ -21,6 +22,28 @@ export interface AccomDocLinkPill {
   label: string;
   href: string;
   kind: 'document' | 'link';
+}
+
+export interface AccomPaymentAmountBlock {
+  primary: string;
+  primaryPerNight?: string;
+  homeApprox?: string;
+  homePerNight?: string;
+  exchangeNote?: string;
+}
+
+export interface AccomBookingPaymentModel {
+  bookingReference?: string;
+  bookingStatus: { label: string; tone: 'green' | 'rust' | 'red' | 'neutral' };
+  checkInPrimary?: string;
+  checkInSub?: string;
+  checkOutPrimary?: string;
+  lengthOfStay?: string;
+  supplier?: string;
+  paymentDue?: string;
+  paymentStatus?: { label: string; tone: 'green' | 'rust' | 'red' | 'neutral' };
+  amount?: AccomPaymentAmountBlock;
+  showPayment: boolean;
 }
 
 function ymd(value?: string): string {
@@ -44,6 +67,11 @@ function paymentPillTone(status: string): 'green' | 'rust' | 'red' | 'neutral' {
   return 'rust';
 }
 
+function bookingPillTone(status: string): 'green' | 'rust' | 'red' | 'neutral' {
+  if (status === 'Booked') return 'green';
+  return 'neutral';
+}
+
 function cell(label: string, value?: string, pill?: AccomGridCell['pill']): AccomGridCell | undefined {
   const text = (value ?? '').trim();
   if (!text && !pill) return undefined;
@@ -54,10 +82,26 @@ function boolYesNo(value?: boolean): string {
   return value === true ? 'Yes' : 'No';
 }
 
-function unitPricingLabel(entry: ItineraryEntry): string | undefined {
-  if (!entry.unitType || !entry.unitAmount) return undefined;
-  const unit = entry.unitType.replace('per ', '').replace('Per', 'per ');
-  return `${formatCurrency(entry.unitAmount, entry.currency)} per ${unit.toLowerCase()}`;
+function checkInParts(entry: ItineraryEntry): { primary?: string; sub?: string } {
+  const dateLabel = ymd(entry.dateStart);
+  if (!dateLabel) return {};
+  const planned = formatTimeHHMM(effectiveAccommodationArrivalTime(entry));
+  const contractual = entry.checkInTime?.trim() ? formatTimeHHMM(entry.checkInTime) : '';
+  const time = planned || contractual;
+  if (!time) return { primary: dateLabel };
+  const primary = `${dateLabel} ${time}`;
+  const sub =
+    planned && contractual && planned !== contractual ? `(from ${contractual})` : undefined;
+  return { primary, sub };
+}
+
+function checkOutPrimary(entry: ItineraryEntry): string | undefined {
+  const dateLabel = ymd(entry.dateEnd);
+  if (!dateLabel) return undefined;
+  const planned = formatTimeHHMM(effectiveAccommodationDepartureTime(entry));
+  const contractual = entry.checkOutTime?.trim() ? formatTimeHHMM(entry.checkOutTime) : '';
+  const time = planned || contractual;
+  return time ? `${dateLabel} ${time}` : dateLabel;
 }
 
 export function buildAccommodationDocLinkPills(docs: EntryDocument[], links: EntryLink[]): AccomDocLinkPill[] {
@@ -85,49 +129,87 @@ export function buildAccommodationDocLinkPills(docs: EntryDocument[], links: Ent
 
 export function buildAccommodationDetailData(
   entry: ItineraryEntry,
-  options: { canSeeFinancials: boolean; hasConfirmationDoc: boolean }
+  options: {
+    canSeeFinancials: boolean;
+    hasConfirmationDoc: boolean;
+    convertToHomeCurrency?: (amount: number, currency: string) => number;
+    homeCurrency?: string;
+  }
 ): {
   nights: number;
   checkInDate: string;
   checkInTime: string;
   checkOutDate: string;
   checkOutTime: string;
-  bookingGrid: AccomGridCell[];
-  extraBookingGrid: AccomGridCell[];
+  checkInPrimary?: string;
+  checkInSub?: string;
+  checkOutPrimary?: string;
+  bookingPayment: AccomBookingPaymentModel;
   stayGrid: AccomGridCell[];
   perks?: string;
   cancellation?: string;
 } {
-  const { canSeeFinancials, hasConfirmationDoc } = options;
+  const { canSeeFinancials, hasConfirmationDoc, convertToHomeCurrency, homeCurrency } = options;
   const booked = effectiveBookingStatus(entry, { hasConfirmationDoc });
   const nights = nightsBetween(entry.dateStart, entry.dateEnd);
+  const cin = checkInParts(entry);
+  const cout = checkOutPrimary(entry);
+  const currency = (entry.currency || 'NZD').toUpperCase();
+  const home = (homeCurrency || 'NZD').toUpperCase();
 
-  const bookingGrid: Array<AccomGridCell | undefined> = [
-    cell('Booking reference', entry.bookingReference),
-    cell(
-      'Payment due',
-      entry.paymentDueDate ? ymd(entry.paymentDueDate) : ymd(entry.bookingDueDate) || undefined
-    ),
-    canSeeFinancials && entry.amount > 0
-      ? cell(
-          'Amount',
-          `${formatCurrency(entry.amount, entry.currency)}${entry.costCertainty ? ` (${formatDisplayLabel(entry.costCertainty)})` : ''}`
-        )
-      : undefined,
-    canSeeFinancials ? cell('Unit pricing', unitPricingLabel(entry)) : undefined,
-    canSeeFinancials
-      ? cell('Payment status', '', { label: formatDisplayLabel(entry.paymentStatus), tone: paymentPillTone(entry.paymentStatus) })
-      : undefined,
-    cell('Supplier', entry.supplier)
-  ];
+  let amountBlock: AccomPaymentAmountBlock | undefined;
+  if (canSeeFinancials && entry.amount > 0) {
+    const primary = `${formatCurrency(entry.amount, currency)} ${currency}`;
+    const perNight = nights > 0 ? `${formatCurrency(entry.amount / nights, currency)} ${currency} per night` : undefined;
+    let homeApprox: string | undefined;
+    let homePerNight: string | undefined;
+    let exchangeNote: string | undefined;
+    if (convertToHomeCurrency && currency !== home) {
+      const homeTotal = convertToHomeCurrency(entry.amount, currency);
+      if (Number.isFinite(homeTotal)) {
+        homeApprox = `≈ ${formatCurrency(homeTotal, home)} ${home}`;
+        if (nights > 0) {
+          homePerNight = `≈ ${formatCurrency(homeTotal / nights, home)} ${home} per night`;
+        }
+        const rate = entry.amount !== 0 ? homeTotal / entry.amount : 0;
+        if (rate > 0) {
+          const today = new Date().toLocaleDateString('en-NZ', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+          });
+          exchangeNote = `Exchange rate: 1 ${currency} = ${rate.toFixed(4)} ${home} (${today})`;
+        }
+      }
+    }
+    amountBlock = { primary, primaryPerNight: perNight, homeApprox, homePerNight, exchangeNote };
+  }
 
-  const extraBookingGrid: Array<AccomGridCell | undefined> = [
-    booked !== 'Booked' ? cell('Booking required', entry.bookingRequired ? 'Yes' : 'No') : undefined,
-    cell('Booking status', formatDisplayLabel(booked)),
-    canSeeFinancials && entry.amountPaid
-      ? cell('Amount paid', formatCurrency(entry.amountPaid, entry.paymentCurrency || entry.currency))
-      : undefined
-  ];
+  const bookingPayment: AccomBookingPaymentModel = {
+    bookingReference: (entry.bookingReference || '').trim() || undefined,
+    bookingStatus: {
+      label: formatDisplayLabel(booked),
+      tone: bookingPillTone(booked)
+    },
+    checkInPrimary: cin.primary,
+    checkInSub: cin.sub,
+    checkOutPrimary: cout,
+    lengthOfStay: nights > 0 ? `${nights} night${nights === 1 ? '' : 's'}` : undefined,
+    supplier: (entry.supplier || '').trim() || undefined,
+    paymentDue: entry.paymentDueDate
+      ? ymd(entry.paymentDueDate)
+      : entry.bookingDueDate
+        ? ymd(entry.bookingDueDate)
+        : undefined,
+    paymentStatus: canSeeFinancials
+      ? {
+          label: formatDisplayLabel(entry.paymentStatus),
+          tone: paymentPillTone(entry.paymentStatus)
+        }
+      : undefined,
+    amount: amountBlock,
+    showPayment: canSeeFinancials
+  };
 
   const stayGrid: Array<AccomGridCell | undefined> = [
     cell('Room type', entry.roomType || '—'),
@@ -135,18 +217,21 @@ export function buildAccommodationDetailData(
     { label: 'Parking included', value: boolYesNo(entry.parkingIncluded) }
   ];
 
+  const arriveDetail = cin.primary
+    ? `Arrive ${cin.primary}${cin.sub ? ` ${cin.sub}` : ''}`
+    : '';
+  const departDetail = cout ? `Depart ${cout}` : '';
+
   return {
     nights,
     checkInDate: ymd(entry.dateStart),
-    checkInTime: entry.dateStart
-      ? formatAccommodationCheckInDetail(ymd(entry.dateStart), entry)
-      : formatTimeHHMM(entry.plannedArrivalTime || entry.checkInTime || ''),
+    checkInTime: arriveDetail,
     checkOutDate: ymd(entry.dateEnd),
-    checkOutTime: entry.dateEnd
-      ? formatAccommodationCheckOutDetail(ymd(entry.dateEnd), entry)
-      : formatTimeHHMM(entry.plannedDepartureTime || entry.checkOutTime || ''),
-    bookingGrid: bookingGrid.filter((c): c is AccomGridCell => Boolean(c)),
-    extraBookingGrid: extraBookingGrid.filter((c): c is AccomGridCell => Boolean(c)),
+    checkOutTime: departDetail,
+    checkInPrimary: cin.primary,
+    checkInSub: cin.sub,
+    checkOutPrimary: cout,
+    bookingPayment,
     stayGrid: stayGrid.filter((c): c is AccomGridCell => Boolean(c)),
     perks: (entry.perksIncluded || '').trim() || undefined,
     cancellation: (entry.cancellationPolicy || '').trim() || undefined

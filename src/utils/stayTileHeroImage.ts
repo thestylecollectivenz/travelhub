@@ -1,8 +1,10 @@
-const CACHE_KEY = 'travelhub-stay-hero-images-v3';
+const CACHE_KEY = 'travelhub-stay-hero-images-v4';
 
 type CacheRow = Record<string, string>;
 
-function cacheKey(title: string, location: string, mode: 'accommodation' | 'cruise'): string {
+export type StayHeroMode = 'accommodation' | 'cruise';
+
+function cacheKey(title: string, location: string, mode: StayHeroMode): string {
   return `${mode}|${title.trim().toLowerCase()}|${location.trim().toLowerCase()}`;
 }
 
@@ -25,15 +27,15 @@ function saveCache(row: CacheRow): void {
   }
 }
 
-function pollinationsFallback(title: string, location: string, mode: 'accommodation' | 'cruise'): string {
+function pollinationsFallback(title: string, location: string, mode: StayHeroMode): string {
   const subject =
     mode === 'cruise'
-      ? `real photograph of the cruise ship named "${title}" at ${location}, ship exterior, pier or harbour`
-      : `real photograph of the hotel facade of "${title}" hotel in ${location}, building front entrance exterior only, not cityscape`;
+      ? `real photograph of cruise ship "${title}"${location ? ` operated by / at ${location}` : ''}, ship exterior hull and superstructure`
+      : `real photograph of the hotel facade of "${title}"${location ? ` in ${location}` : ''}, building front entrance exterior only, not cityscape`;
   const prompt = encodeURIComponent(
     `${subject}, photorealistic travel photography, sharp facade detail, no illustration, no collage, no text, no watermark`
   );
-  const seed = encodeURIComponent(`${cacheKey(title, location, mode)}|facade`);
+  const seed = encodeURIComponent(`${cacheKey(title, location, mode)}|facade-v4`);
   return `https://image.pollinations.ai/prompt/${prompt}?width=640&height=480&nologo=true&seed=${seed}`;
 }
 
@@ -41,15 +43,18 @@ function looksLikePropertyHit(title: string, pageTitle: string): boolean {
   const prop = title.trim().toLowerCase();
   const hit = pageTitle.trim().toLowerCase();
   if (!prop || !hit) return false;
-  const propCore = prop.replace(/\b(hotel|resort|inn|lodge|motel|apartments?|suite|suites)\b/gi, '').trim();
-  if (propCore.length >= 4 && hit.includes(propCore)) return true;
-  return hit.includes(prop);
+  // Prefer exact / near-exact property name matches — avoid city or country pages.
+  if (hit === prop) return true;
+  if (hit.includes(prop) || prop.includes(hit.replace(/\s*\(.*\)\s*/g, '').trim())) return true;
+  const propCore = prop.replace(/\b(hotel|resort|inn|lodge|motel|apartments?|suite|suites|cruise|ship)\b/gi, '').trim();
+  if (propCore.length >= 5 && hit.includes(propCore)) return true;
+  return false;
 }
 
 async function fetchWikiThumbnail(query: string, titleHint: string): Promise<string | null> {
   const url = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(
     query
-  )}&gsrlimit=5&prop=pageimages|info&inprop=url&piprop=thumbnail&pithumbsize=640&format=json&origin=*`;
+  )}&gsrlimit=8&prop=pageimages|info&inprop=url&piprop=thumbnail&pithumbsize=640&format=json&origin=*`;
   try {
     const res = await fetch(url);
     if (!res.ok) return null;
@@ -77,7 +82,7 @@ async function fetchWikiThumbnail(query: string, titleHint: string): Promise<str
 async function fetchCommonsThumbnail(query: string, titleHint: string): Promise<string | null> {
   const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(
     query
-  )}&gsrlimit=8&prop=imageinfo&iiprop=url|mime&iiurlwidth=640&format=json&origin=*`;
+  )}&gsrlimit=10&prop=imageinfo&iiprop=url|mime&iiurlwidth=640&format=json&origin=*`;
   try {
     const res = await fetch(url);
     if (!res.ok) return null;
@@ -105,11 +110,29 @@ async function fetchCommonsThumbnail(query: string, titleHint: string): Promise<
   }
 }
 
-/** Property-specific hero image: Wikipedia / Commons match on hotel name, else facade-focused AI photo. */
+function buildQueries(name: string, place: string, mode: StayHeroMode): string[] {
+  if (mode === 'cruise') {
+    return [
+      `"${name}"`,
+      `"${name}" cruise ship`,
+      `${name} cruise ship`,
+      place ? `${name} ${place}` : ''
+    ].filter(Boolean);
+  }
+  return [
+    `"${name}"`,
+    `"${name}" hotel`,
+    place ? `"${name}" ${place}` : '',
+    `${name} hotel exterior`,
+    place ? `${name} hotel ${place}` : ''
+  ].filter(Boolean);
+}
+
+/** Property-specific hero: exact accommodation / cruise-line+ship name first. */
 export async function resolveStayHeroImageUrl(
   title: string,
   location: string,
-  mode: 'accommodation' | 'cruise'
+  mode: StayHeroMode
 ): Promise<string> {
   const key = cacheKey(title, location, mode);
   const cache = loadCache();
@@ -117,18 +140,11 @@ export async function resolveStayHeroImageUrl(
 
   const name = title.trim();
   const place = location.trim();
-  const queries =
-    mode === 'cruise'
-      ? [`"${name}" cruise ship`, `${name} cruise ship ${place}`, `${name} ship exterior`].filter(Boolean)
-      : [
-          `"${name}" hotel`,
-          `"${name}" hotel ${place}`,
-          `${name} hotel facade ${place}`,
-          `${name} hotel exterior`
-        ].filter(Boolean);
+  const matchHint = name;
+  const queries = buildQueries(name, place, mode);
 
   for (const q of queries) {
-    const wiki = await fetchWikiThumbnail(q, name);
+    const wiki = await fetchWikiThumbnail(q, matchHint);
     if (wiki) {
       cache[key] = wiki;
       saveCache(cache);
@@ -137,7 +153,10 @@ export async function resolveStayHeroImageUrl(
   }
 
   for (const q of queries) {
-    const commons = await fetchCommonsThumbnail(`${q} facade OR exterior OR building`, name);
+    const commons = await fetchCommonsThumbnail(
+      mode === 'cruise' ? `${q} ship OR vessel` : `${q} facade OR exterior OR building`,
+      matchHint
+    );
     if (commons) {
       cache[key] = commons;
       saveCache(cache);
@@ -152,8 +171,23 @@ export async function resolveStayHeroImageUrl(
 }
 
 /** Sync placeholder while async hero loads. */
-export function stayHeroPlaceholderUrl(title: string, location: string, mode: 'accommodation' | 'cruise'): string {
+export function stayHeroPlaceholderUrl(title: string, location: string, mode: StayHeroMode): string {
   const key = cacheKey(title, location, mode);
   const cached = loadCache()[key];
   return cached || pollinationsFallback(title, location, mode);
+}
+
+/** Resolve search title for accommodation (exact itinerary title) or cruise (line + ship). */
+export function stayHeroSearchTitle(
+  entry: { title?: string; cruiseLineName?: string; shipName?: string },
+  mode: StayHeroMode
+): string {
+  if (mode === 'cruise') {
+    const line = (entry.cruiseLineName || '').trim();
+    const ship = (entry.shipName || '').trim();
+    if (line && ship) return `${line} ${ship}`;
+    if (ship) return ship;
+    if (line) return line;
+  }
+  return (entry.title || '').trim() || (mode === 'cruise' ? 'Cruise ship' : 'Hotel');
 }

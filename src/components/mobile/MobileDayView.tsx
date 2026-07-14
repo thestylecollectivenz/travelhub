@@ -162,6 +162,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     precip?: string;
   } | null>(null);
   const [weatherIconCode, setWeatherIconCode] = React.useState('');
+  const [weatherAhead, setWeatherAhead] = React.useState<Array<{ ymd: string; icon: string; label: string }>>([]);
   const [weatherOpen, setWeatherOpen] = React.useState(false);
 
   const carouselRef = React.useRef<HTMLDivElement>(null);
@@ -298,17 +299,22 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     if (!key || !primaryPlace || !Number.isFinite(lat) || !Number.isFinite(lng) || !ymd) {
       setWeatherSummary(null);
       setWeatherIconCode('');
+      setWeatherAhead([]);
       return;
     }
     let cancelled = false;
     const units = config.temperatureUnit === 'Fahrenheit' ? 'us' : 'metric';
     const unitSuffix = config.temperatureUnit === 'Fahrenheit' ? '°F' : '°';
-    const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${lat},${lng}/${ymd}?key=${encodeURIComponent(key)}&unitGroup=${units}&include=days&contentType=json`;
+    const end = new Date(`${ymd}T12:00:00`);
+    end.setDate(end.getDate() + 3);
+    const endYmd = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
+    const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${lat},${lng}/${ymd}/${endYmd}?key=${encodeURIComponent(key)}&unitGroup=${units}&include=days&contentType=json`;
     fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Weather ${r.status}`))))
       .then((data) => {
         if (cancelled) return;
-        const row = (data.days ?? [])[0] ?? {};
+        const daysRows = (data.days ?? []) as Array<Record<string, unknown>>;
+        const row = daysRows[0] ?? {};
         const temp = Number(row.temp ?? row.tempmax);
         const high = Number(row.tempmax);
         const low = Number(row.tempmin);
@@ -317,6 +323,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
         if (!Number.isFinite(temp) && !conditions && !Number.isFinite(high)) {
           setWeatherSummary(null);
           setWeatherIconCode('');
+          setWeatherAhead([]);
           return;
         }
         const tempPart = Number.isFinite(temp) ? `${Math.round(temp)}${unitSuffix}` : '';
@@ -332,11 +339,27 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
           precip: precipPart
         });
         setWeatherIconCode(String(row.icon ?? ''));
+        const ahead = daysRows.slice(1, 4).map((d) => {
+          const dYmd = String(d.datetime ?? '').slice(0, 10);
+          const dt = dYmd ? new Date(`${dYmd}T12:00:00`) : null;
+          const weekday =
+            dt && Number.isFinite(dt.getTime())
+              ? dt.toLocaleDateString('en-NZ', { weekday: 'short' })
+              : '';
+          const hi = Number(d.tempmax);
+          return {
+            ymd: dYmd,
+            icon: String(d.icon ?? 'cloudy'),
+            label: weekday || (Number.isFinite(hi) ? `${Math.round(hi)}${unitSuffix}` : '')
+          };
+        });
+        setWeatherAhead(ahead);
       })
       .catch(() => {
         if (!cancelled) {
           setWeatherSummary(null);
           setWeatherIconCode('');
+          setWeatherAhead([]);
         }
       });
     return () => {
@@ -678,14 +701,26 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
             aria-label={`Weather ${weatherSummary.label}. Tap for full forecast.`}
             onClick={() => setWeatherOpen(true)}
           >
-            <span className={styles.weatherIcon} aria-hidden>
-              <WeatherIcon iconCode={weatherIconCode || 'cloudy'} size={shellMode === 'ipad-portrait' ? 36 : 28} />
+            <span className={styles.weatherTodayRow}>
+              <span className={styles.weatherIcon} aria-hidden>
+                <WeatherIcon iconCode={weatherIconCode || 'cloudy'} size={shellMode === 'ipad-portrait' ? 36 : 28} />
+              </span>
+              <span className={styles.weatherChipCopy}>
+                <span className={styles.weatherText}>{weatherSummary.label}</span>
+                {weatherSummary.hiLo ? <span className={styles.weatherHiLo}>{weatherSummary.hiLo}</span> : null}
+                {weatherSummary.precip ? <span className={styles.weatherHiLo}>{weatherSummary.precip}</span> : null}
+              </span>
             </span>
-            <span className={styles.weatherChipCopy}>
-              <span className={styles.weatherText}>{weatherSummary.label}</span>
-              {weatherSummary.hiLo ? <span className={styles.weatherHiLo}>{weatherSummary.hiLo}</span> : null}
-              {weatherSummary.precip ? <span className={styles.weatherHiLo}>{weatherSummary.precip}</span> : null}
-            </span>
+            {weatherAhead.length ? (
+              <span className={styles.weatherAheadRow} aria-hidden>
+                {weatherAhead.map((d) => (
+                  <span key={d.ymd || d.label} className={styles.weatherAheadDay}>
+                    <WeatherIcon iconCode={d.icon || 'cloudy'} size={shellMode === 'ipad-portrait' ? 22 : 18} />
+                    <span className={styles.weatherAheadLabel}>{d.label}</span>
+                  </span>
+                ))}
+              </span>
+            ) : null}
           </button>
         ) : null}
       </div>

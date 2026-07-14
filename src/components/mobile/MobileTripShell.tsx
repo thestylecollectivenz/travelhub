@@ -397,7 +397,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
           tripName: tripLabel
         };
       default:
-        return { title: 'Itinerary', subtitle: 'Your day-by-day plan', tripName: tripLabel };
+        return { title: 'Itinerary', subtitle: 'Your day-by-day plan', tripName: undefined };
     }
   }, [cardDetailOpen, tab, trip?.title]);
 

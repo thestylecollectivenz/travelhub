@@ -112,12 +112,13 @@
 }
 
 .tripName {
-  margin: 0.15rem 0 0.25rem;
+  margin: 0.2rem 0 0.35rem;
   font-family: var(--tl-serif);
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: color-mix(in srgb, var(--tl-navy) 72%, var(--tl-muted));
-  line-height: 1.25;
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: var(--tl-navy);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
 [data-shell='ipad-portrait'] .root {
@@ -138,7 +139,8 @@
 }
 
 [data-shell='ipad-portrait'] .tripName {
-  font-size: 1.05rem;
+  font-size: 1.85rem;
+  font-weight: 700;
 }
 
 [data-shell='ipad-portrait'] .navRow {

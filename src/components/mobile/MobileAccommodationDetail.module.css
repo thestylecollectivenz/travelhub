@@ -121,6 +121,7 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.4rem;
+  margin-top: 0.85rem;
   margin-bottom: 0;
 }
 
@@ -198,10 +199,10 @@
 }
 
 .summaryValue {
-  font-size: 0.82rem;
+  font-size: 0.9rem;
   font-weight: 800;
   color: #1e2a44;
-  line-height: 1.2;
+  line-height: 1.25;
 }
 
 .summaryMetaLabel {
@@ -216,6 +217,13 @@
   font-weight: 650;
   color: #6b6570;
   margin-top: 0.12rem;
+}
+
+.summarySub {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #6b6570;
+  margin-top: 0.15rem;
 }
 
 .detailColumns {
@@ -251,9 +259,108 @@
 
 .sectionTitle {
   margin: 0;
-  font-size: 0.82rem;
+  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #1e2a44;
+}
+
+.bpGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1rem;
+}
+
+.stayGrid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.stayGrid .bpField:first-child {
+  grid-column: 1 / -1;
+}
+
+.bpField {
+  min-width: 0;
+}
+
+.bpSub {
+  display: block;
+  margin-top: 0.12rem;
+  font-size: 0.68rem;
+  color: #8a857d;
+  font-weight: 600;
+}
+
+.paymentSubhead {
+  margin: 0.75rem 0 0.55rem;
+  font-size: 0.85rem;
   font-weight: 800;
   color: #1e2a44;
+}
+
+.amountBlock {
+  margin-top: 0.65rem;
+}
+
+.amountCols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1rem;
+  margin-top: 0.25rem;
+}
+
+.amountPrimary {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #1e2a44;
+  line-height: 1.25;
+}
+
+.amountHome {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #4a5568;
+  line-height: 1.25;
+}
+
+.amountPerNight {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: #1e2a44;
+}
+
+.exchangeNote {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.65rem 0 0;
+  font-size: 0.62rem;
+  color: #8a857d;
+  line-height: 1.35;
+}
+
+.infoDot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 999px;
+  border: 1px solid #8a857d;
+  font-size: 0.55rem;
+  font-weight: 700;
+  font-style: italic;
+  flex-shrink: 0;
+}
+
+.emptyHint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #8a857d;
 }
 
 .gridRow {
@@ -389,13 +496,13 @@
   padding: 0.55rem 0.45rem;
   border-radius: 0.65rem;
   text-decoration: none;
-  color: #1e2a44;
-  background: color-mix(in srgb, #e8eef5 35%, white);
+  color: #2f5eb8;
+  background: color-mix(in srgb, #e8eef5 55%, white);
   border: 1px solid color-mix(in srgb, #3d5a80 12%, transparent);
 }
 
 .docRowIcon {
-  color: #3d5a80;
+  color: #2f5eb8;
   display: inline-flex;
 }
 
@@ -403,10 +510,11 @@
   font-size: 0.72rem;
   font-weight: 650;
   min-width: 0;
+  color: #2f5eb8;
 }
 
 .docRowChevron {
-  color: #8a7355;
+  color: #2f5eb8;
   font-weight: 700;
 }
 
@@ -493,16 +601,17 @@
 }
 
 [data-shell='ipad-portrait'] .actionGrid {
-  gap: 0.55rem;
+  gap: 0.5rem;
+  margin-top: 1rem;
 }
 
 [data-shell='ipad-portrait'] .actionTile {
-  flex-direction: row;
-  min-height: 3.1rem;
-  padding: 0.65rem 0.75rem;
-  font-size: 0.78rem;
+  flex-direction: column;
+  min-height: 4.4rem;
+  padding: 0.7rem 0.4rem;
+  font-size: 0.72rem;
   border-radius: 0.85rem;
-  gap: 0.45rem;
+  gap: 0.4rem;
 }
 
 [data-shell='ipad-portrait'] .staySummary {
@@ -511,18 +620,22 @@
 }
 
 [data-shell='ipad-portrait'] .summaryCol {
-  padding: 0.9rem 0.65rem;
+  padding: 0.95rem 0.85rem;
   align-items: flex-start;
   text-align: left;
 }
 
 [data-shell='ipad-portrait'] .summaryValue {
-  font-size: 0.95rem;
+  font-size: 1.05rem;
 }
 
 [data-shell='ipad-portrait'] .summaryLabel,
 [data-shell='ipad-portrait'] .summaryMetaLabel {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
+}
+
+[data-shell='ipad-portrait'] .summarySub {
+  font-size: 0.78rem;
 }
 
 [data-shell='ipad-portrait'] .detailColumns {
@@ -532,20 +645,33 @@
 }
 
 [data-shell='ipad-portrait'] .sectionCard {
-  padding: 0.9rem 0.95rem 1rem;
+  padding: 0.95rem 1rem 1.05rem;
   border-radius: 1rem;
   margin-bottom: 0.85rem;
 }
 
 [data-shell='ipad-portrait'] .sectionTitle {
+  font-size: 1.05rem;
+}
+
+[data-shell='ipad-portrait'] .paymentSubhead {
   font-size: 0.95rem;
 }
 
 [data-shell='ipad-portrait'] .gridLabel {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
 }
 
 [data-shell='ipad-portrait'] .gridValue {
+  font-size: 0.92rem;
+}
+
+[data-shell='ipad-portrait'] .amountPrimary,
+[data-shell='ipad-portrait'] .amountHome {
+  font-size: 1.05rem;
+}
+
+[data-shell='ipad-portrait'] .amountPerNight {
   font-size: 0.85rem;
 }
 
