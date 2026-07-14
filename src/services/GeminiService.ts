@@ -594,7 +594,9 @@ const NEAREST_KIND_LABEL: Record<NearestPlaceKind, string> = {
   transport: 'public transport stop, bus stop, train/metro station, or taxi stand'
 };
 
-function buildDiningPrompt(ctx: LocationSearchContext, venueFocus: 'restaurants' | 'cafes' = 'restaurants'): string {
+export type DiningVenueFocus = 'restaurants' | 'cafes' | 'attractions';
+
+function buildDiningPrompt(ctx: LocationSearchContext, venueFocus: DiningVenueFocus = 'restaurants'): string {
   const geo = `Coordinates: ${ctx.latitude.toFixed(5)}, ${ctx.longitude.toFixed(5)}`;
   const placeLine =
     ctx.mode === 'onsite'
@@ -603,8 +605,15 @@ function buildDiningPrompt(ctx: LocationSearchContext, venueFocus: 'restaurants'
   const venueLine =
     venueFocus === 'cafes'
       ? 'Focus on coffee shops, bakeries, and casual cafés — not full-service restaurants.'
-      : 'Focus on restaurants and substantial dining — include some cafés only if they are standouts.';
-  return `You are a local dining guide.
+      : venueFocus === 'attractions'
+        ? 'Focus on sightseeing attractions, landmarks, museums, viewpoints, and notable places to visit — not restaurants.'
+        : 'Focus on restaurants and substantial dining — include some cafés only if they are standouts.';
+  const guideLabel = venueFocus === 'attractions' ? 'local sightseeing guide' : 'local dining guide';
+  const preferLine =
+    venueFocus === 'attractions'
+      ? 'Prefer iconic or well-reviewed visitor attractions'
+      : 'Prefer local food/drink highlights';
+  return `You are a ${guideLabel}.
 
 ${placeLine}
 ${geo}
@@ -617,7 +626,7 @@ Rules:
 - Exactly 4 venues
 - Keep each string under 120 characters
 - Real or highly plausible for the area
-- Prefer local food/drink highlights
+- ${preferLine}
 - Omit empty optional URL fields rather than inventing them`;
 }
 
@@ -689,7 +698,7 @@ async function callGeminiJson<T>(
 }
 
 export async function generateDiningSuggestions(
-  options: GeminiServiceOptions & { searchContext: LocationSearchContext; venueFocus?: 'restaurants' | 'cafes' }
+  options: GeminiServiceOptions & { searchContext: LocationSearchContext; venueFocus?: DiningVenueFocus }
 ): Promise<{ items: DiningSuggestionRow[]; model: string }> {
   const apiKey = (options.apiKey || '').trim();
   if (!apiKey) throw new GeminiServiceError('NO_KEY', 'Gemini API key is not set.');

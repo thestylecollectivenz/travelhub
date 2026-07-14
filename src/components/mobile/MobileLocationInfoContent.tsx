@@ -9,19 +9,27 @@ import {
   parseLocationInfoNotes,
   serializeLocationInfoNotes,
   splitHighlightRows,
+  type DiningSuggestionRow,
   type LocationHighlightKind,
   type LocationHighlightRow,
   type LocationInfoNotes,
+  type NearestPlaceKind,
   type NearestPlaceRow
 } from '../../utils/locationInfoEntry';
-import { placeQueryDirectionsUrl, placeQueryMapsUrl } from '../../utils/googleMapsLink';
+import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
+import { placeQueryDirectionsUrl } from '../../utils/googleMapsLink';
+import { explorePlacePhotoUrl } from '../../utils/explorePlacePhoto';
+import {
+  EXPLORE_CATEGORIES,
+  type ExploreCategoryId,
+  type SavedPlacesCategoryId
+} from '../../utils/exploreCategories';
 import { RichTextContent } from '../shared/RichTextContent';
 import { LocationInfoAskPanel } from '../itinerary/LocationInfoAskPanel';
 import { NearYouToolIcon } from '../shared/NearYouToolIcon';
 import { LocationHighlightIcon } from './LocationHighlightIcon';
 import { MobilePencilButton } from './MobilePencilButton';
-import { NEAR_YOU_TOOLS, type NearYouToolId } from '../../utils/nearYouTools';
-import { MobileLocationSavedPlaces } from './MobileLocationSavedPlaces';
+import type { NearYouToolId } from '../../utils/nearYouTools';
 import styles from './MobileLocationInfoContent.module.css';
 
 const HIGHLIGHT_LABEL: Record<LocationHighlightKind, string> = {
@@ -30,25 +38,129 @@ const HIGHLIGHT_LABEL: Record<LocationHighlightKind, string> = {
   drink: 'Drink',
   souvenir: 'Souvenirs'
 };
-const ESSENTIAL_KINDS: Array<'grocery' | 'pharmacy' | 'atm'> = ['grocery', 'pharmacy', 'atm'];
 
-const ESSENTIAL_LABEL: Record<'grocery' | 'pharmacy' | 'atm', string> = {
-  grocery: 'Shopping',
-  pharmacy: 'Pharmacy',
-  atm: 'ATM'
-};
-
-function servicePills(summary?: string): string[] {
-  if (!summary?.trim()) return [];
-  return summary
-    .split(/[,;·]/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(0, 4);
-}
+const ESSENTIAL_KINDS: NearestPlaceKind[] = ['pharmacy', 'atm', 'medical', 'restroom', 'fuel', 'transport'];
+const SHOPPING_KINDS: NearestPlaceKind[] = ['grocery'];
 
 function highlightKey(row: LocationHighlightRow): string {
   return `${row.kind}::${row.id}`;
+}
+
+function IconBed(): React.ReactElement {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M3 14h18M7 10V8a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconSparkle(): React.ReactElement {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 3.5 13.8 9l5.7 1.2-4.4 3.9 1.3 5.7L12 16.8 7.6 19.8l1.3-5.7-4.4-3.9L10.2 9 12 3.5Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function IconPin(): React.ReactElement {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M12 21s7-4.35 7-10a7 7 0 1 0-14 0c0 5.65 7 10 7 10Z" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="12" cy="11" r="2" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconBookmark(): React.ReactElement {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M6 4h12v18l-6-4-6 4V4Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconDirections(): React.ReactElement {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M12 2 4 20l8-4 8 4L12 2Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function CategoryGlyph({ id }: { id: ExploreCategoryId }): React.ReactElement {
+  const toolMap: Partial<Record<ExploreCategoryId, NearYouToolId>> = {
+    restaurants: 'dining',
+    cafes: 'cafes',
+    shopping: 'grocery',
+    groceries: 'grocery',
+    pharmacy: 'pharmacy',
+    atm: 'atm',
+    restroom: 'restroom',
+    transport: 'transport',
+    medical: 'medical',
+    fuel: 'fuel'
+  };
+  const toolId = toolMap[id];
+  if (toolId) return <NearYouToolIcon toolId={toolId} size="sm" />;
+  return (
+    <span className={styles.sightsGlyph} aria-hidden>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+        <path d="M4 18 8 8l4 6 3-4 5 8H4Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
+}
+
+type FeaturedCard = {
+  id: string;
+  name: string;
+  categoryLabel: string;
+  rating?: number;
+  description?: string;
+  distance?: string;
+  mapsUrl?: string;
+  city?: string;
+};
+
+function countNearest(data: LocationInfoNotes, kinds: NearestPlaceKind[]): number {
+  const nearest = data.nearestPlaces ?? {};
+  return kinds.reduce((sum, k) => sum + (nearest[k]?.length ?? 0), 0);
+}
+
+function buildFeaturedCards(data: LocationInfoNotes, city: string): FeaturedCard[] {
+  const dining = data.diningSuggestions ?? [];
+  const fromDining: FeaturedCard[] = dining.map((row) => ({
+    id: row.id,
+    name: row.name,
+    categoryLabel: row.bestFor || 'Dining',
+    rating: row.rating,
+    description: row.description || row.why,
+    distance: row.description,
+    mapsUrl: row.mapsUrl,
+    city
+  }));
+  if (fromDining.length >= 3) return fromDining.slice(0, 8);
+
+  const nearest = data.nearestPlaces ?? {};
+  const extras: FeaturedCard[] = [];
+  (Object.keys(nearest) as NearestPlaceKind[]).forEach((kind) => {
+    (nearest[kind] ?? []).forEach((row: NearestPlaceRow) => {
+      extras.push({
+        id: row.id,
+        name: row.name,
+        categoryLabel: kind.charAt(0).toUpperCase() + kind.slice(1),
+        description: row.servicesSummary || row.note,
+        distance: row.note,
+        mapsUrl: row.mapsUrl,
+        city
+      });
+    });
+  });
+  return [...fromDining, ...extras].slice(0, 8);
 }
 
 export interface MobileLocationInfoContentProps {
@@ -59,6 +171,11 @@ export interface MobileLocationInfoContentProps {
   canEditHighlights?: boolean;
   onOpenNearTool?: (toolId: NearYouToolId) => void;
   onEditHighlights?: () => void;
+  onOpenExplore?: (category?: string) => void;
+  onOpenSavedPlaces?: (category?: string) => void;
+  onChangeStartingPoint?: () => void;
+  startingPointLabel?: string;
+  calendarDate?: string;
 }
 
 export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps> = ({
@@ -68,10 +185,19 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
   canEditSavedPlaces = false,
   canEditHighlights = false,
   onOpenNearTool,
-  onEditHighlights
+  onEditHighlights,
+  onOpenExplore,
+  onOpenSavedPlaces,
+  onChangeStartingPoint,
+  startingPointLabel
 }) => {
   const { config } = useConfig();
   const { updateEntry } = useTripWorkspace();
+  const askRef = React.useRef<HTMLElement | null>(null);
+  const [askExpanded, setAskExpanded] = React.useState(false);
+  const [carouselIdx, setCarouselIdx] = React.useState(0);
+  const [moreOpen, setMoreOpen] = React.useState(false);
+
   const data = parseLocationInfoNotes(entry.notes);
   const rows = data ? locationHighlightRows(data) : [];
   const rowsByKind = React.useMemo(() => {
@@ -93,43 +219,95 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
     updateEntry({ ...entry, notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(next)) });
   };
 
-  const nearest = data.nearestPlaces ?? {};
-  const essentials = ESSENTIAL_KINDS.map((kind) => ({
-    kind,
-    place: (nearest[kind] ?? [])[0] as NearestPlaceRow | undefined
-  }));
-
   const toggleHighlight = (key: string): void => {
     const nextRows = rows.map((r) => (highlightKey(r) === key ? { ...r, done: !r.done } : r));
     persist({ ...data, ...splitHighlightRows(nextRows) });
   };
 
+  const shortPlace =
+    placeNameFromTitle(place?.title || '') ||
+    placeNameFromTitle(entry.title || entry.location || '') ||
+    'this place';
+  const stayName = (startingPointLabel || '').trim() || shortPlace;
+  const city = shortPlace;
+
+  const diningCount = (data.diningSuggestions ?? []).length;
+  const shoppingCount = countNearest(data, SHOPPING_KINDS);
+  const essentialsCount = countNearest(data, ESSENTIAL_KINDS);
+  const nearestTotal = Object.values(data.nearestPlaces ?? {}).reduce((n, rows) => n + (rows?.length ?? 0), 0);
+  const allSavedCount = diningCount + nearestTotal;
+
+  const savedTiles: Array<{ id: SavedPlacesCategoryId; label: string; count: number }> = [
+    { id: 'dining', label: 'Dining', count: diningCount },
+    { id: 'sights', label: 'Sights', count: 0 },
+    { id: 'shopping', label: 'Shopping', count: shoppingCount },
+    { id: 'essentials', label: 'Essentials', count: essentialsCount },
+    { id: 'all', label: 'All saved', count: allSavedCount }
+  ];
+
+  const featured = buildFeaturedCards(data, city);
+  const primaryCats = EXPLORE_CATEGORIES.filter((c) => c.primary);
+  const moreCats = EXPLORE_CATEGORIES.filter((c) => c.underMore);
+
+  const openExploreCat = (id: ExploreCategoryId): void => {
+    if (onOpenExplore) {
+      onOpenExplore(id);
+      return;
+    }
+    const tool =
+      id === 'restaurants'
+        ? 'dining'
+        : id === 'cafes'
+          ? 'cafes'
+          : id === 'shopping' || id === 'groceries'
+            ? 'grocery'
+            : id === 'pharmacy'
+              ? 'pharmacy'
+              : id === 'atm'
+                ? 'atm'
+                : id === 'restroom'
+                  ? 'restroom'
+                  : id === 'transport'
+                    ? 'transport'
+                    : id === 'medical'
+                      ? 'medical'
+                      : id === 'fuel'
+                        ? 'fuel'
+                        : undefined;
+    if (tool && onOpenNearTool) onOpenNearTool(tool);
+  };
+
+  const openAsk = (): void => {
+    setAskExpanded(true);
+    window.setTimeout(() => askRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  };
+
+  const toggleSavedDining = (row: DiningSuggestionRow): void => {
+    if (!canEditSavedPlaces) return;
+    const dining = data.diningSuggestions ?? [];
+    persist({
+      ...data,
+      diningSuggestions: dining.map((x) => (x.id === row.id ? { ...x, done: !x.done } : x))
+    });
+  };
+
   return (
     <div className={styles.root}>
-      {onOpenNearTool ? (
-        <nav className={styles.toolRow} aria-label="Near this place">
-          {NEAR_YOU_TOOLS.map((t) => (
-            <button key={t.id} type="button" className={styles.toolBtn} onClick={() => onOpenNearTool(t.id)}>
-              <NearYouToolIcon toolId={t.id} size="lg" />
-              <span className={styles.toolLabel}>{t.shortLabel}</span>
-            </button>
-          ))}
-        </nav>
-      ) : null}
-
-      {data.overview.trim() ? (
-        <section className={styles.section}>
+      <section className={styles.section}>
+        <div className={styles.sectionHead}>
           <h3 className={styles.sectionTitle}>Overview</h3>
+          {canEditHighlights && onEditHighlights ? (
+            <MobilePencilButton onClick={onEditHighlights} ariaLabel="Edit overview and highlights" />
+          ) : null}
+        </div>
+        {data.overview.trim() ? (
           <div className={styles.overviewBody}>
             <RichTextContent html={data.overview.trim()} />
           </div>
-        </section>
-      ) : (
-        <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>Overview</h3>
+        ) : (
           <p className={styles.empty}>Overview will appear here once this place has been generated or edited.</p>
-        </section>
-      )}
+        )}
+      </section>
 
       <section className={styles.section}>
         <div className={styles.sectionHead}>
@@ -182,99 +360,231 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
 
       <section className={styles.section}>
         <div className={styles.sectionHead}>
-          <h3 className={styles.sectionTitle}>Nearby essentials</h3>
+          <h3 className={styles.sectionTitle}>Explore {shortPlace}</h3>
+          {onOpenExplore ? (
+            <button type="button" className={styles.viewAllLink} onClick={() => onOpenExplore()}>
+              View all ›
+            </button>
+          ) : null}
         </div>
-        <div className={styles.essentialsRow}>
-          {essentials.map(({ kind, place: p }) => {
-            const toolId = kind;
-            const directions = p ? placeQueryDirectionsUrl(p.name, p.address) || p.mapsUrl : undefined;
-            const maps = p ? p.mapsUrl || placeQueryMapsUrl(p.name, p.address) : undefined;
-            const pills = servicePills(p?.servicesSummary);
-            return (
-              <article key={kind} className={styles.essentialCard}>
-                <div className={styles.essentialPhoto} aria-hidden>
-                  <NearYouToolIcon toolId={toolId} size="lg" />
-                </div>
-                <div className={styles.essentialTop}>
-                  <strong className={styles.essentialName}>{p?.name || ESSENTIAL_LABEL[kind]}</strong>
-                </div>
-                {p?.note ? <p className={styles.essentialDist}>{p.note}</p> : null}
-                {p?.address ? <p className={styles.essentialAddr}>{p.address}</p> : null}
-                {pills.length ? (
-                  <div className={styles.essentialPills}>
-                    {pills.map((pill) => (
-                      <span key={pill} className={styles.essentialPill}>
-                        {pill}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-                {p?.servicesSummary && !pills.length ? (
-                  <p className={styles.essentialNote}>{p.servicesSummary}</p>
-                ) : null}
-                <div className={styles.essentialFooter}>
-                  <div className={styles.essentialActions}>
-                    {directions ? (
-                      <a className={styles.essentialAction} href={directions} target="_blank" rel="noopener noreferrer" title="Directions" aria-label="Directions">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                          <path d="M12 2 4 20l8-4 8 4L12 2Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-                        </svg>
-                      </a>
-                    ) : null}
-                    {maps ? (
-                      <a className={styles.essentialAction} href={maps} target="_blank" rel="noopener noreferrer" title="Map" aria-label="Map">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                          <path d="M12 21s7-4.35 7-10a7 7 0 1 0-14 0c0 5.65 7 10 7 10Z" stroke="currentColor" strokeWidth="1.5" />
-                          <circle cx="12" cy="11" r="2" fill="currentColor" />
-                        </svg>
-                      </a>
-                    ) : null}
-                  </div>
-                  {onOpenNearTool ? (
-                    <button type="button" className={styles.viewAllBtn} onClick={() => onOpenNearTool(toolId)}>
-                      View all
-                    </button>
-                  ) : null}
-                </div>
-              </article>
-            );
-          })}
+        <p className={styles.sectionSub}>Discover places near your accommodation or anywhere in the city.</p>
+        <div className={styles.catPills} role="list">
+          {primaryCats.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              role="listitem"
+              className={styles.catPill}
+              style={{ color: cat.accent }}
+              onClick={() => openExploreCat(cat.id)}
+            >
+              <span className={styles.catPillIcon} style={{ background: cat.bg, color: cat.accent }}>
+                <CategoryGlyph id={cat.id} />
+              </span>
+              <span className={styles.catPillLabel}>{cat.label}</span>
+            </button>
+          ))}
+          <div className={styles.moreWrap}>
+            <button
+              type="button"
+              className={styles.catPill}
+              aria-expanded={moreOpen}
+              onClick={() => setMoreOpen((v) => !v)}
+            >
+              <span className={styles.catPillIcon} style={{ background: '#eceeef', color: '#5c6570' }}>
+                ···
+              </span>
+              <span className={styles.catPillLabel}>More</span>
+            </button>
+            {moreOpen ? (
+              <div className={styles.moreMenu} role="menu">
+                {moreCats.map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    role="menuitem"
+                    className={styles.moreItem}
+                    style={{ color: cat.accent }}
+                    onClick={() => {
+                      setMoreOpen(false);
+                      openExploreCat(cat.id);
+                    }}
+                  >
+                    <CategoryGlyph id={cat.id} />
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </div>
-        {!essentials.some((e) => e.place) ? (
-          <p className={styles.empty}>Open Shopping, Pharmacy, or ATM from the icons above to find essentials near this place.</p>
+        <div className={styles.startBanner}>
+          <span className={styles.startBannerIcon} aria-hidden>
+            <IconBed />
+          </span>
+          <div className={styles.startBannerBody}>
+            <p className={styles.startBannerText}>
+              Showing places near <strong>{stayName}</strong>
+            </p>
+            {onChangeStartingPoint ? (
+              <button type="button" className={styles.startBannerLink} onClick={onChangeStartingPoint}>
+                Change starting point
+              </button>
+            ) : (
+              <span className={styles.startBannerMuted}>Change starting point</span>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.section}>
+        <div className={styles.sectionHead}>
+          <h3 className={styles.sectionTitle}>Saved places</h3>
+          {onOpenSavedPlaces ? (
+            <button type="button" className={styles.viewAllLink} onClick={() => onOpenSavedPlaces()}>
+              View all ›
+            </button>
+          ) : null}
+        </div>
+        <p className={styles.sectionSub}>
+          Places you&apos;ve saved for {shortPlace}. Use GPS when you&apos;re there for live directions.
+        </p>
+        <div className={styles.savedTiles} role="list">
+          {savedTiles.map((tile) => (
+            <button
+              key={tile.id}
+              type="button"
+              role="listitem"
+              className={styles.savedTile}
+              onClick={() => onOpenSavedPlaces?.(tile.id === 'all' ? undefined : tile.id)}
+            >
+              <span className={styles.savedTileCount}>{tile.count}</span>
+              <span className={styles.savedTileLabel}>{tile.label}</span>
+            </button>
+          ))}
+        </div>
+        {featured.length ? (
+          <>
+            <div className={styles.featuredStrip}>
+              {featured.map((card, idx) => {
+                const directions = placeQueryDirectionsUrl(card.name) || card.mapsUrl;
+                const diningRow = (data.diningSuggestions ?? []).find((d) => d.id === card.id);
+                return (
+                  <article key={card.id} className={styles.featuredCard} data-active={idx === carouselIdx ? '1' : '0'}>
+                    <div
+                      className={styles.featuredPhoto}
+                      style={{ backgroundImage: `url(${explorePlacePhotoUrl(card.name, card.city)})` }}
+                      aria-hidden
+                    />
+                    <div className={styles.featuredBody}>
+                      <div className={styles.featuredHead}>
+                        <strong className={styles.featuredName}>{card.name}</strong>
+                        {typeof card.rating === 'number' ? (
+                          <span className={styles.featuredRating}>★ {card.rating.toFixed(1)}</span>
+                        ) : null}
+                      </div>
+                      <span className={styles.featuredTag}>{card.categoryLabel}</span>
+                      {card.description ? <p className={styles.featuredDesc}>{card.description}</p> : null}
+                      {card.distance ? (
+                        <p className={styles.featuredDist}>
+                          <IconPin /> {card.distance}
+                        </p>
+                      ) : null}
+                      <div className={styles.featuredActions}>
+                        {directions ? (
+                          <a
+                            className={styles.featuredAction}
+                            href={directions}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <IconDirections /> Directions
+                          </a>
+                        ) : null}
+                        {diningRow && canEditSavedPlaces ? (
+                          <button
+                            type="button"
+                            className={styles.featuredAction}
+                            onClick={() => toggleSavedDining(diningRow)}
+                            aria-label={diningRow.done ? 'Unsave' : 'Saved'}
+                          >
+                            <IconBookmark /> {diningRow.done ? 'Saved' : 'Save'}
+                          </button>
+                        ) : (
+                          <span className={styles.featuredActionMuted}>
+                            <IconBookmark /> Saved
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+            {featured.length > 1 ? (
+              <div className={styles.carouselDots} role="tablist" aria-label="Saved places carousel">
+                {featured.map((card, idx) => (
+                  <button
+                    key={card.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={idx === carouselIdx}
+                    className={`${styles.dot} ${idx === carouselIdx ? styles.dotOn : ''}`}
+                    onClick={() => setCarouselIdx(idx)}
+                    aria-label={`Show card ${idx + 1}`}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <p className={styles.empty}>Save places from Explore to see them here.</p>
+        )}
+      </section>
+
+      <section className={styles.askBannerSection} ref={askRef}>
+        <div className={styles.askBanner}>
+          <span className={styles.askBannerIcon} aria-hidden>
+            <IconSparkle />
+          </span>
+          <div className={styles.askBannerCopy}>
+            <p className={styles.askBannerTitle}>Ask AI about {shortPlace}</p>
+            <p className={styles.askBannerSub}>Get tips on what to see, eat, and do while you&apos;re there.</p>
+          </div>
+          <button type="button" className={styles.askBannerCta} onClick={openAsk}>
+            Ask a question ›
+          </button>
+        </div>
+        {askExpanded || (data.aiQaThread && data.aiQaThread.length > 0) ? (
+          <div className={styles.askPanelWrap}>
+            <LocationInfoAskPanel
+              entry={entry}
+              place={place}
+              data={data}
+              geminiApiKey={config.geminiApiKey || ''}
+              readOnly={readOnly}
+              mobileLayout
+              hideIntro
+              onThreadChange={(thread) => persist({ ...data, aiQaThread: thread })}
+            />
+          </div>
         ) : null}
       </section>
 
-      <MobileLocationSavedPlaces data={data} readOnly={!canEditSavedPlaces} onChange={persist} />
-
-      {data.practicalTips.trim() ? (
-        <section className={styles.section}>
+      <section className={styles.section}>
+        <div className={styles.sectionHead}>
           <h3 className={styles.sectionTitle}>Notes</h3>
+          {canEditHighlights && onEditHighlights ? (
+            <MobilePencilButton onClick={onEditHighlights} ariaLabel="Edit notes" />
+          ) : null}
+        </div>
+        {data.practicalTips.trim() ? (
           <div className={styles.overviewBody}>
             <RichTextContent html={data.practicalTips.trim()} />
           </div>
-        </section>
-      ) : null}
-
-      <section className={styles.askSection}>
-        <div className={styles.askBar}>
-          <span className={styles.askBarIcon} aria-hidden>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M12 3a7 7 0 0 0-4 10v4l4-2 4 2v-4A7 7 0 0 0 12 3Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-            </svg>
-          </span>
-          <span className={styles.askBarLabel}>Ask AI about {place?.title || entry.title || 'this place'}</span>
-        </div>
-        <LocationInfoAskPanel
-          entry={entry}
-          place={place}
-          data={data}
-          geminiApiKey={config.geminiApiKey || ''}
-          readOnly={readOnly}
-          mobileLayout
-          hideIntro
-          onThreadChange={(thread) => persist({ ...data, aiQaThread: thread })}
-        />
+        ) : (
+          <p className={styles.empty}>Practical tips will appear here once generated or edited.</p>
+        )}
       </section>
     </div>
   );

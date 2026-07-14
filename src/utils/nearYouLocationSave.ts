@@ -21,7 +21,7 @@ export function appendNearYouPlaceToLocationInfo(
   const name = place.name.trim();
   if (!name) return data;
 
-  if (toolId === 'dining') {
+  if (toolId === 'dining' || toolId === 'cafes') {
     const existing = data.diningSuggestions ?? [];
     if (nameExists(existing.map((x) => x.name), name)) return data;
     const row: DiningSuggestionRow = {

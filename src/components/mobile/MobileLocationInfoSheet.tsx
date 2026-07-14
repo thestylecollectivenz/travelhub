@@ -11,10 +11,13 @@ import { parseLocationInfoNotes, serializeLocationInfoNotes } from '../../utils/
 import { appendNearYouPlaceToLocationInfo } from '../../utils/nearYouLocationSave';
 import { createItineraryEntryFromNearYouPlace } from '../../utils/addPlaceToItinerary';
 import { usePlaces } from '../../context/PlacesContext';
+import { findStayTileForDay } from '../../utils/mobileDayStay';
 import { ItineraryCardEdit } from '../itinerary/ItineraryCardEdit';
 import { MobileLocationInfoContent } from './MobileLocationInfoContent';
 import { MobileLocationHighlightsEdit } from './MobileLocationHighlightsEdit';
 import { MobileNearYouResults } from './MobileNearYouResults';
+import { MobileExplorePlacesView } from './MobileExplorePlacesView';
+import { MobileSavedPlacesView } from './MobileSavedPlacesView';
 import { MobilePencilButton } from './MobilePencilButton';
 import type { NearYouToolId } from '../../utils/nearYouTools';
 import { NEAR_YOU_TOOLS } from '../../utils/nearYouTools';
@@ -28,6 +31,8 @@ export interface MobileLocationInfoSheetProps {
   onClose: () => void;
 }
 
+type Panel = 'main' | 'explore' | 'saved' | 'near' | 'highlights';
+
 export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = ({
   entry,
   calendarDate,
@@ -39,28 +44,58 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   const shellMode = useShellMode();
   const spContext = useSpContext();
   const { placeById } = usePlaces();
+  const [panel, setPanel] = React.useState<Panel>('main');
   const [nearToolId, setNearToolId] = React.useState<NearYouToolId | null>(null);
-  const [highlightsEditOpen, setHighlightsEditOpen] = React.useState(false);
+  const [exploreCategory, setExploreCategory] = React.useState<string | undefined>();
+  const [savedCategory, setSavedCategory] = React.useState<string | undefined>();
   const [nearActionMsg, setNearActionMsg] = React.useState('');
+  const [stayIndex, setStayIndex] = React.useState(0);
+
+  const stayCandidates = React.useMemo(() => {
+    const titles: string[] = [];
+    const seen = new Set<string>();
+    for (const e of localEntries) {
+      if (e.category !== 'Accommodation' && e.category !== 'Cruise') continue;
+      const t = (e.title || '').trim();
+      if (!t || seen.has(t.toLowerCase())) continue;
+      seen.add(t.toLowerCase());
+      titles.push(t);
+    }
+    const primary = findStayTileForDay(localEntries, calendarDate);
+    const primaryTitle = primary?.entry.title?.trim();
+    if (primaryTitle) {
+      const rest = titles.filter((t) => t.toLowerCase() !== primaryTitle.toLowerCase());
+      return [primaryTitle, ...rest];
+    }
+    return titles;
+  }, [localEntries, calendarDate]);
+
+  const startingPointLabel = stayCandidates[stayIndex % Math.max(stayCandidates.length, 1)] || undefined;
+
+  const cycleStartingPoint = React.useCallback((): void => {
+    if (stayCandidates.length < 2) return;
+    setStayIndex((i) => (i + 1) % stayCandidates.length);
+  }, [stayCandidates.length]);
 
   const saveNearPlace = React.useCallback(
-    (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string }): boolean => {
+    (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string; toolId?: string }): boolean => {
       const liveEntry = entry ? localEntries.find((e) => e.id === entry.id) ?? entry : null;
       const data = parseLocationInfoNotes(liveEntry?.notes);
-      if (!liveEntry || !data || !nearToolId) {
+      const toolId = (place.toolId as NearYouToolId | undefined) || nearToolId;
+      if (!liveEntry || !data || !toolId) {
         setNearActionMsg('Could not save to this location.');
         window.setTimeout(() => setNearActionMsg(''), 2500);
         return false;
       }
-      const toolKind = NEAR_YOU_TOOLS.find((t) => t.id === nearToolId)?.kind;
+      const toolKind = NEAR_YOU_TOOLS.find((t) => t.id === toolId)?.kind;
       const countFor = (notes: typeof data): number =>
-        nearToolId === 'dining'
+        toolId === 'dining' || toolId === 'cafes'
           ? (notes.diningSuggestions ?? []).length
           : toolKind
             ? (notes.nearestPlaces?.[toolKind] ?? []).length
             : 0;
       const before = countFor(data);
-      const updated = appendNearYouPlaceToLocationInfo(data, nearToolId, place);
+      const updated = appendNearYouPlaceToLocationInfo(data, toolId, place);
       const after = countFor(updated);
       if (after <= before) {
         setNearActionMsg(`${place.name} is already saved here.`);
@@ -89,6 +124,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
         }
         const created = await createItineraryEntryFromNearYouPlace(spContext, trip, day.id, place);
         await reloadItineraryEntries();
+        setPanel('main');
         setNearToolId(null);
         setSelectedDayId(day.id);
         setEditingCardId(created.id);
@@ -104,27 +140,39 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     [trip, tripDays, selectedDayId, spContext, reloadItineraryEntries, setEditingCardId, setSelectedDayId]
   );
 
+  const closePanels = React.useCallback((): void => {
+    setPanel('main');
+    setNearToolId(null);
+    setExploreCategory(undefined);
+    setSavedCategory(undefined);
+  }, []);
+
   React.useEffect(() => {
     if (!entry) return undefined;
     const onKey = (ev: KeyboardEvent): void => {
       if (ev.key === 'Escape') {
-        if (nearToolId) setNearToolId(null);
-        else if (highlightsEditOpen) setHighlightsEditOpen(false);
+        if (panel !== 'main' || nearToolId) closePanels();
         else if (editingCardId !== entry.id) onClose();
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [entry, onClose, editingCardId, nearToolId, highlightsEditOpen]);
+  }, [entry, onClose, editingCardId, panel, nearToolId, closePanels]);
+
+  React.useEffect(() => {
+    setStayIndex(0);
+  }, [calendarDate, entry?.id]);
 
   if (!entry) return null;
 
   const isEditing = editingCardId === entry.id;
-  const data = parseLocationInfoNotes(entry.notes);
+  const liveEntry = localEntries.find((e) => e.id === entry.id) ?? entry;
+  const data = parseLocationInfoNotes(liveEntry.notes);
   const place = data ? placeById(data.placeId) : undefined;
   const title = place
     ? compactPlaceLabel(place.title, place.country)
     : (entry.title || entry.location || 'Location').trim() || 'Location';
+  const shellAttr = shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined;
 
   if (isEditing) {
     return ReactDOM.createPortal(
@@ -154,19 +202,19 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     );
   }
 
-  if (highlightsEditOpen) {
+  if (panel === 'highlights') {
     return (
       <MobileLocationHighlightsEdit
-        entry={entry}
+        entry={liveEntry}
         place={place}
-        onBack={() => setHighlightsEditOpen(false)}
+        onBack={() => setPanel('main')}
       />
     );
   }
 
-  if (nearToolId) {
+  if (panel === 'near' && nearToolId) {
     return ReactDOM.createPortal(
-      <div className={styles.nearOverlay} role="presentation">
+      <div className={styles.nearOverlay} role="presentation" data-shell={shellAttr}>
         <div className={styles.nearOverlayInner}>
           <MobileNearYouResults
             toolId={nearToolId}
@@ -179,11 +227,51 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
                 ? `${trip.dateStart.slice(0, 10)} – ${trip.dateEnd.slice(0, 10)}`
                 : undefined
             }
-            onBack={() => setNearToolId(null)}
+            onBack={closePanels}
             onSavePlace={canEditItinerary ? saveNearPlace : undefined}
             onAddToItinerary={canEditItinerary ? addNearToItinerary : undefined}
           />
           {nearActionMsg ? <p className={styles.nearFeedback}>{nearActionMsg}</p> : null}
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
+  if (panel === 'explore') {
+    return ReactDOM.createPortal(
+      <div className={styles.nearOverlay} role="presentation" data-shell={shellAttr}>
+        <div className={styles.nearOverlayInner}>
+          <MobileExplorePlacesView
+            place={place}
+            locationEntryId={entry.id}
+            locationLabel={title}
+            startingPointLabel={startingPointLabel}
+            initialCategory={exploreCategory}
+            onBack={closePanels}
+            onChangeStartingPoint={stayCandidates.length > 1 ? cycleStartingPoint : undefined}
+            onSavePlace={canEditItinerary ? saveNearPlace : undefined}
+          />
+          {nearActionMsg ? <p className={styles.nearFeedback}>{nearActionMsg}</p> : null}
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
+  if (panel === 'saved' && data) {
+    return ReactDOM.createPortal(
+      <div className={styles.nearOverlay} role="presentation" data-shell={shellAttr}>
+        <div className={styles.nearOverlayInner}>
+          <MobileSavedPlacesView
+            place={place}
+            locationLabel={title}
+            data={data}
+            initialCategory={savedCategory}
+            startingPointLabel={startingPointLabel}
+            onBack={closePanels}
+            onChangeStartingPoint={stayCandidates.length > 1 ? cycleStartingPoint : undefined}
+          />
         </div>
       </div>,
       document.body
@@ -197,7 +285,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}
+        data-shell={shellAttr}
         onClick={(e) => e.stopPropagation()}
       >
         <header className={styles.header}>
@@ -214,13 +302,27 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
 
         <div className={styles.body}>
           <MobileLocationInfoContent
-            entry={entry}
+            entry={liveEntry}
             place={place}
             readOnly={!canUseAiHelpers}
             canEditSavedPlaces={canEditItinerary}
             canEditHighlights={canEditItinerary}
-            onEditHighlights={() => setHighlightsEditOpen(true)}
-            onOpenNearTool={(toolId) => setNearToolId(toolId)}
+            calendarDate={calendarDate}
+            startingPointLabel={startingPointLabel}
+            onChangeStartingPoint={stayCandidates.length > 1 ? cycleStartingPoint : undefined}
+            onEditHighlights={() => setPanel('highlights')}
+            onOpenNearTool={(toolId) => {
+              setNearToolId(toolId);
+              setPanel('near');
+            }}
+            onOpenExplore={(category) => {
+              setExploreCategory(category);
+              setPanel('explore');
+            }}
+            onOpenSavedPlaces={(category) => {
+              setSavedCategory(category);
+              setPanel('saved');
+            }}
           />
         </div>
       </div>
