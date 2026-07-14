@@ -275,7 +275,7 @@
 
 .actionGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.4rem;
   margin-bottom: 0.75rem;
 }
@@ -467,6 +467,171 @@
   color: #1e2a44;
 }
 
+.detailColumns {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+.detailCol {
+  min-width: 0;
+}
+
+.bpGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1rem;
+}
+
+.stayGrid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.bpField {
+  min-width: 0;
+}
+
+.bpSub {
+  display: block;
+  margin-top: 0.12rem;
+  font-size: 0.68rem;
+  color: #8a857d;
+  font-weight: 600;
+}
+
+.gridLabel {
+  display: block;
+  font-size: 0.58rem;
+  color: #8a857d;
+  line-height: 1.25;
+  margin-bottom: 0.12rem;
+}
+
+.gridValue {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 750;
+  color: #1e2a44;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.rowDivider {
+  height: 1px;
+  background: color-mix(in srgb, #1e2a44 8%, transparent);
+  margin: 0;
+}
+
+.paymentSubhead {
+  margin: 0.75rem 0 0.55rem;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #1e2a44;
+}
+
+.amountBlock {
+  margin-top: 0.65rem;
+}
+
+.amountCols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1rem;
+  margin-top: 0.25rem;
+}
+
+.amountPrimary {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #1e2a44;
+  line-height: 1.25;
+}
+
+.amountHome {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #4a5568;
+  line-height: 1.25;
+}
+
+.inlinePill {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.12rem 0.42rem;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+
+.cancelBox {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin-top: 0.65rem;
+  padding: 0.65rem 0.7rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, #3d6b4f 10%, white);
+  border: 1px solid color-mix(in srgb, #3d6b4f 18%, transparent);
+}
+
+.cancelIcon {
+  color: #3d6b4f;
+  margin-top: 0.1rem;
+}
+
+.subDetailText {
+  margin: 0.1rem 0 0;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: #1e2a44;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
+.docList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.docRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.55rem 0.45rem;
+  border-radius: 0.65rem;
+  text-decoration: none;
+  color: #2f5eb8;
+  background: color-mix(in srgb, #e8eef5 55%, white);
+  border: 1px solid color-mix(in srgb, #3d5a80 12%, transparent);
+}
+
+.docRowIcon {
+  color: #2f5eb8;
+  display: inline-flex;
+}
+
+.docRowLabel {
+  font-size: 0.72rem;
+  font-weight: 650;
+  min-width: 0;
+  color: #2f5eb8;
+}
+
+.docRowChevron {
+  color: #2f5eb8;
+  font-weight: 700;
+}
+
+.emptyHint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #8a857d;
+}
+
 /* iPad — match cruise mockup: larger type/icons + photo header card */
 [data-shell='ipad-portrait'] .overviewCard {
   border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
@@ -611,4 +776,52 @@
 
 [data-shell='ipad-portrait'] .notesBody {
   font-size: 0.95rem;
+}
+
+[data-shell='ipad-portrait'] .detailColumns {
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+  align-items: start;
+}
+
+[data-shell='ipad-portrait'] .paymentSubhead {
+  font-size: 0.95rem;
+}
+
+[data-shell='ipad-portrait'] .gridLabel {
+  font-size: 0.72rem;
+}
+
+[data-shell='ipad-portrait'] .gridValue {
+  font-size: 0.92rem;
+}
+
+[data-shell='ipad-portrait'] .amountPrimary,
+[data-shell='ipad-portrait'] .amountHome {
+  font-size: 1.05rem;
+}
+
+[data-shell='ipad-portrait'] .cancelBox {
+  padding: 0.8rem 0.85rem;
+  border-radius: 0.85rem;
+}
+
+[data-shell='ipad-portrait'] .docRow {
+  padding: 0.7rem 0.65rem;
+}
+
+[data-shell='ipad-portrait'] .docRowLabel {
+  font-size: 0.85rem;
+}
+
+[data-shell='ipad-portrait'] .heroCopy {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+[data-shell='ipad-portrait'] .actionGrid {
+  margin-top: auto;
+  padding-top: 0.75rem;
+  margin-bottom: 0;
 }

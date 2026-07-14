@@ -32,6 +32,21 @@ const HIGHLIGHT_LABEL: Record<LocationHighlightKind, string> = {
 };
 const ESSENTIAL_KINDS: Array<'grocery' | 'pharmacy' | 'atm'> = ['grocery', 'pharmacy', 'atm'];
 
+const ESSENTIAL_LABEL: Record<'grocery' | 'pharmacy' | 'atm', string> = {
+  grocery: 'Shopping',
+  pharmacy: 'Pharmacy',
+  atm: 'ATM'
+};
+
+function servicePills(summary?: string): string[] {
+  if (!summary?.trim()) return [];
+  return summary
+    .split(/[,;·]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 4);
+}
+
 function highlightKey(row: LocationHighlightRow): string {
   return `${row.kind}::${row.id}`;
 }
@@ -82,7 +97,7 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
   const essentials = ESSENTIAL_KINDS.map((kind) => ({
     kind,
     place: (nearest[kind] ?? [])[0] as NearestPlaceRow | undefined
-  })).filter((x) => x.place);
+  }));
 
   const toggleHighlight = (key: string): void => {
     const nextRows = rows.map((r) => (highlightKey(r) === key ? { ...r, done: !r.done } : r));
@@ -109,7 +124,12 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
             <RichTextContent html={data.overview.trim()} />
           </div>
         </section>
-      ) : null}
+      ) : (
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>Overview</h3>
+          <p className={styles.empty}>Overview will appear here once this place has been generated or edited.</p>
+        </section>
+      )}
 
       <section className={styles.section}>
         <div className={styles.sectionHead}>
@@ -164,21 +184,35 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
         <div className={styles.sectionHead}>
           <h3 className={styles.sectionTitle}>Nearby essentials</h3>
         </div>
-        {essentials.length ? (
-          <div className={styles.essentialsRow}>
-            {essentials.map(({ kind, place: p }) => {
-              if (!p) return null;
-              const directions = placeQueryDirectionsUrl(p.name, p.address) || p.mapsUrl;
-              const maps = p.mapsUrl || placeQueryMapsUrl(p.name, p.address);
-              return (
-                <article key={kind} className={styles.essentialCard}>
-                  <div className={styles.essentialTop}>
-                    <NearYouToolIcon toolId={kind === 'grocery' ? 'grocery' : kind === 'pharmacy' ? 'pharmacy' : 'atm'} size="md" />
-                    <strong className={styles.essentialName}>{p.name}</strong>
+        <div className={styles.essentialsRow}>
+          {essentials.map(({ kind, place: p }) => {
+            const toolId = kind;
+            const directions = p ? placeQueryDirectionsUrl(p.name, p.address) || p.mapsUrl : undefined;
+            const maps = p ? p.mapsUrl || placeQueryMapsUrl(p.name, p.address) : undefined;
+            const pills = servicePills(p?.servicesSummary);
+            return (
+              <article key={kind} className={styles.essentialCard}>
+                <div className={styles.essentialPhoto} aria-hidden>
+                  <NearYouToolIcon toolId={toolId} size="lg" />
+                </div>
+                <div className={styles.essentialTop}>
+                  <strong className={styles.essentialName}>{p?.name || ESSENTIAL_LABEL[kind]}</strong>
+                </div>
+                {p?.note ? <p className={styles.essentialDist}>{p.note}</p> : null}
+                {p?.address ? <p className={styles.essentialAddr}>{p.address}</p> : null}
+                {pills.length ? (
+                  <div className={styles.essentialPills}>
+                    {pills.map((pill) => (
+                      <span key={pill} className={styles.essentialPill}>
+                        {pill}
+                      </span>
+                    ))}
                   </div>
-                  {p.note ? <p className={styles.essentialDist}>{p.note}</p> : null}
-                  {p.servicesSummary ? <p className={styles.essentialNote}>{p.servicesSummary}</p> : null}
-                  {p.address ? <p className={styles.essentialAddr}>{p.address}</p> : null}
+                ) : null}
+                {p?.servicesSummary && !pills.length ? (
+                  <p className={styles.essentialNote}>{p.servicesSummary}</p>
+                ) : null}
+                <div className={styles.essentialFooter}>
                   <div className={styles.essentialActions}>
                     {directions ? (
                       <a className={styles.essentialAction} href={directions} target="_blank" rel="noopener noreferrer" title="Directions" aria-label="Directions">
@@ -196,13 +230,19 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
                       </a>
                     ) : null}
                   </div>
-                </article>
-              );
-            })}
-          </div>
-        ) : (
-          <p className={styles.empty}>Open Shopping, ATM, or Medical from the icons above to find essentials.</p>
-        )}
+                  {onOpenNearTool ? (
+                    <button type="button" className={styles.viewAllBtn} onClick={() => onOpenNearTool(toolId)}>
+                      View all
+                    </button>
+                  ) : null}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+        {!essentials.some((e) => e.place) ? (
+          <p className={styles.empty}>Open Shopping, Pharmacy, or ATM from the icons above to find essentials near this place.</p>
+        ) : null}
       </section>
 
       <MobileLocationSavedPlaces data={data} readOnly={!canEditSavedPlaces} onChange={persist} />
@@ -216,8 +256,15 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
         </section>
       ) : null}
 
-      <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>Ask AI</h3>
+      <section className={styles.askSection}>
+        <div className={styles.askBar}>
+          <span className={styles.askBarIcon} aria-hidden>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M12 3a7 7 0 0 0-4 10v4l4-2 4 2v-4A7 7 0 0 0 12 3Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+            </svg>
+          </span>
+          <span className={styles.askBarLabel}>Ask AI about {place?.title || entry.title || 'this place'}</span>
+        </div>
         <LocationInfoAskPanel
           entry={entry}
           place={place}

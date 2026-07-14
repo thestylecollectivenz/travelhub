@@ -1,0 +1,468 @@
+.root {
+  display: block;
+}
+
+.summaryCard {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.85rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  border-radius: 0.9rem;
+  background: white;
+  box-shadow: 0 2px 12px color-mix(in srgb, #1e2a44 6%, transparent);
+}
+
+.summaryLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 4.5rem;
+}
+
+.summaryDate {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #8a857d;
+}
+
+.summaryTime {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #1e2a44;
+  line-height: 1.1;
+}
+
+.summaryCenter {
+  min-width: 0;
+}
+
+.summaryCatIcon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.35rem;
+}
+
+.summaryRoute {
+  margin: 0;
+  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: #1e2a44;
+  line-height: 1.2;
+}
+
+.summaryMode {
+  margin: 0.2rem 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: #6b6570;
+}
+
+.summaryPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.35rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  background: color-mix(in srgb, white 88%, var(--tl-mobile-surface, #fafaf9));
+  border-radius: 999px;
+  padding: 0.18rem 0.48rem;
+  font-size: 0.62rem;
+  font-weight: 650;
+  color: #5c6570;
+}
+
+.chipCat {
+  border-color: transparent;
+}
+
+.chipStatus {
+  background: color-mix(in srgb, #3d6b4f 12%, white);
+  color: #3d6b4f;
+}
+
+.chipBooked {
+  background: color-mix(in srgb, #2f5eb8 12%, white);
+  color: #2f5eb8;
+}
+
+.statusDot {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: #3d6b4f;
+}
+
+.summaryLocation {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.28rem;
+  margin: 0;
+  font-size: 0.68rem;
+  color: #5c6570;
+  line-height: 1.35;
+}
+
+.summaryRight {
+  flex-shrink: 0;
+}
+
+.actionGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.actionTile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 4.1rem;
+  padding: 0.45rem 0.25rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 28%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, #1e2a44 10%, white);
+  color: #1e2a44;
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  line-height: 1.2;
+  font: inherit;
+}
+
+.actionPrimary {
+  background: #1e2a44;
+  border-color: #1e2a44;
+  color: white;
+}
+
+.actionWash {
+  background: color-mix(in srgb, #1e2a44 14%, white);
+  border-color: color-mix(in srgb, #1e2a44 30%, white);
+  color: #1e2a44;
+}
+
+.actionWash[aria-disabled='true'] {
+  opacity: 0.48;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.sectionCard {
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  border-radius: 0.9rem;
+  background: white;
+  padding: 0.7rem 0.75rem 0.75rem;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.55rem;
+}
+
+.sectionIcon {
+  color: #8a7355;
+  display: inline-flex;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #1e2a44;
+}
+
+.journeyGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1rem;
+}
+
+.journeyCell {
+  min-width: 0;
+}
+
+.infoCallout {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.7rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, #2f5eb8 10%, white);
+  border: 1px solid color-mix(in srgb, #2f5eb8 18%, transparent);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: #1e2a44;
+}
+
+.infoCallout p {
+  margin: 0;
+}
+
+.infoCalloutIcon {
+  color: #2f5eb8;
+  margin-top: 0.05rem;
+}
+
+.detailColumns {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+.detailCol {
+  min-width: 0;
+}
+
+.bpGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1rem;
+}
+
+.bpField {
+  min-width: 0;
+}
+
+.gridLabel {
+  display: block;
+  font-size: 0.58rem;
+  color: #8a857d;
+  line-height: 1.25;
+  margin-bottom: 0.12rem;
+}
+
+.gridValue {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 750;
+  color: #1e2a44;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.rowDivider {
+  height: 1px;
+  background: color-mix(in srgb, #1e2a44 8%, transparent);
+  margin: 0;
+}
+
+.paymentSubhead {
+  margin: 0.75rem 0 0.55rem;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #1e2a44;
+}
+
+.amountBlock {
+  margin-top: 0.65rem;
+}
+
+.amountCols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1rem;
+  margin-top: 0.25rem;
+}
+
+.amountPrimary {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #1e2a44;
+  line-height: 1.25;
+}
+
+.amountHome {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #4a5568;
+  line-height: 1.25;
+}
+
+.inlinePill {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.12rem 0.42rem;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+
+.pill_green {
+  background: color-mix(in srgb, #3d6b4f 16%, white);
+  color: #3d6b4f;
+}
+
+.pill_rust {
+  background: color-mix(in srgb, #c4783a 18%, white);
+  color: #8a5a2b;
+}
+
+.pill_red {
+  background: color-mix(in srgb, #b44a4a 14%, white);
+  color: #9a3a3a;
+}
+
+.pill_neutral {
+  background: color-mix(in srgb, #1e2a44 8%, white);
+  color: #5c6570;
+}
+
+.docList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.docRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.55rem 0.45rem;
+  border-radius: 0.65rem;
+  text-decoration: none;
+  color: #2f5eb8;
+  background: color-mix(in srgb, #e8eef5 55%, white);
+  border: 1px solid color-mix(in srgb, #3d5a80 12%, transparent);
+}
+
+.docRowIcon {
+  color: #2f5eb8;
+  display: inline-flex;
+}
+
+.docRowLabel {
+  font-size: 0.72rem;
+  font-weight: 650;
+  min-width: 0;
+  color: #2f5eb8;
+}
+
+.docRowChevron {
+  color: #2f5eb8;
+  font-weight: 700;
+}
+
+.emptyHint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #8a857d;
+}
+
+.notesBody {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #1e2a44;
+}
+
+[data-shell='ipad-portrait'] .summaryCard {
+  padding: 1rem;
+  border-radius: 1.1rem;
+  margin-bottom: 0.95rem;
+}
+
+[data-shell='ipad-portrait'] .summaryDate {
+  font-size: 0.78rem;
+}
+
+[data-shell='ipad-portrait'] .summaryTime {
+  font-size: 1.85rem;
+}
+
+[data-shell='ipad-portrait'] .summaryRoute {
+  font-size: 1.35rem;
+}
+
+[data-shell='ipad-portrait'] .summaryMode {
+  font-size: 0.88rem;
+}
+
+[data-shell='ipad-portrait'] .chip {
+  font-size: 0.75rem;
+  padding: 0.28rem 0.6rem;
+}
+
+[data-shell='ipad-portrait'] .summaryLocation {
+  font-size: 0.88rem;
+}
+
+[data-shell='ipad-portrait'] .actionGrid {
+  gap: 0.55rem;
+  margin-bottom: 0.95rem;
+}
+
+[data-shell='ipad-portrait'] .actionTile {
+  min-height: 5.2rem;
+  padding: 0.7rem 0.4rem;
+  font-size: 0.75rem;
+  border-radius: 0.85rem;
+}
+
+[data-shell='ipad-portrait'] .sectionCard {
+  padding: 0.95rem 1rem 1.05rem;
+  border-radius: 1rem;
+  margin-bottom: 0.95rem;
+}
+
+[data-shell='ipad-portrait'] .sectionTitle {
+  font-size: 1.05rem;
+}
+
+[data-shell='ipad-portrait'] .gridLabel {
+  font-size: 0.72rem;
+}
+
+[data-shell='ipad-portrait'] .gridValue {
+  font-size: 0.92rem;
+}
+
+[data-shell='ipad-portrait'] .infoCallout {
+  font-size: 0.88rem;
+  padding: 0.8rem 0.85rem;
+}
+
+[data-shell='ipad-portrait'] .detailColumns {
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+  align-items: start;
+}
+
+[data-shell='ipad-portrait'] .amountPrimary,
+[data-shell='ipad-portrait'] .amountHome {
+  font-size: 1.05rem;
+}
+
+[data-shell='ipad-portrait'] .docRowLabel {
+  font-size: 0.85rem;
+}
+
+[data-shell='ipad-portrait'] .notesBody {
+  font-size: 0.9rem;
+}

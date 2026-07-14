@@ -56,26 +56,29 @@ async function readDeviceCoords(): Promise<GeoCoords | undefined> {
  */
 export async function resolveLocationSearchContext(
   place: Place | undefined,
-  options?: { onSiteKm?: number }
+  options?: { onSiteKm?: number; forceTripPlace?: boolean }
 ): Promise<LocationSearchContext | undefined> {
   if (!place) return undefined;
   const onSiteKm = options?.onSiteKm ?? ON_SITE_KM;
+  const forceTripPlace = options?.forceTripPlace === true;
   const { placeName, country } = placeNameAndCountry(place);
   const placeLat = Number(place.latitude);
   const placeLon = Number(place.longitude);
   const hasPlace = isValidLatLng(placeLat, placeLon);
 
-  const device = await readDeviceCoords();
-  if (device && hasPlace) {
-    const distKm = haversineKm(device.latitude, device.longitude, placeLat, placeLon);
-    if (distKm <= onSiteKm) {
-      return {
-        mode: 'onsite',
-        latitude: device.latitude,
-        longitude: device.longitude,
-        placeName,
-        country
-      };
+  if (!forceTripPlace) {
+    const device = await readDeviceCoords();
+    if (device && hasPlace) {
+      const distKm = haversineKm(device.latitude, device.longitude, placeLat, placeLon);
+      if (distKm <= onSiteKm) {
+        return {
+          mode: 'onsite',
+          latitude: device.latitude,
+          longitude: device.longitude,
+          placeName,
+          country
+        };
+      }
     }
   }
 
@@ -89,14 +92,17 @@ export async function resolveLocationSearchContext(
     };
   }
 
-  if (device) {
-    return {
-      mode: 'onsite',
-      latitude: device.latitude,
-      longitude: device.longitude,
-      placeName: 'Current location',
-      country: country || ''
-    };
+  if (!forceTripPlace) {
+    const device = await readDeviceCoords();
+    if (device) {
+      return {
+        mode: 'onsite',
+        latitude: device.latitude,
+        longitude: device.longitude,
+        placeName: 'Current location',
+        country: country || ''
+      };
+    }
   }
 
   return undefined;

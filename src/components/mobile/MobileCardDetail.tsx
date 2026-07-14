@@ -26,6 +26,7 @@ import {
 import { formatDisplayLabel, transportDisplayTitle } from '../../utils/mobileDisplayFormat';
 import { MobileAccommodationDetail } from './MobileAccommodationDetail';
 import { MobileCruiseDetail } from './MobileCruiseDetail';
+import { MobileTransportDetail } from './MobileTransportDetail';
 import { MobileDiningDetail } from './MobileDiningDetail';
 import { MobileDocsLinksSection } from './MobileDocsLinksSection';
 import { MobileBookingSiteSheet } from './MobileBookingSiteSheet';
@@ -140,6 +141,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
   const isEditing = !isOptionView && editingCardId === sourceEntry.id;
   const isAccommodation = !isOptionView && entry.category === 'Accommodation';
   const isCruise = !isOptionView && entry.category === 'Cruise';
+  const isTransport = !isOptionView && entry.category === 'Transport';
   const isDining = entry.category === 'Food & Dining' || entry.category === 'Dining';
   const title = entry.category === 'Transport' ? transportDisplayTitle(entry, calendarDate) : entry.title;
 
@@ -188,7 +190,6 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
     } else if (entry.category === 'Cruise' || entry.category === 'Cruise port') {
       if (confirmationDoc?.fileUrl) rows.push({ label: 'Boarding pass', href: confirmationDoc.fileUrl });
       if (entryLinks[0]?.url) rows.push({ label: 'Deck map', href: entryLinks[0].url });
-      if (mapsPlaceUrl) rows.push({ label: 'Port map', href: mapsPlaceUrl });
       if (mapsDirectionsUrl) rows.push({ label: 'Directions', href: mapsDirectionsUrl });
     } else if (entry.category === 'Food & Dining' || entry.category === 'Dining') {
       if (entryDocs[0]?.fileUrl) rows.push({ label: 'Open document', href: entryDocs[0].fileUrl });
@@ -301,6 +302,23 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
       <div className={styles.page} ref={pageRef}>
         <MobileCruiseDetail
           entry={entry}
+          documents={entryDocs}
+          links={entryLinks}
+          canSeeFinancials={canSeeFinancials}
+          canEdit={canEditItinerary}
+          onEdit={openEdit}
+          mapsDirectionsUrl={mapsDirectionsUrl}
+        />
+      </div>
+    );
+  }
+
+  if (isTransport) {
+    return (
+      <div className={styles.page} ref={pageRef}>
+        <MobileTransportDetail
+          entry={entry}
+          calendarDate={calendarDate}
           documents={entryDocs}
           links={entryLinks}
           canSeeFinancials={canSeeFinancials}

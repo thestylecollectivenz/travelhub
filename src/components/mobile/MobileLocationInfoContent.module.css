@@ -165,6 +165,17 @@
   gap: 0.35rem;
 }
 
+.essentialPhoto {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 0.75rem;
+  background: linear-gradient(145deg, color-mix(in srgb, #6b7c3a 18%, white), color-mix(in srgb, #8a7355 12%, white));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.15rem;
+}
+
 .essentialTop {
   display: flex;
   align-items: flex-start;
@@ -195,8 +206,163 @@
 .essentialActions {
   display: flex;
   gap: 0.4rem;
+}
+
+.essentialFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   margin-top: auto;
-  padding-top: 0.25rem;
+  padding-top: 0.35rem;
+}
+
+.viewAllBtn {
+  border: none;
+  background: transparent;
+  color: #2f5eb8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0.15rem 0;
+  font: inherit;
+}
+
+.essentialPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.essentialPill {
+  border-radius: 999px;
+  padding: 0.12rem 0.42rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  background: color-mix(in srgb, #6b7c3a 14%, white);
+  color: #4a5a28;
+}
+
+.askSection {
+  margin-top: 0.25rem;
+}
+
+.askBar {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.65rem;
+  border-radius: 0.9rem;
+  background: linear-gradient(135deg, #2f5eb8, #3d6fd4);
+  color: white;
+  box-shadow: 0 4px 16px color-mix(in srgb, #2f5eb8 28%, transparent);
+}
+
+.askBarIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.askBarLabel {
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.diningStrip {
+  display: flex;
+  gap: 0.65rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  scrollbar-width: none;
+}
+
+.diningStrip::-webkit-scrollbar {
+  display: none;
+}
+
+.diningCard {
+  flex: 0 0 min(14rem, 72vw);
+  border: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
+  border-radius: 1rem;
+  background: white;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.diningPhoto {
+  aspect-ratio: 4 / 3;
+  background: linear-gradient(145deg, color-mix(in srgb, #c4783a 20%, white), color-mix(in srgb, #8a7355 14%, white));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8a7355;
+}
+
+.diningBody {
+  padding: 0.65rem 0.7rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.diningHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.diningCheck {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.diningCheck input {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.diningName {
+  font-size: 0.85rem;
+  color: #1e2a44;
+  line-height: 1.25;
+}
+
+.diningRating {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #8a7355;
+}
+
+.diningPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.diningPill {
+  border-radius: 999px;
+  padding: 0.1rem 0.38rem;
+  font-size: 0.6rem;
+  font-weight: 700;
+  background: color-mix(in srgb, #c4783a 14%, white);
+  color: #8a5a2b;
+}
+
+.diningMeta {
+  margin: 0;
+  font-size: 0.68rem;
+  color: #6b6570;
+  line-height: 1.35;
 }
 
 .essentialAction {
@@ -246,6 +412,37 @@
 
 [data-shell='ipad-portrait'] .sectionTitle {
   font-size: 1.35rem;
+}
+
+[data-shell='ipad-portrait'] .toolLabel {
+  font-size: 0.88rem;
+}
+
+[data-shell='ipad-portrait'] .essentialName {
+  font-size: 1rem;
+}
+
+[data-shell='ipad-portrait'] .essentialDist,
+[data-shell='ipad-portrait'] .essentialAddr,
+[data-shell='ipad-portrait'] .essentialNote {
+  font-size: 0.85rem;
+}
+
+[data-shell='ipad-portrait'] .askBar {
+  padding: 1rem 1.1rem;
+  border-radius: 1rem;
+}
+
+[data-shell='ipad-portrait'] .askBarLabel {
+  font-size: 1.05rem;
+}
+
+[data-shell='ipad-portrait'] .diningName {
+  font-size: 0.98rem;
+}
+
+[data-shell='ipad-portrait'] .diningMeta {
+  font-size: 0.82rem;
 }
 
 @media (min-width: 1024px) {

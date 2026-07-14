@@ -222,7 +222,7 @@ export function scheduleLocationInfoDining(options: {
     try {
       const targetEntry = await resolveCanonicalLocationEntry(spContext, entry, place);
       const latest = await loadLatestNotes(spContext, targetEntry, parsed);
-      const searchContext = await resolveLocationSearchContext(place);
+      const searchContext = await resolveLocationSearchContext(place, { forceTripPlace: true });
       if (!searchContext) throw new Error('Could not resolve location for dining search.');
       const { items, model } = await generateDiningSuggestions({
         apiKey: key,
@@ -277,7 +277,7 @@ export function scheduleLocationInfoNearest(options: {
     try {
       const targetEntry = await resolveCanonicalLocationEntry(spContext, entry, place);
       const latest = await loadLatestNotes(spContext, targetEntry, parsed);
-      const searchContext = await resolveLocationSearchContext(place);
+      const searchContext = await resolveLocationSearchContext(place, { forceTripPlace: true });
       if (!searchContext) throw new Error('Could not resolve location for nearest search.');
       const { places, model } = await generateNearestPlaces(kind, {
         apiKey: key,

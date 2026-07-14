@@ -28,18 +28,50 @@ function PlaceRowLinks(props: { name: string; address?: string; mapsUrl?: string
   );
 }
 
-function DiningRow(props: { row: DiningSuggestionRow; readOnly: boolean; onToggleDone: () => void }): React.ReactElement {
+function cuisinePills(row: DiningSuggestionRow): string[] {
+  const raw = [row.bestFor, row.priceLevel].filter(Boolean).join(' · ');
+  if (!raw.trim()) return [];
+  return raw
+    .split(/[,;·]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
+function DiningCard(props: { row: DiningSuggestionRow; readOnly: boolean; onToggleDone: () => void }): React.ReactElement {
+  const pills = cuisinePills(props.row);
+  const distance = props.row.description || props.row.why;
   return (
-    <li className={styles.savedRow}>
-      <label className={styles.highlightCheck}>
-        <input type="checkbox" checked={Boolean(props.row.done)} disabled={props.readOnly} onChange={props.onToggleDone} />
-        <span className={props.row.done ? styles.done : undefined}>{props.row.name}</span>
-      </label>
-      {(props.row.bestFor || props.row.description || props.row.why) ? (
-        <p className={styles.savedMeta}>{props.row.bestFor || props.row.description || props.row.why}</p>
-      ) : null}
-      <PlaceRowLinks name={props.row.name} mapsUrl={props.row.mapsUrl} websiteUrl={props.row.websiteUrl} />
-    </li>
+    <article className={styles.diningCard}>
+      <div className={styles.diningPhoto} aria-hidden>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+          <path d="M6 3v8M8 3v5M10 3v8M6 11v10M10 11v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M14 4c1.5 1.2 2 2.8 2 4.5S15.5 12 14 13v7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      </div>
+      <div className={styles.diningBody}>
+        <div className={styles.diningHead}>
+          <label className={styles.diningCheck}>
+            <input type="checkbox" checked={Boolean(props.row.done)} disabled={props.readOnly} onChange={props.onToggleDone} />
+            <strong className={`${styles.diningName} ${props.row.done ? styles.done : ''}`}>{props.row.name}</strong>
+          </label>
+          {Number.isFinite(props.row.rating) ? (
+            <span className={styles.diningRating}>★ {props.row.rating?.toFixed(1)}</span>
+          ) : null}
+        </div>
+        {pills.length ? (
+          <div className={styles.diningPills}>
+            {pills.map((pill) => (
+              <span key={pill} className={styles.diningPill}>
+                {pill}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {distance ? <p className={styles.diningMeta}>{distance}</p> : null}
+        <PlaceRowLinks name={props.row.name} mapsUrl={props.row.mapsUrl} websiteUrl={props.row.websiteUrl} />
+      </div>
+    </article>
   );
 }
 
@@ -76,9 +108,9 @@ export const MobileLocationSavedPlaces: React.FC<MobileLocationSavedPlacesProps>
       {dining.length ? (
         <section className={styles.section}>
           <h3 className={styles.sectionTitle}>Dining suggestions</h3>
-          <ul className={styles.savedList}>
+          <div className={styles.diningStrip}>
             {dining.map((row) => (
-              <DiningRow
+              <DiningCard
                 key={row.id}
                 row={row}
                 readOnly={readOnly}
@@ -90,7 +122,7 @@ export const MobileLocationSavedPlaces: React.FC<MobileLocationSavedPlacesProps>
                 }
               />
             ))}
-          </ul>
+          </div>
         </section>
       ) : null}
       {nearestSections.map((section) => (

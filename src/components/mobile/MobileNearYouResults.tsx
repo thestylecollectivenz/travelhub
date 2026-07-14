@@ -152,7 +152,10 @@ export const MobileNearYouResults: React.FC<MobileNearYouResultsProps> = ({
       try {
         let searchContext;
         if (place) {
-          searchContext = await resolveLocationSearchContext(place, { onSiteKm: MOBILE_NEAR_YOU_ON_SITE_KM });
+          searchContext = await resolveLocationSearchContext(place, {
+            onSiteKm: MOBILE_NEAR_YOU_ON_SITE_KM,
+            forceTripPlace: Boolean(locationEntryId)
+          });
         } else {
           if (!navigator.geolocation) {
             setError('Location is not available on this device.');

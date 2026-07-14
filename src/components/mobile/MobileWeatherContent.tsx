@@ -8,6 +8,8 @@ import { placeDisplayLabel } from '../../utils/placeDisplayLabel';
 import { placeQueryMapsUrl } from '../../utils/googleMapsLink';
 import { forecastDatesFromToday, forecastDayLabelFromToday, todayYmd } from '../../utils/placeForecastDates';
 import { localGreetingForCountry } from '../../utils/localGreetings';
+import { languagePackForCountry } from '../../data/localLanguagePhrases';
+import { useSpeechOutput } from '../../hooks/useSpeechOutput';
 import styles from './MobileWeatherSheet.module.css';
 
 function formatPlaceLocalDateTime(date: Date, timeZone: string): string {
@@ -64,6 +66,8 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
   travelTip
 }) => {
   const { config } = useConfig();
+  const { speak } = useSpeechOutput();
+  const [tempUnit, setTempUnit] = React.useState<'Celsius' | 'Fahrenheit'>(config.temperatureUnit);
   const countryData = COUNTRY_DATA[place.countryCode];
   const mapsUrl = placeQueryMapsUrl(placeDisplayLabel(place));
   const forecastDates = React.useMemo(() => forecastDatesFromToday(10), []);
@@ -103,8 +107,13 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
     return seasonForLatitude(new Date().getMonth(), Number(place.latitude));
   }, [place.latitude]);
 
-  const tempSuffix = config.temperatureUnit === 'Fahrenheit' ? 'F' : 'C';
-  const unitLabel = config.temperatureUnit === 'Fahrenheit' ? '°F' : '°C';
+  const tempSuffix = tempUnit === 'Fahrenheit' ? 'F' : 'C';
+  const unitLabel = tempUnit === 'Fahrenheit' ? '°F' : '°C';
+  const languagePack = languagePackForCountry(place.countryCode);
+
+  React.useEffect(() => {
+    setTempUnit(config.temperatureUnit);
+  }, [config.temperatureUnit]);
 
   React.useEffect(() => {
     if (!config.weatherApiKey.trim()) {
@@ -117,7 +126,7 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
       setWeather(null);
       return;
     }
-    const units = config.temperatureUnit === 'Fahrenheit' ? 'us' : 'metric';
+    const units = tempUnit === 'Fahrenheit' ? 'us' : 'metric';
     const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${lat},${lng}/${today}?key=${encodeURIComponent(config.weatherApiKey.trim())}&unitGroup=${units}&include=current,days&contentType=json`;
     fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Weather ${r.status}`))))
@@ -133,7 +142,7 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
         });
       })
       .catch(() => setWeather(null));
-  }, [place.latitude, place.longitude, config.temperatureUnit, config.weatherApiKey, today]);
+  }, [place.latitude, place.longitude, tempUnit, config.weatherApiKey, today]);
 
   React.useEffect(() => {
     if (!config.weatherApiKey.trim()) {
@@ -146,7 +155,7 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
       setForecastDays([]);
       return;
     }
-    const units = config.temperatureUnit === 'Fahrenheit' ? 'us' : 'metric';
+    const units = tempUnit === 'Fahrenheit' ? 'us' : 'metric';
     const apiEnd = forecastDates[forecastDates.length - 1];
     const range = today === apiEnd ? today : `${today}/${apiEnd}`;
     const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${lat},${lng}/${range}?key=${encodeURIComponent(config.weatherApiKey.trim())}&include=days&unitGroup=${units}&contentType=json`;
@@ -175,7 +184,7 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
         );
       })
       .catch(() => setForecastDays([]));
-  }, [place.latitude, place.longitude, config.weatherApiKey, config.temperatureUnit, forecastDates, today]);
+  }, [place.latitude, place.longitude, config.weatherApiKey, tempUnit, forecastDates, today]);
 
   const typicalWeatherQueryDate = React.useMemo(() => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) return selectedDate;
@@ -189,7 +198,7 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
       setTypicalWeather(null);
       return;
     }
-    const units = config.temperatureUnit === 'Fahrenheit' ? 'us' : 'metric';
+    const units = tempUnit === 'Fahrenheit' ? 'us' : 'metric';
     const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${place.latitude},${place.longitude}/${typicalWeatherQueryDate}?key=${encodeURIComponent(config.weatherApiKey.trim())}&include=days&elements=tempmax,tempmin,sunrise,sunset,conditions&unitGroup=${units}&contentType=json`;
     fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Weather ${r.status}`))))
@@ -203,7 +212,7 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
         });
       })
       .catch(() => setTypicalWeather(null));
-  }, [place.latitude, place.longitude, typicalWeatherQueryDate, config.weatherApiKey, config.temperatureUnit, tempSuffix]);
+  }, [place.latitude, place.longitude, typicalWeatherQueryDate, config.weatherApiKey, tempUnit, tempSuffix]);
 
   React.useEffect(() => {
     const tz = (place.timeZone?.trim() || weather?.timezoneName?.trim() || '').trim();
@@ -281,7 +290,14 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
         <section className={styles.forecastSection} aria-label="10 day forecast">
           <div className={styles.forecastHead}>
             <h3 className={styles.forecastTitle}>10 day forecast</h3>
-            <span className={styles.unitBtn}>{unitLabel} ▾</span>
+            <button
+              type="button"
+              className={styles.unitBtn}
+              onClick={() => setTempUnit((u) => (u === 'Celsius' ? 'Fahrenheit' : 'Celsius'))}
+              aria-label={`Switch to ${tempUnit === 'Celsius' ? 'Fahrenheit' : 'Celsius'}`}
+            >
+              {unitLabel} ▾
+            </button>
           </div>
           <div className={styles.forecastStrip}>
             {forecastDays.map((fd) => {
@@ -394,6 +410,42 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
           <span className={styles.chevron} aria-hidden>›</span>
         </article>
       ) : null}
+
+      <section className={styles.languageSection} aria-label="Language essentials">
+        <div className={styles.languageHead}>
+          <h3 className={styles.languageTitle}>Language essentials</h3>
+          <button
+            type="button"
+            className={styles.hearAllBtn}
+            onClick={() => speak(languagePack.phrases.map((p) => p.local).join('. '))}
+          >
+            Hear all phrases
+          </button>
+        </div>
+        <div className={styles.phraseGrid}>
+          {languagePack.phrases.map((phrase) => (
+            <article key={phrase.english} className={styles.phraseCard}>
+              <button
+                type="button"
+                className={styles.phrasePlay}
+                aria-label={`Play ${phrase.english}`}
+                onClick={() => speak(phrase.local)}
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+                  <path d="M4 3.5v9l8-4.5-8-4.5Z" fill="currentColor" />
+                </svg>
+              </button>
+              <div className={styles.phraseCopy}>
+                <p className={styles.phraseLocal}>{phrase.local}</p>
+                <p className={styles.phraseEnglish}>{phrase.english}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+        {languagePack.englishWidelySpoken ? (
+          <p className={styles.languageNote}>English is widely spoken in tourist areas, but locals appreciate a few words in {languagePack.languageName}.</p>
+        ) : null}
+      </section>
 
       {config.weatherApiKey.trim() ? (
         <p className={styles.source}>Forecast source: Visual Crossing</p>
