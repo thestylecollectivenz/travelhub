@@ -255,6 +255,9 @@ Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'ReturnArriva
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'PerksIncluded' -FieldType 'Note'
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'CancellationPolicy' -FieldType 'Note'
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'CancellationDeadline' -FieldType 'DateTime'
+Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'BookingDueDate' -FieldType 'DateTime'
+Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'PaymentDueDate' -FieldType 'DateTime'
+Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'PaymentDueType' -FieldType 'Choice' -Choices @('Manual', 'Automatic')
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'CruiseReference' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'CruiseLineName' -FieldType 'Text'
 Add-ListFieldIfMissing -ListTitle 'ItineraryEntries' -InternalName 'ShipName' -FieldType 'Text'

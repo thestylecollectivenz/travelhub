@@ -65,9 +65,6 @@ const SELECT_PHASE7 = [
   'PerksIncluded',
   'CancellationPolicy',
   'CancellationDeadline',
-  'BookingDueDate',
-  'PaymentDueDate',
-  'PaymentDueType',
   'CruiseReference',
   'CruiseLineName',
   'ShipName',
@@ -80,8 +77,14 @@ const SELECT_PHASE7 = [
   'TransportTransfers'
 ];
 
-/** New columns — omitted from $select until present on the list (avoids 400 on full query). */
+/**
+ * Columns that may be absent on older lists. Keep out of SELECT_PHASE7 so a missing
+ * optional column never forces fallback to SELECT_BASE (which drops Transport*).
+ */
 const SELECT_PHASE7_OPTIONAL = [
+  'BookingDueDate',
+  'PaymentDueDate',
+  'PaymentDueType',
   'BreakfastIncluded',
   'ParkingIncluded',
   'OnboardCredit',
@@ -91,6 +94,18 @@ const SELECT_PHASE7_OPTIONAL = [
   'CruisePlannedDisembarkTime',
   'MealType'
 ];
+
+/** Never strip these on write fallback — they are provisioned and must persist. */
+const SP_TRANSPORT_PRESERVE_KEYS = new Set([
+  'TransportFrom',
+  'TransportTo',
+  'TransportMode',
+  'TransportTransfers',
+  'JourneyType',
+  'ReturnDate',
+  'ReturnTime',
+  'ReturnArrivalTime'
+]);
 
 const SELECT = [...SELECT_BASE, ...SELECT_PHASE7, ...SELECT_PHASE7_OPTIONAL].join(',');
 const SELECT_PHASE7_ONLY = [...SELECT_BASE, ...SELECT_PHASE7].join(',');
@@ -142,6 +157,7 @@ const SP_PHASE7_FIELD_KEYS = new Set([
 function stripPhase7SpFields(item: Record<string, unknown>): Record<string, unknown> {
   const out = { ...item };
   SP_PHASE7_FIELD_KEYS.forEach((key) => {
+    if (SP_TRANSPORT_PRESERVE_KEYS.has(key)) return;
     delete out[key];
   });
   return out;

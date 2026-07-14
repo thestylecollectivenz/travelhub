@@ -425,7 +425,21 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       try {
         const svc = new ItineraryService(spContext);
         const created = await svc.create(itineraryEntryCreatePayload(latest));
-        const merged = { ...created, subItems: latest.subItems ?? [] };
+        // Prefer client values when SP create omits Phase 7 fields after fallback stripping.
+        const merged = {
+          ...latest,
+          ...created,
+          id: created.id,
+          transportFrom: created.transportFrom ?? latest.transportFrom,
+          transportTo: created.transportTo ?? latest.transportTo,
+          transportMode: created.transportMode ?? latest.transportMode,
+          transportTransfers: created.transportTransfers ?? latest.transportTransfers,
+          journeyType: created.journeyType ?? latest.journeyType,
+          returnDate: created.returnDate ?? latest.returnDate,
+          returnTime: created.returnTime ?? latest.returnTime,
+          returnArrivalTime: created.returnArrivalTime ?? latest.returnArrivalTime,
+          subItems: latest.subItems ?? []
+        };
         setLocalEntries((prev) => prev.map((e) => (e.id === tempId ? merged : e)));
         setEditingCardId((prev) => (prev === tempId ? merged.id : prev));
         pendingEntryCreatesRef.current.delete(tempId);
