@@ -621,8 +621,8 @@
 
 [data-shell='ipad-portrait'] .summaryCol {
   padding: 0.95rem 0.85rem;
-  align-items: flex-start;
-  text-align: left;
+  align-items: center;
+  text-align: center;
 }
 
 [data-shell='ipad-portrait'] .summaryValue {

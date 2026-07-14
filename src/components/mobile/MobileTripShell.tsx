@@ -375,10 +375,11 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
 
   const pageChrome = React.useMemo(() => {
     if (cardDetailOpen) {
+      // Trip name uses .tripName (not bold); page titles like Itinerary stay on .pageTitle.
       return {
-        title: trip?.title ?? 'Trip',
+        title: undefined as string | undefined,
         subtitle: undefined as string | undefined,
-        tripName: undefined as string | undefined
+        tripName: trip?.title ?? 'Trip'
       };
     }
     const tripLabel = trip?.title || undefined;

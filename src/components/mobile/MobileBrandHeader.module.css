@@ -115,7 +115,7 @@
   margin: 0.2rem 0 0.35rem;
   font-family: var(--tl-serif);
   font-size: 1.55rem;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--tl-navy);
   line-height: 1.2;
   letter-spacing: -0.02em;
@@ -140,7 +140,7 @@
 
 [data-shell='ipad-portrait'] .tripName {
   font-size: 1.85rem;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 [data-shell='ipad-portrait'] .navRow {

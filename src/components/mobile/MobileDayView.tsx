@@ -693,6 +693,17 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
               {primaryPlaceLabel}
             </div>
           ) : null}
+          {dayLocationEntries.length ? (
+            <div className={styles.locationStripInline}>
+              <DayLocationInfoStrip
+                entries={dayLocationEntries}
+                activeEntryId={locationPanelEntryId}
+                primaryEntryId={primaryLocationEntryId}
+                onSelect={setLocationPanelEntryId}
+                variant="pills"
+              />
+            </div>
+          ) : null}
         </div>
         {weatherSummary && primaryPlace ? (
           <button
@@ -726,16 +737,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
       </div>
 
       {dayLocationEntries.length ? (
-        <div className={styles.locationStripWrap}>
-          <p className={styles.locationStripHint}>Tap a place for weather, tips, currency and saved suggestions.</p>
-          <DayLocationInfoStrip
-            entries={dayLocationEntries}
-            activeEntryId={locationPanelEntryId}
-            primaryEntryId={primaryLocationEntryId}
-            onSelect={setLocationPanelEntryId}
-            variant="pills"
-          />
-        </div>
+        <p className={styles.locationStripHint}>Tap a place for weather, tips, currency and saved suggestions.</p>
       ) : null}
       <MobileLocationInfoSheet
         entry={locationPanelEntry}

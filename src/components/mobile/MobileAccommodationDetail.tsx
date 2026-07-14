@@ -476,10 +476,10 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
                   />
                 </svg>
               </span>
+              <span className={styles.summaryMetaLabel}>Length of stay</span>
               <span className={styles.summaryValue}>
                 {data.nights} night{data.nights === 1 ? '' : 's'}
               </span>
-              <span className={styles.summaryLabel}>Length of stay</span>
             </div>
           ) : null}
           {data.checkInPrimary ? (
