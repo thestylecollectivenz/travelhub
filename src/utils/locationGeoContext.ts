@@ -53,18 +53,41 @@ async function readDeviceCoords(): Promise<GeoCoords | undefined> {
  * Nearest/dining search anchor:
  * - On-site (device within ~25 km of trip place): use GPS — finds what's actually near the traveller.
  * - Otherwise: use trip place coordinates — planning from home won't mix NZ GPS with Colmar results.
+ * - overrideCoords + forceTripPlace: use custom map-picked centre while keeping placeName as the city.
  */
 export async function resolveLocationSearchContext(
   place: Place | undefined,
-  options?: { onSiteKm?: number; forceTripPlace?: boolean }
+  options?: {
+    onSiteKm?: number;
+    forceTripPlace?: boolean;
+    overrideCoords?: { lat: number; lng: number };
+  }
 ): Promise<LocationSearchContext | undefined> {
-  if (!place) return undefined;
   const onSiteKm = options?.onSiteKm ?? ON_SITE_KM;
   const forceTripPlace = options?.forceTripPlace === true;
-  const { placeName, country } = placeNameAndCountry(place);
-  const placeLat = Number(place.latitude);
-  const placeLon = Number(place.longitude);
+  const override = options?.overrideCoords;
+  const { placeName, country } = place
+    ? placeNameAndCountry(place)
+    : { placeName: 'Selected point', country: '' };
+  const placeLat = place != null ? Number(place.latitude) : NaN;
+  const placeLon = place != null ? Number(place.longitude) : NaN;
   const hasPlace = isValidLatLng(placeLat, placeLon);
+
+  if (
+    override &&
+    isValidLatLng(override.lat, override.lng) &&
+    (forceTripPlace || !place)
+  ) {
+    return {
+      mode: 'trip_place',
+      latitude: override.lat,
+      longitude: override.lng,
+      placeName,
+      country
+    };
+  }
+
+  if (!place) return undefined;
 
   if (!forceTripPlace) {
     const device = await readDeviceCoords();
@@ -80,6 +103,16 @@ export async function resolveLocationSearchContext(
         };
       }
     }
+  }
+
+  if (override && isValidLatLng(override.lat, override.lng)) {
+    return {
+      mode: 'trip_place',
+      latitude: override.lat,
+      longitude: override.lng,
+      placeName,
+      country
+    };
   }
 
   if (hasPlace) {

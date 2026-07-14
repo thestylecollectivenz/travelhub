@@ -1,21 +1,29 @@
 import * as React from 'react';
 import type { Place } from '../../models/Place';
+import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import type {
   DiningSuggestionRow,
   LocationInfoNotes,
   NearestPlaceKind,
   NearestPlaceRow
 } from '../../utils/locationInfoEntry';
+import {
+  normalizeLocationInfoNotes,
+  serializeLocationInfoNotes
+} from '../../utils/locationInfoEntry';
 import { placeQueryDirectionsUrl, placeQueryMapsUrl } from '../../utils/googleMapsLink';
 import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
 import { explorePlacePhotoUrl } from '../../utils/explorePlacePhoto';
 import type { SavedPlacesCategoryId } from '../../utils/exploreCategories';
+import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { formatDistanceFromStart } from '../../utils/locationDistanceLabel';
 import styles from './MobileSavedPlacesView.module.css';
 
 export interface MobileSavedPlacesViewProps {
   place: Place | undefined;
   locationLabel: string;
   data: LocationInfoNotes;
+  entry?: ItineraryEntry;
   initialCategory?: string;
   startingPointLabel?: string;
   onBack: () => void;
@@ -24,6 +32,9 @@ export interface MobileSavedPlacesViewProps {
 
 type SavedCard = {
   id: string;
+  rowId: string;
+  source: 'dining' | 'nearest';
+  nearestKind?: NearestPlaceKind;
   name: string;
   category: SavedPlacesCategoryId;
   categoryLabel: string;
@@ -33,6 +44,7 @@ type SavedCard = {
   address?: string;
   mapsUrl?: string;
   tags: string[];
+  nearLabel?: string;
 };
 
 const ESSENTIAL_KINDS: NearestPlaceKind[] = ['pharmacy', 'atm', 'medical', 'restroom', 'fuel', 'transport'];
@@ -61,14 +73,17 @@ function flattenSaved(data: LocationInfoNotes): SavedCard[] {
   (data.diningSuggestions ?? []).forEach((row: DiningSuggestionRow) => {
     out.push({
       id: `dining-${row.id}`,
+      rowId: row.id,
+      source: 'dining',
       name: row.name,
       category: 'dining',
       categoryLabel: row.bestFor || 'Dining',
       rating: row.rating,
-      description: row.description || row.why,
+      description: row.why || row.bestFor,
       distance: row.description,
       mapsUrl: row.mapsUrl,
-      tags: [row.bestFor, row.priceLevel].filter(Boolean) as string[]
+      tags: [row.bestFor, row.priceLevel].filter(Boolean) as string[],
+      nearLabel: row.nearLabel
     });
   });
   const nearest = data.nearestPlaces ?? {};
@@ -77,10 +92,13 @@ function flattenSaved(data: LocationInfoNotes): SavedCard[] {
       const category = kindCategory(kind);
       out.push({
         id: `${kind}-${row.id}`,
+        rowId: row.id,
+        source: 'nearest',
+        nearestKind: kind,
         name: row.name,
         category,
         categoryLabel: kindLabel(kind),
-        description: row.servicesSummary || row.note,
+        description: row.servicesSummary,
         distance: row.note,
         address: row.address,
         mapsUrl: row.mapsUrl,
@@ -88,7 +106,8 @@ function flattenSaved(data: LocationInfoNotes): SavedCard[] {
           .split(/[,;·]/)
           .map((s) => s.trim())
           .filter(Boolean)
-          .slice(0, 3)
+          .slice(0, 3),
+        nearLabel: row.nearLabel
       });
     });
   });
@@ -116,13 +135,32 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
   place,
   locationLabel,
   data,
+  entry,
   initialCategory,
   startingPointLabel,
   onBack,
   onChangeStartingPoint
 }) => {
+  const { updateEntry } = useTripWorkspace();
   const shortPlace = placeNameFromTitle(place?.title || '') || locationLabel.split(',')[0] || 'this place';
   const stayName = (startingPointLabel || '').trim() || shortPlace;
+
+  const unsaveCard = (card: SavedCard): void => {
+    if (!entry) return;
+    if (card.source === 'dining') {
+      const next = normalizeLocationInfoNotes({
+        ...data,
+        diningSuggestions: (data.diningSuggestions ?? []).filter((x) => x.id !== card.rowId)
+      });
+      updateEntry({ ...entry, notes: serializeLocationInfoNotes(next) });
+      return;
+    }
+    if (!card.nearestKind) return;
+    const nearest = { ...(data.nearestPlaces ?? {}) };
+    nearest[card.nearestKind] = (nearest[card.nearestKind] ?? []).filter((x) => x.id !== card.rowId);
+    const next = normalizeLocationInfoNotes({ ...data, nearestPlaces: nearest });
+    updateEntry({ ...entry, notes: serializeLocationInfoNotes(next) });
+  };
   const mapsUrl = placeQueryMapsUrl(place?.title || shortPlace, place?.country);
   const [category, setCategory] = React.useState<SavedPlacesCategoryId>(() =>
     normalizeSavedCategory(initialCategory)
@@ -305,6 +343,10 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
             {visible.map((r) => {
               const directions = placeQueryDirectionsUrl(r.name, r.address) || r.mapsUrl;
               const photo = explorePlacePhotoUrl(r.name, shortPlace);
+              const dist =
+                formatDistanceFromStart(r.distance, r.nearLabel || stayName) ||
+                r.address ||
+                `Near ${stayName}`;
               return (
                 <article key={r.id} className={styles.card}>
                   <div className={styles.cardPhoto} style={{ backgroundImage: `url(${photo})` }} aria-hidden />
@@ -329,7 +371,7 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
                           strokeWidth="1.6"
                         />
                       </svg>
-                      {r.distance || r.address || `Near ${stayName}`}
+                      {dist}
                     </p>
                     {r.tags.length ? (
                       <div className={styles.tagRow}>
@@ -341,7 +383,17 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
                       </div>
                     ) : null}
                     <div className={styles.cardActions}>
-                      <span className={styles.actionBtnMuted}>Bookmark</span>
+                      {entry ? (
+                        <button
+                          type="button"
+                          className={styles.actionBtn}
+                          onClick={() => unsaveCard(r)}
+                        >
+                          Unsave
+                        </button>
+                      ) : (
+                        <span className={styles.actionBtnMuted}>Saved</span>
+                      )}
                       {directions ? (
                         <a
                           className={`${styles.actionBtn} ${styles.actionPrimary}`}

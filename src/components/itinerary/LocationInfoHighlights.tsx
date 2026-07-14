@@ -45,6 +45,8 @@ export interface LocationInfoHighlightsProps {
   hasAnyContent?: boolean;
   onGenerationComplete?: () => void;
   onOpenSettings?: () => void;
+  /** Optional class for mobile large-touch edit sizing. */
+  className?: string;
 }
 
 export const LocationInfoHighlights: React.FC<LocationInfoHighlightsProps> = ({
@@ -57,7 +59,8 @@ export const LocationInfoHighlights: React.FC<LocationInfoHighlightsProps> = ({
   geminiApiKey = '',
   hasAnyContent = false,
   onGenerationComplete,
-  onOpenSettings
+  onOpenSettings,
+  className
 }) => {
   const spContext = useSpContext();
   const [draftLine, setDraftLine] = React.useState('');
@@ -135,7 +138,7 @@ export const LocationInfoHighlights: React.FC<LocationInfoHighlightsProps> = ({
   const anyLoading = loadingSection !== null;
 
   return (
-    <div className={styles.root}>
+    <div className={`${styles.root}${className ? ` ${className}` : ''}`}>
       {!hasKey && !hasAnyContent && !readOnly ? (
         <p className={styles.noKeyPrompt}>
           Add a Gemini API key in{' '}

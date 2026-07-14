@@ -8,7 +8,7 @@ import { placeQueryDirectionsUrl, placeQueryMapsUrl, placeWebsiteSearchUrl } fro
 import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
 import { explorePlacePhotoUrl } from '../../utils/explorePlacePhoto';
 import {
-  EXPLORE_CATEGORIES,
+  exploreCategoriesSorted,
   exploreCategoryById,
   exploreCategoryDiningFocus,
   exploreCategoryNearestKind,
@@ -31,6 +31,8 @@ export interface MobileExplorePlacesViewProps {
   locationEntryId: string;
   locationLabel: string;
   startingPointLabel?: string;
+  /** Map-picked search centre (force trip_place semantics). */
+  overrideCoords?: { lat: number; lng: number };
   initialCategory?: string;
   onBack: () => void;
   onChangeStartingPoint?: () => void;
@@ -118,6 +120,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   locationEntryId,
   locationLabel,
   startingPointLabel,
+  overrideCoords,
   initialCategory,
   onBack,
   onChangeStartingPoint,
@@ -145,8 +148,9 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   const [filterReservations, setFilterReservations] = React.useState(false);
 
   const catDef = exploreCategoryById(category);
-  const primaryCats = EXPLORE_CATEGORIES.filter((c) => c.primary);
-  const moreCats = EXPLORE_CATEGORIES.filter((c) => c.underMore);
+  const sortedCats = React.useMemo(() => exploreCategoriesSorted(), []);
+  const primaryCats = sortedCats.slice(0, 6);
+  const moreCats = sortedCats.slice(6);
   const stayName = (startingPointLabel || '').trim() || shortPlace;
   const mapsUrl = placeQueryMapsUrl(place?.title || shortPlace, place?.country);
 
@@ -171,7 +175,8 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
       }
       const cacheScope = nearYouScopeForLocation(locationEntryId);
       const toolKey = cacheToolKey(category);
-      const useCache = category !== 'sights';
+      const focus = exploreCategoryDiningFocus(category);
+      const useCache = focus !== 'attractions' && Boolean(exploreCategoryToNearTool(category) || exploreCategoryNearestKind(category));
 
       if (!forceRefresh && useCache) {
         const cached = loadNearYouCache(cacheScope, toolKey);
@@ -201,7 +206,8 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
         }
         const searchContext = await resolveLocationSearchContext(place, {
           onSiteKm: MOBILE_NEAR_YOU_ON_SITE_KM,
-          forceTripPlace: true
+          forceTripPlace: true,
+          overrideCoords
         });
         if (!searchContext) {
           setError('Could not resolve a search location for this place.');
@@ -228,7 +234,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
           saveNearYouCache(cacheScope, toolKey, {
             results: cards,
             fetchedAt: new Date().toISOString(),
-            contextLabel: `Near ${shortPlace}`
+            contextLabel: `Near ${stayName}`
           });
         }
       } catch (err) {
@@ -238,7 +244,16 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
         setBusy(false);
       }
     },
-    [catDef.label, category, config.geminiApiKey, locationEntryId, place, shortPlace]
+    [
+      catDef.label,
+      category,
+      config.geminiApiKey,
+      locationEntryId,
+      overrideCoords,
+      place,
+      shortPlace,
+      stayName
+    ]
   );
 
   React.useEffect(() => {

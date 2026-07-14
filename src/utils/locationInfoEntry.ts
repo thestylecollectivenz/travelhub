@@ -65,6 +65,8 @@ export type NearestPlaceRow = {
   reviewsUrl?: string;
   websiteUrl?: string;
   servicesSummary?: string;
+  /** Search-anchor label when saved (e.g. stay name). */
+  nearLabel?: string;
 };
 
 export type DiningSuggestionRow = {
@@ -80,6 +82,8 @@ export type DiningSuggestionRow = {
   reviewsUrl?: string;
   websiteUrl?: string;
   done?: boolean;
+  /** Search-anchor label when saved (e.g. stay name). */
+  nearLabel?: string;
 };
 
 export type LocationInfoNotes = {
@@ -120,6 +124,22 @@ export type LocationInfoAIResult = {
 
 export type LocationInfoMergeSection = 'sights' | 'food' | 'drink' | 'souvenirs';
 
+function migrateNearestPlaceRow(row: NearestPlaceRow, index: number): NearestPlaceRow | undefined {
+  const name = (row.name || '').trim();
+  if (!name) return undefined;
+  return {
+    id: row.id || `nearest-${index}`,
+    name,
+    note: row.note?.trim() || undefined,
+    address: row.address?.trim() || undefined,
+    mapsUrl: row.mapsUrl?.trim() || undefined,
+    reviewsUrl: row.reviewsUrl?.trim() || undefined,
+    websiteUrl: row.websiteUrl?.trim() || undefined,
+    servicesSummary: row.servicesSummary?.trim() || undefined,
+    nearLabel: typeof row.nearLabel === 'string' ? row.nearLabel.trim() || undefined : undefined
+  };
+}
+
 function migrateNearestPlaces(
   raw?: Partial<Record<string, NearestPlaceRow[]>>
 ): Partial<Record<NearestPlaceKind, NearestPlaceRow[]>> {
@@ -129,7 +149,9 @@ function migrateNearestPlaces(
   for (let i = 0; i < keys.length; i++) {
     const nk = normalizeNearestPlaceKind(keys[i]);
     if (!nk) continue;
-    const rows = raw[keys[i]] ?? [];
+    const rows = (raw[keys[i]] ?? [])
+      .map((row, idx) => migrateNearestPlaceRow(row, idx))
+      .filter((row): row is NearestPlaceRow => Boolean(row));
     if (!out[nk]?.length) out[nk] = rows;
     else out[nk] = [...(out[nk] ?? []), ...rows];
   }
@@ -157,7 +179,8 @@ function migrateDiningSuggestions(raw?: DiningSuggestionRow[] | LocationInfoChec
         mapsUrl: row.mapsUrl?.trim() || undefined,
         reviewsUrl: row.reviewsUrl?.trim() || undefined,
         websiteUrl: row.websiteUrl?.trim() || undefined,
-        done: Boolean(row.done)
+        done: Boolean(row.done),
+        nearLabel: typeof row.nearLabel === 'string' ? row.nearLabel.trim() || undefined : undefined
       });
       continue;
     }

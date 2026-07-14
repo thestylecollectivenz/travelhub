@@ -20,10 +20,11 @@ import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
 import { placeQueryDirectionsUrl } from '../../utils/googleMapsLink';
 import { explorePlacePhotoUrl } from '../../utils/explorePlacePhoto';
 import {
-  EXPLORE_CATEGORIES,
+  exploreCategoriesSorted,
   type ExploreCategoryId,
   type SavedPlacesCategoryId
 } from '../../utils/exploreCategories';
+import { distanceDisplayWithWalk } from '../../utils/locationDistanceLabel';
 import { RichTextContent } from '../shared/RichTextContent';
 import { LocationInfoAskPanel } from '../itinerary/LocationInfoAskPanel';
 import { NearYouToolIcon } from '../shared/NearYouToolIcon';
@@ -91,12 +92,29 @@ function IconDirections(): React.ReactElement {
   );
 }
 
+function IconChevron({ open }: { open: boolean }): React.ReactElement {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d={open ? 'M6 14l6-6 6 6' : 'M6 10l6 6 6-6'}
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function CategoryGlyph({ id }: { id: ExploreCategoryId }): React.ReactElement {
   const toolMap: Partial<Record<ExploreCategoryId, NearYouToolId>> = {
     restaurants: 'dining',
     cafes: 'cafes',
+    bakeries: 'cafes',
+    nightlife: 'dining',
     shopping: 'grocery',
     groceries: 'grocery',
+    markets: 'grocery',
     pharmacy: 'pharmacy',
     atm: 'atm',
     restroom: 'restroom',
@@ -117,13 +135,16 @@ function CategoryGlyph({ id }: { id: ExploreCategoryId }): React.ReactElement {
 
 type FeaturedCard = {
   id: string;
+  source: 'dining' | 'nearest';
+  nearestKind?: NearestPlaceKind;
   name: string;
   categoryLabel: string;
   rating?: number;
   description?: string;
-  distance?: string;
+  distanceRaw?: string;
   mapsUrl?: string;
   city?: string;
+  nearLabel?: string;
 };
 
 function countNearest(data: LocationInfoNotes, kinds: NearestPlaceKind[]): number {
@@ -135,15 +156,16 @@ function buildFeaturedCards(data: LocationInfoNotes, city: string): FeaturedCard
   const dining = data.diningSuggestions ?? [];
   const fromDining: FeaturedCard[] = dining.map((row) => ({
     id: row.id,
+    source: 'dining' as const,
     name: row.name,
     categoryLabel: row.bestFor || 'Dining',
     rating: row.rating,
-    description: row.description || row.why,
-    distance: row.description,
+    description: row.why || row.bestFor,
+    distanceRaw: row.description,
     mapsUrl: row.mapsUrl,
-    city
+    city,
+    nearLabel: row.nearLabel
   }));
-  if (fromDining.length >= 3) return fromDining.slice(0, 8);
 
   const nearest = data.nearestPlaces ?? {};
   const extras: FeaturedCard[] = [];
@@ -151,16 +173,19 @@ function buildFeaturedCards(data: LocationInfoNotes, city: string): FeaturedCard
     (nearest[kind] ?? []).forEach((row: NearestPlaceRow) => {
       extras.push({
         id: row.id,
+        source: 'nearest',
+        nearestKind: kind,
         name: row.name,
         categoryLabel: kind.charAt(0).toUpperCase() + kind.slice(1),
-        description: row.servicesSummary || row.note,
-        distance: row.note,
+        description: row.servicesSummary,
+        distanceRaw: row.note,
         mapsUrl: row.mapsUrl,
-        city
+        city,
+        nearLabel: row.nearLabel
       });
     });
   });
-  return [...fromDining, ...extras].slice(0, 8);
+  return [...fromDining, ...extras].slice(0, 24);
 }
 
 export interface MobileLocationInfoContentProps {
@@ -171,12 +196,16 @@ export interface MobileLocationInfoContentProps {
   canEditHighlights?: boolean;
   onOpenNearTool?: (toolId: NearYouToolId) => void;
   onEditHighlights?: () => void;
+  onEditNotes?: () => void;
   onOpenExplore?: (category?: string) => void;
   onOpenSavedPlaces?: (category?: string) => void;
   onChangeStartingPoint?: () => void;
   startingPointLabel?: string;
   calendarDate?: string;
 }
+
+const PILL_EST_WIDTH = 72;
+const MORE_PILL_WIDTH = 64;
 
 export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps> = ({
   entry,
@@ -186,6 +215,7 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
   canEditHighlights = false,
   onOpenNearTool,
   onEditHighlights,
+  onEditNotes,
   onOpenExplore,
   onOpenSavedPlaces,
   onChangeStartingPoint,
@@ -194,9 +224,11 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
   const { config } = useConfig();
   const { updateEntry } = useTripWorkspace();
   const askRef = React.useRef<HTMLElement | null>(null);
+  const pillsRef = React.useRef<HTMLDivElement | null>(null);
   const [askExpanded, setAskExpanded] = React.useState(false);
-  const [carouselIdx, setCarouselIdx] = React.useState(0);
   const [moreOpen, setMoreOpen] = React.useState(false);
+  const [visiblePillCount, setVisiblePillCount] = React.useState(6);
+  const [collapsedGroups, setCollapsedGroups] = React.useState<Record<string, boolean>>({});
 
   const data = parseLocationInfoNotes(entry.notes);
   const rows = data ? locationHighlightRows(data) : [];
@@ -211,6 +243,47 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
     return map;
   }, [rows]);
 
+  const allCats = React.useMemo(() => exploreCategoriesSorted(), []);
+
+  const shortPlace =
+    placeNameFromTitle(place?.title || '') ||
+    placeNameFromTitle(entry.title || entry.location || '') ||
+    'this place';
+  const stayName = (startingPointLabel || '').trim() || shortPlace;
+  const city = shortPlace;
+  const defaultNearLabel = `Saved for ${city}`;
+
+  const featured = React.useMemo(
+    () => (data ? buildFeaturedCards(data, city) : []),
+    [data, city]
+  );
+
+  const featuredGroups = React.useMemo(() => {
+    const map = new Map<string, FeaturedCard[]>();
+    for (const card of featured) {
+      const key = (card.nearLabel || '').trim() || defaultNearLabel;
+      const list = map.get(key) ?? [];
+      list.push(card);
+      map.set(key, list);
+    }
+    return Array.from(map.entries()).map(([label, cards]) => ({ label, cards }));
+  }, [featured, defaultNearLabel]);
+
+  React.useEffect(() => {
+    const el = pillsRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const measure = (): void => {
+      const width = el.clientWidth;
+      if (width <= 0) return;
+      const fit = Math.max(1, Math.floor((width - MORE_PILL_WIDTH) / PILL_EST_WIDTH));
+      setVisiblePillCount(Math.min(allCats.length, fit));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [allCats.length]);
+
   if (!data) {
     return <p className={styles.empty}>No location data for this place yet.</p>;
   }
@@ -224,17 +297,10 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
     persist({ ...data, ...splitHighlightRows(nextRows) });
   };
 
-  const shortPlace =
-    placeNameFromTitle(place?.title || '') ||
-    placeNameFromTitle(entry.title || entry.location || '') ||
-    'this place';
-  const stayName = (startingPointLabel || '').trim() || shortPlace;
-  const city = shortPlace;
-
   const diningCount = (data.diningSuggestions ?? []).length;
   const shoppingCount = countNearest(data, SHOPPING_KINDS);
   const essentialsCount = countNearest(data, ESSENTIAL_KINDS);
-  const nearestTotal = Object.values(data.nearestPlaces ?? {}).reduce((n, rows) => n + (rows?.length ?? 0), 0);
+  const nearestTotal = Object.values(data.nearestPlaces ?? {}).reduce((n, list) => n + (list?.length ?? 0), 0);
   const allSavedCount = diningCount + nearestTotal;
 
   const savedTiles: Array<{ id: SavedPlacesCategoryId; label: string; count: number }> = [
@@ -245,35 +311,30 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
     { id: 'all', label: 'All saved', count: allSavedCount }
   ];
 
-  const featured = buildFeaturedCards(data, city);
-  const primaryCats = EXPLORE_CATEGORIES.filter((c) => c.primary);
-  const moreCats = EXPLORE_CATEGORIES.filter((c) => c.underMore);
+  const primaryCats = allCats.slice(0, visiblePillCount);
+  const overflowCats = allCats.slice(visiblePillCount);
 
   const openExploreCat = (id: ExploreCategoryId): void => {
     if (onOpenExplore) {
       onOpenExplore(id);
       return;
     }
-    const tool =
-      id === 'restaurants'
-        ? 'dining'
-        : id === 'cafes'
-          ? 'cafes'
-          : id === 'shopping' || id === 'groceries'
-            ? 'grocery'
-            : id === 'pharmacy'
-              ? 'pharmacy'
-              : id === 'atm'
-                ? 'atm'
-                : id === 'restroom'
-                  ? 'restroom'
-                  : id === 'transport'
-                    ? 'transport'
-                    : id === 'medical'
-                      ? 'medical'
-                      : id === 'fuel'
-                        ? 'fuel'
-                        : undefined;
+    const toolMap: Partial<Record<ExploreCategoryId, NearYouToolId>> = {
+      restaurants: 'dining',
+      nightlife: 'dining',
+      cafes: 'cafes',
+      bakeries: 'cafes',
+      shopping: 'grocery',
+      groceries: 'grocery',
+      markets: 'grocery',
+      pharmacy: 'pharmacy',
+      atm: 'atm',
+      restroom: 'restroom',
+      transport: 'transport',
+      medical: 'medical',
+      fuel: 'fuel'
+    };
+    const tool = toolMap[id];
     if (tool && onOpenNearTool) onOpenNearTool(tool);
   };
 
@@ -282,13 +343,19 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
     window.setTimeout(() => askRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
 
-  const toggleSavedDining = (row: DiningSuggestionRow): void => {
+  const removeSavedCard = (card: FeaturedCard): void => {
     if (!canEditSavedPlaces) return;
-    const dining = data.diningSuggestions ?? [];
-    persist({
-      ...data,
-      diningSuggestions: dining.map((x) => (x.id === row.id ? { ...x, done: !x.done } : x))
-    });
+    if (card.source === 'dining') {
+      persist({
+        ...data,
+        diningSuggestions: (data.diningSuggestions ?? []).filter((x) => x.id !== card.id)
+      });
+      return;
+    }
+    if (!card.nearestKind) return;
+    const nearest = { ...(data.nearestPlaces ?? {}) };
+    nearest[card.nearestKind] = (nearest[card.nearestKind] ?? []).filter((x) => x.id !== card.id);
+    persist({ ...data, nearestPlaces: nearest });
   };
 
   return (
@@ -368,55 +435,59 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
           ) : null}
         </div>
         <p className={styles.sectionSub}>Discover places near your accommodation or anywhere in the city.</p>
-        <div className={styles.catPills} role="list">
-          {primaryCats.map((cat) => (
-            <button
-              key={cat.id}
-              type="button"
-              role="listitem"
-              className={styles.catPill}
-              style={{ color: cat.accent }}
-              onClick={() => openExploreCat(cat.id)}
-            >
-              <span className={styles.catPillIcon} style={{ background: cat.bg, color: cat.accent }}>
-                <CategoryGlyph id={cat.id} />
-              </span>
-              <span className={styles.catPillLabel}>{cat.label}</span>
-            </button>
-          ))}
-          <div className={styles.moreWrap}>
-            <button
-              type="button"
-              className={styles.catPill}
-              aria-expanded={moreOpen}
-              onClick={() => setMoreOpen((v) => !v)}
-            >
-              <span className={styles.catPillIcon} style={{ background: '#eceeef', color: '#5c6570' }}>
-                ···
-              </span>
-              <span className={styles.catPillLabel}>More</span>
-            </button>
-            {moreOpen ? (
-              <div className={styles.moreMenu} role="menu">
-                {moreCats.map((cat) => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    role="menuitem"
-                    className={styles.moreItem}
-                    style={{ color: cat.accent }}
-                    onClick={() => {
-                      setMoreOpen(false);
-                      openExploreCat(cat.id);
-                    }}
-                  >
-                    <CategoryGlyph id={cat.id} />
-                    {cat.label}
-                  </button>
-                ))}
-              </div>
+        <div className={styles.catPillsBlock}>
+          <div className={styles.catPills} role="list" ref={pillsRef}>
+            {primaryCats.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                role="listitem"
+                className={styles.catPill}
+                style={{ color: cat.accent }}
+                onClick={() => openExploreCat(cat.id)}
+              >
+                <span className={styles.catPillIcon} style={{ background: cat.bg, color: cat.accent }}>
+                  <CategoryGlyph id={cat.id} />
+                </span>
+                <span className={styles.catPillLabel}>{cat.label}</span>
+              </button>
+            ))}
+            {overflowCats.length ? (
+              <button
+                type="button"
+                className={styles.catPill}
+                aria-expanded={moreOpen}
+                onClick={() => setMoreOpen((v) => !v)}
+              >
+                <span className={styles.catPillIcon} style={{ background: '#eceeef', color: '#5c6570' }}>
+                  ···
+                </span>
+                <span className={styles.catPillLabel}>More</span>
+              </button>
             ) : null}
           </div>
+          {moreOpen && overflowCats.length ? (
+            <div className={styles.catPillsMoreRow} role="list">
+              {overflowCats.map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  role="listitem"
+                  className={styles.catPill}
+                  style={{ color: cat.accent }}
+                  onClick={() => {
+                    setMoreOpen(false);
+                    openExploreCat(cat.id);
+                  }}
+                >
+                  <span className={styles.catPillIcon} style={{ background: cat.bg, color: cat.accent }}>
+                    <CategoryGlyph id={cat.id} />
+                  </span>
+                  <span className={styles.catPillLabel}>{cat.label}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
         <div className={styles.startBanner}>
           <span className={styles.startBannerIcon} aria-hidden>
@@ -463,86 +534,97 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
             </button>
           ))}
         </div>
-        {featured.length ? (
-          <>
-            <div className={styles.featuredStrip}>
-              {featured.map((card, idx) => {
-                const directions = placeQueryDirectionsUrl(card.name) || card.mapsUrl;
-                const diningRow = (data.diningSuggestions ?? []).find((d) => d.id === card.id);
-                return (
-                  <article key={card.id} className={styles.featuredCard} data-active={idx === carouselIdx ? '1' : '0'}>
-                    <div
-                      className={styles.featuredPhoto}
-                      style={{ backgroundImage: `url(${explorePlacePhotoUrl(card.name, card.city)})` }}
-                      aria-hidden
-                    />
-                    <div className={styles.featuredBody}>
-                      <div className={styles.featuredHead}>
-                        <strong className={styles.featuredName}>{card.name}</strong>
-                        {typeof card.rating === 'number' ? (
-                          <span className={styles.featuredRating}>★ {card.rating.toFixed(1)}</span>
-                        ) : null}
-                      </div>
-                      <span className={styles.featuredTag}>{card.categoryLabel}</span>
-                      {card.description ? <p className={styles.featuredDesc}>{card.description}</p> : null}
-                      {card.distance ? (
-                        <p className={styles.featuredDist}>
-                          <IconPin /> {card.distance}
-                        </p>
-                      ) : null}
-                      <div className={styles.featuredActions}>
-                        {directions ? (
-                          <a
-                            className={styles.featuredAction}
-                            href={directions}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <IconDirections /> Directions
-                          </a>
-                        ) : null}
-                        {diningRow && canEditSavedPlaces ? (
-                          <button
-                            type="button"
-                            className={styles.featuredAction}
-                            onClick={() => toggleSavedDining(diningRow)}
-                            aria-label={diningRow.done ? 'Unsave' : 'Saved'}
-                          >
-                            <IconBookmark /> {diningRow.done ? 'Saved' : 'Save'}
-                          </button>
-                        ) : (
-                          <span className={styles.featuredActionMuted}>
-                            <IconBookmark /> Saved
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-            {featured.length > 1 ? (
-              <div className={styles.carouselDots} role="tablist" aria-label="Saved places carousel">
-                {featured.map((card, idx) => (
+        {featuredGroups.length ? (
+          <div className={styles.savedGroups}>
+            {featuredGroups.map((group) => {
+              const open = !collapsedGroups[group.label];
+              return (
+                <div key={group.label} className={styles.savedGroup}>
                   <button
-                    key={card.id}
                     type="button"
-                    role="tab"
-                    aria-selected={idx === carouselIdx}
-                    className={`${styles.dot} ${idx === carouselIdx ? styles.dotOn : ''}`}
-                    onClick={() => setCarouselIdx(idx)}
-                    aria-label={`Show card ${idx + 1}`}
-                  />
-                ))}
-              </div>
-            ) : null}
-          </>
+                    className={styles.savedGroupHead}
+                    aria-expanded={open}
+                    onClick={() =>
+                      setCollapsedGroups((prev) => ({ ...prev, [group.label]: !prev[group.label] }))
+                    }
+                  >
+                    <span>{group.label}</span>
+                    <IconChevron open={open} />
+                  </button>
+                  {open ? (
+                    <div className={styles.featuredStrip}>
+                      {group.cards.map((card) => {
+                        const directions = placeQueryDirectionsUrl(card.name) || card.mapsUrl;
+                        const dist = distanceDisplayWithWalk(
+                          card.distanceRaw,
+                          card.nearLabel || stayName
+                        );
+                        return (
+                          <article key={`${card.source}-${card.id}`} className={styles.featuredCard}>
+                            <div
+                              className={styles.featuredPhoto}
+                              style={{ backgroundImage: `url(${explorePlacePhotoUrl(card.name, card.city)})` }}
+                              aria-hidden
+                            />
+                            <div className={styles.featuredBody}>
+                              <div className={styles.featuredHead}>
+                                <strong className={styles.featuredName}>{card.name}</strong>
+                                {typeof card.rating === 'number' ? (
+                                  <span className={styles.featuredRating}>★ {card.rating.toFixed(1)}</span>
+                                ) : null}
+                              </div>
+                              <span className={styles.featuredTag}>{card.categoryLabel}</span>
+                              {card.description ? <p className={styles.featuredDesc}>{card.description}</p> : null}
+                              {dist ? (
+                                <p className={styles.featuredDist}>
+                                  <IconPin /> {dist}
+                                </p>
+                              ) : null}
+                              <div className={styles.featuredActions}>
+                                {directions ? (
+                                  <a
+                                    className={styles.featuredAction}
+                                    href={directions}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    <IconDirections /> Directions
+                                  </a>
+                                ) : null}
+                                {canEditSavedPlaces ? (
+                                  <button
+                                    type="button"
+                                    className={styles.featuredAction}
+                                    onClick={() => removeSavedCard(card)}
+                                    aria-label="Remove saved place"
+                                  >
+                                    <IconBookmark /> Remove
+                                  </button>
+                                ) : (
+                                  <span className={styles.featuredActionMuted}>
+                                    <IconBookmark /> Saved
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
         ) : (
           <p className={styles.empty}>Save places from Explore to see them here.</p>
         )}
       </section>
 
-      <section className={styles.askBannerSection} ref={askRef}>
+      <section className={styles.section} ref={askRef}>
+        <div className={styles.sectionHead}>
+          <h3 className={styles.sectionTitle}>Q &amp; A</h3>
+        </div>
         <div className={styles.askBanner}>
           <span className={styles.askBannerIcon} aria-hidden>
             <IconSparkle />
@@ -574,12 +656,12 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
       <section className={styles.section}>
         <div className={styles.sectionHead}>
           <h3 className={styles.sectionTitle}>Notes</h3>
-          {canEditHighlights && onEditHighlights ? (
-            <MobilePencilButton onClick={onEditHighlights} ariaLabel="Edit notes" />
+          {canEditHighlights && onEditNotes ? (
+            <MobilePencilButton onClick={onEditNotes} ariaLabel="Edit notes" />
           ) : null}
         </div>
         {data.practicalTips.trim() ? (
-          <div className={styles.overviewBody}>
+          <div className={styles.notesBody}>
             <RichTextContent html={data.practicalTips.trim()} />
           </div>
         ) : (

@@ -73,3 +73,35 @@
   color: #8a7355;
   font-family: Georgia, 'Palatino Linotype', Palatino, serif;
 }
+
+/* Enlarge LocationInfoHighlights for touch editing (iPad/phone). */
+.highlightsLarge :global([class*='sectionTitle']) {
+  font-size: 1rem !important;
+  letter-spacing: 0.02em;
+}
+
+.highlightsLarge :global([class*='checkLabel']) {
+  font-size: 1.05rem !important;
+  line-height: 1.4;
+}
+
+.highlightsLarge :global([class*='removeBtn']) {
+  font-size: 1.6rem !important;
+  padding: 0.15rem 0.35rem;
+  line-height: 1;
+}
+
+.highlightsLarge :global([class*='addRow'] input),
+.highlightsLarge :global([class*='addRow'] select),
+.highlightsLarge :global([class*='addRow'] button),
+.highlightsLarge :global([class*='addInput']),
+.highlightsLarge :global([class*='addKind']),
+.highlightsLarge :global([class*='addBtn']) {
+  min-height: 2.75rem !important;
+  font-size: 1rem !important;
+  padding: 0.45rem 0.65rem !important;
+}
+
+[data-shell='ipad-portrait'] .hint {
+  font-size: 0.9rem;
+}

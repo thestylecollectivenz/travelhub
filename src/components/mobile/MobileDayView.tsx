@@ -15,6 +15,7 @@ import { CategoryIcon } from '../shared/CategoryIcon';
 import { DayLocationInfoStrip } from '../itinerary/DayLocationInfoStrip';
 import { locationInfoEntriesForDay } from '../../utils/locationInfoDayResolve';
 import { parseLocationInfoNotes } from '../../utils/locationInfoEntry';
+import { compactPlaceLabel } from '../../utils/placeDisplayLabel';
 import { TravellerAvatar } from '../shared/TravellerAvatar';
 import { useConfig } from '../../context/ConfigContext';
 import { MobileDayMapSnippet } from './MobileDayMapSnippet';
@@ -46,7 +47,7 @@ export interface MobileDetailTarget {
 export interface MobileDayViewProps {
   onOpenMembers?: () => void;
   onAskAi?: (prompt?: string) => void;
-  onDetailChange?: (open: boolean, close?: () => void) => void;
+  onDetailChange?: (open: boolean, close?: () => void, headerTitle?: string) => void;
 }
 
 function ymdToday(): string {
@@ -244,9 +245,6 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
 
   const { closeDetail } = useMobileDetailHistory(detailTarget, setDetailTarget);
 
-  React.useEffect(() => {
-    onDetailChange?.(Boolean(detailTarget), closeDetail);
-  }, [detailTarget, onDetailChange, closeDetail]);
   const dayLocationEntries = React.useMemo(() => {
     if (!day || !trip) return [];
     return locationInfoEntriesForDay(day, localEntries, trip.id);
@@ -260,6 +258,36 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   const locationPanelEntry = locationPanelEntryId
     ? localEntries.find((e) => e.id === locationPanelEntryId) ?? null
     : null;
+
+  const closeLocation = React.useCallback(() => {
+    setLocationPanelEntryId(null);
+  }, []);
+
+  const locationDisplayName = React.useMemo(() => {
+    if (!locationPanelEntry) return undefined;
+    const data = parseLocationInfoNotes(locationPanelEntry.notes);
+    const place = data ? placeById(data.placeId) : undefined;
+    if (place) return compactPlaceLabel(place.title, place.country);
+    return (locationPanelEntry.title || locationPanelEntry.location || 'Location').trim() || 'Location';
+  }, [locationPanelEntry, placeById]);
+
+  React.useEffect(() => {
+    if (detailTarget) {
+      onDetailChange?.(true, closeDetail);
+    } else if (locationPanelEntryId) {
+      onDetailChange?.(true, closeLocation, locationDisplayName);
+    } else {
+      onDetailChange?.(false);
+    }
+  }, [
+    detailTarget,
+    locationPanelEntryId,
+    locationDisplayName,
+    onDetailChange,
+    closeDetail,
+    closeLocation
+  ]);
+
   const primaryLocationEntryId = dayLocationEntries[0]?.id;
 
   const jumpToDate = (ymd: string): void => {
@@ -514,6 +542,17 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     );
   }
 
+  if (locationPanelEntry) {
+    return (
+      <MobileLocationInfoSheet
+        entry={locationPanelEntry}
+        calendarDate={day.calendarDate || ''}
+        onClose={closeLocation}
+        asPage
+      />
+    );
+  }
+
   return (
     <div
       className={styles.itinRoot}
@@ -714,11 +753,6 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
       {dayLocationEntries.length ? (
         <p className={styles.locationStripHint}>Tap a place for weather, tips, currency and saved suggestions.</p>
       ) : null}
-      <MobileLocationInfoSheet
-        entry={locationPanelEntry}
-        calendarDate={day.calendarDate || ''}
-        onClose={() => setLocationPanelEntryId(null)}
-      />
       {weatherOpen && primaryPlace ? (
         <MobileWeatherSheet
           place={primaryPlace}

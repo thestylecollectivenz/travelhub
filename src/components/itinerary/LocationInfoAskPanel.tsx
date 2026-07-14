@@ -191,8 +191,16 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
                     )}
                     {!readOnly && onThreadChange ? (
                       <div className={styles.qaActions}>
-                        <button type="button" className={styles.qaBtn} onClick={() => speakAnswer(item.answer)}>
-                          Read out
+                        <button
+                          type="button"
+                          className={styles.iconBtn}
+                          onClick={() => speakAnswer(item.answer)}
+                          aria-label="Read aloud"
+                          title="Read aloud"
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                            <path d="M8 5.5v13l11-6.5L8 5.5Z" fill="currentColor" />
+                          </svg>
                         </button>
                         <SpeechPlaybackControls
                           speechState={speechState}
@@ -282,8 +290,10 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
           <div className={styles.askActions}>
             <button
               type="button"
-              className={styles.qaBtn}
+              className={styles.iconBtn}
               disabled={asking || !hasKey || !place}
+              aria-label={voiceListening ? 'Stop listening' : 'Voice input'}
+              title={voiceListening ? 'Stop listening' : 'Voice input'}
               onClick={() => {
                 if (voiceListening) stopVoiceInput();
                 else {
@@ -292,7 +302,25 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
                 }
               }}
             >
-              {voiceListening ? 'Stop listening' : 'Voice input'}
+              {voiceListening ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
+                </svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                  />
+                  <path
+                    d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              )}
             </button>
             <SpeechPlaybackControls
               speechState={speechState}
@@ -310,7 +338,18 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
               {asking ? 'Asking…' : 'Ask AI'}
             </button>
             <label className={styles.voiceToggle}>
-              <input type="checkbox" checked={autoReadAnswers} onChange={(e) => setAutoReadAnswers(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={autoReadAnswers}
+                onChange={(e) => {
+                  const on = e.target.checked;
+                  if (on) {
+                    // Only read answers that arrive after enabling — skip existing last answer.
+                    lastReadIdRef.current = thread[thread.length - 1]?.id;
+                  }
+                  setAutoReadAnswers(on);
+                }}
+              />
               Read new answers aloud
             </label>
             {!hasKey ? (

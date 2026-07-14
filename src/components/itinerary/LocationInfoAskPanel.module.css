@@ -88,13 +88,30 @@
 }
 
 .qaBtn,
-.qaBtnDanger {
+.qaBtnDanger,
+.iconBtn {
   border: var(--border-default);
   border-radius: var(--radius-sm);
   padding: 2px var(--space-2);
   font-size: var(--font-size-xs);
   background: var(--color-surface);
   cursor: pointer;
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border-radius: 999px;
+  color: #1e2a44;
+}
+
+.iconBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .qaBtnDanger {
@@ -268,7 +285,8 @@
 }
 
 .mobileRoot .qaBtn,
-.mobileRoot .qaBtnDanger {
+.mobileRoot .qaBtnDanger,
+.mobileRoot .iconBtn {
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
   background: color-mix(in srgb, #f7f3eb 55%, white);
@@ -276,6 +294,12 @@
   font-size: 0.72rem;
   font-weight: 650;
   color: #1e2a44;
+}
+
+.mobileRoot .iconBtn {
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
 }
 
 .mobileRoot .qaBtnDanger {

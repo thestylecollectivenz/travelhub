@@ -16,10 +16,12 @@ function nameExists(names: string[], candidate: string): boolean {
 export function appendNearYouPlaceToLocationInfo(
   data: LocationInfoNotes,
   toolId: NearYouToolId,
-  place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string }
+  place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string },
+  nearLabel?: string
 ): LocationInfoNotes {
   const name = place.name.trim();
   if (!name) return data;
+  const anchor = (nearLabel || '').trim() || undefined;
 
   if (toolId === 'dining' || toolId === 'cafes') {
     const existing = data.diningSuggestions ?? [];
@@ -32,7 +34,8 @@ export function appendNearYouPlaceToLocationInfo(
       why: place.note,
       mapsUrl: place.mapsUrl,
       websiteUrl: place.websiteUrl,
-      done: false
+      done: false,
+      nearLabel: anchor
     };
     return normalizeLocationInfoNotes({
       ...data,
@@ -51,7 +54,8 @@ export function appendNearYouPlaceToLocationInfo(
     name,
     note: place.note,
     mapsUrl: place.mapsUrl,
-    websiteUrl: place.websiteUrl
+    websiteUrl: place.websiteUrl,
+    nearLabel: anchor
   };
   return normalizeLocationInfoNotes({
     ...data,

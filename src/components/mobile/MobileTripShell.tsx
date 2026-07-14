@@ -165,6 +165,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
   const [membersOpen, setMembersOpen] = React.useState(false);
   const [askAiPrompt, setAskAiPrompt] = React.useState<string | null>(null);
   const [cardDetailOpen, setCardDetailOpen] = React.useState(false);
+  const [detailHeaderTitle, setDetailHeaderTitle] = React.useState<string | undefined>();
   const closeCardDetailRef = React.useRef<(() => void) | undefined>(undefined);
   const { members } = useTripMembers(trip?.id);
 
@@ -192,9 +193,10 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
     setAskAiPrompt(p);
   }, []);
 
-  const handleDetailChange = React.useCallback((open: boolean, close?: () => void) => {
+  const handleDetailChange = React.useCallback((open: boolean, close?: () => void, headerTitle?: string) => {
     setCardDetailOpen(open);
     closeCardDetailRef.current = close;
+    setDetailHeaderTitle(open ? headerTitle : undefined);
   }, []);
 
   React.useEffect(() => {
@@ -402,11 +404,11 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
     const dates = start && end ? shortDateRange(start, end) : undefined;
 
     if (cardDetailOpen) {
-      // Detail views: trip name only (no dates/thumb row).
+      // Detail views: location/card name in trip slot (no dates/thumb row).
       return {
         title: undefined as string | undefined,
         subtitle: undefined as string | undefined,
-        tripName: tripLabel ?? 'Trip',
+        tripName: detailHeaderTitle || tripLabel || 'Trip',
         tripDates: undefined as string | undefined,
         showTripHero: false
       };
@@ -455,7 +457,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
           showTripHero: true
         };
     }
-  }, [cardDetailOpen, tab, trip?.title, trip?.dateStart, trip?.dateEnd]);
+  }, [cardDetailOpen, detailHeaderTitle, tab, trip?.title, trip?.dateStart, trip?.dateEnd]);
 
   const tripHeroSrc = React.useMemo(() => {
     if (!pageChrome.showTripHero) return undefined;

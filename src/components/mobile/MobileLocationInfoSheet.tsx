@@ -15,9 +15,11 @@ import { findStayTileForDay } from '../../utils/mobileDayStay';
 import { ItineraryCardEdit } from '../itinerary/ItineraryCardEdit';
 import { MobileLocationInfoContent } from './MobileLocationInfoContent';
 import { MobileLocationHighlightsEdit } from './MobileLocationHighlightsEdit';
+import { MobileLocationNotesEdit } from './MobileLocationNotesEdit';
 import { MobileNearYouResults } from './MobileNearYouResults';
 import { MobileExplorePlacesView } from './MobileExplorePlacesView';
 import { MobileSavedPlacesView } from './MobileSavedPlacesView';
+import { MobileStartPointPicker, type StartPointSelection } from './MobileStartPointPicker';
 import { MobilePencilButton } from './MobilePencilButton';
 import type { NearYouToolId } from '../../utils/nearYouTools';
 import { NEAR_YOU_TOOLS } from '../../utils/nearYouTools';
@@ -29,14 +31,21 @@ export interface MobileLocationInfoSheetProps {
   entry: ItineraryEntry | null;
   calendarDate: string;
   onClose: () => void;
+  /** Render as an in-flow page (BrandHeader owns title/back) instead of a bottom sheet. */
+  asPage?: boolean;
 }
 
-type Panel = 'main' | 'explore' | 'saved' | 'near' | 'highlights';
+type Panel = 'main' | 'explore' | 'saved' | 'near' | 'highlights' | 'notes';
+
+function isValidLatLng(lat: number, lng: number): boolean {
+  return Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+}
 
 export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = ({
   entry,
   calendarDate,
-  onClose
+  onClose,
+  asPage = false
 }) => {
   const { trip, tripDays, selectedDayId, setSelectedDayId, editingCardId, setEditingCardId, updateEntry, deleteEntry, reloadItineraryEntries, localEntries } =
     useTripWorkspace();
@@ -49,7 +58,8 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   const [exploreCategory, setExploreCategory] = React.useState<string | undefined>();
   const [savedCategory, setSavedCategory] = React.useState<string | undefined>();
   const [nearActionMsg, setNearActionMsg] = React.useState('');
-  const [stayIndex, setStayIndex] = React.useState(0);
+  const [startingPoint, setStartingPoint] = React.useState<StartPointSelection | null>(null);
+  const [startPickerOpen, setStartPickerOpen] = React.useState(false);
 
   const stayCandidates = React.useMemo(() => {
     const titles: string[] = [];
@@ -70,48 +80,69 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     return titles;
   }, [localEntries, calendarDate]);
 
-  const startingPointLabel = stayCandidates[stayIndex % Math.max(stayCandidates.length, 1)] || undefined;
+  const liveEntry = entry ? localEntries.find((e) => e.id === entry.id) ?? entry : null;
+  const data = liveEntry ? parseLocationInfoNotes(liveEntry.notes) : null;
+  const place = data ? placeById(data.placeId) : undefined;
 
-  const cycleStartingPoint = React.useCallback((): void => {
-    if (stayCandidates.length < 2) return;
-    setStayIndex((i) => (i + 1) % stayCandidates.length);
-  }, [stayCandidates.length]);
+  const defaultCentre = React.useMemo(() => {
+    const lat = Number(place?.latitude);
+    const lng = Number(place?.longitude);
+    if (isValidLatLng(lat, lng)) {
+      return {
+        lat,
+        lng,
+        label: stayCandidates[0] || compactPlaceLabel(place?.title || '', place?.country) || 'Selected point'
+      };
+    }
+    return {
+      lat: -41.2865,
+      lng: 174.7762,
+      label: stayCandidates[0] || 'Selected point'
+    };
+  }, [place, stayCandidates]);
+
+  const startingPointLabel = startingPoint?.label || stayCandidates[0] || undefined;
+  const overrideCoords = startingPoint
+    ? { lat: startingPoint.lat, lng: startingPoint.lng }
+    : isValidLatLng(Number(place?.latitude), Number(place?.longitude))
+      ? { lat: Number(place!.latitude), lng: Number(place!.longitude) }
+      : undefined;
 
   const saveNearPlace = React.useCallback(
-    (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string; toolId?: string }): boolean => {
-      const liveEntry = entry ? localEntries.find((e) => e.id === entry.id) ?? entry : null;
-      const data = parseLocationInfoNotes(liveEntry?.notes);
-      const toolId = (place.toolId as NearYouToolId | undefined) || nearToolId;
-      if (!liveEntry || !data || !toolId) {
+    (placeRow: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string; toolId?: string }): boolean => {
+      const current = entry ? localEntries.find((e) => e.id === entry.id) ?? entry : null;
+      const notes = parseLocationInfoNotes(current?.notes);
+      const toolId = (placeRow.toolId as NearYouToolId | undefined) || nearToolId;
+      if (!current || !notes || !toolId) {
         setNearActionMsg('Could not save to this location.');
         window.setTimeout(() => setNearActionMsg(''), 2500);
         return false;
       }
       const toolKind = NEAR_YOU_TOOLS.find((t) => t.id === toolId)?.kind;
-      const countFor = (notes: typeof data): number =>
+      const countFor = (n: typeof notes): number =>
         toolId === 'dining' || toolId === 'cafes'
-          ? (notes.diningSuggestions ?? []).length
+          ? (n.diningSuggestions ?? []).length
           : toolKind
-            ? (notes.nearestPlaces?.[toolKind] ?? []).length
+            ? (n.nearestPlaces?.[toolKind] ?? []).length
             : 0;
-      const before = countFor(data);
-      const updated = appendNearYouPlaceToLocationInfo(data, toolId, place);
+      const before = countFor(notes);
+      const updated = appendNearYouPlaceToLocationInfo(notes, toolId, placeRow, startingPointLabel);
       const after = countFor(updated);
       if (after <= before) {
-        setNearActionMsg(`${place.name} is already saved here.`);
+        setNearActionMsg(`${placeRow.name} is already saved here.`);
         window.setTimeout(() => setNearActionMsg(''), 2500);
         return false;
       }
-      updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(updated) });
-      setNearActionMsg(`Saved ${place.name}`);
+      updateEntry({ ...current, notes: serializeLocationInfoNotes(updated) });
+      setNearActionMsg(`Saved ${placeRow.name}`);
       window.setTimeout(() => setNearActionMsg(''), 2500);
       return true;
     },
-    [entry, localEntries, nearToolId, updateEntry]
+    [entry, localEntries, nearToolId, updateEntry, startingPointLabel]
   );
 
   const addNearToItinerary = React.useCallback(
-    async (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string }): Promise<void> => {
+    async (placeRow: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string }): Promise<void> => {
       if (!trip) {
         setNearActionMsg('No trip open.');
         return;
@@ -122,14 +153,14 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
           setNearActionMsg('This trip has no days yet.');
           return;
         }
-        const created = await createItineraryEntryFromNearYouPlace(spContext, trip, day.id, place);
+        const created = await createItineraryEntryFromNearYouPlace(spContext, trip, day.id, placeRow);
         await reloadItineraryEntries();
         setPanel('main');
         setNearToolId(null);
         setSelectedDayId(day.id);
         setEditingCardId(created.id);
         notifyExpandUnscheduled();
-        setNearActionMsg(`Review “${place.name}” and save when ready`);
+        setNearActionMsg(`Review “${placeRow.name}” and save when ready`);
         window.setTimeout(() => setNearActionMsg(''), 2800);
       } catch (err) {
         setNearActionMsg(err instanceof Error ? err.message : 'Could not add to itinerary.');
@@ -151,24 +182,26 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     if (!entry) return undefined;
     const onKey = (ev: KeyboardEvent): void => {
       if (ev.key === 'Escape') {
+        if (startPickerOpen) {
+          setStartPickerOpen(false);
+          return;
+        }
         if (panel !== 'main' || nearToolId) closePanels();
         else if (editingCardId !== entry.id) onClose();
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [entry, onClose, editingCardId, panel, nearToolId, closePanels]);
+  }, [entry, onClose, editingCardId, panel, nearToolId, closePanels, startPickerOpen]);
 
   React.useEffect(() => {
-    setStayIndex(0);
+    setStartingPoint(null);
+    setStartPickerOpen(false);
   }, [calendarDate, entry?.id]);
 
-  if (!entry) return null;
+  if (!entry || !liveEntry) return null;
 
   const isEditing = editingCardId === entry.id;
-  const liveEntry = localEntries.find((e) => e.id === entry.id) ?? entry;
-  const data = parseLocationInfoNotes(liveEntry.notes);
-  const place = data ? placeById(data.placeId) : undefined;
   const title = place
     ? compactPlaceLabel(place.title, place.country)
     : (entry.title || entry.location || 'Location').trim() || 'Location';
@@ -212,121 +245,174 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     );
   }
 
+  if (panel === 'notes') {
+    return <MobileLocationNotesEdit entry={liveEntry} onBack={() => setPanel('main')} />;
+  }
+
+  const picker =
+    startPickerOpen ? (
+      <MobileStartPointPicker
+        initialLat={startingPoint?.lat ?? defaultCentre.lat}
+        initialLng={startingPoint?.lng ?? defaultCentre.lng}
+        initialLabel={startingPoint?.label ?? startingPointLabel}
+        onCancel={() => setStartPickerOpen(false)}
+        onConfirm={(point) => {
+          setStartingPoint(point);
+          setStartPickerOpen(false);
+        }}
+      />
+    ) : null;
+
   if (panel === 'near' && nearToolId) {
-    return ReactDOM.createPortal(
-      <div className={styles.nearOverlay} role="presentation" data-shell={shellAttr}>
-        <div className={styles.nearOverlayInner}>
-          <MobileNearYouResults
-            toolId={nearToolId}
-            place={place}
-            locationEntryId={entry.id}
-            locationLabel={title}
-            tripTitle={trip?.title}
-            tripDateRange={
-              trip?.dateStart && trip?.dateEnd
-                ? `${trip.dateStart.slice(0, 10)} – ${trip.dateEnd.slice(0, 10)}`
-                : undefined
-            }
-            onBack={closePanels}
-            onSavePlace={canEditItinerary ? saveNearPlace : undefined}
-            onAddToItinerary={canEditItinerary ? addNearToItinerary : undefined}
-          />
-          {nearActionMsg ? <p className={styles.nearFeedback}>{nearActionMsg}</p> : null}
-        </div>
-      </div>,
-      document.body
+    return (
+      <>
+        {ReactDOM.createPortal(
+          <div className={styles.nearOverlay} role="presentation" data-shell={shellAttr}>
+            <div className={styles.nearOverlayInner}>
+              <MobileNearYouResults
+                toolId={nearToolId}
+                place={place}
+                locationEntryId={entry.id}
+                locationLabel={title}
+                tripTitle={trip?.title}
+                tripDateRange={
+                  trip?.dateStart && trip?.dateEnd
+                    ? `${trip.dateStart.slice(0, 10)} – ${trip.dateEnd.slice(0, 10)}`
+                    : undefined
+                }
+                onBack={closePanels}
+                onSavePlace={canEditItinerary ? saveNearPlace : undefined}
+                onAddToItinerary={canEditItinerary ? addNearToItinerary : undefined}
+              />
+              {nearActionMsg ? <p className={styles.nearFeedback}>{nearActionMsg}</p> : null}
+            </div>
+          </div>,
+          document.body
+        )}
+        {picker}
+      </>
     );
   }
 
   if (panel === 'explore') {
-    return ReactDOM.createPortal(
-      <div className={styles.nearOverlay} role="presentation" data-shell={shellAttr}>
-        <div className={styles.nearOverlayInner}>
-          <MobileExplorePlacesView
-            place={place}
-            locationEntryId={entry.id}
-            locationLabel={title}
-            startingPointLabel={startingPointLabel}
-            initialCategory={exploreCategory}
-            onBack={closePanels}
-            onChangeStartingPoint={stayCandidates.length > 1 ? cycleStartingPoint : undefined}
-            onSavePlace={canEditItinerary ? saveNearPlace : undefined}
-          />
-          {nearActionMsg ? <p className={styles.nearFeedback}>{nearActionMsg}</p> : null}
-        </div>
-      </div>,
-      document.body
+    return (
+      <>
+        {ReactDOM.createPortal(
+          <div className={styles.nearOverlay} role="presentation" data-shell={shellAttr}>
+            <div className={styles.nearOverlayInner}>
+              <MobileExplorePlacesView
+                place={place}
+                locationEntryId={entry.id}
+                locationLabel={title}
+                startingPointLabel={startingPointLabel}
+                overrideCoords={overrideCoords}
+                initialCategory={exploreCategory}
+                onBack={closePanels}
+                onChangeStartingPoint={() => setStartPickerOpen(true)}
+                onSavePlace={canEditItinerary ? saveNearPlace : undefined}
+              />
+              {nearActionMsg ? <p className={styles.nearFeedback}>{nearActionMsg}</p> : null}
+            </div>
+          </div>,
+          document.body
+        )}
+        {picker}
+      </>
     );
   }
 
   if (panel === 'saved' && data) {
-    return ReactDOM.createPortal(
-      <div className={styles.nearOverlay} role="presentation" data-shell={shellAttr}>
-        <div className={styles.nearOverlayInner}>
-          <MobileSavedPlacesView
-            place={place}
-            locationLabel={title}
-            data={data}
-            initialCategory={savedCategory}
-            startingPointLabel={startingPointLabel}
-            onBack={closePanels}
-            onChangeStartingPoint={stayCandidates.length > 1 ? cycleStartingPoint : undefined}
-          />
-        </div>
-      </div>,
-      document.body
+    return (
+      <>
+        {ReactDOM.createPortal(
+          <div className={styles.nearOverlay} role="presentation" data-shell={shellAttr}>
+            <div className={styles.nearOverlayInner}>
+              <MobileSavedPlacesView
+                place={place}
+                locationLabel={title}
+                data={data}
+                entry={liveEntry}
+                initialCategory={savedCategory}
+                startingPointLabel={startingPointLabel}
+                onBack={closePanels}
+                onChangeStartingPoint={() => setStartPickerOpen(true)}
+              />
+            </div>
+          </div>,
+          document.body
+        )}
+        {picker}
+      </>
     );
   }
 
-  return ReactDOM.createPortal(
-    <div className={styles.backdrop} role="presentation" onClick={onClose}>
-      <div
-        className={styles.sheet}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        data-shell={shellAttr}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className={styles.header}>
-          <h2 className={styles.title}>{title}</h2>
-          <div className={styles.headerActions}>
-            {canEditItinerary ? (
-              <MobilePencilButton onClick={() => setEditingCardId(entry.id)} ariaLabel="Edit location info" />
-            ) : null}
-            <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close">
-              ×
-            </button>
-          </div>
-        </header>
+  const content = (
+    <MobileLocationInfoContent
+      entry={liveEntry}
+      place={place}
+      readOnly={!canUseAiHelpers}
+      canEditSavedPlaces={canEditItinerary}
+      canEditHighlights={canEditItinerary}
+      calendarDate={calendarDate}
+      startingPointLabel={startingPointLabel}
+      onChangeStartingPoint={() => setStartPickerOpen(true)}
+      onEditHighlights={() => setPanel('highlights')}
+      onEditNotes={() => setPanel('notes')}
+      onOpenNearTool={(toolId) => {
+        setNearToolId(toolId);
+        setPanel('near');
+      }}
+      onOpenExplore={(category) => {
+        setExploreCategory(category);
+        setPanel('explore');
+      }}
+      onOpenSavedPlaces={(category) => {
+        setSavedCategory(category);
+        setPanel('saved');
+      }}
+    />
+  );
 
-        <div className={styles.body}>
-          <MobileLocationInfoContent
-            entry={liveEntry}
-            place={place}
-            readOnly={!canUseAiHelpers}
-            canEditSavedPlaces={canEditItinerary}
-            canEditHighlights={canEditItinerary}
-            calendarDate={calendarDate}
-            startingPointLabel={startingPointLabel}
-            onChangeStartingPoint={stayCandidates.length > 1 ? cycleStartingPoint : undefined}
-            onEditHighlights={() => setPanel('highlights')}
-            onOpenNearTool={(toolId) => {
-              setNearToolId(toolId);
-              setPanel('near');
-            }}
-            onOpenExplore={(category) => {
-              setExploreCategory(category);
-              setPanel('explore');
-            }}
-            onOpenSavedPlaces={(category) => {
-              setSavedCategory(category);
-              setPanel('saved');
-            }}
-          />
+  if (asPage) {
+    return (
+      <>
+        <div className={styles.pageRoot} data-shell={shellAttr}>
+          <div className={styles.pageBody}>{content}</div>
         </div>
-      </div>
-    </div>,
-    document.body
+        {picker}
+      </>
+    );
+  }
+
+  return (
+    <>
+      {ReactDOM.createPortal(
+        <div className={styles.backdrop} role="presentation" onClick={onClose}>
+          <div
+            className={styles.sheet}
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+            data-shell={shellAttr}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className={styles.header}>
+              <h2 className={styles.title}>{title}</h2>
+              <div className={styles.headerActions}>
+                {canEditItinerary ? (
+                  <MobilePencilButton onClick={() => setEditingCardId(entry.id)} ariaLabel="Edit location info" />
+                ) : null}
+                <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close">
+                  ×
+                </button>
+              </div>
+            </header>
+            <div className={styles.body}>{content}</div>
+          </div>
+        </div>,
+        document.body
+      )}
+      {picker}
+    </>
   );
 };

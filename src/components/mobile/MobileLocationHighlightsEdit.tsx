@@ -14,6 +14,7 @@ import {
   type LocationInfoNotes
 } from '../../utils/locationInfoEntry';
 import { LocationInfoHighlights } from '../itinerary/LocationInfoHighlights';
+import { useShellMode } from '../../hooks/useShellMode';
 import styles from './MobileLocationHighlightsEdit.module.css';
 
 export interface MobileLocationHighlightsEditProps {
@@ -29,6 +30,7 @@ export const MobileLocationHighlightsEdit: React.FC<MobileLocationHighlightsEdit
 }) => {
   const { config } = useConfig();
   const { updateEntry } = useTripWorkspace();
+  const shellMode = useShellMode();
   const data = parseLocationInfoNotes(entry.notes);
   const [rows, setRows] = React.useState<LocationHighlightRow[]>(() =>
     data ? locationHighlightRows(data) : []
@@ -55,8 +57,10 @@ export const MobileLocationHighlightsEdit: React.FC<MobileLocationHighlightsEdit
     updateEntry({ ...entry, notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(next)) });
   };
 
+  const shellAttr = shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined;
+
   return ReactDOM.createPortal(
-    <div className={styles.overlay} role="presentation">
+    <div className={styles.overlay} role="presentation" data-shell={shellAttr}>
       <div className={styles.panel} role="dialog" aria-modal="true" aria-label="Edit highlights">
         <header className={styles.header}>
           <button type="button" className={styles.backBtn} onClick={onBack}>
@@ -76,6 +80,7 @@ export const MobileLocationHighlightsEdit: React.FC<MobileLocationHighlightsEdit
             place={place}
             geminiApiKey={config.geminiApiKey || ''}
             hasAnyContent={rows.length > 0}
+            className={styles.highlightsLarge}
             onGenerationComplete={() => {
               const parsed = parseLocationInfoNotes(entry.notes);
               if (parsed) setRows(locationHighlightRows(parsed));
