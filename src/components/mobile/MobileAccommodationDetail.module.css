@@ -1,18 +1,45 @@
-.hero {
-  display: grid;
-  grid-template-columns: 3.5rem 1fr;
-  gap: 0.75rem;
-  margin-bottom: 0.85rem;
+.root {
+  display: block;
 }
 
-.heroIcon {
-  width: 3.5rem;
-  height: 3.5rem;
+.overviewCard {
+  margin-bottom: 0.75rem;
+}
+
+.overviewMain {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.heroPhotoWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 0.9rem;
+  overflow: hidden;
+  background: color-mix(in srgb, #1e2a44 8%, white);
+}
+
+.heroPhoto {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.heroPhotoBadge {
+  position: absolute;
+  left: 0.55rem;
+  bottom: 0.55rem;
+  width: 2.1rem;
+  height: 2.1rem;
   border-radius: 999px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px color-mix(in srgb, #1e2a44 12%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, #1e2a44 18%, transparent);
 }
 
 .heroCopy {
@@ -94,7 +121,7 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.4rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0;
 }
 
 .actionTile {
@@ -105,10 +132,10 @@
   gap: 0.35rem;
   min-height: 4.1rem;
   padding: 0.45rem 0.25rem;
-  border: 1px solid color-mix(in srgb, #8a7355 35%, transparent);
+  border: 1.5px solid color-mix(in srgb, #c4783a 45%, transparent);
   border-radius: 0.75rem;
-  background: color-mix(in srgb, var(--tl-mobile-surface, #fafaf9) 55%, white);
-  color: #5c4a38;
+  background: white;
+  color: #c4783a;
   font-size: 0.58rem;
   font-weight: 700;
   text-align: center;
@@ -117,27 +144,20 @@
   line-height: 1.2;
 }
 
-.actionRust,
 .actionPrimary {
   background: #c4783a;
   border-color: #c4783a;
   color: white;
 }
 
-.actionWashRust {
-  background: color-mix(in srgb, #c4783a 22%, white);
-  border-color: color-mix(in srgb, #c4783a 40%, white);
-  color: #8a5a2b;
+.actionOutline {
+  background: white;
+  border-color: color-mix(in srgb, #c4783a 50%, white);
+  color: #c4783a;
 }
 
-.actionWashRust[aria-disabled='true'] {
+.actionOutline[aria-disabled='true'] {
   opacity: 0.5;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-.actionDisabled {
-  opacity: 0.38;
   cursor: not-allowed;
   pointer-events: none;
 }
@@ -198,11 +218,14 @@
   margin-top: 0.12rem;
 }
 
-.summarySub {
-  font-size: 0.62rem;
-  font-weight: 600;
-  color: #5c6570;
-  margin-top: 0.08rem;
+.detailColumns {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+.detailCol {
+  min-width: 0;
 }
 
 .sectionCard {
@@ -326,9 +349,21 @@
   margin-top: 0.15rem;
 }
 
+.cancelBox {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin-top: 0.65rem;
+  padding: 0.65rem 0.7rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, #3d6b4f 10%, white);
+  border: 1px solid color-mix(in srgb, #3d6b4f 18%, transparent);
+}
+
 .cancelIcon {
   color: #3d6b4f;
-  margin-top: 0.15rem;
+  margin-top: 0.1rem;
 }
 
 .subDetailText {
@@ -340,24 +375,39 @@
   white-space: pre-wrap;
 }
 
-.docPillRow {
+.docList {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
-.docPill {
-  display: inline-flex;
+.docRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.55rem;
   align-items: center;
-  gap: 0.3rem;
-  border: 1px solid color-mix(in srgb, #3d5a80 25%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, #e8eef5 70%, white);
-  color: #3d5a80;
-  padding: 0.38rem 0.65rem;
-  font-size: 0.65rem;
-  font-weight: 700;
+  padding: 0.55rem 0.45rem;
+  border-radius: 0.65rem;
   text-decoration: none;
+  color: #1e2a44;
+  background: color-mix(in srgb, #e8eef5 35%, white);
+  border: 1px solid color-mix(in srgb, #3d5a80 12%, transparent);
+}
+
+.docRowIcon {
+  color: #3d5a80;
+  display: inline-flex;
+}
+
+.docRowLabel {
+  font-size: 0.72rem;
+  font-weight: 650;
+  min-width: 0;
+}
+
+.docRowChevron {
+  color: #8a7355;
+  font-weight: 700;
 }
 
 .notesBody {
@@ -396,4 +446,122 @@
 .plannedMeta {
   font-size: 0.65rem;
   color: #6b7280;
+}
+
+/* iPad portrait — match accommodation mockup */
+[data-shell='ipad-portrait'] .overviewCard {
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  border-radius: 1.1rem;
+  background: white;
+  padding: 0.95rem;
+  box-shadow: 0 2px 14px color-mix(in srgb, #1e2a44 5%, transparent);
+}
+
+[data-shell='ipad-portrait'] .overviewMain {
+  grid-template-columns: minmax(12rem, 38%) 1fr;
+  gap: 1rem;
+  align-items: start;
+  margin-bottom: 0.9rem;
+}
+
+[data-shell='ipad-portrait'] .heroPhotoWrap {
+  aspect-ratio: 4 / 3;
+  border-radius: 0.85rem;
+}
+
+[data-shell='ipad-portrait'] .title {
+  font-size: 1.75rem;
+}
+
+[data-shell='ipad-portrait'] .chips {
+  margin-top: 0.55rem;
+  gap: 0.45rem;
+}
+
+[data-shell='ipad-portrait'] .chip {
+  font-size: 0.75rem;
+  padding: 0.28rem 0.6rem;
+}
+
+[data-shell='ipad-portrait'] .locationLine {
+  font-size: 0.88rem;
+  margin-top: 0.55rem;
+}
+
+[data-shell='ipad-portrait'] .streetLine {
+  font-size: 0.8rem;
+}
+
+[data-shell='ipad-portrait'] .actionGrid {
+  gap: 0.55rem;
+}
+
+[data-shell='ipad-portrait'] .actionTile {
+  flex-direction: row;
+  min-height: 3.1rem;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.78rem;
+  border-radius: 0.85rem;
+  gap: 0.45rem;
+}
+
+[data-shell='ipad-portrait'] .staySummary {
+  margin-bottom: 0.95rem;
+  border-radius: 1rem;
+}
+
+[data-shell='ipad-portrait'] .summaryCol {
+  padding: 0.9rem 0.65rem;
+  align-items: flex-start;
+  text-align: left;
+}
+
+[data-shell='ipad-portrait'] .summaryValue {
+  font-size: 0.95rem;
+}
+
+[data-shell='ipad-portrait'] .summaryLabel,
+[data-shell='ipad-portrait'] .summaryMetaLabel {
+  font-size: 0.68rem;
+}
+
+[data-shell='ipad-portrait'] .detailColumns {
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+  align-items: start;
+}
+
+[data-shell='ipad-portrait'] .sectionCard {
+  padding: 0.9rem 0.95rem 1rem;
+  border-radius: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+[data-shell='ipad-portrait'] .sectionTitle {
+  font-size: 0.95rem;
+}
+
+[data-shell='ipad-portrait'] .gridLabel {
+  font-size: 0.68rem;
+}
+
+[data-shell='ipad-portrait'] .gridValue {
+  font-size: 0.85rem;
+}
+
+[data-shell='ipad-portrait'] .cancelBox {
+  padding: 0.8rem 0.85rem;
+  border-radius: 0.85rem;
+}
+
+[data-shell='ipad-portrait'] .docRow {
+  padding: 0.7rem 0.65rem;
+}
+
+[data-shell='ipad-portrait'] .docRowLabel {
+  font-size: 0.85rem;
+}
+
+[data-shell='ipad-portrait'] .notesBody {
+  font-size: 0.9rem;
 }

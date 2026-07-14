@@ -14,6 +14,8 @@ import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { effectiveBookingStatus, findConfirmationDocument } from '../../utils/bookingStatusUtils';
 import { isRichTextEditorEmpty } from '../../utils/journalRichText';
 import { RichTextContent } from '../shared/RichTextContent';
+import { resolveStayHeroImageUrl, stayHeroPlaceholderUrl } from '../../utils/stayTileHeroImage';
+import { useShellMode } from '../../hooks/useShellMode';
 import { MobilePencilButton } from './MobilePencilButton';
 import { MobileDetailAiPanel } from './MobileDetailAiPanel';
 import { openMobileExternalUrl } from '../../hooks/useMobileDetailHistory';
@@ -149,6 +151,7 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
   mapsDirectionsUrl,
   phoneNumber
 }) => {
+  const shellMode = useShellMode();
   const stayRef = React.useRef<HTMLElement>(null);
   const confirmationDoc = findConfirmationDocument(documents);
   const booked = effectiveBookingStatus(entry, { hasConfirmationDoc: Boolean(confirmationDoc) });
@@ -156,6 +159,9 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
   const locationLabel = (entry.location ?? '').trim();
   const streetLabel = (entry.streetAddress ?? '').trim();
   const hasNotes = !isRichTextEditorEmpty(entry.notes);
+  const [heroSrc, setHeroSrc] = React.useState(() =>
+    stayHeroPlaceholderUrl(entry.title || 'Hotel', locationLabel || entry.location || '', 'accommodation')
+  );
 
   const data = React.useMemo(
     () => buildAccommodationDetailData(entry, { canSeeFinancials, hasConfirmationDoc: Boolean(confirmationDoc) }),
@@ -168,101 +174,248 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
   const bookingRow2 = data.bookingGrid.slice(3, 6);
   const extraRow = data.extraBookingGrid;
 
+  React.useEffect(() => {
+    let cancelled = false;
+    void resolveStayHeroImageUrl(entry.title || 'Hotel', locationLabel || '', 'accommodation').then((url) => {
+      if (!cancelled) setHeroSrc(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [entry.title, locationLabel]);
+
   const scrollToStay = (): void => {
     stayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  return (
-    <>
-      <header className={styles.hero}>
-        <div className={`${styles.heroIcon} th-cat-${slug}`}>
-          <CategoryIcon category={entry.category} size={26} color="white" />
+  const bookingSection =
+    canSeeFinancials && (bookingRow1.length || bookingRow2.length) ? (
+      <section className={styles.sectionCard}>
+        <div className={styles.sectionHead}>
+          <span className={styles.sectionIcon}>{sectionIcon('wallet')}</span>
+          <h2 className={styles.sectionTitle}>Booking &amp; payment</h2>
         </div>
-        <div className={styles.heroCopy}>
-          <div className={styles.heroTitleRow}>
-            <h1 className={styles.title}>{entry.title}</h1>
-            {canEdit ? <MobilePencilButton onClick={onEdit} ariaLabel="Edit accommodation" /> : null}
-          </div>
-          <div className={styles.chips}>
-            <span className={`${styles.chip} ${styles.chipCat} th-cat-${slug}`}>
-              {chipIcon('star')}
-              {entry.category}
-            </span>
-            <span className={`${styles.chip} ${styles.chipStatus}`}>
-              {chipIcon('dot')}
-              {formatDisplayLabel(entry.decisionStatus)}
-            </span>
-          </div>
-          {locationLabel ? (
-            <p className={styles.locationLine}>
-              <svg width="11" height="11" viewBox="0 0 12 14" fill="none" aria-hidden>
-                <path d="M6 1C3.79 1 2 2.79 2 5c0 3 4 8 4 8s4-5 4-8c0-2.21-1.79-4-4-4z" fill="currentColor" />
-              </svg>
-              {locationLabel}
-            </p>
-          ) : null}
-          {streetLabel && streetLabel !== locationLabel ? <p className={styles.streetLine}>{streetLabel}</p> : null}
+        <GridRow cells={bookingRow1} bordered />
+        {bookingRow1.length && bookingRow2.length ? <div className={styles.rowDivider} /> : null}
+        <GridRow cells={bookingRow2} bordered />
+        {extraRow.length ? (
+          <>
+            <div className={styles.rowDivider} />
+            <GridRow cells={extraRow} bordered />
+          </>
+        ) : null}
+      </section>
+    ) : !canSeeFinancials && (entry.bookingReference || entry.supplier) ? (
+      <section className={styles.sectionCard}>
+        <div className={styles.sectionHead}>
+          <span className={styles.sectionIcon}>{sectionIcon('wallet')}</span>
+          <h2 className={styles.sectionTitle}>Booking &amp; payment</h2>
         </div>
-      </header>
+        <GridRow
+          bordered
+          cells={[
+            ...(entry.bookingReference ? [{ label: 'Booking reference', value: entry.bookingReference }] : []),
+            ...(entry.supplier ? [{ label: 'Supplier', value: entry.supplier }] : [])
+          ]}
+        />
+      </section>
+    ) : null;
 
-      <div className={styles.actionGrid}>
-        {booked ? (
-          confirmationDoc?.fileUrl ? (
-            <a
-              className={`${styles.actionTile} ${styles.actionPrimary}`}
-              href={confirmationDoc.fileUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => openMobileExternalUrl(confirmationDoc.fileUrl, e)}
-            >
-              {actionIcon('booking')}
-              <span>Open booking</span>
-            </a>
-          ) : (
-            <span className={`${styles.actionTile} ${styles.actionWashRust}`} aria-disabled="true">
-              {actionIcon('booking')}
-              <span>Open booking</span>
-            </span>
-          )
-        ) : (
-          <button type="button" className={`${styles.actionTile} ${styles.actionPrimary}`} onClick={onBookNow}>
-            {actionIcon('booking')}
-            <span>Book now</span>
-          </button>
-        )}
-        {mapsDirectionsUrl ? (
+  const staySection = (
+    <section className={styles.sectionCard} id="stay-details" ref={stayRef}>
+      <div className={styles.sectionHead}>
+        <span className={styles.sectionIcon}>{sectionIcon('bed')}</span>
+        <h2 className={styles.sectionTitle}>Stay details</h2>
+      </div>
+      <GridRow cells={data.stayGrid} bordered />
+      {data.perks ? (
+        <div className={styles.subDetailRow}>
+          <span className={styles.perksIcon} aria-hidden>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M8 2.5 9.8 6.2 14 6.7l-3 2.6.9 3.9L8 11.2 4.1 13.2l.9-3.9-3-2.6 4.2-.5L8 2.5Z"
+                stroke="currentColor"
+                strokeWidth="1.1"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+          <div>
+            <span className={styles.gridLabel}>Perks</span>
+            <p className={styles.subDetailText}>{data.perks}</p>
+          </div>
+        </div>
+      ) : null}
+      {data.cancellation ? (
+        <div className={styles.cancelBox}>
+          <span className={styles.cancelIcon} aria-hidden>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M8 1.5 2.5 3v5c0 3.5 2.8 5.8 5.5 6.5C10.7 13.8 13.5 11.5 13.5 8V3L8 1.5Z"
+                stroke="currentColor"
+                strokeWidth="1.2"
+              />
+              <path d="M5.5 8.2 7.2 10l3.3-3.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+          </span>
+          <div>
+            <span className={styles.gridLabel}>Cancellation</span>
+            <p className={styles.subDetailText}>{data.cancellation}</p>
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+
+  const docsSection = docLinkPills.length ? (
+    <section className={styles.sectionCard}>
+      <div className={styles.sectionHead}>
+        <span className={styles.sectionIcon}>{sectionIcon('docs')}</span>
+        <h2 className={styles.sectionTitle}>Documents &amp; links</h2>
+      </div>
+      <div className={styles.docList}>
+        {docLinkPills.map((p) => (
           <a
-            className={`${styles.actionTile} ${styles.actionWashRust}`}
-            href={mapsDirectionsUrl}
+            key={p.id}
+            className={styles.docRow}
+            href={p.href}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={(e) => openMobileExternalUrl(mapsDirectionsUrl, e)}
+            onClick={(e) => openMobileExternalUrl(p.href, e)}
           >
-            {actionIcon('directions')}
-            <span>Directions</span>
+            <span className={styles.docRowIcon} aria-hidden>
+              {p.kind === 'document' ? (
+                <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
+                  <rect x="2" y="1.5" width="8" height="9" rx="1" stroke="currentColor" strokeWidth="1" />
+                  <path d="M4 4h4M4 6h3" stroke="currentColor" strokeWidth="0.9" strokeLinecap="round" />
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
+                  <path d="M5 3.5h3.5V7M8.5 3.5 3.5 8.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                </svg>
+              )}
+            </span>
+            <span className={styles.docRowLabel}>{p.label}</span>
+            <span className={styles.docRowChevron} aria-hidden>
+              ›
+            </span>
           </a>
-        ) : (
-          <span className={`${styles.actionTile} ${styles.actionWashRust}`} aria-disabled="true">
-            {actionIcon('directions')}
-            <span>Directions</span>
-          </span>
-        )}
-        {phoneNumber ? (
-          <a className={`${styles.actionTile} ${styles.actionWashRust}`} href={`tel:${phoneNumber}`}>
-            {actionIcon('call')}
-            <span>Call</span>
-          </a>
-        ) : (
-          <span className={`${styles.actionTile} ${styles.actionWashRust}`} aria-disabled="true">
-            {actionIcon('call')}
-            <span>Call</span>
-          </span>
-        )}
-        <button type="button" className={`${styles.actionTile} ${styles.actionWashRust}`} onClick={scrollToStay}>
-          {actionIcon('room')}
-          <span>Room details</span>
-        </button>
+        ))}
       </div>
+    </section>
+  ) : null;
+
+  const notesSection = hasNotes ? (
+    <section className={styles.sectionCard}>
+      <div className={styles.sectionHead}>
+        <span className={styles.sectionIcon}>{sectionIcon('notes')}</span>
+        <h2 className={styles.sectionTitle}>Notes</h2>
+      </div>
+      <div className={styles.notesBody}>
+        <RichTextContent html={entry.notes} />
+      </div>
+    </section>
+  ) : null;
+
+  return (
+    <div
+      className={styles.root}
+      data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}
+    >
+      <section className={styles.overviewCard}>
+        <div className={styles.overviewMain}>
+          <div className={styles.heroPhotoWrap}>
+            <img className={styles.heroPhoto} src={heroSrc} alt="" />
+            <span className={`${styles.heroPhotoBadge} th-cat-${slug}`} aria-hidden>
+              <CategoryIcon category={entry.category} size={18} color="white" />
+            </span>
+          </div>
+          <div className={styles.heroCopy}>
+            <div className={styles.heroTitleRow}>
+              <h1 className={styles.title}>{entry.title}</h1>
+              {canEdit ? <MobilePencilButton onClick={onEdit} ariaLabel="Edit accommodation" /> : null}
+            </div>
+            <div className={styles.chips}>
+              <span className={`${styles.chip} ${styles.chipCat} th-cat-${slug}`}>
+                {chipIcon('star')}
+                {entry.category}
+              </span>
+              <span className={`${styles.chip} ${styles.chipStatus}`}>
+                {chipIcon('dot')}
+                {formatDisplayLabel(entry.decisionStatus)}
+              </span>
+            </div>
+            {locationLabel ? (
+              <p className={styles.locationLine}>
+                <svg width="11" height="11" viewBox="0 0 12 14" fill="none" aria-hidden>
+                  <path d="M6 1C3.79 1 2 2.79 2 5c0 3 4 8 4 8s4-5 4-8c0-2.21-1.79-4-4-4z" fill="currentColor" />
+                </svg>
+                {locationLabel}
+              </p>
+            ) : null}
+            {streetLabel && streetLabel !== locationLabel ? <p className={styles.streetLine}>{streetLabel}</p> : null}
+          </div>
+        </div>
+
+        <div className={styles.actionGrid}>
+          {booked ? (
+            confirmationDoc?.fileUrl ? (
+              <a
+                className={`${styles.actionTile} ${styles.actionPrimary}`}
+                href={confirmationDoc.fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => openMobileExternalUrl(confirmationDoc.fileUrl, e)}
+              >
+                {actionIcon('booking')}
+                <span>Open booking</span>
+              </a>
+            ) : (
+              <span className={`${styles.actionTile} ${styles.actionOutline}`} aria-disabled="true">
+                {actionIcon('booking')}
+                <span>Open booking</span>
+              </span>
+            )
+          ) : (
+            <button type="button" className={`${styles.actionTile} ${styles.actionPrimary}`} onClick={onBookNow}>
+              {actionIcon('booking')}
+              <span>Book now</span>
+            </button>
+          )}
+          {mapsDirectionsUrl ? (
+            <a
+              className={`${styles.actionTile} ${styles.actionOutline}`}
+              href={mapsDirectionsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => openMobileExternalUrl(mapsDirectionsUrl, e)}
+            >
+              {actionIcon('directions')}
+              <span>Directions</span>
+            </a>
+          ) : (
+            <span className={`${styles.actionTile} ${styles.actionOutline}`} aria-disabled="true">
+              {actionIcon('directions')}
+              <span>Directions</span>
+            </span>
+          )}
+          {phoneNumber ? (
+            <a className={`${styles.actionTile} ${styles.actionOutline}`} href={`tel:${phoneNumber}`}>
+              {actionIcon('call')}
+              <span>Call</span>
+            </a>
+          ) : (
+            <span className={`${styles.actionTile} ${styles.actionOutline}`} aria-disabled="true">
+              {actionIcon('call')}
+              <span>Call</span>
+            </span>
+          )}
+          <button type="button" className={`${styles.actionTile} ${styles.actionOutline}`} onClick={scrollToStay}>
+            {actionIcon('room')}
+            <span>Room details</span>
+          </button>
+        </div>
+      </section>
 
       {(data.nights > 0 || data.checkInDate || data.checkOutDate) && (
         <section className={styles.staySummary}>
@@ -278,8 +431,10 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
                   />
                 </svg>
               </span>
-              <span className={styles.summaryValue}>{data.nights} night{data.nights === 1 ? '' : 's'}</span>
-              <span className={styles.summaryLabel}>Stay duration</span>
+              <span className={styles.summaryValue}>
+                {data.nights} night{data.nights === 1 ? '' : 's'}
+              </span>
+              <span className={styles.summaryLabel}>Length of stay</span>
             </div>
           ) : null}
           {data.checkInDate ? (
@@ -288,7 +443,6 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <rect x="2.5" y="3.5" width="11" height="10" rx="1.2" stroke="currentColor" strokeWidth="1.2" />
                   <path d="M5.5 2v2M10.5 2v2M2.5 7h11" stroke="currentColor" strokeWidth="1.2" />
-                  <path d="M8 9v2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
                 </svg>
               </span>
               <span className={styles.summaryMetaLabel}>Check-in</span>
@@ -301,7 +455,6 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <rect x="2.5" y="3.5" width="11" height="10" rx="1.2" stroke="currentColor" strokeWidth="1.2" />
                   <path d="M5.5 2v2M10.5 2v2M2.5 7h11" stroke="currentColor" strokeWidth="1.2" />
-                  <path d="M8 7.5V10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
                 </svg>
               </span>
               <span className={styles.summaryMetaLabel}>Check-out</span>
@@ -311,113 +464,16 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
         </section>
       )}
 
-      {canSeeFinancials && (bookingRow1.length || bookingRow2.length) ? (
-        <section className={styles.sectionCard}>
-          <div className={styles.sectionHead}>
-            <span className={styles.sectionIcon}>{sectionIcon('wallet')}</span>
-            <h2 className={styles.sectionTitle}>Booking &amp; payment</h2>
-          </div>
-          <GridRow cells={bookingRow1} bordered />
-          {bookingRow1.length && bookingRow2.length ? <div className={styles.rowDivider} /> : null}
-          <GridRow cells={bookingRow2} bordered />
-          {extraRow.length ? (
-            <>
-              <div className={styles.rowDivider} />
-              <GridRow cells={extraRow} bordered />
-            </>
-          ) : null}
-        </section>
-      ) : null}
-
-      {!canSeeFinancials && (entry.bookingReference || entry.supplier) ? (
-        <section className={styles.sectionCard}>
-          <div className={styles.sectionHead}>
-            <span className={styles.sectionIcon}>{sectionIcon('wallet')}</span>
-            <h2 className={styles.sectionTitle}>Booking &amp; payment</h2>
-          </div>
-          <GridRow
-            bordered
-            cells={[
-              ...(entry.bookingReference ? [{ label: 'Booking reference', value: entry.bookingReference }] : []),
-              ...(entry.supplier ? [{ label: 'Supplier', value: entry.supplier }] : [])
-            ]}
-          />
-        </section>
-      ) : null}
-
-      <section className={styles.sectionCard} id="stay-details" ref={stayRef}>
-        <div className={styles.sectionHead}>
-          <span className={styles.sectionIcon}>{sectionIcon('bed')}</span>
-          <h2 className={styles.sectionTitle}>Stay details</h2>
+      <div className={styles.detailColumns}>
+        <div className={styles.detailCol}>
+          {bookingSection}
+          {docsSection}
         </div>
-        <GridRow cells={data.stayGrid} bordered />
-        {data.perks ? (
-          <div className={styles.subDetailRow}>
-            <span className={styles.perksIcon} aria-hidden>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <path d="M8 2.5 9.8 6.2 14 6.7l-3 2.6.9 3.9L8 11.2 4.1 13.2l.9-3.9-3-2.6 4.2-.5L8 2.5Z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
-              </svg>
-            </span>
-            <div>
-              <span className={styles.gridLabel}>Perks</span>
-              <p className={styles.subDetailText}>{data.perks}</p>
-            </div>
-          </div>
-        ) : null}
-        {data.cancellation ? (
-          <div className={styles.subDetailRow}>
-            <span className={styles.cancelIcon} aria-hidden>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <path d="M8 1.5 2.5 3v5c0 3.5 2.8 5.8 5.5 6.5C10.7 13.8 13.5 11.5 13.5 8V3L8 1.5Z" stroke="currentColor" strokeWidth="1.2" />
-                <path d="M5.5 8.2 7.2 10l3.3-3.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-              </svg>
-            </span>
-            <div>
-              <span className={styles.gridLabel}>Cancellation</span>
-              <p className={styles.subDetailText}>{data.cancellation}</p>
-            </div>
-          </div>
-        ) : null}
-      </section>
-
-      {docLinkPills.length ? (
-        <section className={styles.sectionCard}>
-          <div className={styles.sectionHead}>
-            <span className={styles.sectionIcon}>{sectionIcon('docs')}</span>
-            <h2 className={styles.sectionTitle}>Documents &amp; links</h2>
-          </div>
-          <div className={styles.docPillRow}>
-            {docLinkPills.map((p) => (
-              <a
-                key={p.id}
-                className={styles.docPill}
-                href={p.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => openMobileExternalUrl(p.href, e)}
-              >
-                {p.kind === 'document' ? (
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
-                    <rect x="2" y="1.5" width="8" height="9" rx="1" stroke="currentColor" strokeWidth="1" />
-                    <path d="M4 4h4M4 6h3" stroke="currentColor" strokeWidth="0.9" strokeLinecap="round" />
-                  </svg>
-                ) : (
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
-                    <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1" />
-                    <path d="M4.5 6h3M6 4.5v3" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
-                  </svg>
-                )}
-                {p.label}
-                {p.kind === 'link' ? (
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
-                    <path d="M3.5 1.5h5v5M8.5 1.5 1.5 8.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-                  </svg>
-                ) : null}
-              </a>
-            ))}
-          </div>
-        </section>
-      ) : null}
+        <div className={styles.detailCol}>
+          {staySection}
+          {notesSection}
+        </div>
+      </div>
 
       {(entry.subItems ?? []).length > 0 ? (
         <section className={styles.sectionCard}>
@@ -434,7 +490,9 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
               >
                 <span className={styles.plannedTitle}>{sub.title}</span>
                 <span className={styles.plannedMeta}>
-                  {[sub.startTime ? formatTimeHHMM(sub.startTime) : '', sub.category || 'Activity'].filter(Boolean).join(' · ')}
+                  {[sub.startTime ? formatTimeHHMM(sub.startTime) : '', sub.category || 'Activity']
+                    .filter(Boolean)
+                    .join(' · ')}
                 </span>
                 <span aria-hidden>›</span>
               </button>
@@ -443,19 +501,7 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
         </section>
       ) : null}
 
-      {hasNotes ? (
-        <section className={styles.sectionCard}>
-          <div className={styles.sectionHead}>
-            <span className={styles.sectionIcon}>{sectionIcon('notes')}</span>
-            <h2 className={styles.sectionTitle}>Notes</h2>
-          </div>
-          <div className={styles.notesBody}>
-            <RichTextContent html={entry.notes} />
-          </div>
-        </section>
-      ) : null}
-
       <MobileDetailAiPanel entry={entry} hint="Accommodation and stay logistics." />
-    </>
+    </div>
   );
 };

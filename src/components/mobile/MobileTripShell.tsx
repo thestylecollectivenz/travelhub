@@ -365,13 +365,41 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
       body = (
         <MobileBookPage
           destinationHint={trip?.destination || trip?.title || ''}
-          showTitle
+          showTitle={false}
         />
       );
       break;
     default:
       body = <MobileDayView onOpenMembers={handleOpenMembers} onAskAi={handleAskAi} onDetailChange={handleDetailChange} />;
   }
+
+  const pageChrome = React.useMemo(() => {
+    if (cardDetailOpen) {
+      return {
+        title: trip?.title ?? 'Trip',
+        subtitle: undefined as string | undefined,
+        tripName: undefined as string | undefined
+      };
+    }
+    const tripLabel = trip?.title || undefined;
+    switch (tab) {
+      case 'journal':
+        return { title: 'Journal', subtitle: 'Entries and photos from your trip', tripName: tripLabel };
+      case 'lists':
+      case 'tasks':
+        return { title: 'Lists', subtitle: 'Packing, shopping, tasks, and trip ideas', tripName: tripLabel };
+      case 'map':
+        return { title: 'Map', subtitle: 'Transport stops and your route across the trip', tripName: tripLabel };
+      case 'book':
+        return {
+          title: 'Book',
+          subtitle: 'Search partner sites for stays, flights, tours and more.',
+          tripName: tripLabel
+        };
+      default:
+        return { title: 'Itinerary', subtitle: 'Your day-by-day plan', tripName: tripLabel };
+    }
+  }, [cardDetailOpen, tab, trip?.title]);
 
   return (
     <div
@@ -380,7 +408,9 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
     >
       <MobileBrandHeader
         navRow={renderHeaderBack()}
-        title={trip?.title ?? 'Trip'}
+        title={pageChrome.title}
+        subtitle={pageChrome.subtitle}
+        tripName={pageChrome.tripName}
         actions={
           <button
             type="button"

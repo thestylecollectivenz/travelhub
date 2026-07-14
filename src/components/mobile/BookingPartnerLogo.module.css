@@ -16,6 +16,21 @@
   height: 2rem;
 }
 
+.logoXl {
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 1rem;
+}
+
+.logoXl .img {
+  width: 88%;
+  height: 88%;
+}
+
+.logoXl .fallback {
+  font-size: 1.1rem;
+}
+
 .img {
   width: 70%;
   height: 70%;
@@ -27,6 +42,11 @@
   font-size: 0.62rem;
   font-weight: 800;
   color: #1e2a44;
+}
+
+[data-shell='ipad-portrait'] .logoXl {
+  width: 5.75rem;
+  height: 5.75rem;
 }
 
 [data-shell='ipad-portrait'] .logo {

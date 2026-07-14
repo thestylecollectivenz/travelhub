@@ -17,9 +17,6 @@ export const MobileJournalView: React.FC = () => {
 
   return (
     <div data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}>
-      <h1 className={chrome.pageTitle}>Journal</h1>
-      <p className={chrome.pageSub}>Entries and photos from your trip</p>
-
       <div className={chrome.segmented} role="tablist" aria-label="Journal or photos">
         <button
           type="button"

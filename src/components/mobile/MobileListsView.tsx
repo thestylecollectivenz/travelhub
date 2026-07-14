@@ -88,9 +88,6 @@ const MobileListsBody: React.FC = () => {
 
   return (
     <div data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}>
-      <h1 className={chrome.pageTitle}>Lists</h1>
-      <p className={chrome.pageSub}>Packing, shopping, tasks, and trip ideas</p>
-
       <div className={segmentClass} role="tablist" aria-label="List type">
         <button
           type="button"

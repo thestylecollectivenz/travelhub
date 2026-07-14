@@ -378,7 +378,7 @@
 .dayHeaderLine {
   margin: 0;
   font-family: var(--tl-serif, Georgia, 'Palatino Linotype', Palatino, serif);
-  font-size: 1.75rem;
+  font-size: 1.35rem;
   font-weight: 600;
   color: var(--tl-navy);
   line-height: 1.2;
@@ -396,25 +396,48 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 1.22rem;
+  font-size: 1.05rem;
   color: var(--tl-rust);
   font-weight: 650;
-  margin-top: 0.25rem;
+  margin-top: 0.2rem;
 }
 
 .weatherChip {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  max-width: 10rem;
-  padding: 0.4rem 0.65rem;
-  border-radius: 999px;
+  gap: 0.55rem;
+  max-width: 12rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 1rem;
   background: color-mix(in srgb, white 90%, var(--tl-cream));
   border: 1px solid var(--tl-line);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--tl-navy) 5%, transparent);
   cursor: pointer;
   font: inherit;
+  text-align: left;
+}
+
+.weatherChipWide {
+  max-width: 14.5rem;
+  min-width: 11rem;
+  padding: 0.55rem 0.8rem;
+  gap: 0.65rem;
+  align-items: flex-start;
+}
+
+.weatherChipCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.weatherHiLo {
+  font-size: 0.68rem;
+  font-weight: 650;
+  color: var(--tl-muted, #6b6570);
+  line-height: 1.2;
 }
 
 .weatherIcon {
@@ -424,17 +447,31 @@
 
 .weatherText {
   color: var(--tl-navy);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 700;
   line-height: 1.25;
 }
 
 [data-shell='ipad-portrait'] .dayHeaderLine {
-  font-size: 2.15rem;
+  font-size: 1.65rem;
 }
 
 [data-shell='ipad-portrait'] .dayHeaderPlace {
-  font-size: 1.4rem;
+  font-size: 1.15rem;
+}
+
+[data-shell='ipad-portrait'] .weatherChipWide {
+  max-width: 16.5rem;
+  min-width: 13rem;
+  padding: 0.7rem 0.95rem;
+}
+
+[data-shell='ipad-portrait'] .weatherText {
+  font-size: 0.92rem;
+}
+
+[data-shell='ipad-portrait'] .weatherHiLo {
+  font-size: 0.78rem;
 }
 
 /* ─── Location strip ──────────────────────────────────────────────── */

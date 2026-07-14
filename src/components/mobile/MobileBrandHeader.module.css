@@ -111,6 +111,15 @@
   color: var(--tl-muted);
 }
 
+.tripName {
+  margin: 0.15rem 0 0.25rem;
+  font-family: var(--tl-serif);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--tl-navy) 72%, var(--tl-muted));
+  line-height: 1.25;
+}
+
 [data-shell='ipad-portrait'] .root {
   padding-top: max(1.35rem, env(safe-area-inset-top, 0));
 }
@@ -126,6 +135,10 @@
 
 [data-shell='ipad-portrait'] .pageTitle {
   font-size: 1.85rem;
+}
+
+[data-shell='ipad-portrait'] .tripName {
+  font-size: 1.05rem;
 }
 
 [data-shell='ipad-portrait'] .navRow {

@@ -155,7 +155,12 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   const [aiPrompt, setAiPrompt] = React.useState('');
   const [adding, setAdding] = React.useState(false);
   const [dayPickOpen, setDayPickOpen] = React.useState(false);
-  const [weatherLabel, setWeatherLabel] = React.useState('');
+  const [weatherSummary, setWeatherSummary] = React.useState<{
+    label: string;
+    conditions: string;
+    hiLo: string;
+    precip?: string;
+  } | null>(null);
   const [weatherIconCode, setWeatherIconCode] = React.useState('');
   const [weatherOpen, setWeatherOpen] = React.useState(false);
 
@@ -291,7 +296,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     const lng = Number(primaryPlace?.longitude);
     const ymd = (day?.calendarDate || '').slice(0, 10);
     if (!key || !primaryPlace || !Number.isFinite(lat) || !Number.isFinite(lng) || !ymd) {
-      setWeatherLabel('');
+      setWeatherSummary(null);
       setWeatherIconCode('');
       return;
     }
@@ -305,19 +310,32 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
         if (cancelled) return;
         const row = (data.days ?? [])[0] ?? {};
         const temp = Number(row.temp ?? row.tempmax);
+        const high = Number(row.tempmax);
+        const low = Number(row.tempmin);
         const conditions = String(row.conditions ?? '').trim();
-        if (!Number.isFinite(temp) && !conditions) {
-          setWeatherLabel('');
+        const precip = Number(row.precipprob ?? row.precip);
+        if (!Number.isFinite(temp) && !conditions && !Number.isFinite(high)) {
+          setWeatherSummary(null);
           setWeatherIconCode('');
           return;
         }
         const tempPart = Number.isFinite(temp) ? `${Math.round(temp)}${unitSuffix}` : '';
-        setWeatherLabel([tempPart, conditions].filter(Boolean).join(' '));
+        const hiLoParts: string[] = [];
+        if (Number.isFinite(high)) hiLoParts.push(`H ${Math.round(high)}${unitSuffix}`);
+        if (Number.isFinite(low)) hiLoParts.push(`L ${Math.round(low)}${unitSuffix}`);
+        const precipPart =
+          Number.isFinite(precip) && precip > 0 ? `${Math.round(precip)}% rain` : undefined;
+        setWeatherSummary({
+          label: [tempPart, conditions].filter(Boolean).join(' ') || hiLoParts.join(' · '),
+          conditions: conditions || 'Forecast',
+          hiLo: hiLoParts.join(' · '),
+          precip: precipPart
+        });
         setWeatherIconCode(String(row.icon ?? ''));
       })
       .catch(() => {
         if (!cancelled) {
-          setWeatherLabel('');
+          setWeatherSummary(null);
           setWeatherIconCode('');
         }
       });
@@ -653,17 +671,21 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
             </div>
           ) : null}
         </div>
-        {weatherLabel && primaryPlace ? (
+        {weatherSummary && primaryPlace ? (
           <button
             type="button"
-            className={styles.weatherChip}
-            aria-label={`Weather ${weatherLabel}. Tap for full forecast.`}
+            className={`${styles.weatherChip} ${styles.weatherChipWide}`}
+            aria-label={`Weather ${weatherSummary.label}. Tap for full forecast.`}
             onClick={() => setWeatherOpen(true)}
           >
             <span className={styles.weatherIcon} aria-hidden>
-              <WeatherIcon iconCode={weatherIconCode || 'cloudy'} size={18} />
+              <WeatherIcon iconCode={weatherIconCode || 'cloudy'} size={shellMode === 'ipad-portrait' ? 36 : 28} />
             </span>
-            <span className={styles.weatherText}>{weatherLabel}</span>
+            <span className={styles.weatherChipCopy}>
+              <span className={styles.weatherText}>{weatherSummary.label}</span>
+              {weatherSummary.hiLo ? <span className={styles.weatherHiLo}>{weatherSummary.hiLo}</span> : null}
+              {weatherSummary.precip ? <span className={styles.weatherHiLo}>{weatherSummary.precip}</span> : null}
+            </span>
           </button>
         ) : null}
       </div>
