@@ -1,11 +1,15 @@
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { Place } from '../models/Place';
+import { DayService } from '../services/DayService';
 import { ItineraryService } from '../services/ItineraryService';
+import { PlaceService } from '../services/PlaceService';
+import { TripService } from '../services/TripService';
 import { formatGeminiUserMessage } from '../services/geminiErrorMessage';
 import { answerLocationQuestion, generateDiningSuggestions, generateLocationInfo, generateNearestPlaces } from '../services/GeminiService';
 import { emitLocationInfoAIStatus } from './locationInfoAIEvents';
 import { resolveLocationSearchContext } from './locationGeoContext';
+import { buildLocationPlaceAiContext } from './buildTripDayAiContext';
 import {
   type LocationInfoMergeSection,
   type LocationInfoNotes,
@@ -16,7 +20,8 @@ import {
   parseLocationInfoNotes,
   placeNameAndCountry,
   serializeLocationInfoNotes,
-  locationInfoIsPopulated
+  locationInfoIsPopulated,
+  isLocationInfoEntry
 } from './locationInfoEntry';
 import { buildCanonicalLocationInfoByPlaceId } from './locationInfoDayResolve';
 
@@ -50,6 +55,34 @@ async function resolveCanonicalLocationEntry(
   }
 }
 
+async function loadLocationQaTripContext(
+  spContext: WebPartContext,
+  tripId: string,
+  place: Place
+): Promise<string> {
+  try {
+    const [trip, tripDays, entries, places] = await Promise.all([
+      new TripService(spContext).getById(tripId),
+      new DayService(spContext).getAll(tripId),
+      new ItineraryService(spContext).getAll(tripId),
+      new PlaceService(spContext).getAll()
+    ]);
+    const placeMap = new Map(places.map((p) => [p.id, p]));
+    return buildLocationPlaceAiContext({
+      trip,
+      tripDays,
+      entries: entries.filter((e) => !isLocationInfoEntry(e)),
+      place,
+      placeForDay: (day) => {
+        const pid = day.primaryPlaceId;
+        return pid ? placeMap.get(pid) : undefined;
+      }
+    });
+  } catch {
+    return '';
+  }
+}
+
 export async function applyLocationInfoAIResult(options: {
   spContext: WebPartContext;
   entry: ItineraryEntry;
@@ -77,12 +110,13 @@ export async function applyLocationInfoQuestion(options: {
 }): Promise<LocationInfoNotes> {
   const { spContext, entry, existing, apiKey, place, question } = options;
   const { placeName, country } = placeNameAndCountry(place);
-  const contextSummary = [
+  const notesBits = [
     existing.overview.trim() ? `Overview: ${existing.overview.trim()}` : '',
-    existing.practicalTips.trim() ? `Practical tips: ${existing.practicalTips.trim()}` : ''
-  ]
-    .filter(Boolean)
-    .join('\n');
+    existing.practicalTips.trim() ? `Practical tips: ${existing.practicalTips.trim()}` : '',
+    (existing.userNotes || '').trim() ? `Traveller notes: ${(existing.userNotes || '').trim()}` : ''
+  ].filter(Boolean);
+  const itineraryContext = await loadLocationQaTripContext(spContext, entry.tripId, place);
+  const contextSummary = [itineraryContext, notesBits.join('\n')].filter(Boolean).join('\n\n');
   const { answer, model } = await answerLocationQuestion(placeName, country, question, {
     apiKey,
     contextSummary

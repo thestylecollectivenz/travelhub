@@ -7,6 +7,9 @@ import { isPreTripDayRow, resolvePreTripDayId, sortEntriesForDay } from './itine
 import type { Place } from '../models/Place';
 import { formatYmdDisplay } from './localDate';
 import { localTodayYmd } from './taskDueBuckets';
+import { collectPlaceIdsForDay } from './locationInfoDayResolve';
+import { findStayTileForDay } from './mobileDayStay';
+import { isLocationInfoEntry } from './locationInfoEntry';
 
 function seasonLabel(calendarDate: string, hemisphere: 'north' | 'south'): string | undefined {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(calendarDate);
@@ -85,6 +88,7 @@ function summarizeEntryForAi(entry: ItineraryEntry): string {
   if (start && end) parts.push(`${start}–${end}`);
   else if (start) parts.push(start);
   if (entry.location?.trim()) parts.push(`@ ${formatLocationText(entry.location.trim())}`);
+  if (entry.streetAddress?.trim()) parts.push(`address: ${entry.streetAddress.trim()}`);
   parts.push(formatPlanningStatus(entry));
   const options = (entry.subItems ?? []).filter((s) => (s.title || '').trim());
   if (options.length) {
@@ -217,6 +221,108 @@ export function buildTripDayAiContext(options: {
     daySpecific
       ? 'When answering, use the CURRENT FOCUS day, calendar date, and location — the traveller may change day between messages. Tailor advice to what is already planned on that day.'
       : 'Answer at trip level using the full outline above unless the traveller asks about a specific day.'
+  );
+
+  return lines.join('\n');
+}
+
+/**
+ * Context for Location Info Q&A about a specific place — hotels/stays and plans
+ * for every day at that place, plus a full trip outline (same grounding idea as the AI helper).
+ */
+export function buildLocationPlaceAiContext(options: {
+  trip: Trip;
+  tripDays: TripDay[];
+  entries: ItineraryEntry[];
+  place: Place;
+  placeForDay?: (day: TripDay) => Pick<Place, 'title' | 'country'> | undefined;
+}): string {
+  const { trip, tripDays, entries, place, placeForDay } = options;
+  const placeLabel = placeDisplayLabel(place);
+  const lines: string[] = [];
+
+  lines.push(`Trip: ${trip.title || 'Untitled'}`);
+  if (trip.destination?.trim()) lines.push(`Destination: ${trip.destination.trim()}`);
+  if (trip.dateStart && trip.dateEnd) {
+    lines.push(`Trip dates: ${trip.dateStart.slice(0, 10)} to ${trip.dateEnd.slice(0, 10)}`);
+  }
+  lines.push(`Place this question is about: ${placeLabel}`);
+  lines.push('');
+
+  const daysAtPlace = tripDays
+    .filter((d) => d.tripId === trip.id)
+    .filter((d) => collectPlaceIdsForDay(d).indexOf(place.id) >= 0)
+    .sort((a, b) => a.dayNumber - b.dayNumber);
+
+  const staySeen = new Set<string>();
+  const stayLines: string[] = [];
+  const planLines: string[] = [];
+  const preTripDayId = resolvePreTripDayId(tripDays, trip.id);
+
+  for (const d of daysAtPlace) {
+    const date = d.calendarDate?.slice(0, 10) ?? '';
+    const stay = findStayTileForDay(entries, date);
+    if (stay && !staySeen.has(stay.entry.id)) {
+      staySeen.add(stay.entry.id);
+      const kind = stay.mode === 'cruise' ? 'Cruise / ship stay' : 'Hotel / accommodation';
+      const name = (stay.entry.title || '').trim() || kind;
+      const addr = (stay.entry.streetAddress || stay.entry.location || '').trim();
+      const dates =
+        stay.mode === 'cruise'
+          ? [stay.entry.embarksDate, stay.entry.disembarksDate]
+              .map((x) => (x || '').slice(0, 10))
+              .filter(Boolean)
+              .join(' → ')
+          : [stay.entry.dateStart, stay.entry.dateEnd]
+              .map((x) => (x || '').slice(0, 10))
+              .filter(Boolean)
+              .join(' → ');
+      stayLines.push(
+        `- ${kind}: ${name}${addr ? ` · ${addr}` : ''}${dates ? ` · ${dates}` : ''} (${formatPlanningStatus(stay.entry)})`
+      );
+    }
+
+    const dayEntries = sortEntriesForDay(
+      entries,
+      d.id,
+      d.calendarDate || '',
+      d.dayType,
+      preTripDayId,
+      isPreTripDayRow(d),
+      tripDays
+    ).filter((e) => !isLocationInfoEntry(e));
+
+    if (dayEntries.length) {
+      planLines.push(
+        `Day ${d.dayNumber}${date ? ` (${date})` : ''} — ${(d.displayTitle || 'Untitled').trim()}:`
+      );
+      dayEntries.forEach((e) => planLines.push(`  - ${summarizeEntryForAi(e)}`));
+    }
+  }
+
+  lines.push('Our stay for this place (use this when the traveller says “our hotel”, “the hotel”, or “our stay”):');
+  if (stayLines.length) {
+    stayLines.forEach((l) => lines.push(l));
+  } else {
+    lines.push('- (no hotel or cruise stay linked on days at this place yet)');
+  }
+
+  lines.push('');
+  lines.push('Plans and itinerary items on days at this place:');
+  if (planLines.length) {
+    planLines.forEach((l) => lines.push(l));
+  } else {
+    lines.push('- (nothing scheduled on days at this place yet)');
+  }
+
+  if (tripDays.length) {
+    lines.push('');
+    lines.push(...buildFullItineraryOutline(trip, tripDays, entries, placeForDay ?? (() => undefined)));
+  }
+
+  lines.push('');
+  lines.push(
+    'When answering: treat the stay listed above as their hotel/ship for this place. Use planned items by day. Prefer concrete advice relative to their hotel and schedule. Do not invent a different hotel name.'
   );
 
   return lines.join('\n');

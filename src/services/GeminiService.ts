@@ -280,10 +280,10 @@ function buildQuestionPrompt(
   question: string,
   contextSummary: string
 ): string {
-  return `You are a travel assistant. Answer the traveller's question about a specific place.
+  return `You are a travel assistant for a traveller who already has a trip itinerary. Answer their question about a specific place using the trip context when relevant.
 
 Place: ${placeName}, ${country}
-${contextSummary ? `Existing trip notes:\n${contextSummary}\n` : ''}
+${contextSummary ? `Trip + location context (authoritative — includes their hotel/stay and plans):\n${contextSummary}\n` : ''}
 Question: ${question}
 
 Respond with ONLY a JSON object:
@@ -291,7 +291,10 @@ Respond with ONLY a JSON object:
 
 Rules:
 - Factual and practical; no marketing fluff
-- If unsure, say what is uncertain and suggest how to verify
+- If the question mentions “our hotel”, “the hotel”, “our stay”, or similar, use the accommodation/cruise stay named in the trip context — never invent a different hotel
+- Prefer answers that fit their planned itinerary for this place (times, bookings status, nearby stays)
+- If trip context has no hotel listed, say that clearly rather than guessing a hotel name
+- If unsure about local facts, say what is uncertain and suggest how to verify
 - No markdown, no code fences`;
 }
 
@@ -339,7 +342,7 @@ export async function answerLocationQuestion(
           ],
           generationConfig: {
             temperature: 0.5,
-            maxOutputTokens: 500
+            maxOutputTokens: 700
           }
         })
       });
