@@ -17,7 +17,7 @@ import {
   type NearestPlaceRow
 } from '../../utils/locationInfoEntry';
 import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
-import { explorePlacePhotoUrl, destinationHeroPhotoUrl } from '../../utils/explorePlacePhoto';
+import { destinationHeroPhotoUrl } from '../../utils/explorePlacePhoto';
 import {
   exploreCategoriesSorted,
   type ExploreCategoryId
@@ -370,10 +370,7 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
           <div
             className={styles.overviewPhoto}
             style={{
-              backgroundImage: `url(${explorePlacePhotoUrl(
-                shortPlace,
-                place?.country || place?.title || shortPlace
-              )})`
+              backgroundImage: `url(${destinationHeroPhotoUrl(shortPlace, place?.country)})`
             }}
             role="img"
             aria-label={`${shortPlace} photo`}
@@ -584,7 +581,8 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
                           primaryAction={
                             canEditSavedPlaces
                               ? {
-                                  label: 'Remove',
+                                  label: 'Delete',
+                                  kind: 'delete',
                                   onClick: () => removeSavedCard(card)
                                 }
                               : undefined
@@ -649,6 +647,12 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
           <p className={styles.empty}>Practical tips will appear here once generated or edited.</p>
         )}
       </section>
+
+      <MobileLocationTravelTip
+        placeLabel={shortPlace}
+        existingTipHtml={data.practicalTips}
+        startingPointLabel={stayName}
+      />
     </div>
   );
 };
