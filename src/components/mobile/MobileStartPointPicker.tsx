@@ -100,7 +100,7 @@ export const MobileStartPointPicker: React.FC<MobileStartPointPickerProps> = ({
     const map = L.map(el, { zoomControl: true, attributionControl: false });
     mapRef.current = map;
     addTiles(map);
-    map.setView([initialLat, initialLng], 14);
+    map.setView([initialLat, initialLng], 16);
     placeMarker(map, initialLat, initialLng);
 
     const onClick = (ev: L.LeafletMouseEvent): void => {

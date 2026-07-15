@@ -60,22 +60,15 @@
   -webkit-overflow-scrolling: touch;
 }
 
-.textarea {
+.editorWrap {
   width: 100%;
-  min-height: 16rem;
   border: 1px solid color-mix(in srgb, #1e2a44 14%, transparent);
   border-radius: 0.85rem;
-  padding: 0.85rem 0.95rem;
-  font-size: 1rem;
-  line-height: 1.55;
-  color: #3a3025;
   background: white;
-  resize: vertical;
-  font-family: inherit;
+  overflow: hidden;
   box-sizing: border-box;
 }
 
-[data-shell='ipad-portrait'] .textarea {
-  font-size: 1.05rem;
+[data-shell='ipad-portrait'] .editorWrap {
   min-height: 20rem;
 }

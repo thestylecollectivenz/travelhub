@@ -27,6 +27,8 @@ export interface MobileNearYouResultsProps {
   place?: Place;
   locationEntryId?: string;
   locationLabel?: string;
+  /** Map-picked search centre (force trip_place semantics). */
+  overrideCoords?: { lat: number; lng: number };
   onAddToItinerary?: (place: {
     name: string;
     note?: string;
@@ -98,12 +100,15 @@ export const MobileNearYouResults: React.FC<MobileNearYouResultsProps> = ({
   place,
   locationEntryId,
   locationLabel,
+  overrideCoords,
   onAddToItinerary,
   onSavePlace
 }) => {
   const { config } = useConfig();
   const tool = toolDef(toolId);
-  const cacheScope = locationEntryId ? nearYouScopeForLocation(locationEntryId) : nearYouScopeForHome();
+  const cacheScope = locationEntryId
+    ? nearYouScopeForLocation(locationEntryId, overrideCoords)
+    : nearYouScopeForHome();
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState('');
   const [view, setView] = React.useState<ViewMode>('list');
@@ -154,7 +159,8 @@ export const MobileNearYouResults: React.FC<MobileNearYouResultsProps> = ({
         if (place) {
           searchContext = await resolveLocationSearchContext(place, {
             onSiteKm: MOBILE_NEAR_YOU_ON_SITE_KM,
-            forceTripPlace: Boolean(locationEntryId)
+            forceTripPlace: Boolean(locationEntryId),
+            overrideCoords
           });
         } else {
           if (!navigator.geolocation) {

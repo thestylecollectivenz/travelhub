@@ -16,6 +16,7 @@ import { ItineraryCardEdit } from '../itinerary/ItineraryCardEdit';
 import { MobileLocationInfoContent } from './MobileLocationInfoContent';
 import { MobileLocationHighlightsEdit } from './MobileLocationHighlightsEdit';
 import { MobileLocationNotesEdit } from './MobileLocationNotesEdit';
+import { MobileLocationOverviewEdit } from './MobileLocationOverviewEdit';
 import { MobileNearYouResults } from './MobileNearYouResults';
 import { MobileExplorePlacesView } from './MobileExplorePlacesView';
 import { MobileSavedPlacesView } from './MobileSavedPlacesView';
@@ -35,7 +36,7 @@ export interface MobileLocationInfoSheetProps {
   asPage?: boolean;
 }
 
-type Panel = 'main' | 'explore' | 'saved' | 'near' | 'highlights' | 'notes';
+type Panel = 'main' | 'explore' | 'saved' | 'near' | 'highlights' | 'notes' | 'overview';
 
 function isValidLatLng(lat: number, lng: number): boolean {
   return Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
@@ -59,6 +60,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   const [savedCategory, setSavedCategory] = React.useState<string | undefined>();
   const [nearActionMsg, setNearActionMsg] = React.useState('');
   const [startingPoint, setStartingPoint] = React.useState<StartPointSelection | null>(null);
+  const [startHistory, setStartHistory] = React.useState<Array<StartPointSelection | null>>([]);
   const [startPickerOpen, setStartPickerOpen] = React.useState(false);
 
   const stayCandidates = React.useMemo(() => {
@@ -196,8 +198,28 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
 
   React.useEffect(() => {
     setStartingPoint(null);
+    setStartHistory([]);
     setStartPickerOpen(false);
   }, [calendarDate, entry?.id]);
+
+  const pushStartingPoint = React.useCallback((next: StartPointSelection | null): void => {
+    setStartHistory((prev) => [...prev, startingPoint]);
+    setStartingPoint(next);
+  }, [startingPoint]);
+
+  const undoStartingPoint = React.useCallback((): void => {
+    setStartHistory((prev) => {
+      if (!prev.length) return prev;
+      const prior = prev[prev.length - 1];
+      setStartingPoint(prior);
+      return prev.slice(0, -1);
+    });
+  }, []);
+
+  const resetToAccommodation = React.useCallback((): void => {
+    if (startingPoint === null) return;
+    pushStartingPoint(null);
+  }, [startingPoint, pushStartingPoint]);
 
   if (!entry || !liveEntry) return null;
 
@@ -245,6 +267,10 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     );
   }
 
+  if (panel === 'overview') {
+    return <MobileLocationOverviewEdit entry={liveEntry} onBack={() => setPanel('main')} />;
+  }
+
   if (panel === 'notes') {
     return <MobileLocationNotesEdit entry={liveEntry} onBack={() => setPanel('main')} />;
   }
@@ -257,11 +283,20 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
         initialLabel={startingPoint?.label ?? startingPointLabel}
         onCancel={() => setStartPickerOpen(false)}
         onConfirm={(point) => {
-          setStartingPoint(point);
+          pushStartingPoint(point);
           setStartPickerOpen(false);
         }}
       />
     ) : null;
+
+  const startPointHandlers = {
+    onChangeStartingPoint: () => setStartPickerOpen(true),
+    onResetStartingPoint: resetToAccommodation,
+    onUndoStartingPoint: undoStartingPoint,
+    canUndoStartingPoint: startHistory.length > 0,
+    isCustomStartingPoint: startingPoint !== null,
+    accommodationLabel: stayCandidates[0] || undefined
+  };
 
   if (panel === 'near' && nearToolId) {
     return (
@@ -274,6 +309,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
                 place={place}
                 locationEntryId={entry.id}
                 locationLabel={title}
+                overrideCoords={overrideCoords}
                 tripTitle={trip?.title}
                 tripDateRange={
                   trip?.dateStart && trip?.dateEnd
@@ -308,8 +344,8 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
                 overrideCoords={overrideCoords}
                 initialCategory={exploreCategory}
                 onBack={closePanels}
-                onChangeStartingPoint={() => setStartPickerOpen(true)}
                 onSavePlace={canEditItinerary ? saveNearPlace : undefined}
+                {...startPointHandlers}
               />
               {nearActionMsg ? <p className={styles.nearFeedback}>{nearActionMsg}</p> : null}
             </div>
@@ -335,7 +371,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
                 initialCategory={savedCategory}
                 startingPointLabel={startingPointLabel}
                 onBack={closePanels}
-                onChangeStartingPoint={() => setStartPickerOpen(true)}
+                {...startPointHandlers}
               />
             </div>
           </div>,
@@ -355,7 +391,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
       canEditHighlights={canEditItinerary}
       calendarDate={calendarDate}
       startingPointLabel={startingPointLabel}
-      onChangeStartingPoint={() => setStartPickerOpen(true)}
+      onEditOverview={() => setPanel('overview')}
       onEditHighlights={() => setPanel('highlights')}
       onEditNotes={() => setPanel('notes')}
       onOpenNearTool={(toolId) => {
@@ -370,6 +406,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
         setSavedCategory(category);
         setPanel('saved');
       }}
+      {...startPointHandlers}
     />
   );
 

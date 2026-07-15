@@ -17,7 +17,7 @@ import {
   type NearestPlaceRow
 } from '../../utils/locationInfoEntry';
 import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
-import { placeQueryDirectionsUrl } from '../../utils/googleMapsLink';
+import { placeDirectionsFromHereUrl } from '../../utils/googleMapsLink';
 import { explorePlacePhotoUrl } from '../../utils/explorePlacePhoto';
 import {
   exploreCategoriesSorted,
@@ -30,6 +30,7 @@ import { LocationInfoAskPanel } from '../itinerary/LocationInfoAskPanel';
 import { NearYouToolIcon } from '../shared/NearYouToolIcon';
 import { LocationHighlightIcon } from './LocationHighlightIcon';
 import { MobilePencilButton } from './MobilePencilButton';
+import { MobileStartPointActions } from './MobileStartPointActions';
 import type { NearYouToolId } from '../../utils/nearYouTools';
 import styles from './MobileLocationInfoContent.module.css';
 
@@ -142,6 +143,7 @@ type FeaturedCard = {
   rating?: number;
   description?: string;
   distanceRaw?: string;
+  address?: string;
   mapsUrl?: string;
   city?: string;
   nearLabel?: string;
@@ -179,6 +181,7 @@ function buildFeaturedCards(data: LocationInfoNotes, city: string): FeaturedCard
         categoryLabel: kind.charAt(0).toUpperCase() + kind.slice(1),
         description: row.servicesSummary,
         distanceRaw: row.note,
+        address: row.address,
         mapsUrl: row.mapsUrl,
         city,
         nearLabel: row.nearLabel
@@ -196,10 +199,16 @@ export interface MobileLocationInfoContentProps {
   canEditHighlights?: boolean;
   onOpenNearTool?: (toolId: NearYouToolId) => void;
   onEditHighlights?: () => void;
+  onEditOverview?: () => void;
   onEditNotes?: () => void;
   onOpenExplore?: (category?: string) => void;
   onOpenSavedPlaces?: (category?: string) => void;
   onChangeStartingPoint?: () => void;
+  onResetStartingPoint?: () => void;
+  onUndoStartingPoint?: () => void;
+  canUndoStartingPoint?: boolean;
+  isCustomStartingPoint?: boolean;
+  accommodationLabel?: string;
   startingPointLabel?: string;
   calendarDate?: string;
 }
@@ -215,10 +224,16 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
   canEditHighlights = false,
   onOpenNearTool,
   onEditHighlights,
+  onEditOverview,
   onEditNotes,
   onOpenExplore,
   onOpenSavedPlaces,
   onChangeStartingPoint,
+  onResetStartingPoint,
+  onUndoStartingPoint,
+  canUndoStartingPoint,
+  isCustomStartingPoint,
+  accommodationLabel,
   startingPointLabel
 }) => {
   const { config } = useConfig();
@@ -363,8 +378,8 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
       <section className={styles.section}>
         <div className={styles.sectionHead}>
           <h3 className={styles.sectionTitle}>Overview</h3>
-          {canEditHighlights && onEditHighlights ? (
-            <MobilePencilButton onClick={onEditHighlights} ariaLabel="Edit overview and highlights" />
+          {canEditHighlights && onEditOverview ? (
+            <MobilePencilButton onClick={onEditOverview} ariaLabel="Edit overview" />
           ) : null}
         </div>
         {data.overview.trim() ? (
@@ -497,13 +512,18 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
             <p className={styles.startBannerText}>
               Showing places near <strong>{stayName}</strong>
             </p>
-            {onChangeStartingPoint ? (
-              <button type="button" className={styles.startBannerLink} onClick={onChangeStartingPoint}>
-                Change starting point
-              </button>
-            ) : (
-              <span className={styles.startBannerMuted}>Change starting point</span>
-            )}
+            <MobileStartPointActions
+              onChangeStartingPoint={onChangeStartingPoint}
+              onResetStartingPoint={onResetStartingPoint}
+              onUndoStartingPoint={onUndoStartingPoint}
+              canUndoStartingPoint={canUndoStartingPoint}
+              isCustomStartingPoint={isCustomStartingPoint}
+              accommodationLabel={accommodationLabel}
+              changeClassName={styles.startBannerLink}
+              mutedClassName={styles.startBannerMuted}
+              actionsClassName={styles.startBannerActions}
+              undoClassName={styles.startBannerUndo}
+            />
           </div>
         </div>
       </section>
@@ -554,7 +574,11 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
                   {open ? (
                     <div className={styles.featuredStrip}>
                       {group.cards.map((card) => {
-                        const directions = placeQueryDirectionsUrl(card.name) || card.mapsUrl;
+                        const directions = placeDirectionsFromHereUrl(
+                          card.name,
+                          card.address,
+                          shortPlace
+                        );
                         const dist = distanceDisplayWithWalk(
                           card.distanceRaw,
                           card.nearLabel || stayName

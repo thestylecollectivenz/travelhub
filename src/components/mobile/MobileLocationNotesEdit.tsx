@@ -7,7 +7,8 @@ import {
   parseLocationInfoNotes,
   serializeLocationInfoNotes
 } from '../../utils/locationInfoEntry';
-import { plainTextToEditorHtml, richTextToPlainText } from '../../utils/journalRichText';
+import { isRichTextEditorEmpty, plainTextToEditorHtml } from '../../utils/journalRichText';
+import { RichTextEditor } from '../journal/RichTextEditor';
 import { useShellMode } from '../../hooks/useShellMode';
 import styles from './MobileLocationNotesEdit.module.css';
 
@@ -21,12 +22,12 @@ export const MobileLocationNotesEdit: React.FC<MobileLocationNotesEditProps> = (
   const shellMode = useShellMode();
   const data = parseLocationInfoNotes(entry.notes);
   const [draft, setDraft] = React.useState(() =>
-    data ? richTextToPlainText(data.practicalTips || '') : ''
+    data ? plainTextToEditorHtml(data.practicalTips || '') : '<p><br></p>'
   );
 
   React.useEffect(() => {
     const parsed = parseLocationInfoNotes(entry.notes);
-    setDraft(parsed ? richTextToPlainText(parsed.practicalTips || '') : '');
+    setDraft(parsed ? plainTextToEditorHtml(parsed.practicalTips || '') : '<p><br></p>');
   }, [entry.id, entry.notes]);
 
   React.useEffect(() => {
@@ -39,11 +40,10 @@ export const MobileLocationNotesEdit: React.FC<MobileLocationNotesEditProps> = (
 
   if (!data) return null;
 
-  const persist = (plain: string): void => {
-    const html = plain.trim() ? plainTextToEditorHtml(plain.trim()) : '';
+  const persist = (html: string): void => {
     const next = normalizeLocationInfoNotes({
       ...data,
-      practicalTips: html,
+      practicalTips: isRichTextEditorEmpty(html) ? '' : html,
       userEditedPracticalTips: true
     });
     updateEntry({ ...entry, notes: serializeLocationInfoNotes(next) });
@@ -78,17 +78,16 @@ export const MobileLocationNotesEdit: React.FC<MobileLocationNotesEditProps> = (
           </button>
         </header>
         <div className={styles.body}>
-          <textarea
-            className={styles.textarea}
-            value={draft}
-            onChange={(e) => {
-              setDraft(e.target.value);
-              persist(e.target.value);
-            }}
-            placeholder="Practical tips for this place…"
-            rows={12}
-            aria-label="Notes"
-          />
+          <div className={styles.editorWrap}>
+            <RichTextEditor
+              value={draft}
+              onChange={(html) => {
+                setDraft(html);
+                persist(html);
+              }}
+              minHeight="16rem"
+            />
+          </div>
         </div>
       </div>
     </div>,

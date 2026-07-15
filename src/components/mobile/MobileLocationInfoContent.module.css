@@ -209,10 +209,10 @@
   gap: 0.5rem;
   border: none;
   background: transparent;
-  padding: 0.2rem 0;
-  font-size: 0.82rem;
+  padding: 0.35rem 0;
+  font-size: 1.05rem;
   font-weight: 750;
-  color: #5c6570;
+  color: #1e2a44;
   cursor: pointer;
   text-align: left;
 }
@@ -246,8 +246,26 @@
   color: #1e2a44;
 }
 
+.startBannerActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.85rem;
+  margin-top: 0.2rem;
+}
+
+.startBannerUndo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #2f5eb8;
+  padding: 0.15rem;
+  cursor: pointer;
+}
+
 .startBannerLink {
-  margin-top: 0.25rem;
   border: none;
   background: transparent;
   color: #2f5eb8;
@@ -259,7 +277,6 @@
 
 .startBannerMuted {
   display: inline-block;
-  margin-top: 0.25rem;
   font-size: 0.78rem;
   font-weight: 650;
   color: color-mix(in srgb, #2f5eb8 55%, #8a9bb8);
@@ -705,6 +722,10 @@
 
 [data-shell='ipad-portrait'] .featuredName {
   font-size: 1.05rem;
+}
+
+[data-shell='ipad-portrait'] .savedGroupHead {
+  font-size: 1.2rem;
 }
 
 [data-shell='ipad-portrait'] .askBannerTitle {

@@ -114,6 +114,10 @@
   cursor: default;
 }
 
+.iconBtnDanger {
+  color: var(--color-danger, #b42318);
+}
+
 .qaBtnDanger {
   color: var(--color-danger, #b42318);
 }

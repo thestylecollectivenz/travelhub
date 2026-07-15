@@ -57,6 +57,19 @@ export function nearYouScopeForHome(): string {
   return 'home-gps';
 }
 
-export function nearYouScopeForLocation(entryId: string): string {
+export function nearYouScopeForLocation(
+  entryId: string,
+  coords?: { lat: number; lng: number }
+): string {
+  if (
+    coords &&
+    Number.isFinite(coords.lat) &&
+    Number.isFinite(coords.lng) &&
+    Math.abs(coords.lat) <= 90 &&
+    Math.abs(coords.lng) <= 180
+  ) {
+    // Include search centre so a new starting point does not reuse stale cached results.
+    return `loc:${entryId}:${coords.lat.toFixed(4)},${coords.lng.toFixed(4)}`;
+  }
   return `loc:${entryId}`;
 }

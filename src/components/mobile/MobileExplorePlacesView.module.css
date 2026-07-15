@@ -185,6 +185,25 @@
   padding: 0;
 }
 
+.startActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.85rem;
+  margin-top: 0.25rem;
+}
+
+.startUndo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--ex-blue);
+  padding: 0.15rem;
+  cursor: pointer;
+}
+
 .startMuted {
   display: inline-block;
   margin-top: 0.2rem;

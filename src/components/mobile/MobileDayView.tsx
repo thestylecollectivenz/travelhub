@@ -275,7 +275,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     if (detailTarget) {
       onDetailChange?.(true, closeDetail);
     } else if (locationPanelEntryId) {
-      onDetailChange?.(true, closeLocation, locationDisplayName);
+      onDetailChange?.(true, closeLocation, `Destination Guide: ${locationDisplayName}`);
     } else {
       onDetailChange?.(false);
     }

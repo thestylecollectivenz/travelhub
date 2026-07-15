@@ -34,6 +34,30 @@ export function placeQueryDirectionsUrl(name: string, address?: string): string 
   return googleMapsDirectionsUrl(q);
 }
 
+/**
+ * Directions from the user's current location to a place.
+ * Prefers a full destination (name + address + locality) so Maps opens routing,
+ * not a place-search results list.
+ */
+export function placeDirectionsFromHereUrl(
+  name: string,
+  address?: string,
+  locality?: string
+): string | undefined {
+  const seen = new Set<string>();
+  const parts: string[] = [];
+  for (const raw of [name, address, locality]) {
+    const t = (raw || '').trim();
+    if (!t) continue;
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    parts.push(t);
+  }
+  if (!parts.length) return undefined;
+  return googleMapsDirectionsUrl(parts.join(', '));
+}
+
 /** Best-effort official site lookup for a venue/service. */
 export function placeWebsiteSearchUrl(name: string, address?: string): string | undefined {
   const q = [name.trim(), (address || '').trim(), 'official site'].filter(Boolean).join(' ');

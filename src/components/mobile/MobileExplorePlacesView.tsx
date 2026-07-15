@@ -4,7 +4,7 @@ import { useConfig } from '../../context/ConfigContext';
 import { generateDiningSuggestions, generateNearestPlaces } from '../../services/GeminiService';
 import type { DiningSuggestionRow, NearestPlaceRow } from '../../utils/locationInfoEntry';
 import { MOBILE_NEAR_YOU_ON_SITE_KM, resolveLocationSearchContext } from '../../utils/locationGeoContext';
-import { placeQueryDirectionsUrl, placeQueryMapsUrl, placeWebsiteSearchUrl } from '../../utils/googleMapsLink';
+import { placeDirectionsFromHereUrl, placeQueryMapsUrl, placeWebsiteSearchUrl } from '../../utils/googleMapsLink';
 import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
 import { explorePlacePhotoUrl } from '../../utils/explorePlacePhoto';
 import {
@@ -24,6 +24,7 @@ import {
 } from '../../utils/nearYouResultCache';
 import { NearYouToolIcon } from '../shared/NearYouToolIcon';
 import type { NearYouToolId } from '../../utils/nearYouTools';
+import { MobileStartPointActions } from './MobileStartPointActions';
 import styles from './MobileExplorePlacesView.module.css';
 
 export interface MobileExplorePlacesViewProps {
@@ -36,6 +37,11 @@ export interface MobileExplorePlacesViewProps {
   initialCategory?: string;
   onBack: () => void;
   onChangeStartingPoint?: () => void;
+  onResetStartingPoint?: () => void;
+  onUndoStartingPoint?: () => void;
+  canUndoStartingPoint?: boolean;
+  isCustomStartingPoint?: boolean;
+  accommodationLabel?: string;
   onSavePlace?: (place: {
     name: string;
     note?: string;
@@ -124,6 +130,11 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   initialCategory,
   onBack,
   onChangeStartingPoint,
+  onResetStartingPoint,
+  onUndoStartingPoint,
+  canUndoStartingPoint,
+  isCustomStartingPoint,
+  accommodationLabel,
   onSavePlace
 }) => {
   const { config } = useConfig();
@@ -173,7 +184,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
         setResults([]);
         return;
       }
-      const cacheScope = nearYouScopeForLocation(locationEntryId);
+      const cacheScope = nearYouScopeForLocation(locationEntryId, overrideCoords);
       const toolKey = cacheToolKey(category);
       const focus = exploreCategoryDiningFocus(category);
       const useCache = focus !== 'attractions' && Boolean(exploreCategoryToNearTool(category) || exploreCategoryNearestKind(category));
@@ -199,6 +210,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
       setBusy(true);
       setError('');
       setFromCache(false);
+      setResults([]);
       try {
         if (!place) {
           setError('Could not resolve a search location for this place.');
@@ -352,13 +364,18 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
           <p className={styles.startText}>
             Showing places near <strong>{stayName}</strong>
           </p>
-          {onChangeStartingPoint ? (
-            <button type="button" className={styles.startLink} onClick={onChangeStartingPoint}>
-              Change starting point
-            </button>
-          ) : (
-            <span className={styles.startMuted}>Change starting point</span>
-          )}
+          <MobileStartPointActions
+            onChangeStartingPoint={onChangeStartingPoint}
+            onResetStartingPoint={onResetStartingPoint}
+            onUndoStartingPoint={onUndoStartingPoint}
+            canUndoStartingPoint={canUndoStartingPoint}
+            isCustomStartingPoint={isCustomStartingPoint}
+            accommodationLabel={accommodationLabel}
+            changeClassName={styles.startLink}
+            mutedClassName={styles.startMuted}
+            actionsClassName={styles.startActions}
+            undoClassName={styles.startUndo}
+          />
         </div>
       </div>
 
@@ -488,7 +505,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
 
           <div className={styles.cardList}>
             {visible.map((r) => {
-              const directions = placeQueryDirectionsUrl(r.name, r.address) || r.mapsUrl;
+              const directions = placeDirectionsFromHereUrl(r.name, r.address, shortPlace);
               const photo = explorePlacePhotoUrl(r.name, shortPlace);
               return (
                 <article key={r.id} className={styles.card}>

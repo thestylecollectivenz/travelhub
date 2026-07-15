@@ -213,7 +213,9 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
                           <>
                             <button
                               type="button"
-                              className={styles.qaBtn}
+                              className={styles.iconBtn}
+                              aria-label="Save"
+                              title="Save"
                               onClick={() => {
                                 const question = editQuestionDraft.trim();
                                 const answer = editAnswerDraft.trim();
@@ -224,36 +226,60 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
                                 setEditingId(null);
                               }}
                             >
-                              Save
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                                <path
+                                  d="M5 12.5 9.5 17 19 7.5"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
                             </button>
                             <button
                               type="button"
-                              className={styles.qaBtn}
+                              className={styles.iconBtn}
+                              aria-label="Cancel"
+                              title="Cancel"
                               onClick={() => {
                                 setEditingId(null);
                                 setEditQuestionDraft('');
                                 setEditAnswerDraft('');
                               }}
                             >
-                              Cancel
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                                <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                              </svg>
                             </button>
                           </>
                         ) : (
                           <>
                             <button
                               type="button"
-                              className={styles.qaBtn}
+                              className={styles.iconBtn}
+                              aria-label="Edit"
+                              title="Edit"
                               onClick={() => {
                                 setEditingId(item.id);
                                 setEditQuestionDraft(item.question);
                                 setEditAnswerDraft(richTextToPlainText(item.answer));
                               }}
                             >
-                              Edit
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                                <path
+                                  d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"
+                                  stroke="currentColor"
+                                  strokeWidth="1.7"
+                                  strokeLinejoin="round"
+                                />
+                                <path d="M12.5 7.5l3 3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                              </svg>
                             </button>
                             <button
                               type="button"
-                              className={styles.qaBtnDanger}
+                              className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
+                              aria-label="Delete"
+                              title="Delete"
                               onClick={() => {
                                 void (async () => {
                                   if (!(await confirmUserAction('Delete this Q&A entry?'))) return;
@@ -261,7 +287,15 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
                                 })();
                               }}
                             >
-                              Delete
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                                <path
+                                  d="M5 7h14M10 7V5h4v2m-6 3v8m4-8v8M7 7l1 13h8l1-13"
+                                  stroke="currentColor"
+                                  strokeWidth="1.7"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
                             </button>
                           </>
                         )}

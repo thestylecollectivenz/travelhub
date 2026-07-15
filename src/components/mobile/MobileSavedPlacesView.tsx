@@ -11,12 +11,13 @@ import {
   normalizeLocationInfoNotes,
   serializeLocationInfoNotes
 } from '../../utils/locationInfoEntry';
-import { placeQueryDirectionsUrl, placeQueryMapsUrl } from '../../utils/googleMapsLink';
+import { placeDirectionsFromHereUrl, placeQueryMapsUrl } from '../../utils/googleMapsLink';
 import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
 import { explorePlacePhotoUrl } from '../../utils/explorePlacePhoto';
 import type { SavedPlacesCategoryId } from '../../utils/exploreCategories';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { formatDistanceFromStart } from '../../utils/locationDistanceLabel';
+import { MobileStartPointActions } from './MobileStartPointActions';
 import styles from './MobileSavedPlacesView.module.css';
 
 export interface MobileSavedPlacesViewProps {
@@ -28,6 +29,11 @@ export interface MobileSavedPlacesViewProps {
   startingPointLabel?: string;
   onBack: () => void;
   onChangeStartingPoint?: () => void;
+  onResetStartingPoint?: () => void;
+  onUndoStartingPoint?: () => void;
+  canUndoStartingPoint?: boolean;
+  isCustomStartingPoint?: boolean;
+  accommodationLabel?: string;
 }
 
 type SavedCard = {
@@ -139,7 +145,12 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
   initialCategory,
   startingPointLabel,
   onBack,
-  onChangeStartingPoint
+  onChangeStartingPoint,
+  onResetStartingPoint,
+  onUndoStartingPoint,
+  canUndoStartingPoint,
+  isCustomStartingPoint,
+  accommodationLabel
 }) => {
   const { updateEntry } = useTripWorkspace();
   const shortPlace = placeNameFromTitle(place?.title || '') || locationLabel.split(',')[0] || 'this place';
@@ -245,13 +256,18 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
           <p className={styles.startText}>
             Showing places near <strong>{stayName}</strong>
           </p>
-          {onChangeStartingPoint ? (
-            <button type="button" className={styles.startLink} onClick={onChangeStartingPoint}>
-              Change starting point
-            </button>
-          ) : (
-            <span className={styles.startMuted}>Change starting point</span>
-          )}
+          <MobileStartPointActions
+            onChangeStartingPoint={onChangeStartingPoint}
+            onResetStartingPoint={onResetStartingPoint}
+            onUndoStartingPoint={onUndoStartingPoint}
+            canUndoStartingPoint={canUndoStartingPoint}
+            isCustomStartingPoint={isCustomStartingPoint}
+            accommodationLabel={accommodationLabel}
+            changeClassName={styles.startLink}
+            mutedClassName={styles.startMuted}
+            actionsClassName={styles.startActions}
+            undoClassName={styles.startUndo}
+          />
         </div>
       </div>
 
@@ -341,7 +357,7 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
 
           <div className={styles.cardList}>
             {visible.map((r) => {
-              const directions = placeQueryDirectionsUrl(r.name, r.address) || r.mapsUrl;
+              const directions = placeDirectionsFromHereUrl(r.name, r.address, shortPlace);
               const photo = explorePlacePhotoUrl(r.name, shortPlace);
               const dist =
                 formatDistanceFromStart(r.distance, r.nearLabel || stayName) ||
