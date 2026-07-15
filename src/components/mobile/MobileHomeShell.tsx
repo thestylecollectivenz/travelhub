@@ -718,7 +718,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
             className={styles.aiInput}
             value={aiPrompt}
             onChange={(e) => setAiPrompt(e.target.value)}
-            placeholder="Ask AI anything about your trip…"
+            placeholder="Ask AI anything about your travels…"
             aria-label="Ask AI about your trip"
           />
           <button
