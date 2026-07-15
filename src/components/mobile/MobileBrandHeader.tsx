@@ -1,7 +1,9 @@
 import * as React from 'react';
+import { MobileHeaderAccessActions } from './MobileHeaderAccessActions';
 import styles from './MobileBrandHeader.module.css';
 
 export interface MobileBrandHeaderProps {
+  /** Extra trailing control(s) after the standard access + gear actions. */
   actions?: React.ReactNode;
   navRow?: React.ReactNode;
   /** Primary heading under the back link (page name). */
@@ -16,6 +18,12 @@ export interface MobileBrandHeaderProps {
   tripHeroSrc?: string | null;
   /** When true (default), apply safe-area top padding. Set false when already inside a padded scroll shell. */
   safeAreaTop?: boolean;
+  /** Override access trip id for this header instance. */
+  accessTripId?: string;
+  /** Override open-access handler for this header instance. */
+  onOpenAccess?: () => void;
+  /** When true, hide the standard access avatar + gear. */
+  hideAccessActions?: boolean;
 }
 
 export const MobileBrandHeader: React.FC<MobileBrandHeaderProps> = ({
@@ -26,7 +34,10 @@ export const MobileBrandHeader: React.FC<MobileBrandHeaderProps> = ({
   tripName,
   tripDates,
   tripHeroSrc,
-  safeAreaTop = true
+  safeAreaTop = true,
+  accessTripId,
+  onOpenAccess,
+  hideAccessActions = false
 }) => {
   const showTripRow = Boolean(tripName || tripDates || tripHeroSrc !== undefined);
 
@@ -42,7 +53,12 @@ export const MobileBrandHeader: React.FC<MobileBrandHeaderProps> = ({
           </div>
           <h1 className={styles.brandName}>Trip Leopard</h1>
         </div>
-        {actions ? <div className={styles.topBarActions}>{actions}</div> : null}
+        <div className={styles.topBarActions}>
+          {hideAccessActions ? null : (
+            <MobileHeaderAccessActions accessTripId={accessTripId} onOpenAccess={onOpenAccess} />
+          )}
+          {actions}
+        </div>
       </div>
       {navRow ? <div className={styles.navRow}>{navRow}</div> : null}
       {title ? <h2 className={styles.pageTitle}>{title}</h2> : null}

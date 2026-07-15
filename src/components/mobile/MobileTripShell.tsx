@@ -48,6 +48,7 @@ import { useTripDayIdeas } from '../../hooks/useTripDayIdeas';
 import { useTripRole } from '../../context/TripRoleContext';
 import { SOLUTION_VERSION } from '../../appVersion';
 import { MobileBrandHeader } from './MobileBrandHeader';
+import { MobileHeaderChromeProvider } from './MobileHeaderChromeContext';
 import { resolveSharePointMediaSrc } from '../../utils/sharePointUrl';
 import styles from './MobileShell.module.css';
 
@@ -472,7 +473,16 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
     );
   }, [pageChrome.showTripHero, trip?.heroImageUrl, spContext]);
 
+  const headerChrome = React.useMemo(
+    () => ({
+      accessTripId: trip?.id,
+      onOpenAccess: trip?.id ? handleOpenMembers : undefined
+    }),
+    [trip?.id, handleOpenMembers]
+  );
+
   return (
+    <MobileHeaderChromeProvider value={headerChrome}>
     <div
       className={styles.mobileRoot}
       data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}
@@ -484,22 +494,6 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
         tripName={pageChrome.tripName}
         tripDates={pageChrome.tripDates}
         tripHeroSrc={tripHeroSrc}
-        actions={
-          <button
-            type="button"
-            className={styles.headerIconBtn}
-            onClick={handleOpenMembers}
-            aria-label="Trip members"
-            title="Trip members"
-          >
-            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden>
-              <circle cx="7" cy="6" r="3.5" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M1 17c0-3.314 2.686-6 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              <circle cx="14" cy="7" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M11.5 17c0-2.485 1.567-4.5 3.5-4.5s3.5 2.015 3.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          </button>
-        }
       />
       <main className={styles.mobileMain} data-mobile-scroll>
         {body}
@@ -570,5 +564,6 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
         v{SOLUTION_VERSION}
       </span>
     </div>
+    </MobileHeaderChromeProvider>
   );
 };

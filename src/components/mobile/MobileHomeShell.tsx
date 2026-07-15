@@ -30,8 +30,9 @@ import { setPendingMobileItineraryEdit } from '../../utils/mobileItineraryEditPe
 import { useContinuousSpeechInput } from '../../hooks/useContinuousSpeechInput';
 import { useCurrentUserRole } from '../../hooks/useCurrentUserRole';
 import { useTripMembers } from '../../hooks/useTripMembers';
-import { TravellerAvatar } from '../shared/TravellerAvatar';
 import { MobileNearYouPage } from './MobileNearYouPage';
+import { MobileHeaderAccessActions } from './MobileHeaderAccessActions';
+import { MobileHeaderChromeProvider } from './MobileHeaderChromeContext';
 import { MobileIdeasJotter } from './MobileIdeasJotter';
 import { MobileHomeUpcoming } from './MobileHomeUpcoming';
 import { MobileAddToTripMenu } from './MobileAddToTripMenu';
@@ -150,24 +151,6 @@ function IconBook(): React.ReactElement {
   );
 }
 
-function IconGear(): React.ReactElement {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-      />
-      <path
-        d="M19.4 13a7.97 7.97 0 0 0 .1-2l2-1.2-2-3.5-2.3 1a8.1 8.1 0 0 0-1.7-1L15 3h-6l-.5 2.3a8.1 8.1 0 0 0-1.7 1l-2.3-1-2 3.5L4.5 11a7.97 7.97 0 0 0 .1 2L4.4 14l2 3.5 2.3-1a8.1 8.1 0 0 0 1.7 1L9 21h6l.5-2.3a8.1 8.1 0 0 0 1.7-1l2.3 1 2-3.5-1.9-1Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function IconSpark(): React.ReactElement {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -274,7 +257,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
 
   const todayYmd = React.useMemo(() => todayYmdLocal(), []);
   const contextTrip = React.useMemo(() => resolveHomeContextTrip(trips, todayYmd), [trips, todayYmd]);
-  const { members: contextMembers, myMember } = useTripMembers(contextTrip?.id);
+  const { members: contextMembers } = useTripMembers(contextTrip?.id);
   const { role: contextRole } = useCurrentUserRole(contextTrip?.id);
   const appendVoice = React.useCallback((chunk: string) => {
     setAiPrompt((prev) => `${prev}${prev ? ' ' : ''}${chunk}`);
@@ -676,24 +659,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
             </div>
             <h1 className={styles.brandName}>Trip Leopard</h1>
           </div>
-          <div className={styles.topBarActions}>
-            <button
-              type="button"
-              className={styles.avatarBtn}
-              aria-label="Trip access"
-              disabled={!contextTrip?.id}
-              onClick={() => setMembersOpen(true)}
-            >
-              <TravellerAvatar
-                displayName={myMember?.userDisplayName || greetingName || displayName}
-                avatarUrl={myMember?.avatarUrl}
-                size={36}
-              />
-            </button>
-            <button type="button" className={styles.iconBtn} aria-label="Traveller profile" onClick={onOpenSettings}>
-              <IconGear />
-            </button>
-          </div>
+          <MobileHeaderAccessActions />
         </div>
 
         <p className={styles.greeting}>
@@ -910,27 +876,6 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
     );
   }
 
-  const homeBrandActions = (
-    <>
-      <button
-        type="button"
-        className={styles.avatarBtn}
-        aria-label="Trip access"
-        disabled={!contextTrip?.id}
-        onClick={() => setMembersOpen(true)}
-      >
-        <TravellerAvatar
-          displayName={myMember?.userDisplayName || greetingName || displayName}
-          avatarUrl={myMember?.avatarUrl}
-          size={36}
-        />
-      </button>
-      <button type="button" className={styles.iconBtn} aria-label="Traveller profile" onClick={onOpenSettings}>
-        <IconGear />
-      </button>
-    </>
-  );
-
   const homeTabTitle =
     tab === 'trips' ? 'Trips' : tab === 'spots' ? 'Spots' : tab === 'book' ? 'Book' : tab === 'find' ? 'Find' : '';
   const homeTabSub =
@@ -944,13 +889,22 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
             ? 'Tools and suggestions near you'
             : '';
 
+  const headerChrome = React.useMemo(
+    () => ({
+      accessTripId: contextTrip?.id,
+      onOpenAccess: contextTrip?.id ? (): void => setMembersOpen(true) : undefined,
+      onOpenSettings
+    }),
+    [contextTrip?.id, onOpenSettings]
+  );
+
   return (
+    <MobileHeaderChromeProvider value={headerChrome}>
     <div className={styles.homeRoot} data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}>
       <main className={styles.scroll}>
-        {tab !== 'home' ? (
+        {tab !== 'home' && !(tab === 'find' && nearToolId) ? (
           <MobileBrandHeader
             safeAreaTop={false}
-            actions={homeBrandActions}
             navRow={
               <button type="button" className={styles.tripsBackBtn} onClick={() => setTab('home')}>
                 {'< Home'}
@@ -1030,5 +984,6 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
         </button>
       </nav>
     </div>
+    </MobileHeaderChromeProvider>
   );
 };

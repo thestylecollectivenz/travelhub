@@ -1,0 +1,34 @@
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.avatarBtn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 999px;
+  line-height: 0;
+}
+
+.avatarBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.iconBtn {
+  border: none;
+  background: color-mix(in srgb, #f4f0e8 80%, white);
+  color: #1e2a44;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 0 color-mix(in srgb, #1e2a44 10%, transparent);
+}
