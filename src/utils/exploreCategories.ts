@@ -64,6 +64,32 @@ export function exploreCategoryById(id: string | undefined): ExploreCategoryDef 
   return EXPLORE_CATEGORIES.find((c) => c.id === id) ?? EXPLORE_CATEGORIES[0];
 }
 
+/** Map a home / Find Near-you tool id onto an Explore category for shared results UI. */
+export function nearToolToExploreCategory(toolId: NearYouToolId): ExploreCategoryId {
+  switch (toolId) {
+    case 'dining':
+      return 'restaurants';
+    case 'cafes':
+      return 'cafes';
+    case 'grocery':
+      return 'groceries';
+    case 'pharmacy':
+      return 'pharmacy';
+    case 'atm':
+      return 'atm';
+    case 'restroom':
+      return 'restroom';
+    case 'transport':
+      return 'transport';
+    case 'medical':
+      return 'medical';
+    case 'fuel':
+      return 'fuel';
+    default:
+      return 'restaurants';
+  }
+}
+
 export function exploreCategoryToNearTool(id: ExploreCategoryId): NearYouToolId | undefined {
   switch (id) {
     case 'restaurants':

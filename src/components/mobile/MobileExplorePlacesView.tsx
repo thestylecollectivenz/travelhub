@@ -16,6 +16,7 @@ import {
 } from '../../utils/exploreCategories';
 import {
   loadNearYouCache,
+  nearYouScopeForHome,
   nearYouScopeForLocation,
   saveNearYouCache,
   type NearYouCachedResult
@@ -32,9 +33,11 @@ import { MobileLocationTravelTip } from './MobileLocationTravelTip';
 import styles from './MobileExplorePlacesView.module.css';
 
 export interface MobileExplorePlacesViewProps {
-  place: Place | undefined;
-  locationEntryId: string;
-  locationLabel: string;
+  /** Trip place search (default) or device GPS for home Find tab. */
+  mode?: 'location' | 'gps';
+  place?: Place;
+  locationEntryId?: string;
+  locationLabel?: string;
   startingPointLabel?: string;
   /** Map-picked search centre (force trip_place semantics). */
   overrideCoords?: { lat: number; lng: number };
@@ -53,6 +56,12 @@ export interface MobileExplorePlacesViewProps {
   onSelectSavedStart?: (point: StoredStartPoint) => void;
   activeStart?: StoredStartPoint | null;
   onAppendToNotes?: (tipText: string) => void;
+  onAddToItinerary?: (place: {
+    name: string;
+    note?: string;
+    mapsUrl?: string;
+    websiteUrl?: string;
+  }) => void | Promise<void>;
   onSavePlace?: (place: {
     name: string;
     note?: string;
@@ -143,6 +152,15 @@ function toCardsFromNearest(places: NearestPlaceRow[], categoryLabel: string): E
   }));
 }
 
+function IconGps(): React.ReactElement {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function IconBed(): React.ReactElement {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -157,9 +175,10 @@ function cacheToolKey(category: ExploreCategoryId): string {
 }
 
 export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = ({
+  mode = 'location',
   place,
-  locationEntryId,
-  locationLabel,
+  locationEntryId = '',
+  locationLabel = '',
   startingPointLabel,
   overrideCoords,
   searchAnchorLabel,
@@ -176,10 +195,14 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   onSelectSavedStart,
   activeStart,
   onAppendToNotes,
+  onAddToItinerary,
   onSavePlace
 }) => {
   const { config } = useConfig();
-  const shortPlace = placeNameFromTitle(place?.title || '') || locationLabel.split(',')[0] || 'this place';
+  const isGps = mode === 'gps';
+  const shortPlace = isGps
+    ? 'your area'
+    : placeNameFromTitle(place?.title || '') || locationLabel.split(',')[0] || 'this place';
   const [category, setCategory] = React.useState<ExploreCategoryId>(() => normalizeExploreCategory(initialCategory));
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState('');
@@ -188,6 +211,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   const [visibleCount, setVisibleCount] = React.useState(6);
   const [toast, setToast] = React.useState('');
   const [mapOpen, setMapOpen] = React.useState(false);
+  const [gpsCentre, setGpsCentre] = React.useState<{ lat: number; lng: number } | null>(null);
 
   React.useEffect(() => {
     setCategory(normalizeExploreCategory(initialCategory));
@@ -204,19 +228,26 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   const [filterReservations, setFilterReservations] = React.useState(false);
 
   const catDef = exploreCategoryById(category);
-  const stayName = (startingPointLabel || '').trim() || shortPlace;
+  const stayName = isGps
+    ? 'your current location'
+    : (startingPointLabel || '').trim() || shortPlace;
   const showDiningFilters = isDiningCategory(category);
   const showEssentialsExtras = isEssentialsCategory(category);
   const showAttractionExtras = isAttractionCategory(category);
   const overrideLat = overrideCoords?.lat;
   const overrideLng = overrideCoords?.lng;
   const coordsKey =
-    overrideLat != null && overrideLng != null
-      ? `${overrideLat.toFixed(4)},${overrideLng.toFixed(4)}`
-      : 'default';
+    isGps && gpsCentre
+      ? `${gpsCentre.lat.toFixed(4)},${gpsCentre.lng.toFixed(4)}`
+      : overrideLat != null && overrideLng != null
+        ? `${overrideLat.toFixed(4)},${overrideLng.toFixed(4)}`
+        : 'default';
   const anchorLabel = (searchAnchorLabel || startingPointLabel || '').trim() || undefined;
-  const mapCentre =
-    overrideLat != null && overrideLng != null
+  const mapCentre = isGps
+    ? gpsCentre
+      ? { lat: gpsCentre.lat, lng: gpsCentre.lng, label: stayName }
+      : undefined
+    : overrideLat != null && overrideLng != null
       ? { lat: overrideLat, lng: overrideLng, label: stayName }
       : place && Number.isFinite(place.latitude) && Number.isFinite(place.longitude)
         ? { lat: place.latitude, lng: place.longitude, label: stayName }
@@ -244,7 +275,9 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
       }
       const coords =
         overrideLat != null && overrideLng != null ? { lat: overrideLat, lng: overrideLng } : undefined;
-      const cacheScope = nearYouScopeForLocation(locationEntryId, coords);
+      const cacheScope = isGps
+        ? nearYouScopeForHome()
+        : nearYouScopeForLocation(locationEntryId, coords);
       const toolKey = cacheToolKey(category);
       const focus = exploreCategoryDiningFocus(category);
       const nearestKind = exploreCategoryNearestKind(category);
@@ -274,16 +307,39 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
       setFromCache(false);
       setResults([]);
       try {
-        if (!place) {
-          setError('Could not resolve a search location for this place.');
-          return;
+        let searchContext;
+        if (isGps) {
+          if (!navigator.geolocation) {
+            setError('Location is not available on this device.');
+            return;
+          }
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 8000,
+              maximumAge: 60000
+            });
+          });
+          setGpsCentre({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          searchContext = {
+            mode: 'onsite' as const,
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            placeName: 'Current location',
+            country: ''
+          };
+        } else {
+          if (!place) {
+            setError('Could not resolve a search location for this place.');
+            return;
+          }
+          searchContext = await resolveLocationSearchContext(place, {
+            onSiteKm: MOBILE_NEAR_YOU_ON_SITE_KM,
+            forceTripPlace: true,
+            overrideCoords: coords,
+            searchAnchorLabel: anchorLabel
+          });
         }
-        const searchContext = await resolveLocationSearchContext(place, {
-          onSiteKm: MOBILE_NEAR_YOU_ON_SITE_KM,
-          forceTripPlace: true,
-          overrideCoords: coords,
-          searchAnchorLabel: anchorLabel
-        });
         if (!searchContext) {
           setError('Could not resolve a search location for this place.');
           return;
@@ -311,7 +367,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
           saveNearYouCache(cacheScope, toolKey, {
             results: cards,
             fetchedAt: new Date().toISOString(),
-            contextLabel: `Near ${stayName}`
+            contextLabel: isGps ? 'Near your current location' : `Near ${stayName}`
           });
         }
       } catch (err) {
@@ -326,6 +382,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
       catDef.label,
       category,
       config.geminiApiKey,
+      isGps,
       locationEntryId,
       overrideLat,
       overrideLng,
@@ -388,8 +445,12 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   return (
     <div className={styles.page}>
       <MobileSubpageHeader
-        title={`Explore ${shortPlace}`}
-        subtitle="Discover places near your accommodation or anywhere in the city."
+        title={isGps ? 'Near you' : `Explore ${shortPlace}`}
+        subtitle={
+          isGps
+            ? 'Discover places around your current location.'
+            : 'Discover places near your accommodation or anywhere in the city.'
+        }
         onBack={onBack}
       />
 
@@ -402,27 +463,29 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
 
       <div className={styles.startBanner}>
         <span className={styles.startIcon} aria-hidden>
-          <IconBed />
+          {isGps ? <IconGps /> : <IconBed />}
         </span>
         <div className={styles.startBody}>
           <p className={styles.startText}>
             Showing places near <strong>{stayName}</strong>
           </p>
-          <MobileStartPointActions
-            onChangeStartingPoint={onChangeStartingPoint}
-            onResetStartingPoint={onResetStartingPoint}
-            onUndoStartingPoint={onUndoStartingPoint}
-            canUndoStartingPoint={canUndoStartingPoint}
-            isCustomStartingPoint={isCustomStartingPoint}
-            accommodationLabel={accommodationLabel}
-            savedStarts={savedStarts}
-            onSelectSavedStart={onSelectSavedStart}
-            activeStart={activeStart}
-            changeClassName={styles.startLink}
-            mutedClassName={styles.startMuted}
-            actionsClassName={styles.startActions}
-            undoClassName={styles.startUndo}
-          />
+          {isGps ? null : (
+            <MobileStartPointActions
+              onChangeStartingPoint={onChangeStartingPoint}
+              onResetStartingPoint={onResetStartingPoint}
+              onUndoStartingPoint={onUndoStartingPoint}
+              canUndoStartingPoint={canUndoStartingPoint}
+              isCustomStartingPoint={isCustomStartingPoint}
+              accommodationLabel={accommodationLabel}
+              savedStarts={savedStarts}
+              onSelectSavedStart={onSelectSavedStart}
+              activeStart={activeStart}
+              changeClassName={styles.startLink}
+              mutedClassName={styles.startMuted}
+              actionsClassName={styles.startActions}
+              undoClassName={styles.startUndo}
+            />
+          )}
         </div>
       </div>
 
@@ -623,6 +686,23 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
                       }
                     : undefined
                 }
+                secondaryAction={
+                  onAddToItinerary
+                    ? {
+                        label: 'Add',
+                        onClick: () => {
+                          void Promise.resolve(
+                            onAddToItinerary({
+                              name: r.name,
+                              note: r.distanceRaw || r.note,
+                              mapsUrl: r.mapsUrl,
+                              websiteUrl: r.websiteUrl
+                            })
+                          ).catch(() => showToast('Could not add to itinerary.'));
+                        }
+                      }
+                    : undefined
+                }
               />
             ))}
           </div>
@@ -641,7 +721,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
       </div>
 
       <MobileLocationTravelTip
-        placeLabel={shortPlace}
+        placeLabel={isGps ? 'your area' : shortPlace}
         categoryLabel={catDef.label}
         startingPointLabel={stayName}
         onAppendToNotes={onAppendToNotes}

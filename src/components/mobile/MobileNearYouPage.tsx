@@ -1,9 +1,10 @@
 import * as React from 'react';
 import { NEAR_YOU_TOOLS, type NearYouToolId } from '../../utils/nearYouTools';
+import { nearToolToExploreCategory } from '../../utils/exploreCategories';
 import { NearYouToolIcon } from '../shared/NearYouToolIcon';
 import { useShellMode } from '../../hooks/useShellMode';
 import { useContinuousSpeechInput } from '../../hooks/useContinuousSpeechInput';
-import { MobileNearYouResults } from './MobileNearYouResults';
+import { MobileExplorePlacesView } from './MobileExplorePlacesView';
 import { MobileFindSavedRow } from './MobileFindSavedRow';
 import styles from './MobileNearYouPage.module.css';
 
@@ -103,14 +104,13 @@ export const MobileNearYouPage: React.FC<MobileNearYouPageProps> = ({
 
   if (toolId) {
     return (
-      <MobileNearYouResults
-        toolId={toolId}
+      <MobileExplorePlacesView
+        mode="gps"
+        initialCategory={nearToolToExploreCategory(toolId)}
         onBack={() => {
           if (initialToolId) onBack();
           else setToolId(null);
         }}
-        tripTitle={tripTitle}
-        tripDateRange={tripDateRange}
         onAddToItinerary={onAddToItinerary}
         onSavePlace={onSavePlace}
       />

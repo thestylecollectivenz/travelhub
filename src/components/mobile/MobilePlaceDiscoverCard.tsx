@@ -30,6 +30,10 @@ export interface MobilePlaceDiscoverCardProps {
     onClick: () => void;
     kind?: PlaceDiscoverPrimaryKind;
   };
+  secondaryAction?: {
+    label: string;
+    onClick: () => void;
+  };
 }
 
 function IconPin(): React.ReactElement {
@@ -45,6 +49,15 @@ function IconDirections(): React.ReactElement {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M12 2 4 20l8-4 8 4L12 2Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconItinerary(): React.ReactElement {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M8 3v4M16 3v4M12 11v5M9.5 13.5H14.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
 }
@@ -84,7 +97,8 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
   startingPointLabel,
   cityFallback,
   layout = 'list',
-  primaryAction
+  primaryAction,
+  secondaryAction
 }) => {
   const city = card.city || cityFallback;
   const photo = explorePlacePhotoUrl(card.name, city);
@@ -129,6 +143,17 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
             >
               <IconDirections /> Directions
             </a>
+          ) : null}
+          {secondaryAction ? (
+            <button
+              type="button"
+              className={`${styles.action} ${styles.actionPrimary}`}
+              onClick={secondaryAction.onClick}
+              aria-label={secondaryAction.label}
+              title={secondaryAction.label}
+            >
+              <IconItinerary /> {secondaryAction.label}
+            </button>
           ) : null}
           {primaryAction ? (
             <button
