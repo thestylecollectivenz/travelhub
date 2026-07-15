@@ -639,12 +639,12 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
             <MobilePencilButton onClick={onEditNotes} ariaLabel="Edit notes" />
           ) : null}
         </div>
-        {data.practicalTips.trim() ? (
+        {(data.userNotes || '').trim() ? (
           <div className={styles.notesBody}>
-            <RichTextContent html={data.practicalTips.trim()} />
+            <RichTextContent html={(data.userNotes || '').trim()} />
           </div>
         ) : (
-          <p className={styles.empty}>Practical tips will appear here once generated or edited.</p>
+          <p className={styles.empty}>Add your own notes for this place — tips appear separately below.</p>
         )}
       </section>
 

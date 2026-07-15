@@ -39,6 +39,8 @@ export interface MobileExplorePlacesViewProps {
   overrideCoords?: { lat: number; lng: number };
   searchAnchorLabel?: string;
   initialCategory?: string;
+  /** Practical tips from location notes for the bottom tip strip. */
+  practicalTipsHtml?: string;
   onBack: () => void;
   onChangeStartingPoint?: () => void;
   onResetStartingPoint?: () => void;
@@ -145,8 +147,8 @@ function IconBed(): React.ReactElement {
   );
 }
 
-function cacheToolKey(category: ExploreCategoryId): NearYouToolId {
-  return exploreCategoryToNearTool(category) ?? 'dining';
+function cacheToolKey(category: ExploreCategoryId): string {
+  return `explore:${category}`;
 }
 
 export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = ({
@@ -157,6 +159,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   overrideCoords,
   searchAnchorLabel,
   initialCategory,
+  practicalTipsHtml,
   onBack,
   onChangeStartingPoint,
   onResetStartingPoint,
@@ -176,6 +179,10 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   const [visibleCount, setVisibleCount] = React.useState(6);
   const [toast, setToast] = React.useState('');
   const [mapOpen, setMapOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    setCategory(normalizeExploreCategory(initialCategory));
+  }, [initialCategory]);
 
   const [sortBy, setSortBy] = React.useState('Distance');
   const [distanceKm, setDistanceKm] = React.useState(2);
@@ -231,9 +238,8 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
       const cacheScope = nearYouScopeForLocation(locationEntryId, coords);
       const toolKey = cacheToolKey(category);
       const focus = exploreCategoryDiningFocus(category);
-      const useCache =
-        focus !== 'attractions' &&
-        Boolean(exploreCategoryToNearTool(category) || exploreCategoryNearestKind(category));
+      const nearestKind = exploreCategoryNearestKind(category);
+      const useCache = Boolean(focus || nearestKind || exploreCategoryToNearTool(category));
 
       if (!forceRefresh && useCache) {
         const cached = loadNearYouCache(cacheScope, toolKey);
@@ -276,7 +282,6 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
 
         let cards: ExploreCard[] = [];
         const diningFocus = exploreCategoryDiningFocus(category);
-        const nearestKind = exploreCategoryNearestKind(category);
         if (diningFocus) {
           const { items } = await generateDiningSuggestions({
             apiKey,
@@ -287,6 +292,9 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
         } else if (nearestKind) {
           const { places } = await generateNearestPlaces(nearestKind, { apiKey, searchContext });
           cards = toCardsFromNearest(places, catDef.label);
+        } else {
+          setError(`No AI search configured for ${catDef.label}.`);
+          return;
         }
         setResults(cards);
         setVisibleCount(6);
@@ -607,13 +615,14 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
 
       <MobileLocationTravelTip
         placeLabel={shortPlace}
+        existingTipHtml={practicalTipsHtml}
         categoryLabel={catDef.label}
         startingPointLabel={stayName}
       />
 
       {mapOpen && mapCentre ? (
         <MobileResultsMapSheet
-          title={`Near ${shortPlace}`}
+          title={`${catDef.label} near ${shortPlace}`}
           centre={mapCentre}
           locality={shortPlace}
           places={filtered.map((r) => ({

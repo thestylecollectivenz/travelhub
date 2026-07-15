@@ -92,7 +92,10 @@ export type LocationInfoNotes = {
   overview: string;
   iconicSights: string;
   foodDrink: string;
+  /** AI / system travel tips (tip strip). Independent of user Notes. */
   practicalTips: string;
+  /** Traveller's own notes — edited only via the Notes field/UI. */
+  userNotes?: string;
   iconicSightsItems?: LocationInfoCheckItem[];
   foodDrinkItems?: LocationInfoCheckItem[];
   drinkItems?: LocationInfoCheckItem[];
@@ -506,6 +509,7 @@ export function defaultLocationInfoNotes(placeId: string): LocationInfoNotes {
     iconicSights: '',
     foodDrink: '',
     practicalTips: '',
+    userNotes: '',
     aiSightsPlaceholder: 'Highlights generate in the background when you open a trip (Gemini key required), or use the button below.',
     aiQaThread: []
   };

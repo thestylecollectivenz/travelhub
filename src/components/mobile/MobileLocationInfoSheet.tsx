@@ -26,7 +26,7 @@ import type { NearYouToolId } from '../../utils/nearYouTools';
 import { NEAR_YOU_TOOLS } from '../../utils/nearYouTools';
 import { useShellMode } from '../../hooks/useShellMode';
 import { loadLocationStartPoint, saveLocationStartPoint } from '../../utils/locationStartPointStorage';
-import { geocodeStayQuery } from '../../utils/stayGeocode';
+import { geocodeStayFromHotelRecord } from '../../utils/stayGeocode';
 import cardStyles from '../itinerary/ItineraryCard.module.css';
 import styles from './MobileLocationInfo.module.css';
 
@@ -100,9 +100,9 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     return {
       lat,
       lng,
-      label: stayCandidates[0] || compactPlaceLabel(place?.title || '', place?.country) || 'Selected point'
+      label: compactPlaceLabel(place?.title || '', place?.country) || 'City centre'
     };
-  }, [place, stayCandidates]);
+  }, [place]);
 
   /** Preferred default pin: geocoded stay when available, else city Place. */
   const defaultCentre = React.useMemo((): StartPointSelection => {
@@ -121,24 +121,19 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
       setStayCentre(null);
       return undefined;
     }
-    const label = (stay.title || '').trim() || stayCandidates[0] || 'Accommodation';
-    const queryParts = [
-      (stay.streetAddress || '').trim(),
-      (stay.location || '').trim(),
-      label,
-      place?.title,
-      place?.country
-    ].filter(Boolean);
-    const query = queryParts.join(', ');
     let cancelled = false;
-    void geocodeStayQuery(query, label).then((geo) => {
+    void geocodeStayFromHotelRecord({
+      title: stay.title,
+      streetAddress: stay.streetAddress,
+      location: stay.location
+    }).then((geo) => {
       if (cancelled || !geo) return;
       setStayCentre(geo);
     });
     return () => {
       cancelled = true;
     };
-  }, [stayPrimary, stayCandidates, place?.title, place?.country]);
+  }, [stayPrimary]);
 
   React.useEffect(() => {
     if (!entry?.id) return;
@@ -412,6 +407,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
                 overrideCoords={overrideCoords}
                 searchAnchorLabel={startingPointLabel}
                 initialCategory={exploreCategory}
+                practicalTipsHtml={data?.practicalTips}
                 onBack={closePanels}
                 onSavePlace={canEditItinerary ? saveNearPlace : undefined}
                 {...startPointHandlers}
@@ -439,6 +435,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
                 entry={liveEntry}
                 initialCategory={savedCategory}
                 startingPointLabel={startingPointLabel}
+                overrideCoords={overrideCoords}
                 onBack={closePanels}
                 {...startPointHandlers}
               />

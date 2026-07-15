@@ -1,5 +1,3 @@
-import type { NearYouToolId } from './nearYouTools';
-
 export interface NearYouCachedResult {
   id: string;
   name: string;
@@ -23,11 +21,12 @@ export interface NearYouResultCacheEntry {
 
 const PREFIX = 'travelhub-near-cache:';
 
-function cacheKey(scope: string, toolId: NearYouToolId): string {
+/** Tool id or explore category key (e.g. explore:sights). */
+function cacheKey(scope: string, toolId: string): string {
   return `${PREFIX}${scope}:${toolId}`;
 }
 
-export function loadNearYouCache(scope: string, toolId: NearYouToolId): NearYouResultCacheEntry | null {
+export function loadNearYouCache(scope: string, toolId: string): NearYouResultCacheEntry | null {
   if (typeof window === 'undefined') return null;
   try {
     const raw = window.localStorage.getItem(cacheKey(scope, toolId));
@@ -42,7 +41,7 @@ export function loadNearYouCache(scope: string, toolId: NearYouToolId): NearYouR
 
 export function saveNearYouCache(
   scope: string,
-  toolId: NearYouToolId,
+  toolId: string,
   entry: NearYouResultCacheEntry
 ): void {
   if (typeof window === 'undefined') return;

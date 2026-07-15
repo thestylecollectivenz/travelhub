@@ -36,6 +36,7 @@ export interface MobileSavedPlacesViewProps {
   entry?: ItineraryEntry;
   initialCategory?: string;
   startingPointLabel?: string;
+  overrideCoords?: { lat: number; lng: number };
   onBack: () => void;
   onChangeStartingPoint?: () => void;
   onResetStartingPoint?: () => void;
@@ -195,6 +196,7 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
   entry,
   initialCategory,
   startingPointLabel,
+  overrideCoords,
   onBack,
   onChangeStartingPoint,
   onResetStartingPoint,
@@ -239,16 +241,27 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
   const [filterReservations, setFilterReservations] = React.useState(false);
   const [mapOpen, setMapOpen] = React.useState(false);
 
+  React.useEffect(() => {
+    setCategory(normalizeInitialSavedCategory(initialCategory));
+  }, [initialCategory]);
+
   const showDiningFilters = isDiningCategory(category);
   const showEssentialsExtras = isEssentialsCategory(category);
   const showAttractionExtras = isAttractionCategory(category);
   const showOpenNow =
     category === 'all' || showDiningFilters || showEssentialsExtras || showAttractionExtras;
 
+  const overrideLat = overrideCoords?.lat;
+  const overrideLng = overrideCoords?.lng;
   const mapCentre =
-    place && Number.isFinite(place.latitude) && Number.isFinite(place.longitude)
-      ? { lat: place.latitude, lng: place.longitude, label: stayName }
-      : undefined;
+    overrideLat != null &&
+    overrideLng != null &&
+    Number.isFinite(overrideLat) &&
+    Number.isFinite(overrideLng)
+      ? { lat: overrideLat, lng: overrideLng, label: stayName }
+      : place && Number.isFinite(place.latitude) && Number.isFinite(place.longitude)
+        ? { lat: place.latitude, lng: place.longitude, label: stayName }
+        : undefined;
 
   const allCards = React.useMemo(() => flattenSaved(data), [data]);
   const filtered = React.useMemo(() => {

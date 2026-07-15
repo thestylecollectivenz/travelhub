@@ -594,26 +594,55 @@ const NEAREST_KIND_LABEL: Record<NearestPlaceKind, string> = {
   transport: 'public transport stop, bus stop, train/metro station, or taxi stand'
 };
 
-export type DiningVenueFocus = 'restaurants' | 'cafes' | 'attractions';
+export type DiningVenueFocus = 'restaurants' | 'cafes' | 'attractions' | 'nightlife' | 'bakeries' | 'parks' | 'museums' | 'viewpoints';
 
-function buildDiningPrompt(ctx: LocationSearchContext, venueFocus: DiningVenueFocus = 'restaurants'): string {
+function buildDiningPrompt(
+  ctx: LocationSearchContext,
+  venueFocus: DiningVenueFocus = 'restaurants'
+): string {
   const geo = `Search anchor coordinates: ${ctx.latitude.toFixed(5)}, ${ctx.longitude.toFixed(5)}`;
   const nearWho = ctx.searchAnchorLabel?.trim() || ctx.placeName;
   const placeLine =
     ctx.mode === 'onsite'
       ? `The traveller is on-site near ${nearWho} (${ctx.placeName}, ${ctx.country}). Use their current GPS as the search anchor.`
       : `Trip destination city: ${ctx.placeName}, ${ctx.country}. Search starting point: ${nearWho}. Suggest venues near THESE coordinates only — not other neighbourhoods unless they are within ~2 km.`;
-  const venueLine =
-    venueFocus === 'cafes'
-      ? 'Focus on coffee shops, bakeries, and casual cafés — not full-service restaurants. Include specialty drinks / signature items when known.'
-      : venueFocus === 'attractions'
-        ? 'Focus on sightseeing attractions, landmarks, museums, viewpoints, and notable places to visit — not restaurants. Mention typical visit length or ticket tip when helpful.'
-        : 'Focus on restaurants and substantial dining — include some cafés only if they are standouts. Mention cuisine style and signature dishes when helpful.';
-  const guideLabel = venueFocus === 'attractions' ? 'local sightseeing guide' : 'local dining guide';
-  const preferLine =
-    venueFocus === 'attractions'
-      ? 'Prefer iconic or well-reviewed visitor attractions nearest the search anchor'
-      : 'Prefer local food/drink highlights nearest the search anchor';
+  let venueLine =
+    'Focus on restaurants and substantial dining — include some cafés only if they are standouts. Mention cuisine style and signature dishes when helpful.';
+  let guideLabel = 'local dining guide';
+  let preferLine = 'Prefer local food/drink highlights nearest the search anchor';
+  if (venueFocus === 'cafes') {
+    venueLine =
+      'Focus on coffee shops and casual cafés — not full-service restaurants. Include specialty drinks / signature items when known.';
+  } else if (venueFocus === 'bakeries') {
+    venueLine =
+      'Focus on bakeries, patisseries, and pastry shops — not restaurants or coffee-only cafés unless they are known for baked goods.';
+    preferLine = 'Prefer bakeries and pastry specialists nearest the search anchor';
+  } else if (venueFocus === 'nightlife') {
+    venueLine =
+      'Focus on bars, cocktail lounges, pubs, and nightlife venues — not restaurants or daytime cafés.';
+    guideLabel = 'local nightlife guide';
+    preferLine = 'Prefer well-reviewed bars and nightspots nearest the search anchor';
+  } else if (venueFocus === 'parks') {
+    venueLine =
+      'Focus on parks, gardens, and green outdoor spaces for visitors — not restaurants or museums.';
+    guideLabel = 'local outdoor guide';
+    preferLine = 'Prefer parks and gardens nearest the search anchor';
+  } else if (venueFocus === 'museums') {
+    venueLine =
+      'Focus on museums, galleries, and cultural exhibitions — not restaurants or outdoor parks.';
+    guideLabel = 'local museum guide';
+    preferLine = 'Prefer museums and galleries nearest the search anchor';
+  } else if (venueFocus === 'viewpoints') {
+    venueLine =
+      'Focus on viewpoints, lookouts, observation decks, and scenic photo spots — not restaurants.';
+    guideLabel = 'local sightseeing guide';
+    preferLine = 'Prefer viewpoints and lookouts nearest the search anchor';
+  } else if (venueFocus === 'attractions') {
+    venueLine =
+      'Focus on sightseeing attractions, landmarks, and notable places to visit — not restaurants. Mention typical visit length or ticket tip when helpful.';
+    guideLabel = 'local sightseeing guide';
+    preferLine = 'Prefer iconic or well-reviewed visitor attractions nearest the search anchor';
+  }
   return `You are a ${guideLabel}.
 
 ${placeLine}

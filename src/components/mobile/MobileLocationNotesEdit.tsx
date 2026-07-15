@@ -22,12 +22,12 @@ export const MobileLocationNotesEdit: React.FC<MobileLocationNotesEditProps> = (
   const shellMode = useShellMode();
   const data = parseLocationInfoNotes(entry.notes);
   const [draft, setDraft] = React.useState(() =>
-    data ? plainTextToEditorHtml(data.practicalTips || '') : '<p><br></p>'
+    data ? plainTextToEditorHtml(data.userNotes || '') : '<p><br></p>'
   );
 
   React.useEffect(() => {
     const parsed = parseLocationInfoNotes(entry.notes);
-    setDraft(parsed ? plainTextToEditorHtml(parsed.practicalTips || '') : '<p><br></p>');
+    setDraft(parsed ? plainTextToEditorHtml(parsed.userNotes || '') : '<p><br></p>');
   }, [entry.id, entry.notes]);
 
   React.useEffect(() => {
@@ -43,8 +43,7 @@ export const MobileLocationNotesEdit: React.FC<MobileLocationNotesEditProps> = (
   const persist = (html: string): void => {
     const next = normalizeLocationInfoNotes({
       ...data,
-      practicalTips: isRichTextEditorEmpty(html) ? '' : html,
-      userEditedPracticalTips: true
+      userNotes: isRichTextEditorEmpty(html) ? '' : html
     });
     updateEntry({ ...entry, notes: serializeLocationInfoNotes(next) });
   };

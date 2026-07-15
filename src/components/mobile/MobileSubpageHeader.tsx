@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { MobileBrandHeader } from './MobileBrandHeader';
 import styles from './MobileSubpageHeader.module.css';
 
 export interface MobileSubpageHeaderProps {
@@ -8,7 +9,7 @@ export interface MobileSubpageHeaderProps {
   trailing?: React.ReactNode;
 }
 
-/** Shared back + title header for Explore / Saved / Near-you style subpages. */
+/** Shared Trip Leopard brand header + shell-style Back for Explore / Saved / Near-you subpages. */
 export const MobileSubpageHeader: React.FC<MobileSubpageHeaderProps> = ({
   title,
   subtitle,
@@ -16,17 +17,25 @@ export const MobileSubpageHeader: React.FC<MobileSubpageHeaderProps> = ({
   trailing
 }) => {
   return (
-    <header className={styles.top}>
-      <button type="button" className={styles.back} onClick={onBack} aria-label="Back">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <path d="M15 6 9 12l6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-      <div className={styles.topMain}>
-        <h1 className={styles.title}>{title}</h1>
-        {subtitle ? <p className={styles.sub}>{subtitle}</p> : null}
-      </div>
-      {trailing ? <div className={styles.trailing}>{trailing}</div> : <span className={styles.spacer} aria-hidden />}
-    </header>
+    <MobileBrandHeader
+      safeAreaTop={false}
+      title={title}
+      subtitle={subtitle}
+      actions={trailing}
+      navRow={
+        <button type="button" className={styles.backLink} onClick={onBack} aria-label="Back">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+            <path
+              d="M10 3L5 8l5 5"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          Back
+        </button>
+      }
+    />
   );
 };

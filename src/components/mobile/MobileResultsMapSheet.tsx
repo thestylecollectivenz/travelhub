@@ -83,14 +83,14 @@ export const MobileResultsMapSheet: React.FC<MobileResultsMapSheetProps> = ({
     map.setView([centre.lat, centre.lng], 14);
 
     const start = L.circleMarker([centre.lat, centre.lng], {
-      radius: 10,
+      radius: 11,
       color: '#fff',
-      weight: 2,
+      weight: 3,
       fillColor: '#c45c3a',
       fillOpacity: 1
     })
       .addTo(map)
-      .bindPopup(centre.label || 'Starting point');
+      .bindPopup(`Starting point: ${centre.label || 'Selected point'}`);
     start.openPopup();
 
     const bounds = L.latLngBounds([[centre.lat, centre.lng]]);
@@ -98,7 +98,7 @@ export const MobileResultsMapSheet: React.FC<MobileResultsMapSheetProps> = ({
 
     void (async () => {
       let pinned = 0;
-      for (const place of places.slice(0, 12)) {
+      for (const place of places) {
         if (cancelled) return;
         const fromUrl = parseCoordsFromMapsUrl(place.mapsUrl);
         const coords = fromUrl || (await geocodePlace(place.name, place.address, locality));
@@ -118,9 +118,9 @@ export const MobileResultsMapSheet: React.FC<MobileResultsMapSheetProps> = ({
       if (cancelled) return;
       if (pinned > 0) {
         map.fitBounds(bounds.pad(0.2), { maxZoom: 15 });
-        setStatus(`${pinned} places on map`);
+        setStatus(`${pinned} places · terracotta pin = starting point`);
       } else {
-        setStatus('Could not place result pins — showing search centre');
+        setStatus('Could not place result pins — showing starting point');
       }
       window.setTimeout(() => map.invalidateSize(), 60);
     })();

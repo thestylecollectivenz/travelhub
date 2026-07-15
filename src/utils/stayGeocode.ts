@@ -63,3 +63,35 @@ export async function geocodeStayQuery(
     return undefined;
   }
 }
+
+export type StayGeocodeFields = {
+  title?: string;
+  streetAddress?: string;
+  location?: string;
+};
+
+/**
+ * Prefer the hotel record address; never mix in the city Place title (that pulls Nominatim
+ * to the city centroid while the UI still shows the hotel name).
+ */
+export async function geocodeStayFromHotelRecord(
+  stay: StayGeocodeFields
+): Promise<StayGeoResult | undefined> {
+  const label = (stay.title || '').trim() || 'Accommodation';
+  const street = (stay.streetAddress || '').trim();
+  const loc = (stay.location || '').trim();
+
+  const attempts: string[] = [];
+  if (street) attempts.push(street);
+  if (street && loc && loc.toLowerCase() !== street.toLowerCase()) {
+    attempts.push(`${street}, ${loc}`);
+  }
+  if (loc && loc.toLowerCase() !== street.toLowerCase()) attempts.push(loc);
+  if (label && loc) attempts.push(`${label}, ${loc}`);
+
+  for (const query of attempts) {
+    const hit = await geocodeStayQuery(query, label);
+    if (hit) return hit;
+  }
+  return undefined;
+}

@@ -35,8 +35,16 @@ function IconDirections(): React.ReactElement {
 
 function IconSave(): React.ReactElement {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M6 4h12v18l-6-4-6 4V4Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path d="M7 3v5h8V3" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M7 21v-8h10v8" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <rect x="9" y="13" width="6" height="4" rx="0.5" stroke="currentColor" strokeWidth="1.4" />
     </svg>
   );
 }

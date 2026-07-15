@@ -99,9 +99,14 @@ export function exploreCategoryToNearTool(id: ExploreCategoryId): NearYouToolId 
 }
 
 export function exploreCategoryDiningFocus(id: ExploreCategoryId): DiningVenueFocus | undefined {
-  if (id === 'restaurants' || id === 'nightlife') return 'restaurants';
-  if (id === 'cafes' || id === 'bakeries') return 'cafes';
-  if (id === 'sights' || id === 'parks' || id === 'museums' || id === 'viewpoints') return 'attractions';
+  if (id === 'restaurants') return 'restaurants';
+  if (id === 'nightlife') return 'nightlife';
+  if (id === 'cafes') return 'cafes';
+  if (id === 'bakeries') return 'bakeries';
+  if (id === 'sights') return 'attractions';
+  if (id === 'parks') return 'parks';
+  if (id === 'museums') return 'museums';
+  if (id === 'viewpoints') return 'viewpoints';
   return undefined;
 }
 
