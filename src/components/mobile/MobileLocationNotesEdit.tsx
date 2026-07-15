@@ -86,6 +86,7 @@ export const MobileLocationNotesEdit: React.FC<MobileLocationNotesEditProps> = (
                 persist(html);
               }}
               minHeight="16rem"
+              variant="basic"
             />
           </div>
         </div>

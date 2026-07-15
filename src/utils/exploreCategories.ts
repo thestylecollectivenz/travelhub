@@ -22,8 +22,6 @@ export type ExploreCategoryId =
   | 'medical'
   | 'fuel';
 
-export type SavedPlacesCategoryId = 'all' | 'dining' | 'sights' | 'shopping' | 'essentials';
-
 export interface ExploreCategoryDef {
   id: ExploreCategoryId;
   label: string;
@@ -140,3 +138,43 @@ export function normalizeExploreCategory(raw?: string): ExploreCategoryId {
   if (k === 'fuel') return 'fuel';
   return 'restaurants';
 }
+
+/** Map a saved dining/nearest row onto an Explore category for shared filters. */
+export function savedRowToExploreCategory(input: {
+  source: 'dining' | 'nearest';
+  nearestKind?: NearestPlaceKind;
+  categoryLabel?: string;
+}): ExploreCategoryId {
+  if (input.source === 'nearest' && input.nearestKind) {
+    switch (input.nearestKind) {
+      case 'grocery':
+        return 'groceries';
+      case 'pharmacy':
+        return 'pharmacy';
+      case 'atm':
+        return 'atm';
+      case 'restroom':
+        return 'restroom';
+      case 'transport':
+        return 'transport';
+      case 'medical':
+        return 'medical';
+      case 'fuel':
+        return 'fuel';
+      default:
+        break;
+    }
+  }
+  const label = (input.categoryLabel || '').toLowerCase();
+  if (/cafe|coffee|bakery/.test(label)) return label.includes('bakery') ? 'bakeries' : 'cafes';
+  if (/bar|night|cocktail|pub/.test(label)) return 'nightlife';
+  if (/museum/.test(label)) return 'museums';
+  if (/park|garden/.test(label)) return 'parks';
+  if (/market/.test(label)) return 'markets';
+  if (/view|lookout/.test(label)) return 'viewpoints';
+  if (/sight|attraction|landmark/.test(label)) return 'sights';
+  if (/shop|retail/.test(label)) return 'shopping';
+  return normalizeExploreCategory(label);
+}
+
+export type SavedPlacesCategoryId = 'all' | ExploreCategoryId;

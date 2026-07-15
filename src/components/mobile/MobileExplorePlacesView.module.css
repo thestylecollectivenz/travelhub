@@ -352,11 +352,17 @@
 }
 
 .viewMap {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
   color: var(--ex-blue);
   font-size: 0.82rem;
   font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
+  font-family: inherit;
 }
 
 .error {

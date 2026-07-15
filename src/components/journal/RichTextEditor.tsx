@@ -19,6 +19,8 @@ export interface RichTextEditorProps {
   onChange: (html: string) => void;
   disabled?: boolean;
   minHeight?: string;
+  /** `basic` — Bold/Italic/Underline/lists/link only (mobile notes/overview). */
+  variant?: 'full' | 'basic';
 }
 
 const FONT_SIZE_PT = [8, 10, 12, 14] as const;
@@ -34,7 +36,13 @@ function readDefaultTextColor(editor: HTMLElement | null): string {
   return getComputedStyle(editor).color || readCssColor('--color-blue-900');
 }
 
-export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, disabled, minHeight = '7rem' }) => {
+export const RichTextEditor: React.FC<RichTextEditorProps> = ({
+  value,
+  onChange,
+  disabled,
+  minHeight = '7rem',
+  variant = 'full'
+}) => {
   const ref = React.useRef<HTMLDivElement>(null);
   const lastExternal = React.useRef<string>(value);
   const savedRangeRef = React.useRef<Range | null>(null);
@@ -254,58 +262,62 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
         >
           <span className={styles.underlineBtn}>U</span>
         </button>
-        <div className={styles.swatches} role="list" aria-label="Text colour">
-          <button
-            type="button"
-            className={styles.swatchDefault}
-            title="Default text colour (selection)"
-            disabled={disabled}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => applyColor(readDefaultTextColor(ref.current), false)}
-          >
-            A
-          </button>
-          {palette.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className={styles.swatch}
-              style={{ background: c }}
-              title={`${c} (Alt+click = all text)`}
-              disabled={disabled}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={(e) => applyColor(c, e.altKey)}
-            />
-          ))}
-          <button
-            type="button"
-            className={styles.swatchAll}
-            title="Apply default colour to all notes text"
-            disabled={disabled}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => applyColor(readDefaultTextColor(ref.current), true)}
-          >
-            All
-          </button>
-        </div>
-        <div className={styles.sizeGroup} aria-label="Font size (pt)">
-          {FONT_SIZE_PT.map((pt) => (
-            <button
-              key={pt}
-              type="button"
-              className={styles.sizeBtn}
-              disabled={disabled}
-              title={`${pt} pt (Alt+click = all text)`}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                saveSelection();
-              }}
-              onClick={(e) => applySize(pt, e.altKey)}
-            >
-              {pt}
-            </button>
-          ))}
-        </div>
+        {variant === 'full' ? (
+          <>
+            <div className={styles.swatches} role="list" aria-label="Text colour">
+              <button
+                type="button"
+                className={styles.swatchDefault}
+                title="Default text colour (selection)"
+                disabled={disabled}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => applyColor(readDefaultTextColor(ref.current), false)}
+              >
+                A
+              </button>
+              {palette.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={styles.swatch}
+                  style={{ background: c }}
+                  title={`${c} (Alt+click = all text)`}
+                  disabled={disabled}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => applyColor(c, e.altKey)}
+                />
+              ))}
+              <button
+                type="button"
+                className={styles.swatchAll}
+                title="Apply default colour to all notes text"
+                disabled={disabled}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => applyColor(readDefaultTextColor(ref.current), true)}
+              >
+                All
+              </button>
+            </div>
+            <div className={styles.sizeGroup} aria-label="Font size (pt)">
+              {FONT_SIZE_PT.map((pt) => (
+                <button
+                  key={pt}
+                  type="button"
+                  className={styles.sizeBtn}
+                  disabled={disabled}
+                  title={`${pt} pt (Alt+click = all text)`}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    saveSelection();
+                  }}
+                  onClick={(e) => applySize(pt, e.altKey)}
+                >
+                  {pt}
+                </button>
+              ))}
+            </div>
+          </>
+        ) : null}
         <button
           type="button"
           className={styles.toolBtn}
@@ -334,56 +346,60 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
         >
           1.
         </button>
-        <button
-          type="button"
-          className={`${styles.toolBtn} ${formatReady ? styles.toolBtnActive : ''}`}
-          disabled={disabled}
-          title={formatReady ? 'Apply copied formatting to selection' : 'Copy formatting from selection'}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            saveSelection();
-          }}
-          onClick={copyOrApplyFormat}
-        >
-          {formatReady ? 'Apply fmt' : 'Copy fmt'}
-        </button>
-        <button
-          type="button"
-          className={styles.toolBtn}
-          disabled={disabled}
-          title="Back to last setting (undo one format change)"
-          onClick={undoLast}
-        >
-          Undo
-        </button>
-        <button
-          type="button"
-          className={styles.toolBtn}
-          disabled={disabled}
-          title="Clear formatting (selection)"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            saveSelection();
-          }}
-          onClick={() => run(() => clearRichTextSelection())}
-        >
-          Tx
-        </button>
-        <button
-          type="button"
-          className={styles.toolBtn}
-          disabled={disabled}
-          title="Clear all formatting"
-          onClick={() => {
-            if (disabled || !ref.current) return;
-            pushUndo();
-            const next = clearRichTextAll(ref.current);
-            ref.current.innerHTML = next;
-            emit();
-          }}
-        >
-          Clear
-        </button>
+        {variant === 'full' ? (
+          <>
+            <button
+              type="button"
+              className={`${styles.toolBtn} ${formatReady ? styles.toolBtnActive : ''}`}
+              disabled={disabled}
+              title={formatReady ? 'Apply copied formatting to selection' : 'Copy formatting from selection'}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                saveSelection();
+              }}
+              onClick={copyOrApplyFormat}
+            >
+              {formatReady ? 'Apply fmt' : 'Copy fmt'}
+            </button>
+            <button
+              type="button"
+              className={styles.toolBtn}
+              disabled={disabled}
+              title="Back to last setting (undo one format change)"
+              onClick={undoLast}
+            >
+              Undo
+            </button>
+            <button
+              type="button"
+              className={styles.toolBtn}
+              disabled={disabled}
+              title="Clear formatting (selection)"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                saveSelection();
+              }}
+              onClick={() => run(() => clearRichTextSelection())}
+            >
+              Tx
+            </button>
+            <button
+              type="button"
+              className={styles.toolBtn}
+              disabled={disabled}
+              title="Clear all formatting"
+              onClick={() => {
+                if (disabled || !ref.current) return;
+                pushUndo();
+                const next = clearRichTextAll(ref.current);
+                ref.current.innerHTML = next;
+                emit();
+              }}
+            >
+              Clear
+            </button>
+          </>
+        ) : null}
       </div>
       <div
         ref={ref}

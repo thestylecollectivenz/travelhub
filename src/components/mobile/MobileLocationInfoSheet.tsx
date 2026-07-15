@@ -345,9 +345,9 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   const picker =
     startPickerOpen ? (
       <MobileStartPointPicker
-        initialLat={startingPoint?.lat ?? defaultCentre.lat}
-        initialLng={startingPoint?.lng ?? defaultCentre.lng}
-        initialLabel={startingPoint?.label ?? startingPointLabel}
+        initialLat={effectiveStart?.lat ?? defaultCentre.lat}
+        initialLng={effectiveStart?.lng ?? defaultCentre.lng}
+        initialLabel={effectiveStart?.label ?? startingPointLabel}
         onCancel={() => setStartPickerOpen(false)}
         onConfirm={(point) => {
           pushStartingPoint(point);

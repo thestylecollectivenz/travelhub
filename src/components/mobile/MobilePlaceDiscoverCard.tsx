@@ -9,9 +9,7 @@ export type PlaceDiscoverCardModel = {
   name: string;
   categoryLabel: string;
   rating?: number;
-  /** Longer description / why / services. */
   description?: string;
-  /** Raw distance text e.g. "450 m". */
   distanceRaw?: string;
   address?: string;
   mapsUrl?: string;
@@ -20,20 +18,17 @@ export type PlaceDiscoverCardModel = {
   nearLabel?: string;
 };
 
+export type PlaceDiscoverPrimaryKind = 'save' | 'delete' | 'label';
+
 export interface MobilePlaceDiscoverCardProps {
   card: PlaceDiscoverCardModel;
   startingPointLabel: string;
   cityFallback: string;
-  /** Horizontal strip layout (location overview) vs vertical list (saved/explore pages). */
   layout?: 'strip' | 'list';
   primaryAction?: {
     label: string;
     onClick: () => void;
-  };
-  secondaryAction?: {
-    label: string;
-    onClick?: () => void;
-    href?: string;
+    kind?: PlaceDiscoverPrimaryKind;
   };
 }
 
@@ -54,21 +49,40 @@ function IconDirections(): React.ReactElement {
   );
 }
 
+function IconSave(): React.ReactElement {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M6 4h12v18l-6-4-6 4V4Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconDelete(): React.ReactElement {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M5 7h14M10 7V5h4v2m-6 3v8m4-8v8M7 7l1 13h8l1-13"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = ({
   card,
   startingPointLabel,
   cityFallback,
   layout = 'list',
-  primaryAction,
-  secondaryAction
+  primaryAction
 }) => {
   const city = card.city || cityFallback;
   const photo = explorePlacePhotoUrl(card.name, city);
   const dist = distanceDisplayWithWalk(card.distanceRaw, card.nearLabel || startingPointLabel);
-  const directions =
-    secondaryAction?.href ||
-    placeDirectionsFromHereUrl(card.name, card.address, city) ||
-    undefined;
+  const directions = placeDirectionsFromHereUrl(card.name, card.address, city) || undefined;
+  const kind = primaryAction?.kind || 'label';
 
   return (
     <article className={`${styles.card} ${layout === 'strip' ? styles.strip : styles.list}`}>
@@ -100,18 +114,27 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
         <div className={styles.actions}>
           {directions ? (
             <a
-              className={`${styles.action} ${styles.actionPrimary}`}
+              className={`${styles.action} ${styles.actionDirections}`}
               href={directions}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={secondaryAction?.onClick}
             >
               <IconDirections /> Directions
             </a>
           ) : null}
           {primaryAction ? (
-            <button type="button" className={styles.action} onClick={primaryAction.onClick}>
-              {primaryAction.label}
+            <button
+              type="button"
+              className={`${styles.action} ${kind === 'delete' ? styles.actionIconDanger : ''} ${
+                kind !== 'label' ? styles.actionIcon : ''
+              }`}
+              onClick={primaryAction.onClick}
+              aria-label={primaryAction.label}
+              title={primaryAction.label}
+            >
+              {kind === 'save' ? <IconSave /> : null}
+              {kind === 'delete' ? <IconDelete /> : null}
+              {kind === 'label' ? primaryAction.label : null}
             </button>
           ) : null}
         </div>

@@ -1,0 +1,91 @@
+.catPills {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.45rem;
+  overflow-x: auto;
+  padding: 0.15rem 0 0.75rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.catPills::-webkit-scrollbar {
+  display: none;
+}
+
+.catPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  background: white;
+  color: #1e2a44;
+  border-radius: 999px;
+  padding: 0.4rem 0.7rem 0.4rem 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.catPillOn {
+  border-color: color-mix(in srgb, var(--cat-accent, #2f5eb8) 45%, white);
+  background: var(--cat-bg, color-mix(in srgb, #2f5eb8 10%, white));
+  color: var(--cat-accent, #2f5eb8);
+}
+
+.catPillIcon {
+  display: inline-flex;
+}
+
+.sightsGlyph {
+  display: inline-flex;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: #e8eef8;
+  color: #2f5eb8;
+  align-items: center;
+  justify-content: center;
+}
+
+.moreWrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.moreMenu {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 6;
+  min-width: 10rem;
+  padding: 0.4rem;
+  border-radius: 0.85rem;
+  background: white;
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  box-shadow: 0 8px 24px color-mix(in srgb, #1e2a44 14%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.moreItem {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 0.5rem;
+  border-radius: 0.55rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: #1e2a44;
+}
+
+[data-shell='ipad-portrait'] .catPill {
+  font-size: 0.88rem;
+  padding: 0.45rem 0.8rem 0.45rem 0.5rem;
+}

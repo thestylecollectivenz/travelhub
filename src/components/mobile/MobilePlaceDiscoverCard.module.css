@@ -10,8 +10,8 @@
 }
 
 .strip {
-  flex: 0 0 15.5rem;
-  width: 15.5rem;
+  flex: 0 0 17.5rem;
+  width: 17.5rem;
   min-height: 100%;
 }
 
@@ -29,13 +29,13 @@
 }
 
 .strip .photo {
-  height: 7.5rem;
+  height: 8.25rem;
   width: 100%;
 }
 
 .list .photo {
-  width: 7.5rem;
-  min-height: 9.5rem;
+  width: 9.5rem;
+  min-height: 10.5rem;
   align-self: stretch;
 }
 
@@ -153,6 +153,24 @@
   color: white;
 }
 
+.actionDirections {
+  background: var(--color-accent, #14755a);
+  border-color: var(--color-accent, #14755a);
+  color: white;
+}
+
+.actionIcon {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  justify-content: center;
+}
+
+.actionIconDanger {
+  color: #b42318;
+  border-color: color-mix(in srgb, #b42318 30%, transparent);
+}
+
 [data-shell='ipad-portrait'] .name {
   font-size: 1.02rem;
 }
@@ -170,7 +188,11 @@
   padding: 0.4rem 0.8rem;
 }
 
+[data-shell='ipad-portrait'] .list .photo {
+  width: 11rem;
+}
+
 [data-shell='ipad-portrait'] .strip {
-  flex-basis: 17.5rem;
-  width: 17.5rem;
+  flex-basis: 19rem;
+  width: 19rem;
 }

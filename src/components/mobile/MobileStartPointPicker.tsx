@@ -68,26 +68,39 @@ export const MobileStartPointPicker: React.FC<MobileStartPointPickerProps> = ({
   const hostRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<L.Map | null>(null);
   const markerRef = React.useRef<L.CircleMarker | null>(null);
+  const seedLabel = (initialLabel || '').trim() || shortCoordLabel(initialLat, initialLng);
   const [selected, setSelected] = React.useState<StartPointSelection>(() => ({
     lat: initialLat,
     lng: initialLng,
-    label: (initialLabel || '').trim() || 'Selected point'
+    label: seedLabel
   }));
   const [resolving, setResolving] = React.useState(false);
 
-  const placeMarker = React.useCallback((map: L.Map, lat: number, lng: number): void => {
+  const placeMarker = React.useCallback((map: L.Map, lat: number, lng: number, label: string): void => {
     if (markerRef.current) {
       markerRef.current.setLatLng([lat, lng]);
+      markerRef.current.bindPopup(label).openPopup();
       return;
     }
     markerRef.current = L.circleMarker([lat, lng], {
-      radius: 9,
+      radius: 12,
       color: '#fff',
-      weight: 2,
+      weight: 3,
       fillColor: '#c45c3a',
       fillOpacity: 1
-    }).addTo(map);
+    })
+      .addTo(map)
+      .bindPopup(label);
+    markerRef.current.openPopup();
   }, []);
+
+  React.useEffect(() => {
+    setSelected({
+      lat: initialLat,
+      lng: initialLng,
+      label: (initialLabel || '').trim() || shortCoordLabel(initialLat, initialLng)
+    });
+  }, [initialLat, initialLng, initialLabel]);
 
   React.useEffect(() => {
     const el = hostRef.current;
@@ -100,33 +113,45 @@ export const MobileStartPointPicker: React.FC<MobileStartPointPickerProps> = ({
     const map = L.map(el, { zoomControl: true, attributionControl: false });
     mapRef.current = map;
     addTiles(map);
+    const label = (initialLabel || '').trim() || shortCoordLabel(initialLat, initialLng);
     map.setView([initialLat, initialLng], 16);
-    placeMarker(map, initialLat, initialLng);
+    placeMarker(map, initialLat, initialLng, label);
 
     const onClick = (ev: L.LeafletMouseEvent): void => {
       const { lat, lng } = ev.latlng;
-      placeMarker(map, lat, lng);
-      setSelected({ lat, lng, label: shortCoordLabel(lat, lng) });
+      const temp = shortCoordLabel(lat, lng);
+      placeMarker(map, lat, lng, temp);
+      setSelected({ lat, lng, label: temp });
       setResolving(true);
-      void reverseGeocode(lat, lng).then((label) => {
-        setSelected((prev) => ({
-          lat,
-          lng,
-          label: label || prev.label || 'Selected point'
-        }));
+      void reverseGeocode(lat, lng).then((nextLabel) => {
+        const finalLabel = nextLabel || temp;
+        placeMarker(map, lat, lng, finalLabel);
+        setSelected({ lat, lng, label: finalLabel });
         setResolving(false);
       });
     };
     map.on('click', onClick);
-    const t = window.setTimeout(() => map.invalidateSize(), 80);
+
+    // Portal layout often needs a delayed resize so the initial pin is visible.
+    const t1 = window.setTimeout(() => {
+      map.invalidateSize();
+      map.setView([initialLat, initialLng], 16);
+      placeMarker(map, initialLat, initialLng, label);
+    }, 120);
+    const t2 = window.setTimeout(() => {
+      map.invalidateSize();
+      map.setView([initialLat, initialLng], 16);
+    }, 400);
+
     return () => {
-      window.clearTimeout(t);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
       map.off('click', onClick);
       map.remove();
       mapRef.current = null;
       markerRef.current = null;
     };
-  }, [initialLat, initialLng, placeMarker]);
+  }, [initialLat, initialLng, initialLabel, placeMarker]);
 
   React.useEffect(() => {
     const onKey = (ev: KeyboardEvent): void => {
@@ -148,7 +173,9 @@ export const MobileStartPointPicker: React.FC<MobileStartPointPickerProps> = ({
           <h2 className={styles.title}>Starting point</h2>
           <span className={styles.headerSpacer} aria-hidden />
         </header>
-        <p className={styles.instruction}>Tap the map to set your search starting point</p>
+        <p className={styles.instruction}>
+          Current selection is marked below — tap the map to choose a new starting point
+        </p>
         <div className={styles.mapHost} ref={hostRef} />
         <div className={styles.footer}>
           <p className={styles.selectedLabel}>

@@ -86,6 +86,7 @@ export const MobileLocationOverviewEdit: React.FC<MobileLocationOverviewEditProp
                 persist(html);
               }}
               minHeight="16rem"
+              variant="basic"
             />
           </div>
         </div>

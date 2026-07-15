@@ -17,11 +17,10 @@ import {
   type NearestPlaceRow
 } from '../../utils/locationInfoEntry';
 import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
-import { explorePlacePhotoUrl } from '../../utils/explorePlacePhoto';
+import { explorePlacePhotoUrl, destinationHeroPhotoUrl } from '../../utils/explorePlacePhoto';
 import {
   exploreCategoriesSorted,
-  type ExploreCategoryId,
-  type SavedPlacesCategoryId
+  type ExploreCategoryId
 } from '../../utils/exploreCategories';
 import { RichTextContent } from '../shared/RichTextContent';
 import { LocationInfoAskPanel } from '../itinerary/LocationInfoAskPanel';
@@ -30,6 +29,7 @@ import { LocationHighlightIcon } from './LocationHighlightIcon';
 import { MobilePencilButton } from './MobilePencilButton';
 import { MobileStartPointActions } from './MobileStartPointActions';
 import { MobilePlaceDiscoverCard } from './MobilePlaceDiscoverCard';
+import { MobileLocationTravelTip } from './MobileLocationTravelTip';
 import type { NearYouToolId } from '../../utils/nearYouTools';
 import styles from './MobileLocationInfoContent.module.css';
 
@@ -293,8 +293,8 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
   const nearestTotal = Object.values(data.nearestPlaces ?? {}).reduce((n, list) => n + (list?.length ?? 0), 0);
   const allSavedCount = diningCount + nearestTotal;
 
-  const savedTiles: Array<{ id: SavedPlacesCategoryId; label: string; count: number }> = [
-    { id: 'dining', label: 'Dining', count: diningCount },
+  const savedTiles: Array<{ id: string; label: string; count: number }> = [
+    { id: 'restaurants', label: 'Dining', count: diningCount },
     { id: 'sights', label: 'Sights', count: 0 },
     { id: 'shopping', label: 'Shopping', count: shoppingCount },
     { id: 'essentials', label: 'Essentials', count: essentialsCount },

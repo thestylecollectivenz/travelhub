@@ -11,13 +11,22 @@ import {
   normalizeLocationInfoNotes,
   serializeLocationInfoNotes
 } from '../../utils/locationInfoEntry';
-import { placeQueryMapsUrl } from '../../utils/googleMapsLink';
 import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
-import type { SavedPlacesCategoryId } from '../../utils/exploreCategories';
+import {
+  EXPLORE_CATEGORIES,
+  normalizeExploreCategory,
+  savedRowToExploreCategory,
+  type ExploreCategoryId,
+  type SavedPlacesCategoryId
+} from '../../utils/exploreCategories';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { parseDistanceKm } from '../../utils/locationDistanceLabel';
 import { MobileStartPointActions } from './MobileStartPointActions';
 import { MobilePlaceDiscoverCard } from './MobilePlaceDiscoverCard';
+import { MobileSubpageHeader } from './MobileSubpageHeader';
+import { MobileExploreCategoryPills } from './MobileExploreCategoryPills';
+import { MobileResultsMapSheet } from './MobileResultsMapSheet';
+import { MobileLocationTravelTip } from './MobileLocationTravelTip';
 import styles from './MobileSavedPlacesView.module.css';
 
 export interface MobileSavedPlacesViewProps {
@@ -42,7 +51,7 @@ type SavedCard = {
   source: 'dining' | 'nearest';
   nearestKind?: NearestPlaceKind;
   name: string;
-  category: SavedPlacesCategoryId;
+  category: ExploreCategoryId;
   categoryLabel: string;
   rating?: number;
   description?: string;
@@ -53,21 +62,62 @@ type SavedCard = {
   nearLabel?: string;
 };
 
-const ESSENTIAL_KINDS: NearestPlaceKind[] = ['pharmacy', 'atm', 'medical', 'restroom', 'fuel', 'transport'];
+const DINING_CATEGORIES: ExploreCategoryId[] = ['restaurants', 'cafes', 'bakeries', 'nightlife'];
+const ESSENTIALS_CATEGORIES: ExploreCategoryId[] = [
+  'pharmacy',
+  'atm',
+  'medical',
+  'restroom',
+  'fuel',
+  'transport',
+  'groceries',
+  'shopping',
+  'markets'
+];
+const ATTRACTION_CATEGORIES: ExploreCategoryId[] = ['sights', 'parks', 'museums', 'viewpoints'];
 
-function normalizeSavedCategory(raw?: string): SavedPlacesCategoryId {
-  const k = (raw || '').trim().toLowerCase();
-  if (k === 'dining' || k === 'restaurants' || k === 'food') return 'dining';
-  if (k === 'sights' || k === 'sight') return 'sights';
-  if (k === 'shopping' || k === 'grocery' || k === 'groceries') return 'shopping';
-  if (k === 'essentials' || k === 'essential') return 'essentials';
-  return 'all';
+const KNOWN_CATEGORY_ALIASES = new Set(
+  [
+    ...EXPLORE_CATEGORIES.map((c) => c.id),
+    'dining',
+    'restaurant',
+    'food',
+    'cafe',
+    'cafés',
+    'bakery',
+    'bars',
+    'night',
+    'shop',
+    'sight',
+    'attractions',
+    'park',
+    'museum',
+    'market',
+    'viewpoint',
+    'views',
+    'grocery',
+    'restrooms'
+  ].map((s) => s.toLowerCase())
+);
+
+function isDiningCategory(id: ExploreCategoryId | 'all'): boolean {
+  return id !== 'all' && DINING_CATEGORIES.indexOf(id) >= 0;
 }
 
-function kindCategory(kind: NearestPlaceKind): SavedPlacesCategoryId {
-  if (kind === 'grocery') return 'shopping';
-  if (ESSENTIAL_KINDS.includes(kind)) return 'essentials';
-  return 'all';
+function isEssentialsCategory(id: ExploreCategoryId | 'all'): boolean {
+  return id !== 'all' && ESSENTIALS_CATEGORIES.indexOf(id) >= 0;
+}
+
+function isAttractionCategory(id: ExploreCategoryId | 'all'): boolean {
+  return id !== 'all' && ATTRACTION_CATEGORIES.indexOf(id) >= 0;
+}
+
+/** Map free-form initial category; unknown / all / essentials → all; dining → restaurants. */
+function normalizeInitialSavedCategory(raw?: string): SavedPlacesCategoryId {
+  const k = (raw || '').trim().toLowerCase();
+  if (!k || k === 'all' || k === 'unknown' || k === 'essentials' || k === 'essential') return 'all';
+  if (!KNOWN_CATEGORY_ALIASES.has(k)) return 'all';
+  return normalizeExploreCategory(k);
 }
 
 function kindLabel(kind: NearestPlaceKind): string {
@@ -77,12 +127,16 @@ function kindLabel(kind: NearestPlaceKind): string {
 function flattenSaved(data: LocationInfoNotes): SavedCard[] {
   const out: SavedCard[] = [];
   (data.diningSuggestions ?? []).forEach((row: DiningSuggestionRow) => {
+    const category = savedRowToExploreCategory({
+      source: 'dining',
+      categoryLabel: row.bestFor || 'Dining'
+    });
     out.push({
       id: `dining-${row.id}`,
       rowId: row.id,
       source: 'dining',
       name: row.name,
-      category: 'dining',
+      category,
       categoryLabel: row.bestFor || 'Dining',
       rating: row.rating,
       description: row.why || row.bestFor,
@@ -96,7 +150,11 @@ function flattenSaved(data: LocationInfoNotes): SavedCard[] {
   const nearest = data.nearestPlaces ?? {};
   (Object.keys(nearest) as NearestPlaceKind[]).forEach((kind) => {
     (nearest[kind] ?? []).forEach((row: NearestPlaceRow) => {
-      const category = kindCategory(kind);
+      const category = savedRowToExploreCategory({
+        source: 'nearest',
+        nearestKind: kind,
+        categoryLabel: kindLabel(kind)
+      });
       out.push({
         id: `${kind}-${row.id}`,
         rowId: row.id,
@@ -110,7 +168,7 @@ function flattenSaved(data: LocationInfoNotes): SavedCard[] {
         address: row.address,
         mapsUrl: row.mapsUrl,
         tags: (row.servicesSummary || '')
-          .split(/[,;·]/)
+          .split(/[,;·|/]/)
           .map((s) => s.trim())
           .filter(Boolean)
           .slice(0, 3),
@@ -129,14 +187,6 @@ function IconBed(): React.ReactElement {
     </svg>
   );
 }
-
-const CATEGORY_PILLS: Array<{ id: SavedPlacesCategoryId; label: string }> = [
-  { id: 'all', label: 'All saved' },
-  { id: 'dining', label: 'Dining' },
-  { id: 'sights', label: 'Sights' },
-  { id: 'shopping', label: 'Shopping' },
-  { id: 'essentials', label: 'Essentials' }
-];
 
 export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
   place,
@@ -173,15 +223,32 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
     const next = normalizeLocationInfoNotes({ ...data, nearestPlaces: nearest });
     updateEntry({ ...entry, notes: serializeLocationInfoNotes(next) });
   };
-  const mapsUrl = placeQueryMapsUrl(place?.title || shortPlace, place?.country);
+
   const [category, setCategory] = React.useState<SavedPlacesCategoryId>(() =>
-    normalizeSavedCategory(initialCategory)
+    normalizeInitialSavedCategory(initialCategory)
   );
   const [visibleCount, setVisibleCount] = React.useState(8);
+  const [sortBy, setSortBy] = React.useState('Recently saved');
   const [minRating, setMinRating] = React.useState<number | null>(null);
   const [priceFilter, setPriceFilter] = React.useState<string | null>(null);
   const [distanceKm, setDistanceKm] = React.useState(2);
   const [openNow, setOpenNow] = React.useState(false);
+  const [cuisine, setCuisine] = React.useState('');
+  const [filterWifi, setFilterWifi] = React.useState(false);
+  const [filterOutdoor, setFilterOutdoor] = React.useState(false);
+  const [filterReservations, setFilterReservations] = React.useState(false);
+  const [mapOpen, setMapOpen] = React.useState(false);
+
+  const showDiningFilters = isDiningCategory(category);
+  const showEssentialsExtras = isEssentialsCategory(category);
+  const showAttractionExtras = isAttractionCategory(category);
+  const showOpenNow =
+    category === 'all' || showDiningFilters || showEssentialsExtras || showAttractionExtras;
+
+  const mapCentre =
+    place && Number.isFinite(place.latitude) && Number.isFinite(place.longitude)
+      ? { lat: place.latitude, lng: place.longitude, label: stayName }
+      : undefined;
 
   const allCards = React.useMemo(() => flattenSaved(data), [data]);
   const filtered = React.useMemo(() => {
@@ -191,68 +258,65 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
     if (priceFilter) {
       rows = rows.filter((c) => c.tags.some((t) => t.includes(priceFilter)));
     }
+    if (cuisine) {
+      const q = cuisine.toLowerCase();
+      rows = rows.filter((c) =>
+        [c.description, c.categoryLabel, ...(c.tags || [])].join(' ').toLowerCase().includes(q)
+      );
+    }
     rows = rows.filter((c) => {
       const km = parseDistanceKm(c.distance);
       if (km == null) return true;
       return km <= distanceKm;
     });
+    rows = rows.slice().sort((a, b) => {
+      if (sortBy === 'Name') {
+        return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+      }
+      if (sortBy === 'Distance') {
+        const da = parseDistanceKm(a.distance);
+        const db = parseDistanceKm(b.distance);
+        if (da != null && db != null) return da - db;
+        if (da != null) return -1;
+        if (db != null) return 1;
+        return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+      }
+      // Recently saved — keep flatten order
+      return 0;
+    });
     return rows;
-  }, [allCards, category, minRating, priceFilter, distanceKm]);
+  }, [allCards, category, minRating, priceFilter, cuisine, distanceKm, sortBy]);
 
   const visible = filtered.slice(0, visibleCount);
 
   const clearFilters = (): void => {
+    setSortBy('Recently saved');
     setMinRating(null);
     setPriceFilter(null);
     setDistanceKm(2);
     setOpenNow(false);
+    setCuisine('');
+    setFilterWifi(false);
+    setFilterOutdoor(false);
+    setFilterReservations(false);
   };
 
   return (
     <div className={styles.page}>
-      <header className={styles.top}>
-        <button type="button" className={styles.back} onClick={onBack} aria-label="Back">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M15 6 9 12l6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-        <div className={styles.topMain}>
-          <h1 className={styles.title}>Saved places in {shortPlace}</h1>
-          <p className={styles.sub}>
-            Places you&apos;ve saved for {shortPlace}. Use GPS when you&apos;re there for live directions.
-          </p>
-          {mapsUrl ? (
-            <a className={styles.mapLink} href={mapsUrl} target="_blank" rel="noopener noreferrer">
-              Map view ›
-            </a>
-          ) : null}
-        </div>
-      </header>
+      <MobileSubpageHeader
+        title={`Saved places in ${shortPlace}`}
+        subtitle={`Places you've saved for ${shortPlace}. Use GPS when you're there for live directions.`}
+        onBack={onBack}
+      />
 
-      <div className={styles.catPills} role="list">
-        {CATEGORY_PILLS.map((pill) => (
-          <button
-            key={pill.id}
-            type="button"
-            role="listitem"
-            className={`${styles.catPill} ${category === pill.id ? styles.catPillOn : ''}`}
-            onClick={() => {
-              setCategory(pill.id);
-              setVisibleCount(8);
-            }}
-          >
-            {pill.label}
-          </button>
-        ))}
-        <button
-          type="button"
-          className={`${styles.catPill} ${styles.catPillDisabled}`}
-          disabled
-          title="Collections coming soon"
-        >
-          + New collection
-        </button>
-      </div>
+      <MobileExploreCategoryPills
+        includeAll
+        category={category}
+        onChange={(id) => {
+          setCategory(id);
+          setVisibleCount(8);
+        }}
+      />
 
       <div className={styles.startBanner}>
         <span className={styles.startIcon} aria-hidden>
@@ -286,13 +350,19 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
             </button>
           </div>
 
-          <div className={styles.filterBlock}>
+          <label className={styles.filterBlock}>
             <span className={styles.filterLabel}>Sort</span>
-            <select className={styles.select} value="Recently saved" disabled aria-label="Sort">
+            <select
+              className={styles.select}
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              aria-label="Sort"
+            >
               <option>Recently saved</option>
               <option>Distance</option>
+              <option>Name</option>
             </select>
-          </div>
+          </label>
 
           <div className={styles.filterBlock}>
             <span className={styles.filterLabel}>Distance</span>
@@ -325,40 +395,84 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
             </div>
           </div>
 
-          <div className={styles.filterBlock}>
-            <span className={styles.filterLabel}>Price</span>
-            <div className={styles.pillRow}>
-              {['$', '$$', '$$$'].map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  className={`${styles.filterPill} ${priceFilter === p ? styles.filterPillOn : ''}`}
-                  onClick={() => setPriceFilter((v) => (v === p ? null : p))}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-          </div>
+          {showDiningFilters ? (
+            <>
+              <div className={styles.filterBlock}>
+                <span className={styles.filterLabel}>Price</span>
+                <div className={styles.pillRow}>
+                  {['$', '$$', '$$$'].map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      className={`${styles.filterPill} ${priceFilter === p ? styles.filterPillOn : ''}`}
+                      onClick={() => setPriceFilter((v) => (v === p ? null : p))}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          <label className={styles.toggleRow}>
-            <span>Open now</span>
-            <input type="checkbox" checked={openNow} onChange={(e) => setOpenNow(e.target.checked)} />
-          </label>
+              <label className={styles.filterBlock}>
+                <span className={styles.filterLabel}>Cuisine</span>
+                <select
+                  className={styles.select}
+                  value={cuisine}
+                  onChange={(e) => setCuisine(e.target.value)}
+                  aria-label="Cuisine"
+                >
+                  <option value="">Any</option>
+                  <option value="local">Local</option>
+                  <option value="european">European</option>
+                  <option value="asian">Asian</option>
+                  <option value="seafood">Seafood</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          {showOpenNow ? (
+            <label className={styles.toggleRow}>
+              <span>Open now</span>
+              <input type="checkbox" checked={openNow} onChange={(e) => setOpenNow(e.target.checked)} />
+            </label>
+          ) : null}
+
+          {showDiningFilters ? (
+            <div className={styles.filterBlock}>
+              <span className={styles.filterLabel}>More filters</span>
+              <label className={styles.toggleRow}>
+                <input type="checkbox" checked={filterWifi} onChange={(e) => setFilterWifi(e.target.checked)} />
+                Free Wi‑Fi
+              </label>
+              <label className={styles.toggleRow}>
+                <input type="checkbox" checked={filterOutdoor} onChange={(e) => setFilterOutdoor(e.target.checked)} />
+                Outdoor seating
+              </label>
+              <label className={styles.toggleRow}>
+                <input
+                  type="checkbox"
+                  checked={filterReservations}
+                  onChange={(e) => setFilterReservations(e.target.checked)}
+                />
+                Takes reservations
+              </label>
+            </div>
+          ) : null}
         </aside>
 
         <div className={styles.results}>
           <div className={styles.resultsHead}>
             <p className={styles.resultsCount}>{filtered.length} saved places</p>
-            {mapsUrl ? (
-              <a className={styles.viewMap} href={mapsUrl} target="_blank" rel="noopener noreferrer">
+            {mapCentre ? (
+              <button type="button" className={styles.viewMap} onClick={() => setMapOpen(true)}>
                 View on map
-              </a>
+              </button>
             ) : null}
           </div>
 
           {!filtered.length ? (
-            <p className={styles.empty}>No saved places in this category yet. Explore and tap Bookmark to save.</p>
+            <p className={styles.empty}>No saved places in this category yet. Explore and tap Save to save.</p>
           ) : null}
 
           <div className={styles.cardList}>
@@ -384,7 +498,8 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
                 primaryAction={
                   entry
                     ? {
-                        label: 'Unsave',
+                        label: 'Delete',
+                        kind: 'delete',
                         onClick: () => unsaveCard(r)
                       }
                     : undefined
@@ -405,6 +520,27 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
           </p>
         </div>
       </div>
+
+      <MobileLocationTravelTip
+        placeLabel={shortPlace}
+        existingTipHtml={data.practicalTips}
+        startingPointLabel={stayName}
+      />
+
+      {mapOpen && mapCentre ? (
+        <MobileResultsMapSheet
+          title={`Saved in ${shortPlace}`}
+          centre={mapCentre}
+          locality={shortPlace}
+          places={filtered.map((r) => ({
+            id: r.id,
+            name: r.name,
+            address: r.address,
+            mapsUrl: r.mapsUrl
+          }))}
+          onClose={() => setMapOpen(false)}
+        />
+      ) : null}
     </div>
   );
 };

@@ -7,7 +7,6 @@ import { MOBILE_NEAR_YOU_ON_SITE_KM, resolveLocationSearchContext } from '../../
 import { placeQueryMapsUrl, placeWebsiteSearchUrl } from '../../utils/googleMapsLink';
 import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
 import {
-  exploreCategoriesSorted,
   exploreCategoryById,
   exploreCategoryDiningFocus,
   exploreCategoryNearestKind,
@@ -22,10 +21,13 @@ import {
   type NearYouCachedResult
 } from '../../utils/nearYouResultCache';
 import { parseDistanceKm } from '../../utils/locationDistanceLabel';
-import { NearYouToolIcon } from '../shared/NearYouToolIcon';
 import type { NearYouToolId } from '../../utils/nearYouTools';
 import { MobileStartPointActions } from './MobileStartPointActions';
 import { MobilePlaceDiscoverCard } from './MobilePlaceDiscoverCard';
+import { MobileSubpageHeader } from './MobileSubpageHeader';
+import { MobileExploreCategoryPills } from './MobileExploreCategoryPills';
+import { MobileResultsMapSheet } from './MobileResultsMapSheet';
+import { MobileLocationTravelTip } from './MobileLocationTravelTip';
 import styles from './MobileExplorePlacesView.module.css';
 
 export interface MobileExplorePlacesViewProps {
@@ -66,6 +68,32 @@ type ExploreCard = NearYouCachedResult & {
   distanceRaw?: string;
 };
 
+const DINING_CATEGORIES: ExploreCategoryId[] = ['restaurants', 'cafes', 'bakeries', 'nightlife'];
+const ESSENTIALS_CATEGORIES: ExploreCategoryId[] = [
+  'pharmacy',
+  'atm',
+  'medical',
+  'restroom',
+  'fuel',
+  'transport',
+  'groceries',
+  'shopping',
+  'markets'
+];
+const ATTRACTION_CATEGORIES: ExploreCategoryId[] = ['sights', 'parks', 'museums', 'viewpoints'];
+
+function isDiningCategory(id: ExploreCategoryId): boolean {
+  return DINING_CATEGORIES.indexOf(id) >= 0;
+}
+
+function isEssentialsCategory(id: ExploreCategoryId): boolean {
+  return ESSENTIALS_CATEGORIES.indexOf(id) >= 0;
+}
+
+function isAttractionCategory(id: ExploreCategoryId): boolean {
+  return ATTRACTION_CATEGORIES.indexOf(id) >= 0;
+}
+
 function toCardsFromDining(items: DiningSuggestionRow[], categoryLabel: string): ExploreCard[] {
   return items.map((p, i) => ({
     id: p.id,
@@ -99,7 +127,7 @@ function toCardsFromNearest(places: NearestPlaceRow[], categoryLabel: string): E
     topPick: i === 0,
     categoryLabel,
     tags: (p.servicesSummary || '')
-      .split(/[,;·]/)
+      .split(/[,;·|/]/)
       .map((s) => s.trim())
       .filter(Boolean)
       .slice(0, 3),
@@ -114,18 +142,6 @@ function IconBed(): React.ReactElement {
       <path d="M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
       <path d="M3 14h18M7 10V8a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
-  );
-}
-
-function CategoryGlyph({ id }: { id: ExploreCategoryId }): React.ReactElement {
-  const tool = exploreCategoryToNearTool(id);
-  if (tool) return <NearYouToolIcon toolId={tool} size="sm" />;
-  return (
-    <span className={styles.sightsGlyph} aria-hidden>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-        <path d="M4 18 8 8l4 6 3-4 5 8H4Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-      </svg>
-    </span>
   );
 }
 
@@ -159,9 +175,9 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   const [results, setResults] = React.useState<ExploreCard[]>([]);
   const [visibleCount, setVisibleCount] = React.useState(6);
   const [toast, setToast] = React.useState('');
-  const [moreOpen, setMoreOpen] = React.useState(false);
+  const [mapOpen, setMapOpen] = React.useState(false);
 
-  const [sortBy] = React.useState('Distance');
+  const [sortBy, setSortBy] = React.useState('Distance');
   const [distanceKm, setDistanceKm] = React.useState(2);
   const [minRating, setMinRating] = React.useState<number | null>(null);
   const [priceFilter, setPriceFilter] = React.useState<string | null>(null);
@@ -172,11 +188,10 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   const [filterReservations, setFilterReservations] = React.useState(false);
 
   const catDef = exploreCategoryById(category);
-  const sortedCats = React.useMemo(() => exploreCategoriesSorted(), []);
-  const primaryCats = sortedCats.slice(0, 6);
-  const moreCats = sortedCats.slice(6);
   const stayName = (startingPointLabel || '').trim() || shortPlace;
-  const mapsUrl = placeQueryMapsUrl(place?.title || shortPlace, place?.country);
+  const showDiningFilters = isDiningCategory(category);
+  const showEssentialsExtras = isEssentialsCategory(category);
+  const showAttractionExtras = isAttractionCategory(category);
   const overrideLat = overrideCoords?.lat;
   const overrideLng = overrideCoords?.lng;
   const coordsKey =
@@ -184,8 +199,15 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
       ? `${overrideLat.toFixed(4)},${overrideLng.toFixed(4)}`
       : 'default';
   const anchorLabel = (searchAnchorLabel || startingPointLabel || '').trim() || undefined;
+  const mapCentre =
+    overrideLat != null && overrideLng != null
+      ? { lat: overrideLat, lng: overrideLng, label: stayName }
+      : place && Number.isFinite(place.latitude) && Number.isFinite(place.longitude)
+        ? { lat: place.latitude, lng: place.longitude, label: stayName }
+        : undefined;
 
   const clearFilters = (): void => {
+    setSortBy('Distance');
     setDistanceKm(2);
     setMinRating(null);
     setPriceFilter(null);
@@ -307,12 +329,27 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
     if (priceFilter) {
       rows = rows.filter((r) => (r.priceLevel || '').includes(priceFilter));
     }
+    if (cuisine) {
+      const q = cuisine.toLowerCase();
+      rows = rows.filter((r) =>
+        [r.aiBlurb, r.note, r.categoryLabel, ...(r.tags || [])].join(' ').toLowerCase().includes(q)
+      );
+    }
     rows = rows.filter((r) => {
       const km = parseDistanceKm(r.distanceRaw || r.note || r.walkHint);
       if (km == null) return true;
       return km <= distanceKm;
     });
     rows = rows.slice().sort((a, b) => {
+      if (sortBy === 'Name') {
+        return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+      }
+      if (sortBy === 'Rating') {
+        const ra = typeof a.rating === 'number' ? a.rating : -1;
+        const rb = typeof b.rating === 'number' ? b.rating : -1;
+        if (rb !== ra) return rb - ra;
+        return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+      }
       const da = parseDistanceKm(a.distanceRaw || a.note);
       const db = parseDistanceKm(b.distanceRaw || b.note);
       if (da != null && db != null) return da - db;
@@ -321,7 +358,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
       return Number(b.topPick) - Number(a.topPick);
     });
     return rows;
-  }, [results, minRating, priceFilter, distanceKm]);
+  }, [results, minRating, priceFilter, cuisine, distanceKm, sortBy]);
 
   const visible = filtered.slice(0, visibleCount);
   const saveToolId = exploreCategoryToNearTool(category) ?? 'dining';
@@ -333,64 +370,18 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
 
   return (
     <div className={styles.page}>
-      <header className={styles.top}>
-        <button type="button" className={styles.back} onClick={onBack} aria-label="Back">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M15 6 9 12l6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-        <div className={styles.topMain}>
-          <h1 className={styles.title}>Explore {shortPlace}</h1>
-          <p className={styles.sub}>Discover places near your accommodation or anywhere in the city.</p>
-          {mapsUrl ? (
-            <a className={styles.mapLink} href={mapsUrl} target="_blank" rel="noopener noreferrer">
-              Map view ›
-            </a>
-          ) : null}
-        </div>
-      </header>
+      <MobileSubpageHeader
+        title={`Explore ${shortPlace}`}
+        subtitle="Discover places near your accommodation or anywhere in the city."
+        onBack={onBack}
+      />
 
-      <div className={styles.catPills} role="list">
-        {primaryCats.map((cat) => (
-          <button
-            key={cat.id}
-            type="button"
-            role="listitem"
-            className={`${styles.catPill} ${category === cat.id ? styles.catPillOn : ''}`}
-            style={{ '--cat-accent': cat.accent, '--cat-bg': cat.bg } as React.CSSProperties}
-            onClick={() => setCategory(cat.id)}
-          >
-            <span className={styles.catPillIcon}>
-              <CategoryGlyph id={cat.id} />
-            </span>
-            {cat.label}
-          </button>
-        ))}
-        <div className={styles.moreWrap}>
-          <button type="button" className={styles.catPill} onClick={() => setMoreOpen((v) => !v)}>
-            More
-          </button>
-          {moreOpen ? (
-            <div className={styles.moreMenu} role="menu">
-              {moreCats.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  role="menuitem"
-                  className={styles.moreItem}
-                  onClick={() => {
-                    setMoreOpen(false);
-                    setCategory(cat.id);
-                  }}
-                >
-                  <CategoryGlyph id={cat.id} />
-                  {cat.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      </div>
+      <MobileExploreCategoryPills
+        category={category}
+        onChange={(id) => {
+          if (id !== 'all') setCategory(id);
+        }}
+      />
 
       <div className={styles.startBanner}>
         <span className={styles.startIcon} aria-hidden>
@@ -426,8 +417,15 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
 
           <label className={styles.filterBlock}>
             <span className={styles.filterLabel}>Sort</span>
-            <select className={styles.select} value={sortBy} disabled aria-label="Sort">
+            <select
+              className={styles.select}
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              aria-label="Sort"
+            >
               <option>Distance</option>
+              <option>Name</option>
+              <option>Rating</option>
             </select>
           </label>
 
@@ -462,62 +460,70 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
             </div>
           </div>
 
-          <div className={styles.filterBlock}>
-            <span className={styles.filterLabel}>Price</span>
-            <div className={styles.pillRow}>
-              {['$', '$$', '$$$'].map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  className={`${styles.filterPill} ${priceFilter === p ? styles.filterPillOn : ''}`}
-                  onClick={() => setPriceFilter((v) => (v === p ? null : p))}
+          {showDiningFilters ? (
+            <>
+              <div className={styles.filterBlock}>
+                <span className={styles.filterLabel}>Price</span>
+                <div className={styles.pillRow}>
+                  {['$', '$$', '$$$'].map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      className={`${styles.filterPill} ${priceFilter === p ? styles.filterPillOn : ''}`}
+                      onClick={() => setPriceFilter((v) => (v === p ? null : p))}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <label className={styles.filterBlock}>
+                <span className={styles.filterLabel}>Cuisine</span>
+                <select
+                  className={styles.select}
+                  value={cuisine}
+                  onChange={(e) => setCuisine(e.target.value)}
+                  aria-label="Cuisine"
                 >
-                  {p}
-                </button>
-              ))}
+                  <option value="">Any</option>
+                  <option value="local">Local</option>
+                  <option value="european">European</option>
+                  <option value="asian">Asian</option>
+                  <option value="seafood">Seafood</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          {showDiningFilters || showEssentialsExtras || showAttractionExtras ? (
+            <label className={styles.toggleRow}>
+              <span>Open now</span>
+              <input type="checkbox" checked={openNow} onChange={(e) => setOpenNow(e.target.checked)} />
+            </label>
+          ) : null}
+
+          {showDiningFilters ? (
+            <div className={styles.filterBlock}>
+              <span className={styles.filterLabel}>More filters</span>
+              <label className={styles.checkRow}>
+                <input type="checkbox" checked={filterWifi} onChange={(e) => setFilterWifi(e.target.checked)} />
+                Free Wi‑Fi
+              </label>
+              <label className={styles.checkRow}>
+                <input type="checkbox" checked={filterOutdoor} onChange={(e) => setFilterOutdoor(e.target.checked)} />
+                Outdoor seating
+              </label>
+              <label className={styles.checkRow}>
+                <input
+                  type="checkbox"
+                  checked={filterReservations}
+                  onChange={(e) => setFilterReservations(e.target.checked)}
+                />
+                Takes reservations
+              </label>
             </div>
-          </div>
-
-          <label className={styles.toggleRow}>
-            <span>Open now</span>
-            <input type="checkbox" checked={openNow} onChange={(e) => setOpenNow(e.target.checked)} />
-          </label>
-
-          <label className={styles.filterBlock}>
-            <span className={styles.filterLabel}>Cuisine</span>
-            <select
-              className={styles.select}
-              value={cuisine}
-              onChange={(e) => setCuisine(e.target.value)}
-              aria-label="Cuisine"
-            >
-              <option value="">Any</option>
-              <option value="local">Local</option>
-              <option value="european">European</option>
-              <option value="asian">Asian</option>
-              <option value="seafood">Seafood</option>
-            </select>
-          </label>
-
-          <div className={styles.filterBlock}>
-            <span className={styles.filterLabel}>More filters</span>
-            <label className={styles.checkRow}>
-              <input type="checkbox" checked={filterWifi} onChange={(e) => setFilterWifi(e.target.checked)} />
-              Free Wi‑Fi
-            </label>
-            <label className={styles.checkRow}>
-              <input type="checkbox" checked={filterOutdoor} onChange={(e) => setFilterOutdoor(e.target.checked)} />
-              Outdoor seating
-            </label>
-            <label className={styles.checkRow}>
-              <input
-                type="checkbox"
-                checked={filterReservations}
-                onChange={(e) => setFilterReservations(e.target.checked)}
-              />
-              Takes reservations
-            </label>
-          </div>
+          ) : null}
 
           <button type="button" className={styles.saveSearch} disabled title="Coming soon">
             Save search
@@ -530,10 +536,10 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
               {busy && !results.length ? 'Searching…' : `${filtered.length} places found`}
               {fromCache ? ' · cached' : ''}
             </p>
-            {mapsUrl ? (
-              <a className={styles.viewMap} href={mapsUrl} target="_blank" rel="noopener noreferrer">
+            {mapCentre ? (
+              <button type="button" className={styles.viewMap} onClick={() => setMapOpen(true)}>
                 View on map
-              </a>
+              </button>
             ) : null}
           </div>
 
@@ -561,7 +567,8 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
                 primaryAction={
                   onSavePlace
                     ? {
-                        label: 'Bookmark',
+                        label: 'Save',
+                        kind: 'save',
                         onClick: () => {
                           const saved = onSavePlace({
                             name: r.name,
@@ -597,6 +604,27 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
           </p>
         </div>
       </div>
+
+      <MobileLocationTravelTip
+        placeLabel={shortPlace}
+        categoryLabel={catDef.label}
+        startingPointLabel={stayName}
+      />
+
+      {mapOpen && mapCentre ? (
+        <MobileResultsMapSheet
+          title={`Near ${shortPlace}`}
+          centre={mapCentre}
+          locality={shortPlace}
+          places={filtered.map((r) => ({
+            id: r.id,
+            name: r.name,
+            address: r.address,
+            mapsUrl: r.mapsUrl
+          }))}
+          onClose={() => setMapOpen(false)}
+        />
+      ) : null}
 
       {toast ? <div className={styles.toast}>{toast}</div> : null}
     </div>
