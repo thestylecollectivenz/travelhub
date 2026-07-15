@@ -694,19 +694,6 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
               <span className={styles.dayHeaderRest}>{`Day ${day.dayNumber}`}</span>
             ) : null}
           </p>
-          {primaryPlaceLabel ? (
-            <div className={styles.dayHeaderPlace}>
-              <svg width="14" height="14" viewBox="0 0 12 14" fill="none" aria-hidden>
-                <path
-                  d="M6 1C3.79 1 2 2.79 2 5c0 3 4 8 4 8s4-5 4-8c0-2.21-1.79-4-4-4z"
-                  fill="currentColor"
-                  opacity="0.85"
-                />
-                <circle cx="6" cy="5" r="1.5" fill="white" />
-              </svg>
-              {primaryPlaceLabel}
-            </div>
-          ) : null}
           {dayLocationEntries.length ? (
             <div className={styles.locationStripInline}>
               <DayLocationInfoStrip
