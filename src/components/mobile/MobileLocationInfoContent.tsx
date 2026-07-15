@@ -17,9 +17,10 @@ import {
   type NearestPlaceRow
 } from '../../utils/locationInfoEntry';
 import type { StoredStartPoint } from '../../utils/locationStartPointStorage';
-import { appendBulletToRichTextHtml } from '../../utils/journalRichText';
 import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
-import { destinationHeroPhotoUrl } from '../../utils/explorePlacePhoto';
+import { resolveDestinationHeroPhoto } from '../../utils/placePhotoResolve';
+import { scheduleLocationInfoQuestion } from '../../utils/locationInfoGeneration';
+import { useSpContext } from '../../context/SpContext';
 import {
   exploreCategoriesSorted,
   savedRowToExploreCategory,
@@ -59,11 +60,20 @@ function highlightKey(row: LocationHighlightRow): string {
   return `${row.kind}::${row.id}`;
 }
 
-function IconBed(): React.ReactElement {
+function IconPin(): React.ReactElement {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M3 14h18M7 10V8a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M12 21s7-4.35 7-10a7 7 0 1 0-14 0c0 5.65 7 10 7 10Z" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="12" cy="11" r="2" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconInfo(): React.ReactElement {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M12 10.5v6M12 7.5h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
@@ -232,11 +242,13 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
   activeStart
 }) => {
   const { config } = useConfig();
+  const spContext = useSpContext();
   const { updateEntry } = useTripWorkspace();
   const askRef = React.useRef<HTMLElement | null>(null);
   const pillsRef = React.useRef<HTMLDivElement | null>(null);
   const [askExpanded, setAskExpanded] = React.useState(false);
   const [collapsedGroups, setCollapsedGroups] = React.useState<Record<string, boolean>>({});
+  const [heroPhoto, setHeroPhoto] = React.useState<{ imageUrl: string; sourceUrl: string } | null>(null);
 
   const data = parseLocationInfoNotes(entry.notes);
   const rows = data ? locationHighlightRows(data) : [];
@@ -260,6 +272,32 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
   const stayName = (startingPointLabel || '').trim() || shortPlace;
   const city = shortPlace;
   const defaultNearLabel = `Saved for ${city}`;
+
+  React.useEffect(() => {
+    let cancelled = false;
+    void resolveDestinationHeroPhoto(shortPlace, place?.country).then((hit) => {
+      if (!cancelled) setHeroPhoto(hit);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [shortPlace, place?.country]);
+
+  const askAboutHighlight = (row: LocationHighlightRow): void => {
+    if (!place || !data) return;
+    const key = (config.geminiApiKey || '').trim();
+    if (!key) return;
+    setAskExpanded(true);
+    const kindLabel = HIGHLIGHT_LABEL[row.kind];
+    scheduleLocationInfoQuestion({
+      spContext,
+      entry,
+      place,
+      apiKey: key,
+      question: `Explain "${row.label}" as a ${kindLabel.toLowerCase()} highlight for a visitor to ${shortPlace}. Why is it notable, and any practical tip? Keep brand names in their official language.`
+    });
+    window.setTimeout(() => askRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  };
 
   const allSavedCards = React.useMemo(
     () => (data ? buildFeaturedCards(data, city) : []),
@@ -370,12 +408,21 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
           </div>
           <div
             className={styles.overviewPhoto}
-            style={{
-              backgroundImage: `url(${destinationHeroPhotoUrl(shortPlace, place?.country)})`
-            }}
+            style={heroPhoto ? { backgroundImage: `url(${heroPhoto.imageUrl})` } : undefined}
             role="img"
             aria-label={`${shortPlace} photo`}
-          />
+          >
+            {heroPhoto?.sourceUrl ? (
+              <a
+                className={styles.overviewPhotoLink}
+                href={heroPhoto.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Open photo source"
+                title="Open photo source"
+              />
+            ) : null}
+          </div>
         </div>
       </section>
 
@@ -390,7 +437,7 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
           {(
             [
               ['sight', 'food'],
-              ['drink', 'souvenir']
+              ['souvenir', 'drink']
             ] as const
           ).map((pair, rowIdx) => (
             <div key={rowIdx === 0 ? 'row-top' : 'row-bottom'} className={styles.highlightsRow}>
@@ -414,6 +461,17 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
                             />
                             <span className={row.done ? styles.done : undefined}>{row.label}</span>
                           </label>
+                          {!readOnly && place && (config.geminiApiKey || '').trim() ? (
+                            <button
+                              type="button"
+                              className={styles.highlightInfo}
+                              aria-label={`Ask AI about ${row.label}`}
+                              title="Ask AI about this highlight"
+                              onClick={() => askAboutHighlight(row)}
+                            >
+                              <IconInfo />
+                            </button>
+                          ) : null}
                         </li>
                       ))}
                       {!rowsByKind[kind]?.length ? (
@@ -458,28 +516,61 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
           </div>
         </div>
         <div className={styles.startBanner}>
-          <span className={styles.startBannerIcon} aria-hidden>
-            <IconBed />
-          </span>
-          <div className={styles.startBannerBody}>
-            <p className={styles.startBannerText}>
-              Showing places near <strong>{stayName}</strong>
-            </p>
-            <MobileStartPointActions
-              onChangeStartingPoint={onChangeStartingPoint}
-              onResetStartingPoint={onResetStartingPoint}
-              onUndoStartingPoint={onUndoStartingPoint}
-              canUndoStartingPoint={canUndoStartingPoint}
-              isCustomStartingPoint={isCustomStartingPoint}
-              accommodationLabel={accommodationLabel}
-              savedStarts={savedStarts}
-              onSelectSavedStart={onSelectSavedStart}
-              activeStart={activeStart}
-              changeClassName={styles.startBannerLink}
-              mutedClassName={styles.startBannerMuted}
-              actionsClassName={styles.startBannerActions}
-              undoClassName={styles.startBannerUndo}
-            />
+          <div className={styles.startBannerMain}>
+            <span className={styles.startBannerIcon} aria-hidden>
+              <IconPin />
+            </span>
+            <div className={styles.startBannerBody}>
+              <p className={styles.startBannerText}>
+                Showing places near <strong>{stayName}</strong>
+              </p>
+              <MobileStartPointActions
+                onChangeStartingPoint={onChangeStartingPoint}
+                onResetStartingPoint={onResetStartingPoint}
+                onUndoStartingPoint={onUndoStartingPoint}
+                canUndoStartingPoint={canUndoStartingPoint}
+                isCustomStartingPoint={isCustomStartingPoint}
+                accommodationLabel={accommodationLabel}
+                changeClassName={styles.startBannerLink}
+                mutedClassName={styles.startBannerMuted}
+                actionsClassName={styles.startBannerActions}
+                undoClassName={styles.startBannerUndo}
+                hideSavedStarts
+              />
+            </div>
+          </div>
+          <div className={styles.startBannerSide}>
+            <p className={styles.startBannerSideLabel}>Other starting points</p>
+            {(savedStarts || []).filter((p) => {
+              const activeKey = activeStart
+                ? `${activeStart.lat.toFixed(4)},${activeStart.lng.toFixed(4)}`
+                : '';
+              const key = `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`;
+              return key !== activeKey;
+            }).length && onSelectSavedStart ? (
+              <ul className={styles.startBannerSideList}>
+                {(savedStarts || [])
+                  .filter((p) => {
+                    const activeKey = activeStart
+                      ? `${activeStart.lat.toFixed(4)},${activeStart.lng.toFixed(4)}`
+                      : '';
+                    return `${p.lat.toFixed(4)},${p.lng.toFixed(4)}` !== activeKey;
+                  })
+                  .map((p) => (
+                    <li key={`${p.lat}-${p.lng}-${p.label}`}>
+                      <button
+                        type="button"
+                        className={styles.startBannerSideBtn}
+                        onClick={() => onSelectSavedStart(p)}
+                      >
+                        {p.label}
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            ) : (
+              <p className={styles.startBannerSideEmpty}>None yet — change starting point to add one.</p>
+            )}
           </div>
         </div>
       </section>
@@ -620,12 +711,17 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
       <MobileLocationTravelTip
         placeLabel={shortPlace}
         startingPointLabel={stayName}
-        onAppendToNotes={
-          canEditHighlights
+        savedTips={data?.savedTravelTips || []}
+        onSaveTip={
+          canEditHighlights && data
             ? (tipText) => {
+                const tip = tipText.trim();
+                if (!tip) return;
+                const existing = data.savedTravelTips || [];
+                if (existing.some((t) => t.trim().toLowerCase() === tip.toLowerCase())) return;
                 persist({
                   ...data,
-                  userNotes: appendBulletToRichTextHtml(data.userNotes, tipText)
+                  savedTravelTips: [...existing, tip]
                 });
               }
             : undefined

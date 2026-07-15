@@ -1,15 +1,16 @@
 import * as React from 'react';
 import { useConfig } from '../../context/ConfigContext';
+import { GEMINI_MODEL_FALLBACK_CHAIN } from '../../services/GeminiService';
 import styles from './MobileLocationTravelTip.module.css';
 
 export interface MobileLocationTravelTipProps {
   placeLabel: string;
-  /** Seed text while waiting for a fresh tip (not used as a permanent cache). */
-  existingTipHtml?: string;
   categoryLabel?: string;
   startingPointLabel?: string;
-  /** Append the current tip as a bullet under Notes. */
-  onAppendToNotes?: (tipText: string) => void;
+  /** Persist current tip into the Location Info saved-tips section. */
+  onSaveTip?: (tipText: string) => void;
+  /** Tips already saved — shown below; also used to ask for different fresh tips. */
+  savedTips?: string[];
 }
 
 function firstSentence(text: string): string {
@@ -39,33 +40,76 @@ function IconRefresh({ spinning }: { spinning?: boolean }): React.ReactElement {
   );
 }
 
-function IconAppend(): React.ReactElement {
+function IconSave(): React.ReactElement {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M8 6h11M8 12h11M8 18h11M4 6h.01M4 12h.01M4 18h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path
+        d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path d="M7 3v5h8V3" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path d="M7 21v-8h10v8" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
     </svg>
   );
 }
 
+async function generateTip(
+  apiKey: string,
+  prompt: string
+): Promise<string> {
+  let lastErr: Error | undefined;
+  for (const model of GEMINI_MODEL_FALLBACK_CHAIN) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 1.05, maxOutputTokens: 100 }
+        })
+      });
+      if (!resp.ok) {
+        lastErr = new Error(`Gemini ${resp.status}`);
+        continue;
+      }
+      const data = (await resp.json()) as {
+        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+      };
+      const text = firstSentence(
+        (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim().replace(/^["']|["']$/g, '')
+      );
+      if (text) return text;
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error('Tip request failed');
+    }
+  }
+  throw lastErr || new Error('Tip request failed');
+}
+
 /**
- * Compact AI travel tip strip. Regenerates on each mount / refresh.
- * Always visible so tips are not missed off-screen.
+ * Live AI travel tip strip — refreshes on demand and automatically every minute.
+ * Save stores tips under Location Info (not Notes).
  */
 export const MobileLocationTravelTip: React.FC<MobileLocationTravelTipProps> = ({
   placeLabel,
   categoryLabel,
   startingPointLabel,
-  onAppendToNotes
+  onSaveTip,
+  savedTips = []
 }) => {
   const { config } = useConfig();
   const [generated, setGenerated] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [failed, setFailed] = React.useState(false);
-  const [appended, setAppended] = React.useState(false);
+  const [savedFlash, setSavedFlash] = React.useState(false);
   const [nonce, setNonce] = React.useState(0);
   const requestGenRef = React.useRef(0);
+  const recentTipsRef = React.useRef<string[]>([]);
 
-  React.useEffect(() => {
+  const loadTip = React.useCallback(async (): Promise<void> => {
     const apiKey = (config.geminiApiKey || '').trim();
     if (!apiKey || !placeLabel.trim()) {
       setFailed(true);
@@ -75,56 +119,51 @@ export const MobileLocationTravelTip: React.FC<MobileLocationTravelTipProps> = (
     }
 
     const gen = ++requestGenRef.current;
-    let cancelled = false;
     setBusy(true);
     setFailed(false);
-    setAppended(false);
 
     const near = startingPointLabel ? ` near ${startingPointLabel}` : '';
     const cat = categoryLabel ? ` focusing on ${categoryLabel}` : '';
-    const prompt = `Write ONE short practical travel tip (max 28 words) for a visitor to ${placeLabel}${near}${cat}. Make it specific and different from generic advice. No quotes, no markdown, no emoji.`;
+    const avoid = [...recentTipsRef.current, ...savedTips]
+      .filter(Boolean)
+      .slice(-8)
+      .map((t) => `- ${t}`)
+      .join('\n');
+    const prompt =
+      `Write ONE short practical travel tip (max 28 words) for a visitor to ${placeLabel}${near}${cat}. ` +
+      `Make it specific, fresh, and different from generic advice.` +
+      (avoid ? `\nDo NOT repeat or closely paraphrase any of these tips:\n${avoid}\n` : '\n') +
+      `No quotes, no markdown, no emoji.`;
 
-    void (async () => {
-      try {
-        const model = 'gemini-2.0-flash';
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-        const resp = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.85, maxOutputTokens: 80 }
-          })
-        });
-        if (!resp.ok) throw new Error(`Gemini ${resp.status}`);
-        const data = (await resp.json()) as {
-          candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-        };
-        const text = firstSentence(
-          (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim().replace(/^["']|["']$/g, '')
-        );
-        if (cancelled || gen !== requestGenRef.current) return;
-        if (!text) {
-          setFailed(true);
-          setGenerated('');
-          return;
-        }
-        setGenerated(text);
-        setFailed(false);
-      } catch {
-        if (!cancelled && gen === requestGenRef.current) {
-          setGenerated('');
-          setFailed(true);
-        }
-      } finally {
-        if (!cancelled && gen === requestGenRef.current) setBusy(false);
+    try {
+      const text = await generateTip(apiKey, prompt);
+      if (gen !== requestGenRef.current) return;
+      if (!text) {
+        setFailed(true);
+        setGenerated('');
+        return;
       }
-    })();
+      recentTipsRef.current = [...recentTipsRef.current, text].slice(-12);
+      setGenerated(text);
+      setFailed(false);
+    } catch {
+      if (gen === requestGenRef.current) {
+        setGenerated('');
+        setFailed(true);
+      }
+    } finally {
+      if (gen === requestGenRef.current) setBusy(false);
+    }
+  }, [placeLabel, categoryLabel, startingPointLabel, config.geminiApiKey, savedTips, nonce]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [placeLabel, categoryLabel, startingPointLabel, config.geminiApiKey, nonce]);
+  React.useEffect(() => {
+    void loadTip();
+  }, [loadTip]);
+
+  React.useEffect(() => {
+    const id = window.setInterval(() => setNonce((n) => n + 1), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const tip =
     generated ||
@@ -133,49 +172,64 @@ export const MobileLocationTravelTip: React.FC<MobileLocationTravelTipProps> = (
       ? `Carry small change or a transit card for ${placeLabel || 'this area'}, and download offline maps before you go.`
       : 'Getting a tip…');
 
-  const canUseTip = Boolean(generated) && !busy;
+  const canSave = Boolean(generated) && !busy && Boolean(onSaveTip);
+  const alreadySaved = savedTips.some((t) => t.trim().toLowerCase() === generated.trim().toLowerCase());
 
   return (
-    <section className={styles.root} aria-label="Travel tip">
-      <div className={styles.icon} aria-hidden>
-        ✦
-      </div>
-      <div className={styles.body}>
-        <div className={styles.titleRow}>
-          <h3 className={styles.title}>Travel tip</h3>
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.actionBtn}
-              onClick={() => setNonce((n) => n + 1)}
-              disabled={busy}
-              aria-label="Refresh tip"
-              title="Refresh tip"
-            >
-              <IconRefresh spinning={busy} />
-            </button>
-            {onAppendToNotes ? (
+    <section className={styles.wrap} aria-label="Travel tips">
+      <div className={styles.root}>
+        <div className={styles.icon} aria-hidden>
+          ✦
+        </div>
+        <div className={styles.body}>
+          <div className={styles.titleRow}>
+            <h3 className={styles.title}>Travel tip</h3>
+            <div className={styles.actions}>
               <button
                 type="button"
                 className={styles.actionBtn}
-                onClick={() => {
-                  if (!canUseTip) return;
-                  onAppendToNotes(generated);
-                  setAppended(true);
-                  window.setTimeout(() => setAppended(false), 2000);
-                }}
-                disabled={!canUseTip}
-                aria-label="Add tip to notes"
-                title="Add tip to notes"
+                onClick={() => setNonce((n) => n + 1)}
+                disabled={busy}
+                aria-label="Refresh tip"
+                title="Refresh tip"
               >
-                <IconAppend />
+                <IconRefresh spinning={busy} />
               </button>
-            ) : null}
+              {onSaveTip ? (
+                <button
+                  type="button"
+                  className={styles.actionBtn}
+                  onClick={() => {
+                    if (!canSave || alreadySaved) return;
+                    onSaveTip(generated);
+                    setSavedFlash(true);
+                    window.setTimeout(() => setSavedFlash(false), 2000);
+                  }}
+                  disabled={!canSave || alreadySaved}
+                  aria-label="Save tip"
+                  title="Save tip"
+                >
+                  <IconSave />
+                </button>
+              ) : null}
+            </div>
           </div>
+          <p className={styles.text}>{tip}</p>
+          {savedFlash ? <p className={styles.feedback}>Saved to travel tips</p> : null}
         </div>
-        <p className={styles.text}>{tip}</p>
-        {appended ? <p className={styles.feedback}>Added to Notes</p> : null}
       </div>
+      {savedTips.length ? (
+        <div className={styles.savedBlock}>
+          <h4 className={styles.savedTitle}>Saved travel tips</h4>
+          <ul className={styles.savedList}>
+            {savedTips.map((t) => (
+              <li key={t} className={styles.savedItem}>
+                {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </section>
   );
 };

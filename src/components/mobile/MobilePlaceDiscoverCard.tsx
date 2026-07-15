@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { explorePlacePhotoUrl } from '../../utils/explorePlacePhoto';
-import { placeDirectionsFromHereUrl } from '../../utils/googleMapsLink';
+import { resolveExplorePlacePhoto } from '../../utils/placePhotoResolve';
+import { placeDirectionsFromHereUrl, placeQueryMapsUrl } from '../../utils/googleMapsLink';
 import { distanceDisplayWithWalk } from '../../utils/locationDistanceLabel';
 import styles from './MobilePlaceDiscoverCard.module.css';
 
@@ -13,6 +13,7 @@ export type PlaceDiscoverCardModel = {
   distanceRaw?: string;
   address?: string;
   mapsUrl?: string;
+  websiteUrl?: string;
   tags?: string[];
   city?: string;
   nearLabel?: string;
@@ -101,17 +102,55 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
   secondaryAction
 }) => {
   const city = card.city || cityFallback;
-  const photo = explorePlacePhotoUrl(card.name, city);
+  const [photo, setPhoto] = React.useState<{ imageUrl: string; sourceUrl: string } | null>(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    void resolveExplorePlacePhoto(card.name, city).then((hit) => {
+      if (!cancelled) setPhoto(hit);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [card.name, city]);
+
   const dist = distanceDisplayWithWalk(card.distanceRaw, card.nearLabel || startingPointLabel);
   const directions = placeDirectionsFromHereUrl(card.name, card.address, city) || undefined;
+  const mapsHref =
+    (card.mapsUrl || '').trim() ||
+    placeQueryMapsUrl(card.name, card.address) ||
+    placeQueryMapsUrl(card.name, city) ||
+    undefined;
+  const photoHref = photo?.sourceUrl || mapsHref;
   const kind = primaryAction?.kind || 'label';
 
   return (
     <article className={`${styles.card} ${layout === 'strip' ? styles.strip : styles.list}`}>
-      <div className={styles.photo} style={{ backgroundImage: `url(${photo})` }} aria-hidden />
+      {photoHref ? (
+        <a
+          className={styles.photo}
+          href={photoHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={photo?.imageUrl ? { backgroundImage: `url(${photo.imageUrl})` } : undefined}
+          aria-label={`Open source for ${card.name}`}
+          title="View photo / place source"
+        />
+      ) : (
+        <div
+          className={styles.photo}
+          style={photo?.imageUrl ? { backgroundImage: `url(${photo.imageUrl})` } : undefined}
+          aria-hidden
+        />
+      )}
       <div className={styles.body}>
         <div className={styles.titleRow}>
-          <strong className={styles.name}>{card.name}</strong>
+          {mapsHref ? (
+            <a className={styles.nameLink} href={mapsHref} target="_blank" rel="noopener noreferrer">
+              <strong className={styles.name}>{card.name}</strong>
+            </a>
+          ) : (
+            <strong className={styles.name}>{card.name}</strong>
+          )}
           {typeof card.rating === 'number' ? (
             <span className={styles.rating}>★ {card.rating.toFixed(1)}</span>
           ) : null}

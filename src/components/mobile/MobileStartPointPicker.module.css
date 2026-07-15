@@ -51,11 +51,87 @@
 
 .instruction {
   margin: 0;
-  padding: 0.65rem 1rem 0.55rem;
+  padding: 0.65rem 1rem 0.45rem;
   font-size: 0.88rem;
   font-weight: 650;
   color: #5c6570;
   flex-shrink: 0;
+}
+
+.searchRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.45rem;
+  padding: 0 1rem 0.45rem;
+  flex-shrink: 0;
+}
+
+.searchInput {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  border-radius: 999px;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: #1e2a44;
+  background: white;
+  font-family: inherit;
+}
+
+.searchBtn {
+  border: none;
+  border-radius: 999px;
+  background: #1e2a44;
+  color: white;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.55rem 0.95rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.searchBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.searchError {
+  margin: 0;
+  padding: 0 1rem 0.35rem;
+  font-size: 0.75rem;
+  color: #b45309;
+  flex-shrink: 0;
+}
+
+.searchHits {
+  margin: 0 1rem 0.45rem;
+  padding: 0;
+  list-style: none;
+  max-height: 8rem;
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  border-radius: 0.75rem;
+  background: white;
+  flex-shrink: 0;
+}
+
+.searchHit {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
+  background: transparent;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.8rem;
+  color: #1e2a44;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.searchHit:last-child {
+  border-bottom: none;
 }
 
 .mapHost {

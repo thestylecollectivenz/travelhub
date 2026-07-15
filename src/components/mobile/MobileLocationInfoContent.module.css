@@ -78,12 +78,21 @@
 }
 
 .overviewPhoto {
+  position: relative;
   border-radius: 0.9rem;
   min-height: 11rem;
   background-size: cover;
   background-position: center;
   background-color: #e8eef5;
   border: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
+  overflow: hidden;
+}
+
+.overviewPhotoLink {
+  position: absolute;
+  inset: 0;
+  display: block;
+  text-decoration: none;
 }
 
 .highlightsGrid {
@@ -130,6 +139,25 @@
 
 .highlightItem {
   margin-bottom: 0.35rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.highlightInfo {
+  flex-shrink: 0;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #2f5eb8 28%, transparent);
+  background: color-mix(in srgb, #2f5eb8 8%, white);
+  color: #2f5eb8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 0.05rem;
 }
 
 .highlightCheck {
@@ -250,13 +278,20 @@
 }
 
 .startBanner {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.65rem;
-  padding: 0.75rem 0.85rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
+  padding: 0.85rem 0.9rem;
   border-radius: 0.9rem;
   background: color-mix(in srgb, #2f5eb8 10%, white);
   border: 1px solid color-mix(in srgb, #2f5eb8 16%, transparent);
+}
+
+.startBannerMain {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  min-width: 0;
 }
 
 .startBannerIcon {
@@ -298,6 +333,9 @@
 }
 
 .startBannerLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
   border: none;
   background: transparent;
   color: #2f5eb8;
@@ -308,10 +346,68 @@
 }
 
 .startBannerMuted {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
   font-size: 0.78rem;
   font-weight: 650;
   color: color-mix(in srgb, #2f5eb8 55%, #8a9bb8);
+}
+
+.startBannerSide {
+  min-width: 0;
+  padding-top: 0.15rem;
+  border-top: 1px solid color-mix(in srgb, #2f5eb8 14%, transparent);
+}
+
+.startBannerSideLabel {
+  margin: 0 0 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8a7355;
+}
+
+.startBannerSideList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.startBannerSideBtn {
+  border: none;
+  background: transparent;
+  color: #2f5eb8;
+  font-size: 0.78rem;
+  font-weight: 650;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.startBannerSideEmpty {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #6b6570;
+  line-height: 1.35;
+}
+
+@media (min-width: 700px) {
+  .startBanner {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .startBannerSide {
+    border-top: none;
+    border-left: 1px solid color-mix(in srgb, #2f5eb8 14%, transparent);
+    padding-top: 0;
+    padding-left: 0.85rem;
+  }
 }
 
 .savedTiles {

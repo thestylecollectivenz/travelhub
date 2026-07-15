@@ -13,6 +13,9 @@
 }
 
 .link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
   border: none;
   background: none;
   padding: 0;
@@ -24,6 +27,9 @@
 }
 
 .muted {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
   font-size: 0.82rem;
   color: #6b6570;
 }

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {
   placeQueryDirectionsUrl,
+  placeQueryMapsUrl,
   placeWebsiteSearchUrl
 } from '../../utils/googleMapsLink';
 import type { NearYouCachedResult } from '../../utils/nearYouResultCache';
@@ -93,7 +94,8 @@ export const NearYouResultCard: React.FC<NearYouResultCardProps> = ({
   saveLabel = 'Save',
   actions
 }) => {
-  const directions = placeQueryDirectionsUrl(result.name, result.address) || result.mapsUrl;
+  const directions = result.mapsUrl || placeQueryDirectionsUrl(result.name, result.address);
+  const mapsPlace = result.mapsUrl || placeQueryMapsUrl(result.name, result.address);
   const website = result.websiteUrl || placeWebsiteSearchUrl(result.name, result.address);
   const meta = [categoryLabel, result.priceLevel, result.note].filter(Boolean).join(' · ');
 
@@ -131,7 +133,13 @@ export const NearYouResultCard: React.FC<NearYouResultCardProps> = ({
         </div>
         <div className={styles.cardMain}>
           <div className={styles.cardTitleRow}>
-            <h3 className={styles.cardTitle}>{result.name}</h3>
+            {mapsPlace ? (
+              <a className={styles.cardTitleLink} href={mapsPlace} target="_blank" rel="noopener noreferrer">
+                <h3 className={styles.cardTitle}>{result.name}</h3>
+              </a>
+            ) : (
+              <h3 className={styles.cardTitle}>{result.name}</h3>
+            )}
             {typeof result.rating === 'number' ? (
               <span className={styles.rating}>★ {result.rating.toFixed(1)}</span>
             ) : null}

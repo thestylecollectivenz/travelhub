@@ -48,7 +48,8 @@ export interface MobileSavedPlacesViewProps {
   savedStarts?: StoredStartPoint[];
   onSelectSavedStart?: (point: StoredStartPoint) => void;
   activeStart?: StoredStartPoint | null;
-  onAppendToNotes?: (tipText: string) => void;
+  onSaveTip?: (tipText: string) => void;
+  savedTips?: string[];
 }
 
 type SavedCard = {
@@ -212,7 +213,7 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
   savedStarts,
   onSelectSavedStart,
   activeStart,
-  onAppendToNotes
+  onSaveTip
 }) => {
   const { updateEntry } = useTripWorkspace();
   const shortPlace = placeNameFromTitle(place?.title || '') || locationLabel.split(',')[0] || 'this place';
@@ -586,7 +587,8 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
       <MobileLocationTravelTip
         placeLabel={shortPlace}
         startingPointLabel={stayName}
-        onAppendToNotes={onAppendToNotes}
+        onSaveTip={onSaveTip}
+        savedTips={data.savedTravelTips || []}
       />
 
       {mapOpen && mapCentre ? (

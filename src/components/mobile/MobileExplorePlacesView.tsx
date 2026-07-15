@@ -55,7 +55,8 @@ export interface MobileExplorePlacesViewProps {
   savedStarts?: StoredStartPoint[];
   onSelectSavedStart?: (point: StoredStartPoint) => void;
   activeStart?: StoredStartPoint | null;
-  onAppendToNotes?: (tipText: string) => void;
+  onSaveTip?: (tipText: string) => void;
+  savedTips?: string[];
   onAddToItinerary?: (place: {
     name: string;
     note?: string;
@@ -194,7 +195,8 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   savedStarts,
   onSelectSavedStart,
   activeStart,
-  onAppendToNotes,
+  onSaveTip,
+  savedTips,
   onAddToItinerary,
   onSavePlace
 }) => {
@@ -724,7 +726,8 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
         placeLabel={isGps ? 'your area' : shortPlace}
         categoryLabel={catDef.label}
         startingPointLabel={stayName}
-        onAppendToNotes={onAppendToNotes}
+        onSaveTip={onSaveTip}
+        savedTips={savedTips}
       />
 
       {mapOpen && mapCentre ? (

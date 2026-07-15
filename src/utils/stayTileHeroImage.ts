@@ -33,23 +33,8 @@ function isLikelyRiverCruise(line: string, shipOrTitle: string): boolean {
   );
 }
 
-function pollinationsFallback(title: string, location: string, mode: StayHeroMode): string {
-  let subject: string;
-  if (mode === 'cruise') {
-    const river = isLikelyRiverCruise(location, title);
-    const vessel = river
-      ? `the specific river cruise ship named "${title}"${location ? ` of ${location}` : ''}, long low riverboat profile on an inland river, European river cruise vessel exterior only`
-      : `the specific ocean cruise ship named "${title}"${location ? ` operated by ${location}` : ''}, full ocean liner / cruise ship exterior profile at sea or in harbour`;
-    subject = `travel documentary photograph of ${vessel}, distinct vessel identity, ship architecture and hull only, no people, no passengers, no faces, no portraits, no selfie, not a stock photo of a person`;
-  } else {
-    subject = `real photograph of the hotel facade of "${title}"${location ? ` in ${location}` : ''}, building front entrance exterior only, not a person, not a portrait, not cityscape skyline only`;
-  }
-  const prompt = encodeURIComponent(
-    `${subject}, photorealistic travel photography, sharp exterior detail, no illustration, no collage, no text overlay, no watermark`
-  );
-  // Unique seed per vessel/property so ocean vs river lines never share one image.
-  const seed = encodeURIComponent(`${cacheKey(title, location, mode)}|exterior-v5`);
-  return `https://image.pollinations.ai/prompt/${prompt}?width=640&height=480&nologo=true&seed=${seed}`;
+function pollinationsFallback(_title: string, _location: string, _mode: StayHeroMode): string {
+  return '';
 }
 
 function looksLikePersonPage(pageTitle: string): boolean {
@@ -204,17 +189,20 @@ export async function resolveStayHeroImageUrl(
     }
   }
 
-  const url = pollinationsFallback(name, place, mode);
-  cache[key] = url;
-  saveCache(cache);
-  return url;
+  const url = '';
+  // Never invent AI images — leave blank so CSS shows a neutral tile until a real photo is resolved.
+  if (url) {
+    cache[key] = url;
+    saveCache(cache);
+  }
+  return url || '';
 }
 
 /** Sync placeholder while async hero loads. */
 export function stayHeroPlaceholderUrl(title: string, location: string, mode: StayHeroMode): string {
   const key = cacheKey(title, location, mode);
   const cached = loadCache()[key];
-  return cached || pollinationsFallback(title, location, mode);
+  return cached || '';
 }
 
 /**

@@ -2,16 +2,60 @@
   display: flex;
   gap: 0.75rem;
   align-items: flex-start;
-  margin-top: 1.5rem;
-  margin-bottom: 0.5rem;
   padding: 0.9rem 1rem;
   border-radius: 1rem;
   background: color-mix(in srgb, #2f5eb8 8%, white);
   border: 1px solid color-mix(in srgb, #2f5eb8 14%, transparent);
+  box-shadow: 0 -4px 16px color-mix(in srgb, #1e2a44 6%, transparent);
+}
+
+.wrap {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
   position: sticky;
   bottom: 0.35rem;
   z-index: 5;
-  box-shadow: 0 -4px 16px color-mix(in srgb, #1e2a44 6%, transparent);
+  display: grid;
+  gap: 0.65rem;
+}
+
+.savedBlock {
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.9rem;
+  background: white;
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+}
+
+.savedTitle {
+  margin: 0 0 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8a7355;
+}
+
+.savedList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.savedItem {
+  font-size: 0.82rem;
+  color: #1e2a44;
+  line-height: 1.35;
+  padding-left: 0.85rem;
+  position: relative;
+}
+
+.savedItem::before {
+  content: '•';
+  position: absolute;
+  left: 0.15rem;
+  color: #2f5eb8;
 }
 
 .icon {

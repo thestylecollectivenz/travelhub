@@ -291,6 +291,8 @@ Respond with ONLY a JSON object:
 
 Rules:
 - Factual and practical; no marketing fluff
+- Keep restaurant, café, shop, and attraction brand names in their official language — never translate trade names into English
+- Use the Location info highlights, overview, travel tips, and notes in context when they help answer the question
 - If the question mentions “our hotel”, “the hotel”, “our stay”, or similar, use the accommodation/cruise stay named in the trip context — never invent a different hotel
 - Prefer answers that fit their planned itinerary for this place (times, bookings status, nearby stays)
 - If trip context has no hotel listed, say that clearly rather than guessing a hotel name
@@ -653,16 +655,19 @@ ${geo}
 ${venueLine}
 
 Respond with ONLY a compact JSON object (no markdown, no code fences):
-{"items":[{"name":"venue","description":"distance only (e.g. 450 m, 1.2 km)","why":"why go — one rich sentence","bestFor":"short phrase","priceLevel":"$$","rating":4.4,"ratingSource":"google","address":"street or neighbourhood if known","mapsUrl":"","reviewsUrl":"","websiteUrl":""}]}
+{"items":[{"name":"Official venue name","description":"","why":"why go — one rich sentence","bestFor":"short phrase","priceLevel":"$$","rating":4.4,"ratingSource":"google","address":"street address or neighbourhood","latitude":0,"longitude":0,"mapsUrl":"https://www.google.com/maps/search/?api=1&query=...","reviewsUrl":"","websiteUrl":"https://..."}]}
 
 Rules:
-- Exactly 4 venues, nearest first relative to the search anchor coordinates
-- description MUST be distance from the search anchor only (e.g. "650 m" or "1.1 km")
+- Exactly 4 REAL venues that exist at this destination — never invent fictional venues
+- name: keep the OFFICIAL brand / trade name EXACTLY as locals and Google Maps list it — NEVER translate café/restaurant/shop names into English (e.g. keep "Café Central", "Le Pain Quotidien", Māori or other native names unchanged)
+- description: leave empty string — the app calculates walking/driving distance from coordinates
+- latitude and longitude: REQUIRED decimal degrees for the real venue near the search anchor (honest coordinates only)
+- mapsUrl: REQUIRED Google Maps place/search URL for this exact venue (name + address), so the Maps side panel can open for verification
+- websiteUrl: official site when known; otherwise omit
 - why should be specific and useful for a traveller (not generic)
 - Keep each string under 140 characters
-- Real or highly plausible for the area
 - ${preferLine}
-- Omit empty optional URL fields rather than inventing them`;
+- Omit empty optional URL fields rather than inventing websites`;
 }
 
 function buildNearestPrompt(kind: NearestPlaceKind, ctx: LocationSearchContext): string {
@@ -688,12 +693,15 @@ ${geo}
 ${kindGuide[kind] || ''}
 
 Respond with ONLY JSON:
-{"places":[{"name":"business name","note":"distance only (e.g. 450 m, 1.2 km)","address":"street or area if known","servicesSummary":"key services/features useful to a traveller in one sentence","mapsUrl":"optional Google Maps URL","reviewsUrl":"optional reviews search URL","websiteUrl":"official website URL if known"}]}
+{"places":[{"name":"Official business name","note":"","address":"street or area","latitude":0,"longitude":0,"servicesSummary":"key services/features useful to a traveller in one sentence","mapsUrl":"https://www.google.com/maps/search/?api=1&query=...","reviewsUrl":"","websiteUrl":"https://..."}]}
 
 Rules:
-- 3-5 results, nearest first relative to the search anchor
-- name: specific business when possible
-- note must be distance only — no wording like "from coordinates"
+- 3-5 REAL results nearest the search anchor — never invent businesses
+- name: official brand / trade name EXACTLY as on the shopfront and Google Maps — NEVER translate names into English
+- note: leave empty — the app calculates distance from latitude/longitude
+- latitude and longitude: REQUIRED decimal degrees for the real place
+- mapsUrl: REQUIRED Google Maps URL for this exact place so the Maps detail panel can open
+- websiteUrl: official site when known; otherwise omit
 - servicesSummary should be category-appropriate and practical
 - No markdown, no code fences`;
 }
@@ -760,17 +768,21 @@ export async function generateDiningSuggestions(
       rating?: number;
       ratingSource?: 'google' | 'tripadvisor' | 'mixed';
       address?: string;
+      latitude?: number;
+      longitude?: number;
       mapsUrl?: string;
       reviewsUrl?: string;
       websiteUrl?: string;
     }>;
   }>(buildDiningPrompt(options.searchContext, venueFocus), apiKey, options.model);
-  const items: DiningSuggestionRow[] = [];
+  const rawItems: DiningSuggestionRow[] = [];
   const arr = parsed.items ?? [];
   for (let i = 0; i < arr.length; i++) {
     const name = (arr[i]?.name ?? '').trim();
     if (!name) continue;
-    items.push({
+    const lat = Number(arr[i]?.latitude);
+    const lng = Number(arr[i]?.longitude);
+    rawItems.push({
       id: `dining-ai-${Date.now()}-${i}`,
       name,
       description: (arr[i]?.description ?? '').trim() || undefined,
@@ -786,10 +798,42 @@ export async function generateDiningSuggestions(
       mapsUrl: (arr[i]?.mapsUrl ?? '').trim() || undefined,
       reviewsUrl: (arr[i]?.reviewsUrl ?? '').trim() || undefined,
       websiteUrl: (arr[i]?.websiteUrl ?? '').trim() || undefined,
-      done: false
+      done: false,
+      latitude: Number.isFinite(lat) ? lat : undefined,
+      longitude: Number.isFinite(lng) ? lng : undefined
     });
   }
-  if (!items.length) throw new GeminiServiceError('INVALID_RESPONSE', 'No dining suggestions returned.');
+  if (!rawItems.length) throw new GeminiServiceError('INVALID_RESPONSE', 'No dining suggestions returned.');
+
+  const { enrichPlacesWithMapDistances } = await import('../utils/enrichPlacesWithMapDistances');
+  const enriched = await enrichPlacesWithMapDistances(
+    rawItems.map((it) => ({
+      name: it.name,
+      address: it.address,
+      mapsUrl: it.mapsUrl,
+      websiteUrl: it.websiteUrl,
+      latitude: it.latitude,
+      longitude: it.longitude,
+      distanceText: it.description,
+      _row: it
+    })),
+    {
+      latitude: options.searchContext.latitude,
+      longitude: options.searchContext.longitude,
+      locality: options.searchContext.placeName
+    }
+  );
+  const items: DiningSuggestionRow[] = enriched.map((e) => {
+    const row = (e as { _row: DiningSuggestionRow })._row;
+    return {
+      ...row,
+      description: e.distanceText || undefined,
+      mapsUrl: e.mapsUrl || row.mapsUrl,
+      websiteUrl: e.websiteUrl || row.websiteUrl,
+      latitude: e.latitude,
+      longitude: e.longitude
+    };
+  });
   return { items, model };
 }
 
@@ -805,17 +849,21 @@ export async function generateNearestPlaces(
       note?: string;
       address?: string;
       servicesSummary?: string;
+      latitude?: number;
+      longitude?: number;
       mapsUrl?: string;
       reviewsUrl?: string;
       websiteUrl?: string;
     }>;
   }>(buildNearestPrompt(kind, options.searchContext), apiKey, options.model);
-  const places: NearestPlaceRow[] = [];
+  const rawPlaces: NearestPlaceRow[] = [];
   const arr = parsed.places ?? [];
   for (let i = 0; i < arr.length; i++) {
     const name = (arr[i]?.name ?? '').trim();
     if (!name) continue;
-    places.push({
+    const lat = Number(arr[i]?.latitude);
+    const lng = Number(arr[i]?.longitude);
+    rawPlaces.push({
       id: `near-${kind}-${Date.now()}-${i}`,
       name,
       note: (arr[i]?.note ?? '').replace(/\s*from coordinates.*$/i, '').trim() || undefined,
@@ -823,10 +871,42 @@ export async function generateNearestPlaces(
       servicesSummary: (arr[i]?.servicesSummary ?? '').trim() || undefined,
       mapsUrl: (arr[i]?.mapsUrl ?? '').trim() || undefined,
       reviewsUrl: (arr[i]?.reviewsUrl ?? '').trim() || undefined,
-      websiteUrl: (arr[i]?.websiteUrl ?? '').trim() || undefined
+      websiteUrl: (arr[i]?.websiteUrl ?? '').trim() || undefined,
+      latitude: Number.isFinite(lat) ? lat : undefined,
+      longitude: Number.isFinite(lng) ? lng : undefined
     });
   }
-  if (!places.length) throw new GeminiServiceError('INVALID_RESPONSE', 'No nearest places returned.');
+  if (!rawPlaces.length) throw new GeminiServiceError('INVALID_RESPONSE', 'No nearest places returned.');
+
+  const { enrichPlacesWithMapDistances } = await import('../utils/enrichPlacesWithMapDistances');
+  const enriched = await enrichPlacesWithMapDistances(
+    rawPlaces.map((it) => ({
+      name: it.name,
+      address: it.address,
+      mapsUrl: it.mapsUrl,
+      websiteUrl: it.websiteUrl,
+      latitude: it.latitude,
+      longitude: it.longitude,
+      distanceText: it.note,
+      _row: it
+    })),
+    {
+      latitude: options.searchContext.latitude,
+      longitude: options.searchContext.longitude,
+      locality: options.searchContext.placeName
+    }
+  );
+  const places: NearestPlaceRow[] = enriched.map((e) => {
+    const row = (e as { _row: NearestPlaceRow })._row;
+    return {
+      ...row,
+      note: e.distanceText || undefined,
+      mapsUrl: e.mapsUrl || row.mapsUrl,
+      websiteUrl: e.websiteUrl || row.websiteUrl,
+      latitude: e.latitude,
+      longitude: e.longitude
+    };
+  });
   return { places, model };
 }
 

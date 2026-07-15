@@ -7,7 +7,7 @@ import { confirmUserAction } from '../../utils/confirmAction';
 import { notifyExpandUnscheduled } from '../../utils/mobileItineraryUiEvents';
 import { useSpContext } from '../../context/SpContext';
 import { compactPlaceLabel } from '../../utils/placeDisplayLabel';
-import { parseLocationInfoNotes, serializeLocationInfoNotes, locationInfoPlaceId } from '../../utils/locationInfoEntry';
+import { parseLocationInfoNotes, serializeLocationInfoNotes, locationInfoPlaceId, normalizeLocationInfoNotes } from '../../utils/locationInfoEntry';
 import { buildCanonicalLocationInfoByPlaceId } from '../../utils/locationInfoDayResolve';
 import { appendNearYouPlaceToLocationInfo } from '../../utils/nearYouLocationSave';
 import { createItineraryEntryFromNearYouPlace } from '../../utils/addPlaceToItinerary';
@@ -33,8 +33,6 @@ import {
   saveLocationStartPoint,
   type StoredStartPoint
 } from '../../utils/locationStartPointStorage';
-import { appendBulletToRichTextHtml } from '../../utils/journalRichText';
-import { normalizeLocationInfoNotes } from '../../utils/locationInfoEntry';
 import { geocodeStayFromHotelRecord } from '../../utils/stayGeocode';
 import cardStyles from '../itinerary/ItineraryCard.module.css';
 import styles from './MobileLocationInfo.module.css';
@@ -217,13 +215,17 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     [pushStartingPoint]
   );
 
-  const appendTipToNotes = React.useCallback(
+  const saveTravelTip = React.useCallback(
     (tipText: string): void => {
       const notes = parseLocationInfoNotes(liveEntry?.notes);
       if (!liveEntry || !notes || !canEditItinerary) return;
+      const tip = tipText.trim();
+      if (!tip) return;
+      const existing = notes.savedTravelTips || [];
+      if (existing.some((t) => t.trim().toLowerCase() === tip.toLowerCase())) return;
       const next = normalizeLocationInfoNotes({
         ...notes,
-        userNotes: appendBulletToRichTextHtml(notes.userNotes, tipText)
+        savedTravelTips: [...existing, tip]
       });
       updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(next) });
     },
@@ -457,7 +459,8 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
                 practicalTipsHtml={data?.practicalTips}
                 onBack={closePanels}
                 onSavePlace={canEditItinerary ? saveNearPlace : undefined}
-                onAppendToNotes={canEditItinerary ? appendTipToNotes : undefined}
+                onSaveTip={canEditItinerary ? saveTravelTip : undefined}
+                savedTips={data?.savedTravelTips || []}
                 {...startPointHandlers}
               />
               {nearActionMsg ? <p className={styles.nearFeedback}>{nearActionMsg}</p> : null}
@@ -485,7 +488,8 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
                 startingPointLabel={startingPointLabel}
                 overrideCoords={overrideCoords}
                 onBack={closePanels}
-                onAppendToNotes={canEditItinerary ? appendTipToNotes : undefined}
+                onSaveTip={canEditItinerary ? saveTravelTip : undefined}
+                savedTips={data.savedTravelTips || []}
                 {...startPointHandlers}
               />
             </div>

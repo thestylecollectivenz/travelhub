@@ -35,6 +35,8 @@ export interface MobileStartPointActionsProps {
   savedStarts?: StoredStartPoint[];
   onSelectSavedStart?: (point: StoredStartPoint) => void;
   activeStart?: StoredStartPoint | null;
+  /** When true, do not render the saved-starts chip row (parent shows them elsewhere). */
+  hideSavedStarts?: boolean;
   changeClassName?: string;
   resetClassName?: string;
   mutedClassName?: string;
@@ -43,6 +45,15 @@ export interface MobileStartPointActionsProps {
 }
 
 /** Shared change / near-accommodation / saved starts / undo controls. */
+function IconPin(): React.ReactElement {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M12 21s7-4.35 7-10a7 7 0 1 0-14 0c0 5.65 7 10 7 10Z" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="12" cy="11" r="2" fill="currentColor" />
+    </svg>
+  );
+}
+
 export const MobileStartPointActions: React.FC<MobileStartPointActionsProps> = ({
   onChangeStartingPoint,
   onResetStartingPoint,
@@ -53,6 +64,7 @@ export const MobileStartPointActions: React.FC<MobileStartPointActionsProps> = (
   savedStarts,
   onSelectSavedStart,
   activeStart,
+  hideSavedStarts,
   changeClassName,
   resetClassName,
   mutedClassName,
@@ -71,10 +83,12 @@ export const MobileStartPointActions: React.FC<MobileStartPointActionsProps> = (
       <div className={styles.row}>
         {onChangeStartingPoint ? (
           <button type="button" className={changeClassName || styles.link} onClick={onChangeStartingPoint}>
-            Change starting point
+            <IconPin /> Change starting point
           </button>
         ) : (
-          <span className={mutedClassName || styles.muted}>Change starting point</span>
+          <span className={mutedClassName || styles.muted}>
+            <IconPin /> Change starting point
+          </span>
         )}
         {isCustomStartingPoint && onResetStartingPoint ? (
           <button
@@ -97,7 +111,7 @@ export const MobileStartPointActions: React.FC<MobileStartPointActionsProps> = (
           </button>
         ) : null}
       </div>
-      {others.length && onSelectSavedStart ? (
+      {!hideSavedStarts && others.length && onSelectSavedStart ? (
         <div className={styles.savedRow} role="list" aria-label="Saved starting points">
           {others.map((p) => (
             <button

@@ -75,6 +75,10 @@ export const MobileStartPointPicker: React.FC<MobileStartPointPickerProps> = ({
     label: seedLabel
   }));
   const [resolving, setResolving] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [searchBusy, setSearchBusy] = React.useState(false);
+  const [searchError, setSearchError] = React.useState('');
+  const [searchHits, setSearchHits] = React.useState<Array<{ lat: number; lng: number; label: string }>>([]);
 
   const placeMarker = React.useCallback((map: L.Map, lat: number, lng: number, label: string): void => {
     if (markerRef.current) {
@@ -161,6 +165,50 @@ export const MobileStartPointPicker: React.FC<MobileStartPointPickerProps> = ({
     return () => document.removeEventListener('keydown', onKey);
   }, [onCancel]);
 
+  const applyHit = (hit: { lat: number; lng: number; label: string }): void => {
+    const map = mapRef.current;
+    if (map) {
+      map.setView([hit.lat, hit.lng], 16);
+      placeMarker(map, hit.lat, hit.lng, hit.label);
+    }
+    setSelected(hit);
+    setSearchHits([]);
+    setSearchError('');
+  };
+
+  const runSearch = async (): Promise<void> => {
+    const q = searchQuery.trim();
+    if (!q) return;
+    setSearchBusy(true);
+    setSearchError('');
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6`;
+      const resp = await nominatimFetch(url, { headers: { Accept: 'application/json' } });
+      if (!resp.ok) throw new Error('Search failed');
+      const data = (await resp.json()) as Array<{ lat?: string; lon?: string; display_name?: string; name?: string }>;
+      const hits = data
+        .map((row) => {
+          const lat = Number(row.lat);
+          const lng = Number(row.lon);
+          if (!isValid(lat, lng)) return null;
+          const label =
+            (row.name || '').trim() ||
+            (row.display_name || '').split(',').slice(0, 2).join(',').trim() ||
+            shortCoordLabel(lat, lng);
+          return { lat, lng, label };
+        })
+        .filter((h): h is { lat: number; lng: number; label: string } => Boolean(h));
+      setSearchHits(hits);
+      if (!hits.length) setSearchError('No places found — try a different search.');
+      else if (hits.length === 1) applyHit(hits[0]);
+    } catch {
+      setSearchHits([]);
+      setSearchError('Search unavailable right now.');
+    } finally {
+      setSearchBusy(false);
+    }
+  };
+
   const shellAttr = shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined;
 
   return ReactDOM.createPortal(
@@ -174,8 +222,42 @@ export const MobileStartPointPicker: React.FC<MobileStartPointPickerProps> = ({
           <span className={styles.headerSpacer} aria-hidden />
         </header>
         <p className={styles.instruction}>
-          Current selection is marked below — tap the map to choose a new starting point
+          Search for a place or tap the map to choose a new starting point
         </p>
+        <form
+          className={styles.searchRow}
+          onSubmit={(e) => {
+            e.preventDefault();
+            void runSearch();
+          }}
+        >
+          <input
+            className={styles.searchInput}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search for a place or address"
+            aria-label="Search starting point"
+          />
+          <button type="submit" className={styles.searchBtn} disabled={searchBusy || !searchQuery.trim()}>
+            {searchBusy ? '…' : 'Find'}
+          </button>
+        </form>
+        {searchError ? <p className={styles.searchError}>{searchError}</p> : null}
+        {searchHits.length ? (
+          <ul className={styles.searchHits} role="listbox" aria-label="Search results">
+            {searchHits.map((hit) => (
+              <li key={`${hit.lat}-${hit.lng}-${hit.label}`}>
+                <button
+                  type="button"
+                  className={styles.searchHit}
+                  onClick={() => applyHit(hit)}
+                >
+                  {hit.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <div className={styles.mapHost} ref={hostRef} />
         <div className={styles.footer}>
           <p className={styles.selectedLabel}>

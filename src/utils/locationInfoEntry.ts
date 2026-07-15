@@ -67,6 +67,8 @@ export type NearestPlaceRow = {
   servicesSummary?: string;
   /** Search-anchor label when saved (e.g. stay name). */
   nearLabel?: string;
+  latitude?: number;
+  longitude?: number;
 };
 
 export type DiningSuggestionRow = {
@@ -85,6 +87,8 @@ export type DiningSuggestionRow = {
   done?: boolean;
   /** Search-anchor label when saved (e.g. stay name). */
   nearLabel?: string;
+  latitude?: number;
+  longitude?: number;
 };
 
 export type LocationInfoNotes = {
@@ -96,6 +100,8 @@ export type LocationInfoNotes = {
   practicalTips: string;
   /** Traveller's own notes — edited only via the Notes field/UI. */
   userNotes?: string;
+  /** Saved travel tips (from tip strip / Explore / Saved places). */
+  savedTravelTips?: string[];
   iconicSightsItems?: LocationInfoCheckItem[];
   foodDrinkItems?: LocationInfoCheckItem[];
   drinkItems?: LocationInfoCheckItem[];

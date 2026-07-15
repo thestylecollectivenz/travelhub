@@ -26,6 +26,19 @@
   background-position: center;
   background-color: #e8eef5;
   flex-shrink: 0;
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.nameLink {
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+
+.nameLink:hover .name {
+  text-decoration: underline;
 }
 
 .strip .photo {

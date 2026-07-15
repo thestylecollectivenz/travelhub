@@ -112,7 +112,23 @@ export async function applyLocationInfoQuestion(options: {
   const { placeName, country } = placeNameAndCountry(place);
   const notesBits = [
     existing.overview.trim() ? `Overview: ${existing.overview.trim()}` : '',
+    (() => {
+      const sights = (existing.iconicSightsItems ?? []).map((i) => i.label).filter(Boolean);
+      const food = (existing.foodDrinkItems ?? []).map((i) => i.label).filter(Boolean);
+      const drink = (existing.drinkItems ?? []).map((i) => i.label).filter(Boolean);
+      const souvenirs = (existing.souvenirItems ?? []).map((i) => i.label).filter(Boolean);
+      const parts = [
+        sights.length ? `Sights: ${sights.join('; ')}` : '',
+        food.length ? `Food: ${food.join('; ')}` : '',
+        drink.length ? `Drink: ${drink.join('; ')}` : '',
+        souvenirs.length ? `Souvenirs: ${souvenirs.join('; ')}` : ''
+      ].filter(Boolean);
+      return parts.length ? `Location highlights:\n${parts.join('\n')}` : '';
+    })(),
     existing.practicalTips.trim() ? `Practical tips: ${existing.practicalTips.trim()}` : '',
+    (existing.savedTravelTips || []).length
+      ? `Saved travel tips: ${(existing.savedTravelTips || []).join('; ')}`
+      : '',
     (existing.userNotes || '').trim() ? `Traveller notes: ${(existing.userNotes || '').trim()}` : ''
   ].filter(Boolean);
   const itineraryContext = await loadLocationQaTripContext(spContext, entry.tripId, place);
