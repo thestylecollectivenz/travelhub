@@ -364,15 +364,42 @@ function mergeCheckItems(primary: LocationInfoCheckItem[], secondary: LocationIn
 
 function mergeDiningRows(primary: DiningSuggestionRow[], secondary: DiningSuggestionRow[]): DiningSuggestionRow[] {
   const out = primary.slice();
-  const byId = new Set(out.map((x) => x.id));
-  const byName = new Set(out.map((x) => x.name.trim().toLowerCase()).filter(Boolean));
+  const indexById = new Map(out.map((x, i) => [x.id, i] as const));
+  const indexByName = new Map(
+    out.map((x, i) => [x.name.trim().toLowerCase(), i] as const).filter(([k]) => Boolean(k))
+  );
+
+  const fold = (into: DiningSuggestionRow, from: DiningSuggestionRow): DiningSuggestionRow => ({
+    ...into,
+    description: (from.description || '').trim().length > (into.description || '').trim().length ? from.description : into.description,
+    why: (from.why || '').trim().length > (into.why || '').trim().length ? from.why : into.why,
+    bestFor: (from.bestFor || '').trim().length > (into.bestFor || '').trim().length ? from.bestFor : into.bestFor,
+    priceLevel: into.priceLevel || from.priceLevel,
+    rating: typeof into.rating === 'number' ? into.rating : from.rating,
+    ratingSource: into.ratingSource || from.ratingSource,
+    address: into.address || from.address,
+    mapsUrl: into.mapsUrl || from.mapsUrl,
+    reviewsUrl: into.reviewsUrl || from.reviewsUrl,
+    websiteUrl: into.websiteUrl || from.websiteUrl,
+    nearLabel: into.nearLabel || from.nearLabel,
+    done: Boolean(into.done || from.done)
+  });
+
   for (let i = 0; i < secondary.length; i++) {
     const row = secondary[i];
     const nameKey = row.name.trim().toLowerCase();
-    if (byId.has(row.id) || (nameKey && byName.has(nameKey))) continue;
+    const existingIdx = indexById.has(row.id)
+      ? indexById.get(row.id)!
+      : nameKey && indexByName.has(nameKey)
+        ? indexByName.get(nameKey)!
+        : -1;
+    if (existingIdx >= 0) {
+      out[existingIdx] = fold(out[existingIdx], row);
+      continue;
+    }
     out.push(row);
-    byId.add(row.id);
-    if (nameKey) byName.add(nameKey);
+    indexById.set(row.id, out.length - 1);
+    if (nameKey) indexByName.set(nameKey, out.length - 1);
   }
   return out;
 }
@@ -383,20 +410,45 @@ function mergeNearestMaps(
 ): Partial<Record<NearestPlaceKind, NearestPlaceRow[]>> {
   const out: Partial<Record<NearestPlaceKind, NearestPlaceRow[]>> = { ...(primary ?? {}) };
   const kinds = Object.keys(secondary ?? {}) as NearestPlaceKind[];
+
+  const fold = (into: NearestPlaceRow, from: NearestPlaceRow): NearestPlaceRow => ({
+    ...into,
+    note: (from.note || '').trim().length > (into.note || '').trim().length ? from.note : into.note,
+    address: into.address || from.address,
+    mapsUrl: into.mapsUrl || from.mapsUrl,
+    reviewsUrl: into.reviewsUrl || from.reviewsUrl,
+    websiteUrl: into.websiteUrl || from.websiteUrl,
+    servicesSummary:
+      (from.servicesSummary || '').trim().length > (into.servicesSummary || '').trim().length
+        ? from.servicesSummary
+        : into.servicesSummary,
+    nearLabel: into.nearLabel || from.nearLabel
+  });
+
   for (let i = 0; i < kinds.length; i++) {
     const kind = kinds[i];
     const rows = secondary?.[kind] ?? [];
     const existing = out[kind] ?? [];
-    const byId = new Set(existing.map((x) => x.id));
-    const byName = new Set(existing.map((x) => x.name.trim().toLowerCase()).filter(Boolean));
+    const indexById = new Map(existing.map((x, idx) => [x.id, idx] as const));
+    const indexByName = new Map(
+      existing.map((x, idx) => [x.name.trim().toLowerCase(), idx] as const).filter(([k]) => Boolean(k))
+    );
     const merged = existing.slice();
     for (let j = 0; j < rows.length; j++) {
       const row = rows[j];
       const nameKey = row.name.trim().toLowerCase();
-      if (byId.has(row.id) || (nameKey && byName.has(nameKey))) continue;
+      const existingIdx = indexById.has(row.id)
+        ? indexById.get(row.id)!
+        : nameKey && indexByName.has(nameKey)
+          ? indexByName.get(nameKey)!
+          : -1;
+      if (existingIdx >= 0) {
+        merged[existingIdx] = fold(merged[existingIdx], row);
+        continue;
+      }
       merged.push(row);
-      byId.add(row.id);
-      if (nameKey) byName.add(nameKey);
+      indexById.set(row.id, merged.length - 1);
+      if (nameKey) indexByName.set(nameKey, merged.length - 1);
     }
     out[kind] = merged;
   }
@@ -406,14 +458,22 @@ function mergeNearestMaps(
 function mergeQaThreads(primary: LocationInfoQaEntry[], secondary: LocationInfoQaEntry[]): LocationInfoQaEntry[] {
   const out = primary.slice();
   const byId = new Set(out.map((x) => x.id));
-  const byQuestion = new Set(out.map((x) => x.question.trim().toLowerCase()).filter(Boolean));
+  const byQuestionAnswer = new Set(
+    out.map((x) => `${x.question.trim().toLowerCase()}::${x.answer.trim().toLowerCase()}`).filter((k) => !k.startsWith('::'))
+  );
+
   for (let i = 0; i < secondary.length; i++) {
     const row = secondary[i];
-    const qKey = row.question.trim().toLowerCase();
-    if (byId.has(row.id) || (qKey && byQuestion.has(qKey))) continue;
+    const q = row.question.trim();
+    const a = row.answer.trim();
+    const pairKey = `${q.toLowerCase()}::${a.toLowerCase()}`;
+    if (byId.has(row.id) || (q && a && byQuestionAnswer.has(pairKey))) continue;
+
+    // Same question, different answer: keep both so nothing is lost.
+    // Same question+answer: skip as true duplicate (handled above).
     out.push(row);
     byId.add(row.id);
-    if (qKey) byQuestion.add(qKey);
+    if (q && a) byQuestionAnswer.add(pairKey);
   }
   return out.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
 }

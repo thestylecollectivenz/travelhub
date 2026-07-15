@@ -91,19 +91,36 @@ describe('locationInfo merge preserves user content', () => {
     const a = {
       ...defaultLocationInfoNotes('place-1'),
       overview: 'City overview',
-      diningSuggestions: [{ id: 'd1', name: 'Cafe One' }],
+      diningSuggestions: [{ id: 'd1', name: 'Cafe One', why: 'Great brunch' }],
+      nearestPlaces: { atm: [{ id: 'a1', name: 'Bank ATM', note: 'Open 24h' }] },
       aiQaThread: [{ id: 'q1', question: 'Best park?', answer: 'Central Park', createdAt: '2026-01-01T00:00:00.000Z' }]
     };
     const b = {
       ...defaultLocationInfoNotes('place-1'),
       practicalTips: 'Carry cash',
-      diningSuggestions: [{ id: 'd2', name: 'Cafe Two' }],
-      aiQaThread: [{ id: 'q2', question: 'ATM nearby?', answer: 'Yes on Main St', createdAt: '2026-01-02T00:00:00.000Z' }]
+      diningSuggestions: [
+        { id: 'd1b', name: 'Cafe One', address: '1 Main St' },
+        { id: 'd2', name: 'Cafe Two' }
+      ],
+      nearestPlaces: { pharmacy: [{ id: 'p1', name: 'City Chemist' }] },
+      aiQaThread: [
+        { id: 'q2', question: 'ATM nearby?', answer: 'Yes on Main St', createdAt: '2026-01-02T00:00:00.000Z' },
+        {
+          id: 'q3',
+          question: 'Best park?',
+          answer: 'Also try Riverside',
+          createdAt: '2026-01-03T00:00:00.000Z'
+        }
+      ]
     };
     const merged = mergeLocationInfoNotes(a, b);
     expect(merged.overview).toBe('City overview');
     expect(merged.practicalTips).toBe('Carry cash');
     expect(merged.diningSuggestions?.map((x) => x.name).sort()).toEqual(['Cafe One', 'Cafe Two']);
-    expect(merged.aiQaThread?.map((x) => x.id)).toEqual(['q1', 'q2']);
+    expect(merged.diningSuggestions?.find((x) => x.name === 'Cafe One')?.address).toBe('1 Main St');
+    expect(merged.diningSuggestions?.find((x) => x.name === 'Cafe One')?.why).toBe('Great brunch');
+    expect(merged.nearestPlaces?.atm?.[0]?.name).toBe('Bank ATM');
+    expect(merged.nearestPlaces?.pharmacy?.[0]?.name).toBe('City Chemist');
+    expect(merged.aiQaThread?.map((x) => x.id).sort()).toEqual(['q1', 'q2', 'q3']);
   });
 });

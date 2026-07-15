@@ -5,7 +5,10 @@ import {
   isLocationInfoEntry,
   locationInfoContentScore,
   locationInfoPlaceId,
-  parseLocationInfoNotes
+  mergeLocationInfoNotes,
+  normalizeLocationInfoNotes,
+  parseLocationInfoNotes,
+  serializeLocationInfoNotes
 } from './locationInfoEntry';
 import { parseAdditionalPlaceRefs } from './tripDayPlaces';
 
@@ -29,29 +32,56 @@ function cardPopulatedScore(entry: ItineraryEntry): number {
   return locationInfoContentScore(data);
 }
 
-/** One canonical Location info card per placeId for the trip. */
+function preferCanonical(a: ItineraryEntry, b: ItineraryEntry): ItineraryEntry {
+  const aScore = cardPopulatedScore(a);
+  const bScore = cardPopulatedScore(b);
+  if (bScore > aScore) return b;
+  if (bScore < aScore) return a;
+  if ((b.sortOrder ?? 0) < (a.sortOrder ?? 0)) return b;
+  return a;
+}
+
+/**
+ * One canonical Location info card per placeId for the trip.
+ * Notes are the union of all duplicate cards (Q&A, saved places, etc.) so the UI
+ * never drops data that still lives on a non-keeper duplicate before sync deletes it.
+ */
 export function buildCanonicalLocationInfoByPlaceId(
   entries: ItineraryEntry[],
   tripId: string
 ): Map<string, ItineraryEntry> {
   const cards = entries.filter((e) => e.tripId === tripId && isLocationInfoEntry(e) && !e.parentEntryId);
-  const byPlace = new Map<string, ItineraryEntry>();
+  const groups = new Map<string, ItineraryEntry[]>();
   for (const card of cards) {
     const pid = locationInfoPlaceId(card);
     if (!pid) continue;
-    const existing = byPlace.get(pid);
-    if (!existing) {
-      byPlace.set(pid, card);
-      continue;
-    }
-    const existingScore = cardPopulatedScore(existing);
-    const cardScore = cardPopulatedScore(card);
-    if (cardScore > existingScore) {
-      byPlace.set(pid, card);
-    } else if (cardScore === existingScore && (card.sortOrder ?? 0) < (existing.sortOrder ?? 0)) {
-      byPlace.set(pid, card);
-    }
+    const list = groups.get(pid) ?? [];
+    list.push(card);
+    groups.set(pid, list);
   }
+
+  const byPlace = new Map<string, ItineraryEntry>();
+  groups.forEach((group, pid) => {
+    let keeper = group[0];
+    for (let i = 1; i < group.length; i++) {
+      keeper = preferCanonical(keeper, group[i]);
+    }
+    let mergedNotes = parseLocationInfoNotes(keeper.notes);
+    if (!mergedNotes) {
+      byPlace.set(pid, keeper);
+      return;
+    }
+    for (let i = 0; i < group.length; i++) {
+      if (group[i].id === keeper.id) continue;
+      const other = parseLocationInfoNotes(group[i].notes);
+      if (!other) continue;
+      mergedNotes = mergeLocationInfoNotes(mergedNotes, other);
+    }
+    byPlace.set(pid, {
+      ...keeper,
+      notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(mergedNotes))
+    });
+  });
   return byPlace;
 }
 
