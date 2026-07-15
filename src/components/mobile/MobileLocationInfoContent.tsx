@@ -20,6 +20,7 @@ import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
 import { destinationHeroPhotoUrl } from '../../utils/explorePlacePhoto';
 import {
   exploreCategoriesSorted,
+  savedRowToExploreCategory,
   type ExploreCategoryId
 } from '../../utils/exploreCategories';
 import { RichTextContent } from '../shared/RichTextContent';
@@ -40,8 +41,36 @@ const HIGHLIGHT_LABEL: Record<LocationHighlightKind, string> = {
   souvenir: 'Souvenirs'
 };
 
-const ESSENTIAL_KINDS: NearestPlaceKind[] = ['pharmacy', 'atm', 'medical', 'restroom', 'fuel', 'transport'];
-const SHOPPING_KINDS: NearestPlaceKind[] = ['grocery'];
+const DINING_CATS = new Set<ExploreCategoryId>(['restaurants', 'cafes', 'bakeries', 'nightlife']);
+const SIGHTS_CATS = new Set<ExploreCategoryId>(['sights', 'parks', 'museums', 'viewpoints']);
+const SHOPPING_CATS = new Set<ExploreCategoryId>(['shopping', 'groceries', 'markets']);
+const ESSENTIAL_CATS = new Set<ExploreCategoryId>([
+  'pharmacy',
+  'atm',
+  'medical',
+  'restroom',
+  'fuel',
+  'transport'
+]);
+
+function escapeTipHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** Append a travel tip as a new bullet under Notes (userNotes). */
+export function appendTipBulletToUserNotes(existing: string | undefined, tip: string): string {
+  const bullet = tip.trim();
+  if (!bullet) return existing || '';
+  const li = `<li>${escapeTipHtml(bullet)}</li>`;
+  const raw = (existing || '').trim();
+  if (!raw) return `<ul>${li}</ul>`;
+  if (/<\/ul>/i.test(raw)) return raw.replace(/<\/ul>/i, `${li}</ul>`);
+  return `${raw}<ul>${li}</ul>`;
+}
 
 function highlightKey(row: LocationHighlightRow): string {
   return `${row.kind}::${row.id}`;
@@ -114,6 +143,7 @@ type FeaturedCard = {
   nearestKind?: NearestPlaceKind;
   name: string;
   categoryLabel: string;
+  exploreCategory: ExploreCategoryId;
   rating?: number;
   description?: string;
   distanceRaw?: string;
@@ -123,11 +153,6 @@ type FeaturedCard = {
   nearLabel?: string;
 };
 
-function countNearest(data: LocationInfoNotes, kinds: NearestPlaceKind[]): number {
-  const nearest = data.nearestPlaces ?? {};
-  return kinds.reduce((sum, k) => sum + (nearest[k]?.length ?? 0), 0);
-}
-
 function buildFeaturedCards(data: LocationInfoNotes, city: string): FeaturedCard[] {
   const dining = data.diningSuggestions ?? [];
   const fromDining: FeaturedCard[] = dining.map((row) => ({
@@ -135,6 +160,10 @@ function buildFeaturedCards(data: LocationInfoNotes, city: string): FeaturedCard
     source: 'dining' as const,
     name: row.name,
     categoryLabel: row.bestFor || 'Dining',
+    exploreCategory: savedRowToExploreCategory({
+      source: 'dining',
+      categoryLabel: row.bestFor || 'Dining'
+    }),
     rating: row.rating,
     description: row.why || row.bestFor,
     distanceRaw: row.description,
@@ -154,6 +183,11 @@ function buildFeaturedCards(data: LocationInfoNotes, city: string): FeaturedCard
         nearestKind: kind,
         name: row.name,
         categoryLabel: kind.charAt(0).toUpperCase() + kind.slice(1),
+        exploreCategory: savedRowToExploreCategory({
+          source: 'nearest',
+          nearestKind: kind,
+          categoryLabel: kind
+        }),
         description: row.servicesSummary,
         distanceRaw: row.note,
         address: row.address,
@@ -163,7 +197,7 @@ function buildFeaturedCards(data: LocationInfoNotes, city: string): FeaturedCard
       });
     });
   });
-  return [...fromDining, ...extras].slice(0, 24);
+  return [...fromDining, ...extras];
 }
 
 export interface MobileLocationInfoContentProps {
@@ -187,9 +221,6 @@ export interface MobileLocationInfoContentProps {
   startingPointLabel?: string;
   calendarDate?: string;
 }
-
-const PILL_EST_WIDTH = 72;
-const MORE_PILL_WIDTH = 64;
 
 export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps> = ({
   entry,
@@ -216,8 +247,6 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
   const askRef = React.useRef<HTMLElement | null>(null);
   const pillsRef = React.useRef<HTMLDivElement | null>(null);
   const [askExpanded, setAskExpanded] = React.useState(false);
-  const [moreOpen, setMoreOpen] = React.useState(false);
-  const [visiblePillCount, setVisiblePillCount] = React.useState(6);
   const [collapsedGroups, setCollapsedGroups] = React.useState<Record<string, boolean>>({});
 
   const data = parseLocationInfoNotes(entry.notes);
@@ -243,10 +272,11 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
   const city = shortPlace;
   const defaultNearLabel = `Saved for ${city}`;
 
-  const featured = React.useMemo(
+  const allSavedCards = React.useMemo(
     () => (data ? buildFeaturedCards(data, city) : []),
     [data, city]
   );
+  const featured = React.useMemo(() => allSavedCards.slice(0, 24), [allSavedCards]);
 
   const featuredGroups = React.useMemo(() => {
     const map = new Map<string, FeaturedCard[]>();
@@ -258,21 +288,6 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
     }
     return Array.from(map.entries()).map(([label, cards]) => ({ label, cards }));
   }, [featured, defaultNearLabel]);
-
-  React.useEffect(() => {
-    const el = pillsRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return undefined;
-    const measure = (): void => {
-      const width = el.clientWidth;
-      if (width <= 0) return;
-      const fit = Math.max(1, Math.floor((width - MORE_PILL_WIDTH) / PILL_EST_WIDTH));
-      setVisiblePillCount(Math.min(allCats.length, fit));
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [allCats.length]);
 
   if (!data) {
     return <p className={styles.empty}>No location data for this place yet.</p>;
@@ -287,22 +302,19 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
     persist({ ...data, ...splitHighlightRows(nextRows) });
   };
 
-  const diningCount = (data.diningSuggestions ?? []).length;
-  const shoppingCount = countNearest(data, SHOPPING_KINDS);
-  const essentialsCount = countNearest(data, ESSENTIAL_KINDS);
-  const nearestTotal = Object.values(data.nearestPlaces ?? {}).reduce((n, list) => n + (list?.length ?? 0), 0);
-  const allSavedCount = diningCount + nearestTotal;
+  const diningCount = allSavedCards.filter((c) => DINING_CATS.has(c.exploreCategory)).length;
+  const sightsCount = allSavedCards.filter((c) => SIGHTS_CATS.has(c.exploreCategory)).length;
+  const shoppingCount = allSavedCards.filter((c) => SHOPPING_CATS.has(c.exploreCategory)).length;
+  const essentialsCount = allSavedCards.filter((c) => ESSENTIAL_CATS.has(c.exploreCategory)).length;
+  const allSavedCount = allSavedCards.length;
 
   const savedTiles: Array<{ id: string; label: string; count: number }> = [
     { id: 'restaurants', label: 'Dining', count: diningCount },
-    { id: 'sights', label: 'Sights', count: 0 },
+    { id: 'sights', label: 'Sights', count: sightsCount },
     { id: 'shopping', label: 'Shopping', count: shoppingCount },
     { id: 'essentials', label: 'Essentials', count: essentialsCount },
     { id: 'all', label: 'All saved', count: allSavedCount }
   ];
-
-  const primaryCats = allCats.slice(0, visiblePillCount);
-  const overflowCats = allCats.slice(visiblePillCount);
 
   const openExploreCat = (id: ExploreCategoryId): void => {
     if (onOpenExplore) {
@@ -439,7 +451,7 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
         <p className={styles.sectionSub}>Discover places near your accommodation or anywhere in the city.</p>
         <div className={styles.catPillsBlock}>
           <div className={styles.catPills} role="list" ref={pillsRef}>
-            {primaryCats.map((cat) => (
+            {allCats.map((cat) => (
               <button
                 key={cat.id}
                 type="button"
@@ -454,42 +466,7 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
                 <span className={styles.catPillLabel}>{cat.label}</span>
               </button>
             ))}
-            {overflowCats.length ? (
-              <button
-                type="button"
-                className={styles.catPill}
-                aria-expanded={moreOpen}
-                onClick={() => setMoreOpen((v) => !v)}
-              >
-                <span className={styles.catPillIcon} style={{ background: '#eceeef', color: '#5c6570' }}>
-                  ···
-                </span>
-                <span className={styles.catPillLabel}>More</span>
-              </button>
-            ) : null}
           </div>
-          {moreOpen && overflowCats.length ? (
-            <div className={styles.catPillsMoreRow} role="list">
-              {overflowCats.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  role="listitem"
-                  className={styles.catPill}
-                  style={{ color: cat.accent }}
-                  onClick={() => {
-                    setMoreOpen(false);
-                    openExploreCat(cat.id);
-                  }}
-                >
-                  <span className={styles.catPillIcon} style={{ background: cat.bg, color: cat.accent }}>
-                    <CategoryGlyph id={cat.id} />
-                  </span>
-                  <span className={styles.catPillLabel}>{cat.label}</span>
-                </button>
-              ))}
-            </div>
-          ) : null}
         </div>
         <div className={styles.startBanner}>
           <span className={styles.startBannerIcon} aria-hidden>
@@ -650,8 +627,17 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
 
       <MobileLocationTravelTip
         placeLabel={shortPlace}
-        existingTipHtml={data.practicalTips}
         startingPointLabel={stayName}
+        onAppendToNotes={
+          canEditHighlights
+            ? (tipText) => {
+                persist({
+                  ...data,
+                  userNotes: appendTipBulletToUserNotes(data.userNotes, tipText)
+                });
+              }
+            : undefined
+        }
       />
     </div>
   );

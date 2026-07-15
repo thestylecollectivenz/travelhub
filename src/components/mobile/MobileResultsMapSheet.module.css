@@ -62,3 +62,40 @@
   width: 100%;
   background: #e8eef5;
 }
+
+.pinWrap {
+  background: transparent !important;
+  border: none !important;
+}
+
+.pin {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  pointer-events: auto;
+}
+
+.pinDot {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 999px;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px color-mix(in srgb, #1e2a44 35%, transparent);
+  flex-shrink: 0;
+}
+
+.pinLabel {
+  max-width: 9.5rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, #ffffff 92%, transparent);
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  box-shadow: 0 1px 4px color-mix(in srgb, #1e2a44 12%, transparent);
+  color: #1e2a44;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

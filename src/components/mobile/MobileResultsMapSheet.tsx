@@ -13,9 +13,17 @@ export type ResultsMapPlace = {
   mapsUrl?: string;
 };
 
+export type ResultsMapStart = {
+  lat: number;
+  lng: number;
+  label?: string;
+};
+
 export interface MobileResultsMapSheetProps {
   title: string;
-  centre: { lat: number; lng: number; label?: string };
+  centre: ResultsMapStart;
+  /** Extra starting points (e.g. accommodation + custom pin). */
+  starts?: ResultsMapStart[];
   places: ResultsMapPlace[];
   locality?: string;
   onClose: () => void;
@@ -23,6 +31,14 @@ export interface MobileResultsMapSheetProps {
 
 function isValid(lat: number, lng: number): boolean {
   return Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function parseCoordsFromMapsUrl(url?: string): { lat: number; lng: number } | undefined {
@@ -34,7 +50,11 @@ function parseCoordsFromMapsUrl(url?: string): { lat: number; lng: number } | un
     const lng = Number(at[2]);
     if (isValid(lat, lng)) return { lat, lng };
   }
-  const q = u.match(/[?&](?:q|query)=(-?\d+\.?\d*)%2C(-?\d+\.?\d*)/i) || u.match(/[?&](?:q|query)=(-?\d+\.?\d*),(-?\d+\.?\d*)/i);
+  const q =
+    u.match(/[?&](?:q|query)=(-?\d+\.?\d*)%2C(-?\d+\.?\d*)/i) ||
+    u.match(/[?&](?:q|query)=(-?\d+\.?\d*),(-?\d+\.?\d*)/i) ||
+    u.match(/\/search\/(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/i) ||
+    u.match(/!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/);
   if (q) {
     const lat = Number(q[1]);
     const lng = Number(q[2]);
@@ -43,27 +63,72 @@ function parseCoordsFromMapsUrl(url?: string): { lat: number; lng: number } | un
   return undefined;
 }
 
-async function geocodePlace(name: string, address?: string, locality?: string): Promise<{ lat: number; lng: number } | undefined> {
-  const q = [name, address, locality].filter(Boolean).join(', ');
-  if (!q.trim()) return undefined;
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`;
-    const resp = await nominatimFetch(url, { headers: { Accept: 'application/json' } });
-    if (!resp.ok) return undefined;
-    const data = (await resp.json()) as Array<{ lat?: string; lon?: string }>;
-    const hit = data[0];
-    const lat = Number(hit?.lat);
-    const lng = Number(hit?.lon);
-    if (!isValid(lat, lng)) return undefined;
-    return { lat, lng };
-  } catch {
-    return undefined;
+async function geocodePlace(
+  name: string,
+  address?: string,
+  locality?: string
+): Promise<{ lat: number; lng: number } | undefined> {
+  const attempts = [
+    [name, address, locality].filter(Boolean).join(', '),
+    [name, locality].filter(Boolean).join(', '),
+    name
+  ].filter((q, i, arr) => q.trim() && arr.indexOf(q) === i);
+
+  for (const q of attempts) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`;
+      const resp = await nominatimFetch(url, { headers: { Accept: 'application/json' } });
+      if (!resp.ok) continue;
+      const data = (await resp.json()) as Array<{ lat?: string; lon?: string }>;
+      const hit = data[0];
+      const lat = Number(hit?.lat);
+      const lng = Number(hit?.lon);
+      if (isValid(lat, lng)) return { lat, lng };
+    } catch {
+      /* try next */
+    }
   }
+  return undefined;
+}
+
+function addLabeledMarker(
+  map: L.Map,
+  lat: number,
+  lng: number,
+  label: string,
+  kind: 'start' | 'place'
+): L.Marker {
+  const color = kind === 'start' ? '#c45c3a' : '#2f5eb8';
+  const icon = L.divIcon({
+    className: styles.pinWrap,
+    html: `<div class="${styles.pin}"><span class="${styles.pinDot}" style="background:${color}"></span><span class="${styles.pinLabel}">${escapeHtml(label)}</span></div>`,
+    iconSize: [160, 28],
+    iconAnchor: [8, 14]
+  });
+  return L.marker([lat, lng], { icon, zIndexOffset: kind === 'start' ? 600 : 400 })
+    .addTo(map)
+    .bindPopup(label);
+}
+
+function uniqueStarts(centre: ResultsMapStart, starts?: ResultsMapStart[]): ResultsMapStart[] {
+  const out: ResultsMapStart[] = [];
+  const seen = new Set<string>();
+  const add = (s: ResultsMapStart | undefined): void => {
+    if (!s || !isValid(s.lat, s.lng)) return;
+    const key = `${s.lat.toFixed(5)},${s.lng.toFixed(5)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(s);
+  };
+  add(centre);
+  for (const s of starts || []) add(s);
+  return out;
 }
 
 export const MobileResultsMapSheet: React.FC<MobileResultsMapSheetProps> = ({
   title,
   centre,
+  starts,
   places,
   locality,
   onClose
@@ -82,45 +147,49 @@ export const MobileResultsMapSheet: React.FC<MobileResultsMapSheetProps> = ({
     }).addTo(map);
     map.setView([centre.lat, centre.lng], 14);
 
-    const start = L.circleMarker([centre.lat, centre.lng], {
-      radius: 11,
-      color: '#fff',
-      weight: 3,
-      fillColor: '#c45c3a',
-      fillOpacity: 1
-    })
-      .addTo(map)
-      .bindPopup(`Starting point: ${centre.label || 'Selected point'}`);
-    start.openPopup();
+    const startPoints = uniqueStarts(centre, starts);
+    const bounds = L.latLngBounds(startPoints.map((s) => [s.lat, s.lng] as [number, number]));
+    for (const s of startPoints) {
+      addLabeledMarker(map, s.lat, s.lng, s.label || 'Starting point', 'start');
+    }
 
-    const bounds = L.latLngBounds([[centre.lat, centre.lng]]);
     let cancelled = false;
 
     void (async () => {
       let pinned = 0;
-      for (const place of places) {
+      let failed = 0;
+      const total = places.length;
+      for (let i = 0; i < places.length; i++) {
         if (cancelled) return;
+        const place = places[i];
+        setStatus(`Placing pins… ${i + 1}/${total}`);
         const fromUrl = parseCoordsFromMapsUrl(place.mapsUrl);
         const coords = fromUrl || (await geocodePlace(place.name, place.address, locality));
-        if (!coords || cancelled) continue;
-        L.circleMarker([coords.lat, coords.lng], {
-          radius: 8,
-          color: '#fff',
-          weight: 2,
-          fillColor: '#2f5eb8',
-          fillOpacity: 1
-        })
-          .addTo(map)
-          .bindPopup(place.name);
+        if (!coords || cancelled) {
+          if (!coords) failed += 1;
+          continue;
+        }
+        addLabeledMarker(map, coords.lat, coords.lng, place.name, 'place');
         bounds.extend([coords.lat, coords.lng]);
         pinned += 1;
+        if (pinned === 1 || pinned % 2 === 0) {
+          map.fitBounds(bounds.pad(0.2), { maxZoom: 15 });
+        }
       }
       if (cancelled) return;
       if (pinned > 0) {
-        map.fitBounds(bounds.pad(0.2), { maxZoom: 15 });
-        setStatus(`${pinned} places · terracotta pin = starting point`);
+        map.fitBounds(bounds.pad(0.22), { maxZoom: 15 });
+        setStatus(
+          `${pinned} place${pinned === 1 ? '' : 's'} · ${startPoints.length} start pin${
+            startPoints.length === 1 ? '' : 's'
+          }${failed ? ` · ${failed} could not be located` : ''}`
+        );
       } else {
-        setStatus('Could not place result pins — showing starting point');
+        setStatus(
+          failed
+            ? `Could not place result pins (${failed}) — showing starting point${startPoints.length > 1 ? 's' : ''}`
+            : 'Showing starting point'
+        );
       }
       window.setTimeout(() => map.invalidateSize(), 60);
     })();
@@ -131,7 +200,7 @@ export const MobileResultsMapSheet: React.FC<MobileResultsMapSheetProps> = ({
       window.clearTimeout(t);
       map.remove();
     };
-  }, [centre.lat, centre.lng, centre.label, places, locality]);
+  }, [centre.lat, centre.lng, centre.label, starts, places, locality]);
 
   React.useEffect(() => {
     const onKey = (ev: KeyboardEvent): void => {

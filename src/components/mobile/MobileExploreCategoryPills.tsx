@@ -15,10 +15,6 @@ export interface MobileExploreCategoryPillsProps {
   includeAll?: boolean;
 }
 
-const PILL_EST_WIDTH = 88;
-const MORE_PILL_WIDTH = 72;
-const ALL_PILL_WIDTH = 56;
-
 function CategoryGlyph({ id }: { id: ExploreCategoryId }): React.ReactElement {
   const tool = exploreCategoryToNearTool(id);
   if (tool) return <NearYouToolIcon toolId={tool} size="sm" />;
@@ -44,6 +40,7 @@ function Pill({
     <button
       type="button"
       role="listitem"
+      data-selected={on ? 'true' : undefined}
       className={`${styles.catPill} ${on ? styles.catPillOn : ''}`}
       style={{ '--cat-accent': cat.accent, '--cat-bg': cat.bg } as React.CSSProperties}
       onClick={onClick}
@@ -56,58 +53,32 @@ function Pill({
   );
 }
 
-/** Shared Explore / Saved category chip row (primary pills + More). */
+/** Shared Explore / Saved category chip row — horizontal scroll of all categories. */
 export const MobileExploreCategoryPills: React.FC<MobileExploreCategoryPillsProps> = ({
   category,
   onChange,
   includeAll = false
 }) => {
   const sorted = React.useMemo(() => exploreCategoriesSorted(), []);
-  const pillsRef = React.useRef<HTMLDivElement | null>(null);
-  const [visibleCount, setVisibleCount] = React.useState(6);
-  const [moreOpen, setMoreOpen] = React.useState(false);
+  const rowRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
-    const el = pillsRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return undefined;
-    const measure = (): void => {
-      const width = el.clientWidth;
-      if (width <= 0) return;
-      const reserved = MORE_PILL_WIDTH + (includeAll ? ALL_PILL_WIDTH : 0);
-      const fit = Math.max(1, Math.floor((width - reserved) / PILL_EST_WIDTH));
-      setVisibleCount(Math.min(sorted.length, fit));
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [sorted.length, includeAll]);
-
-  React.useEffect(() => {
-    if (!moreOpen) return undefined;
-    const onDoc = (ev: MouseEvent): void => {
-      const t = ev.target as Node | null;
-      if (t && pillsRef.current && !pillsRef.current.contains(t)) setMoreOpen(false);
-    };
-    document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
-  }, [moreOpen]);
-
-  const primary = sorted.slice(0, visibleCount);
-  const more = sorted.slice(visibleCount);
-  const primaryIds = new Set(primary.map((c) => c.id));
-  const selectedInMore = category !== 'all' && !primaryIds.has(category);
-  const selectedOverflow = selectedInMore
-    ? sorted.find((c) => c.id === category)
-    : undefined;
+    const row = rowRef.current;
+    if (!row) return;
+    const selected = row.querySelector('[data-selected="true"]') as HTMLElement | null;
+    if (!selected) return;
+    const left = selected.offsetLeft - 12;
+    row.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+  }, [category]);
 
   return (
     <div className={styles.catPillsBlock}>
-      <div className={styles.catPills} role="list" ref={pillsRef}>
+      <div className={styles.catPills} role="list" ref={rowRef}>
         {includeAll ? (
           <button
             type="button"
             role="listitem"
+            data-selected={category === 'all' ? 'true' : undefined}
             className={`${styles.catPill} ${category === 'all' ? styles.catPillOn : ''}`}
             style={{ '--cat-accent': '#2f5eb8', '--cat-bg': '#e8eef8' } as React.CSSProperties}
             onClick={() => onChange('all')}
@@ -115,45 +86,10 @@ export const MobileExploreCategoryPills: React.FC<MobileExploreCategoryPillsProp
             All
           </button>
         ) : null}
-        {primary.map((cat) => (
+        {sorted.map((cat) => (
           <Pill key={cat.id} cat={cat} on={category === cat.id} onClick={() => onChange(cat.id)} />
         ))}
-        {selectedOverflow ? (
-          <Pill cat={selectedOverflow} on onClick={() => onChange(selectedOverflow.id)} />
-        ) : null}
-        {more.length ? (
-          <div className={styles.moreWrap}>
-            <button
-              type="button"
-              className={`${styles.catPill} ${moreOpen ? styles.catPillOn : ''}`}
-              aria-expanded={moreOpen}
-              aria-haspopup="menu"
-              onClick={() => setMoreOpen((v) => !v)}
-            >
-              More
-            </button>
-          </div>
-        ) : null}
       </div>
-      {moreOpen && more.length ? (
-        <div className={styles.moreMenu} role="menu">
-          {more.map((cat) => (
-            <button
-              key={cat.id}
-              type="button"
-              role="menuitem"
-              className={`${styles.moreItem} ${category === cat.id ? styles.moreItemOn : ''}`}
-              onClick={() => {
-                setMoreOpen(false);
-                onChange(cat.id);
-              }}
-            >
-              <CategoryGlyph id={cat.id} />
-              {cat.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 };

@@ -45,6 +45,7 @@ export interface SpeechRecognitionResultEvent {
 let activeAudio: HTMLAudioElement | undefined;
 let activeObjectUrl: string | undefined;
 let stateListener: ((state: SpeechOutputState) => void) | undefined;
+let browserSpeakToken = 0;
 
 function clearActiveAudio(): void {
   if (activeAudio) {
@@ -86,6 +87,7 @@ export function getSpeechRecognitionCtor(): SpeechRecognitionCtor | undefined {
 
 export function stopSpeechOutput(): void {
   if (typeof window === 'undefined') return;
+  browserSpeakToken += 1;
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   clearActiveAudio();
   notifyState('idle');
@@ -225,29 +227,100 @@ function resolveBrowserVoice(voiceURI?: string): SpeechSynthesisVoice | undefine
   return voices.find((v) => v.voiceURI === ranked[0].voiceURI) ?? voices[0];
 }
 
+/** Chrome/Edge silently fail long or post-cancel utterances — speak in short chunks. */
+function splitSpeakableChunks(text: string): string[] {
+  const cleaned = text.replace(/\s+/g, ' ').trim();
+  if (!cleaned) return [];
+  const softMax = 180;
+  const parts = cleaned.split(/(?<=[.!?])\s+/);
+  const chunks: string[] = [];
+  let buf = '';
+  for (const part of parts) {
+    const next = buf ? `${buf} ${part}` : part;
+    if (next.length > softMax && buf) {
+      chunks.push(buf);
+      buf = part;
+    } else {
+      buf = next;
+    }
+  }
+  if (buf) chunks.push(buf);
+  // Hard-split any remaining oversized chunk.
+  const out: string[] = [];
+  for (const c of chunks) {
+    if (c.length <= softMax * 2) {
+      out.push(c);
+      continue;
+    }
+    for (let i = 0; i < c.length; i += softMax) {
+      out.push(c.slice(i, i + softMax).trim());
+    }
+  }
+  return out.filter(Boolean);
+}
+
 function speakWithBrowser(
   text: string,
   onStateChange?: (state: SpeechOutputState) => void,
   voiceURI?: string
 ): void {
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
-  const utter = new SpeechSynthesisUtterance(text);
+  const chunks = splitSpeakableChunks(text);
+  if (!chunks.length) return;
+
+  const token = ++browserSpeakToken;
   const voice = resolveBrowserVoice(voiceURI);
-  if (voice) {
-    utter.voice = voice;
-    if (voice.lang) utter.lang = voice.lang;
-  } else {
-    utter.lang = 'en-NZ';
-  }
-  // Slightly slower than default often sounds more natural for travel narration.
-  utter.rate = 0.95;
-  utter.pitch = 1;
-  utter.onstart = () => onStateChange?.('speaking');
-  utter.onpause = () => onStateChange?.('paused');
-  utter.onresume = () => onStateChange?.('speaking');
-  utter.onend = () => onStateChange?.('idle');
-  utter.onerror = () => onStateChange?.('idle');
-  window.speechSynthesis.speak(utter);
+
+  const speakChunk = (index: number): void => {
+    if (token !== browserSpeakToken) return;
+    if (index >= chunks.length) {
+      onStateChange?.('idle');
+      return;
+    }
+    const utter = new SpeechSynthesisUtterance(chunks[index]);
+    if (voice) {
+      utter.voice = voice;
+      if (voice.lang) utter.lang = voice.lang;
+    } else {
+      utter.lang = 'en-NZ';
+    }
+    utter.rate = 0.95;
+    utter.pitch = 1;
+    if (index === 0) {
+      utter.onstart = () => {
+        if (token === browserSpeakToken) onStateChange?.('speaking');
+      };
+    }
+    utter.onpause = () => {
+      if (token === browserSpeakToken) onStateChange?.('paused');
+    };
+    utter.onresume = () => {
+      if (token === browserSpeakToken) onStateChange?.('speaking');
+    };
+    utter.onend = () => {
+      if (token !== browserSpeakToken) return;
+      speakChunk(index + 1);
+    };
+    utter.onerror = () => {
+      // "interrupted" fires on cancel — ignore unless this token is still active.
+      if (token !== browserSpeakToken) return;
+      onStateChange?.('idle');
+    };
+
+    try {
+      // Chrome can stick in paused after cancel(); resume before speak.
+      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+      window.speechSynthesis.speak(utter);
+    } catch {
+      if (token === browserSpeakToken) onStateChange?.('idle');
+    }
+  };
+
+  // cancel() + immediate speak() is dropped by Chrome/Edge — settle first.
+  window.setTimeout(() => {
+    if (token !== browserSpeakToken) return;
+    speakChunk(0);
+  }, 80);
 }
 
 async function speakWithElevenLabs(

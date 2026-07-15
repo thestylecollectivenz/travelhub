@@ -82,13 +82,28 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
   }, [thread.length, thread]);
 
   const lastReadIdRef = React.useRef<string | undefined>();
+  const lastAnswerId = thread.length ? thread[thread.length - 1]?.id : undefined;
+  const lastAnswerText = thread.length ? thread[thread.length - 1]?.answer : undefined;
+
   React.useEffect(() => {
     if (!autoReadAnswers) return;
     const last = thread[thread.length - 1];
     if (!last?.answer?.trim() || last.id === lastReadIdRef.current) return;
     lastReadIdRef.current = last.id;
-    speak(richTextToPlainText(last.answer));
-  }, [autoReadAnswers, thread, speak]);
+    // Mic capture blocks or cancels TTS on many browsers — stop it first.
+    stopVoiceInput();
+    const plain = richTextToPlainText(last.answer).trim() || last.answer.trim();
+    if (!plain) return;
+    // Let SharePoint reload settle, then speak (also helps cancel→speak race).
+    const t = window.setTimeout(() => speak(plain), 120);
+    return () => window.clearTimeout(t);
+  }, [autoReadAnswers, lastAnswerId, lastAnswerText, speak, stopVoiceInput, thread]);
+
+  const speakAnswer = (answer: string): void => {
+    stopVoiceInput();
+    const plain = richTextToPlainText(answer).trim() || answer.trim();
+    if (plain) speak(plain);
+  };
 
   const updateThread = (next: LocationInfoQaEntry[]): void => {
     onThreadChange?.(next);
@@ -107,10 +122,6 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
       apiKey: geminiApiKey,
       question: q
     });
-  };
-
-  const speakAnswer = (answer: string): void => {
-    speak(richTextToPlainText(answer));
   };
 
   const toggleExpanded = (id: string): void => {

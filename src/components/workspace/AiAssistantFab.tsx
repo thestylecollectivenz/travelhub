@@ -433,12 +433,17 @@ export const AiAssistantFab: React.FC = () => {
     return -1;
   }, [messages]);
 
+  const lastReadAssistantIndexRef = React.useRef<number>(-1);
   React.useEffect(() => {
     if (!autoReadAnswers) return;
     const latest = latestAssistantIndex >= 0 ? messages[latestAssistantIndex] : undefined;
     if (!latest?.text?.trim()) return;
-    speak(latest.text);
-  }, [autoReadAnswers, latestAssistantIndex, messages, speak]);
+    if (latestAssistantIndex === lastReadAssistantIndexRef.current) return;
+    lastReadAssistantIndexRef.current = latestAssistantIndex;
+    stopVoiceInput();
+    const t = window.setTimeout(() => speak(latest.text), 120);
+    return () => window.clearTimeout(t);
+  }, [autoReadAnswers, latestAssistantIndex, messages, speak, stopVoiceInput]);
 
   const copyLatestResponse = React.useCallback(() => {
     const latest = latestAssistantIndex >= 0 ? messages[latestAssistantIndex] : undefined;
@@ -595,7 +600,15 @@ export const AiAssistantFab: React.FC = () => {
                 buttonClassName={styles.voiceBtn}
               />
               <label className={styles.voiceToggle}>
-                <input type="checkbox" checked={autoReadAnswers} onChange={(e) => setAutoReadAnswers(e.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={autoReadAnswers}
+                  onChange={(e) => {
+                    const on = e.target.checked;
+                    if (on) lastReadAssistantIndexRef.current = latestAssistantIndex;
+                    setAutoReadAnswers(on);
+                  }}
+                />
                 Auto-read
               </label>
             </div>
