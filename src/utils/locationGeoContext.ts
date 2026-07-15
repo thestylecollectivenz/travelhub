@@ -22,6 +22,8 @@ export interface LocationSearchContext {
   longitude: number;
   placeName: string;
   country: string;
+  /** Human label for the search pin (hotel, custom map pick, etc.). */
+  searchAnchorLabel?: string;
 }
 
 function isValidLatLng(lat: number, lon: number): boolean {
@@ -61,11 +63,13 @@ export async function resolveLocationSearchContext(
     onSiteKm?: number;
     forceTripPlace?: boolean;
     overrideCoords?: { lat: number; lng: number };
+    searchAnchorLabel?: string;
   }
 ): Promise<LocationSearchContext | undefined> {
   const onSiteKm = options?.onSiteKm ?? ON_SITE_KM;
   const forceTripPlace = options?.forceTripPlace === true;
   const override = options?.overrideCoords;
+  const anchorLabel = (options?.searchAnchorLabel || '').trim() || undefined;
   const { placeName, country } = place
     ? placeNameAndCountry(place)
     : { placeName: 'Selected point', country: '' };
@@ -83,7 +87,8 @@ export async function resolveLocationSearchContext(
       latitude: override.lat,
       longitude: override.lng,
       placeName,
-      country
+      country,
+      searchAnchorLabel: anchorLabel
     };
   }
 
@@ -99,7 +104,8 @@ export async function resolveLocationSearchContext(
           latitude: device.latitude,
           longitude: device.longitude,
           placeName,
-          country
+          country,
+          searchAnchorLabel: anchorLabel
         };
       }
     }
@@ -111,7 +117,8 @@ export async function resolveLocationSearchContext(
       latitude: override.lat,
       longitude: override.lng,
       placeName,
-      country
+      country,
+      searchAnchorLabel: anchorLabel
     };
   }
 
@@ -121,7 +128,8 @@ export async function resolveLocationSearchContext(
       latitude: placeLat,
       longitude: placeLon,
       placeName,
-      country
+      country,
+      searchAnchorLabel: anchorLabel
     };
   }
 
@@ -133,7 +141,8 @@ export async function resolveLocationSearchContext(
         latitude: device.latitude,
         longitude: device.longitude,
         placeName: 'Current location',
-        country: country || ''
+        country: country || '',
+        searchAnchorLabel: anchorLabel
       };
     }
   }

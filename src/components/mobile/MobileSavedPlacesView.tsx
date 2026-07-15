@@ -11,13 +11,13 @@ import {
   normalizeLocationInfoNotes,
   serializeLocationInfoNotes
 } from '../../utils/locationInfoEntry';
-import { placeDirectionsFromHereUrl, placeQueryMapsUrl } from '../../utils/googleMapsLink';
+import { placeQueryMapsUrl } from '../../utils/googleMapsLink';
 import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
-import { explorePlacePhotoUrl } from '../../utils/explorePlacePhoto';
 import type { SavedPlacesCategoryId } from '../../utils/exploreCategories';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
-import { formatDistanceFromStart } from '../../utils/locationDistanceLabel';
+import { parseDistanceKm } from '../../utils/locationDistanceLabel';
 import { MobileStartPointActions } from './MobileStartPointActions';
+import { MobilePlaceDiscoverCard } from './MobilePlaceDiscoverCard';
 import styles from './MobileSavedPlacesView.module.css';
 
 export interface MobileSavedPlacesViewProps {
@@ -87,6 +87,7 @@ function flattenSaved(data: LocationInfoNotes): SavedCard[] {
       rating: row.rating,
       description: row.why || row.bestFor,
       distance: row.description,
+      address: row.address,
       mapsUrl: row.mapsUrl,
       tags: [row.bestFor, row.priceLevel].filter(Boolean) as string[],
       nearLabel: row.nearLabel
@@ -190,8 +191,13 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
     if (priceFilter) {
       rows = rows.filter((c) => c.tags.some((t) => t.includes(priceFilter)));
     }
+    rows = rows.filter((c) => {
+      const km = parseDistanceKm(c.distance);
+      if (km == null) return true;
+      return km <= distanceKm;
+    });
     return rows;
-  }, [allCards, category, minRating, priceFilter]);
+  }, [allCards, category, minRating, priceFilter, distanceKm]);
 
   const visible = filtered.slice(0, visibleCount);
 
@@ -356,75 +362,35 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
           ) : null}
 
           <div className={styles.cardList}>
-            {visible.map((r) => {
-              const directions = placeDirectionsFromHereUrl(r.name, r.address, shortPlace);
-              const photo = explorePlacePhotoUrl(r.name, shortPlace);
-              const dist =
-                formatDistanceFromStart(r.distance, r.nearLabel || stayName) ||
-                r.address ||
-                `Near ${stayName}`;
-              return (
-                <article key={r.id} className={styles.card}>
-                  <div className={styles.cardPhoto} style={{ backgroundImage: `url(${photo})` }} aria-hidden />
-                  <div className={styles.cardBody}>
-                    <div className={styles.cardTitleRow}>
-                      <h3 className={styles.cardTitle}>{r.name}</h3>
-                      {typeof r.rating === 'number' ? (
-                        <span className={styles.rating}>★ {r.rating.toFixed(1)}</span>
-                      ) : null}
-                    </div>
-                    <div className={styles.badgeRow}>
-                      <span className={styles.savedBadge}>Saved</span>
-                      <span className={styles.cardTag}>{r.categoryLabel}</span>
-                      <span className={styles.addedNote}>Added</span>
-                    </div>
-                    {r.description ? <p className={styles.cardDesc}>{r.description}</p> : null}
-                    <p className={styles.cardDist}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
-                        <path
-                          d="M12 21s7-4.35 7-10a7 7 0 1 0-14 0c0 5.65 7 10 7 10Z"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                        />
-                      </svg>
-                      {dist}
-                    </p>
-                    {r.tags.length ? (
-                      <div className={styles.tagRow}>
-                        {r.tags.slice(0, 3).map((t) => (
-                          <span key={t} className={styles.miniTag}>
-                            {t}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-                    <div className={styles.cardActions}>
-                      {entry ? (
-                        <button
-                          type="button"
-                          className={styles.actionBtn}
-                          onClick={() => unsaveCard(r)}
-                        >
-                          Unsave
-                        </button>
-                      ) : (
-                        <span className={styles.actionBtnMuted}>Saved</span>
-                      )}
-                      {directions ? (
-                        <a
-                          className={`${styles.actionBtn} ${styles.actionPrimary}`}
-                          href={directions}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Directions
-                        </a>
-                      ) : null}
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
+            {visible.map((r) => (
+              <MobilePlaceDiscoverCard
+                key={r.id}
+                layout="list"
+                startingPointLabel={r.nearLabel || stayName}
+                cityFallback={shortPlace}
+                card={{
+                  id: r.id,
+                  name: r.name,
+                  categoryLabel: r.categoryLabel,
+                  rating: r.rating,
+                  description: r.description,
+                  distanceRaw: r.distance,
+                  address: r.address,
+                  mapsUrl: r.mapsUrl,
+                  tags: r.tags,
+                  city: shortPlace,
+                  nearLabel: r.nearLabel
+                }}
+                primaryAction={
+                  entry
+                    ? {
+                        label: 'Unsave',
+                        onClick: () => unsaveCard(r)
+                      }
+                    : undefined
+                }
+              />
+            ))}
           </div>
 
           {visibleCount < filtered.length ? (

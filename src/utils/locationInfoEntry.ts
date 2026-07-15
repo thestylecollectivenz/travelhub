@@ -78,6 +78,7 @@ export type DiningSuggestionRow = {
   priceLevel?: string;
   rating?: number;
   ratingSource?: 'google' | 'tripadvisor' | 'mixed';
+  address?: string;
   mapsUrl?: string;
   reviewsUrl?: string;
   websiteUrl?: string;
@@ -176,6 +177,7 @@ function migrateDiningSuggestions(raw?: DiningSuggestionRow[] | LocationInfoChec
           row.ratingSource === 'google' || row.ratingSource === 'tripadvisor' || row.ratingSource === 'mixed'
             ? row.ratingSource
             : undefined,
+        address: typeof row.address === 'string' ? row.address.trim() || undefined : undefined,
         mapsUrl: row.mapsUrl?.trim() || undefined,
         reviewsUrl: row.reviewsUrl?.trim() || undefined,
         websiteUrl: row.websiteUrl?.trim() || undefined,

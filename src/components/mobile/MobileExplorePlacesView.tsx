@@ -4,9 +4,8 @@ import { useConfig } from '../../context/ConfigContext';
 import { generateDiningSuggestions, generateNearestPlaces } from '../../services/GeminiService';
 import type { DiningSuggestionRow, NearestPlaceRow } from '../../utils/locationInfoEntry';
 import { MOBILE_NEAR_YOU_ON_SITE_KM, resolveLocationSearchContext } from '../../utils/locationGeoContext';
-import { placeDirectionsFromHereUrl, placeQueryMapsUrl, placeWebsiteSearchUrl } from '../../utils/googleMapsLink';
+import { placeQueryMapsUrl, placeWebsiteSearchUrl } from '../../utils/googleMapsLink';
 import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
-import { explorePlacePhotoUrl } from '../../utils/explorePlacePhoto';
 import {
   exploreCategoriesSorted,
   exploreCategoryById,
@@ -22,9 +21,11 @@ import {
   saveNearYouCache,
   type NearYouCachedResult
 } from '../../utils/nearYouResultCache';
+import { parseDistanceKm } from '../../utils/locationDistanceLabel';
 import { NearYouToolIcon } from '../shared/NearYouToolIcon';
 import type { NearYouToolId } from '../../utils/nearYouTools';
 import { MobileStartPointActions } from './MobileStartPointActions';
+import { MobilePlaceDiscoverCard } from './MobilePlaceDiscoverCard';
 import styles from './MobileExplorePlacesView.module.css';
 
 export interface MobileExplorePlacesViewProps {
@@ -34,6 +35,7 @@ export interface MobileExplorePlacesViewProps {
   startingPointLabel?: string;
   /** Map-picked search centre (force trip_place semantics). */
   overrideCoords?: { lat: number; lng: number };
+  searchAnchorLabel?: string;
   initialCategory?: string;
   onBack: () => void;
   onChangeStartingPoint?: () => void;
@@ -48,6 +50,12 @@ export interface MobileExplorePlacesViewProps {
     mapsUrl?: string;
     websiteUrl?: string;
     toolId?: string;
+    address?: string;
+    why?: string;
+    bestFor?: string;
+    rating?: number;
+    priceLevel?: string;
+    servicesSummary?: string;
   }) => boolean | void;
 }
 
@@ -55,23 +63,26 @@ type ExploreCard = NearYouCachedResult & {
   categoryLabel: string;
   tags: string[];
   walkHint?: string;
+  distanceRaw?: string;
 };
 
 function toCardsFromDining(items: DiningSuggestionRow[], categoryLabel: string): ExploreCard[] {
   return items.map((p, i) => ({
     id: p.id,
     name: p.name,
-    note: p.bestFor || p.description,
+    note: p.description || p.bestFor,
+    address: p.address,
     rating: p.rating,
     priceLevel: p.priceLevel,
-    mapsUrl: p.mapsUrl || placeQueryMapsUrl(p.name),
-    websiteUrl: p.websiteUrl || placeWebsiteSearchUrl(p.name),
+    mapsUrl: p.mapsUrl || placeQueryMapsUrl(p.name, p.address),
+    websiteUrl: p.websiteUrl || placeWebsiteSearchUrl(p.name, p.address),
     reviewsUrl: p.reviewsUrl,
-    aiBlurb: p.why || p.description || p.bestFor,
+    aiBlurb: p.why || p.bestFor,
     topPick: i === 0,
     categoryLabel,
     tags: [p.bestFor, p.priceLevel].filter(Boolean).slice(0, 3) as string[],
-    walkHint: p.description
+    walkHint: p.description,
+    distanceRaw: p.description
   }));
 }
 
@@ -84,7 +95,7 @@ function toCardsFromNearest(places: NearestPlaceRow[], categoryLabel: string): E
     mapsUrl: p.mapsUrl || placeQueryMapsUrl(p.name, p.address),
     websiteUrl: p.websiteUrl || placeWebsiteSearchUrl(p.name, p.address),
     reviewsUrl: p.reviewsUrl,
-    aiBlurb: p.note || p.servicesSummary,
+    aiBlurb: p.servicesSummary || p.note,
     topPick: i === 0,
     categoryLabel,
     tags: (p.servicesSummary || '')
@@ -92,7 +103,8 @@ function toCardsFromNearest(places: NearestPlaceRow[], categoryLabel: string): E
       .map((s) => s.trim())
       .filter(Boolean)
       .slice(0, 3),
-    walkHint: p.note
+    walkHint: p.note,
+    distanceRaw: p.note
   }));
 }
 
@@ -127,6 +139,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   locationLabel,
   startingPointLabel,
   overrideCoords,
+  searchAnchorLabel,
   initialCategory,
   onBack,
   onChangeStartingPoint,
@@ -164,6 +177,13 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   const moreCats = sortedCats.slice(6);
   const stayName = (startingPointLabel || '').trim() || shortPlace;
   const mapsUrl = placeQueryMapsUrl(place?.title || shortPlace, place?.country);
+  const overrideLat = overrideCoords?.lat;
+  const overrideLng = overrideCoords?.lng;
+  const coordsKey =
+    overrideLat != null && overrideLng != null
+      ? `${overrideLat.toFixed(4)},${overrideLng.toFixed(4)}`
+      : 'default';
+  const anchorLabel = (searchAnchorLabel || startingPointLabel || '').trim() || undefined;
 
   const clearFilters = (): void => {
     setDistanceKm(2);
@@ -184,10 +204,14 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
         setResults([]);
         return;
       }
-      const cacheScope = nearYouScopeForLocation(locationEntryId, overrideCoords);
+      const coords =
+        overrideLat != null && overrideLng != null ? { lat: overrideLat, lng: overrideLng } : undefined;
+      const cacheScope = nearYouScopeForLocation(locationEntryId, coords);
       const toolKey = cacheToolKey(category);
       const focus = exploreCategoryDiningFocus(category);
-      const useCache = focus !== 'attractions' && Boolean(exploreCategoryToNearTool(category) || exploreCategoryNearestKind(category));
+      const useCache =
+        focus !== 'attractions' &&
+        Boolean(exploreCategoryToNearTool(category) || exploreCategoryNearestKind(category));
 
       if (!forceRefresh && useCache) {
         const cached = loadNearYouCache(cacheScope, toolKey);
@@ -198,6 +222,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
               categoryLabel: catDef.label,
               tags: [r.priceLevel, r.note].filter(Boolean).slice(0, 3) as string[],
               walkHint: r.note,
+              distanceRaw: r.note,
               topPick: i === 0
             }))
           );
@@ -219,7 +244,8 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
         const searchContext = await resolveLocationSearchContext(place, {
           onSiteKm: MOBILE_NEAR_YOU_ON_SITE_KM,
           forceTripPlace: true,
-          overrideCoords
+          overrideCoords: coords,
+          searchAnchorLabel: anchorLabel
         });
         if (!searchContext) {
           setError('Could not resolve a search location for this place.');
@@ -257,20 +283,21 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
       }
     },
     [
+      anchorLabel,
       catDef.label,
       category,
       config.geminiApiKey,
       locationEntryId,
-      overrideCoords,
+      overrideLat,
+      overrideLng,
       place,
-      shortPlace,
       stayName
     ]
   );
 
   React.useEffect(() => {
     void load(false);
-  }, [load]);
+  }, [load, coordsKey, category]);
 
   const filtered = React.useMemo(() => {
     let rows = results.slice();
@@ -280,12 +307,21 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
     if (priceFilter) {
       rows = rows.filter((r) => (r.priceLevel || '').includes(priceFilter));
     }
-    // Open now / distance / cuisine / more filters are decorative when data lacks fields
-    if (openNow || filterWifi || filterOutdoor || filterReservations || cuisine) {
-      rows = rows.slice().sort((a, b) => Number(b.topPick) - Number(a.topPick));
-    }
+    rows = rows.filter((r) => {
+      const km = parseDistanceKm(r.distanceRaw || r.note || r.walkHint);
+      if (km == null) return true;
+      return km <= distanceKm;
+    });
+    rows = rows.slice().sort((a, b) => {
+      const da = parseDistanceKm(a.distanceRaw || a.note);
+      const db = parseDistanceKm(b.distanceRaw || b.note);
+      if (da != null && db != null) return da - db;
+      if (da != null) return -1;
+      if (db != null) return 1;
+      return Number(b.topPick) - Number(a.topPick);
+    });
     return rows;
-  }, [results, minRating, priceFilter, openNow, filterWifi, filterOutdoor, filterReservations, cuisine]);
+  }, [results, minRating, priceFilter, distanceKm]);
 
   const visible = filtered.slice(0, visibleCount);
   const saveToolId = exploreCategoryToNearTool(category) ?? 'dining';
@@ -504,74 +540,49 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
           {error ? <p className={styles.error}>{error}</p> : null}
 
           <div className={styles.cardList}>
-            {visible.map((r) => {
-              const directions = placeDirectionsFromHereUrl(r.name, r.address, shortPlace);
-              const photo = explorePlacePhotoUrl(r.name, shortPlace);
-              return (
-                <article key={r.id} className={styles.card}>
-                  <div className={styles.cardPhoto} style={{ backgroundImage: `url(${photo})` }} aria-hidden />
-                  <div className={styles.cardBody}>
-                    <div className={styles.cardTitleRow}>
-                      <h3 className={styles.cardTitle}>{r.name}</h3>
-                      {typeof r.rating === 'number' ? (
-                        <span className={styles.rating}>★ {r.rating.toFixed(1)}</span>
-                      ) : null}
-                    </div>
-                    <span className={styles.cardTag}>{r.categoryLabel}</span>
-                    {r.aiBlurb ? <p className={styles.cardDesc}>{r.aiBlurb}</p> : null}
-                    <p className={styles.cardDist}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
-                        <path
-                          d="M12 21s7-4.35 7-10a7 7 0 1 0-14 0c0 5.65 7 10 7 10Z"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                        />
-                      </svg>
-                      {r.walkHint || r.note || r.address || `Near ${stayName}`}
-                    </p>
-                    {r.tags.length ? (
-                      <div className={styles.tagRow}>
-                        {r.tags.map((t) => (
-                          <span key={t} className={styles.miniTag}>
-                            {t}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-                    <div className={styles.cardActions}>
-                      {onSavePlace ? (
-                        <button
-                          type="button"
-                          className={styles.actionBtn}
-                          onClick={() => {
-                            const saved = onSavePlace({
-                              name: r.name,
-                              note: r.note,
-                              mapsUrl: r.mapsUrl,
-                              websiteUrl: r.websiteUrl,
-                              toolId: saveToolId
-                            });
-                            if (saved !== false) showToast(`Saved · ${r.name}`);
-                          }}
-                        >
-                          Bookmark
-                        </button>
-                      ) : null}
-                      {directions ? (
-                        <a
-                          className={`${styles.actionBtn} ${styles.actionPrimary}`}
-                          href={directions}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Directions
-                        </a>
-                      ) : null}
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
+            {visible.map((r) => (
+              <MobilePlaceDiscoverCard
+                key={r.id}
+                layout="list"
+                startingPointLabel={stayName}
+                cityFallback={shortPlace}
+                card={{
+                  id: r.id,
+                  name: r.name,
+                  categoryLabel: r.categoryLabel,
+                  rating: r.rating,
+                  description: r.aiBlurb,
+                  distanceRaw: r.distanceRaw || r.note,
+                  address: r.address,
+                  mapsUrl: r.mapsUrl,
+                  tags: r.tags,
+                  city: shortPlace
+                }}
+                primaryAction={
+                  onSavePlace
+                    ? {
+                        label: 'Bookmark',
+                        onClick: () => {
+                          const saved = onSavePlace({
+                            name: r.name,
+                            note: r.distanceRaw || r.note,
+                            mapsUrl: r.mapsUrl,
+                            websiteUrl: r.websiteUrl,
+                            toolId: saveToolId,
+                            address: r.address,
+                            why: r.aiBlurb,
+                            bestFor: r.categoryLabel,
+                            rating: r.rating,
+                            priceLevel: r.priceLevel,
+                            servicesSummary: r.aiBlurb
+                          });
+                          if (saved !== false) showToast(`Saved · ${r.name}`);
+                        }
+                      }
+                    : undefined
+                }
+              />
+            ))}
           </div>
 
           {visibleCount < filtered.length ? (

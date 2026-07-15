@@ -16,7 +16,18 @@ function nameExists(names: string[], candidate: string): boolean {
 export function appendNearYouPlaceToLocationInfo(
   data: LocationInfoNotes,
   toolId: NearYouToolId,
-  place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string },
+  place: {
+    name: string;
+    note?: string;
+    mapsUrl?: string;
+    websiteUrl?: string;
+    address?: string;
+    why?: string;
+    bestFor?: string;
+    rating?: number;
+    priceLevel?: string;
+    servicesSummary?: string;
+  },
   nearLabel?: string
 ): LocationInfoNotes {
   const name = place.name.trim();
@@ -30,8 +41,11 @@ export function appendNearYouPlaceToLocationInfo(
       id: newRowId(),
       name,
       description: place.note,
-      bestFor: place.note,
-      why: place.note,
+      bestFor: place.bestFor || place.note,
+      why: place.why || place.note,
+      rating: place.rating,
+      priceLevel: place.priceLevel,
+      address: place.address,
       mapsUrl: place.mapsUrl,
       websiteUrl: place.websiteUrl,
       done: false,
@@ -53,6 +67,8 @@ export function appendNearYouPlaceToLocationInfo(
     id: newRowId(),
     name,
     note: place.note,
+    address: place.address,
+    servicesSummary: place.servicesSummary || place.why || place.note,
     mapsUrl: place.mapsUrl,
     websiteUrl: place.websiteUrl,
     nearLabel: anchor

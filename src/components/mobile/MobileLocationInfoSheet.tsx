@@ -25,6 +25,8 @@ import { MobilePencilButton } from './MobilePencilButton';
 import type { NearYouToolId } from '../../utils/nearYouTools';
 import { NEAR_YOU_TOOLS } from '../../utils/nearYouTools';
 import { useShellMode } from '../../hooks/useShellMode';
+import { loadLocationStartPoint, saveLocationStartPoint } from '../../utils/locationStartPointStorage';
+import { geocodeStayQuery } from '../../utils/stayGeocode';
 import cardStyles from '../itinerary/ItineraryCard.module.css';
 import styles from './MobileLocationInfo.module.css';
 
@@ -62,6 +64,12 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   const [startingPoint, setStartingPoint] = React.useState<StartPointSelection | null>(null);
   const [startHistory, setStartHistory] = React.useState<Array<StartPointSelection | null>>([]);
   const [startPickerOpen, setStartPickerOpen] = React.useState(false);
+  const [stayCentre, setStayCentre] = React.useState<StartPointSelection | null>(null);
+
+  const stayPrimary = React.useMemo(
+    () => findStayTileForDay(localEntries, calendarDate),
+    [localEntries, calendarDate]
+  );
 
   const stayCandidates = React.useMemo(() => {
     const titles: string[] = [];
@@ -73,45 +81,129 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
       seen.add(t.toLowerCase());
       titles.push(t);
     }
-    const primary = findStayTileForDay(localEntries, calendarDate);
-    const primaryTitle = primary?.entry.title?.trim();
+    const primaryTitle = stayPrimary?.entry.title?.trim();
     if (primaryTitle) {
       const rest = titles.filter((t) => t.toLowerCase() !== primaryTitle.toLowerCase());
       return [primaryTitle, ...rest];
     }
     return titles;
-  }, [localEntries, calendarDate]);
+  }, [localEntries, stayPrimary]);
 
   const liveEntry = entry ? localEntries.find((e) => e.id === entry.id) ?? entry : null;
   const data = liveEntry ? parseLocationInfoNotes(liveEntry.notes) : null;
   const place = data ? placeById(data.placeId) : undefined;
 
-  const defaultCentre = React.useMemo(() => {
+  const placeCentre = React.useMemo((): StartPointSelection | null => {
     const lat = Number(place?.latitude);
     const lng = Number(place?.longitude);
-    if (isValidLatLng(lat, lng)) {
-      return {
-        lat,
-        lng,
-        label: stayCandidates[0] || compactPlaceLabel(place?.title || '', place?.country) || 'Selected point'
-      };
-    }
+    if (!isValidLatLng(lat, lng)) return null;
+    return {
+      lat,
+      lng,
+      label: stayCandidates[0] || compactPlaceLabel(place?.title || '', place?.country) || 'Selected point'
+    };
+  }, [place, stayCandidates]);
+
+  /** Preferred default pin: geocoded stay when available, else city Place. */
+  const defaultCentre = React.useMemo((): StartPointSelection => {
+    if (stayCentre) return stayCentre;
+    if (placeCentre) return placeCentre;
     return {
       lat: -41.2865,
       lng: 174.7762,
       label: stayCandidates[0] || 'Selected point'
     };
-  }, [place, stayCandidates]);
+  }, [stayCentre, placeCentre, stayCandidates]);
 
-  const startingPointLabel = startingPoint?.label || stayCandidates[0] || undefined;
-  const overrideCoords = startingPoint
-    ? { lat: startingPoint.lat, lng: startingPoint.lng }
-    : isValidLatLng(Number(place?.latitude), Number(place?.longitude))
-      ? { lat: Number(place!.latitude), lng: Number(place!.longitude) }
-      : undefined;
+  React.useEffect(() => {
+    const stay = stayPrimary?.entry;
+    if (!stay) {
+      setStayCentre(null);
+      return undefined;
+    }
+    const label = (stay.title || '').trim() || stayCandidates[0] || 'Accommodation';
+    const queryParts = [
+      (stay.streetAddress || '').trim(),
+      (stay.location || '').trim(),
+      label,
+      place?.title,
+      place?.country
+    ].filter(Boolean);
+    const query = queryParts.join(', ');
+    let cancelled = false;
+    void geocodeStayQuery(query, label).then((geo) => {
+      if (cancelled || !geo) return;
+      setStayCentre(geo);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [stayPrimary, stayCandidates, place?.title, place?.country]);
+
+  React.useEffect(() => {
+    if (!entry?.id) return;
+    const stored = loadLocationStartPoint(entry.id);
+    setStartingPoint(stored);
+    setStartHistory([]);
+    setStartPickerOpen(false);
+  }, [calendarDate, entry?.id]);
+
+  const startingPointLabel =
+    startingPoint?.label || stayCentre?.label || stayCandidates[0] || placeCentre?.label || undefined;
+
+  const effectiveStart = startingPoint || stayCentre || placeCentre;
+
+  const overrideLat = effectiveStart?.lat;
+  const overrideLng = effectiveStart?.lng;
+  const overrideCoords = React.useMemo(() => {
+    if (
+      overrideLat == null ||
+      overrideLng == null ||
+      !isValidLatLng(overrideLat, overrideLng)
+    ) {
+      return undefined;
+    }
+    return { lat: overrideLat, lng: overrideLng };
+  }, [overrideLat, overrideLng]);
+
+  const pushStartingPoint = React.useCallback(
+    (next: StartPointSelection | null): void => {
+      setStartHistory((prev) => [...prev, startingPoint]);
+      setStartingPoint(next);
+      if (entry?.id) saveLocationStartPoint(entry.id, next);
+    },
+    [startingPoint, entry?.id]
+  );
+
+  const undoStartingPoint = React.useCallback((): void => {
+    setStartHistory((prev) => {
+      if (!prev.length) return prev;
+      const prior = prev[prev.length - 1];
+      setStartingPoint(prior);
+      if (entry?.id) saveLocationStartPoint(entry.id, prior);
+      return prev.slice(0, -1);
+    });
+  }, [entry?.id]);
+
+  const resetToAccommodation = React.useCallback((): void => {
+    if (startingPoint === null) return;
+    pushStartingPoint(null);
+  }, [startingPoint, pushStartingPoint]);
 
   const saveNearPlace = React.useCallback(
-    (placeRow: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string; toolId?: string }): boolean => {
+    (placeRow: {
+      name: string;
+      note?: string;
+      mapsUrl?: string;
+      websiteUrl?: string;
+      toolId?: string;
+      address?: string;
+      why?: string;
+      bestFor?: string;
+      rating?: number;
+      priceLevel?: string;
+      servicesSummary?: string;
+    }): boolean => {
       const current = entry ? localEntries.find((e) => e.id === entry.id) ?? entry : null;
       const notes = parseLocationInfoNotes(current?.notes);
       const toolId = (placeRow.toolId as NearYouToolId | undefined) || nearToolId;
@@ -195,31 +287,6 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [entry, onClose, editingCardId, panel, nearToolId, closePanels, startPickerOpen]);
-
-  React.useEffect(() => {
-    setStartingPoint(null);
-    setStartHistory([]);
-    setStartPickerOpen(false);
-  }, [calendarDate, entry?.id]);
-
-  const pushStartingPoint = React.useCallback((next: StartPointSelection | null): void => {
-    setStartHistory((prev) => [...prev, startingPoint]);
-    setStartingPoint(next);
-  }, [startingPoint]);
-
-  const undoStartingPoint = React.useCallback((): void => {
-    setStartHistory((prev) => {
-      if (!prev.length) return prev;
-      const prior = prev[prev.length - 1];
-      setStartingPoint(prior);
-      return prev.slice(0, -1);
-    });
-  }, []);
-
-  const resetToAccommodation = React.useCallback((): void => {
-    if (startingPoint === null) return;
-    pushStartingPoint(null);
-  }, [startingPoint, pushStartingPoint]);
 
   if (!entry || !liveEntry) return null;
 
@@ -310,6 +377,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
                 locationEntryId={entry.id}
                 locationLabel={title}
                 overrideCoords={overrideCoords}
+                searchAnchorLabel={startingPointLabel}
                 tripTitle={trip?.title}
                 tripDateRange={
                   trip?.dateStart && trip?.dateEnd
@@ -342,6 +410,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
                 locationLabel={title}
                 startingPointLabel={startingPointLabel}
                 overrideCoords={overrideCoords}
+                searchAnchorLabel={startingPointLabel}
                 initialCategory={exploreCategory}
                 onBack={closePanels}
                 onSavePlace={canEditItinerary ? saveNearPlace : undefined}

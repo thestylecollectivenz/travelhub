@@ -49,9 +49,41 @@
 
 .overviewBody,
 .notesBody {
-  font-size: 0.92rem;
-  line-height: 1.55;
+  font-size: 0.8rem;
+  line-height: 1.35;
   color: #3a3025;
+}
+
+.overviewSplit {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+  align-items: stretch;
+  margin-top: 0.35rem;
+}
+
+@media (max-width: 640px) {
+  .overviewSplit {
+    grid-template-columns: 1fr;
+  }
+
+  .overviewPhoto {
+    min-height: 9rem;
+    order: -1;
+  }
+}
+
+.overviewTextCol {
+  min-width: 0;
+}
+
+.overviewPhoto {
+  border-radius: 0.9rem;
+  min-height: 11rem;
+  background-size: cover;
+  background-position: center;
+  background-color: #e8eef5;
+  border: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
 }
 
 .highlightsGrid {
@@ -743,5 +775,14 @@
 
 [data-shell='ipad-portrait'] .overviewBody,
 [data-shell='ipad-portrait'] .notesBody {
-  font-size: 1rem;
+  font-size: 0.98rem;
+  line-height: 1.35;
+}
+
+[data-shell='ipad-portrait'] .overviewPhoto {
+  min-height: 14rem;
+}
+
+[data-shell='ipad-portrait'] .overviewSplit {
+  gap: 1rem;
 }

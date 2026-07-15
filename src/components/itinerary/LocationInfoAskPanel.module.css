@@ -334,10 +334,17 @@
 
 .mobileRoot .askBtn {
   border-radius: 999px;
-  background: #1e2a44;
-  font-size: 0.72rem;
+  background: #2f5eb8;
+  border-color: #2f5eb8;
+  color: white;
+  font-size: 0.82rem;
   font-weight: 700;
-  padding: 0.55rem 0.9rem;
+  padding: 0.55rem 0.95rem;
+  box-shadow: 0 4px 12px color-mix(in srgb, #2f5eb8 28%, transparent);
+}
+
+.mobileRoot .askBtn:disabled {
+  opacity: 0.5;
 }
 
 .mobileRoot .editArea {

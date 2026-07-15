@@ -597,22 +597,23 @@ const NEAREST_KIND_LABEL: Record<NearestPlaceKind, string> = {
 export type DiningVenueFocus = 'restaurants' | 'cafes' | 'attractions';
 
 function buildDiningPrompt(ctx: LocationSearchContext, venueFocus: DiningVenueFocus = 'restaurants'): string {
-  const geo = `Coordinates: ${ctx.latitude.toFixed(5)}, ${ctx.longitude.toFixed(5)}`;
+  const geo = `Search anchor coordinates: ${ctx.latitude.toFixed(5)}, ${ctx.longitude.toFixed(5)}`;
+  const nearWho = ctx.searchAnchorLabel?.trim() || ctx.placeName;
   const placeLine =
     ctx.mode === 'onsite'
-      ? `The traveller is on-site near ${ctx.placeName}, ${ctx.country}. Use their current GPS as the search anchor.`
-      : `Trip destination: ${ctx.placeName}, ${ctx.country}. Suggest venues a visitor would realistically try while there.`;
+      ? `The traveller is on-site near ${nearWho} (${ctx.placeName}, ${ctx.country}). Use their current GPS as the search anchor.`
+      : `Trip destination city: ${ctx.placeName}, ${ctx.country}. Search starting point: ${nearWho}. Suggest venues near THESE coordinates only — not other neighbourhoods unless they are within ~2 km.`;
   const venueLine =
     venueFocus === 'cafes'
-      ? 'Focus on coffee shops, bakeries, and casual cafés — not full-service restaurants.'
+      ? 'Focus on coffee shops, bakeries, and casual cafés — not full-service restaurants. Include specialty drinks / signature items when known.'
       : venueFocus === 'attractions'
-        ? 'Focus on sightseeing attractions, landmarks, museums, viewpoints, and notable places to visit — not restaurants.'
-        : 'Focus on restaurants and substantial dining — include some cafés only if they are standouts.';
+        ? 'Focus on sightseeing attractions, landmarks, museums, viewpoints, and notable places to visit — not restaurants. Mention typical visit length or ticket tip when helpful.'
+        : 'Focus on restaurants and substantial dining — include some cafés only if they are standouts. Mention cuisine style and signature dishes when helpful.';
   const guideLabel = venueFocus === 'attractions' ? 'local sightseeing guide' : 'local dining guide';
   const preferLine =
     venueFocus === 'attractions'
-      ? 'Prefer iconic or well-reviewed visitor attractions'
-      : 'Prefer local food/drink highlights';
+      ? 'Prefer iconic or well-reviewed visitor attractions nearest the search anchor'
+      : 'Prefer local food/drink highlights nearest the search anchor';
   return `You are a ${guideLabel}.
 
 ${placeLine}
@@ -620,11 +621,13 @@ ${geo}
 ${venueLine}
 
 Respond with ONLY a compact JSON object (no markdown, no code fences):
-{"items":[{"name":"venue","description":"one short sentence","why":"why go","bestFor":"short phrase","priceLevel":"$$","rating":4.4,"ratingSource":"google","mapsUrl":"","reviewsUrl":"","websiteUrl":""}]}
+{"items":[{"name":"venue","description":"distance only (e.g. 450 m, 1.2 km)","why":"why go — one rich sentence","bestFor":"short phrase","priceLevel":"$$","rating":4.4,"ratingSource":"google","address":"street or neighbourhood if known","mapsUrl":"","reviewsUrl":"","websiteUrl":""}]}
 
 Rules:
-- Exactly 4 venues
-- Keep each string under 120 characters
+- Exactly 4 venues, nearest first relative to the search anchor coordinates
+- description MUST be distance from the search anchor only (e.g. "650 m" or "1.1 km")
+- why should be specific and useful for a traveller (not generic)
+- Keep each string under 140 characters
 - Real or highly plausible for the area
 - ${preferLine}
 - Omit empty optional URL fields rather than inventing them`;
@@ -632,22 +635,34 @@ Rules:
 
 function buildNearestPrompt(kind: NearestPlaceKind, ctx: LocationSearchContext): string {
   const geo = `Search anchor coordinates: ${ctx.latitude.toFixed(5)}, ${ctx.longitude.toFixed(5)}`;
+  const nearWho = ctx.searchAnchorLabel?.trim() || ctx.placeName;
+  const kindGuide: Partial<Record<NearestPlaceKind, string>> = {
+    pharmacy: 'Prefer 24h or well-reviewed chemists; note late hours if known.',
+    grocery: 'Prefer full grocery / supermarket with useful travellers info (fresh food, open late).',
+    fuel: 'Prefer branded stations; note diesel/electric if known.',
+    atm: 'Prefer bank ATMs; note fees if typically charged.',
+    medical: 'Prefer walk-in clinic or hospital ED suited to travellers.',
+    restroom: 'Prefer free public or café restrooms travellers can access.',
+    transport: 'Prefer metro/tram/bus hubs or taxi ranks closest to the pin.'
+  };
   const anchorLine =
     ctx.mode === 'onsite'
-      ? `The traveller is physically at/near ${ctx.placeName}. Find ${NEAREST_KIND_LABEL[kind]} closest to their CURRENT GPS location (walking or short drive). Do NOT suggest venues in other cities.`
-      : `Trip place: ${ctx.placeName}, ${ctx.country}. Find ${NEAREST_KIND_LABEL[kind]} near this destination coordinates (for trip planning).`;
+      ? `The traveller is physically at/near ${nearWho}. Find ${NEAREST_KIND_LABEL[kind]} closest to their CURRENT GPS location (walking or short drive). Do NOT suggest venues in other cities.`
+      : `Trip place: ${ctx.placeName}, ${ctx.country}. Search starting point: ${nearWho}. Find ${NEAREST_KIND_LABEL[kind]} nearest THESE coordinates (not across town).`;
   return `You are a practical travel assistant.
 
 ${anchorLine}
 ${geo}
+${kindGuide[kind] || ''}
 
 Respond with ONLY JSON:
-{"places":[{"name":"business name","note":"distance only (e.g. 450 m, 1.2 km)","address":"street or area if known","servicesSummary":"key services/features in one sentence","mapsUrl":"optional Google Maps URL","reviewsUrl":"optional reviews search URL","websiteUrl":"official website URL if known"}]}
+{"places":[{"name":"business name","note":"distance only (e.g. 450 m, 1.2 km)","address":"street or area if known","servicesSummary":"key services/features useful to a traveller in one sentence","mapsUrl":"optional Google Maps URL","reviewsUrl":"optional reviews search URL","websiteUrl":"official website URL if known"}]}
 
 Rules:
-- 3-5 results, nearest first
+- 3-5 results, nearest first relative to the search anchor
 - name: specific business when possible
-- note must not include wording like "from coordinates"
+- note must be distance only — no wording like "from coordinates"
+- servicesSummary should be category-appropriate and practical
 - No markdown, no code fences`;
 }
 
@@ -712,6 +727,7 @@ export async function generateDiningSuggestions(
       priceLevel?: string;
       rating?: number;
       ratingSource?: 'google' | 'tripadvisor' | 'mixed';
+      address?: string;
       mapsUrl?: string;
       reviewsUrl?: string;
       websiteUrl?: string;
@@ -734,6 +750,7 @@ export async function generateDiningSuggestions(
         arr[i]?.ratingSource === 'google' || arr[i]?.ratingSource === 'tripadvisor' || arr[i]?.ratingSource === 'mixed'
           ? arr[i]?.ratingSource
           : undefined,
+      address: (arr[i]?.address ?? '').trim() || undefined,
       mapsUrl: (arr[i]?.mapsUrl ?? '').trim() || undefined,
       reviewsUrl: (arr[i]?.reviewsUrl ?? '').trim() || undefined,
       websiteUrl: (arr[i]?.websiteUrl ?? '').trim() || undefined,

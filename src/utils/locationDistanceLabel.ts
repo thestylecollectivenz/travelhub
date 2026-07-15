@@ -23,6 +23,28 @@ export function formatDistanceFromStart(raw: string | undefined, startLabel: str
   return text;
 }
 
+/** Parse a distance string into kilometres for filtering (undefined if unknown). */
+export function parseDistanceKm(raw: string | undefined): number | undefined {
+  const text = (raw || '').trim();
+  if (!text) return undefined;
+  const km = text.match(/([\d.]+)\s*km\b/i);
+  if (km) {
+    const n = Number(km[1]);
+    return Number.isFinite(n) && n >= 0 ? n : undefined;
+  }
+  const m = text.match(/([\d.]+)\s*m\b/i);
+  if (m) {
+    const n = Number(m[1]);
+    return Number.isFinite(n) && n >= 0 ? n / 1000 : undefined;
+  }
+  const mi = text.match(/([\d.]+)\s*mi(?:le)?s?\b/i);
+  if (mi) {
+    const n = Number(mi[1]);
+    return Number.isFinite(n) && n >= 0 ? n * 1.60934 : undefined;
+  }
+  return undefined;
+}
+
 export function estimateWalkMinutes(raw: string | undefined): string | undefined {
   const text = (raw || '').trim();
   const walk = text.match(/(\d+)\s*min(?:ute)?s?\s*walk/i);

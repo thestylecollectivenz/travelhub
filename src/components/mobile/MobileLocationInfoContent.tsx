@@ -17,20 +17,19 @@ import {
   type NearestPlaceRow
 } from '../../utils/locationInfoEntry';
 import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
-import { placeDirectionsFromHereUrl } from '../../utils/googleMapsLink';
 import { explorePlacePhotoUrl } from '../../utils/explorePlacePhoto';
 import {
   exploreCategoriesSorted,
   type ExploreCategoryId,
   type SavedPlacesCategoryId
 } from '../../utils/exploreCategories';
-import { distanceDisplayWithWalk } from '../../utils/locationDistanceLabel';
 import { RichTextContent } from '../shared/RichTextContent';
 import { LocationInfoAskPanel } from '../itinerary/LocationInfoAskPanel';
 import { NearYouToolIcon } from '../shared/NearYouToolIcon';
 import { LocationHighlightIcon } from './LocationHighlightIcon';
 import { MobilePencilButton } from './MobilePencilButton';
 import { MobileStartPointActions } from './MobileStartPointActions';
+import { MobilePlaceDiscoverCard } from './MobilePlaceDiscoverCard';
 import type { NearYouToolId } from '../../utils/nearYouTools';
 import styles from './MobileLocationInfoContent.module.css';
 
@@ -64,31 +63,6 @@ function IconSparkle(): React.ReactElement {
         d="M12 3.5 13.8 9l5.7 1.2-4.4 3.9 1.3 5.7L12 16.8 7.6 19.8l1.3-5.7-4.4-3.9L10.2 9 12 3.5Z"
         fill="currentColor"
       />
-    </svg>
-  );
-}
-
-function IconPin(): React.ReactElement {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M12 21s7-4.35 7-10a7 7 0 1 0-14 0c0 5.65 7 10 7 10Z" stroke="currentColor" strokeWidth="1.6" />
-      <circle cx="12" cy="11" r="2" fill="currentColor" />
-    </svg>
-  );
-}
-
-function IconBookmark(): React.ReactElement {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M6 4h12v18l-6-4-6 4V4Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function IconDirections(): React.ReactElement {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M12 2 4 20l8-4 8 4L12 2Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -164,6 +138,7 @@ function buildFeaturedCards(data: LocationInfoNotes, city: string): FeaturedCard
     rating: row.rating,
     description: row.why || row.bestFor,
     distanceRaw: row.description,
+    address: row.address,
     mapsUrl: row.mapsUrl,
     city,
     nearLabel: row.nearLabel
@@ -382,13 +357,28 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
             <MobilePencilButton onClick={onEditOverview} ariaLabel="Edit overview" />
           ) : null}
         </div>
-        {data.overview.trim() ? (
-          <div className={styles.overviewBody}>
-            <RichTextContent html={data.overview.trim()} />
+        <div className={styles.overviewSplit}>
+          <div className={styles.overviewTextCol}>
+            {data.overview.trim() ? (
+              <div className={styles.overviewBody}>
+                <RichTextContent html={data.overview.trim()} />
+              </div>
+            ) : (
+              <p className={styles.empty}>Overview will appear here once this place has been generated or edited.</p>
+            )}
           </div>
-        ) : (
-          <p className={styles.empty}>Overview will appear here once this place has been generated or edited.</p>
-        )}
+          <div
+            className={styles.overviewPhoto}
+            style={{
+              backgroundImage: `url(${explorePlacePhotoUrl(
+                shortPlace,
+                place?.country || place?.title || shortPlace
+              )})`
+            }}
+            role="img"
+            aria-label={`${shortPlace} photo`}
+          />
+        </div>
       </section>
 
       <section className={styles.section}>
@@ -573,67 +563,34 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
                   </button>
                   {open ? (
                     <div className={styles.featuredStrip}>
-                      {group.cards.map((card) => {
-                        const directions = placeDirectionsFromHereUrl(
-                          card.name,
-                          card.address,
-                          shortPlace
-                        );
-                        const dist = distanceDisplayWithWalk(
-                          card.distanceRaw,
-                          card.nearLabel || stayName
-                        );
-                        return (
-                          <article key={`${card.source}-${card.id}`} className={styles.featuredCard}>
-                            <div
-                              className={styles.featuredPhoto}
-                              style={{ backgroundImage: `url(${explorePlacePhotoUrl(card.name, card.city)})` }}
-                              aria-hidden
-                            />
-                            <div className={styles.featuredBody}>
-                              <div className={styles.featuredHead}>
-                                <strong className={styles.featuredName}>{card.name}</strong>
-                                {typeof card.rating === 'number' ? (
-                                  <span className={styles.featuredRating}>★ {card.rating.toFixed(1)}</span>
-                                ) : null}
-                              </div>
-                              <span className={styles.featuredTag}>{card.categoryLabel}</span>
-                              {card.description ? <p className={styles.featuredDesc}>{card.description}</p> : null}
-                              {dist ? (
-                                <p className={styles.featuredDist}>
-                                  <IconPin /> {dist}
-                                </p>
-                              ) : null}
-                              <div className={styles.featuredActions}>
-                                {directions ? (
-                                  <a
-                                    className={styles.featuredAction}
-                                    href={directions}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                  >
-                                    <IconDirections /> Directions
-                                  </a>
-                                ) : null}
-                                {canEditSavedPlaces ? (
-                                  <button
-                                    type="button"
-                                    className={styles.featuredAction}
-                                    onClick={() => removeSavedCard(card)}
-                                    aria-label="Remove saved place"
-                                  >
-                                    <IconBookmark /> Remove
-                                  </button>
-                                ) : (
-                                  <span className={styles.featuredActionMuted}>
-                                    <IconBookmark /> Saved
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </article>
-                        );
-                      })}
+                      {group.cards.map((card) => (
+                        <MobilePlaceDiscoverCard
+                          key={`${card.source}-${card.id}`}
+                          layout="strip"
+                          startingPointLabel={stayName}
+                          cityFallback={shortPlace}
+                          card={{
+                            id: card.id,
+                            name: card.name,
+                            categoryLabel: card.categoryLabel,
+                            rating: card.rating,
+                            description: card.description,
+                            distanceRaw: card.distanceRaw,
+                            address: card.address,
+                            mapsUrl: card.mapsUrl,
+                            city: card.city || shortPlace,
+                            nearLabel: card.nearLabel
+                          }}
+                          primaryAction={
+                            canEditSavedPlaces
+                              ? {
+                                  label: 'Remove',
+                                  onClick: () => removeSavedCard(card)
+                                }
+                              : undefined
+                          }
+                        />
+                      ))}
                     </div>
                   ) : null}
                 </div>
