@@ -1,4 +1,7 @@
 import * as React from 'react';
+import type { StoredStartPoint } from '../../utils/locationStartPointStorage';
+import { startPointKey } from '../../utils/locationStartPointStorage';
+import styles from './MobileStartPointActions.module.css';
 
 function IconUndo(): React.ReactElement {
   return (
@@ -28,6 +31,10 @@ export interface MobileStartPointActionsProps {
   canUndoStartingPoint?: boolean;
   isCustomStartingPoint?: boolean;
   accommodationLabel?: string;
+  /** Saved custom starts (map picks) for quick re-select. */
+  savedStarts?: StoredStartPoint[];
+  onSelectSavedStart?: (point: StoredStartPoint) => void;
+  activeStart?: StoredStartPoint | null;
   changeClassName?: string;
   resetClassName?: string;
   mutedClassName?: string;
@@ -35,7 +42,7 @@ export interface MobileStartPointActionsProps {
   undoClassName?: string;
 }
 
-/** Shared change / near-accommodation / undo controls for location start banners. */
+/** Shared change / near-accommodation / saved starts / undo controls. */
 export const MobileStartPointActions: React.FC<MobileStartPointActionsProps> = ({
   onChangeStartingPoint,
   onResetStartingPoint,
@@ -43,6 +50,9 @@ export const MobileStartPointActions: React.FC<MobileStartPointActionsProps> = (
   canUndoStartingPoint,
   isCustomStartingPoint,
   accommodationLabel,
+  savedStarts,
+  onSelectSavedStart,
+  activeStart,
   changeClassName,
   resetClassName,
   mutedClassName,
@@ -50,30 +60,58 @@ export const MobileStartPointActions: React.FC<MobileStartPointActionsProps> = (
   undoClassName
 }) => {
   const stay = (accommodationLabel || '').trim() || 'accommodation';
+  const activeKey = activeStart ? startPointKey(activeStart) : '';
+  const others = (savedStarts || []).filter((p) => {
+    if (activeKey && startPointKey(p) === activeKey) return false;
+    return true;
+  });
+
   return (
-    <div className={actionsClassName}>
-      {onChangeStartingPoint ? (
-        <button type="button" className={changeClassName} onClick={onChangeStartingPoint}>
-          Change starting point
-        </button>
-      ) : (
-        <span className={mutedClassName}>Change starting point</span>
-      )}
-      {isCustomStartingPoint && onResetStartingPoint ? (
-        <button type="button" className={resetClassName || changeClassName} onClick={onResetStartingPoint}>
-          Near {stay}
-        </button>
-      ) : null}
-      {canUndoStartingPoint && onUndoStartingPoint ? (
-        <button
-          type="button"
-          className={undoClassName || changeClassName}
-          onClick={onUndoStartingPoint}
-          aria-label="Undo starting point change"
-          title="Undo last change"
-        >
-          <IconUndo />
-        </button>
+    <div className={`${styles.root} ${actionsClassName || ''}`.trim()}>
+      <div className={styles.row}>
+        {onChangeStartingPoint ? (
+          <button type="button" className={changeClassName || styles.link} onClick={onChangeStartingPoint}>
+            Change starting point
+          </button>
+        ) : (
+          <span className={mutedClassName || styles.muted}>Change starting point</span>
+        )}
+        {isCustomStartingPoint && onResetStartingPoint ? (
+          <button
+            type="button"
+            className={resetClassName || changeClassName || styles.link}
+            onClick={onResetStartingPoint}
+          >
+            Near {stay}
+          </button>
+        ) : null}
+        {canUndoStartingPoint && onUndoStartingPoint ? (
+          <button
+            type="button"
+            className={undoClassName || changeClassName || styles.link}
+            onClick={onUndoStartingPoint}
+            aria-label="Undo starting point change"
+            title="Undo last change"
+          >
+            <IconUndo />
+          </button>
+        ) : null}
+      </div>
+      {others.length && onSelectSavedStart ? (
+        <div className={styles.savedRow} role="list" aria-label="Saved starting points">
+          {others.map((p) => (
+            <button
+              key={startPointKey(p)}
+              type="button"
+              role="listitem"
+              className={styles.savedChip}
+              onClick={() => onSelectSavedStart(p)}
+              title={`Start from ${p.label}`}
+            >
+              Near {p.label}
+            </button>
+          ))}
+        </div>
       ) : null}
     </div>
   );

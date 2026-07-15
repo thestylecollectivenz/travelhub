@@ -37,3 +37,19 @@ export function richTextToPlainText(html: string): string {
   d.innerHTML = html || '';
   return (d.textContent || '').replace(/\u00a0/g, ' ').trim();
 }
+
+/** Append a bullet list item to rich-text HTML (Notes / tips). */
+export function appendBulletToRichTextHtml(existing: string | undefined, tip: string): string {
+  const bullet = (tip || '').trim();
+  if (!bullet) return existing || '';
+  const esc = bullet
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+  const li = `<li>${esc}</li>`;
+  const raw = (existing || '').trim();
+  if (!raw) return `<ul>${li}</ul>`;
+  if (/<\/ul>/i.test(raw)) return raw.replace(/<\/ul>/i, `${li}</ul>`);
+  return `${raw}<ul>${li}</ul>`;
+}

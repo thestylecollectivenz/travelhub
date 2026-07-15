@@ -25,7 +25,15 @@ import { MobilePencilButton } from './MobilePencilButton';
 import type { NearYouToolId } from '../../utils/nearYouTools';
 import { NEAR_YOU_TOOLS } from '../../utils/nearYouTools';
 import { useShellMode } from '../../hooks/useShellMode';
-import { loadLocationStartPoint, saveLocationStartPoint } from '../../utils/locationStartPointStorage';
+import {
+  loadLocationStartPoint,
+  loadLocationStartPointList,
+  rememberLocationStartPoint,
+  saveLocationStartPoint,
+  type StoredStartPoint
+} from '../../utils/locationStartPointStorage';
+import { appendBulletToRichTextHtml } from '../../utils/journalRichText';
+import { normalizeLocationInfoNotes } from '../../utils/locationInfoEntry';
 import { geocodeStayFromHotelRecord } from '../../utils/stayGeocode';
 import cardStyles from '../itinerary/ItineraryCard.module.css';
 import styles from './MobileLocationInfo.module.css';
@@ -65,6 +73,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   const [startHistory, setStartHistory] = React.useState<Array<StartPointSelection | null>>([]);
   const [startPickerOpen, setStartPickerOpen] = React.useState(false);
   const [stayCentre, setStayCentre] = React.useState<StartPointSelection | null>(null);
+  const [savedStarts, setSavedStarts] = React.useState<StoredStartPoint[]>([]);
 
   const stayPrimary = React.useMemo(
     () => findStayTileForDay(localEntries, calendarDate),
@@ -138,7 +147,9 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   React.useEffect(() => {
     if (!entry?.id) return;
     const stored = loadLocationStartPoint(entry.id);
+    if (stored) rememberLocationStartPoint(entry.id, stored);
     setStartingPoint(stored);
+    setSavedStarts(loadLocationStartPointList(entry.id));
     setStartHistory([]);
     setStartPickerOpen(false);
   }, [calendarDate, entry?.id]);
@@ -165,7 +176,10 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     (next: StartPointSelection | null): void => {
       setStartHistory((prev) => [...prev, startingPoint]);
       setStartingPoint(next);
-      if (entry?.id) saveLocationStartPoint(entry.id, next);
+      if (entry?.id) {
+        saveLocationStartPoint(entry.id, next);
+        setSavedStarts(loadLocationStartPointList(entry.id));
+      }
     },
     [startingPoint, entry?.id]
   );
@@ -175,7 +189,10 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
       if (!prev.length) return prev;
       const prior = prev[prev.length - 1];
       setStartingPoint(prior);
-      if (entry?.id) saveLocationStartPoint(entry.id, prior);
+      if (entry?.id) {
+        saveLocationStartPoint(entry.id, prior);
+        setSavedStarts(loadLocationStartPointList(entry.id));
+      }
       return prev.slice(0, -1);
     });
   }, [entry?.id]);
@@ -184,6 +201,27 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     if (startingPoint === null) return;
     pushStartingPoint(null);
   }, [startingPoint, pushStartingPoint]);
+
+  const selectSavedStart = React.useCallback(
+    (point: StoredStartPoint): void => {
+      pushStartingPoint(point);
+    },
+    [pushStartingPoint]
+  );
+
+  const appendTipToNotes = React.useCallback(
+    (tipText: string): void => {
+      const current = entry ? localEntries.find((e) => e.id === entry.id) ?? entry : null;
+      const notes = parseLocationInfoNotes(current?.notes);
+      if (!current || !notes || !canEditItinerary) return;
+      const next = normalizeLocationInfoNotes({
+        ...notes,
+        userNotes: appendBulletToRichTextHtml(notes.userNotes, tipText)
+      });
+      updateEntry({ ...current, notes: serializeLocationInfoNotes(next) });
+    },
+    [entry, localEntries, canEditItinerary, updateEntry]
+  );
 
   const saveNearPlace = React.useCallback(
     (placeRow: {
@@ -357,7 +395,10 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     onUndoStartingPoint: undoStartingPoint,
     canUndoStartingPoint: startHistory.length > 0,
     isCustomStartingPoint: startingPoint !== null,
-    accommodationLabel: stayCandidates[0] || undefined
+    accommodationLabel: stayCandidates[0] || undefined,
+    savedStarts,
+    onSelectSavedStart: selectSavedStart,
+    activeStart: startingPoint
   };
 
   if (panel === 'near' && nearToolId) {
@@ -410,6 +451,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
                 practicalTipsHtml={data?.practicalTips}
                 onBack={closePanels}
                 onSavePlace={canEditItinerary ? saveNearPlace : undefined}
+                onAppendToNotes={canEditItinerary ? appendTipToNotes : undefined}
                 {...startPointHandlers}
               />
               {nearActionMsg ? <p className={styles.nearFeedback}>{nearActionMsg}</p> : null}
@@ -437,6 +479,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
                 startingPointLabel={startingPointLabel}
                 overrideCoords={overrideCoords}
                 onBack={closePanels}
+                onAppendToNotes={canEditItinerary ? appendTipToNotes : undefined}
                 {...startPointHandlers}
               />
             </div>

@@ -21,6 +21,7 @@ import {
 } from '../../utils/exploreCategories';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { parseDistanceKm } from '../../utils/locationDistanceLabel';
+import type { StoredStartPoint } from '../../utils/locationStartPointStorage';
 import { MobileStartPointActions } from './MobileStartPointActions';
 import { MobilePlaceDiscoverCard } from './MobilePlaceDiscoverCard';
 import { MobileSubpageHeader } from './MobileSubpageHeader';
@@ -44,6 +45,10 @@ export interface MobileSavedPlacesViewProps {
   canUndoStartingPoint?: boolean;
   isCustomStartingPoint?: boolean;
   accommodationLabel?: string;
+  savedStarts?: StoredStartPoint[];
+  onSelectSavedStart?: (point: StoredStartPoint) => void;
+  activeStart?: StoredStartPoint | null;
+  onAppendToNotes?: (tipText: string) => void;
 }
 
 type SavedCard = {
@@ -203,11 +208,16 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
   onUndoStartingPoint,
   canUndoStartingPoint,
   isCustomStartingPoint,
-  accommodationLabel
+  accommodationLabel,
+  savedStarts,
+  onSelectSavedStart,
+  activeStart,
+  onAppendToNotes
 }) => {
   const { updateEntry } = useTripWorkspace();
   const shortPlace = placeNameFromTitle(place?.title || '') || locationLabel.split(',')[0] || 'this place';
   const stayName = (startingPointLabel || '').trim() || shortPlace;
+  const defaultNearLabel = `Saved for ${shortPlace}`;
 
   const unsaveCard = (card: SavedCard): void => {
     if (!entry) return;
@@ -240,6 +250,7 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
   const [filterOutdoor, setFilterOutdoor] = React.useState(false);
   const [filterReservations, setFilterReservations] = React.useState(false);
   const [mapOpen, setMapOpen] = React.useState(false);
+  const [startFilter, setStartFilter] = React.useState<string>('all');
 
   React.useEffect(() => {
     setCategory(normalizeInitialSavedCategory(initialCategory));
@@ -264,9 +275,20 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
         : undefined;
 
   const allCards = React.useMemo(() => flattenSaved(data), [data]);
+  const startOptions = React.useMemo(() => {
+    const labels = new Set<string>();
+    for (const c of allCards) {
+      labels.add((c.nearLabel || '').trim() || defaultNearLabel);
+    }
+    return Array.from(labels).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  }, [allCards, defaultNearLabel]);
+
   const filtered = React.useMemo(() => {
     let rows = allCards;
     if (category !== 'all') rows = rows.filter((c) => c.category === category);
+    if (startFilter !== 'all') {
+      rows = rows.filter((c) => ((c.nearLabel || '').trim() || defaultNearLabel) === startFilter);
+    }
     if (minRating != null) rows = rows.filter((c) => typeof c.rating === 'number' && c.rating >= minRating);
     if (priceFilter) {
       rows = rows.filter((c) => c.tags.some((t) => t.includes(priceFilter)));
@@ -298,7 +320,7 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
       return 0;
     });
     return rows;
-  }, [allCards, category, minRating, priceFilter, cuisine, distanceKm, sortBy]);
+  }, [allCards, category, startFilter, defaultNearLabel, minRating, priceFilter, cuisine, distanceKm, sortBy]);
 
   const visible = filtered.slice(0, visibleCount);
 
@@ -331,6 +353,30 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
         }}
       />
 
+      {startOptions.length > 1 ? (
+        <div className={styles.startFilterRow} role="list" aria-label="Filter by starting point">
+          <button
+            type="button"
+            role="listitem"
+            className={`${styles.startFilterPill} ${startFilter === 'all' ? styles.startFilterPillOn : ''}`}
+            onClick={() => setStartFilter('all')}
+          >
+            All starts
+          </button>
+          {startOptions.map((label) => (
+            <button
+              key={label}
+              type="button"
+              role="listitem"
+              className={`${styles.startFilterPill} ${startFilter === label ? styles.startFilterPillOn : ''}`}
+              onClick={() => setStartFilter(label)}
+            >
+              {label.replace(/^Saved for /i, '') || label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       <div className={styles.startBanner}>
         <span className={styles.startIcon} aria-hidden>
           <IconBed />
@@ -346,6 +392,9 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
             canUndoStartingPoint={canUndoStartingPoint}
             isCustomStartingPoint={isCustomStartingPoint}
             accommodationLabel={accommodationLabel}
+            savedStarts={savedStarts}
+            onSelectSavedStart={onSelectSavedStart}
+            activeStart={activeStart}
             changeClassName={styles.startLink}
             mutedClassName={styles.startMuted}
             actionsClassName={styles.startActions}
@@ -536,8 +585,8 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
 
       <MobileLocationTravelTip
         placeLabel={shortPlace}
-        existingTipHtml={data.practicalTips}
         startingPointLabel={stayName}
+        onAppendToNotes={onAppendToNotes}
       />
 
       {mapOpen && mapCentre ? (

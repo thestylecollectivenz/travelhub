@@ -22,6 +22,7 @@ import {
 } from '../../utils/nearYouResultCache';
 import { parseDistanceKm } from '../../utils/locationDistanceLabel';
 import type { NearYouToolId } from '../../utils/nearYouTools';
+import type { StoredStartPoint } from '../../utils/locationStartPointStorage';
 import { MobileStartPointActions } from './MobileStartPointActions';
 import { MobilePlaceDiscoverCard } from './MobilePlaceDiscoverCard';
 import { MobileSubpageHeader } from './MobileSubpageHeader';
@@ -48,6 +49,10 @@ export interface MobileExplorePlacesViewProps {
   canUndoStartingPoint?: boolean;
   isCustomStartingPoint?: boolean;
   accommodationLabel?: string;
+  savedStarts?: StoredStartPoint[];
+  onSelectSavedStart?: (point: StoredStartPoint) => void;
+  activeStart?: StoredStartPoint | null;
+  onAppendToNotes?: (tipText: string) => void;
   onSavePlace?: (place: {
     name: string;
     note?: string;
@@ -167,6 +172,10 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   canUndoStartingPoint,
   isCustomStartingPoint,
   accommodationLabel,
+  savedStarts,
+  onSelectSavedStart,
+  activeStart,
+  onAppendToNotes,
   onSavePlace
 }) => {
   const { config } = useConfig();
@@ -406,6 +415,9 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
             canUndoStartingPoint={canUndoStartingPoint}
             isCustomStartingPoint={isCustomStartingPoint}
             accommodationLabel={accommodationLabel}
+            savedStarts={savedStarts}
+            onSelectSavedStart={onSelectSavedStart}
+            activeStart={activeStart}
             changeClassName={styles.startLink}
             mutedClassName={styles.startMuted}
             actionsClassName={styles.startActions}
@@ -544,12 +556,27 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
               {busy && !results.length ? 'Searching…' : `${filtered.length} places found`}
               {fromCache ? ' · cached' : ''}
             </p>
-            {mapCentre ? (
-              <button type="button" className={styles.viewMap} onClick={() => setMapOpen(true)}>
-                View on map
+            <div className={styles.resultsHeadActions}>
+              <button
+                type="button"
+                className={styles.refreshBtn}
+                onClick={() => void load(true)}
+                disabled={busy}
+                aria-label="Refresh results"
+                title="Refresh results (ignore cache)"
+              >
+                ↻
               </button>
-            ) : null}
+              {mapCentre ? (
+                <button type="button" className={styles.viewMap} onClick={() => setMapOpen(true)}>
+                  View on map
+                </button>
+              ) : null}
+            </div>
           </div>
+          {fromCache ? (
+            <p className={styles.cachedNote}>Showing cached results · tap ↻ to refresh</p>
+          ) : null}
 
           {error ? <p className={styles.error}>{error}</p> : null}
 
@@ -615,9 +642,9 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
 
       <MobileLocationTravelTip
         placeLabel={shortPlace}
-        existingTipHtml={practicalTipsHtml}
         categoryLabel={catDef.label}
         startingPointLabel={stayName}
+        onAppendToNotes={onAppendToNotes}
       />
 
       {mapOpen && mapCentre ? (

@@ -1,0 +1,57 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.85rem;
+}
+
+.link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--color-primary, #2f5eb8);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.muted {
+  font-size: 0.82rem;
+  color: #6b6570;
+}
+
+.savedRow {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding-bottom: 0.1rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.savedChip {
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, #2f5eb8 28%, transparent);
+  background: color-mix(in srgb, #2f5eb8 8%, white);
+  color: #2f5eb8;
+  border-radius: 999px;
+  padding: 0.28rem 0.65rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.savedChip:hover {
+  background: color-mix(in srgb, #2f5eb8 14%, white);
+}

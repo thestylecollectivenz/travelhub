@@ -16,6 +16,8 @@ import {
   type NearestPlaceKind,
   type NearestPlaceRow
 } from '../../utils/locationInfoEntry';
+import type { StoredStartPoint } from '../../utils/locationStartPointStorage';
+import { appendBulletToRichTextHtml } from '../../utils/journalRichText';
 import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
 import { destinationHeroPhotoUrl } from '../../utils/explorePlacePhoto';
 import {
@@ -52,25 +54,6 @@ const ESSENTIAL_CATS = new Set<ExploreCategoryId>([
   'fuel',
   'transport'
 ]);
-
-function escapeTipHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-/** Append a travel tip as a new bullet under Notes (userNotes). */
-export function appendTipBulletToUserNotes(existing: string | undefined, tip: string): string {
-  const bullet = tip.trim();
-  if (!bullet) return existing || '';
-  const li = `<li>${escapeTipHtml(bullet)}</li>`;
-  const raw = (existing || '').trim();
-  if (!raw) return `<ul>${li}</ul>`;
-  if (/<\/ul>/i.test(raw)) return raw.replace(/<\/ul>/i, `${li}</ul>`);
-  return `${raw}<ul>${li}</ul>`;
-}
 
 function highlightKey(row: LocationHighlightRow): string {
   return `${row.kind}::${row.id}`;
@@ -220,6 +203,9 @@ export interface MobileLocationInfoContentProps {
   accommodationLabel?: string;
   startingPointLabel?: string;
   calendarDate?: string;
+  savedStarts?: StoredStartPoint[];
+  onSelectSavedStart?: (point: StoredStartPoint) => void;
+  activeStart?: StoredStartPoint | null;
 }
 
 export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps> = ({
@@ -240,7 +226,10 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
   canUndoStartingPoint,
   isCustomStartingPoint,
   accommodationLabel,
-  startingPointLabel
+  startingPointLabel,
+  savedStarts,
+  onSelectSavedStart,
+  activeStart
 }) => {
   const { config } = useConfig();
   const { updateEntry } = useTripWorkspace();
@@ -483,6 +472,9 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
               canUndoStartingPoint={canUndoStartingPoint}
               isCustomStartingPoint={isCustomStartingPoint}
               accommodationLabel={accommodationLabel}
+              savedStarts={savedStarts}
+              onSelectSavedStart={onSelectSavedStart}
+              activeStart={activeStart}
               changeClassName={styles.startBannerLink}
               mutedClassName={styles.startBannerMuted}
               actionsClassName={styles.startBannerActions}
@@ -633,7 +625,7 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
             ? (tipText) => {
                 persist({
                   ...data,
-                  userNotes: appendTipBulletToUserNotes(data.userNotes, tipText)
+                  userNotes: appendBulletToRichTextHtml(data.userNotes, tipText)
                 });
               }
             : undefined
