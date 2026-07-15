@@ -3,7 +3,7 @@ import type { TripDay } from '../models/TripDay';
 import { compareTripDaysChronological } from './tripDateRangeSync';
 import {
   isLocationInfoEntry,
-  locationInfoIsPopulated,
+  locationInfoContentScore,
   locationInfoPlaceId,
   parseLocationInfoNotes
 } from './locationInfoEntry';
@@ -26,7 +26,7 @@ export function collectPlaceIdsForDay(day: TripDay): string[] {
 function cardPopulatedScore(entry: ItineraryEntry): number {
   const data = parseLocationInfoNotes(entry.notes);
   if (!data) return 0;
-  return locationInfoIsPopulated(data) ? 1 : 0;
+  return locationInfoContentScore(data);
 }
 
 /** One canonical Location info card per placeId for the trip. */

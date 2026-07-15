@@ -3,6 +3,7 @@ import {
   ensureUniqueHighlightIds,
   locationHighlightRows,
   mergeAIResult,
+  mergeLocationInfoNotes,
   recordSuppressedHighlightLabels,
   type LocationInfoAIResult
 } from './locationInfoEntry';
@@ -84,5 +85,25 @@ describe('locationInfo merge preserves user content', () => {
     expect(sight?.id).not.toBe(food?.id);
     expect(sight?.id.startsWith('sight-')).toBe(true);
     expect(food?.id.startsWith('food-')).toBe(true);
+  });
+
+  it('merges Q&A and saved places across duplicate day cards', () => {
+    const a = {
+      ...defaultLocationInfoNotes('place-1'),
+      overview: 'City overview',
+      diningSuggestions: [{ id: 'd1', name: 'Cafe One' }],
+      aiQaThread: [{ id: 'q1', question: 'Best park?', answer: 'Central Park', createdAt: '2026-01-01T00:00:00.000Z' }]
+    };
+    const b = {
+      ...defaultLocationInfoNotes('place-1'),
+      practicalTips: 'Carry cash',
+      diningSuggestions: [{ id: 'd2', name: 'Cafe Two' }],
+      aiQaThread: [{ id: 'q2', question: 'ATM nearby?', answer: 'Yes on Main St', createdAt: '2026-01-02T00:00:00.000Z' }]
+    };
+    const merged = mergeLocationInfoNotes(a, b);
+    expect(merged.overview).toBe('City overview');
+    expect(merged.practicalTips).toBe('Carry cash');
+    expect(merged.diningSuggestions?.map((x) => x.name).sort()).toEqual(['Cafe One', 'Cafe Two']);
+    expect(merged.aiQaThread?.map((x) => x.id)).toEqual(['q1', 'q2']);
   });
 });

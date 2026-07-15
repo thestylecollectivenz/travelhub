@@ -4,7 +4,8 @@ import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useTripPermissions } from '../../hooks/useTripPermissions';
 import { compactPlaceLabel } from '../../utils/placeDisplayLabel';
-import { parseLocationInfoNotes } from '../../utils/locationInfoEntry';
+import { parseLocationInfoNotes, locationInfoPlaceId } from '../../utils/locationInfoEntry';
+import { buildCanonicalLocationInfoByPlaceId } from '../../utils/locationInfoDayResolve';
 import { usePlaces } from '../../context/PlacesContext';
 import { LocationInfoPanelContent } from './LocationInfoPanelContent';
 import { ItineraryCardEdit } from './ItineraryCardEdit';
@@ -52,7 +53,7 @@ export interface LocationInfoSlidePanelProps {
 }
 
 export const LocationInfoSlidePanel: React.FC<LocationInfoSlidePanelProps> = ({ entry, calendarDate, onClose }) => {
-  const { editingCardId, setEditingCardId, updateEntry } = useTripWorkspace();
+  const { trip, localEntries, editingCardId, setEditingCardId, updateEntry } = useTripWorkspace();
   const { canEditItinerary, canUseAiHelpers } = useTripPermissions();
   const { placeById } = usePlaces();
   const [panelSize, setPanelSize] = React.useState<PanelSize>(() => loadPanelSize());
@@ -64,14 +65,22 @@ export const LocationInfoSlidePanel: React.FC<LocationInfoSlidePanelProps> = ({ 
     originHeight: number;
   } | null>(null);
 
+  const liveEntry = React.useMemo(() => {
+    if (!entry) return null;
+    const byId = localEntries.find((e) => e.id === entry.id) ?? entry;
+    const placeId = locationInfoPlaceId(byId);
+    if (!placeId || !trip?.id) return byId;
+    return buildCanonicalLocationInfoByPlaceId(localEntries, trip.id).get(placeId) ?? byId;
+  }, [entry, localEntries, trip?.id]);
+
   React.useEffect(() => {
-    if (!entry) return undefined;
+    if (!liveEntry) return undefined;
     const onKey = (ev: KeyboardEvent): void => {
-      if (ev.key === 'Escape' && editingCardId !== entry.id) onClose();
+      if (ev.key === 'Escape' && editingCardId !== liveEntry.id) onClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [entry, onClose, editingCardId]);
+  }, [liveEntry, onClose, editingCardId]);
 
   React.useEffect(() => {
     const onResize = (): void => setPanelSize((prev) => clampPanelSize(prev));
@@ -79,14 +88,14 @@ export const LocationInfoSlidePanel: React.FC<LocationInfoSlidePanelProps> = ({ 
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  if (!entry || typeof document === 'undefined') return null;
+  if (!liveEntry || typeof document === 'undefined') return null;
 
-  const data = parseLocationInfoNotes(entry.notes);
+  const data = parseLocationInfoNotes(liveEntry.notes);
   const place = data ? placeById(data.placeId) : undefined;
   const title = place
     ? compactPlaceLabel(place.title, place.country)
-    : (entry.title || entry.location || 'Location').trim() || 'Location';
-  const isEditing = canEditItinerary && editingCardId === entry.id;
+    : (liveEntry.title || liveEntry.location || 'Location').trim() || 'Location';
+  const isEditing = canEditItinerary && editingCardId === liveEntry.id;
 
   const onResizePointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
     if (e.button !== 0) return;
@@ -137,8 +146,8 @@ export const LocationInfoSlidePanel: React.FC<LocationInfoSlidePanelProps> = ({ 
       <div className={cardStyles.portalEditRoot} role="presentation">
         <div className={cardStyles.portalEditInner}>
           <ItineraryCardEdit
-            key={entry.id}
-            entry={entry}
+            key={liveEntry.id}
+            entry={liveEntry}
             calendarDate={calendarDate}
             onSave={(saved) => {
               updateEntry(saved);
@@ -170,7 +179,7 @@ export const LocationInfoSlidePanel: React.FC<LocationInfoSlidePanelProps> = ({ 
           <h2 className={styles.title}>{title}</h2>
           <div className={styles.headerActions}>
             {canEditItinerary ? (
-              <button type="button" className={styles.headerBtn} onClick={() => setEditingCardId(entry.id)}>
+              <button type="button" className={styles.headerBtn} onClick={() => setEditingCardId(liveEntry.id)}>
                 Edit
               </button>
             ) : null}
@@ -180,7 +189,7 @@ export const LocationInfoSlidePanel: React.FC<LocationInfoSlidePanelProps> = ({ 
           </div>
         </header>
         <div className={styles.body}>
-          <LocationInfoPanelContent entry={entry} readOnly={!canUseAiHelpers} />
+          <LocationInfoPanelContent entry={liveEntry} readOnly={!canUseAiHelpers} />
         </div>
         <div
           className={styles.resizeHandle}

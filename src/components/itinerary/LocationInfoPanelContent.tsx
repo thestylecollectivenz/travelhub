@@ -17,8 +17,10 @@ import {
   type DiningSuggestionRow,
   type LocationInfoNotes,
   type NearestPlaceKind,
-  type NearestPlaceRow
+  type NearestPlaceRow,
+  locationInfoPlaceId
 } from '../../utils/locationInfoEntry';
+import { buildCanonicalLocationInfoByPlaceId } from '../../utils/locationInfoDayResolve';
 import { subscribeLocationInfoAIStatus } from '../../utils/locationInfoAIEvents';
 import { scheduleLocationInfoDining, scheduleLocationInfoNearest } from '../../utils/locationInfoGeneration';
 import {
@@ -274,8 +276,14 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
   const spContext = useSpContext();
   const { config } = useConfig();
   const { placeById } = usePlaces();
-  const { updateEntry } = useTripWorkspace();
-  const data = parseLocationInfoNotes(entry.notes);
+  const { trip, localEntries, updateEntry } = useTripWorkspace();
+  const liveEntry = React.useMemo(() => {
+    const byId = localEntries.find((e) => e.id === entry.id) ?? entry;
+    const placeId = locationInfoPlaceId(byId);
+    if (!placeId || !trip?.id) return byId;
+    return buildCanonicalLocationInfoByPlaceId(localEntries, trip.id).get(placeId) ?? byId;
+  }, [entry, localEntries, trip?.id]);
+  const data = parseLocationInfoNotes(liveEntry.notes);
   const place = data ? placeById(data.placeId) : undefined;
   const highlightRowsRef = React.useRef(data ? locationHighlightRows(data) : []);
   const [loadingTool, setLoadingTool] = React.useState<string | null>(null);
@@ -300,7 +308,7 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
 
   React.useEffect(() => {
     if (!data) return undefined;
-    return subscribeLocationInfoAIStatus(entry.id, (detail) => {
+    return subscribeLocationInfoAIStatus(liveEntry.id, (detail) => {
       if (detail.loading) {
         setLoadingTool(detail.section ?? 'all');
         return;
@@ -309,26 +317,33 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
       if (detail.error) setToolError(detail.error);
       else if (detail.success) setToolError(undefined);
     });
-  }, [entry.id, data]);
+  }, [liveEntry.id, data]);
 
   if (!data) {
     return <p className={styles.emptyHint}>No location data for this place yet.</p>;
   }
 
   const persist = (next: LocationInfoNotes): void => {
-    updateEntry({ ...entry, notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(next)) });
+    updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(next)) });
   };
 
   const runDining = (replaceExisting = false): void => {
     if (!place || !hasKey || readOnly) return;
     setToolError(undefined);
-    scheduleLocationInfoDining({ spContext, entry, place, apiKey: config.geminiApiKey, replaceExisting });
+    scheduleLocationInfoDining({ spContext, entry: liveEntry, place, apiKey: config.geminiApiKey, replaceExisting });
   };
 
   const runNearest = (kind: NearestPlaceKind, replaceExisting = false): void => {
     if (!place || !hasKey || readOnly) return;
     setToolError(undefined);
-    scheduleLocationInfoNearest({ spContext, entry, place, apiKey: config.geminiApiKey, kind, replaceExisting });
+    scheduleLocationInfoNearest({
+      spContext,
+      entry: liveEntry,
+      place,
+      apiKey: config.geminiApiKey,
+      kind,
+      replaceExisting
+    });
   };
 
   const dining = data.diningSuggestions ?? [];
@@ -531,7 +546,7 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
             <LocationInfoHighlights
               rows={locationHighlightRows(data)}
               emptyHint={data.aiSightsPlaceholder}
-              entry={entry}
+              entry={liveEntry}
               place={place}
               geminiApiKey={config.geminiApiKey}
               hasAnyContent={locationInfoIsPopulated(data)}
@@ -700,7 +715,7 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
 
       <div {...(enableSectionAnchors ? { 'data-li-section': 'ask' } : {})}>
         <LocationInfoAskPanel
-          entry={entry}
+          entry={liveEntry}
           place={place}
           data={data}
           geminiApiKey={config.geminiApiKey}

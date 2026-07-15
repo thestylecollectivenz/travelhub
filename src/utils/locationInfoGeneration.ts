@@ -183,6 +183,9 @@ export function scheduleLocationInfoQuestion(options: {
   void (async () => {
     try {
       const targetEntry = await resolveCanonicalLocationEntry(spContext, entry, place);
+      if (targetEntry.id !== entry.id) {
+        emitLocationInfoAIStatus({ entryId: targetEntry.id, loading: true, section: 'qa' });
+      }
       const latest = await loadLatestNotes(spContext, targetEntry, parsed);
       await applyLocationInfoQuestion({
         spContext,
@@ -193,6 +196,9 @@ export function scheduleLocationInfoQuestion(options: {
         question: q
       });
       emitLocationInfoAIStatus({ entryId: entry.id, loading: false, section: 'qa', success: true });
+      if (targetEntry.id !== entry.id) {
+        emitLocationInfoAIStatus({ entryId: targetEntry.id, loading: false, section: 'qa', success: true });
+      }
       if (onComplete) onComplete();
       window.dispatchEvent(new Event('trip-itinerary-updated'));
     } catch (err) {

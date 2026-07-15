@@ -6,8 +6,8 @@ import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import {
   buildLocationInfoEntryDraft,
   isLocationInfoEntry,
-  locationInfoIsPopulated,
   locationInfoPlaceId,
+  mergeLocationInfoNotes,
   normalizeLocationInfoNotes,
   parseLocationInfoNotes,
   serializeLocationInfoNotes
@@ -39,36 +39,51 @@ export async function syncLocationInfoCards(options: {
     }
   }
 
-  let locCards = entries.filter((e) => e.tripId === tripId && isLocationInfoEntry(e) && !e.parentEntryId);
+  const locCards = entries.filter((e) => e.tripId === tripId && isLocationInfoEntry(e) && !e.parentEntryId);
+  const survivors: ItineraryEntry[] = [];
 
   for (const card of locCards) {
     const pid = locationInfoPlaceId(card);
     if (!pid || !placeIdsInUse.has(pid)) {
       await svc.delete(card.id);
+      continue;
     }
+    survivors.push(card);
   }
 
-  const refreshed = entries.filter((e) => e.tripId === tripId && isLocationInfoEntry(e) && !e.parentEntryId);
-  const canonicalByPlace = buildCanonicalLocationInfoByPlaceId(refreshed, tripId);
+  const canonicalByPlace = buildCanonicalLocationInfoByPlaceId(survivors, tripId);
+  const mergedNotesByCanonicalId = new Map<string, string>();
+  const deletedIds = new Set<string>();
 
-  for (const card of refreshed) {
+  for (const card of survivors) {
     const pid = locationInfoPlaceId(card);
     if (!pid) continue;
     const canonical = canonicalByPlace.get(pid);
     if (!canonical || canonical.id === card.id) continue;
 
     const dupNotes = parseLocationInfoNotes(card.notes);
-    const canNotes = parseLocationInfoNotes(canonical.notes);
-    if (dupNotes && canNotes && locationInfoIsPopulated(dupNotes) && !locationInfoIsPopulated(canNotes)) {
-      await svc.update(canonical.id, { notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(dupNotes)) });
+    const canNotes =
+      parseLocationInfoNotes(mergedNotesByCanonicalId.get(canonical.id) || canonical.notes) ??
+      parseLocationInfoNotes(canonical.notes);
+    if (dupNotes && canNotes) {
+      const merged = mergeLocationInfoNotes(canNotes, dupNotes);
+      mergedNotesByCanonicalId.set(canonical.id, serializeLocationInfoNotes(normalizeLocationInfoNotes(merged)));
     }
     await svc.delete(card.id);
+    deletedIds.add(card.id);
   }
 
-  locCards = entries.filter(
-    (e) => e.tripId === tripId && isLocationInfoEntry(e) && !e.parentEntryId && placeIdsInUse.has(locationInfoPlaceId(e) || '')
-  );
-  const byPlace = buildCanonicalLocationInfoByPlaceId(locCards, tripId);
+  for (const [canonicalId, notesJson] of Array.from(mergedNotesByCanonicalId.entries())) {
+    await svc.update(canonicalId, { notes: notesJson });
+  }
+
+  const remaining = survivors
+    .filter((e) => !deletedIds.has(e.id))
+    .map((e) => {
+      const notesJson = mergedNotesByCanonicalId.get(e.id);
+      return notesJson ? { ...e, notes: notesJson } : e;
+    });
+  const byPlace = buildCanonicalLocationInfoByPlaceId(remaining, tripId);
 
   const placeIdsList: string[] = [];
   placeIdsInUse.forEach((id) => placeIdsList.push(id));

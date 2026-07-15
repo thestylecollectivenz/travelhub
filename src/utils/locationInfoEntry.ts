@@ -319,16 +319,135 @@ export function mergeAIResult(
 
 /** True when the card already has content worth preserving (skip auto-run on trip open). */
 export function locationInfoIsPopulated(data: LocationInfoNotes): boolean {
-  if ((data.overview || '').trim()) return true;
-  if ((data.practicalTips || '').trim()) return true;
-  if (getIconicSightsItems(data).length) return true;
-  if (getFoodDrinkItems(data).length) return true;
-  if ((data.drinkItems ?? []).length) return true;
-  if ((data.souvenirItems ?? []).length) return true;
-  if ((data.diningSuggestions ?? []).length) return true;
-  if (data.nearestPlaces && Object.keys(data.nearestPlaces).length) return true;
-  if ((data.aiQaThread ?? []).length) return true;
-  return false;
+  return locationInfoContentScore(data) > 0;
+}
+
+/** Richness score for choosing / merging canonical place guides across days. */
+export function locationInfoContentScore(data: LocationInfoNotes): number {
+  let score = 0;
+  if ((data.overview || '').trim()) score += 4;
+  if ((data.practicalTips || '').trim()) score += 2;
+  if ((data.userNotes || '').trim()) score += 2;
+  score += getIconicSightsItems(data).length;
+  score += getFoodDrinkItems(data).length;
+  score += (data.drinkItems ?? []).length;
+  score += (data.souvenirItems ?? []).length;
+  score += (data.diningSuggestions ?? []).length * 2;
+  if (data.nearestPlaces) {
+    const keys = Object.keys(data.nearestPlaces);
+    for (let i = 0; i < keys.length; i++) {
+      score += (data.nearestPlaces[keys[i] as NearestPlaceKind] ?? []).length * 2;
+    }
+  }
+  score += (data.aiQaThread ?? []).length * 3;
+  return score;
+}
+
+function mergeCheckItems(primary: LocationInfoCheckItem[], secondary: LocationInfoCheckItem[]): LocationInfoCheckItem[] {
+  const out = primary.slice();
+  const seen = new Set(out.map((x) => labelKey(x.label)));
+  for (let i = 0; i < secondary.length; i++) {
+    const row = secondary[i];
+    const key = labelKey(row.label);
+    if (seen.has(key)) {
+      const idx = out.findIndex((x) => labelKey(x.label) === key);
+      if (idx >= 0 && row.done && !out[idx].done) {
+        out[idx] = { ...out[idx], done: true };
+      }
+      continue;
+    }
+    seen.add(key);
+    out.push(row);
+  }
+  return out;
+}
+
+function mergeDiningRows(primary: DiningSuggestionRow[], secondary: DiningSuggestionRow[]): DiningSuggestionRow[] {
+  const out = primary.slice();
+  const byId = new Set(out.map((x) => x.id));
+  const byName = new Set(out.map((x) => x.name.trim().toLowerCase()).filter(Boolean));
+  for (let i = 0; i < secondary.length; i++) {
+    const row = secondary[i];
+    const nameKey = row.name.trim().toLowerCase();
+    if (byId.has(row.id) || (nameKey && byName.has(nameKey))) continue;
+    out.push(row);
+    byId.add(row.id);
+    if (nameKey) byName.add(nameKey);
+  }
+  return out;
+}
+
+function mergeNearestMaps(
+  primary?: Partial<Record<NearestPlaceKind, NearestPlaceRow[]>>,
+  secondary?: Partial<Record<NearestPlaceKind, NearestPlaceRow[]>>
+): Partial<Record<NearestPlaceKind, NearestPlaceRow[]>> {
+  const out: Partial<Record<NearestPlaceKind, NearestPlaceRow[]>> = { ...(primary ?? {}) };
+  const kinds = Object.keys(secondary ?? {}) as NearestPlaceKind[];
+  for (let i = 0; i < kinds.length; i++) {
+    const kind = kinds[i];
+    const rows = secondary?.[kind] ?? [];
+    const existing = out[kind] ?? [];
+    const byId = new Set(existing.map((x) => x.id));
+    const byName = new Set(existing.map((x) => x.name.trim().toLowerCase()).filter(Boolean));
+    const merged = existing.slice();
+    for (let j = 0; j < rows.length; j++) {
+      const row = rows[j];
+      const nameKey = row.name.trim().toLowerCase();
+      if (byId.has(row.id) || (nameKey && byName.has(nameKey))) continue;
+      merged.push(row);
+      byId.add(row.id);
+      if (nameKey) byName.add(nameKey);
+    }
+    out[kind] = merged;
+  }
+  return out;
+}
+
+function mergeQaThreads(primary: LocationInfoQaEntry[], secondary: LocationInfoQaEntry[]): LocationInfoQaEntry[] {
+  const out = primary.slice();
+  const byId = new Set(out.map((x) => x.id));
+  const byQuestion = new Set(out.map((x) => x.question.trim().toLowerCase()).filter(Boolean));
+  for (let i = 0; i < secondary.length; i++) {
+    const row = secondary[i];
+    const qKey = row.question.trim().toLowerCase();
+    if (byId.has(row.id) || (qKey && byQuestion.has(qKey))) continue;
+    out.push(row);
+    byId.add(row.id);
+    if (qKey) byQuestion.add(qKey);
+  }
+  return out.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+}
+
+/**
+ * Merge two destination-guide payloads for the same place so Q&A, saved places,
+ * highlights, and notes survive when duplicate day cards are consolidated.
+ */
+export function mergeLocationInfoNotes(primary: LocationInfoNotes, secondary: LocationInfoNotes): LocationInfoNotes {
+  const preferLonger = (a: string, b: string): string => ((b || '').trim().length > (a || '').trim().length ? b : a);
+  const merged: LocationInfoNotes = {
+    ...primary,
+    placeId: primary.placeId || secondary.placeId,
+    overview: preferLonger(primary.overview, secondary.overview),
+    practicalTips: preferLonger(primary.practicalTips, secondary.practicalTips),
+    userNotes: preferLonger(primary.userNotes || '', secondary.userNotes || ''),
+    iconicSightsItems: mergeCheckItems(getIconicSightsItems(primary), getIconicSightsItems(secondary)),
+    foodDrinkItems: mergeCheckItems(getFoodDrinkItems(primary), getFoodDrinkItems(secondary)),
+    drinkItems: mergeCheckItems(primary.drinkItems ?? [], secondary.drinkItems ?? []),
+    souvenirItems: mergeCheckItems(primary.souvenirItems ?? [], secondary.souvenirItems ?? []),
+    diningSuggestions: mergeDiningRows(primary.diningSuggestions ?? [], secondary.diningSuggestions ?? []),
+    nearestPlaces: mergeNearestMaps(primary.nearestPlaces, secondary.nearestPlaces),
+    aiQaThread: mergeQaThreads(primary.aiQaThread ?? [], secondary.aiQaThread ?? []),
+    suppressedHighlightKeys: Array.from(
+      new Set([...(primary.suppressedHighlightKeys ?? []), ...(secondary.suppressedHighlightKeys ?? [])])
+    ),
+    userEditedOverview: Boolean(primary.userEditedOverview || secondary.userEditedOverview),
+    userEditedPracticalTips: Boolean(primary.userEditedPracticalTips || secondary.userEditedPracticalTips),
+    aiGenerated: Boolean(primary.aiGenerated || secondary.aiGenerated),
+    aiGeneratedAt: primary.aiGeneratedAt || secondary.aiGeneratedAt,
+    aiModel: primary.aiModel || secondary.aiModel,
+    aiError: primary.aiError || secondary.aiError
+  };
+  return normalizeLocationInfoNotes(merged);
 }
 
 /** @deprecated Use locationInfoIsPopulated — kept for existing imports. */

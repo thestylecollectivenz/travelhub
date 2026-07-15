@@ -7,7 +7,8 @@ import { confirmUserAction } from '../../utils/confirmAction';
 import { notifyExpandUnscheduled } from '../../utils/mobileItineraryUiEvents';
 import { useSpContext } from '../../context/SpContext';
 import { compactPlaceLabel } from '../../utils/placeDisplayLabel';
-import { parseLocationInfoNotes, serializeLocationInfoNotes } from '../../utils/locationInfoEntry';
+import { parseLocationInfoNotes, serializeLocationInfoNotes, locationInfoPlaceId } from '../../utils/locationInfoEntry';
+import { buildCanonicalLocationInfoByPlaceId } from '../../utils/locationInfoDayResolve';
 import { appendNearYouPlaceToLocationInfo } from '../../utils/nearYouLocationSave';
 import { createItineraryEntryFromNearYouPlace } from '../../utils/addPlaceToItinerary';
 import { usePlaces } from '../../context/PlacesContext';
@@ -98,7 +99,14 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     return titles;
   }, [localEntries, stayPrimary]);
 
-  const liveEntry = entry ? localEntries.find((e) => e.id === entry.id) ?? entry : null;
+  const liveEntry = React.useMemo(() => {
+    if (!entry) return null;
+    const byId = localEntries.find((e) => e.id === entry.id) ?? entry;
+    const placeId = locationInfoPlaceId(byId);
+    if (!placeId || !trip?.id) return byId;
+    const canonical = buildCanonicalLocationInfoByPlaceId(localEntries, trip.id).get(placeId);
+    return canonical ?? byId;
+  }, [entry, localEntries, trip?.id]);
   const data = liveEntry ? parseLocationInfoNotes(liveEntry.notes) : null;
   const place = data ? placeById(data.placeId) : undefined;
 
@@ -211,16 +219,15 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
 
   const appendTipToNotes = React.useCallback(
     (tipText: string): void => {
-      const current = entry ? localEntries.find((e) => e.id === entry.id) ?? entry : null;
-      const notes = parseLocationInfoNotes(current?.notes);
-      if (!current || !notes || !canEditItinerary) return;
+      const notes = parseLocationInfoNotes(liveEntry?.notes);
+      if (!liveEntry || !notes || !canEditItinerary) return;
       const next = normalizeLocationInfoNotes({
         ...notes,
         userNotes: appendBulletToRichTextHtml(notes.userNotes, tipText)
       });
-      updateEntry({ ...current, notes: serializeLocationInfoNotes(next) });
+      updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(next) });
     },
-    [entry, localEntries, canEditItinerary, updateEntry]
+    [liveEntry, canEditItinerary, updateEntry]
   );
 
   const saveNearPlace = React.useCallback(
@@ -237,16 +244,15 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
       priceLevel?: string;
       servicesSummary?: string;
     }): boolean => {
-      const current = entry ? localEntries.find((e) => e.id === entry.id) ?? entry : null;
-      const notes = parseLocationInfoNotes(current?.notes);
+      const notes = parseLocationInfoNotes(liveEntry?.notes);
       const toolId = (placeRow.toolId as NearYouToolId | undefined) || nearToolId;
-      if (!current || !notes || !toolId) {
+      if (!liveEntry || !notes || !toolId) {
         setNearActionMsg('Could not save to this location.');
         window.setTimeout(() => setNearActionMsg(''), 2500);
         return false;
       }
       const toolKind = NEAR_YOU_TOOLS.find((t) => t.id === toolId)?.kind;
-      const countFor = (n: typeof notes): number =>
+      const countFor = (n: NonNullable<typeof notes>): number =>
         toolId === 'dining' || toolId === 'cafes'
           ? (n.diningSuggestions ?? []).length
           : toolKind
@@ -260,12 +266,12 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
         window.setTimeout(() => setNearActionMsg(''), 2500);
         return false;
       }
-      updateEntry({ ...current, notes: serializeLocationInfoNotes(updated) });
+      updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(updated) });
       setNearActionMsg(`Saved ${placeRow.name}`);
       window.setTimeout(() => setNearActionMsg(''), 2500);
       return true;
     },
-    [entry, localEntries, nearToolId, updateEntry, startingPointLabel]
+    [liveEntry, nearToolId, updateEntry, startingPointLabel]
   );
 
   const addNearToItinerary = React.useCallback(
