@@ -10,7 +10,21 @@ import { forecastDatesFromToday, forecastDayLabelFromToday, todayYmd } from '../
 import { localGreetingForCountry } from '../../utils/localGreetings';
 import { languagePackForCountry } from '../../data/localLanguagePhrases';
 import { useSpeechOutput } from '../../hooks/useSpeechOutput';
+import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import styles from './MobileWeatherSheet.module.css';
+
+const TIP_PRESETS = [5, 10, 15, 20] as const;
+
+function defaultTipPercent(tipping?: string): number {
+  const m = (tipping || '').match(/(\d{1,2})\s?%/);
+  if (m) return Number(m[1]);
+  return 10;
+}
+
+function formatMoney(amount: number, currency: string): string {
+  const code = (currency || 'NZD').toUpperCase();
+  return `${code} ${amount.toFixed(2)}`;
+}
 
 function formatPlaceLocalDateTime(date: Date, timeZone: string): string {
   try {
@@ -66,8 +80,13 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
   travelTip
 }) => {
   const { config } = useConfig();
+  const { convertToHomeCurrency } = useTripWorkspace();
   const { speak } = useSpeechOutput();
   const [tempUnit, setTempUnit] = React.useState<'Celsius' | 'Fahrenheit'>(config.temperatureUnit);
+  const [billAmount, setBillAmount] = React.useState('');
+  const [tipPercent, setTipPercent] = React.useState(10);
+  const [tipCustom, setTipCustom] = React.useState(false);
+  const [customPercent, setCustomPercent] = React.useState('12');
   const countryData = COUNTRY_DATA[place.countryCode];
   const mapsUrl = placeQueryMapsUrl(placeDisplayLabel(place));
   const forecastDates = React.useMemo(() => forecastDatesFromToday(10), []);
@@ -110,10 +129,20 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
   const tempSuffix = tempUnit === 'Fahrenheit' ? 'F' : 'C';
   const unitLabel = tempUnit === 'Fahrenheit' ? '°F' : '°C';
   const languagePack = languagePackForCountry(place.countryCode);
+  const phraseLang = languagePack.phrases.find((p) => p.lang)?.lang;
+  const localCurrency = countryData?.currencyCode || config.homeCurrency || 'NZD';
+  const homeCurrency = (config.homeCurrency || 'NZD').toUpperCase();
 
   React.useEffect(() => {
     setTempUnit(config.temperatureUnit);
   }, [config.temperatureUnit]);
+
+  React.useEffect(() => {
+    const pct = defaultTipPercent(countryData?.tipping);
+    setTipPercent(pct);
+    setTipCustom(false);
+    setBillAmount('');
+  }, [place.countryCode, countryData?.tipping]);
 
   React.useEffect(() => {
     if (!config.weatherApiKey.trim()) {
@@ -257,6 +286,18 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
 
   const localHello = localGreetingForCountry(place.countryCode);
 
+  const effectiveTipPercent = tipCustom
+    ? Math.max(0, Number(customPercent) || 0)
+    : tipPercent;
+  const billValue = Math.max(0, Number(billAmount.replace(/,/g, '')) || 0);
+  const tipAmount = billValue * (effectiveTipPercent / 100);
+  const tipTotal = billValue + tipAmount;
+  const showHomeFx = homeCurrency !== localCurrency.toUpperCase();
+  const tipHome = showHomeFx ? convertToHomeCurrency(tipAmount, localCurrency) : tipAmount;
+  const totalHome = showHomeFx ? convertToHomeCurrency(tipTotal, localCurrency) : tipTotal;
+  const fxRate =
+    tipAmount > 0 && tipHome > 0 ? tipHome / tipAmount : showHomeFx ? convertToHomeCurrency(1, localCurrency) : 1;
+
   return (
     <>
       <div className={styles.hero}>
@@ -374,25 +415,131 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
         </article>
       </div>
 
-      <article className={styles.sectionCard}>
-        <span className={`${styles.sectionIcon} ${styles.iconOlive}`} aria-hidden>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-            <rect x="3" y="6" width="18" height="13" rx="2" stroke="currentColor" strokeWidth="1.6" />
-            <path d="M3 10h18M7 6V4h10v2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          </svg>
-        </span>
-        <div className={styles.sectionBody}>
-          <p className={styles.sectionLabel}>Currency and tipping</p>
-          {countryData ? (
-            <>
-              <p className={styles.sectionText}>
-                {countryData.currency} ({countryData.currencyCode})
+      <article className={styles.currencyCard}>
+        <div className={styles.currencyAdvice}>
+          <div className={styles.currencyBlock}>
+            <span className={`${styles.sectionIcon} ${styles.iconOlive}`} aria-hidden>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.6" />
+                <path d="M12 8v8M9.5 10.5c.5-.8 1.4-1.2 2.5-1.2 1.4 0 2.5.8 2.5 2s-1.1 2-2.5 2H11c-1.4 0-2.5.9-2.5 2s1.2 2 2.7 2c1.1 0 2-.4 2.5-1.1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </span>
+            <div className={styles.sectionBody}>
+              <p className={styles.sectionLabel}>Currency</p>
+              {countryData ? (
+                <p className={styles.sectionText}>
+                  {countryData.currency} ({countryData.currencyCode})
+                </p>
+              ) : (
+                <p className={styles.sectionSub}>Currency guidance unavailable.</p>
+              )}
+            </div>
+          </div>
+          <div className={styles.currencyBlock}>
+            <span className={`${styles.sectionIcon} ${styles.iconTan}`} aria-hidden>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <circle cx="9" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+                <circle cx="15" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M5.5 17c.8-2 2.4-3 4.5-3s3.7 1 4.5 3M14 14c1.6.2 2.9 1 3.5 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </span>
+            <div className={styles.sectionBody}>
+              <p className={styles.sectionLabel}>Tipping advice</p>
+              <p className={styles.sectionSub}>
+                {countryData?.tipping || 'Tipping guidance unavailable for this location.'}
               </p>
-              <p className={styles.sectionSub}>{countryData.tipping}</p>
-            </>
-          ) : (
-            <p className={styles.sectionSub}>Currency/tipping guidance unavailable.</p>
-          )}
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.tipCalc}>
+          <div className={styles.tipCalcHead}>
+            <span className={`${styles.sectionIcon} ${styles.iconOlive}`} aria-hidden>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </span>
+            <p className={styles.sectionLabel}>Tip calculator</p>
+          </div>
+          <label className={styles.tipLabel}>
+            Enter bill amount
+            <span className={styles.tipInputWrap}>
+              <span className={styles.tipCurrencyPrefix}>{localCurrency}</span>
+              <input
+                className={styles.tipInput}
+                type="text"
+                inputMode="decimal"
+                value={billAmount}
+                onChange={(e) => setBillAmount(e.target.value.replace(/[^\d.]/g, ''))}
+                placeholder="0.00"
+                aria-label="Bill amount"
+              />
+            </span>
+          </label>
+          <div className={styles.tipPctRow} role="group" aria-label="Tip percentage">
+            {TIP_PRESETS.map((pct) => (
+              <button
+                key={pct}
+                type="button"
+                className={`${styles.tipPctBtn} ${!tipCustom && tipPercent === pct ? styles.tipPctBtnOn : ''}`}
+                onClick={() => {
+                  setTipCustom(false);
+                  setTipPercent(pct);
+                }}
+              >
+                {pct}%
+              </button>
+            ))}
+            <button
+              type="button"
+              className={`${styles.tipPctBtn} ${tipCustom ? styles.tipPctBtnOn : ''}`}
+              onClick={() => setTipCustom(true)}
+            >
+              Custom
+            </button>
+          </div>
+          {tipCustom ? (
+            <label className={styles.tipLabel}>
+              Custom tip %
+              <input
+                className={styles.tipCustomInput}
+                type="number"
+                min={0}
+                step={0.5}
+                value={customPercent}
+                onChange={(e) => setCustomPercent(e.target.value)}
+              />
+            </label>
+          ) : null}
+          <div className={styles.tipResultBox}>
+            <div className={styles.tipResultLocal}>
+              <div className={styles.tipResultRow}>
+                <span>Tip amount</span>
+                <strong>{formatMoney(tipAmount, localCurrency)}</strong>
+              </div>
+              <div className={styles.tipResultRow}>
+                <span>Total</span>
+                <strong>{formatMoney(tipTotal, localCurrency)}</strong>
+              </div>
+            </div>
+            {showHomeFx ? (
+              <div className={styles.tipResultHome}>
+                <p className={styles.tipResultHomeLabel}>Converted to your home currency</p>
+                <div className={styles.tipResultRow}>
+                  <span>Tip</span>
+                  <strong>{formatMoney(tipHome, homeCurrency)}</strong>
+                </div>
+                <div className={styles.tipResultRow}>
+                  <span>Total</span>
+                  <strong>{formatMoney(totalHome, homeCurrency)}</strong>
+                </div>
+                <p className={styles.tipRateNote}>
+                  1 {localCurrency.toUpperCase()} ≈ {fxRate.toFixed(4)} {homeCurrency}
+                </p>
+              </div>
+            ) : null}
+          </div>
         </div>
       </article>
 
@@ -417,8 +564,12 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
           <button
             type="button"
             className={styles.hearAllBtn}
-            onClick={() => speak(languagePack.phrases.map((p) => p.local).join('. '))}
+            onClick={() => speak(languagePack.phrases.map((p) => p.local).join('. '), phraseLang)}
           >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M3 10v4h4l5 4V6L7 10H3Z" fill="currentColor" />
+              <path d="M16 9a4 4 0 0 1 0 6M18.5 7a7 7 0 0 1 0 10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
             Hear all phrases
           </button>
         </div>
@@ -428,22 +579,24 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
               <button
                 type="button"
                 className={styles.phrasePlay}
-                aria-label={`Play ${phrase.english}`}
-                onClick={() => speak(phrase.local)}
+                aria-label={`Play ${phrase.english} in ${languagePack.languageName}`}
+                onClick={() => speak(phrase.local, phrase.lang || phraseLang)}
               >
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
                   <path d="M4 3.5v9l8-4.5-8-4.5Z" fill="currentColor" />
                 </svg>
               </button>
               <div className={styles.phraseCopy}>
-                <p className={styles.phraseLocal}>{phrase.local}</p>
                 <p className={styles.phraseEnglish}>{phrase.english}</p>
+                <p className={styles.phraseLocal}>{phrase.local}</p>
               </div>
             </article>
           ))}
         </div>
         {languagePack.englishWidelySpoken ? (
-          <p className={styles.languageNote}>English is widely spoken in tourist areas, but locals appreciate a few words in {languagePack.languageName}.</p>
+          <p className={styles.languageNote}>
+            English is widely spoken in tourist areas, but locals appreciate a few words in {languagePack.languageName}.
+          </p>
         ) : null}
       </section>
 

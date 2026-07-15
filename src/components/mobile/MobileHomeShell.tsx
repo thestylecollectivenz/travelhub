@@ -509,13 +509,12 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   } else if (tab === 'book') {
     body =
       bookView === 'all' ? (
-        <MobileBookAllPartners destinationHint={bookDestination || featuredTrip?.title || ''} onBack={() => setBookView('main')} />
+        <MobileBookAllPartners destinationHint={bookDestination} onBack={() => setBookView('main')} />
       ) : (
         <MobileBookPage
-          destinationHint={featuredTrip?.title ?? ''}
           showTitle={false}
           onViewAllPartners={(dest) => {
-            setBookDestination(dest || featuredTrip?.title || '');
+            setBookDestination(dest);
             setBookView('all');
           }}
           onViewTripOverview={

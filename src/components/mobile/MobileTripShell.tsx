@@ -389,7 +389,6 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
     case 'book':
       body = (
         <MobileBookPage
-          destinationHint={trip?.destination || trip?.title || ''}
           showTitle={false}
         />
       );

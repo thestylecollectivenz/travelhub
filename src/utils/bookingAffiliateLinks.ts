@@ -233,8 +233,18 @@ export function serializeBookingAffiliateOverrides(map: BookingAffiliateOverride
 }
 
 function buildHref(def: BookingAffiliatePartnerDef, destination: string, override?: BookingAffiliatePartnerOverride): string {
-  const dest = encodeURIComponent(destination.trim() || 'travel');
+  const trimmed = destination.trim();
+  const dest = encodeURIComponent(trimmed);
   let url = (override?.hrefOverride || def.hrefTemplate).replace(/\{destination\}/g, dest);
+  // When no place is entered, leave partner landing URLs without forcing a generic search term.
+  if (!trimmed) {
+    url = url
+      .replace(/([?&])(q|ss|query|destination|location|ss_raw|ssne|text)=(&|$)/gi, (_, sep: string, __: string, end: string) =>
+        end === '&' ? sep : ''
+      )
+      .replace(/\?&/, '?')
+      .replace(/[?&]$/, '');
+  }
   const affiliateId = (override?.affiliateId || '').trim();
   if (affiliateId && def.affiliateQueryParam) {
     const sep = url.includes('?') ? '&' : '?';

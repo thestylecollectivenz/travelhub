@@ -4,7 +4,6 @@ import {
   type BookingAffiliateCategory,
   type ResolvedBookingAffiliatePartner
 } from '../../utils/bookingAffiliateLinks';
-import { useShellMode } from '../../hooks/useShellMode';
 import { BookingPartnerLogo } from './BookingPartnerLogo';
 import styles from './MobileBookPage.module.css';
 
@@ -32,9 +31,6 @@ function CategoryBadge({ category }: { category: BookingAffiliateCategory }): Re
 }
 
 export const BookingPartnerCard: React.FC<BookingPartnerCardProps> = ({ partner, variant = 'recommended' }) => {
-  const shellMode = useShellMode();
-  const isIpad = shellMode === 'ipad-portrait';
-
   if (variant === 'compact') {
     return (
       <a className={styles.moreCard} href={partner.href} target="_blank" rel="noopener noreferrer">
@@ -57,7 +53,7 @@ export const BookingPartnerCard: React.FC<BookingPartnerCardProps> = ({ partner,
 
   return (
     <a className={styles.recCard} href={partner.href} target="_blank" rel="noopener noreferrer">
-      <BookingPartnerLogo label={partner.label} logoUrl={partner.logoUrl} size={isIpad ? 'xl' : 'md'} />
+      <BookingPartnerLogo label={partner.label} logoUrl={partner.logoUrl} size="md" />
       <span className={styles.recBody}>
         <span className={styles.recTop}>
           <span className={styles.recName}>{partner.label}</span>

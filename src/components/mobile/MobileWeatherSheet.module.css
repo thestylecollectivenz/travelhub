@@ -370,6 +370,9 @@
 }
 
 .hearAllBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   border: 1px solid color-mix(in srgb, #2f5eb8 25%, transparent);
   background: color-mix(in srgb, #2f5eb8 10%, white);
   color: #2f5eb8;
@@ -416,17 +419,18 @@
   min-width: 0;
 }
 
-.phraseLocal {
+.phraseEnglish {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   font-weight: 800;
   color: #1e2a44;
   line-height: 1.25;
 }
 
-.phraseEnglish {
+.phraseLocal {
   margin: 0.12rem 0 0;
-  font-size: 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 500;
   color: #6b6570;
   line-height: 1.25;
 }
@@ -438,8 +442,163 @@
   line-height: 1.4;
 }
 
+.currencyCard {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  background: white;
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  border-radius: 1rem;
+  padding: 0.9rem 0.95rem;
+  margin-bottom: 0.65rem;
+}
+
+.currencyAdvice {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.currencyBlock {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.65rem;
+  align-items: start;
+}
+
+.tipCalc {
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.tipCalcHead {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.tipLabel {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #8a7355;
+}
+
+.tipInputWrap {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--tl-mobile-surface, #fafaf9) 50%, white);
+  padding: 0.45rem 0.65rem;
+}
+
+.tipCurrencyPrefix {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #5c6570;
+}
+
+.tipInput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e2a44;
+  outline: none;
+  font-family: inherit;
+}
+
+.tipCustomInput {
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  border-radius: 0.75rem;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1e2a44;
+  background: white;
+  width: 6rem;
+  font-family: inherit;
+}
+
+.tipPctRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.tipPctBtn {
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  border-radius: 999px;
+  background: white;
+  color: #1e2a44;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.38rem 0.7rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.tipPctBtnOn {
+  background: #6b7c3a;
+  border-color: #6b7c3a;
+  color: white;
+}
+
+.tipResultBox {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, #6b7c3a 10%, white);
+  border: 1px solid color-mix(in srgb, #6b7c3a 18%, transparent);
+  padding: 0.75rem 0.8rem;
+}
+
+.tipResultLocal,
+.tipResultHome {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.tipResultRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: #5c6570;
+}
+
+.tipResultRow strong {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #1e2a44;
+}
+
+.tipResultHomeLabel {
+  margin: 0 0 0.15rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8a7355;
+}
+
+.tipRateNote {
+  margin: 0.2rem 0 0;
+  font-size: 0.62rem;
+  color: #8a857d;
+}
+
 [data-shell='ipad-portrait'] .hero {
   grid-template-columns: 4.75rem 1fr auto;
+  margin-bottom: 1.15rem;
 }
 
 [data-shell='ipad-portrait'] .heroIcon {
@@ -447,27 +606,76 @@
   height: 4.75rem;
 }
 
-[data-shell='ipad-portrait'] .title {
-  font-size: 1.65rem;
+[data-shell='ipad-portrait'] .kicker {
+  font-size: 0.72rem;
 }
 
-[data-shell='ipad-portrait'] .forecastTitle,
+[data-shell='ipad-portrait'] .localGreeting {
+  font-size: 1.2rem;
+}
+
+[data-shell='ipad-portrait'] .title {
+  font-size: 1.85rem;
+}
+
+[data-shell='ipad-portrait'] .location {
+  font-size: 0.95rem;
+}
+
+[data-shell='ipad-portrait'] .localTime {
+  font-size: 0.85rem;
+}
+
+[data-shell='ipad-portrait'] .mapBtn {
+  font-size: 0.82rem;
+  padding: 0.5rem 0.85rem;
+}
+
+[data-shell='ipad-portrait'] .forecastTitle {
+  font-size: 1.2rem;
+  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
+}
+
 [data-shell='ipad-portrait'] .infoCardTitle {
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 [data-shell='ipad-portrait'] .infoLine {
+  font-size: 0.98rem;
+}
+
+[data-shell='ipad-portrait'] .infoSub {
+  font-size: 0.82rem;
+}
+
+[data-shell='ipad-portrait'] .sectionLabel {
+  font-size: 0.85rem;
+}
+
+[data-shell='ipad-portrait'] .sectionText {
+  font-size: 1.05rem;
+}
+
+[data-shell='ipad-portrait'] .sectionSub {
   font-size: 0.95rem;
 }
 
 [data-shell='ipad-portrait'] .forecastDay {
-  min-width: 4.25rem;
-  padding: 0.55rem 0.45rem;
+  min-width: 4.6rem;
+  padding: 0.6rem 0.45rem;
+}
+
+[data-shell='ipad-portrait'] .forecastDayName {
+  font-size: 0.75rem;
+}
+
+[data-shell='ipad-portrait'] .forecastHigh {
+  font-size: 1.05rem;
 }
 
 [data-shell='ipad-portrait'] .sectionIcon {
-  width: 2.55rem;
-  height: 2.55rem;
+  width: 2.75rem;
+  height: 2.75rem;
 }
 
 [data-shell='ipad-portrait'] .closeBtn {
@@ -475,38 +683,79 @@
   height: 2.55rem;
 }
 
-[data-shell='ipad-portrait'] .languageSection {
-  padding: 1rem 1.05rem;
-  border-radius: 1.1rem;
+[data-shell='ipad-portrait'] .currencyCard {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 1.25rem;
+  padding: 1.1rem 1.15rem;
+  border-radius: 1.15rem;
 }
 
-[data-shell='ipad-portrait'] .languageTitle {
+[data-shell='ipad-portrait'] .tipLabel {
+  font-size: 0.82rem;
+}
+
+[data-shell='ipad-portrait'] .tipInput {
   font-size: 1.1rem;
 }
 
+[data-shell='ipad-portrait'] .tipPctBtn {
+  font-size: 0.88rem;
+  padding: 0.45rem 0.85rem;
+}
+
+[data-shell='ipad-portrait'] .tipResultRow {
+  font-size: 0.92rem;
+}
+
+[data-shell='ipad-portrait'] .tipResultRow strong {
+  font-size: 1.1rem;
+}
+
+[data-shell='ipad-portrait'] .tipResultHomeLabel {
+  font-size: 0.72rem;
+}
+
+[data-shell='ipad-portrait'] .tipResultBox {
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+}
+
+[data-shell='ipad-portrait'] .languageSection {
+  padding: 1.1rem 1.15rem;
+  border-radius: 1.15rem;
+}
+
+[data-shell='ipad-portrait'] .languageTitle {
+  font-size: 1.35rem;
+}
+
 [data-shell='ipad-portrait'] .hearAllBtn {
-  font-size: 0.78rem;
-  padding: 0.35rem 0.8rem;
+  font-size: 0.88rem;
+  padding: 0.42rem 0.9rem;
 }
 
 [data-shell='ipad-portrait'] .phraseCard {
-  padding: 0.7rem 0.75rem;
-}
-
-[data-shell='ipad-portrait'] .phraseLocal {
-  font-size: 0.95rem;
+  padding: 0.8rem 0.85rem;
 }
 
 [data-shell='ipad-portrait'] .phraseEnglish {
-  font-size: 0.78rem;
+  font-size: 1.05rem;
+}
+
+[data-shell='ipad-portrait'] .phraseLocal {
+  font-size: 0.92rem;
 }
 
 [data-shell='ipad-portrait'] .phrasePlay {
-  width: 2.1rem;
-  height: 2.1rem;
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+[data-shell='ipad-portrait'] .languageNote {
+  font-size: 0.88rem;
 }
 
 [data-shell='ipad-portrait'] .unitBtn {
-  font-size: 0.78rem;
-  padding: 0.28rem 0.7rem;
+  font-size: 0.85rem;
+  padding: 0.32rem 0.75rem;
 }

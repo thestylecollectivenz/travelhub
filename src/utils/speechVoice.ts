@@ -22,6 +22,8 @@ export interface SpeakOptions {
   browserVoiceURI?: string;
   elevenLabsApiKey?: string;
   elevenLabsVoiceId?: string;
+  /** BCP-47 language tag — pick a matching voice for native accents (e.g. fr-FR, ja-JP). */
+  lang?: string;
 }
 
 type SpeechRecognitionCtor = new () => {
@@ -214,9 +216,29 @@ export function pickDefaultBrowserVoiceURI(voices?: BrowserSpeechVoiceOption[]):
   return list[0].voiceURI;
 }
 
-function resolveBrowserVoice(voiceURI?: string): SpeechSynthesisVoice | undefined {
+function resolveBrowserVoice(voiceURI?: string, langHint?: string): SpeechSynthesisVoice | undefined {
   if (typeof window === 'undefined' || !window.speechSynthesis) return undefined;
   const voices = window.speechSynthesis.getVoices() || [];
+  const wantedLang = (langHint || '').trim().toLowerCase();
+  if (wantedLang) {
+    const exact = voices.find((v) => (v.lang || '').toLowerCase() === wantedLang);
+    if (exact) return exact;
+    const prefix = wantedLang.split('-')[0];
+    const byPrefix = voices
+      .filter((v) => (v.lang || '').toLowerCase().startsWith(prefix))
+      .sort((a, b) => {
+        const aLocal = a.localService ? 0 : 1;
+        const bLocal = b.localService ? 0 : 1;
+        if (aLocal !== bLocal) return aLocal - bLocal;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+    if (byPrefix.length) return byPrefix[0];
+    // Māori often unavailable — NZ English is the best local accent fallback.
+    if (prefix === 'mi') {
+      const enNz = voices.find((v) => (v.lang || '').toLowerCase().startsWith('en-nz'));
+      if (enNz) return enNz;
+    }
+  }
   const wanted = (voiceURI || '').trim();
   if (wanted) {
     const exact = voices.find((v) => v.voiceURI === wanted || v.name === wanted);
@@ -262,14 +284,16 @@ function splitSpeakableChunks(text: string): string[] {
 function speakWithBrowser(
   text: string,
   onStateChange?: (state: SpeechOutputState) => void,
-  voiceURI?: string
+  voiceURI?: string,
+  langHint?: string
 ): void {
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
   const chunks = splitSpeakableChunks(text);
   if (!chunks.length) return;
 
   const token = ++browserSpeakToken;
-  const voice = resolveBrowserVoice(voiceURI);
+  const lang = (langHint || '').trim();
+  const voice = resolveBrowserVoice(voiceURI, lang);
 
   const speakChunk = (index: number): void => {
     if (token !== browserSpeakToken) return;
@@ -280,9 +304,9 @@ function speakWithBrowser(
     const utter = new SpeechSynthesisUtterance(chunks[index]);
     if (voice) {
       utter.voice = voice;
-      if (voice.lang) utter.lang = voice.lang;
+      utter.lang = lang || voice.lang || 'en-NZ';
     } else {
-      utter.lang = 'en-NZ';
+      utter.lang = lang || 'en-NZ';
     }
     utter.rate = 0.95;
     utter.pitch = 1;
@@ -373,16 +397,18 @@ export function speakPlainText(
   const engine: SpeechEngine = options?.speechEngine === 'elevenlabs' ? 'elevenlabs' : 'browser';
   const key = (options?.elevenLabsApiKey || '').trim();
   const browserVoiceURI = (options?.browserVoiceURI || '').trim();
+  const lang = (options?.lang || '').trim();
 
-  if (engine === 'elevenlabs' && key) {
+  if (engine === 'elevenlabs' && key && !lang) {
     onStateChange?.('speaking');
     void speakWithElevenLabs(t, key, (options?.elevenLabsVoiceId || '').trim(), onStateChange).catch(() => {
-      speakWithBrowser(t, onStateChange, browserVoiceURI);
+      speakWithBrowser(t, onStateChange, browserVoiceURI, lang);
     });
     return;
   }
 
-  speakWithBrowser(t, onStateChange, browserVoiceURI);
+  // Prefer browser TTS with a matching language voice for native-language phrases.
+  speakWithBrowser(t, onStateChange, lang ? undefined : browserVoiceURI, lang);
 }
 
 export function collectFinalTranscript(event: SpeechRecognitionResultEvent): string {

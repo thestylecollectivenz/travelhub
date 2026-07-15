@@ -123,6 +123,30 @@ const PACKS: Record<string, LanguagePack> = {
       { local: '…はどこですか', english: 'Where is…?', lang: 'ja-JP' },
       { local: 'いくらですか', english: 'How much?', lang: 'ja-JP' }
     ]
+  },
+  NZ: {
+    languageName: 'Māori',
+    englishWidelySpoken: true,
+    phrases: [
+      { local: 'Kia ora', english: 'Hello', lang: 'mi-NZ' },
+      { local: 'Ngā mihi', english: 'Thank you', lang: 'mi-NZ' },
+      { local: 'Tēnā koa', english: 'Please', lang: 'mi-NZ' },
+      { local: 'Aroha mai', english: 'Excuse me', lang: 'mi-NZ' },
+      { local: 'Kei hea…?', english: 'Where is…?', lang: 'mi-NZ' },
+      { local: 'E hia te utu?', english: 'How much?', lang: 'mi-NZ' }
+    ]
+  },
+  AU: {
+    languageName: 'English',
+    englishWidelySpoken: true,
+    phrases: [
+      { local: 'G\'day', english: 'Hello', lang: 'en-AU' },
+      { local: 'Thanks', english: 'Thank you', lang: 'en-AU' },
+      { local: 'Please', english: 'Please', lang: 'en-AU' },
+      { local: 'Excuse me', english: 'Excuse me', lang: 'en-AU' },
+      { local: 'Where is…?', english: 'Where is…?', lang: 'en-AU' },
+      { local: 'How much?', english: 'How much?', lang: 'en-AU' }
+    ]
   }
 };
 

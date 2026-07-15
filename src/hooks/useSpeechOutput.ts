@@ -11,7 +11,7 @@ import {
 
 export function useSpeechOutput(): {
   speechState: SpeechOutputState;
-  speak: (text: string) => void;
+  speak: (text: string, lang?: string) => void;
   pause: () => void;
   resume: () => void;
   stop: () => void;
@@ -26,12 +26,13 @@ export function useSpeechOutput(): {
   }, []);
 
   const speak = React.useCallback(
-    (text: string) => {
+    (text: string, lang?: string) => {
       speakPlainText(text, setSpeechState, {
         speechEngine: config.speechEngine === 'elevenlabs' ? 'elevenlabs' : 'browser',
         browserVoiceURI: config.browserVoiceURI,
         elevenLabsApiKey: config.elevenLabsApiKey,
-        elevenLabsVoiceId: config.elevenLabsVoiceId
+        elevenLabsVoiceId: config.elevenLabsVoiceId,
+        lang
       });
     },
     [config.speechEngine, config.browserVoiceURI, config.elevenLabsApiKey, config.elevenLabsVoiceId]

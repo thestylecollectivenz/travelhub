@@ -14,7 +14,6 @@ import { BookingPartnerCard } from './BookingPartnerCard';
 import styles from './MobileBookPage.module.css';
 
 export interface MobileBookPageProps {
-  destinationHint?: string;
   showTitle?: boolean;
   onViewAllPartners?: (destination: string) => void;
   onViewTripOverview?: () => void;
@@ -40,7 +39,6 @@ async function resolveNearMePlace(): Promise<string> {
 }
 
 export const MobileBookPage: React.FC<MobileBookPageProps> = ({
-  destinationHint = '',
   showTitle = true,
   onViewAllPartners,
   onViewTripOverview
@@ -48,16 +46,13 @@ export const MobileBookPage: React.FC<MobileBookPageProps> = ({
   const { appConfig } = useAppConfig();
   const canManageSite = useCanManageSiteConfig();
   const shellMode = useShellMode();
-  const [query, setQuery] = React.useState(destinationHint);
+  // Never pre-fill from trip title/destination — user chooses where to search.
+  const [query, setQuery] = React.useState('');
   const [filter, setFilter] = React.useState<BookFilter>('all');
   const [nearBusy, setNearBusy] = React.useState(false);
   const [affiliateSettingsOpen, setAffiliateSettingsOpen] = React.useState(false);
 
   const overridesJson = appConfig.get(BOOKING_AFFILIATES_CONFIG_KEY);
-
-  React.useEffect(() => {
-    if (destinationHint) setQuery(destinationHint);
-  }, [destinationHint]);
 
   const partners = React.useMemo(
     () => resolveBookingAffiliatePartners(query, overridesJson),
@@ -96,7 +91,7 @@ export const MobileBookPage: React.FC<MobileBookPageProps> = ({
               className={styles.searchInput}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Select or type a city, country, or place"
+              placeholder="Where would you like to go?"
               aria-label="Booking destination"
             />
             <span className={styles.searchIcon} aria-hidden>
@@ -173,6 +168,19 @@ export const MobileBookPage: React.FC<MobileBookPageProps> = ({
                 {more.map((p) => (
                   <BookingPartnerCard key={p.id} partner={p} variant="compact" />
                 ))}
+                {onViewAllPartners ? (
+                  <button
+                    type="button"
+                    className={styles.moreCard}
+                    onClick={() => onViewAllPartners(query)}
+                    aria-label="View all partners"
+                  >
+                    <span className={styles.moreDots} aria-hidden>
+                      ···
+                    </span>
+                    <span className={styles.moreName}>More</span>
+                  </button>
+                ) : null}
               </div>
             </section>
           ) : null}
