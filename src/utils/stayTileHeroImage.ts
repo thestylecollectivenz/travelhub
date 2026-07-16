@@ -1,8 +1,15 @@
-const CACHE_KEY = 'travelhub-stay-hero-images-v6';
+const CACHE_KEY = 'travelhub-stay-hero-images-v7';
 
 type CacheRow = Record<string, string>;
 
 export type StayHeroMode = 'accommodation' | 'cruise';
+
+export type StayHeroResolved = {
+  imageUrl: string;
+  /** Official website when known; else Google listing. */
+  clickUrl: string;
+  displayName?: string;
+};
 
 function cacheKey(title: string, location: string, mode: StayHeroMode): string {
   return `${mode}|${title.trim().toLowerCase()}|${location.trim().toLowerCase()}`;
@@ -48,7 +55,6 @@ function looksLikePersonPage(pageTitle: string): boolean {
   if (/\b(singer|actor|actress|footballer|athlete|politician|writer|author|musician|biography|disambiguation)\b/.test(t)) {
     return true;
   }
-  // Single personal name pattern without ship cues.
   if (/^[A-Z][a-z]+ [A-Z][a-z]+$/.test(pageTitle) && !/\b(ship|cruise|ms |mv |ss )\b/i.test(pageTitle)) {
     return true;
   }
@@ -73,7 +79,6 @@ function looksLikePropertyHit(title: string, pageTitle: string, mode: StayHeroMo
   if (hit.includes(prop) || prop.includes(hit.replace(/\s*\(.*\)\s*/g, '').trim())) return true;
   const propCore = prop.replace(/\b(hotel|resort|inn|lodge|motel|apartments?|suite|suites)\b/gi, '').trim();
   if (propCore.length >= 4 && hit.includes(propCore)) return true;
-  // Looser: first significant word match for named properties.
   const first = propCore.split(/\s+/).find((w) => w.length >= 5);
   if (first && hit.includes(first)) return true;
   return false;
@@ -160,18 +165,19 @@ function buildQueries(name: string, place: string, mode: StayHeroMode): string[]
   ].filter(Boolean);
 }
 
-/** Property-specific hero: exact accommodation / ship name first. */
-export async function resolveStayHeroImageUrl(
-  title: string,
-  location: string,
-  mode: StayHeroMode
-): Promise<string> {
-  const key = cacheKey(title, location, mode);
-  const cache = loadCache();
-  if (cache[key]) return cache[key];
+function listingFallbackUrl(title: string, location: string): string {
+  const q = [title, location].filter(Boolean).join(', ');
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+}
 
-  const name = title.trim();
-  const place = location.trim();
+async function resolveLegacyStayImage(
+  name: string,
+  place: string,
+  mode: StayHeroMode,
+  key: string,
+  cache: CacheRow
+): Promise<string> {
+  if (cache[key]) return cache[key];
   const matchHint = name;
   const queries = buildQueries(name, place, mode);
 
@@ -197,11 +203,83 @@ export async function resolveStayHeroImageUrl(
     }
   }
 
-  // Last resort so itinerary tiles are never an empty white strip.
   const url = pollinationsFallback(name, place, mode);
   cache[key] = url;
   saveCache(cache);
   return url;
+}
+
+/**
+ * Prefer Google Place Photos (when Maps API key is set), then Wikipedia/Commons, then Pollinations.
+ * Also returns a click URL: official website when known, else Google listing.
+ */
+export async function resolveStayHero(
+  title: string,
+  location: string,
+  mode: StayHeroMode,
+  googleMapsApiKey?: string
+): Promise<StayHeroResolved> {
+  const name = title.trim() || (mode === 'cruise' ? 'Cruise ship' : 'Hotel');
+  const place = location.trim();
+  const clickFallback = listingFallbackUrl(name, place);
+  const key = cacheKey(name, place, mode);
+  const cache = loadCache();
+
+  const mapsKey = (googleMapsApiKey || '').trim();
+  if (mapsKey) {
+    try {
+      const { resolveVenueListingPhoto } = await import('./venueListingPhoto');
+      const { placeWebsiteSearchUrl } = await import('./googleMapsLink');
+      const hit = await resolveVenueListingPhoto({
+        name,
+        address: place,
+        city: place,
+        googleMapsApiKey: mapsKey
+      });
+      if (hit && (hit.imageUrl || '').trim()) {
+        cache[key] = hit.imageUrl;
+        saveCache(cache);
+        return {
+          imageUrl: hit.imageUrl,
+          clickUrl:
+            (hit.websiteUrl || '').trim() ||
+            (hit.sourceUrl || '').trim() ||
+            placeWebsiteSearchUrl(hit.displayName || name, place) ||
+            clickFallback,
+          displayName: hit.displayName
+        };
+      }
+      if (hit?.sourceUrl || hit?.websiteUrl) {
+        const clickUrl =
+          (hit.websiteUrl || '').trim() ||
+          (hit.sourceUrl || '').trim() ||
+          placeWebsiteSearchUrl(hit.displayName || name, place) ||
+          clickFallback;
+        const imageUrl = await resolveLegacyStayImage(name, place, mode, key, cache);
+        return { imageUrl, clickUrl, displayName: hit.displayName };
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+
+  const imageUrl = await resolveLegacyStayImage(name, place, mode, key, cache);
+  const { placeWebsiteSearchUrl } = await import('./googleMapsLink');
+  return {
+    imageUrl,
+    clickUrl: placeWebsiteSearchUrl(name, place) || clickFallback
+  };
+}
+
+/** Prefer resolveStayHero — kept for call sites that only need an image URL. */
+export async function resolveStayHeroImageUrl(
+  title: string,
+  location: string,
+  mode: StayHeroMode,
+  googleMapsApiKey?: string
+): Promise<string> {
+  const hit = await resolveStayHero(title, location, mode, googleMapsApiKey);
+  return hit.imageUrl;
 }
 
 /** Sync placeholder while async hero loads. */
@@ -231,11 +309,11 @@ export function stayHeroSearchTitle(
 
 /** Place / operator string paired with stayHeroSearchTitle for caching and prompts. */
 export function stayHeroSearchPlace(
-  entry: { location?: string; cruiseLineName?: string },
+  entry: { location?: string; cruiseLineName?: string; streetAddress?: string },
   mode: StayHeroMode
 ): string {
   if (mode === 'cruise') {
     return (entry.cruiseLineName || '').trim();
   }
-  return (entry.location || '').trim();
+  return (entry.streetAddress || entry.location || '').trim();
 }

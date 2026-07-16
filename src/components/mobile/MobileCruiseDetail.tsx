@@ -2,7 +2,6 @@ import * as React from 'react';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import type { EntryDocument } from '../../models/EntryDocument';
 import type { EntryLink } from '../../models/EntryLink';
-import { CategoryIcon } from '../shared/CategoryIcon';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { formatDisplayLabel } from '../../utils/mobileDisplayFormat';
 import {
@@ -25,7 +24,7 @@ import { useShellMode } from '../../hooks/useShellMode';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useConfig } from '../../context/ConfigContext';
 import {
-  resolveStayHeroImageUrl,
+  resolveStayHero,
   stayHeroPlaceholderUrl,
   stayHeroSearchPlace,
   stayHeroSearchTitle
@@ -217,6 +216,7 @@ export const MobileCruiseDetail: React.FC<MobileCruiseDetailProps> = ({
   const heroTitle = stayHeroSearchTitle(entry, 'cruise');
   const heroPlace = stayHeroSearchPlace(entry, 'cruise');
   const [heroSrc, setHeroSrc] = React.useState(() => stayHeroPlaceholderUrl(heroTitle, heroPlace, 'cruise'));
+  const [heroClickUrl, setHeroClickUrl] = React.useState('');
 
   const data = React.useMemo(
     () =>
@@ -235,13 +235,16 @@ export const MobileCruiseDetail: React.FC<MobileCruiseDetailProps> = ({
   React.useEffect(() => {
     let cancelled = false;
     setHeroSrc(stayHeroPlaceholderUrl(heroTitle, heroPlace, 'cruise'));
-    void resolveStayHeroImageUrl(heroTitle, heroPlace, 'cruise').then((url) => {
-      if (!cancelled && url) setHeroSrc(url);
+    setHeroClickUrl('');
+    void resolveStayHero(heroTitle, heroPlace, 'cruise', config.googleMapsApiKey).then((hit) => {
+      if (cancelled) return;
+      if (hit.imageUrl) setHeroSrc(hit.imageUrl);
+      if (hit.clickUrl) setHeroClickUrl(hit.clickUrl);
     });
     return () => {
       cancelled = true;
     };
-  }, [heroTitle, heroPlace]);
+  }, [heroTitle, heroPlace, config.googleMapsApiKey]);
 
   const openUrl = (url: string, e?: React.MouseEvent): void => openMobileExternalUrl(url, e);
 
@@ -430,10 +433,21 @@ export const MobileCruiseDetail: React.FC<MobileCruiseDetailProps> = ({
       <section className={styles.overviewCard}>
         <div className={styles.overviewMain}>
           <div className={styles.heroPhotoWrap}>
-            <img className={styles.heroPhoto} src={heroSrc} alt="" />
-            <span className={`${styles.heroPhotoBadge} th-cat-${slug}`} aria-hidden>
-              <CategoryIcon category={entry.category} size={isIpad ? 20 : 18} color="white" />
-            </span>
+            {heroClickUrl ? (
+              <a
+                className={styles.heroPhotoLink}
+                href={heroClickUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Open ${entry.title} listing`}
+                title="Open listing"
+                onClick={(e) => openUrl(heroClickUrl, e)}
+              >
+                <img className={styles.heroPhoto} src={heroSrc} alt="" />
+              </a>
+            ) : (
+              <img className={styles.heroPhoto} src={heroSrc} alt="" />
+            )}
           </div>
           <div className={styles.heroCopy}>
             <div className={styles.heroTitleRow}>

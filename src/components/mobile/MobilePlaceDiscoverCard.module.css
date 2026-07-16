@@ -30,29 +30,7 @@
   text-decoration: none;
   color: inherit;
   position: relative;
-}
-
-.photoBadge {
-  position: absolute;
-  left: 0.4rem;
-  bottom: 0.4rem;
-  font-size: 0.62rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  border-radius: 999px;
-  padding: 0.18rem 0.45rem;
-  line-height: 1.2;
-}
-
-.photoBadgeGoogle {
-  background: color-mix(in srgb, #14755a 92%, black);
-  color: white;
-}
-
-.photoBadgeAlt {
-  background: color-mix(in srgb, #1e2a44 75%, black);
-  color: white;
+  cursor: pointer;
 }
 
 .nameLink {

@@ -14,11 +14,13 @@ import {
   findDeckPlanDocument
 } from '../../utils/bookingStatusUtils';
 import {
-  resolveStayHeroImageUrl,
+  resolveStayHero,
   stayHeroPlaceholderUrl,
   stayHeroSearchPlace,
   stayHeroSearchTitle
 } from '../../utils/stayTileHeroImage';
+import { useConfig } from '../../context/ConfigContext';
+import { openMobileExternalUrl } from '../../hooks/useMobileDetailHistory';
 import { MobileBookingSiteSheet } from './MobileBookingSiteSheet';
 import styles from './MobileStayCruiseTile.module.css';
 
@@ -100,6 +102,7 @@ export const MobileStayCruiseTile: React.FC<MobileStayCruiseTileProps> = ({
   onOpenDetail
 }) => {
   const { documents } = useAttachments();
+  const { config } = useConfig();
   const [open, setOpen] = React.useState(true);
   const [showBookingSites, setShowBookingSites] = React.useState(false);
   const isAcc = mode === 'accommodation';
@@ -127,19 +130,23 @@ export const MobileStayCruiseTile: React.FC<MobileStayCruiseTileProps> = ({
   const heroTitle = stayHeroSearchTitle(entry, mode);
   const heroPlace = stayHeroSearchPlace(entry, mode);
   const [heroUrl, setHeroUrl] = React.useState(() => stayHeroPlaceholderUrl(heroTitle, heroPlace, mode));
+  const [heroClickUrl, setHeroClickUrl] = React.useState('');
   const [heroFailed, setHeroFailed] = React.useState(false);
 
   React.useEffect(() => {
     let cancelled = false;
     setHeroFailed(false);
     setHeroUrl(stayHeroPlaceholderUrl(heroTitle, heroPlace, mode));
-    void resolveStayHeroImageUrl(heroTitle, heroPlace, mode).then((url) => {
-      if (!cancelled && url) setHeroUrl(url);
+    setHeroClickUrl('');
+    void resolveStayHero(heroTitle, heroPlace, mode, config.googleMapsApiKey).then((hit) => {
+      if (cancelled) return;
+      if (hit.imageUrl) setHeroUrl(hit.imageUrl);
+      if (hit.clickUrl) setHeroClickUrl(hit.clickUrl);
     });
     return () => {
       cancelled = true;
     };
-  }, [heroTitle, heroPlace, mode]);
+  }, [heroTitle, heroPlace, mode, config.googleMapsApiKey]);
 
   const pills = React.useMemo((): TilePill[] => {
     const list: TilePill[] = [];
@@ -229,56 +236,77 @@ export const MobileStayCruiseTile: React.FC<MobileStayCruiseTileProps> = ({
         </button>
         {open ? (
           <div className={styles.body}>
-            <button type="button" className={styles.main} onClick={onOpenDetail}>
-              <div className={`${styles.thumb} th-cat-${getCategorySlug(entry.category)}`}>
-                {!heroFailed ? (
-                  <img
-                    className={styles.thumbImg}
-                    src={heroUrl}
-                    alt=""
-                    onError={() => setHeroFailed(true)}
-                  />
-                ) : (
-                  <CategoryIcon category={entry.category} size={22} color="white" />
-                )}
-              </div>
-              <div className={styles.copy}>
-                <h3 className={styles.title}>{title}</h3>
-                <div className={styles.badgeRow}>
-                  <span className={`${styles.badge} ${booked ? styles.badgeBooked : styles.badgePending}`}>
-                    {isAcc ? (booked ? 'Booked' : 'Not booked') : statusLabel}
-                  </span>
-                  {isAcc && nights > 0 ? (
-                    <span className={`${styles.badge} ${styles.badgeWash}`}>{nights} night{nights === 1 ? '' : 's'}</span>
-                  ) : null}
-                  {!isAcc && entry.cruiseLineName ? (
-                    <span className={`${styles.badge} ${styles.badgeWash}`}>{entry.cruiseLineName}</span>
-                  ) : null}
-                </div>
-                {isAcc ? (
-                  <div className={styles.times}>
-                    {isAccommodationCheckoutOnCalendarDate(entry, calendarDate) ? (
-                      <span>{formatAccommodationDepartLabel(entry)}</span>
-                    ) : (
-                      <span>{formatAccommodationArriveLabel(entry)}</span>
-                    )}
+            <div className={styles.main}>
+              {heroClickUrl && !heroFailed ? (
+                <a
+                  className={`${styles.thumb} ${styles.thumbLink} th-cat-${getCategorySlug(entry.category)}`}
+                  href={heroClickUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={isAcc ? `Open ${title} website` : `Open ${title} listing`}
+                  title={isAcc ? 'Open hotel website' : 'Open listing'}
+                  onClick={(e) => openMobileExternalUrl(heroClickUrl, e)}
+                >
+                  <img className={styles.thumbImg} src={heroUrl} alt="" onError={() => setHeroFailed(true)} />
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  className={`${styles.thumb} th-cat-${getCategorySlug(entry.category)}`}
+                  onClick={onOpenDetail}
+                  aria-label={`Open ${title} details`}
+                >
+                  {!heroFailed && heroUrl ? (
+                    <img className={styles.thumbImg} src={heroUrl} alt="" onError={() => setHeroFailed(true)} />
+                  ) : (
+                    <CategoryIcon category={entry.category} size={22} color="white" />
+                  )}
+                </button>
+              )}
+              <button type="button" className={styles.copyBtn} onClick={onOpenDetail}>
+                <div className={styles.copy}>
+                  <h3 className={styles.title}>{title}</h3>
+                  <div className={styles.badgeRow}>
+                    <span className={`${styles.badge} ${booked ? styles.badgeBooked : styles.badgePending}`}>
+                      {isAcc ? (booked ? 'Booked' : 'Not booked') : statusLabel}
+                    </span>
+                    {isAcc && nights > 0 ? (
+                      <span className={`${styles.badge} ${styles.badgeWash}`}>
+                        {nights} night{nights === 1 ? '' : 's'}
+                      </span>
+                    ) : null}
+                    {!isAcc && entry.cruiseLineName ? (
+                      <span className={`${styles.badge} ${styles.badgeWash}`}>{entry.cruiseLineName}</span>
+                    ) : null}
                   </div>
-                ) : (
-                  <p className={styles.sub}>
-                    {[entry.cruiseLineName, entry.shipName].filter(Boolean).join(' · ') || entry.location}
-                  </p>
-                )}
-                {entry.location ? (
-                  <p className={styles.addr}>
-                    <svg width="11" height="11" viewBox="0 0 12 14" fill="none" aria-hidden>
-                      <path d="M6 1C3.79 1 2 2.79 2 5c0 3 4 8 4 8s4-5 4-8c0-2.21-1.79-4-4-4z" fill="currentColor" />
-                    </svg>
-                    {entry.location}
-                  </p>
-                ) : null}
-                {bookingRef ? <p className={styles.ref}>Booking ref. {bookingRef}</p> : null}
-              </div>
-            </button>
+                  {isAcc ? (
+                    <div className={styles.times}>
+                      {isAccommodationCheckoutOnCalendarDate(entry, calendarDate) ? (
+                        <span>{formatAccommodationDepartLabel(entry)}</span>
+                      ) : (
+                        <span>{formatAccommodationArriveLabel(entry)}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <p className={styles.sub}>
+                      {[entry.cruiseLineName, entry.shipName].filter(Boolean).join(' · ') || entry.location}
+                    </p>
+                  )}
+                  {entry.location ? (
+                    <p className={styles.addr}>
+                      <svg width="11" height="11" viewBox="0 0 12 14" fill="none" aria-hidden>
+                        <path
+                          d="M6 1C3.79 1 2 2.79 2 5c0 3 4 8 4 8s4-5 4-8c0-2.21-1.79-4-4-4z"
+                          fill="currentColor"
+                        />
+                      </svg>
+                      {entry.location}
+                    </p>
+                  ) : null}
+                  {bookingRef ? <p className={styles.ref}>Booking ref. {bookingRef}</p> : null}
+                </div>
+              </button>
+            </div>
             <div className={styles.actions}>
               {pills.map((pill) => {
                 const className = pillClass(pill);

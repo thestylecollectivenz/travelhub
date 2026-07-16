@@ -2,10 +2,15 @@ import { nominatimFetch } from './nominatimThrottle';
 
 export type ResolvedPlacePhoto = {
   imageUrl: string;
-  /** Page where the photo (or place) can be verified — never an AI image generator. */
+  /** Google Maps place listing (directory) — preferred click target for Explore cards. */
   sourceUrl: string;
+  /** Official website when Places Details returns one (hotels). */
+  websiteUrl?: string;
   /** Where the image bytes came from — helps verify Google vs fallback. */
   provider?: 'google' | 'wikipedia' | 'commons' | 'openverse' | 'other';
+  /** Official Google Places name when resolved (may differ from AI short name). */
+  displayName?: string;
+  placeId?: string;
 };
 
 type CacheRow = Record<string, ResolvedPlacePhoto>;

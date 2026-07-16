@@ -4,6 +4,7 @@ import { resolveDestinationHeroPhoto } from '../../utils/placePhotoResolve';
 import { resolveVenueListingPhoto } from '../../utils/venueListingPhoto';
 import { placeDirectionsFromHereUrl, placeDirectionsFromCoordsUrl, placeQueryMapsUrl } from '../../utils/googleMapsLink';
 import { formatModeMinutes } from '../../utils/travelModeDurations';
+import { openMobileExternalUrl } from '../../hooks/useMobileDetailHistory';
 import styles from './MobilePlaceDiscoverCard.module.css';
 
 export type PlaceDiscoverCardModel = {
@@ -188,6 +189,7 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
   const [photo, setPhoto] = React.useState<{
     imageUrl: string;
     sourceUrl: string;
+    displayName?: string;
     provider?: 'google' | 'wikipedia' | 'commons' | 'openverse' | 'other';
   } | null>(null);
   const [mode, setMode] = React.useState<'drive' | 'transit' | 'walk'>('walk');
@@ -247,28 +249,27 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
 
   const distLabel = (card.nearLabel || startingPointLabel || '').trim();
   const distShort = (card.distanceRaw || '').match(/^([\d.]+\s*(?:m|km|mi))\b/i)?.[1];
+  const displayName = (photo?.displayName || '').trim() || card.name;
 
   const directions =
     (Number.isFinite(card.latitude) && Number.isFinite(card.longitude)
       ? placeDirectionsFromCoordsUrl(Number(card.latitude), Number(card.longitude))
       : undefined) ||
-    placeDirectionsFromHereUrl(card.name, card.address, city) ||
+    placeDirectionsFromHereUrl(displayName, card.address, city) ||
     undefined;
-  const mapsHref =
-    (card.mapsUrl || '').trim() ||
-    (card.address ? placeQueryMapsUrl(card.address) : undefined) ||
-    placeQueryMapsUrl(card.name, card.address) ||
-    photo?.sourceUrl ||
-    undefined;
-  // Prefer Google listing URL from photo resolve; always fall back to a place search link (never directions).
-  const photoHref =
+  // Listing URL: Google place_id first, then name+address search — never address-only (wrong pin).
+  const listingHref =
     (photo?.sourceUrl || '').trim() ||
-    (card.address ? placeQueryMapsUrl(card.address) : undefined) ||
+    (card.mapsUrl || '').trim() ||
+    placeQueryMapsUrl(displayName, card.address) ||
     placeQueryMapsUrl(card.name, card.address) ||
-    mapsHref ||
     undefined;
-  const photoFromGoogle = photo?.provider === 'google';
+  const photoHref = listingHref;
   const kind = primaryAction?.kind || 'label';
+  const openListing = (e: React.MouseEvent): void => {
+    if (!listingHref) return;
+    openMobileExternalUrl(listingHref, e);
+  };
 
   return (
     <article className={`${styles.card} ${layout === 'strip' ? styles.strip : styles.list}`}>
@@ -279,21 +280,10 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
           target="_blank"
           rel="noopener noreferrer"
           style={photo?.imageUrl ? { backgroundImage: `url(${photo.imageUrl})` } : undefined}
-          aria-label={`Open Google listing for ${card.name}`}
-          title={
-            photoFromGoogle
-              ? 'Google Place photo — opens Google listing'
-              : photo?.imageUrl
-                ? 'Fallback photo — opens Google listing to verify the place'
-                : 'Open Google listing'
-          }
-        >
-          {photo?.imageUrl ? (
-            <span className={`${styles.photoBadge} ${photoFromGoogle ? styles.photoBadgeGoogle : styles.photoBadgeAlt}`}>
-              {photoFromGoogle ? 'Google' : 'Alt photo'}
-            </span>
-          ) : null}
-        </a>
+          aria-label={`Open Google listing for ${displayName}`}
+          title="Open Google listing"
+          onClick={openListing}
+        />
       ) : (
         <div
           className={styles.photo}
@@ -303,12 +293,18 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
       )}
       <div className={styles.body}>
         <div className={styles.titleRow}>
-          {mapsHref ? (
-            <a className={styles.nameLink} href={mapsHref} target="_blank" rel="noopener noreferrer">
-              <strong className={styles.name}>{card.name}</strong>
+          {listingHref ? (
+            <a
+              className={styles.nameLink}
+              href={listingHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={openListing}
+            >
+              <strong className={styles.name}>{displayName}</strong>
             </a>
           ) : (
-            <strong className={styles.name}>{card.name}</strong>
+            <strong className={styles.name}>{displayName}</strong>
           )}
           {typeof card.rating === 'number' ? (
             <span className={styles.rating}>★ {card.rating.toFixed(1)}</span>

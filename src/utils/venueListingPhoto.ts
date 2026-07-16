@@ -2,7 +2,7 @@ import type { ResolvedPlacePhoto } from './placePhotoResolve';
 import { reverseGeocodeAddress } from './googlePlacePhoto';
 
 type CacheRow = Record<string, ResolvedPlacePhoto>;
-const CACHE_KEY = 'travelhub-venue-photos-v4';
+const CACHE_KEY = 'travelhub-venue-photos-v5';
 
 function loadCache(): CacheRow {
   try {
@@ -115,11 +115,16 @@ declare global {
               cb: (
                 results: Array<{
                   place_id?: string;
+                  name?: string;
                   formatted_address?: string;
                   photos?: Array<{ getUrl: (opts: { maxWidth: number }) => string }>;
                 }> | null,
                 status: string
               ) => void
+            ) => void;
+            getDetails?: (
+              req: { placeId: string; fields: string[] },
+              cb: (result: { website?: string; name?: string; url?: string } | null, status: string) => void
             ) => void;
           };
         };
@@ -218,16 +223,53 @@ async function googleJsPlacePhoto(options: {
         const placeId = hit.place_id;
         const photo = hit.photos?.[0];
         const imageUrl = photo ? photo.getUrl({ maxWidth: 800 }) : '';
+        const displayName = (hit.name || '').trim() || undefined;
+        const listing = mapsListingUrl(
+          displayName || options.name,
+          hit.formatted_address || options.address,
+          undefined,
+          undefined,
+          placeId
+        );
+
+        // Prefer official website when Details is available (hotels / venues).
+        if (placeId && typeof svc.getDetails === 'function') {
+          const detailsTimeout = window.setTimeout(() => {
+            finish({
+              imageUrl,
+              sourceUrl: listing,
+              provider: imageUrl ? 'google' : undefined,
+              displayName,
+              placeId
+            });
+          }, 2500);
+          try {
+            svc.getDetails({ placeId, fields: ['website', 'name', 'url'] }, (detail, detailStatus) => {
+              window.clearTimeout(detailsTimeout);
+              void detailStatus;
+              const website = (detail?.website || '').trim() || undefined;
+              const officialName = (detail?.name || displayName || '').trim() || undefined;
+              finish({
+                imageUrl,
+                sourceUrl: listing,
+                websiteUrl: website,
+                provider: imageUrl ? 'google' : undefined,
+                displayName: officialName,
+                placeId
+              });
+            });
+            return;
+          } catch {
+            window.clearTimeout(detailsTimeout);
+          }
+        }
+
         finish({
           imageUrl,
-          sourceUrl: mapsListingUrl(
-            options.name,
-            hit.formatted_address || options.address,
-            undefined,
-            undefined,
-            placeId
-          ),
-          provider: imageUrl ? 'google' : undefined
+          sourceUrl: listing,
+          provider: imageUrl ? 'google' : undefined,
+          displayName,
+          placeId
         });
       });
     } catch {

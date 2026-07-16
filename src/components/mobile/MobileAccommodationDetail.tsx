@@ -2,7 +2,6 @@ import * as React from 'react';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import type { EntryDocument } from '../../models/EntryDocument';
 import type { EntryLink } from '../../models/EntryLink';
-import { CategoryIcon } from '../shared/CategoryIcon';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { formatDisplayLabel } from '../../utils/mobileDisplayFormat';
 import {
@@ -15,8 +14,9 @@ import { effectiveBookingStatus, findConfirmationDocument } from '../../utils/bo
 import { isRichTextEditorEmpty } from '../../utils/journalRichText';
 import { RichTextContent } from '../shared/RichTextContent';
 import {
-  resolveStayHeroImageUrl,
+  resolveStayHero,
   stayHeroPlaceholderUrl,
+  stayHeroSearchPlace,
   stayHeroSearchTitle
 } from '../../utils/stayTileHeroImage';
 import { useShellMode } from '../../hooks/useShellMode';
@@ -178,9 +178,11 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
   const streetLabel = (entry.streetAddress ?? '').trim();
   const hasNotes = !isRichTextEditorEmpty(entry.notes);
   const heroTitle = stayHeroSearchTitle(entry, 'accommodation');
+  const heroPlace = stayHeroSearchPlace(entry, 'accommodation');
   const [heroSrc, setHeroSrc] = React.useState(() =>
-    stayHeroPlaceholderUrl(heroTitle, locationLabel, 'accommodation')
+    stayHeroPlaceholderUrl(heroTitle, heroPlace, 'accommodation')
   );
+  const [heroClickUrl, setHeroClickUrl] = React.useState('');
 
   const data = React.useMemo(
     () =>
@@ -198,13 +200,15 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
 
   React.useEffect(() => {
     let cancelled = false;
-    void resolveStayHeroImageUrl(heroTitle, locationLabel, 'accommodation').then((url) => {
-      if (!cancelled) setHeroSrc(url);
+    void resolveStayHero(heroTitle, heroPlace, 'accommodation', config.googleMapsApiKey).then((hit) => {
+      if (cancelled) return;
+      if (hit.imageUrl) setHeroSrc(hit.imageUrl);
+      if (hit.clickUrl) setHeroClickUrl(hit.clickUrl);
     });
     return () => {
       cancelled = true;
     };
-  }, [heroTitle, locationLabel]);
+  }, [heroTitle, heroPlace, config.googleMapsApiKey]);
 
   const scrollToStay = (): void => {
     stayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -428,10 +432,21 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
       <section className={styles.overviewCard}>
         <div className={styles.overviewMain}>
           <div className={styles.heroPhotoWrap}>
-            <img className={styles.heroPhoto} src={heroSrc} alt="" />
-            <span className={`${styles.heroPhotoBadge} th-cat-${slug}`} aria-hidden>
-              <CategoryIcon category={entry.category} size={18} color="white" />
-            </span>
+            {heroClickUrl ? (
+              <a
+                className={styles.heroPhotoLink}
+                href={heroClickUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Open ${entry.title} website`}
+                title="Open hotel website"
+                onClick={(e) => openMobileExternalUrl(heroClickUrl, e)}
+              >
+                <img className={styles.heroPhoto} src={heroSrc} alt="" />
+              </a>
+            ) : (
+              <img className={styles.heroPhoto} src={heroSrc} alt="" />
+            )}
           </div>
           <div className={styles.heroCopy}>
             <div className={styles.heroTitleRow}>

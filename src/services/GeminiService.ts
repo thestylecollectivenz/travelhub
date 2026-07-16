@@ -659,7 +659,7 @@ Respond with ONLY a compact JSON object (no markdown, no code fences):
 
 Rules:
 - Exactly 4 REAL venues that exist at this destination — never invent fictional venues
-- name: keep the OFFICIAL brand / trade name EXACTLY as locals and Google Maps list it — NEVER translate café/restaurant/shop names into English (e.g. keep "Café Central", "Le Pain Quotidien", Māori or other native names unchanged)
+- name: use the FULL official Google Maps / trade name EXACTLY (e.g. "Bar Ayla" not "Ayla"; "Hilton Rotterdam" not "Hilton") — NEVER shorten, nickname, or translate the business name
 - description: leave empty string — the app calculates walking/driving distance from coordinates
 - latitude and longitude: REQUIRED decimal degrees for the real venue near the search anchor (honest coordinates only)
 - mapsUrl: REQUIRED Google Maps place/search URL for this exact venue (name + address), so the Maps side panel can open for verification

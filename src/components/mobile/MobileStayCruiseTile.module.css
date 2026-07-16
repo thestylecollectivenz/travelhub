@@ -47,11 +47,7 @@
   grid-template-columns: 5.25rem 1fr;
   gap: 1rem;
   width: 100%;
-  border: none;
-  background: transparent;
-  text-align: left;
-  padding: 0;
-  cursor: pointer;
+  align-items: start;
 }
 
 .thumb {
@@ -63,6 +59,14 @@
   justify-content: center;
   overflow: hidden;
   flex-shrink: 0;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.thumbLink {
+  text-decoration: none;
+  color: inherit;
 }
 
 .thumbImg {
@@ -70,6 +74,17 @@
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.copyBtn {
+  min-width: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
 }
 
 .copy {
