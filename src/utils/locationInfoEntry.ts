@@ -3,6 +3,7 @@ import type { TripDay } from '../models/TripDay';
 import { placeDisplayLabel, placeNameFromTitle } from './placeDisplayLabel';
 import type { Place } from '../models/Place';
 import { parseAdditionalPlaceRefs } from './tripDayPlaces';
+import { migrateSavedStartingPoints } from './locationSharedStartPoints';
 
 export const LOCATION_INFO_CATEGORY = 'Location info';
 
@@ -126,7 +127,13 @@ export type LocationInfoNotes = {
   suppressedHighlightKeys?: string[];
   userEditedOverview?: boolean;
   userEditedPracticalTips?: boolean;
+  /** Q&A thread for this place. */
   aiQaThread?: LocationInfoQaEntry[];
+  /**
+   * Trip-shared starting points that have (or had) saved places attached.
+   * Stored in Location Info notes so all travellers see the same anchors.
+   */
+  savedStartingPoints?: Array<{ lat: number; lng: number; label: string }>;
 };
 
 export type LocationInfoAIResult = {
@@ -509,6 +516,10 @@ export function mergeLocationInfoNotes(primary: LocationInfoNotes, secondary: Lo
     diningSuggestions: mergeDiningRows(primary.diningSuggestions ?? [], secondary.diningSuggestions ?? []),
     nearestPlaces: mergeNearestMaps(primary.nearestPlaces, secondary.nearestPlaces),
     aiQaThread: mergeQaThreads(primary.aiQaThread ?? [], secondary.aiQaThread ?? []),
+    savedStartingPoints: migrateSavedStartingPoints([
+      ...(primary.savedStartingPoints ?? []),
+      ...(secondary.savedStartingPoints ?? [])
+    ]),
     suppressedHighlightKeys: Array.from(
       new Set([...(primary.suppressedHighlightKeys ?? []), ...(secondary.suppressedHighlightKeys ?? [])])
     ),
@@ -669,7 +680,8 @@ export function normalizeLocationInfoNotes(data: LocationInfoNotes): LocationInf
     foodDrink: checkItemsToText(foodDrinkItems),
     diningSuggestions: migrateDiningSuggestions(data.diningSuggestions as DiningSuggestionRow[] | LocationInfoCheckItem[] | undefined),
     nearestPlaces: migrateNearestPlaces(data.nearestPlaces as Partial<Record<string, NearestPlaceRow[]>> | undefined),
-    aiQaThread: data.aiQaThread ?? []
+    aiQaThread: data.aiQaThread ?? [],
+    savedStartingPoints: migrateSavedStartingPoints(data.savedStartingPoints)
   };
 }
 
