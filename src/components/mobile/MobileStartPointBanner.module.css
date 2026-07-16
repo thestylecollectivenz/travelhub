@@ -1,0 +1,172 @@
+.startBanner {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, #2f5eb8 8%, white);
+  border: 1px solid color-mix(in srgb, #2f5eb8 14%, transparent);
+  margin: 0.75rem 0 1rem;
+}
+
+.startBannerMain {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.startBannerIcon {
+  flex-shrink: 0;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  color: #2f5eb8;
+  border: 1px solid color-mix(in srgb, #2f5eb8 18%, transparent);
+}
+
+.startBannerBody {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.startBannerText {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  color: #1e2a44;
+}
+
+.startBannerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.75rem;
+  align-items: center;
+}
+
+.startBannerLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: none;
+  background: transparent;
+  color: #2f5eb8;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.startBannerMuted {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: #8a94a6;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.startBannerUndo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #2f5eb8;
+  padding: 0.1rem;
+  cursor: pointer;
+}
+
+.startBannerSide {
+  min-width: 0;
+}
+
+.startBannerSideLabel {
+  margin: 0 0 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8a7355;
+}
+
+.startBannerSideList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.startBannerSideItem {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.startBannerSideBtn {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  border: 1px solid color-mix(in srgb, #2f5eb8 28%, transparent);
+  background: white;
+  color: #2f5eb8;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 650;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.startBannerSideX {
+  flex-shrink: 0;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #1e2a44 14%, transparent);
+  background: white;
+  color: #6b6570;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.startBannerSideEmpty {
+  margin: 0;
+  font-size: 0.76rem;
+  color: #8a94a6;
+  line-height: 1.35;
+}
+
+@media (min-width: 700px) {
+  .startBanner {
+    grid-template-columns: 1.35fr 1fr;
+    align-items: start;
+  }
+
+  .startBannerSide {
+    border-left: 1px solid color-mix(in srgb, #2f5eb8 16%, transparent);
+    padding-left: 0.85rem;
+  }
+}
+
+[data-shell='ipad-portrait'] .startBannerText {
+  font-size: 0.95rem;
+}
+
+[data-shell='ipad-portrait'] .startBannerLink,
+[data-shell='ipad-portrait'] .startBannerSideBtn {
+  font-size: 0.86rem;
+}

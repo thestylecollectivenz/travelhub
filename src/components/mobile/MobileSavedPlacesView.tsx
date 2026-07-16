@@ -22,7 +22,7 @@ import {
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { parseDistanceKm } from '../../utils/locationDistanceLabel';
 import type { StoredStartPoint } from '../../utils/locationStartPointStorage';
-import { MobileStartPointActions } from './MobileStartPointActions';
+import { MobileStartPointBanner } from './MobileStartPointBanner';
 import { MobilePlaceDiscoverCard } from './MobilePlaceDiscoverCard';
 import { MobileSubpageHeader } from './MobileSubpageHeader';
 import { MobileExploreCategoryPills } from './MobileExploreCategoryPills';
@@ -47,7 +47,9 @@ export interface MobileSavedPlacesViewProps {
   accommodationLabel?: string;
   savedStarts?: StoredStartPoint[];
   onSelectSavedStart?: (point: StoredStartPoint) => void;
+  onRemoveSavedStart?: (point: StoredStartPoint) => void;
   activeStart?: StoredStartPoint | null;
+  accommodationStart?: StoredStartPoint | null;
   onSaveTip?: (tipText: string) => void;
   savedTips?: string[];
 }
@@ -186,15 +188,6 @@ function flattenSaved(data: LocationInfoNotes): SavedCard[] {
   return out;
 }
 
-function IconBed(): React.ReactElement {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M3 14h18M7 10V8a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
   place,
   locationLabel,
@@ -212,7 +205,9 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
   accommodationLabel,
   savedStarts,
   onSelectSavedStart,
+  onRemoveSavedStart,
   activeStart,
+  accommodationStart,
   onSaveTip
 }) => {
   const { updateEntry } = useTripWorkspace();
@@ -378,31 +373,21 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
         </div>
       ) : null}
 
-      <div className={styles.startBanner}>
-        <span className={styles.startIcon} aria-hidden>
-          <IconBed />
-        </span>
-        <div>
-          <p className={styles.startText}>
-            Showing places near <strong>{stayName}</strong>
-          </p>
-          <MobileStartPointActions
-            onChangeStartingPoint={onChangeStartingPoint}
-            onResetStartingPoint={onResetStartingPoint}
-            onUndoStartingPoint={onUndoStartingPoint}
-            canUndoStartingPoint={canUndoStartingPoint}
-            isCustomStartingPoint={isCustomStartingPoint}
-            accommodationLabel={accommodationLabel}
-            savedStarts={savedStarts}
-            onSelectSavedStart={onSelectSavedStart}
-            activeStart={activeStart}
-            changeClassName={styles.startLink}
-            mutedClassName={styles.startMuted}
-            actionsClassName={styles.startActions}
-            undoClassName={styles.startUndo}
-          />
-        </div>
-      </div>
+      <MobileStartPointBanner
+        nearLabel={stayName}
+        accommodationLabel={accommodationLabel}
+        accommodationStart={accommodationStart}
+        savedStarts={savedStarts}
+        activeStart={activeStart}
+        onChangeStartingPoint={onChangeStartingPoint}
+        onResetStartingPoint={onResetStartingPoint}
+        onUndoStartingPoint={onUndoStartingPoint}
+        canUndoStartingPoint={canUndoStartingPoint}
+        isCustomStartingPoint={isCustomStartingPoint}
+        onSelectSavedStart={onSelectSavedStart}
+        onRemoveSavedStart={onRemoveSavedStart}
+        showOtherStarts
+      />
 
       <div className={styles.layout}>
         <aside className={styles.filters} aria-label="Filters">
@@ -589,6 +574,7 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
         startingPointLabel={stayName}
         onSaveTip={onSaveTip}
         savedTips={data.savedTravelTips || []}
+        showSavedList={false}
       />
 
       {mapOpen && mapCentre ? (

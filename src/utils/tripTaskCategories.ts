@@ -1,6 +1,13 @@
 const KEY = 'travelhub-trip-task-categories-';
 
-export const DEFAULT_TASK_CATEGORIES = ['To Do', 'Booking', 'Payment', 'Pre-trip', 'Other'] as const;
+export const DEFAULT_TASK_CATEGORIES = [
+  'To Do',
+  'Booking',
+  'Payment',
+  'Pre-trip',
+  'Itinerary updates',
+  'Other'
+] as const;
 
 export function loadTripTaskCategories(tripId: string): string[] {
   try {

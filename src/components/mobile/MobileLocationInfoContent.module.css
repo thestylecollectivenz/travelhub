@@ -146,11 +146,11 @@
 
 .highlightInfo {
   flex-shrink: 0;
-  width: 1.35rem;
-  height: 1.35rem;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, #2f5eb8 28%, transparent);
-  background: color-mix(in srgb, #2f5eb8 8%, white);
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  border: none;
+  background: transparent;
   color: #2f5eb8;
   display: inline-flex;
   align-items: center;
@@ -158,6 +158,11 @@
   cursor: pointer;
   padding: 0;
   margin-top: 0.05rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1;
+  opacity: 0.85;
 }
 
 .highlightCheck {

@@ -13,6 +13,7 @@ import { useSpeechOutput } from '../../hooks/useSpeechOutput';
 import { useContinuousSpeechInput } from '../../hooks/useContinuousSpeechInput';
 import { SpeechPlaybackControls } from '../shared/SpeechPlaybackControls';
 import styles from './LocationInfoAskPanel.module.css';
+import { qaEntryTitle } from '../../utils/qaDisplayText';
 
 export interface LocationInfoAskPanelProps {
   entry: ItineraryEntry;
@@ -24,6 +25,8 @@ export interface LocationInfoAskPanelProps {
   hideIntro?: boolean;
   onOpenSettings?: () => void;
   onThreadChange?: (thread: LocationInfoQaEntry[]) => void;
+  onCreateTask?: (item: LocationInfoQaEntry) => void;
+  onAddToItinerary?: (item: LocationInfoQaEntry) => void;
 }
 
 export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
@@ -35,7 +38,9 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
   mobileLayout = false,
   hideIntro = false,
   onOpenSettings,
-  onThreadChange
+  onThreadChange,
+  onCreateTask,
+  onAddToItinerary
 }) => {
   const spContext = useSpContext();
   const [question, setQuestion] = React.useState('');
@@ -45,7 +50,7 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
   const [editQuestionDraft, setEditQuestionDraft] = React.useState('');
   const [editAnswerDraft, setEditAnswerDraft] = React.useState('');
   const [voiceError, setVoiceError] = React.useState<string | undefined>();
-  const [autoReadAnswers, setAutoReadAnswers] = React.useState(false);
+  const [autoReadAnswers, setAutoReadAnswers] = React.useState(() => Boolean(mobileLayout));
   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(() => new Set());
   const { speechState, speak, pause, resume, stop: stopSpeech } = useSpeechOutput();
   const appendVoiceInput = React.useCallback((chunk: string) => {
@@ -161,7 +166,7 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
                   aria-expanded={expanded}
                   onClick={() => toggleExpanded(item.id)}
                 >
-                  <span className={styles.qaToggleLabel}>Q: {item.question}</span>
+                  <span className={styles.qaToggleLabel}>Q: {qaEntryTitle(item)}</span>
                   <span className={styles.qaChevron} aria-hidden>
                     {expanded ? '▾' : '▸'}
                   </span>
@@ -272,7 +277,7 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
                               title="Edit"
                               onClick={() => {
                                 setEditingId(item.id);
-                                setEditQuestionDraft(item.question);
+                                setEditQuestionDraft(qaEntryTitle(item));
                                 setEditAnswerDraft(richTextToPlainText(item.answer));
                               }}
                             >
@@ -286,6 +291,45 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
                                 <path d="M12.5 7.5l3 3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
                               </svg>
                             </button>
+                            {onCreateTask ? (
+                              <button
+                                type="button"
+                                className={styles.iconBtn}
+                                aria-label="Create task"
+                                title="Create task"
+                                onClick={() => onCreateTask(item)}
+                              >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                                  <path
+                                    d="M9 11.5 11 13.5 15.5 9"
+                                    stroke="currentColor"
+                                    strokeWidth="1.7"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                  <rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="1.6" />
+                                </svg>
+                              </button>
+                            ) : null}
+                            {onAddToItinerary ? (
+                              <button
+                                type="button"
+                                className={styles.iconBtn}
+                                aria-label="Add to itinerary"
+                                title="Add to itinerary"
+                                onClick={() => onAddToItinerary(item)}
+                              >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                                  <rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="1.6" />
+                                  <path
+                                    d="M8 3v4M16 3v4M12 11v5M9.5 13.5H14.5"
+                                    stroke="currentColor"
+                                    strokeWidth="1.6"
+                                    strokeLinecap="round"
+                                  />
+                                </svg>
+                              </button>
+                            ) : null}
                             <button
                               type="button"
                               className={`${styles.iconBtn} ${styles.iconBtnDanger}`}

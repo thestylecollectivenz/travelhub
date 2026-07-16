@@ -1,7 +1,9 @@
 import * as React from 'react';
-import { resolveExplorePlacePhoto } from '../../utils/placePhotoResolve';
-import { placeDirectionsFromHereUrl, placeQueryMapsUrl } from '../../utils/googleMapsLink';
-import { distanceDisplayWithWalk } from '../../utils/locationDistanceLabel';
+import { useConfig } from '../../context/ConfigContext';
+import { resolveDestinationHeroPhoto } from '../../utils/placePhotoResolve';
+import { resolveVenueListingPhoto } from '../../utils/venueListingPhoto';
+import { placeDirectionsFromHereUrl, placeDirectionsFromCoordsUrl, placeQueryMapsUrl } from '../../utils/googleMapsLink';
+import { formatModeMinutes } from '../../utils/travelModeDurations';
 import styles from './MobilePlaceDiscoverCard.module.css';
 
 export type PlaceDiscoverCardModel = {
@@ -17,6 +19,13 @@ export type PlaceDiscoverCardModel = {
   tags?: string[];
   city?: string;
   nearLabel?: string;
+  latitude?: number;
+  longitude?: number;
+  walkMinutes?: number;
+  driveMinutes?: number;
+  transitMinutes?: number;
+  /** Prefer Wikipedia-style hero photos (sights/parks). Default venue listing. */
+  photoKind?: 'landmark' | 'venue';
 };
 
 export type PlaceDiscoverPrimaryKind = 'save' | 'delete' | 'label';
@@ -35,6 +44,11 @@ export interface MobilePlaceDiscoverCardProps {
     label: string;
     onClick: () => void;
   };
+  tertiaryAction?: {
+    label: string;
+    onClick: () => void;
+    kind?: 'task' | 'itinerary';
+  };
 }
 
 function IconPin(): React.ReactElement {
@@ -42,6 +56,54 @@ function IconPin(): React.ReactElement {
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M12 21s7-4.35 7-10a7 7 0 1 0-14 0c0 5.65 7 10 7 10Z" stroke="currentColor" strokeWidth="1.6" />
       <circle cx="12" cy="11" r="2" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconCar({ active }: { active?: boolean }): React.ReactElement {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M5 16h14v2.2a1 1 0 0 1-1 1h-1.2a1.5 1.5 0 0 1-2.9 0H10.1a1.5 1.5 0 0 1-2.9 0H6a1 1 0 0 1-1-1V16Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        fill={active ? 'currentColor' : 'none'}
+        opacity={active ? 0.15 : 1}
+      />
+      <path
+        d="M4 16l1.5-5.5A2 2 0 0 1 7.4 9h9.2a2 2 0 0 1 1.9 1.5L20 16"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <circle cx="7.5" cy="16.5" r="1.2" fill="currentColor" />
+      <circle cx="16.5" cy="16.5" r="1.2" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconTransit(): React.ReactElement {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="6" y="3" width="12" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M6 10h12M9 17l-1.5 3M15 17l1.5 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="9" cy="13" r="1" fill="currentColor" />
+      <circle cx="15" cy="13" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconWalk({ active }: { active?: boolean }): React.ReactElement {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="13" cy="5" r="2" fill="currentColor" />
+      <path
+        d="M13 8.5 10 12l2 3.5L9.5 20M13 8.5l3 2.5 1.5 4.5M10 12H7"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -59,6 +121,15 @@ function IconItinerary(): React.ReactElement {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
       <rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="1.6" />
       <path d="M8 3v4M16 3v4M12 11v5M9.5 13.5H14.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconTask(): React.ReactElement {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M9 11.5 11 13.5 15.5 9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="1.6" />
     </svg>
   );
 }
@@ -93,32 +164,81 @@ function IconDelete(): React.ReactElement {
   );
 }
 
+function parseModeMinutes(raw: string | undefined): { walk?: number; drive?: number } {
+  const text = (raw || '').trim();
+  const walk = text.match(/(\d+)\s*min(?:ute)?s?\s*walk/i);
+  const drive = text.match(/(\d+)\s*min(?:ute)?s?\s*drive/i);
+  return {
+    walk: walk ? Number(walk[1]) : undefined,
+    drive: drive ? Number(drive[1]) : undefined
+  };
+}
+
 export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = ({
   card,
   startingPointLabel,
   cityFallback,
   layout = 'list',
   primaryAction,
-  secondaryAction
+  secondaryAction,
+  tertiaryAction
 }) => {
+  const { config } = useConfig();
   const city = card.city || cityFallback;
   const [photo, setPhoto] = React.useState<{ imageUrl: string; sourceUrl: string } | null>(null);
+  const [mode, setMode] = React.useState<'drive' | 'transit' | 'walk'>('walk');
+
   React.useEffect(() => {
     let cancelled = false;
-    void resolveExplorePlacePhoto(card.name, city).then((hit) => {
+    const run = async (): Promise<void> => {
+      if (card.photoKind === 'landmark') {
+        const hit = await resolveDestinationHeroPhoto(card.name, city);
+        if (!cancelled) setPhoto(hit);
+        return;
+      }
+      const hit = await resolveVenueListingPhoto({
+        name: card.name,
+        address: card.address,
+        city,
+        latitude: card.latitude,
+        longitude: card.longitude,
+        googleMapsApiKey: config.googleMapsApiKey
+      });
       if (!cancelled) setPhoto(hit);
-    });
+    };
+    void run();
     return () => {
       cancelled = true;
     };
-  }, [card.name, city]);
+  }, [
+    card.name,
+    card.address,
+    card.photoKind,
+    card.latitude,
+    card.longitude,
+    city,
+    config.googleMapsApiKey
+  ]);
 
-  const dist = distanceDisplayWithWalk(card.distanceRaw, card.nearLabel || startingPointLabel);
-  const directions = placeDirectionsFromHereUrl(card.name, card.address, city) || undefined;
+  const parsed = parseModeMinutes(card.distanceRaw);
+  const walkMins = card.walkMinutes ?? parsed.walk;
+  const driveMins = card.driveMinutes ?? parsed.drive;
+  const transitMins = card.transitMinutes;
+
+  const distLabel = (card.nearLabel || startingPointLabel || '').trim();
+  const distShort = (card.distanceRaw || '').match(/^([\d.]+\s*(?:m|km|mi))\b/i)?.[1];
+
+  const directions =
+    (Number.isFinite(card.latitude) && Number.isFinite(card.longitude)
+      ? placeDirectionsFromCoordsUrl(Number(card.latitude), Number(card.longitude))
+      : undefined) ||
+    placeDirectionsFromHereUrl(card.name, card.address, city) ||
+    undefined;
   const mapsHref =
     (card.mapsUrl || '').trim() ||
+    (card.address ? placeQueryMapsUrl(card.address) : undefined) ||
     placeQueryMapsUrl(card.name, card.address) ||
-    placeQueryMapsUrl(card.name, city) ||
+    photo?.sourceUrl ||
     undefined;
   const photoHref = photo?.sourceUrl || mapsHref;
   const kind = primaryAction?.kind || 'label';
@@ -133,7 +253,7 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
           rel="noopener noreferrer"
           style={photo?.imageUrl ? { backgroundImage: `url(${photo.imageUrl})` } : undefined}
           aria-label={`Open source for ${card.name}`}
-          title="View photo / place source"
+          title="Open Google Maps / photo source"
         />
       ) : (
         <div
@@ -158,9 +278,37 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
         <span className={styles.tag}>{card.categoryLabel}</span>
         {card.description ? <p className={styles.desc}>{card.description}</p> : null}
         {card.address ? <p className={styles.addr}>{card.address}</p> : null}
-        {dist ? (
+        {distShort || walkMins || driveMins ? (
+          <div className={styles.travelModes} role="group" aria-label="Travel times">
+            <button
+              type="button"
+              className={`${styles.modeBtn} ${mode === 'drive' ? styles.modeBtnOn : ''}`}
+              onClick={() => setMode('drive')}
+            >
+              <IconCar active={mode === 'drive'} />
+              <span>{formatModeMinutes(driveMins)}</span>
+            </button>
+            <button
+              type="button"
+              className={`${styles.modeBtn} ${mode === 'transit' ? styles.modeBtnOn : ''}`}
+              onClick={() => setMode('transit')}
+            >
+              <IconTransit />
+              <span>{formatModeMinutes(transitMins)}</span>
+            </button>
+            <button
+              type="button"
+              className={`${styles.modeBtn} ${mode === 'walk' ? styles.modeBtnOn : ''}`}
+              onClick={() => setMode('walk')}
+            >
+              <IconWalk active={mode === 'walk'} />
+              <span>{formatModeMinutes(walkMins)}</span>
+            </button>
+          </div>
+        ) : null}
+        {distShort && distLabel ? (
           <p className={styles.dist}>
-            <IconPin /> {dist}
+            <IconPin /> {distShort} from {distLabel}
           </p>
         ) : null}
         {card.tags?.length ? (
@@ -192,6 +340,17 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
               title={secondaryAction.label}
             >
               <IconItinerary /> {secondaryAction.label}
+            </button>
+          ) : null}
+          {tertiaryAction ? (
+            <button
+              type="button"
+              className={`${styles.action} ${styles.actionIcon}`}
+              onClick={tertiaryAction.onClick}
+              aria-label={tertiaryAction.label}
+              title={tertiaryAction.label}
+            >
+              {tertiaryAction.kind === 'task' ? <IconTask /> : <IconItinerary />}
             </button>
           ) : null}
           {primaryAction ? (

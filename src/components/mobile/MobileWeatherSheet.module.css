@@ -110,8 +110,28 @@
 
 .localTime {
   margin: 0.15rem 0 0;
-  font-size: 0.68rem;
+  font-size: 0.92rem;
+  font-weight: 750;
+  color: #1e2a44;
+}
+
+.localTimeBlock {
+  margin-top: 0.35rem;
+}
+
+.localZone {
+  margin: 0.15rem 0 0;
+  font-size: 0.72rem;
+  font-style: italic;
   color: #8a857d;
+  line-height: 1.35;
+}
+
+.currencyHeading {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 750;
+  color: #1e2a44;
 }
 
 .mapBtn {

@@ -1,4 +1,4 @@
-const CACHE_KEY = 'travelhub-stay-hero-images-v5';
+const CACHE_KEY = 'travelhub-stay-hero-images-v6';
 
 type CacheRow = Record<string, string>;
 
@@ -33,8 +33,14 @@ function isLikelyRiverCruise(line: string, shipOrTitle: string): boolean {
   );
 }
 
-function pollinationsFallback(_title: string, _location: string, _mode: StayHeroMode): string {
-  return '';
+function pollinationsFallback(title: string, location: string, mode: StayHeroMode): string {
+  const subject =
+    mode === 'cruise'
+      ? `photograph of cruise ship ${title}${location ? ` operated by ${location}` : ''}, exterior, realistic`
+      : `photograph of ${title} hotel exterior${location ? ` in ${location}` : ''}, building facade, realistic`;
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(subject)}?width=800&height=500&nologo=true&seed=${encodeURIComponent(
+    `${mode}-${title}-${location}`.slice(0, 48)
+  )}`;
 }
 
 function looksLikePersonPage(pageTitle: string): boolean {
@@ -55,11 +61,10 @@ function looksLikePropertyHit(title: string, pageTitle: string, mode: StayHeroMo
   if (!prop || !hit) return false;
   if (looksLikePersonPage(pageTitle)) return false;
   if (mode === 'cruise') {
-    // Prefer pages that clearly refer to a ship / vessel of this name.
     const core = prop.replace(/^(ms|mv|ss|m\/s|m\.s\.)\s+/i, '').trim();
-    if (!hit.includes(core) && !core.includes(hit.replace(/\s*\(.*\)\s*/g, '').trim())) return false;
-    if (/\b(ship|cruise|vessel|liner|riverboat|ferry)\b/.test(hit)) return true;
-    if (hit === prop || hit === core || hit.includes(prop) || prop.includes(hit.replace(/\s*\(.*\)\s*/g, '').trim())) {
+    const hitCore = hit.replace(/\s*\(.*\)\s*/g, '').trim();
+    if (hit.includes(core) || core.includes(hitCore) || hit === prop || hit === core) return true;
+    if (/\b(ship|cruise|vessel|liner|riverboat|ferry)\b/.test(hit) && core.length >= 3 && hit.includes(core.split(/\s+/)[0])) {
       return true;
     }
     return false;
@@ -67,7 +72,10 @@ function looksLikePropertyHit(title: string, pageTitle: string, mode: StayHeroMo
   if (hit === prop) return true;
   if (hit.includes(prop) || prop.includes(hit.replace(/\s*\(.*\)\s*/g, '').trim())) return true;
   const propCore = prop.replace(/\b(hotel|resort|inn|lodge|motel|apartments?|suite|suites)\b/gi, '').trim();
-  if (propCore.length >= 5 && hit.includes(propCore)) return true;
+  if (propCore.length >= 4 && hit.includes(propCore)) return true;
+  // Looser: first significant word match for named properties.
+  const first = propCore.split(/\s+/).find((w) => w.length >= 5);
+  if (first && hit.includes(first)) return true;
   return false;
 }
 
@@ -189,13 +197,11 @@ export async function resolveStayHeroImageUrl(
     }
   }
 
-  const url = '';
-  // Never invent AI images — leave blank so CSS shows a neutral tile until a real photo is resolved.
-  if (url) {
-    cache[key] = url;
-    saveCache(cache);
-  }
-  return url || '';
+  // Last resort so itinerary tiles are never an empty white strip.
+  const url = pollinationsFallback(name, place, mode);
+  cache[key] = url;
+  saveCache(cache);
+  return url;
 }
 
 /** Sync placeholder while async hero loads. */

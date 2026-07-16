@@ -168,20 +168,18 @@ export const MobileBookPage: React.FC<MobileBookPageProps> = ({
                 {more.map((p) => (
                   <BookingPartnerCard key={p.id} partner={p} variant="compact" />
                 ))}
-                {onViewAllPartners ? (
-                  <button
-                    type="button"
-                    className={styles.moreCard}
-                    onClick={() => onViewAllPartners(query)}
-                    aria-label="View all partners"
-                  >
-                    <span className={styles.moreDots} aria-hidden>
-                      ···
-                    </span>
-                    <span className={styles.moreName}>More</span>
-                  </button>
-                ) : null}
               </div>
+              {onViewAllPartners ? (
+                <button
+                  type="button"
+                  className={styles.viewAllLink}
+                  style={{ marginTop: '0.55rem' }}
+                  onClick={() => onViewAllPartners(query)}
+                  aria-label="View all partners"
+                >
+                  … More
+                </button>
+              ) : null}
             </section>
           ) : null}
         </>

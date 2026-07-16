@@ -20,6 +20,8 @@ export interface UserConfig {
   sidebarWidthCustomized?: boolean;
   weatherApiKey: string;
   geminiApiKey: string;
+  /** Google Maps Platform key (Places photos + accurate place lookup). Optional. */
+  googleMapsApiKey: string;
   /** ElevenLabs API key for AI read-out voices (free plan supported). */
   elevenLabsApiKey: string;
   /** Selected ElevenLabs voice_id; empty = default premade voice. */
@@ -42,6 +44,7 @@ export const DEFAULT_USER_CONFIG: UserConfig = {
   sidebarWidth: 260,
   weatherApiKey: '',
   geminiApiKey: '',
+  googleMapsApiKey: '',
   elevenLabsApiKey: '',
   elevenLabsVoiceId: '',
   speechEngine: 'browser',
@@ -63,6 +66,7 @@ const CANONICAL_FIELDS = [
   'SidebarWidthCustomized',
   'WeatherApiKey',
   'GeminiApiKey',
+  'GoogleMapsApiKey',
   'ElevenLabsApiKey',
   'ElevenLabsVoiceId',
   'SpeechEngine',
@@ -251,6 +255,7 @@ export class ConfigService {
       sidebarWidthCustomized: asBoolean(fmap.read(item, 'SidebarWidthCustomized'), false),
       weatherApiKey: asString(fmap.read(item, 'WeatherApiKey')),
       geminiApiKey: asString(fmap.read(item, 'GeminiApiKey')),
+      googleMapsApiKey: asString(fmap.read(item, 'GoogleMapsApiKey')),
       elevenLabsApiKey: asString(fmap.read(item, 'ElevenLabsApiKey')),
       elevenLabsVoiceId: asString(fmap.read(item, 'ElevenLabsVoiceId')),
       speechEngine: speechEngine === 'elevenlabs' ? 'elevenlabs' : 'browser',
@@ -276,6 +281,7 @@ export class ConfigService {
       SidebarWidthCustomized: config.sidebarWidthCustomized === true,
       WeatherApiKey: config.weatherApiKey ?? '',
       GeminiApiKey: config.geminiApiKey ?? '',
+      GoogleMapsApiKey: config.googleMapsApiKey ?? '',
       ElevenLabsApiKey: config.elevenLabsApiKey ?? '',
       ElevenLabsVoiceId: config.elevenLabsVoiceId ?? '',
       SpeechEngine: config.speechEngine === 'elevenlabs' ? 'elevenlabs' : 'browser',

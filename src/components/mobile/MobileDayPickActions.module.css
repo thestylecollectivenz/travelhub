@@ -1,0 +1,44 @@
+.root {
+  margin-top: 0.55rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.85rem;
+  background: #f4f6f9;
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  display: grid;
+  gap: 0.45rem;
+}
+
+.title {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 750;
+  color: #1e2a44;
+}
+
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.dayBtn {
+  border: 1px solid color-mix(in srgb, #2f5eb8 28%, transparent);
+  background: white;
+  color: #2f5eb8;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 650;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+}
+
+.cancel {
+  border: none;
+  background: transparent;
+  color: #6b6570;
+  font-size: 0.74rem;
+  font-weight: 650;
+  padding: 0;
+  cursor: pointer;
+  justify-self: start;
+}

@@ -831,7 +831,10 @@ export async function generateDiningSuggestions(
       mapsUrl: e.mapsUrl || row.mapsUrl,
       websiteUrl: e.websiteUrl || row.websiteUrl,
       latitude: e.latitude,
-      longitude: e.longitude
+      longitude: e.longitude,
+      walkMinutes: e.walkMinutes,
+      driveMinutes: e.driveMinutes,
+      transitMinutes: e.transitMinutes
     };
   });
   return { items, model };
@@ -904,7 +907,10 @@ export async function generateNearestPlaces(
       mapsUrl: e.mapsUrl || row.mapsUrl,
       websiteUrl: e.websiteUrl || row.websiteUrl,
       latitude: e.latitude,
-      longitude: e.longitude
+      longitude: e.longitude,
+      walkMinutes: e.walkMinutes,
+      driveMinutes: e.driveMinutes,
+      transitMinutes: e.transitMinutes
     };
   });
   return { places, model };

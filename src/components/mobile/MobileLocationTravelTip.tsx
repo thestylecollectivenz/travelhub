@@ -9,8 +9,14 @@ export interface MobileLocationTravelTipProps {
   startingPointLabel?: string;
   /** Persist current tip into the Location Info saved-tips section. */
   onSaveTip?: (tipText: string) => void;
-  /** Tips already saved — shown below; also used to ask for different fresh tips. */
+  /** Remove a saved tip (X). */
+  onDeleteTip?: (tipText: string) => void;
+  /** Tips already saved — shown below when showSavedList is true. */
   savedTips?: string[];
+  /** Only Location Info should list saved tips (Explore/Saved show the live tip only). */
+  showSavedList?: boolean;
+  onCreateTaskFromTip?: (tipText: string) => void;
+  onAddTipToItinerary?: (tipText: string) => void;
 }
 
 function firstSentence(text: string): string {
@@ -55,10 +61,25 @@ function IconSave(): React.ReactElement {
   );
 }
 
-async function generateTip(
-  apiKey: string,
-  prompt: string
-): Promise<string> {
+function IconTask(): React.ReactElement {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M9 11.5 11 13.5 15.5 9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+function IconItinerary(): React.ReactElement {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M8 3v4M16 3v4M12 11v5M9.5 13.5H14.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+async function generateTip(apiKey: string, prompt: string): Promise<string> {
   let lastErr: Error | undefined;
   for (const model of GEMINI_MODEL_FALLBACK_CHAIN) {
     try {
@@ -91,14 +112,18 @@ async function generateTip(
 
 /**
  * Live AI travel tip strip — refreshes on demand and automatically every minute.
- * Save stores tips under Location Info (not Notes).
+ * Save stores tips under Location Info (not Notes). Saved list only on Location Info.
  */
 export const MobileLocationTravelTip: React.FC<MobileLocationTravelTipProps> = ({
   placeLabel,
   categoryLabel,
   startingPointLabel,
   onSaveTip,
-  savedTips = []
+  onDeleteTip,
+  savedTips = [],
+  showSavedList = false,
+  onCreateTaskFromTip,
+  onAddTipToItinerary
 }) => {
   const { config } = useConfig();
   const [generated, setGenerated] = React.useState('');
@@ -218,13 +243,48 @@ export const MobileLocationTravelTip: React.FC<MobileLocationTravelTipProps> = (
           {savedFlash ? <p className={styles.feedback}>Saved to travel tips</p> : null}
         </div>
       </div>
-      {savedTips.length ? (
+      {showSavedList && savedTips.length ? (
         <div className={styles.savedBlock}>
           <h4 className={styles.savedTitle}>Saved travel tips</h4>
           <ul className={styles.savedList}>
             {savedTips.map((t) => (
               <li key={t} className={styles.savedItem}>
-                {t}
+                <span className={styles.savedText}>{t}</span>
+                <span className={styles.savedActions}>
+                  {onCreateTaskFromTip ? (
+                    <button
+                      type="button"
+                      className={styles.savedIconBtn}
+                      aria-label="Create task from tip"
+                      title="Create task"
+                      onClick={() => onCreateTaskFromTip(t)}
+                    >
+                      <IconTask />
+                    </button>
+                  ) : null}
+                  {onAddTipToItinerary ? (
+                    <button
+                      type="button"
+                      className={styles.savedIconBtn}
+                      aria-label="Add tip to itinerary"
+                      title="Add to itinerary"
+                      onClick={() => onAddTipToItinerary(t)}
+                    >
+                      <IconItinerary />
+                    </button>
+                  ) : null}
+                  {onDeleteTip ? (
+                    <button
+                      type="button"
+                      className={styles.savedX}
+                      aria-label="Delete tip"
+                      title="Delete tip"
+                      onClick={() => onDeleteTip(t)}
+                    >
+                      ×
+                    </button>
+                  ) : null}
+                </span>
               </li>
             ))}
           </ul>

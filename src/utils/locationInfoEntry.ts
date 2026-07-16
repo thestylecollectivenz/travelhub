@@ -69,6 +69,9 @@ export type NearestPlaceRow = {
   nearLabel?: string;
   latitude?: number;
   longitude?: number;
+  walkMinutes?: number;
+  driveMinutes?: number;
+  transitMinutes?: number;
 };
 
 export type DiningSuggestionRow = {
@@ -89,6 +92,9 @@ export type DiningSuggestionRow = {
   nearLabel?: string;
   latitude?: number;
   longitude?: number;
+  walkMinutes?: number;
+  driveMinutes?: number;
+  transitMinutes?: number;
 };
 
 export type LocationInfoNotes = {

@@ -28,6 +28,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
   const [draft, setDraft] = React.useState<UserConfig>(config);
   const [weatherKeyDraft, setWeatherKeyDraft] = React.useState('');
   const [geminiKeyDraft, setGeminiKeyDraft] = React.useState('');
+  const [mapsKeyDraft, setMapsKeyDraft] = React.useState('');
   const [elevenLabsKeyDraft, setElevenLabsKeyDraft] = React.useState('');
   const [voices, setVoices] = React.useState<ElevenLabsVoice[]>([]);
   const [voicesLoading, setVoicesLoading] = React.useState(false);
@@ -41,6 +42,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
 
   const hasWeatherKey = Boolean((config.weatherApiKey || '').trim());
   const hasGeminiKey = Boolean((config.geminiApiKey || '').trim());
+  const hasMapsKey = Boolean((config.googleMapsApiKey || '').trim());
   const hasElevenLabsKey = Boolean((config.elevenLabsApiKey || '').trim());
   const effectiveElevenLabsKey = (elevenLabsKeyDraft.trim() || config.elevenLabsApiKey || '').trim();
   const speechEngine = draft.speechEngine === 'elevenlabs' ? 'elevenlabs' : 'browser';
@@ -54,6 +56,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
       });
       setWeatherKeyDraft('');
       setGeminiKeyDraft('');
+      setMapsKeyDraft('');
       setElevenLabsKeyDraft('');
       setSaveError('');
       setVoicesError('');
@@ -261,6 +264,16 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
             hint={`Uses ${DEFAULT_GEMINI_MODEL} first (check RPM/RPD in AI Studio), then 2.5 Flash Lite / 2.5 Flash if quota blocked. Avoid models showing 0 limits. Saved keys are masked here.`}
           />
 
+          <SecretApiKeyField
+            label="Google Maps API key"
+            panelOpen={isOpen}
+            hasSavedKey={hasMapsKey}
+            value={mapsKeyDraft}
+            onChange={setMapsKeyDraft}
+            placeholder="Paste a Maps JavaScript / Places API key"
+            hint="Optional. Used for venue listing photos (restaurants, cafés, shops) via Places. Enable Places API + billing in Google Cloud. Saved keys are masked here."
+          />
+
           <label style={{ display: 'grid', gap: 'var(--space-1)' }}>
             <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-800)' }}>Read-out voice engine</span>
             <select
@@ -450,6 +463,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
             onClick={() => {
               const weatherTrim = weatherKeyDraft.trim();
               const geminiTrim = geminiKeyDraft.trim();
+              const mapsTrim = mapsKeyDraft.trim();
               const elevenTrim = elevenLabsKeyDraft.trim();
               setSaving(true);
               setSaveError('');
@@ -459,6 +473,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
                 browserVoiceURI: draft.browserVoiceURI || pickDefaultBrowserVoiceURI(browserVoices),
                 weatherApiKey: weatherTrim || config.weatherApiKey,
                 geminiApiKey: geminiTrim || config.geminiApiKey,
+                googleMapsApiKey: mapsTrim || config.googleMapsApiKey,
                 elevenLabsApiKey: elevenTrim || config.elevenLabsApiKey,
                 elevenLabsVoiceId: draft.elevenLabsVoiceId || config.elevenLabsVoiceId || DEFAULT_ELEVENLABS_VOICE_ID
               })

@@ -26,23 +26,40 @@ function formatMoney(amount: number, currency: string): string {
   return `${code} ${amount.toFixed(2)}`;
 }
 
-function formatPlaceLocalDateTime(date: Date, timeZone: string): string {
+function formatPlaceLocalDateTime(date: Date, timeZone: string): { dateTime: string; zone: string } {
   try {
-    const datePart = new Intl.DateTimeFormat('en-NZ', {
+    const datePart = new Intl.DateTimeFormat('en-GB', {
       timeZone,
-      weekday: 'short',
       day: 'numeric',
-      month: 'short'
+      month: 'short',
+      year: 'numeric'
     }).format(date);
     const timePart = new Intl.DateTimeFormat('en-NZ', {
       timeZone,
-      hour: '2-digit',
+      hour: 'numeric',
       minute: '2-digit',
       hour12: true
     }).format(date);
-    return `${datePart.replace(/,/g, '')} ${timePart.replace(/\s/g, '').toLowerCase()}`;
+    const dateTime = `${datePart}, ${timePart}`;
+    let zone = '';
+    try {
+      const parts = new Intl.DateTimeFormat('en-NZ', {
+        timeZone,
+        timeZoneName: 'long'
+      }).formatToParts(date);
+      const tzName = parts.find((p) => p.type === 'timeZoneName')?.value || '';
+      const shortParts = new Intl.DateTimeFormat('en-NZ', {
+        timeZone,
+        timeZoneName: 'shortOffset'
+      }).formatToParts(date);
+      const offset = shortParts.find((p) => p.type === 'timeZoneName')?.value || '';
+      zone = tzName && offset ? `${tzName} (${timeZone}, ${offset})` : tzName || timeZone;
+    } catch {
+      zone = timeZone;
+    }
+    return { dateTime, zone };
   } catch {
-    return '';
+    return { dateTime: '', zone: '' };
   }
 }
 
@@ -109,6 +126,7 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
   } | null>(null);
   const [forecastDays, setForecastDays] = React.useState<ForecastDay[]>([]);
   const [currentLocalTime, setCurrentLocalTime] = React.useState('');
+  const [currentLocalZone, setCurrentLocalZone] = React.useState('');
 
   const typicalDate = React.useMemo(() => {
     const anchor = selectedDate;
@@ -247,13 +265,17 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
     const tz = (place.timeZone?.trim() || weather?.timezoneName?.trim() || '').trim();
     if (!tz) {
       setCurrentLocalTime('');
+      setCurrentLocalZone('');
       return undefined;
     }
     const tick = (): void => {
       try {
-        setCurrentLocalTime(formatPlaceLocalDateTime(new Date(), tz));
+        const formatted = formatPlaceLocalDateTime(new Date(), tz);
+        setCurrentLocalTime(formatted.dateTime);
+        setCurrentLocalZone(formatted.zone);
       } catch {
         setCurrentLocalTime('');
+        setCurrentLocalZone('');
       }
     };
     tick();
@@ -314,7 +336,12 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
             </svg>
             {place.country || place.title}
           </p>
-          {currentLocalTime ? <p className={styles.localTime}>{currentLocalTime}</p> : null}
+          {currentLocalTime ? (
+            <div className={styles.localTimeBlock}>
+              <p className={styles.localTime}>{currentLocalTime}</p>
+              {currentLocalZone ? <p className={styles.localZone}>{currentLocalZone}</p> : null}
+            </div>
+          ) : null}
         </div>
         {mapsUrl ? (
           <a className={styles.mapBtn} href={mapsUrl} target="_blank" rel="noopener noreferrer">
@@ -416,6 +443,7 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
       </div>
 
       <article className={styles.currencyCard}>
+        <h3 className={styles.currencyHeading}>Currency and tipping</h3>
         <div className={styles.currencyAdvice}>
           <div className={styles.currencyBlock}>
             <span className={`${styles.sectionIcon} ${styles.iconOlive}`} aria-hidden>
@@ -427,9 +455,16 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
             <div className={styles.sectionBody}>
               <p className={styles.sectionLabel}>Currency</p>
               {countryData ? (
-                <p className={styles.sectionText}>
-                  {countryData.currency} ({countryData.currencyCode})
-                </p>
+                <>
+                  <p className={styles.sectionText}>
+                    {countryData.currency} ({countryData.currencyCode})
+                  </p>
+                  {showHomeFx ? (
+                    <p className={styles.sectionSub}>
+                      1 {localCurrency} = {fxRate.toFixed(2)} {homeCurrency} · Live exchange rate
+                    </p>
+                  ) : null}
+                </>
               ) : (
                 <p className={styles.sectionSub}>Currency guidance unavailable.</p>
               )}

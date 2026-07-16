@@ -180,13 +180,33 @@ export const DEFAULT_BOOKING_AFFILIATE_PARTNERS: BookingAffiliatePartnerDef[] = 
     hrefTemplate: 'https://www.thetrainline.com/search/{destination}'
   },
   {
+    id: 'tiqets',
+    label: 'Tiqets',
+    description: 'Attraction tickets & experiences',
+    category: 'tours',
+    logoDomain: 'tiqets.com',
+    recommended: false,
+    sortOrder: 145,
+    hrefTemplate: 'https://www.tiqets.com/en/search/?q={destination}'
+  },
+  {
+    id: 'trivago',
+    label: 'Trivago',
+    description: 'Compare hotel prices across sites',
+    category: 'stays',
+    logoDomain: 'trivago.com',
+    recommended: false,
+    sortOrder: 155,
+    hrefTemplate: 'https://www.trivago.com/?search={destination}'
+  },
+  {
     id: 'airalo',
     label: 'Airalo',
     description: 'Travel eSIM data plans',
     category: 'esim',
     logoDomain: 'airalo.com',
-    recommended: false,
-    sortOrder: 150,
+    recommended: true,
+    sortOrder: 70,
     hrefTemplate: 'https://www.airalo.com/',
     affiliateQueryParam: 'ref'
   },
@@ -196,8 +216,8 @@ export const DEFAULT_BOOKING_AFFILIATE_PARTNERS: BookingAffiliatePartnerDef[] = 
     description: 'Self-guided audio walking tours',
     category: 'audio',
     logoDomain: 'voicemap.me',
-    recommended: false,
-    sortOrder: 160,
+    recommended: true,
+    sortOrder: 80,
     hrefTemplate: 'https://voicemap.me/search?q={destination}'
   },
   {

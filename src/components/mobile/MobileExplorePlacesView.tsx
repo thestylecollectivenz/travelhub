@@ -24,7 +24,7 @@ import {
 import { parseDistanceKm } from '../../utils/locationDistanceLabel';
 import type { NearYouToolId } from '../../utils/nearYouTools';
 import type { StoredStartPoint } from '../../utils/locationStartPointStorage';
-import { MobileStartPointActions } from './MobileStartPointActions';
+import { MobileStartPointBanner } from './MobileStartPointBanner';
 import { MobilePlaceDiscoverCard } from './MobilePlaceDiscoverCard';
 import { MobileSubpageHeader } from './MobileSubpageHeader';
 import { MobileExploreCategoryPills } from './MobileExploreCategoryPills';
@@ -54,7 +54,9 @@ export interface MobileExplorePlacesViewProps {
   accommodationLabel?: string;
   savedStarts?: StoredStartPoint[];
   onSelectSavedStart?: (point: StoredStartPoint) => void;
+  onRemoveSavedStart?: (point: StoredStartPoint) => void;
   activeStart?: StoredStartPoint | null;
+  accommodationStart?: StoredStartPoint | null;
   onSaveTip?: (tipText: string) => void;
   savedTips?: string[];
   onAddToItinerary?: (place: {
@@ -127,7 +129,12 @@ function toCardsFromDining(items: DiningSuggestionRow[], categoryLabel: string):
     categoryLabel,
     tags: [p.bestFor, p.priceLevel].filter(Boolean).slice(0, 3) as string[],
     walkHint: p.description,
-    distanceRaw: p.description
+    distanceRaw: p.description,
+    latitude: p.latitude,
+    longitude: p.longitude,
+    walkMinutes: p.walkMinutes,
+    driveMinutes: p.driveMinutes,
+    transitMinutes: p.transitMinutes
   }));
 }
 
@@ -149,26 +156,13 @@ function toCardsFromNearest(places: NearestPlaceRow[], categoryLabel: string): E
       .filter(Boolean)
       .slice(0, 3),
     walkHint: p.note,
-    distanceRaw: p.note
+    distanceRaw: p.note,
+    latitude: p.latitude,
+    longitude: p.longitude,
+    walkMinutes: p.walkMinutes,
+    driveMinutes: p.driveMinutes,
+    transitMinutes: p.transitMinutes
   }));
-}
-
-function IconGps(): React.ReactElement {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconBed(): React.ReactElement {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M3 14h18M7 10V8a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
 }
 
 function cacheToolKey(category: ExploreCategoryId): string {
@@ -194,7 +188,9 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   accommodationLabel,
   savedStarts,
   onSelectSavedStart,
+  onRemoveSavedStart,
   activeStart,
+  accommodationStart,
   onSaveTip,
   savedTips,
   onAddToItinerary,
@@ -463,33 +459,22 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
         }}
       />
 
-      <div className={styles.startBanner}>
-        <span className={styles.startIcon} aria-hidden>
-          {isGps ? <IconGps /> : <IconBed />}
-        </span>
-        <div className={styles.startBody}>
-          <p className={styles.startText}>
-            Showing places near <strong>{stayName}</strong>
-          </p>
-          {isGps ? null : (
-            <MobileStartPointActions
-              onChangeStartingPoint={onChangeStartingPoint}
-              onResetStartingPoint={onResetStartingPoint}
-              onUndoStartingPoint={onUndoStartingPoint}
-              canUndoStartingPoint={canUndoStartingPoint}
-              isCustomStartingPoint={isCustomStartingPoint}
-              accommodationLabel={accommodationLabel}
-              savedStarts={savedStarts}
-              onSelectSavedStart={onSelectSavedStart}
-              activeStart={activeStart}
-              changeClassName={styles.startLink}
-              mutedClassName={styles.startMuted}
-              actionsClassName={styles.startActions}
-              undoClassName={styles.startUndo}
-            />
-          )}
-        </div>
-      </div>
+      <MobileStartPointBanner
+        nearLabel={stayName}
+        isGps={isGps}
+        accommodationLabel={accommodationLabel}
+        accommodationStart={accommodationStart}
+        savedStarts={savedStarts}
+        activeStart={activeStart}
+        onChangeStartingPoint={onChangeStartingPoint}
+        onResetStartingPoint={onResetStartingPoint}
+        onUndoStartingPoint={onUndoStartingPoint}
+        canUndoStartingPoint={canUndoStartingPoint}
+        isCustomStartingPoint={isCustomStartingPoint}
+        onSelectSavedStart={onSelectSavedStart}
+        onRemoveSavedStart={onRemoveSavedStart}
+        showOtherStarts={!isGps}
+      />
 
       <div className={styles.layout}>
         <aside className={styles.filters} aria-label="Filters">
@@ -662,7 +647,13 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
                   address: r.address,
                   mapsUrl: r.mapsUrl,
                   tags: r.tags,
-                  city: shortPlace
+                  city: shortPlace,
+                  latitude: r.latitude,
+                  longitude: r.longitude,
+                  walkMinutes: r.walkMinutes,
+                  driveMinutes: r.driveMinutes,
+                  transitMinutes: r.transitMinutes,
+                  photoKind: isAttractionCategory(category) ? 'landmark' : 'venue'
                 }}
                 primaryAction={
                   onSavePlace
@@ -728,6 +719,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
         startingPointLabel={stayName}
         onSaveTip={onSaveTip}
         savedTips={savedTips}
+        showSavedList={false}
       />
 
       {mapOpen && mapCentre ? (

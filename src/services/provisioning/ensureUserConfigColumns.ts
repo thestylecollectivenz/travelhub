@@ -18,6 +18,7 @@ export async function ensureUserConfigColumns(ctx: WebPartContext): Promise<void
     { internalName: 'SidebarWidthCustomized', type: 'Boolean' },
     { internalName: 'WeatherApiKey', type: 'Text' },
     { internalName: 'GeminiApiKey', type: 'Text' },
+    { internalName: 'GoogleMapsApiKey', type: 'Text' },
     { internalName: 'ElevenLabsApiKey', type: 'Text' },
     { internalName: 'ElevenLabsVoiceId', type: 'Text' },
     { internalName: 'SpeechEngine', type: 'Text' },

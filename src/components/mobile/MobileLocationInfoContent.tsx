@@ -9,10 +9,10 @@ import {
   parseLocationInfoNotes,
   serializeLocationInfoNotes,
   splitHighlightRows,
-  type DiningSuggestionRow,
   type LocationHighlightKind,
   type LocationHighlightRow,
   type LocationInfoNotes,
+  type LocationInfoQaEntry,
   type NearestPlaceKind,
   type NearestPlaceRow
 } from '../../utils/locationInfoEntry';
@@ -31,7 +31,7 @@ import { LocationInfoAskPanel } from '../itinerary/LocationInfoAskPanel';
 import { NearYouToolIcon } from '../shared/NearYouToolIcon';
 import { LocationHighlightIcon } from './LocationHighlightIcon';
 import { MobilePencilButton } from './MobilePencilButton';
-import { MobileStartPointActions } from './MobileStartPointActions';
+import { MobileStartPointBanner } from './MobileStartPointBanner';
 import { MobilePlaceDiscoverCard } from './MobilePlaceDiscoverCard';
 import { MobileLocationTravelTip } from './MobileLocationTravelTip';
 import type { NearYouToolId } from '../../utils/nearYouTools';
@@ -58,15 +58,6 @@ const ESSENTIAL_CATS = new Set<ExploreCategoryId>([
 
 function highlightKey(row: LocationHighlightRow): string {
   return `${row.kind}::${row.id}`;
-}
-
-function IconPin(): React.ReactElement {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M12 21s7-4.35 7-10a7 7 0 1 0-14 0c0 5.65 7 10 7 10Z" stroke="currentColor" strokeWidth="1.6" />
-      <circle cx="12" cy="11" r="2" fill="currentColor" />
-    </svg>
-  );
 }
 
 function IconInfo(): React.ReactElement {
@@ -211,11 +202,20 @@ export interface MobileLocationInfoContentProps {
   canUndoStartingPoint?: boolean;
   isCustomStartingPoint?: boolean;
   accommodationLabel?: string;
+  accommodationStart?: StoredStartPoint | null;
   startingPointLabel?: string;
   calendarDate?: string;
   savedStarts?: StoredStartPoint[];
   onSelectSavedStart?: (point: StoredStartPoint) => void;
+  onRemoveSavedStart?: (point: StoredStartPoint) => void;
   activeStart?: StoredStartPoint | null;
+  onDeleteTip?: (tipText: string) => void;
+  onCreateTaskFromTip?: (tipText: string) => void;
+  onAddTipToItinerary?: (tipText: string) => void;
+  onCreateTaskFromQa?: (item: LocationInfoQaEntry) => void;
+  onAddQaToItinerary?: (item: LocationInfoQaEntry) => void;
+  onCreateTaskFromSavedPlace?: (place: { name: string; note?: string; mapsUrl?: string }) => void;
+  onAddSavedPlaceToItinerary?: (place: { name: string; note?: string; mapsUrl?: string }) => void;
 }
 
 export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps> = ({
@@ -236,10 +236,19 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
   canUndoStartingPoint,
   isCustomStartingPoint,
   accommodationLabel,
+  accommodationStart,
   startingPointLabel,
   savedStarts,
   onSelectSavedStart,
-  activeStart
+  onRemoveSavedStart,
+  activeStart,
+  onDeleteTip,
+  onCreateTaskFromTip,
+  onAddTipToItinerary,
+  onCreateTaskFromQa,
+  onAddQaToItinerary,
+  onCreateTaskFromSavedPlace,
+  onAddSavedPlaceToItinerary
 }) => {
   const { config } = useConfig();
   const spContext = useSpContext();
@@ -294,7 +303,7 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
       entry,
       place,
       apiKey: key,
-      question: `Explain "${row.label}" as a ${kindLabel.toLowerCase()} highlight for a visitor to ${shortPlace}. Why is it notable, and any practical tip? Keep brand names in their official language.`
+      question: `Explain "${row.label}" as a ${kindLabel.toLowerCase()} highlight for a visitor to ${shortPlace}. Why is it notable, and any practical tip?`
     });
     window.setTimeout(() => askRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
   };
@@ -515,64 +524,21 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
             ))}
           </div>
         </div>
-        <div className={styles.startBanner}>
-          <div className={styles.startBannerMain}>
-            <span className={styles.startBannerIcon} aria-hidden>
-              <IconPin />
-            </span>
-            <div className={styles.startBannerBody}>
-              <p className={styles.startBannerText}>
-                Showing places near <strong>{stayName}</strong>
-              </p>
-              <MobileStartPointActions
-                onChangeStartingPoint={onChangeStartingPoint}
-                onResetStartingPoint={onResetStartingPoint}
-                onUndoStartingPoint={onUndoStartingPoint}
-                canUndoStartingPoint={canUndoStartingPoint}
-                isCustomStartingPoint={isCustomStartingPoint}
-                accommodationLabel={accommodationLabel}
-                changeClassName={styles.startBannerLink}
-                mutedClassName={styles.startBannerMuted}
-                actionsClassName={styles.startBannerActions}
-                undoClassName={styles.startBannerUndo}
-                hideSavedStarts
-              />
-            </div>
-          </div>
-          <div className={styles.startBannerSide}>
-            <p className={styles.startBannerSideLabel}>Other starting points</p>
-            {(savedStarts || []).filter((p) => {
-              const activeKey = activeStart
-                ? `${activeStart.lat.toFixed(4)},${activeStart.lng.toFixed(4)}`
-                : '';
-              const key = `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`;
-              return key !== activeKey;
-            }).length && onSelectSavedStart ? (
-              <ul className={styles.startBannerSideList}>
-                {(savedStarts || [])
-                  .filter((p) => {
-                    const activeKey = activeStart
-                      ? `${activeStart.lat.toFixed(4)},${activeStart.lng.toFixed(4)}`
-                      : '';
-                    return `${p.lat.toFixed(4)},${p.lng.toFixed(4)}` !== activeKey;
-                  })
-                  .map((p) => (
-                    <li key={`${p.lat}-${p.lng}-${p.label}`}>
-                      <button
-                        type="button"
-                        className={styles.startBannerSideBtn}
-                        onClick={() => onSelectSavedStart(p)}
-                      >
-                        {p.label}
-                      </button>
-                    </li>
-                  ))}
-              </ul>
-            ) : (
-              <p className={styles.startBannerSideEmpty}>None yet — change starting point to add one.</p>
-            )}
-          </div>
-        </div>
+        <MobileStartPointBanner
+          nearLabel={stayName}
+          accommodationLabel={accommodationLabel}
+          accommodationStart={accommodationStart}
+          savedStarts={savedStarts}
+          activeStart={activeStart}
+          onChangeStartingPoint={onChangeStartingPoint}
+          onResetStartingPoint={onResetStartingPoint}
+          onUndoStartingPoint={onUndoStartingPoint}
+          canUndoStartingPoint={canUndoStartingPoint}
+          isCustomStartingPoint={isCustomStartingPoint}
+          onSelectSavedStart={onSelectSavedStart}
+          onRemoveSavedStart={onRemoveSavedStart}
+          showOtherStarts
+        />
       </section>
 
       <section className={styles.section}>
@@ -638,6 +604,33 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
                             city: card.city || shortPlace,
                             nearLabel: card.nearLabel
                           }}
+                          secondaryAction={
+                            onAddSavedPlaceToItinerary
+                              ? {
+                                  label: 'Add',
+                                  onClick: () =>
+                                    onAddSavedPlaceToItinerary({
+                                      name: card.name,
+                                      note: card.description || card.address,
+                                      mapsUrl: card.mapsUrl
+                                    })
+                                }
+                              : undefined
+                          }
+                          tertiaryAction={
+                            onCreateTaskFromSavedPlace
+                              ? {
+                                  label: 'Create task',
+                                  kind: 'task',
+                                  onClick: () =>
+                                    onCreateTaskFromSavedPlace({
+                                      name: card.name,
+                                      note: card.description || card.address,
+                                      mapsUrl: card.mapsUrl
+                                    })
+                                }
+                              : undefined
+                          }
                           primaryAction={
                             canEditSavedPlaces
                               ? {
@@ -687,6 +680,8 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
               mobileLayout
               hideIntro
               onThreadChange={(thread) => persist({ ...data, aiQaThread: thread })}
+              onCreateTask={onCreateTaskFromQa}
+              onAddToItinerary={onAddQaToItinerary}
             />
           </div>
         ) : null}
@@ -712,6 +707,7 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
         placeLabel={shortPlace}
         startingPointLabel={stayName}
         savedTips={data?.savedTravelTips || []}
+        showSavedList={true}
         onSaveTip={
           canEditHighlights && data
             ? (tipText) => {
@@ -726,6 +722,24 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
               }
             : undefined
         }
+        onDeleteTip={
+          onDeleteTip
+            ? onDeleteTip
+            : canEditHighlights && data
+              ? (tipText) => {
+                  const tip = tipText.trim();
+                  if (!tip) return;
+                  persist({
+                    ...data,
+                    savedTravelTips: (data.savedTravelTips || []).filter(
+                      (t) => t.trim().toLowerCase() !== tip.toLowerCase()
+                    )
+                  });
+                }
+              : undefined
+        }
+        onCreateTaskFromTip={onCreateTaskFromTip}
+        onAddTipToItinerary={onAddTipToItinerary}
       />
     </div>
   );

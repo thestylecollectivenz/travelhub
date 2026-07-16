@@ -10,6 +10,11 @@ export interface NearYouCachedResult {
   reviewsUrl?: string;
   aiBlurb?: string;
   topPick?: boolean;
+  latitude?: number;
+  longitude?: number;
+  walkMinutes?: number;
+  driveMinutes?: number;
+  transitMinutes?: number;
 }
 
 export interface NearYouResultCacheEntry {

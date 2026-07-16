@@ -44,18 +44,60 @@
 }
 
 .savedItem {
-  font-size: 0.82rem;
+  font-size: 1rem;
   color: #1e2a44;
-  line-height: 1.35;
-  padding-left: 0.85rem;
-  position: relative;
+  line-height: 1.45;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid color-mix(in srgb, #1e2a44 6%, transparent);
 }
 
-.savedItem::before {
-  content: '•';
-  position: absolute;
-  left: 0.15rem;
+.savedItem:last-child {
+  border-bottom: none;
+}
+
+.savedText {
+  flex: 1;
+  min-width: 0;
+}
+
+.savedActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-shrink: 0;
+}
+
+.savedIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
   color: #2f5eb8;
+  cursor: pointer;
+  padding: 0;
+}
+
+.savedX {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #6b6570;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
 }
 
 .icon {
@@ -130,8 +172,8 @@
 
 .text {
   margin: 0.3rem 0 0;
-  font-size: 0.92rem;
-  line-height: 1.45;
+  font-size: 1rem;
+  line-height: 1.5;
   color: #1e2a44;
 }
 
@@ -143,5 +185,9 @@
 }
 
 [data-shell='ipad-portrait'] .text {
-  font-size: 1rem;
+  font-size: 1.08rem;
+}
+
+[data-shell='ipad-portrait'] .savedItem {
+  font-size: 1.06rem;
 }

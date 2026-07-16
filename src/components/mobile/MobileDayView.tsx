@@ -33,6 +33,7 @@ import {
 import { itineraryEntryFromSubItem } from '../../utils/mobileSubItemEntry';
 import { useMobileDetailHistory } from '../../hooks/useMobileDetailHistory';
 import { useShellMode } from '../../hooks/useShellMode';
+import { todayYmd } from '../../utils/placeForecastDates';
 import { EXPAND_UNSCHEDULED_EVENT, notifyExpandUnscheduled } from '../../utils/mobileItineraryUiEvents';
 import { consumePendingItineraryAdd, consumePendingItineraryPickDay, peekPendingItineraryAdd, peekPendingItineraryPickDay } from '../../utils/mobileHomePendingAction';
 import { MobileItineraryDayPicker } from './MobileItineraryDayPicker';
@@ -314,7 +315,8 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     const key = (config.weatherApiKey || '').trim();
     const lat = Number(primaryPlace?.latitude);
     const lng = Number(primaryPlace?.longitude);
-    const ymd = (day?.calendarDate || '').slice(0, 10);
+    // Match Weather & Tips details: live forecast from real-world today (not trip-day date).
+    const ymd = todayYmd();
     if (!key || !primaryPlace || !Number.isFinite(lat) || !Number.isFinite(lng) || !ymd) {
       setWeatherSummary(null);
       setWeatherIconCode('');
@@ -327,14 +329,15 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     const end = new Date(`${ymd}T12:00:00`);
     end.setDate(end.getDate() + 3);
     const endYmd = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
-    const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${lat},${lng}/${ymd}/${endYmd}?key=${encodeURIComponent(key)}&unitGroup=${units}&include=days&contentType=json`;
+    const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${lat},${lng}/${ymd}/${endYmd}?key=${encodeURIComponent(key)}&unitGroup=${units}&include=current,days&contentType=json`;
     fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Weather ${r.status}`))))
       .then((data) => {
         if (cancelled) return;
         const daysRows = (data.days ?? []) as Array<Record<string, unknown>>;
+        const current = (data.currentConditions ?? {}) as Record<string, unknown>;
         const row = daysRows[0] ?? {};
-        const temp = Number(row.temp ?? row.tempmax);
+        const temp = Number(current.temp ?? row.temp ?? row.tempmax);
         const high = Number(row.tempmax);
         const low = Number(row.tempmin);
         const conditions = String(row.conditions ?? '').trim();
@@ -389,8 +392,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     config.temperatureUnit,
     primaryPlace?.id,
     primaryPlace?.latitude,
-    primaryPlace?.longitude,
-    day?.calendarDate
+    primaryPlace?.longitude
   ]);
 
   const travelTip = React.useMemo(() => {

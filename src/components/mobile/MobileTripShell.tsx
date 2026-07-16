@@ -403,7 +403,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
     const end = (trip?.dateEnd || '').slice(0, 10);
     const dates = start && end ? shortDateRange(start, end) : undefined;
 
-    if (cardDetailOpen) {
+    if (cardDetailOpen && tab === 'today') {
       // Detail views: location/card name in trip slot (no dates/thumb row).
       return {
         title: undefined as string | undefined,

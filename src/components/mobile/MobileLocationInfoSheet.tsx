@@ -7,10 +7,16 @@ import { confirmUserAction } from '../../utils/confirmAction';
 import { notifyExpandUnscheduled } from '../../utils/mobileItineraryUiEvents';
 import { useSpContext } from '../../context/SpContext';
 import { compactPlaceLabel } from '../../utils/placeDisplayLabel';
-import { parseLocationInfoNotes, serializeLocationInfoNotes, locationInfoPlaceId, normalizeLocationInfoNotes } from '../../utils/locationInfoEntry';
+import { parseLocationInfoNotes, serializeLocationInfoNotes, locationInfoPlaceId, normalizeLocationInfoNotes, type LocationInfoQaEntry } from '../../utils/locationInfoEntry';
 import { buildCanonicalLocationInfoByPlaceId } from '../../utils/locationInfoDayResolve';
 import { appendNearYouPlaceToLocationInfo } from '../../utils/nearYouLocationSave';
 import { createItineraryEntryFromNearYouPlace } from '../../utils/addPlaceToItinerary';
+import { datesWherePlaceAppears } from '../../utils/placeForecastDates';
+import { isPreTripDayRow } from '../../utils/itineraryDayEntries';
+import { richTextToPlainText } from '../../utils/journalRichText';
+import { qaEntryTitle } from '../../utils/qaDisplayText';
+import { rememberTripTaskCategory } from '../../utils/tripTaskCategories';
+import { ReminderService } from '../../services/ReminderService';
 import { usePlaces } from '../../context/PlacesContext';
 import { findStayTileForDay } from '../../utils/mobileDayStay';
 import { ItineraryCardEdit } from '../itinerary/ItineraryCardEdit';
@@ -22,6 +28,7 @@ import { MobileNearYouResults } from './MobileNearYouResults';
 import { MobileExplorePlacesView } from './MobileExplorePlacesView';
 import { MobileSavedPlacesView } from './MobileSavedPlacesView';
 import { MobileStartPointPicker, type StartPointSelection } from './MobileStartPointPicker';
+import { MobileDayPickActions, type DayPickOption } from './MobileDayPickActions';
 import { MobilePencilButton } from './MobilePencilButton';
 import type { NearYouToolId } from '../../utils/nearYouTools';
 import { NEAR_YOU_TOOLS } from '../../utils/nearYouTools';
@@ -30,9 +37,12 @@ import {
   loadLocationStartPoint,
   loadLocationStartPointList,
   rememberLocationStartPoint,
+  removeLocationStartPoint,
   saveLocationStartPoint,
+  startPointKey,
   type StoredStartPoint
 } from '../../utils/locationStartPointStorage';
+import { formatStartLabelWithAddress, reverseGeocodeAddress } from '../../utils/googlePlacePhoto';
 import { geocodeStayFromHotelRecord } from '../../utils/stayGeocode';
 import cardStyles from '../itinerary/ItineraryCard.module.css';
 import styles from './MobileLocationInfo.module.css';
@@ -47,8 +57,24 @@ export interface MobileLocationInfoSheetProps {
 
 type Panel = 'main' | 'explore' | 'saved' | 'near' | 'highlights' | 'notes' | 'overview';
 
+type DayPickState = {
+  mode: 'task' | 'itinerary';
+  title: string;
+  note: string;
+  mapsUrl?: string;
+};
+
 function isValidLatLng(lat: number, lng: number): boolean {
   return Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+}
+
+function shortDayLabel(calendarDate: string | undefined, displayTitle: string, dayNumber: number): string {
+  const ymd = (calendarDate || '').slice(0, 10);
+  const short = ymd
+    ? new Date(`${ymd}T12:00:00`).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' })
+    : '';
+  const title = (displayTitle || '').trim();
+  return [short, title].filter(Boolean).join(' · ') || `Day ${dayNumber}`;
 }
 
 export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = ({
@@ -68,6 +94,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   const [exploreCategory, setExploreCategory] = React.useState<string | undefined>();
   const [savedCategory, setSavedCategory] = React.useState<string | undefined>();
   const [nearActionMsg, setNearActionMsg] = React.useState('');
+  const [dayPick, setDayPick] = React.useState<DayPickState | null>(null);
   const [startingPoint, setStartingPoint] = React.useState<StartPointSelection | null>(null);
   const [startHistory, setStartHistory] = React.useState<Array<StartPointSelection | null>>([]);
   const [startPickerOpen, setStartPickerOpen] = React.useState(false);
@@ -107,6 +134,28 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   }, [entry, localEntries, trip?.id]);
   const data = liveEntry ? parseLocationInfoNotes(liveEntry.notes) : null;
   const place = data ? placeById(data.placeId) : undefined;
+
+  const locationDayOptions = React.useMemo((): DayPickOption[] => {
+    const placeId = liveEntry ? locationInfoPlaceId(liveEntry) : '';
+    if (!placeId) return [];
+    const dateSet = new Set(datesWherePlaceAppears(tripDays, placeId));
+    let days = tripDays.filter(
+      (d) => !isPreTripDayRow(d) && dateSet.has((d.calendarDate || '').slice(0, 10))
+    );
+    if (!days.length) {
+      const entryDayIds = new Set(
+        localEntries
+          .filter((e) => locationInfoPlaceId(e) === placeId)
+          .map((e) => e.dayId)
+          .filter(Boolean)
+      );
+      days = tripDays.filter((d) => !isPreTripDayRow(d) && entryDayIds.has(d.id));
+    }
+    return days.map((d) => ({
+      dayId: d.id,
+      label: shortDayLabel(d.calendarDate, d.displayTitle, d.dayNumber)
+    }));
+  }, [liveEntry, tripDays, localEntries]);
 
   const placeCentre = React.useMemo((): StartPointSelection | null => {
     const lat = Number(place?.latitude);
@@ -186,6 +235,21 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
         saveLocationStartPoint(entry.id, next);
         setSavedStarts(loadLocationStartPointList(entry.id));
       }
+      if (next && entry?.id) {
+        const entryId = entry.id;
+        const base = { lat: next.lat, lng: next.lng, label: next.label };
+        void reverseGeocodeAddress(base.lat, base.lng).then((addr) => {
+          if (!addr) return;
+          const label = formatStartLabelWithAddress(base.label, addr);
+          if (label === base.label) return;
+          const enriched: StoredStartPoint = { lat: base.lat, lng: base.lng, label };
+          setStartingPoint((cur) =>
+            cur && startPointKey(cur) === startPointKey(enriched) ? enriched : cur
+          );
+          saveLocationStartPoint(entryId, enriched);
+          setSavedStarts(loadLocationStartPointList(entryId));
+        });
+      }
     },
     [startingPoint, entry?.id]
   );
@@ -215,6 +279,16 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     [pushStartingPoint]
   );
 
+  const removeSavedStart = React.useCallback(
+    (point: StoredStartPoint): void => {
+      if (!entry?.id) return;
+      removeLocationStartPoint(entry.id, point);
+      setSavedStarts(loadLocationStartPointList(entry.id));
+      setStartingPoint(loadLocationStartPoint(entry.id));
+    },
+    [entry?.id]
+  );
+
   const saveTravelTip = React.useCallback(
     (tipText: string): void => {
       const notes = parseLocationInfoNotes(liveEntry?.notes);
@@ -226,6 +300,23 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
       const next = normalizeLocationInfoNotes({
         ...notes,
         savedTravelTips: [...existing, tip]
+      });
+      updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(next) });
+    },
+    [liveEntry, canEditItinerary, updateEntry]
+  );
+
+  const deleteTravelTip = React.useCallback(
+    (tipText: string): void => {
+      const notes = parseLocationInfoNotes(liveEntry?.notes);
+      if (!liveEntry || !notes || !canEditItinerary) return;
+      const tip = tipText.trim();
+      if (!tip) return;
+      const next = normalizeLocationInfoNotes({
+        ...notes,
+        savedTravelTips: (notes.savedTravelTips || []).filter(
+          (t) => t.trim().toLowerCase() !== tip.toLowerCase()
+        )
       });
       updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(next) });
     },
@@ -306,17 +397,171 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     [trip, tripDays, selectedDayId, spContext, reloadItineraryEntries, setEditingCardId, setSelectedDayId]
   );
 
+  const createTask = React.useCallback(
+    async (title: string, note: string, dayId?: string): Promise<void> => {
+      if (!trip?.id) {
+        setNearActionMsg('No trip open.');
+        window.setTimeout(() => setNearActionMsg(''), 2500);
+        return;
+      }
+      try {
+        const day = dayId ? tripDays.find((d) => d.id === dayId) : undefined;
+        const svc = new ReminderService(spContext);
+        const trimmedTitle = title.trim() || 'Task';
+        await svc.create({
+          tripId: trip.id,
+          title: trimmedTitle,
+          reminderText: note.trim(),
+          taskNote: note.trim() || undefined,
+          reminderType: 'Manual',
+          taskCategory: 'Itinerary updates',
+          dayId: dayId || '',
+          dueDate: day?.calendarDate?.slice(0, 10),
+          isComplete: false
+        });
+        rememberTripTaskCategory(trip.id, 'Itinerary updates');
+        setDayPick(null);
+        setNearActionMsg(`Task created: ${trimmedTitle}`);
+        window.setTimeout(() => setNearActionMsg(''), 2800);
+      } catch (err) {
+        setNearActionMsg(err instanceof Error ? err.message : 'Could not create task.');
+        window.setTimeout(() => setNearActionMsg(''), 3200);
+      }
+    },
+    [trip?.id, tripDays, spContext]
+  );
+
+  const addItinerary = React.useCallback(
+    async (title: string, note: string, dayId: string, mapsUrl?: string): Promise<void> => {
+      if (!trip) {
+        setNearActionMsg('No trip open.');
+        window.setTimeout(() => setNearActionMsg(''), 2500);
+        return;
+      }
+      try {
+        const created = await createItineraryEntryFromNearYouPlace(spContext, trip, dayId, {
+          name: title.trim() || 'Place',
+          note: note.trim() || undefined,
+          mapsUrl
+        });
+        await reloadItineraryEntries();
+        setDayPick(null);
+        setPanel('main');
+        setNearToolId(null);
+        setSelectedDayId(dayId);
+        setEditingCardId(created.id);
+        notifyExpandUnscheduled();
+        setNearActionMsg(`Review “${created.title}” and save when ready`);
+        window.setTimeout(() => setNearActionMsg(''), 2800);
+      } catch (err) {
+        setNearActionMsg(err instanceof Error ? err.message : 'Could not add to itinerary.');
+        window.setTimeout(() => setNearActionMsg(''), 3200);
+      }
+    },
+    [trip, spContext, reloadItineraryEntries, setEditingCardId, setSelectedDayId]
+  );
+
+  const resolveDayId = React.useCallback(
+    (pending: DayPickState): void => {
+      if (locationDayOptions.length <= 1) {
+        const dayId = locationDayOptions[0]?.dayId || selectedDayId;
+        if (pending.mode === 'task') {
+          void createTask(pending.title, pending.note, dayId || undefined);
+          return;
+        }
+        if (!dayId) {
+          setNearActionMsg('This trip has no days yet.');
+          window.setTimeout(() => setNearActionMsg(''), 2500);
+          return;
+        }
+        void addItinerary(pending.title, pending.note, dayId, pending.mapsUrl);
+        return;
+      }
+      setDayPick(pending);
+    },
+    [locationDayOptions, selectedDayId, createTask, addItinerary]
+  );
+
+  const onCreateTaskFromTip = React.useCallback(
+    (tipText: string): void => {
+      const tip = tipText.trim();
+      if (!tip) return;
+      resolveDayId({ mode: 'task', title: tip.slice(0, 80), note: tip });
+    },
+    [resolveDayId]
+  );
+
+  const onAddTipToItinerary = React.useCallback(
+    (tipText: string): void => {
+      const tip = tipText.trim();
+      if (!tip) return;
+      resolveDayId({ mode: 'itinerary', title: tip.slice(0, 80) || 'Travel tip', note: tip });
+    },
+    [resolveDayId]
+  );
+
+  const onCreateTaskFromQa = React.useCallback(
+    (item: LocationInfoQaEntry): void => {
+      resolveDayId({
+        mode: 'task',
+        title: qaEntryTitle(item),
+        note: richTextToPlainText(item.answer)
+      });
+    },
+    [resolveDayId]
+  );
+
+  const onAddQaToItinerary = React.useCallback(
+    (item: LocationInfoQaEntry): void => {
+      resolveDayId({
+        mode: 'itinerary',
+        title: qaEntryTitle(item),
+        note: richTextToPlainText(item.answer)
+      });
+    },
+    [resolveDayId]
+  );
+
+  const onCreateTaskFromSavedPlace = React.useCallback(
+    (placeRow: { name: string; note?: string; mapsUrl?: string }): void => {
+      resolveDayId({
+        mode: 'task',
+        title: placeRow.name,
+        note: placeRow.note || '',
+        mapsUrl: placeRow.mapsUrl
+      });
+    },
+    [resolveDayId]
+  );
+
+  const onAddSavedPlaceToItinerary = React.useCallback(
+    (placeRow: { name: string; note?: string; mapsUrl?: string }): void => {
+      resolveDayId({
+        mode: 'itinerary',
+        title: placeRow.name,
+        note: placeRow.note || '',
+        mapsUrl: placeRow.mapsUrl
+      });
+    },
+    [resolveDayId]
+  );
+
   const closePanels = React.useCallback((): void => {
     setPanel('main');
     setNearToolId(null);
     setExploreCategory(undefined);
     setSavedCategory(undefined);
+    setDayPick(null);
   }, []);
 
   React.useEffect(() => {
     if (!entry) return undefined;
     const onKey = (ev: KeyboardEvent): void => {
       if (ev.key === 'Escape') {
+        if (dayPick) {
+          setDayPick(null);
+          return;
+        }
         if (startPickerOpen) {
           setStartPickerOpen(false);
           return;
@@ -327,7 +572,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [entry, onClose, editingCardId, panel, nearToolId, closePanels, startPickerOpen]);
+  }, [entry, onClose, editingCardId, panel, nearToolId, closePanels, startPickerOpen, dayPick]);
 
   if (!entry || !liveEntry) return null;
 
@@ -404,10 +649,42 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     canUndoStartingPoint: startHistory.length > 0,
     isCustomStartingPoint: startingPoint !== null,
     accommodationLabel: stayCandidates[0] || undefined,
+    accommodationStart: stayCentre
+      ? {
+          lat: stayCentre.lat,
+          lng: stayCentre.lng,
+          label: stayCentre.label || stayCandidates[0] || 'Accommodation'
+        }
+      : null,
     savedStarts,
     onSelectSavedStart: selectSavedStart,
+    onRemoveSavedStart: removeSavedStart,
     activeStart: startingPoint
   };
+
+  const dayPickUi =
+    dayPick || nearActionMsg ? (
+      <div style={{ display: 'grid', gap: '0.45rem', marginBottom: '0.65rem' }}>
+        {dayPick ? (
+          <MobileDayPickActions
+            open
+            title={dayPick.mode === 'task' ? 'Create task for which day?' : 'Add to which day?'}
+            days={locationDayOptions}
+            onPick={(dayId) => {
+              const pending = dayPick;
+              if (!pending) return;
+              if (pending.mode === 'task') {
+                void createTask(pending.title, pending.note, dayId);
+              } else {
+                void addItinerary(pending.title, pending.note, dayId, pending.mapsUrl);
+              }
+            }}
+            onCancel={() => setDayPick(null)}
+          />
+        ) : null}
+        {nearActionMsg ? <p className={styles.nearFeedback}>{nearActionMsg}</p> : null}
+      </div>
+    ) : null;
 
   if (panel === 'near' && nearToolId) {
     return (
@@ -415,6 +692,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
         {ReactDOM.createPortal(
           <div className={styles.nearOverlay} role="presentation" data-shell={shellAttr}>
             <div className={styles.nearOverlayInner}>
+              {dayPickUi}
               <MobileNearYouResults
                 toolId={nearToolId}
                 place={place}
@@ -432,7 +710,6 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
                 onSavePlace={canEditItinerary ? saveNearPlace : undefined}
                 onAddToItinerary={canEditItinerary ? addNearToItinerary : undefined}
               />
-              {nearActionMsg ? <p className={styles.nearFeedback}>{nearActionMsg}</p> : null}
             </div>
           </div>,
           document.body
@@ -448,6 +725,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
         {ReactDOM.createPortal(
           <div className={styles.nearOverlay} role="presentation" data-shell={shellAttr}>
             <div className={styles.nearOverlayInner}>
+              {dayPickUi}
               <MobileExplorePlacesView
                 place={place}
                 locationEntryId={entry.id}
@@ -463,7 +741,6 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
                 savedTips={data?.savedTravelTips || []}
                 {...startPointHandlers}
               />
-              {nearActionMsg ? <p className={styles.nearFeedback}>{nearActionMsg}</p> : null}
             </div>
           </div>,
           document.body
@@ -479,6 +756,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
         {ReactDOM.createPortal(
           <div className={styles.nearOverlay} role="presentation" data-shell={shellAttr}>
             <div className={styles.nearOverlayInner}>
+              {dayPickUi}
               <MobileSavedPlacesView
                 place={place}
                 locationLabel={title}
@@ -502,31 +780,41 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   }
 
   const content = (
-    <MobileLocationInfoContent
-      entry={liveEntry}
-      place={place}
-      readOnly={!canUseAiHelpers}
-      canEditSavedPlaces={canEditItinerary}
-      canEditHighlights={canEditItinerary}
-      calendarDate={calendarDate}
-      startingPointLabel={startingPointLabel}
-      onEditOverview={() => setPanel('overview')}
-      onEditHighlights={() => setPanel('highlights')}
-      onEditNotes={() => setPanel('notes')}
-      onOpenNearTool={(toolId) => {
-        setNearToolId(toolId);
-        setPanel('near');
-      }}
-      onOpenExplore={(category) => {
-        setExploreCategory(category);
-        setPanel('explore');
-      }}
-      onOpenSavedPlaces={(category) => {
-        setSavedCategory(category);
-        setPanel('saved');
-      }}
-      {...startPointHandlers}
-    />
+    <>
+      {dayPickUi}
+      <MobileLocationInfoContent
+        entry={liveEntry}
+        place={place}
+        readOnly={!canUseAiHelpers}
+        canEditSavedPlaces={canEditItinerary}
+        canEditHighlights={canEditItinerary}
+        calendarDate={calendarDate}
+        startingPointLabel={startingPointLabel}
+        onEditOverview={() => setPanel('overview')}
+        onEditHighlights={() => setPanel('highlights')}
+        onEditNotes={() => setPanel('notes')}
+        onOpenNearTool={(toolId) => {
+          setNearToolId(toolId);
+          setPanel('near');
+        }}
+        onOpenExplore={(category) => {
+          setExploreCategory(category);
+          setPanel('explore');
+        }}
+        onOpenSavedPlaces={(category) => {
+          setSavedCategory(category);
+          setPanel('saved');
+        }}
+        onDeleteTip={canEditItinerary ? deleteTravelTip : undefined}
+        onCreateTaskFromTip={canEditItinerary ? onCreateTaskFromTip : undefined}
+        onAddTipToItinerary={canEditItinerary ? onAddTipToItinerary : undefined}
+        onCreateTaskFromQa={canEditItinerary ? onCreateTaskFromQa : undefined}
+        onAddQaToItinerary={canEditItinerary ? onAddQaToItinerary : undefined}
+        onCreateTaskFromSavedPlace={canEditItinerary ? onCreateTaskFromSavedPlace : undefined}
+        onAddSavedPlaceToItinerary={canEditItinerary ? onAddSavedPlaceToItinerary : undefined}
+        {...startPointHandlers}
+      />
+    </>
   );
 
   if (asPage) {

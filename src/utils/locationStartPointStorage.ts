@@ -83,6 +83,21 @@ export function loadLocationStartPointList(entryId: string): StoredStartPoint[] 
   }
 }
 
+export function removeLocationStartPoint(entryId: string, point: StoredStartPoint): void {
+  if (typeof window === 'undefined' || !entryId) return;
+  try {
+    const key = startPointKey(point);
+    const next = loadLocationStartPointList(entryId).filter((p) => startPointKey(p) !== key);
+    window.localStorage.setItem(`${LIST_PREFIX}${entryId}`, JSON.stringify(next));
+    const current = loadLocationStartPoint(entryId);
+    if (current && startPointKey(current) === key) {
+      saveLocationStartPoint(entryId, null);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Remember a starting point so it can be re-selected later (like “Near accommodation”). */
 export function rememberLocationStartPoint(entryId: string, point: StoredStartPoint): void {
   if (typeof window === 'undefined' || !entryId) return;

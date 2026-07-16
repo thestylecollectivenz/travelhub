@@ -36,26 +36,30 @@ export function placeQueryDirectionsUrl(name: string, address?: string): string 
 
 /**
  * Directions from the user's current location to a place.
- * Prefers a full destination (name + address + locality) so Maps opens routing,
- * not a place-search results list.
+ * Prefer a street address only — establishment names often resolve to the wrong pin.
  */
 export function placeDirectionsFromHereUrl(
   name: string,
   address?: string,
   locality?: string
 ): string | undefined {
-  const seen = new Set<string>();
-  const parts: string[] = [];
-  for (const raw of [name, address, locality]) {
-    const t = (raw || '').trim();
-    if (!t) continue;
-    const key = t.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    parts.push(t);
+  const addr = (address || '').trim();
+  if (!addr) {
+    // Place/establishment names often resolve to the wrong pin — require an address.
+    void name;
+    return undefined;
   }
-  if (!parts.length) return undefined;
-  return googleMapsDirectionsUrl(parts.join(', '));
+  const dest =
+    locality && !addr.toLowerCase().includes(locality.toLowerCase())
+      ? `${addr}, ${locality.trim()}`
+      : addr;
+  return googleMapsDirectionsUrl(dest);
+}
+
+/** Directions using coordinates when available (most accurate). */
+export function placeDirectionsFromCoordsUrl(lat: number, lng: number): string | undefined {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return undefined;
+  return googleMapsDirectionsToCoords(lat, lng);
 }
 
 /** Best-effort official site lookup for a venue/service. */
