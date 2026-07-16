@@ -4,6 +4,8 @@ export type ResolvedPlacePhoto = {
   imageUrl: string;
   /** Page where the photo (or place) can be verified — never an AI image generator. */
   sourceUrl: string;
+  /** Where the image bytes came from — helps verify Google vs fallback. */
+  provider?: 'google' | 'wikipedia' | 'commons' | 'openverse' | 'other';
 };
 
 type CacheRow = Record<string, ResolvedPlacePhoto>;

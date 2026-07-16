@@ -2,7 +2,7 @@ import type { ResolvedPlacePhoto } from './placePhotoResolve';
 import { reverseGeocodeAddress } from './googlePlacePhoto';
 
 type CacheRow = Record<string, ResolvedPlacePhoto>;
-const CACHE_KEY = 'travelhub-venue-photos-v2';
+const CACHE_KEY = 'travelhub-venue-photos-v3';
 
 function loadCache(): CacheRow {
   try {
@@ -23,8 +23,14 @@ function saveCache(row: CacheRow): void {
   }
 }
 
-function mapsSourceUrl(name: string, address?: string, lat?: number, lng?: number, placeId?: string): string {
-  if (placeId) return `https://www.google.com/maps/search/?api=1&query_place_id=${encodeURIComponent(placeId)}`;
+/** Always a place listing / search pin — never /dir/ directions. */
+function mapsListingUrl(name: string, address?: string, lat?: number, lng?: number, placeId?: string): string {
+  if (placeId) {
+    return `https://www.google.com/maps/search/?api=1&query_place_id=${encodeURIComponent(placeId)}`;
+  }
+  if ((address || '').trim()) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address!.trim())}`;
+  }
   if (Number.isFinite(lat) && Number.isFinite(lng)) {
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lat},${lng}`)}`;
   }
@@ -32,7 +38,7 @@ function mapsSourceUrl(name: string, address?: string, lat?: number, lng?: numbe
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
 
-async function commonsNearCoords(lat: number, lng: number): Promise<ResolvedPlacePhoto | null> {
+async function commonsNearCoords(lat: number, lng: number): Promise<{ imageUrl: string } | null> {
   const url =
     `https://commons.wikimedia.org/w/api.php?action=query&list=geosearch` +
     `&gscoord=${lat}|${lng}&gsradius=120&gslimit=8&gsnamespace=6&format=json&origin=*`;
@@ -52,7 +58,7 @@ async function commonsNearCoords(lat: number, lng: number): Promise<ResolvedPlac
         query?: {
           pages?: Record<
             string,
-            { imageinfo?: Array<{ thumburl?: string; url?: string; mime?: string; descriptionurl?: string }> }
+            { imageinfo?: Array<{ thumburl?: string; url?: string; mime?: string }> }
           >;
         };
       };
@@ -60,10 +66,7 @@ async function commonsNearCoords(lat: number, lng: number): Promise<ResolvedPlac
       if (!info || (info.mime && !info.mime.startsWith('image/'))) continue;
       const imageUrl = info.thumburl || info.url;
       if (!imageUrl) continue;
-      return {
-        imageUrl,
-        sourceUrl: info.descriptionurl || `https://commons.wikimedia.org/wiki/${encodeURIComponent(hit.title)}`
-      };
+      return { imageUrl };
     }
   } catch {
     /* ignore */
@@ -71,7 +74,7 @@ async function commonsNearCoords(lat: number, lng: number): Promise<ResolvedPlac
   return null;
 }
 
-async function openversePhoto(name: string, city?: string): Promise<ResolvedPlacePhoto | null> {
+async function openversePhoto(name: string, city?: string): Promise<{ imageUrl: string } | null> {
   const q = [name, city].filter(Boolean).join(' ').trim();
   if (!q) return null;
   try {
@@ -79,20 +82,16 @@ async function openversePhoto(name: string, city?: string): Promise<ResolvedPlac
     const res = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!res.ok) return null;
     const data = (await res.json()) as {
-      results?: Array<{ url?: string; foreign_landing_url?: string; title?: string }>;
+      results?: Array<{ url?: string; title?: string }>;
     };
     for (const row of data.results || []) {
       if (!row.url) continue;
-      // Prefer photos that look like the venue (title overlap)
       const title = (row.title || '').toLowerCase();
       const needle = name.trim().toLowerCase();
       if (needle.length >= 4 && title && !title.includes(needle.slice(0, Math.min(needle.length, 12)))) {
         continue;
       }
-      return {
-        imageUrl: row.url,
-        sourceUrl: row.foreign_landing_url || row.url
-      };
+      return { imageUrl: row.url };
     }
   } catch {
     /* ignore */
@@ -100,33 +99,39 @@ async function openversePhoto(name: string, city?: string): Promise<ResolvedPlac
   return null;
 }
 
-type GMaps = {
-  maps: {
-    places: {
-      PlacesServiceStatus: { OK: string };
-      PlacesService: new (el: HTMLElement) => {
-        findPlaceFromQuery: (
-          req: { query: string; fields: string[]; locationBias?: { lat: number; lng: number } },
-          cb: (results: Array<{
-            place_id?: string;
-            photos?: Array<{ getUrl: (opts: { maxWidth: number }) => string }>;
-            geometry?: { location?: { lat: () => number; lng: () => number } };
-            formatted_address?: string;
-          }> | null, status: string) => void
-        ) => void;
+declare global {
+  interface Window {
+    google?: {
+      maps: {
+        places: {
+          PlacesServiceStatus: { OK: string };
+          PlacesService: new (el: HTMLElement) => {
+            findPlaceFromQuery: (
+              req: {
+                query: string;
+                fields: string[];
+                locationBias?: { lat: number; lng: number };
+              },
+              cb: (
+                results: Array<{
+                  place_id?: string;
+                  formatted_address?: string;
+                  photos?: Array<{ getUrl: (opts: { maxWidth: number }) => string }>;
+                }> | null,
+                status: string
+              ) => void
+            ) => void;
+          };
+        };
       };
     };
-  };
-};
+  }
+}
 
-let mapsLoader: Promise<GMaps | undefined> | undefined;
-
-function loadGoogleMapsPlaces(apiKey: string): Promise<GMaps | undefined> {
-  if (typeof window === 'undefined') return Promise.resolve(undefined);
-  const w = window as Window & { google?: GMaps; __thMapsPlacesPromise?: Promise<GMaps | undefined> };
+function loadGoogleMapsPlaces(apiKey: string): Promise<typeof window.google | undefined> {
+  const w = window;
   if (w.google?.maps?.places) return Promise.resolve(w.google);
-  if (w.__thMapsPlacesPromise) return w.__thMapsPlacesPromise;
-  w.__thMapsPlacesPromise = new Promise((resolve) => {
+  return new Promise((resolve) => {
     const existing = document.querySelector<HTMLScriptElement>('script[data-th-google-places]');
     if (existing) {
       existing.addEventListener('load', () => resolve(w.google));
@@ -141,7 +146,6 @@ function loadGoogleMapsPlaces(apiKey: string): Promise<GMaps | undefined> {
     script.onerror = () => resolve(undefined);
     document.head.appendChild(script);
   });
-  return w.__thMapsPlacesPromise;
 }
 
 async function googleJsPlacePhoto(options: {
@@ -180,7 +184,14 @@ async function googleJsPlacePhoto(options: {
       const imageUrl = photo ? photo.getUrl({ maxWidth: 800 }) : '';
       resolve({
         imageUrl,
-        sourceUrl: mapsSourceUrl(options.name, hit.formatted_address || options.address, undefined, undefined, placeId)
+        sourceUrl: mapsListingUrl(
+          options.name,
+          hit.formatted_address || options.address,
+          undefined,
+          undefined,
+          placeId
+        ),
+        provider: imageUrl ? 'google' : undefined
       });
     });
   });
@@ -189,7 +200,7 @@ async function googleJsPlacePhoto(options: {
 /**
  * Venue photos for restaurants/cafés/shops/etc.
  * Prefer Google Place Photos (Maps JS + API key); otherwise Commons/Openverse near the pin.
- * Source URL always opens Google Maps for the place.
+ * Photo click always opens the Google Maps place listing (never directions).
  */
 export async function resolveVenueListingPhoto(options: {
   name: string;
@@ -202,11 +213,13 @@ export async function resolveVenueListingPhoto(options: {
   const name = (options.name || '').trim();
   if (!name) return null;
   const city = (options.city || '').trim();
-  const ck = `${name.toLowerCase()}|${city.toLowerCase()}|${options.latitude ?? ''}|${options.longitude ?? ''}`;
+  const key = (options.googleMapsApiKey || '').trim();
+  const ck = `${name.toLowerCase()}|${city.toLowerCase()}|${options.latitude ?? ''}|${options.longitude ?? ''}|k:${key ? '1' : '0'}`;
   const cache = loadCache();
   if (cache[ck]?.imageUrl || cache[ck]?.sourceUrl) return cache[ck];
 
-  const key = (options.googleMapsApiKey || '').trim();
+  const listing = mapsListingUrl(name, options.address, options.latitude, options.longitude);
+
   if (key) {
     const g = await googleJsPlacePhoto({ ...options, apiKey: key });
     if (g?.imageUrl) {
@@ -215,8 +228,7 @@ export async function resolveVenueListingPhoto(options: {
       return g;
     }
     if (g?.sourceUrl) {
-      // Keep Maps source even without photo bytes
-      cache[ck] = g;
+      cache[ck] = { ...g, provider: g.provider || undefined };
       saveCache(cache);
     }
   }
@@ -224,9 +236,10 @@ export async function resolveVenueListingPhoto(options: {
   if (Number.isFinite(options.latitude) && Number.isFinite(options.longitude)) {
     const near = await commonsNearCoords(Number(options.latitude), Number(options.longitude));
     if (near?.imageUrl) {
-      const resolved = {
+      const resolved: ResolvedPlacePhoto = {
         imageUrl: near.imageUrl,
-        sourceUrl: mapsSourceUrl(name, options.address, options.latitude, options.longitude)
+        sourceUrl: listing,
+        provider: 'commons'
       };
       cache[ck] = resolved;
       saveCache(cache);
@@ -236,9 +249,10 @@ export async function resolveVenueListingPhoto(options: {
 
   const ov = await openversePhoto(name, city);
   if (ov?.imageUrl) {
-    const resolved = {
+    const resolved: ResolvedPlacePhoto = {
       imageUrl: ov.imageUrl,
-      sourceUrl: mapsSourceUrl(name, options.address, options.latitude, options.longitude)
+      sourceUrl: listing,
+      provider: 'openverse'
     };
     cache[ck] = resolved;
     saveCache(cache);
@@ -247,7 +261,8 @@ export async function resolveVenueListingPhoto(options: {
 
   const sourceOnly: ResolvedPlacePhoto = {
     imageUrl: '',
-    sourceUrl: mapsSourceUrl(name, options.address, options.latitude, options.longitude)
+    sourceUrl: listing,
+    provider: undefined
   };
   cache[ck] = sourceOnly;
   saveCache(cache);

@@ -185,7 +185,11 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
 }) => {
   const { config } = useConfig();
   const city = card.city || cityFallback;
-  const [photo, setPhoto] = React.useState<{ imageUrl: string; sourceUrl: string } | null>(null);
+  const [photo, setPhoto] = React.useState<{
+    imageUrl: string;
+    sourceUrl: string;
+    provider?: 'google' | 'wikipedia' | 'commons' | 'openverse' | 'other';
+  } | null>(null);
   const [mode, setMode] = React.useState<'drive' | 'transit' | 'walk'>('walk');
 
   React.useEffect(() => {
@@ -240,7 +244,9 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
     placeQueryMapsUrl(card.name, card.address) ||
     photo?.sourceUrl ||
     undefined;
-  const photoHref = photo?.sourceUrl || mapsHref;
+  // Photo click must open the place listing (query_place_id / search) — never directions.
+  const photoHref = (photo?.sourceUrl || '').trim() || undefined;
+  const photoFromGoogle = photo?.provider === 'google';
   const kind = primaryAction?.kind || 'label';
 
   return (
@@ -252,15 +258,31 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
           target="_blank"
           rel="noopener noreferrer"
           style={photo?.imageUrl ? { backgroundImage: `url(${photo.imageUrl})` } : undefined}
-          aria-label={`Open source for ${card.name}`}
-          title="Open Google Maps / photo source"
-        />
+          aria-label={`Open Google listing for ${card.name}`}
+          title={
+            photoFromGoogle
+              ? 'Google Place photo — opens Google listing'
+              : 'Fallback photo — opens Google listing to verify the place'
+          }
+        >
+          {photo?.imageUrl ? (
+            <span className={`${styles.photoBadge} ${photoFromGoogle ? styles.photoBadgeGoogle : styles.photoBadgeAlt}`}>
+              {photoFromGoogle ? 'Google' : 'Alt photo'}
+            </span>
+          ) : null}
+        </a>
       ) : (
         <div
           className={styles.photo}
           style={photo?.imageUrl ? { backgroundImage: `url(${photo.imageUrl})` } : undefined}
           aria-hidden
-        />
+        >
+          {photo?.imageUrl ? (
+            <span className={`${styles.photoBadge} ${photoFromGoogle ? styles.photoBadgeGoogle : styles.photoBadgeAlt}`}>
+              {photoFromGoogle ? 'Google' : 'Alt photo'}
+            </span>
+          ) : null}
+        </div>
       )}
       <div className={styles.body}>
         <div className={styles.titleRow}>
