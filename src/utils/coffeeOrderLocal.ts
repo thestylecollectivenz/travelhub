@@ -118,7 +118,7 @@ function detectExtras(preference: string, drink: string, milk: MilkStyle): strin
     if (clean.length > 2 && clean.length < 40) found.add(clean.toLowerCase());
   }
   if (milk !== 'none') {
-    for (const key of [...found]) {
+    for (const key of Array.from(found)) {
       if (/\bmilk\b/.test(key)) found.delete(key);
     }
   }
