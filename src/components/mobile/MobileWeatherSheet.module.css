@@ -100,19 +100,22 @@
   align-items: center;
   gap: 0.3rem;
   margin: 0.4rem 0 0;
-  font-size: 0.78rem;
-  color: #5c6570;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #8a7355;
 }
 
 .metaSep {
   opacity: 0.55;
+  font-weight: 700;
 }
 
 .localZone {
   margin: 0.2rem 0 0;
-  font-size: 0.7rem;
-  font-style: italic;
-  color: #8a857d;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-style: normal;
+  color: #8a7355;
   line-height: 1.35;
 }
 
@@ -199,23 +202,26 @@
 }
 
 .forecastStrip {
-  display: flex;
-  gap: 0.45rem;
-  overflow-x: auto;
-  padding-bottom: 0.2rem;
-  scrollbar-width: thin;
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 0.4rem;
+  justify-content: center;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
 }
 
 .forecastDay {
-  flex: 0 0 4.35rem;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
   gap: 0.2rem;
+  min-width: 0;
   border: 1px solid color-mix(in srgb, #1e2a44 9%, transparent);
   border-radius: 0.85rem;
   background: #faf9f6;
-  padding: 0.5rem 0.25rem;
+  padding: 0.45rem 0.2rem;
   text-align: center;
 }
 
@@ -649,6 +655,21 @@
   margin: 0;
 }
 
+.coffeeLines {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.coffeeLangLabel {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #6b7c3a;
+  margin-bottom: 0.15rem;
+}
+
 .coffeeFlag {
   width: 2rem;
   height: 2rem;
@@ -666,23 +687,28 @@
   font-size: 0.68rem;
   color: #8a857d;
   line-height: 1.4;
-  padding-right: 2rem;
 }
 
-.coffeeSpeak {
-  position: absolute;
-  right: 0.85rem;
-  bottom: 0.85rem;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 999px;
+.coffeeSpeakRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+}
+
+.coffeeSpeakBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   border: 1px solid color-mix(in srgb, #2f5eb8 22%, transparent);
   background: color-mix(in srgb, #2f5eb8 8%, white);
   color: #2f5eb8;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.68rem;
+  font-weight: 700;
   cursor: pointer;
+  font: inherit;
 }
 
 .languageHead {
@@ -852,7 +878,7 @@
 }
 
 [data-shell='ipad-portrait'] .metaLine {
-  font-size: 0.92rem;
+  font-size: 0.82rem;
 }
 
 [data-shell='ipad-portrait'] .localZone {
@@ -999,6 +1025,19 @@
 
 [data-shell='ipad-portrait'] .localTipBar {
   padding: 0.7rem 1.1rem;
+}
+
+@media (max-width: 520px) {
+  .forecastStrip {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 0.2rem;
+    scrollbar-width: thin;
+  }
+
+  .forecastDay {
+    flex: 0 0 4.1rem;
+  }
 }
 
 [data-shell='ipad-portrait'] .localTipText {

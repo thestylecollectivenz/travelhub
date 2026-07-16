@@ -118,7 +118,7 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
 }) => {
   const { config } = useConfig();
   const { convertToHomeCurrency } = useTripWorkspace();
-  const { speak } = useSpeechOutput();
+  const { speak, stop: stopSpeech } = useSpeechOutput();
   const [tempUnit, setTempUnit] = React.useState<'Celsius' | 'Fahrenheit'>(config.temperatureUnit);
   const [billAmount, setBillAmount] = React.useState('100');
   const [tipPercent, setTipPercent] = React.useState(10);
@@ -700,28 +700,64 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
                     <path d="M7 4c.5.8.5 1.5 0 2.3M10 4c.5.8.5 1.5 0 2.3M13 4c.5.8.5 1.5 0 2.3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
                   </svg>
                 </span>
-                <p>
-                  In {coffeeGuide.placeLabel}, ask for:{' '}
-                  <strong>&ldquo;{coffeeGuide.askFor}&rdquo;</strong>
-                </p>
+                <div className={styles.coffeeLines}>
+                  <p>
+                    <span className={styles.coffeeLangLabel}>In English</span>
+                    <strong>&ldquo;{coffeeGuide.askForEnglish}&rdquo;</strong>
+                  </p>
+                  {coffeeGuide.askForLocal && coffeeGuide.askForLocal !== coffeeGuide.askForEnglish ? (
+                    <p>
+                      <span className={styles.coffeeLangLabel}>In {coffeeGuide.localLanguageName}</span>
+                      <strong>&ldquo;{coffeeGuide.askForLocal}&rdquo;</strong>
+                    </p>
+                  ) : null}
+                </div>
               </div>
               <p className={styles.coffeeNote}>{coffeeGuide.note}</p>
-              <button
-                type="button"
-                className={styles.coffeeSpeak}
-                aria-label="Hear coffee order"
-                onClick={() => speak(coffeeGuide.askFor)}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-                  <path d="M3 10v4h4l5 4V6L7 10H3Z" fill="currentColor" />
-                  <path
-                    d="M16 9a4 4 0 0 1 0 6M18.5 7a7 7 0 0 1 0 10"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
+              <div className={styles.coffeeSpeakRow}>
+                <button
+                  type="button"
+                  className={styles.coffeeSpeakBtn}
+                  aria-label="Hear coffee order in English"
+                  onClick={() => {
+                    stopSpeech();
+                    speak(coffeeGuide.askForEnglish, 'en-NZ');
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M3 10v4h4l5 4V6L7 10H3Z" fill="currentColor" />
+                    <path
+                      d="M16 9a4 4 0 0 1 0 6M18.5 7a7 7 0 0 1 0 10"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  English
+                </button>
+                {coffeeGuide.askForLocal && coffeeGuide.askForLocal !== coffeeGuide.askForEnglish ? (
+                  <button
+                    type="button"
+                    className={styles.coffeeSpeakBtn}
+                    aria-label={`Hear coffee order in ${coffeeGuide.localLanguageName}`}
+                    onClick={() => {
+                      stopSpeech();
+                      speak(coffeeGuide.askForLocal, coffeeGuide.speechLang);
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path d="M3 10v4h4l5 4V6L7 10H3Z" fill="currentColor" />
+                      <path
+                        d="M16 9a4 4 0 0 1 0 6M18.5 7a7 7 0 0 1 0 10"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    {coffeeGuide.localLanguageName}
+                  </button>
+                ) : null}
+              </div>
             </>
           ) : (
             <p className={styles.muted}>

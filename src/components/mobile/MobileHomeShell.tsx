@@ -31,6 +31,7 @@ import { useContinuousSpeechInput } from '../../hooks/useContinuousSpeechInput';
 import { useCurrentUserRole } from '../../hooks/useCurrentUserRole';
 import { useTripMembers } from '../../hooks/useTripMembers';
 import { MobileNearYouPage } from './MobileNearYouPage';
+import { MobileTripSavedPlacesView } from './MobileTripSavedPlacesView';
 import { MobileHeaderAccessActions } from './MobileHeaderAccessActions';
 import { MobileHeaderChromeProvider } from './MobileHeaderChromeContext';
 import { MobileIdeasJotter } from './MobileIdeasJotter';
@@ -200,6 +201,8 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   const [aiChipOffset, setAiChipOffset] = React.useState(0);
   const [membersOpen, setMembersOpen] = React.useState(false);
   const [nearToolId, setNearToolId] = React.useState<NearYouToolId | null>(null);
+  const [nearExploreOpen, setNearExploreOpen] = React.useState(false);
+  const [nearSavedOpen, setNearSavedOpen] = React.useState(false);
   const [bookView, setBookView] = React.useState<'main' | 'all'>('main');
   const [bookDestination, setBookDestination] = React.useState('');
 
@@ -398,8 +401,10 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
     onSelectTrip(featuredTrip.id, initialTab);
   };
 
-  const openNearYou = (toolId: NearYouToolId | null): void => {
+  const openNearYou = (toolId: NearYouToolId | null, exploreAll = false): void => {
     setNearToolId(toolId);
+    setNearExploreOpen(exploreAll);
+    setNearSavedOpen(false);
     setTab('find');
   };
 
@@ -482,14 +487,26 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
 
   let body: React.ReactNode;
   if (tab === 'find') {
-    body = (
+    body = nearSavedOpen ? (
+      <MobileTripSavedPlacesView
+        tripId={contextTrip?.id}
+        onBack={() => setNearSavedOpen(false)}
+      />
+    ) : (
       <MobileNearYouPage
         onBack={() => {
           setNearToolId(null);
+          setNearExploreOpen(false);
           setTab('home');
         }}
         hideBack
         initialToolId={nearToolId}
+        initialOpenExplore={nearExploreOpen}
+        onOpenAllSaved={
+          contextTrip?.id
+            ? () => setNearSavedOpen(true)
+            : undefined
+        }
         tripId={contextTrip?.id}
         tripTitle={featuredTrip?.title}
         tripDateRange={
@@ -783,7 +800,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
           <button
             type="button"
             className={styles.sectionLink}
-            onClick={() => openNearYou(null)}
+            onClick={() => openNearYou(null, true)}
           >
             See all
           </button>
@@ -901,7 +918,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
     <MobileHeaderChromeProvider value={headerChrome}>
     <div className={styles.homeRoot} data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}>
       <main className={styles.scroll}>
-        {tab !== 'home' && !(tab === 'find' && nearToolId) ? (
+        {tab !== 'home' && !(tab === 'find' && (nearToolId || nearExploreOpen || nearSavedOpen)) ? (
           <MobileBrandHeader
             safeAreaTop={false}
             navRow={

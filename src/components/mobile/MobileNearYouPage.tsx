@@ -13,6 +13,8 @@ export interface MobileNearYouPageProps {
   onOpenAllSaved?: () => void;
   /** When set, open straight into results for this tool. */
   initialToolId?: NearYouToolId | null;
+  /** Open the full GPS explore page (saved-places style) instead of the category hub. */
+  initialOpenExplore?: boolean;
   tripId?: string;
   tripTitle?: string;
   tripDateRange?: string;
@@ -28,6 +30,7 @@ export const MobileNearYouPage: React.FC<MobileNearYouPageProps> = ({
   onBack,
   onOpenAllSaved,
   initialToolId = null,
+  initialOpenExplore = false,
   tripId,
   tripTitle,
   tripDateRange,
@@ -38,6 +41,7 @@ export const MobileNearYouPage: React.FC<MobileNearYouPageProps> = ({
   hideBack = false
 }) => {
   const [toolId, setToolId] = React.useState<NearYouToolId | null>(initialToolId);
+  const [exploreOpen, setExploreOpen] = React.useState(initialOpenExplore);
   const [aiPrompt, setAiPrompt] = React.useState('');
   const shellMode = useShellMode();
 
@@ -49,6 +53,10 @@ export const MobileNearYouPage: React.FC<MobileNearYouPageProps> = ({
   React.useEffect(() => {
     setToolId(initialToolId ?? null);
   }, [initialToolId]);
+
+  React.useEffect(() => {
+    setExploreOpen(initialOpenExplore);
+  }, [initialOpenExplore]);
 
   const submitAsk = (): void => {
     const p = aiPrompt.trim();
@@ -102,14 +110,15 @@ export const MobileNearYouPage: React.FC<MobileNearYouPageProps> = ({
       </form>
     ) : null;
 
-  if (toolId) {
+  if (toolId || exploreOpen) {
     return (
       <MobileExplorePlacesView
         mode="gps"
-        initialCategory={nearToolToExploreCategory(toolId)}
+        initialCategory={toolId ? nearToolToExploreCategory(toolId) : 'restaurants'}
         onBack={() => {
           if (initialToolId) onBack();
-          else setToolId(null);
+          else if (toolId) setToolId(null);
+          else setExploreOpen(false);
         }}
         onAddToItinerary={onAddToItinerary}
         onSavePlace={onSavePlace}

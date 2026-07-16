@@ -50,7 +50,7 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
   const [editQuestionDraft, setEditQuestionDraft] = React.useState('');
   const [editAnswerDraft, setEditAnswerDraft] = React.useState('');
   const [voiceError, setVoiceError] = React.useState<string | undefined>();
-  const [autoReadAnswers, setAutoReadAnswers] = React.useState(() => Boolean(mobileLayout));
+  const [autoReadAnswers, setAutoReadAnswers] = React.useState(false);
   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(() => new Set());
   const { speechState, speak, pause, resume, stop: stopSpeech } = useSpeechOutput();
   const appendVoiceInput = React.useCallback((chunk: string) => {
@@ -106,9 +106,32 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
 
   const speakAnswer = (answer: string): void => {
     stopVoiceInput();
+    stopSpeech();
     const plain = richTextToPlainText(answer).trim() || answer.trim();
     if (plain) speak(plain);
   };
+
+  const speakAllAnswers = (): void => {
+    stopVoiceInput();
+    stopSpeech();
+    const text = thread
+      .map((item) => richTextToPlainText(item.answer).trim() || item.answer.trim())
+      .filter(Boolean)
+      .join('. ');
+    if (text) speak(text);
+  };
+
+  const SpeakerIcon: React.FC<{ size?: number }> = ({ size = 18 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M3 10v4h4l5 4V6L7 10H3Z" fill="currentColor" />
+      <path
+        d="M16 9a4 4 0 0 1 0 6M18.5 7a7 7 0 0 1 0 10"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 
   const updateThread = (next: LocationInfoQaEntry[]): void => {
     onThreadChange?.(next);
@@ -156,6 +179,25 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
       )}
       {thread.length ? (
         <div className={styles.thread}>
+          <div className={styles.threadHead}>
+            <button
+              type="button"
+              className={styles.readAllBtn}
+              onClick={speakAllAnswers}
+              aria-label="Read all answers aloud"
+              title="Read all answers aloud"
+            >
+              <SpeakerIcon size={14} />
+              Read all
+            </button>
+            <SpeechPlaybackControls
+              speechState={speechState}
+              onPause={pause}
+              onResume={resume}
+              onStop={stopSpeech}
+              buttonClassName={styles.qaBtn}
+            />
+          </div>
           {thread.map((item) => {
             const expanded = expandedIds.has(item.id);
             return (
@@ -205,18 +247,16 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
                         <LinkifiedText text={item.answer} />
                       </div>
                     )}
-                    {!readOnly && onThreadChange ? (
-                      <div className={styles.qaActions}>
+                    {item.answer?.trim() ? (
+                      <div className={styles.qaSpeakActions}>
                         <button
                           type="button"
                           className={styles.iconBtn}
                           onClick={() => speakAnswer(item.answer)}
-                          aria-label="Read aloud"
+                          aria-label="Read this answer aloud"
                           title="Read aloud"
                         >
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                            <path d="M8 5.5v13l11-6.5L8 5.5Z" fill="currentColor" />
-                          </svg>
+                          <SpeakerIcon />
                         </button>
                         <SpeechPlaybackControls
                           speechState={speechState}
@@ -225,6 +265,10 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
                           onStop={stopSpeech}
                           buttonClassName={styles.qaBtn}
                         />
+                      </div>
+                    ) : null}
+                    {!readOnly && onThreadChange ? (
+                      <div className={styles.qaActions}>
                         {editingId === item.id ? (
                           <>
                             <button

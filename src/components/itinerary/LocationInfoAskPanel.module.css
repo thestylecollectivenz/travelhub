@@ -363,3 +363,33 @@
   font-size: 0.88rem;
   padding: 0.5rem 0.9rem;
 }
+
+.threadHead {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.readAllBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid color-mix(in srgb, #2f5eb8 25%, transparent);
+  background: color-mix(in srgb, #2f5eb8 10%, white);
+  color: #2f5eb8;
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  font: inherit;
+}
+
+.qaSpeakActions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
