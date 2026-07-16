@@ -2,7 +2,7 @@ import type { ResolvedPlacePhoto } from './placePhotoResolve';
 import { reverseGeocodeAddress } from './googlePlacePhoto';
 
 type CacheRow = Record<string, ResolvedPlacePhoto>;
-const CACHE_KEY = 'travelhub-venue-photos-v3';
+const CACHE_KEY = 'travelhub-venue-photos-v4';
 
 function loadCache(): CacheRow {
   try {
@@ -132,18 +132,45 @@ function loadGoogleMapsPlaces(apiKey: string): Promise<typeof window.google | un
   const w = window;
   if (w.google?.maps?.places) return Promise.resolve(w.google);
   return new Promise((resolve) => {
+    let settled = false;
+    const done = (value: typeof window.google | undefined): void => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+    // Never hang photo loading if the Maps script stalls.
+    const timeout = window.setTimeout(() => done(w.google?.maps?.places ? w.google : undefined), 6000);
+
     const existing = document.querySelector<HTMLScriptElement>('script[data-th-google-places]');
     if (existing) {
-      existing.addEventListener('load', () => resolve(w.google));
-      existing.addEventListener('error', () => resolve(undefined));
+      if (w.google?.maps?.places) {
+        window.clearTimeout(timeout);
+        done(w.google);
+        return;
+      }
+      existing.addEventListener('load', () => {
+        window.clearTimeout(timeout);
+        done(w.google?.maps?.places ? w.google : undefined);
+      });
+      existing.addEventListener('error', () => {
+        window.clearTimeout(timeout);
+        done(undefined);
+      });
       return;
     }
+
     const script = document.createElement('script');
     script.dataset.thGooglePlaces = '1';
     script.async = true;
     script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places`;
-    script.onload = () => resolve(w.google);
-    script.onerror = () => resolve(undefined);
+    script.onload = () => {
+      window.clearTimeout(timeout);
+      done(w.google?.maps?.places ? w.google : undefined);
+    };
+    script.onerror = () => {
+      window.clearTimeout(timeout);
+      done(undefined);
+    };
     document.head.appendChild(script);
   });
 }
@@ -162,6 +189,13 @@ async function googleJsPlacePhoto(options: {
   const host = document.createElement('div');
   const svc = new g.maps.places.PlacesService(host);
   return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value: ResolvedPlacePhoto | null): void => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+    const timeout = window.setTimeout(() => finish(null), 5000);
     const req: {
       query: string;
       fields: string[];
@@ -173,27 +207,33 @@ async function googleJsPlacePhoto(options: {
     if (Number.isFinite(options.latitude) && Number.isFinite(options.longitude)) {
       req.locationBias = { lat: Number(options.latitude), lng: Number(options.longitude) };
     }
-    svc.findPlaceFromQuery(req, (results, status) => {
-      if (status !== g.maps.places.PlacesServiceStatus.OK || !results?.length) {
-        resolve(null);
-        return;
-      }
-      const hit = results[0];
-      const placeId = hit.place_id;
-      const photo = hit.photos?.[0];
-      const imageUrl = photo ? photo.getUrl({ maxWidth: 800 }) : '';
-      resolve({
-        imageUrl,
-        sourceUrl: mapsListingUrl(
-          options.name,
-          hit.formatted_address || options.address,
-          undefined,
-          undefined,
-          placeId
-        ),
-        provider: imageUrl ? 'google' : undefined
+    try {
+      svc.findPlaceFromQuery(req, (results, status) => {
+        window.clearTimeout(timeout);
+        if (status !== g.maps.places.PlacesServiceStatus.OK || !results?.length) {
+          finish(null);
+          return;
+        }
+        const hit = results[0];
+        const placeId = hit.place_id;
+        const photo = hit.photos?.[0];
+        const imageUrl = photo ? photo.getUrl({ maxWidth: 800 }) : '';
+        finish({
+          imageUrl,
+          sourceUrl: mapsListingUrl(
+            options.name,
+            hit.formatted_address || options.address,
+            undefined,
+            undefined,
+            placeId
+          ),
+          provider: imageUrl ? 'google' : undefined
+        });
       });
-    });
+    } catch {
+      window.clearTimeout(timeout);
+      finish(null);
+    }
   });
 }
 
@@ -216,20 +256,19 @@ export async function resolveVenueListingPhoto(options: {
   const key = (options.googleMapsApiKey || '').trim();
   const ck = `${name.toLowerCase()}|${city.toLowerCase()}|${options.latitude ?? ''}|${options.longitude ?? ''}|k:${key ? '1' : '0'}`;
   const cache = loadCache();
-  if (cache[ck]?.imageUrl || cache[ck]?.sourceUrl) return cache[ck];
+  // Only reuse cache hits that actually have an image (empty shells caused grey tiles).
+  if ((cache[ck]?.imageUrl || '').trim()) return cache[ck];
 
   const listing = mapsListingUrl(name, options.address, options.latitude, options.longitude);
+  let googleListing = listing;
 
   if (key) {
     const g = await googleJsPlacePhoto({ ...options, apiKey: key });
-    if (g?.imageUrl) {
+    if (g?.sourceUrl) googleListing = g.sourceUrl;
+    if (g && (g.imageUrl || '').trim()) {
       cache[ck] = g;
       saveCache(cache);
       return g;
-    }
-    if (g?.sourceUrl) {
-      cache[ck] = { ...g, provider: g.provider || undefined };
-      saveCache(cache);
     }
   }
 
@@ -238,7 +277,7 @@ export async function resolveVenueListingPhoto(options: {
     if (near?.imageUrl) {
       const resolved: ResolvedPlacePhoto = {
         imageUrl: near.imageUrl,
-        sourceUrl: listing,
+        sourceUrl: googleListing,
         provider: 'commons'
       };
       cache[ck] = resolved;
@@ -251,7 +290,7 @@ export async function resolveVenueListingPhoto(options: {
   if (ov?.imageUrl) {
     const resolved: ResolvedPlacePhoto = {
       imageUrl: ov.imageUrl,
-      sourceUrl: listing,
+      sourceUrl: googleListing,
       provider: 'openverse'
     };
     cache[ck] = resolved;
@@ -261,11 +300,10 @@ export async function resolveVenueListingPhoto(options: {
 
   const sourceOnly: ResolvedPlacePhoto = {
     imageUrl: '',
-    sourceUrl: listing,
+    sourceUrl: googleListing,
     provider: undefined
   };
-  cache[ck] = sourceOnly;
-  saveCache(cache);
+  // Do not cache empty shells — allow retry next time.
   return sourceOnly;
 }
 

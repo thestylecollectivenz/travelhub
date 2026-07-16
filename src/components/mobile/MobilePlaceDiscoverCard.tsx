@@ -197,7 +197,15 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
     const run = async (): Promise<void> => {
       if (card.photoKind === 'landmark') {
         const hit = await resolveDestinationHeroPhoto(card.name, city);
-        if (!cancelled) setPhoto(hit);
+        if (!cancelled) {
+          setPhoto(
+            hit || {
+              imageUrl: '',
+              sourceUrl: placeQueryMapsUrl(card.name, card.address) || '',
+              provider: undefined
+            }
+          );
+        }
         return;
       }
       const hit = await resolveVenueListingPhoto({
@@ -208,7 +216,15 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
         longitude: card.longitude,
         googleMapsApiKey: config.googleMapsApiKey
       });
-      if (!cancelled) setPhoto(hit);
+      if (!cancelled) {
+        setPhoto(
+          hit || {
+            imageUrl: '',
+            sourceUrl: placeQueryMapsUrl(card.name, card.address) || '',
+            provider: undefined
+          }
+        );
+      }
     };
     void run();
     return () => {
@@ -244,8 +260,13 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
     placeQueryMapsUrl(card.name, card.address) ||
     photo?.sourceUrl ||
     undefined;
-  // Photo click must open the place listing (query_place_id / search) — never directions.
-  const photoHref = (photo?.sourceUrl || '').trim() || undefined;
+  // Prefer Google listing URL from photo resolve; always fall back to a place search link (never directions).
+  const photoHref =
+    (photo?.sourceUrl || '').trim() ||
+    (card.address ? placeQueryMapsUrl(card.address) : undefined) ||
+    placeQueryMapsUrl(card.name, card.address) ||
+    mapsHref ||
+    undefined;
   const photoFromGoogle = photo?.provider === 'google';
   const kind = primaryAction?.kind || 'label';
 
@@ -262,7 +283,9 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
           title={
             photoFromGoogle
               ? 'Google Place photo — opens Google listing'
-              : 'Fallback photo — opens Google listing to verify the place'
+              : photo?.imageUrl
+                ? 'Fallback photo — opens Google listing to verify the place'
+                : 'Open Google listing'
           }
         >
           {photo?.imageUrl ? (
@@ -276,13 +299,7 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
           className={styles.photo}
           style={photo?.imageUrl ? { backgroundImage: `url(${photo.imageUrl})` } : undefined}
           aria-hidden
-        >
-          {photo?.imageUrl ? (
-            <span className={`${styles.photoBadge} ${photoFromGoogle ? styles.photoBadgeGoogle : styles.photoBadgeAlt}`}>
-              {photoFromGoogle ? 'Google' : 'Alt photo'}
-            </span>
-          ) : null}
-        </div>
+        />
       )}
       <div className={styles.body}>
         <div className={styles.titleRow}>
