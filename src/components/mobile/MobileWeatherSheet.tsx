@@ -38,14 +38,13 @@ export const MobileWeatherSheet: React.FC<MobileWeatherSheetProps> = ({
         data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}
         onClick={(e) => e.stopPropagation()}
       >
-        <header className={styles.header}>
-          <span />
-          <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close">
-            ×
-          </button>
-        </header>
         <div className={styles.body}>
-          <MobileWeatherContent place={place} weatherAnchorDate={calendarDate} travelTip={travelTip} />
+          <MobileWeatherContent
+            place={place}
+            weatherAnchorDate={calendarDate}
+            travelTip={travelTip}
+            onClose={onClose}
+          />
         </div>
       </div>
     </div>,

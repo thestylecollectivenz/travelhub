@@ -26,7 +26,7 @@ const GREETINGS: Record<string, string> = {
   VN: 'Xin chào',
   ID: 'Halo',
   MY: 'Selamat datang',
-  SG: 'Hello',
+  SG: 'Ni hao',
   IN: 'Namaste',
   AE: 'مرحبا',
   SA: 'مرحبا',

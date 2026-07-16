@@ -11,143 +11,143 @@ export interface LanguagePack {
   phrases: LanguagePhrase[];
 }
 
-const FALLBACK_PHRASES: LanguagePhrase[] = [
-  { local: 'Hello', english: 'Hello' },
-  { local: 'Thank you', english: 'Thank you' },
-  { local: 'Please', english: 'Please' },
-  { local: 'Excuse me', english: 'Excuse me' },
-  { local: 'Where is…?', english: 'Where is…?' },
-  { local: 'How much?', english: 'How much?' }
-];
+const ESSENTIAL_ENGLISH = [
+  'Hello',
+  'Thank you',
+  'Goodbye',
+  'Please',
+  'Excuse me',
+  "You're welcome",
+  'Where is…?',
+  'How much?',
+  'Help!'
+] as const;
+
+function pack(
+  languageName: string,
+  locals: string[],
+  lang: string,
+  englishWidelySpoken?: boolean
+): LanguagePack {
+  return {
+    languageName,
+    englishWidelySpoken,
+    phrases: ESSENTIAL_ENGLISH.map((english, i) => ({
+      english,
+      local: locals[i] || english,
+      lang
+    }))
+  };
+}
+
+const FALLBACK_PHRASES: LanguagePhrase[] = ESSENTIAL_ENGLISH.map((english) => ({
+  local: english,
+  english
+}));
 
 const PACKS: Record<string, LanguagePack> = {
-  NL: {
-    languageName: 'Dutch',
-    englishWidelySpoken: true,
-    phrases: [
-      { local: 'Hallo', english: 'Hello', lang: 'nl-NL' },
-      { local: 'Dank je wel', english: 'Thank you', lang: 'nl-NL' },
-      { local: 'Alsjeblieft', english: 'Please', lang: 'nl-NL' },
-      { local: 'Pardon', english: 'Excuse me', lang: 'nl-NL' },
-      { local: 'Waar is…?', english: 'Where is…?', lang: 'nl-NL' },
-      { local: 'Hoeveel kost het?', english: 'How much?', lang: 'nl-NL' }
-    ]
-  },
-  NO: {
-    languageName: 'Norwegian',
-    englishWidelySpoken: true,
-    phrases: [
-      { local: 'Hei', english: 'Hello', lang: 'nb-NO' },
-      { local: 'Takk', english: 'Thank you', lang: 'nb-NO' },
-      { local: 'Vær så snill', english: 'Please', lang: 'nb-NO' },
-      { local: 'Unnskyld', english: 'Excuse me', lang: 'nb-NO' },
-      { local: 'Hvor er…?', english: 'Where is…?', lang: 'nb-NO' },
-      { local: 'Hvor mye koster det?', english: 'How much?', lang: 'nb-NO' }
-    ]
-  },
-  DE: {
-    languageName: 'German',
-    phrases: [
-      { local: 'Hallo', english: 'Hello', lang: 'de-DE' },
-      { local: 'Danke', english: 'Thank you', lang: 'de-DE' },
-      { local: 'Bitte', english: 'Please', lang: 'de-DE' },
-      { local: 'Entschuldigung', english: 'Excuse me', lang: 'de-DE' },
-      { local: 'Wo ist…?', english: 'Where is…?', lang: 'de-DE' },
-      { local: 'Wie viel kostet das?', english: 'How much?', lang: 'de-DE' }
-    ]
-  },
-  FR: {
-    languageName: 'French',
-    phrases: [
-      { local: 'Bonjour', english: 'Hello', lang: 'fr-FR' },
-      { local: 'Merci', english: 'Thank you', lang: 'fr-FR' },
-      { local: "S'il vous plaît", english: 'Please', lang: 'fr-FR' },
-      { local: 'Pardon', english: 'Excuse me', lang: 'fr-FR' },
-      { local: 'Où est…?', english: 'Where is…?', lang: 'fr-FR' },
-      { local: 'Combien ça coûte?', english: 'How much?', lang: 'fr-FR' }
-    ]
-  },
-  GB: {
-    languageName: 'English',
-    englishWidelySpoken: true,
-    phrases: [
-      { local: 'Hello', english: 'Hello', lang: 'en-GB' },
-      { local: 'Thank you', english: 'Thank you', lang: 'en-GB' },
-      { local: 'Please', english: 'Please', lang: 'en-GB' },
-      { local: 'Excuse me', english: 'Excuse me', lang: 'en-GB' },
-      { local: 'Where is…?', english: 'Where is…?', lang: 'en-GB' },
-      { local: 'How much?', english: 'How much?', lang: 'en-GB' }
-    ]
-  },
-  US: {
-    languageName: 'English',
-    englishWidelySpoken: true,
-    phrases: [
-      { local: 'Hello', english: 'Hello', lang: 'en-US' },
-      { local: 'Thank you', english: 'Thank you', lang: 'en-US' },
-      { local: 'Please', english: 'Please', lang: 'en-US' },
-      { local: 'Excuse me', english: 'Excuse me', lang: 'en-US' },
-      { local: 'Where is…?', english: 'Where is…?', lang: 'en-US' },
-      { local: 'How much?', english: 'How much?', lang: 'en-US' }
-    ]
-  },
-  ES: {
-    languageName: 'Spanish',
-    phrases: [
-      { local: 'Hola', english: 'Hello', lang: 'es-ES' },
-      { local: 'Gracias', english: 'Thank you', lang: 'es-ES' },
-      { local: 'Por favor', english: 'Please', lang: 'es-ES' },
-      { local: 'Perdón', english: 'Excuse me', lang: 'es-ES' },
-      { local: '¿Dónde está…?', english: 'Where is…?', lang: 'es-ES' },
-      { local: '¿Cuánto cuesta?', english: 'How much?', lang: 'es-ES' }
-    ]
-  },
-  IT: {
-    languageName: 'Italian',
-    phrases: [
-      { local: 'Ciao', english: 'Hello', lang: 'it-IT' },
-      { local: 'Grazie', english: 'Thank you', lang: 'it-IT' },
-      { local: 'Per favore', english: 'Please', lang: 'it-IT' },
-      { local: 'Scusi', english: 'Excuse me', lang: 'it-IT' },
-      { local: 'Dov\'è…?', english: 'Where is…?', lang: 'it-IT' },
-      { local: 'Quanto costa?', english: 'How much?', lang: 'it-IT' }
-    ]
-  },
-  JP: {
-    languageName: 'Japanese',
-    phrases: [
-      { local: 'こんにちは', english: 'Hello', lang: 'ja-JP' },
-      { local: 'ありがとう', english: 'Thank you', lang: 'ja-JP' },
-      { local: 'お願いします', english: 'Please', lang: 'ja-JP' },
-      { local: 'すみません', english: 'Excuse me', lang: 'ja-JP' },
-      { local: '…はどこですか', english: 'Where is…?', lang: 'ja-JP' },
-      { local: 'いくらですか', english: 'How much?', lang: 'ja-JP' }
-    ]
-  },
-  NZ: {
-    languageName: 'Māori',
-    englishWidelySpoken: true,
-    phrases: [
-      { local: 'Kia ora', english: 'Hello', lang: 'mi-NZ' },
-      { local: 'Ngā mihi', english: 'Thank you', lang: 'mi-NZ' },
-      { local: 'Tēnā koa', english: 'Please', lang: 'mi-NZ' },
-      { local: 'Aroha mai', english: 'Excuse me', lang: 'mi-NZ' },
-      { local: 'Kei hea…?', english: 'Where is…?', lang: 'mi-NZ' },
-      { local: 'E hia te utu?', english: 'How much?', lang: 'mi-NZ' }
-    ]
-  },
-  AU: {
-    languageName: 'English',
-    englishWidelySpoken: true,
-    phrases: [
-      { local: 'G\'day', english: 'Hello', lang: 'en-AU' },
-      { local: 'Thanks', english: 'Thank you', lang: 'en-AU' },
-      { local: 'Please', english: 'Please', lang: 'en-AU' },
-      { local: 'Excuse me', english: 'Excuse me', lang: 'en-AU' },
-      { local: 'Where is…?', english: 'Where is…?', lang: 'en-AU' },
-      { local: 'How much?', english: 'How much?', lang: 'en-AU' }
-    ]
-  }
+  NL: pack(
+    'Dutch',
+    ['Hallo', 'Dank je wel', 'Tot ziens', 'Alsjeblieft', 'Pardon', 'Graag gedaan', 'Waar is…?', 'Hoeveel kost het?', 'Help!'],
+    'nl-NL',
+    true
+  ),
+  NO: pack(
+    'Norwegian',
+    ['Hei', 'Takk', 'Ha det', 'Vær så snill', 'Unnskyld', 'Vær så god', 'Hvor er…?', 'Hvor mye koster det?', 'Hjelp!'],
+    'nb-NO',
+    true
+  ),
+  DE: pack(
+    'German',
+    ['Hallo', 'Danke', 'Auf Wiedersehen', 'Bitte', 'Entschuldigung', 'Bitte schön', 'Wo ist…?', 'Wie viel kostet das?', 'Hilfe!'],
+    'de-DE'
+  ),
+  FR: pack(
+    'French',
+    ['Bonjour', 'Merci', 'Au revoir', "S'il vous plaît", 'Pardon', 'De rien', 'Où est…?', 'Combien ça coûte?', 'Au secours!'],
+    'fr-FR'
+  ),
+  GB: pack(
+    'English',
+    ['Hello', 'Thank you', 'Goodbye', 'Please', 'Excuse me', "You're welcome", 'Where is…?', 'How much?', 'Help!'],
+    'en-GB',
+    true
+  ),
+  US: pack(
+    'English',
+    ['Hello', 'Thank you', 'Goodbye', 'Please', 'Excuse me', "You're welcome", 'Where is…?', 'How much?', 'Help!'],
+    'en-US',
+    true
+  ),
+  ES: pack(
+    'Spanish',
+    ['Hola', 'Gracias', 'Adiós', 'Por favor', 'Perdón', 'De nada', '¿Dónde está…?', '¿Cuánto cuesta?', '¡Ayuda!'],
+    'es-ES'
+  ),
+  IT: pack(
+    'Italian',
+    ['Ciao', 'Grazie', 'Arrivederci', 'Per favore', 'Scusi', 'Prego', "Dov'è…?", 'Quanto costa?', 'Aiuto!'],
+    'it-IT'
+  ),
+  JP: pack(
+    'Japanese',
+    ['こんにちは', 'ありがとう', 'さようなら', 'お願いします', 'すみません', 'どういたしまして', '…はどこですか', 'いくらですか', '助けて！'],
+    'ja-JP'
+  ),
+  NZ: pack(
+    'Māori',
+    ['Kia ora', 'Ngā mihi', 'Ka kite', 'Tēnā koa', 'Aroha mai', 'Ka pai', 'Kei hea…?', 'E hia te utu?', 'Āwhina!'],
+    'mi-NZ',
+    true
+  ),
+  AU: pack(
+    'English',
+    ["G'day", 'Thanks', 'See ya', 'Please', 'Excuse me', 'No worries', 'Where is…?', 'How much?', 'Help!'],
+    'en-AU',
+    true
+  ),
+  /** Mandarin phrases commonly useful for visitors; English is widely spoken. */
+  SG: pack(
+    'Mandarin',
+    ['Ni hao', 'Xièxiè', 'Zàijiàn', 'Qǐng', 'Duìbuqǐ', 'Bú kèqì', '…zài nǎlǐ?', 'Duōshǎo qián?', 'Jiùmìng!'],
+    'zh-CN',
+    true
+  ),
+  CN: pack(
+    'Mandarin',
+    ['你好', '谢谢', '再见', '请', '对不起', '不客气', '…在哪里？', '多少钱？', '救命！'],
+    'zh-CN'
+  ),
+  HK: pack(
+    'Cantonese',
+    ['Néih hóu', "M̀h'gōi", 'Joi gin', "M̀h'gōi", 'Mhóuyisi', 'Msái haak hei', '…hái bīndouh?', 'Géi dō chín?', 'Gau meng!'],
+    'zh-HK',
+    true
+  ),
+  TH: pack(
+    'Thai',
+    ['Sawasdee', 'Khob khun', 'Laa gòn', 'Karuna', 'Khor thoad', 'Yin dee', 'Yuu thee nai…?', 'Tao rai?', 'Chuay duay!'],
+    'th-TH',
+    true
+  ),
+  MY: pack(
+    'Malay',
+    ['Hello', 'Terima kasih', 'Selamat tinggal', 'Tolong', 'Maaf', 'Sama-sama', 'Di mana…?', 'Berapa harga?', 'Tolong!'],
+    'ms-MY',
+    true
+  ),
+  ID: pack(
+    'Indonesian',
+    ['Halo', 'Terima kasih', 'Selamat tinggal', 'Tolong', 'Permisi', 'Sama-sama', 'Di mana…?', 'Berapa harganya?', 'Tolong!'],
+    'id-ID',
+    true
+  ),
+  KR: pack(
+    'Korean',
+    ['안녕하세요', '감사합니다', '안녕히 가세요', '부탁합니다', '실례합니다', '천만에요', '…어디예요?', '얼마예요?', '도와주세요!'],
+    'ko-KR'
+  )
 };
 
 export function languagePackForCountry(countryCode?: string): LanguagePack {

@@ -11,6 +11,8 @@ import { localGreetingForCountry } from '../../utils/localGreetings';
 import { languagePackForCountry } from '../../data/localLanguagePhrases';
 import { useSpeechOutput } from '../../hooks/useSpeechOutput';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { resolveDestinationHeroPhoto } from '../../utils/placePhotoResolve';
+import { resolveLocalCoffeeOrder } from '../../utils/coffeeOrderLocal';
 import styles from './MobileWeatherSheet.module.css';
 
 const TIP_PRESETS = [5, 10, 15, 20] as const;
@@ -23,7 +25,29 @@ function defaultTipPercent(tipping?: string): number {
 
 function formatMoney(amount: number, currency: string): string {
   const code = (currency || 'NZD').toUpperCase();
-  return `${code} ${amount.toFixed(2)}`;
+  try {
+    return new Intl.NumberFormat('en-NZ', {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  } catch {
+    return `${code} ${amount.toFixed(2)}`;
+  }
+}
+
+function formatApproxMoney(amount: number, currency: string): string {
+  const code = (currency || 'NZD').toUpperCase();
+  try {
+    return new Intl.NumberFormat('en-NZ', {
+      style: 'currency',
+      currency: code,
+      maximumFractionDigits: code === 'JPY' || code === 'KRW' || code === 'IDR' || code === 'VND' ? 0 : 2
+    }).format(amount);
+  } catch {
+    return `${code} ${amount.toFixed(2)}`;
+  }
 }
 
 function formatPlaceLocalDateTime(date: Date, timeZone: string): { dateTime: string; zone: string } {
@@ -53,7 +77,15 @@ function formatPlaceLocalDateTime(date: Date, timeZone: string): { dateTime: str
         timeZoneName: 'shortOffset'
       }).formatToParts(date);
       const offset = shortParts.find((p) => p.type === 'timeZoneName')?.value || '';
-      zone = tzName && offset ? `${tzName} (${timeZone}, ${offset})` : tzName || timeZone;
+      // Prefer "Singapore Standard Time (SGT, UTC+8)" style when short name is available.
+      const abbrParts = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        timeZoneName: 'short'
+      }).formatToParts(date);
+      const abbr = abbrParts.find((p) => p.type === 'timeZoneName')?.value || '';
+      if (tzName && abbr && offset) zone = `${tzName} (${abbr}, ${offset})`;
+      else if (tzName && offset) zone = `${tzName} (${timeZone}, ${offset})`;
+      else zone = tzName || timeZone;
     } catch {
       zone = timeZone;
     }
@@ -61,20 +93,6 @@ function formatPlaceLocalDateTime(date: Date, timeZone: string): { dateTime: str
   } catch {
     return { dateTime: '', zone: '' };
   }
-}
-
-function seasonForLatitude(month: number, latitude: number): 'Summer' | 'Autumn' | 'Winter' | 'Spring' {
-  const north = latitude >= 0;
-  if (north) {
-    if (month === 11 || month === 0 || month === 1) return 'Winter';
-    if (month >= 2 && month <= 4) return 'Spring';
-    if (month >= 5 && month <= 7) return 'Summer';
-    return 'Autumn';
-  }
-  if (month === 11 || month === 0 || month === 1) return 'Summer';
-  if (month >= 2 && month <= 4) return 'Autumn';
-  if (month >= 5 && month <= 7) return 'Winter';
-  return 'Spring';
 }
 
 type ForecastDay = {
@@ -89,31 +107,36 @@ export interface MobileWeatherContentProps {
   place: Place;
   weatherAnchorDate: string;
   travelTip?: string;
+  onClose?: () => void;
 }
 
 export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
   place,
   weatherAnchorDate,
-  travelTip
+  travelTip,
+  onClose
 }) => {
   const { config } = useConfig();
   const { convertToHomeCurrency } = useTripWorkspace();
   const { speak } = useSpeechOutput();
   const [tempUnit, setTempUnit] = React.useState<'Celsius' | 'Fahrenheit'>(config.temperatureUnit);
-  const [billAmount, setBillAmount] = React.useState('');
+  const [billAmount, setBillAmount] = React.useState('100');
   const [tipPercent, setTipPercent] = React.useState(10);
   const [tipCustom, setTipCustom] = React.useState(false);
   const [customPercent, setCustomPercent] = React.useState('12');
+  const [heroPhoto, setHeroPhoto] = React.useState<{ imageUrl: string; sourceUrl: string } | null>(null);
   const countryData = COUNTRY_DATA[place.countryCode];
   const mapsUrl = placeQueryMapsUrl(placeDisplayLabel(place));
   const forecastDates = React.useMemo(() => forecastDatesFromToday(10), []);
   const today = todayYmd();
   const selectedDate = (weatherAnchorDate || today).slice(0, 10);
+  const placeLabel = placeDisplayLabel(place);
 
   const [weather, setWeather] = React.useState<{
     temp: number;
     description: string;
     iconCode: string;
+    humidity: number;
     sunrise: number;
     sunset: number;
     timezoneName: string;
@@ -123,6 +146,7 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
     conditions: string;
     sunrise: string;
     sunset: string;
+    iconCode: string;
   } | null>(null);
   const [forecastDays, setForecastDays] = React.useState<ForecastDay[]>([]);
   const [currentLocalTime, setCurrentLocalTime] = React.useState('');
@@ -139,17 +163,13 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
     return SEASONAL_BY_REGION[countryData.region]?.[typicalDate.getUTCMonth()];
   }, [countryData, typicalDate]);
 
-  const currentSeason = React.useMemo(() => {
-    if (!Number.isFinite(place.latitude)) return '';
-    return seasonForLatitude(new Date().getMonth(), Number(place.latitude));
-  }, [place.latitude]);
-
   const tempSuffix = tempUnit === 'Fahrenheit' ? 'F' : 'C';
   const unitLabel = tempUnit === 'Fahrenheit' ? '°F' : '°C';
   const languagePack = languagePackForCountry(place.countryCode);
   const phraseLang = languagePack.phrases.find((p) => p.lang)?.lang;
   const localCurrency = countryData?.currencyCode || config.homeCurrency || 'NZD';
   const homeCurrency = (config.homeCurrency || 'NZD').toUpperCase();
+  const coffeeGuide = resolveLocalCoffeeOrder(config.usualCoffee, place.countryCode, placeLabel);
 
   React.useEffect(() => {
     setTempUnit(config.temperatureUnit);
@@ -159,8 +179,22 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
     const pct = defaultTipPercent(countryData?.tipping);
     setTipPercent(pct);
     setTipCustom(false);
-    setBillAmount('');
+    setBillAmount('100');
   }, [place.countryCode, countryData?.tipping]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    void resolveDestinationHeroPhoto(placeLabel, place.country || place.countryCode).then((hit) => {
+      if (!cancelled && hit?.imageUrl) {
+        setHeroPhoto({ imageUrl: hit.imageUrl, sourceUrl: hit.sourceUrl || mapsUrl || '' });
+      } else if (!cancelled) {
+        setHeroPhoto(null);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [placeLabel, place.country, place.countryCode, mapsUrl]);
 
   React.useEffect(() => {
     if (!config.weatherApiKey.trim()) {
@@ -183,6 +217,7 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
           temp: Number(current.temp ?? 0),
           description: String(current.conditions ?? ''),
           iconCode: String(current.icon ?? ''),
+          humidity: Number(current.humidity ?? NaN),
           sunrise: Number(current.sunriseEpoch ?? 0),
           sunset: Number(current.sunsetEpoch ?? 0),
           timezoneName: String(data.timezone ?? '')
@@ -246,16 +281,17 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
       return;
     }
     const units = tempUnit === 'Fahrenheit' ? 'us' : 'metric';
-    const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${place.latitude},${place.longitude}/${typicalWeatherQueryDate}?key=${encodeURIComponent(config.weatherApiKey.trim())}&include=days&elements=tempmax,tempmin,sunrise,sunset,conditions&unitGroup=${units}&contentType=json`;
+    const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${place.latitude},${place.longitude}/${typicalWeatherQueryDate}?key=${encodeURIComponent(config.weatherApiKey.trim())}&include=days&elements=tempmax,tempmin,sunrise,sunset,conditions,icon&unitGroup=${units}&contentType=json`;
     fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Weather ${r.status}`))))
       .then((data) => {
         const d = (data.days ?? [])[0] ?? {};
         setTypicalWeather({
-          tempRange: `${Math.round(Number(d.tempmin ?? 0))}° to ${Math.round(Number(d.tempmax ?? 0))}°${tempSuffix}`,
+          tempRange: `${Math.round(Number(d.tempmin ?? 0))}°${tempSuffix} to ${Math.round(Number(d.tempmax ?? 0))}°${tempSuffix}`,
           conditions: String(d.conditions ?? 'Typical conditions unavailable'),
           sunrise: String(d.sunrise ?? '—'),
-          sunset: String(d.sunset ?? '—')
+          sunset: String(d.sunset ?? '—'),
+          iconCode: String(d.icon ?? 'rain')
         });
       })
       .catch(() => setTypicalWeather(null));
@@ -307,10 +343,16 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
   })();
 
   const localHello = localGreetingForCountry(place.countryCode);
+  const humidityTag =
+    weather && Number.isFinite(weather.humidity)
+      ? weather.humidity >= 70
+        ? 'Humid'
+        : weather.humidity <= 35
+          ? 'Dry'
+          : undefined
+      : undefined;
 
-  const effectiveTipPercent = tipCustom
-    ? Math.max(0, Number(customPercent) || 0)
-    : tipPercent;
+  const effectiveTipPercent = tipCustom ? Math.max(0, Number(customPercent) || 0) : tipPercent;
   const billValue = Math.max(0, Number(billAmount.replace(/,/g, '')) || 0);
   const tipAmount = billValue * (effectiveTipPercent / 100);
   const tipTotal = billValue + tipAmount;
@@ -320,38 +362,59 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
   const fxRate =
     tipAmount > 0 && tipHome > 0 ? tipHome / tipAmount : showHomeFx ? convertToHomeCurrency(1, localCurrency) : 1;
 
+  const tippingBullets =
+    countryData?.tippingBullets && countryData.tippingBullets.length
+      ? countryData.tippingBullets
+      : countryData?.tipping
+        ? countryData.tipping.split(';').map((s) => s.trim()).filter(Boolean)
+        : [];
+
   return (
-    <>
+    <div className={styles.page}>
       <div className={styles.hero}>
-        <div className={styles.heroIcon} aria-hidden>
-          <WeatherIcon iconCode={weather?.iconCode || 'partly-cloudy-day'} size={30} />
+        <div className={styles.heroLeft}>
+          <div className={styles.heroIcon} aria-hidden>
+            <WeatherIcon iconCode={weather?.iconCode || 'partly-cloudy-day'} size={34} />
+          </div>
+          <div className={styles.heroCopy}>
+            <p className={styles.kicker}>Weather &amp; tips</p>
+            {localHello ? <p className={styles.localGreeting}>{localHello}</p> : null}
+            <h2 className={styles.title}>{placeLabel}</h2>
+            <p className={styles.metaLine}>
+              <svg width="12" height="12" viewBox="0 0 12 14" fill="none" aria-hidden>
+                <path d="M6 1C3.79 1 2 2.79 2 5c0 3 4 8 4 8s4-5 4-8c0-2.21-1.79-4-4-4z" fill="currentColor" />
+              </svg>
+              <span>{place.country || place.title}</span>
+              {currentLocalTime ? <span className={styles.metaSep}>·</span> : null}
+              {currentLocalTime ? <span>{currentLocalTime}</span> : null}
+            </p>
+            {currentLocalZone ? <p className={styles.localZone}>{currentLocalZone}</p> : null}
+          </div>
         </div>
-        <div className={styles.heroCopy}>
-          <p className={styles.kicker}>Weather &amp; tips</p>
-          {localHello ? <p className={styles.localGreeting}>{localHello}</p> : null}
-          <h2 className={styles.title}>{placeDisplayLabel(place)}</h2>
-          <p className={styles.location}>
-            <svg width="11" height="11" viewBox="0 0 12 14" fill="none" aria-hidden>
-              <path d="M6 1C3.79 1 2 2.79 2 5c0 3 4 8 4 8s4-5 4-8c0-2.21-1.79-4-4-4z" fill="currentColor" />
-            </svg>
-            {place.country || place.title}
-          </p>
-          {currentLocalTime ? (
-            <div className={styles.localTimeBlock}>
-              <p className={styles.localTime}>{currentLocalTime}</p>
-              {currentLocalZone ? <p className={styles.localZone}>{currentLocalZone}</p> : null}
-            </div>
+
+        <div
+          className={styles.heroPhoto}
+          style={heroPhoto?.imageUrl ? { backgroundImage: `url(${heroPhoto.imageUrl})` } : undefined}
+        >
+          {onClose ? (
+            <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close">
+              ×
+            </button>
+          ) : null}
+          {mapsUrl ? (
+            <a className={styles.mapBtn} href={mapsUrl} target="_blank" rel="noopener noreferrer">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M12 21s7-4.35 7-10a7 7 0 1 0-14 0c0 5.65 7 10 7 10Z"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                />
+                <circle cx="12" cy="11" r="2" fill="currentColor" />
+              </svg>
+              Map
+            </a>
           ) : null}
         </div>
-        {mapsUrl ? (
-          <a className={styles.mapBtn} href={mapsUrl} target="_blank" rel="noopener noreferrer">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path d="M12 21s7-4.35 7-10a7 7 0 1 0-14 0c0 5.65 7 10 7 10Z" stroke="currentColor" strokeWidth="1.6" />
-              <circle cx="12" cy="11" r="2" fill="currentColor" />
-            </svg>
-            Map
-          </a>
-        ) : null}
       </div>
 
       {config.weatherApiKey.trim() && forecastDays.length ? (
@@ -373,12 +436,9 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
                 day: 'numeric',
                 month: 'short'
               });
-              const active = fd.date === selectedDate || (fd.date === today && selectedDate < today);
+              const active = fd.date === today;
               return (
-                <div
-                  key={fd.date}
-                  className={`${styles.forecastDay} ${active || fd.date === today ? styles.forecastDayActive : ''}`}
-                >
+                <div key={fd.date} className={`${styles.forecastDay} ${active ? styles.forecastDayActive : ''}`}>
                   <span className={styles.forecastDayName}>{fd.label}</span>
                   <span className={styles.forecastDayDate}>{dateLabel}</span>
                   <WeatherIcon iconCode={fd.iconCode} size={28} />
@@ -400,16 +460,16 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
           <h3 className={styles.infoCardTitle}>Current weather</h3>
           {config.weatherApiKey.trim() && weather ? (
             <>
-              <p className={styles.infoLine}>
-                <WeatherIcon iconCode={weather.iconCode} size={22} />
-                {Math.round(weather.temp)}°{tempSuffix} · {weather.description}
-              </p>
-              {currentSeason ? (
-                <span className={styles.seasonPill}>
-                  <WeatherIcon iconCode={currentSeason === 'Winter' ? 'snow' : 'clear-day'} size={14} />
-                  {currentSeason}
-                </span>
-              ) : null}
+              <div className={styles.currentRow}>
+                <WeatherIcon iconCode={weather.iconCode} size={28} />
+                <div className={styles.currentCopy}>
+                  <p className={styles.currentTemp}>
+                    {Math.round(weather.temp)}°{tempSuffix}
+                  </p>
+                  <p className={styles.currentDesc}>{weather.description}</p>
+                </div>
+                {humidityTag ? <span className={styles.conditionPill}>{humidityTag}</span> : null}
+              </div>
               <p className={styles.infoSub}>
                 Sunrise {formatLocalFromUnix(weather.sunrise, weather.timezoneName)} · Sunset{' '}
                 {formatLocalFromUnix(weather.sunset, weather.timezoneName)}
@@ -423,17 +483,22 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
           <h3 className={styles.infoCardTitle}>Typical for {typicalLabel}</h3>
           {typicalWeather ? (
             <>
-              <p className={styles.infoLine}>
-                <WeatherIcon iconCode="rain" size={20} />
-                {typicalWeather.tempRange} · {typicalWeather.conditions}
-              </p>
+              <div className={styles.currentRow}>
+                <WeatherIcon iconCode={typicalWeather.iconCode || 'rain'} size={28} />
+                <div className={styles.currentCopy}>
+                  <p className={styles.currentTemp}>{typicalWeather.tempRange}</p>
+                  <p className={styles.currentDesc}>{typicalWeather.conditions}</p>
+                </div>
+              </div>
               <p className={styles.infoSub}>
                 Sunrise {hhmmOnly(typicalWeather.sunrise)} · Sunset {hhmmOnly(typicalWeather.sunset)}
               </p>
             </>
           ) : countryData && seasonal ? (
             <>
-              <p className={styles.infoLine}>{seasonal.tempRange} · {seasonal.conditions}</p>
+              <p className={styles.infoLine}>
+                {seasonal.tempRange} · {seasonal.conditions}
+              </p>
               <p className={styles.infoSub}>Daylight: {seasonal.daylight}</p>
             </>
           ) : (
@@ -442,202 +507,299 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
         </article>
       </div>
 
-      <article className={styles.currencyCard}>
-        <h3 className={styles.currencyHeading}>Currency and tipping</h3>
-        <div className={styles.currencyAdvice}>
-          <div className={styles.currencyBlock}>
-            <span className={`${styles.sectionIcon} ${styles.iconOlive}`} aria-hidden>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.6" />
-                <path d="M12 8v8M9.5 10.5c.5-.8 1.4-1.2 2.5-1.2 1.4 0 2.5.8 2.5 2s-1.1 2-2.5 2H11c-1.4 0-2.5.9-2.5 2s1.2 2 2.7 2c1.1 0 2-.4 2.5-1.1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </span>
-            <div className={styles.sectionBody}>
+      <section className={styles.currencySection} aria-label="Currency and tipping">
+        <h3 className={styles.sectionHeading}>Currency and tipping</h3>
+        <div className={styles.currencyGrid}>
+          <div className={styles.currencyLeft}>
+            <div className={styles.currencyBlock}>
               <p className={styles.sectionLabel}>Currency</p>
               {countryData ? (
                 <>
-                  <p className={styles.sectionText}>
+                  <p className={styles.currencyName}>
                     {countryData.currency} ({countryData.currencyCode})
                   </p>
                   {showHomeFx ? (
-                    <p className={styles.sectionSub}>
-                      1 {localCurrency} = {fxRate.toFixed(2)} {homeCurrency} · Live exchange rate
-                    </p>
+                    <span className={styles.fxPill}>
+                      1 {localCurrency} = {fxRate.toFixed(2)} {homeCurrency}
+                      <span className={styles.fxPillSub}>Live exchange rate</span>
+                    </span>
                   ) : null}
                 </>
               ) : (
-                <p className={styles.sectionSub}>Currency guidance unavailable.</p>
+                <p className={styles.muted}>Currency guidance unavailable.</p>
               )}
             </div>
-          </div>
-          <div className={styles.currencyBlock}>
-            <span className={`${styles.sectionIcon} ${styles.iconTan}`} aria-hidden>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <circle cx="9" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-                <circle cx="15" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M5.5 17c.8-2 2.4-3 4.5-3s3.7 1 4.5 3M14 14c1.6.2 2.9 1 3.5 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </span>
-            <div className={styles.sectionBody}>
-              <p className={styles.sectionLabel}>Tipping advice</p>
-              <p className={styles.sectionSub}>
-                {countryData?.tipping || 'Tipping guidance unavailable for this location.'}
-              </p>
-            </div>
-          </div>
-        </div>
 
-        <div className={styles.tipCalc}>
-          <div className={styles.tipCalcHead}>
-            <span className={`${styles.sectionIcon} ${styles.iconOlive}`} aria-hidden>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </span>
-            <p className={styles.sectionLabel}>Tip calculator</p>
-          </div>
-          <label className={styles.tipLabel}>
-            Enter bill amount
-            <span className={styles.tipInputWrap}>
-              <span className={styles.tipCurrencyPrefix}>{localCurrency}</span>
-              <input
-                className={styles.tipInput}
-                type="text"
-                inputMode="decimal"
-                value={billAmount}
-                onChange={(e) => setBillAmount(e.target.value.replace(/[^\d.]/g, ''))}
-                placeholder="0.00"
-                aria-label="Bill amount"
-              />
-            </span>
-          </label>
-          <div className={styles.tipPctRow} role="group" aria-label="Tip percentage">
-            {TIP_PRESETS.map((pct) => (
-              <button
-                key={pct}
-                type="button"
-                className={`${styles.tipPctBtn} ${!tipCustom && tipPercent === pct ? styles.tipPctBtnOn : ''}`}
-                onClick={() => {
-                  setTipCustom(false);
-                  setTipPercent(pct);
-                }}
-              >
-                {pct}%
-              </button>
-            ))}
-            <button
-              type="button"
-              className={`${styles.tipPctBtn} ${tipCustom ? styles.tipPctBtnOn : ''}`}
-              onClick={() => setTipCustom(true)}
-            >
-              Custom
-            </button>
-          </div>
-          {tipCustom ? (
-            <label className={styles.tipLabel}>
-              Custom tip %
-              <input
-                className={styles.tipCustomInput}
-                type="number"
-                min={0}
-                step={0.5}
-                value={customPercent}
-                onChange={(e) => setCustomPercent(e.target.value)}
-              />
-            </label>
-          ) : null}
-          <div className={styles.tipResultBox}>
-            <div className={styles.tipResultLocal}>
-              <div className={styles.tipResultRow}>
-                <span>Tip amount</span>
-                <strong>{formatMoney(tipAmount, localCurrency)}</strong>
+            {countryData?.taxLabel ? (
+              <div className={styles.currencyBlock}>
+                <p className={styles.sectionLabel}>Tax information</p>
+                <p className={styles.taxLine}>
+                  <span className={styles.taxBadge}>{countryData.taxLabel}</span>
+                  {countryData.taxIncluded ? (
+                    <span className={styles.taxIncluded}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                        <circle cx="12" cy="12" r="10" fill="#6b7c3a" opacity="0.15" />
+                        <path
+                          d="M7 12.5l3 3 7-7"
+                          stroke="#6b7c3a"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      Included in displayed prices
+                    </span>
+                  ) : (
+                    <span className={styles.taxIncluded}>Usually added at the till</span>
+                  )}
+                </p>
               </div>
-              <div className={styles.tipResultRow}>
-                <span>Total</span>
-                <strong>{formatMoney(tipTotal, localCurrency)}</strong>
+            ) : null}
+
+            {countryData?.typicalPrices?.length ? (
+              <div className={styles.pricesBlock}>
+                <p className={styles.sectionLabel}>Typical prices</p>
+                <table className={styles.priceTable}>
+                  <thead>
+                    <tr>
+                      <th>Typical item</th>
+                      <th>Local price</th>
+                      {showHomeFx ? <th>In {homeCurrency} (approx.)</th> : null}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {countryData.typicalPrices.map((row) => (
+                      <tr key={row.item}>
+                        <td>{row.item}</td>
+                        <td>{formatApproxMoney(row.amount, localCurrency)}</td>
+                        {showHomeFx ? (
+                          <td>{formatApproxMoney(convertToHomeCurrency(row.amount, localCurrency), homeCurrency)}</td>
+                        ) : null}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </div>
+
+          <div className={styles.currencyRight}>
+            <div className={styles.tipCalc}>
+              <p className={styles.sectionLabel}>Tip calculator</p>
+              <label className={styles.tipLabel}>
+                Enter bill amount
+                <span className={styles.tipInputWrap}>
+                  <input
+                    className={styles.tipInput}
+                    type="text"
+                    inputMode="decimal"
+                    value={billAmount}
+                    onChange={(e) => setBillAmount(e.target.value.replace(/[^\d.]/g, ''))}
+                    placeholder="0.00"
+                    aria-label="Bill amount"
+                  />
+                </span>
+              </label>
+              <p className={styles.tipPctLabel}>Tip percentage</p>
+              <div className={styles.tipPctRow} role="group" aria-label="Tip percentage">
+                {TIP_PRESETS.map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    className={`${styles.tipPctBtn} ${!tipCustom && tipPercent === pct ? styles.tipPctBtnOn : ''}`}
+                    onClick={() => {
+                      setTipCustom(false);
+                      setTipPercent(pct);
+                    }}
+                  >
+                    {pct}%
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className={`${styles.tipPctBtn} ${tipCustom ? styles.tipPctBtnOn : ''}`}
+                  onClick={() => setTipCustom(true)}
+                >
+                  Custom
+                </button>
+              </div>
+              {tipCustom ? (
+                <label className={styles.tipLabel}>
+                  Custom tip %
+                  <input
+                    className={styles.tipCustomInput}
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    value={customPercent}
+                    onChange={(e) => setCustomPercent(e.target.value)}
+                  />
+                </label>
+              ) : null}
+              <div className={styles.tipResultBox}>
+                <div className={styles.tipResultLocal}>
+                  <div className={styles.tipResultRow}>
+                    <span>Tip amount</span>
+                    <strong>{formatMoney(tipAmount, localCurrency)}</strong>
+                  </div>
+                  <div className={styles.tipResultRow}>
+                    <span>Total</span>
+                    <strong>{formatMoney(tipTotal, localCurrency)}</strong>
+                  </div>
+                </div>
+                {showHomeFx ? (
+                  <div className={styles.tipResultHome}>
+                    <p className={styles.tipResultHomeLabel}>Converted to your home currency</p>
+                    <div className={styles.tipResultRow}>
+                      <span>Tip</span>
+                      <strong>{formatMoney(tipHome, homeCurrency)}</strong>
+                    </div>
+                    <div className={styles.tipResultRow}>
+                      <span>Total</span>
+                      <strong>{formatMoney(totalHome, homeCurrency)}</strong>
+                    </div>
+                    <p className={styles.tipRateNote}>
+                      Rate: 1 {localCurrency.toUpperCase()} = {fxRate.toFixed(4)} {homeCurrency}
+                    </p>
+                  </div>
+                ) : null}
               </div>
             </div>
-            {showHomeFx ? (
-              <div className={styles.tipResultHome}>
-                <p className={styles.tipResultHomeLabel}>Converted to your home currency</p>
-                <div className={styles.tipResultRow}>
-                  <span>Tip</span>
-                  <strong>{formatMoney(tipHome, homeCurrency)}</strong>
-                </div>
-                <div className={styles.tipResultRow}>
-                  <span>Total</span>
-                  <strong>{formatMoney(totalHome, homeCurrency)}</strong>
-                </div>
-                <p className={styles.tipRateNote}>
-                  1 {localCurrency.toUpperCase()} ≈ {fxRate.toFixed(4)} {homeCurrency}
-                </p>
+
+            {tippingBullets.length ? (
+              <div className={styles.tipAdvice}>
+                <p className={styles.sectionLabel}>Tipping advice</p>
+                <ul className={styles.tipAdviceList}>
+                  {tippingBullets.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
               </div>
             ) : null}
           </div>
         </div>
-      </article>
+      </section>
 
-      {travelTip ? (
-        <article className={styles.sectionCard}>
-          <span className={`${styles.sectionIcon} ${styles.iconTan}`} aria-hidden>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M9 18h6M10 22h4M12 2a6 6 0 0 0-4 10c.9.9 1.5 2.1 1.7 3.4H14c.2-1.3.8-2.5 1.7-3.4A6 6 0 0 0 12 2Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-            </svg>
-          </span>
-          <div className={styles.sectionBody}>
-            <p className={styles.sectionLabel}>Local tip</p>
-            <p className={styles.sectionText}>{travelTip}</p>
-          </div>
-          <span className={styles.chevron} aria-hidden>›</span>
-        </article>
-      ) : null}
-
-      <section className={styles.languageSection} aria-label="Language essentials">
-        <div className={styles.languageHead}>
-          <h3 className={styles.languageTitle}>Language essentials</h3>
-          <button
-            type="button"
-            className={styles.hearAllBtn}
-            onClick={() => speak(languagePack.phrases.map((p) => p.local).join('. '), phraseLang)}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path d="M3 10v4h4l5 4V6L7 10H3Z" fill="currentColor" />
-              <path d="M16 9a4 4 0 0 1 0 6M18.5 7a7 7 0 0 1 0 10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            </svg>
-            Hear all phrases
-          </button>
-        </div>
-        <div className={styles.phraseGrid}>
-          {languagePack.phrases.map((phrase) => (
-            <article key={phrase.english} className={styles.phraseCard}>
+      <div className={styles.essentialsPair}>
+        <article className={styles.coffeeCard}>
+          <h3 className={styles.essentialsTitle}>How to order your usual coffee</h3>
+          {coffeeGuide ? (
+            <>
+              <p className={styles.coffeePref}>
+                Based on your preference: <strong>{coffeeGuide.preferenceLabel}</strong>
+              </p>
+              <div className={styles.coffeeAsk}>
+                <span className={styles.coffeeFlag} aria-hidden>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M4 8h12v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V8Z"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                    />
+                    <path d="M16 9h2.5a2.5 2.5 0 0 1 0 5H16" stroke="currentColor" strokeWidth="1.6" />
+                    <path d="M7 4c.5.8.5 1.5 0 2.3M10 4c.5.8.5 1.5 0 2.3M13 4c.5.8.5 1.5 0 2.3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                  </svg>
+                </span>
+                <p>
+                  In {coffeeGuide.placeLabel}, ask for:{' '}
+                  <strong>&ldquo;{coffeeGuide.askFor}&rdquo;</strong>
+                </p>
+              </div>
+              <p className={styles.coffeeNote}>{coffeeGuide.note}</p>
               <button
                 type="button"
-                className={styles.phrasePlay}
+                className={styles.coffeeSpeak}
+                aria-label="Hear coffee order"
+                onClick={() => speak(coffeeGuide.askFor)}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path d="M3 10v4h4l5 4V6L7 10H3Z" fill="currentColor" />
+                  <path
+                    d="M16 9a4 4 0 0 1 0 6M18.5 7a7 7 0 0 1 0 10"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </>
+          ) : (
+            <p className={styles.muted}>
+              Set your usual coffee order in User settings (e.g. Flat white with trim milk) to see how to ask for it
+              here.
+            </p>
+          )}
+        </article>
+
+        <section className={styles.languageSection} aria-label="Language essentials">
+          <div className={styles.languageHead}>
+            <h3 className={styles.essentialsTitle}>Language essentials</h3>
+            <button
+              type="button"
+              className={styles.hearAllBtn}
+              onClick={() => speak(languagePack.phrases.map((p) => p.local).join('. '), phraseLang)}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M3 10v4h4l5 4V6L7 10H3Z" fill="currentColor" />
+                <path
+                  d="M16 9a4 4 0 0 1 0 6M18.5 7a7 7 0 0 1 0 10"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                />
+              </svg>
+              Hear all phrases
+            </button>
+          </div>
+          <div className={styles.phraseGrid}>
+            {languagePack.phrases.map((phrase) => (
+              <button
+                key={phrase.english}
+                type="button"
+                className={styles.phraseCard}
                 aria-label={`Play ${phrase.english} in ${languagePack.languageName}`}
                 onClick={() => speak(phrase.local, phrase.lang || phraseLang)}
               >
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-                  <path d="M4 3.5v9l8-4.5-8-4.5Z" fill="currentColor" />
-                </svg>
+                <span className={styles.phrasePlay} aria-hidden>
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                    <path d="M4 3.5v9l8-4.5-8-4.5Z" fill="currentColor" />
+                  </svg>
+                </span>
+                <span className={styles.phraseCopy}>
+                  <span className={styles.phraseEnglish}>{phrase.english}</span>
+                  <span className={styles.phraseLocal}>{phrase.local}</span>
+                </span>
               </button>
-              <div className={styles.phraseCopy}>
-                <p className={styles.phraseEnglish}>{phrase.english}</p>
-                <p className={styles.phraseLocal}>{phrase.local}</p>
-              </div>
-            </article>
-          ))}
-        </div>
-        {languagePack.englishWidelySpoken ? (
-          <p className={styles.languageNote}>
-            English is widely spoken in tourist areas, but locals appreciate a few words in {languagePack.languageName}.
-          </p>
-        ) : null}
-      </section>
+            ))}
+          </div>
+          {languagePack.englishWidelySpoken ? (
+            <p className={styles.languageNote}>
+              English is widely spoken in tourist areas, but locals appreciate a few words in {languagePack.languageName}.
+            </p>
+          ) : null}
+        </section>
+      </div>
 
-      {config.weatherApiKey.trim() ? (
-        <p className={styles.source}>Forecast source: Visual Crossing</p>
+      {travelTip ? (
+        <aside className={styles.localTipBar}>
+          <span className={styles.localTipIcon} aria-hidden>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M9 18h6M10 22h4M12 2a6 6 0 0 0-4 10c.9.9 1.5 2.1 1.7 3.4H14c.2-1.3.8-2.5 1.7-3.4A6 6 0 0 0 12 2Z"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+          <p className={styles.localTipText}>
+            <strong>Local tip</strong>
+            <span>{travelTip}</span>
+          </p>
+        </aside>
       ) : null}
-    </>
+
+      {config.weatherApiKey.trim() ? <p className={styles.source}>Forecast source: Visual Crossing</p> : null}
+    </div>
   );
 };

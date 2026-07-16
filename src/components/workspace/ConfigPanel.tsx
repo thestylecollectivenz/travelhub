@@ -244,6 +244,20 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
             />
           </label>
 
+          <label style={{ display: 'grid', gap: 'var(--space-1)' }}>
+            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-800)' }}>Usual coffee order</span>
+            <input
+              type="text"
+              value={draft.usualCoffee || ''}
+              onChange={(e) => setDraft((d) => ({ ...d, usualCoffee: e.target.value }))}
+              placeholder="e.g. Flat white (trim milk)"
+              style={{ border: 'var(--border-default)', borderRadius: 'var(--radius-md)', padding: 'var(--space-2)' }}
+            />
+            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-blue-600)' }}>
+              Shown on Weather &amp; Tips as how to order your usual coffee abroad.
+            </span>
+          </label>
+
           <SecretApiKeyField
             label="Weather API key"
             panelOpen={isOpen}

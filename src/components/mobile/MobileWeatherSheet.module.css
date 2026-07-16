@@ -13,60 +13,54 @@
   max-width: none;
   height: 100%;
   max-height: 100dvh;
-  background: var(--tl-mobile-surface, #fafaf9);
+  background: #f3f1ec;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-.header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: max(0.85rem, env(safe-area-inset-top, 0)) 1rem 0.5rem;
-  flex-shrink: 0;
-}
-
-.closeBtn {
-  width: 2.1rem;
-  height: 2.1rem;
-  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
-  background: white;
-  color: #1e2a44;
-  border-radius: 999px;
-  font-size: 1.2rem;
-  line-height: 1;
-  cursor: pointer;
-  flex-shrink: 0;
 }
 
 .body {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 0 1rem calc(1.5rem + env(safe-area-inset-bottom, 0));
+  padding: max(0.75rem, env(safe-area-inset-top, 0)) 1rem calc(1.25rem + env(safe-area-inset-bottom, 0));
   -webkit-overflow-scrolling: touch;
 }
 
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* —— Hero —— */
 .hero {
   display: grid;
-  grid-template-columns: 3.75rem 1fr auto;
+  grid-template-columns: minmax(0, 1.15fr) minmax(9rem, 0.95fr);
+  gap: 0.85rem;
+  align-items: stretch;
+  margin-bottom: 0.15rem;
+}
+
+.heroLeft {
+  display: grid;
+  grid-template-columns: auto 1fr;
   gap: 0.75rem;
   align-items: start;
-  margin-bottom: 1rem;
+  min-width: 0;
 }
 
 .heroIcon {
   width: 3.75rem;
   height: 3.75rem;
   border-radius: 999px;
-  background: color-mix(in srgb, #6b7c3a 22%, white);
+  background: color-mix(in srgb, #6b7c3a 20%, white);
   color: #6b7c3a;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 14px color-mix(in srgb, #6b7c3a 18%, transparent);
+  box-shadow: 0 4px 14px color-mix(in srgb, #6b7c3a 16%, transparent);
+  flex-shrink: 0;
 }
 
 .heroCopy {
@@ -77,84 +71,103 @@
   margin: 0;
   font-size: 0.62rem;
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #8a7355;
 }
 
 .localGreeting {
-  margin: 0.15rem 0 0;
+  margin: 0.2rem 0 0;
+  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
   font-size: 1.05rem;
-  font-weight: 650;
-  color: #1e2a44;
+  font-weight: 500;
   font-style: italic;
+  color: #1e2a44;
 }
 
 .title {
-  margin: 0.15rem 0 0;
+  margin: 0.1rem 0 0;
   font-family: Georgia, 'Palatino Linotype', Palatino, serif;
-  font-size: 1.45rem;
-  font-weight: 500;
+  font-size: 1.65rem;
+  font-weight: 700;
   color: #1e2a44;
-  line-height: 1.15;
+  line-height: 1.1;
 }
 
-.location {
+.metaLine {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.3rem;
-  margin: 0.35rem 0 0;
+  margin: 0.4rem 0 0;
   font-size: 0.78rem;
   color: #5c6570;
 }
 
-.localTime {
-  margin: 0.15rem 0 0;
-  font-size: 0.92rem;
-  font-weight: 750;
-  color: #1e2a44;
-}
-
-.localTimeBlock {
-  margin-top: 0.35rem;
+.metaSep {
+  opacity: 0.55;
 }
 
 .localZone {
-  margin: 0.15rem 0 0;
-  font-size: 0.72rem;
+  margin: 0.2rem 0 0;
+  font-size: 0.7rem;
   font-style: italic;
   color: #8a857d;
   line-height: 1.35;
 }
 
-.currencyHeading {
-  margin: 0 0 0.75rem;
-  font-size: 1rem;
-  font-weight: 750;
+.heroPhoto {
+  position: relative;
+  min-height: 8.5rem;
+  border-radius: 1rem;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, #6b7c3a 25%, #d9e0c8), color-mix(in srgb, #8a7355 30%, #e8dfd2));
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+  box-shadow: 0 6px 18px color-mix(in srgb, #1e2a44 10%, transparent);
+}
+
+.closeBtn {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  width: 2.1rem;
+  height: 2.1rem;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
   color: #1e2a44;
+  border-radius: 999px;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 .mapBtn {
+  position: absolute;
+  left: 0.55rem;
+  bottom: 0.55rem;
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  border: 1px solid color-mix(in srgb, #1e2a44 14%, transparent);
-  background: white;
+  border: none;
+  background: rgba(255, 255, 255, 0.94);
   border-radius: 999px;
-  padding: 0.4rem 0.7rem;
-  font-size: 0.68rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: #1e2a44;
   text-decoration: none;
-  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* —— Forecast —— */
 .forecastSection {
   background: white;
-  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  border: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
   border-radius: 1rem;
-  padding: 0.75rem 0.65rem;
-  margin-bottom: 0.75rem;
+  padding: 0.8rem 0.7rem;
 }
 
 .forecastHead {
@@ -167,17 +180,18 @@
 
 .forecastTitle {
   margin: 0;
-  font-size: 0.82rem;
+  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
+  font-size: 1rem;
   font-weight: 700;
   color: #1e2a44;
 }
 
 .unitBtn {
   border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
-  background: color-mix(in srgb, var(--tl-mobile-surface, #fafaf9) 60%, white);
+  background: #f7f5f1;
   border-radius: 999px;
-  padding: 0.2rem 0.55rem;
-  font-size: 0.68rem;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: #5c6570;
   cursor: pointer;
@@ -188,7 +202,7 @@
   display: flex;
   gap: 0.45rem;
   overflow-x: auto;
-  padding-bottom: 0.25rem;
+  padding-bottom: 0.2rem;
   scrollbar-width: thin;
 }
 
@@ -198,17 +212,16 @@
   flex-direction: column;
   align-items: center;
   gap: 0.2rem;
-  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, var(--tl-mobile-surface, #fafaf9) 45%, white);
-  padding: 0.45rem 0.25rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 9%, transparent);
+  border-radius: 0.85rem;
+  background: #faf9f6;
+  padding: 0.5rem 0.25rem;
   text-align: center;
 }
 
 .forecastDayActive {
-  border-color: color-mix(in srgb, #c4783a 55%, transparent);
+  border-color: color-mix(in srgb, #c4783a 50%, transparent);
   background: color-mix(in srgb, #c4783a 12%, white);
-  box-shadow: 0 0 0 1px color-mix(in srgb, #c4783a 25%, transparent);
 }
 
 .forecastDayName {
@@ -223,7 +236,7 @@
 }
 
 .forecastHigh {
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   font-weight: 800;
   color: #1e2a44;
   line-height: 1.1;
@@ -234,128 +247,81 @@
   color: #8a857d;
 }
 
+/* —— Current / typical —— */
 .weatherPair {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.55rem;
-  margin-bottom: 0.75rem;
+  gap: 0.65rem;
 }
 
 .infoCard {
   background: white;
-  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  border: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
   border-radius: 1rem;
-  padding: 0.7rem 0.75rem;
+  padding: 0.8rem 0.85rem;
   min-width: 0;
 }
 
 .infoCardTitle {
-  margin: 0 0 0.35rem;
-  font-size: 0.68rem;
+  margin: 0 0 0.45rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: #8a7355;
+}
+
+.currentRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.currentCopy {
+  min-width: 0;
+  flex: 1;
+}
+
+.currentTemp {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #1e2a44;
+  line-height: 1.15;
+}
+
+.currentDesc {
+  margin: 0.15rem 0 0;
+  font-size: 0.78rem;
+  color: #5c6570;
+  line-height: 1.3;
+}
+
+.conditionPill {
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: #e8e8ea;
+  color: #5c6570;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  align-self: flex-start;
 }
 
 .infoLine {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.78rem;
-  font-weight: 650;
-  color: #1e2a44;
-  line-height: 1.35;
-}
-
-.infoSub {
-  margin: 0.3rem 0 0;
-  font-size: 0.65rem;
-  color: #6b6570;
-  line-height: 1.35;
-}
-
-.seasonPill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  margin-top: 0.35rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, #6b7c3a 14%, white);
-  color: #55632e;
-  padding: 0.12rem 0.45rem;
-  font-size: 0.62rem;
-  font-weight: 700;
-}
-
-.sectionCard {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 0.65rem;
-  align-items: start;
-  background: white;
-  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
-  border-radius: 1rem;
-  padding: 0.8rem 0.85rem;
-  margin-bottom: 0.65rem;
-}
-
-.sectionIcon {
-  width: 2.35rem;
-  height: 2.35rem;
-  border-radius: 999px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.iconOlive {
-  background: color-mix(in srgb, #6b7c3a 18%, white);
-  color: #6b7c3a;
-}
-
-.iconTan {
-  background: color-mix(in srgb, #c4a574 22%, white);
-  color: #8a7355;
-}
-
-.sectionBody {
-  min-width: 0;
-}
-
-.sectionLabel {
   margin: 0;
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: #8a7355;
-}
-
-.sectionText {
-  margin: 0.2rem 0 0;
   font-size: 0.82rem;
   font-weight: 650;
   color: #1e2a44;
   line-height: 1.35;
 }
 
-.sectionSub {
-  margin: 0.15rem 0 0;
-  font-size: 0.72rem;
+.infoSub {
+  margin: 0.45rem 0 0;
+  font-size: 0.68rem;
   color: #6b6570;
   line-height: 1.35;
-}
-
-.chevron {
-  color: #8a857d;
-  font-size: 1.1rem;
-  line-height: 1;
-  padding-top: 0.35rem;
-}
-
-.source {
-  margin: 0.5rem 0 0;
-  font-size: 0.62rem;
-  color: #8a857d;
-  text-align: center;
 }
 
 .muted {
@@ -365,135 +331,136 @@
   line-height: 1.4;
 }
 
-.languageSection {
-  margin-top: 0.85rem;
-  padding: 0.85rem;
-  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
-  border-radius: 1rem;
+/* —— Currency & tipping —— */
+.currencySection {
   background: white;
-}
-
-.languageHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.65rem;
-}
-
-.languageTitle {
-  margin: 0;
-  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: #1e2a44;
-}
-
-.hearAllBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  border: 1px solid color-mix(in srgb, #2f5eb8 25%, transparent);
-  background: color-mix(in srgb, #2f5eb8 10%, white);
-  color: #2f5eb8;
-  border-radius: 999px;
-  padding: 0.28rem 0.65rem;
-  font-size: 0.65rem;
-  font-weight: 700;
-  cursor: pointer;
-  font: inherit;
-}
-
-.phraseGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.45rem;
-}
-
-.phraseCard {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.45rem;
-  align-items: flex-start;
-  padding: 0.55rem 0.6rem;
-  border-radius: 0.75rem;
   border: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
-  background: color-mix(in srgb, var(--tl-mobile-surface, #fafaf9) 45%, white);
+  border-radius: 1rem;
+  padding: 0.95rem 1rem;
 }
 
-.phrasePlay {
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, #2f5eb8 20%, transparent);
-  background: white;
-  color: #2f5eb8;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.phraseCopy {
-  min-width: 0;
-}
-
-.phraseEnglish {
-  margin: 0;
-  font-size: 0.82rem;
-  font-weight: 800;
+.sectionHeading {
+  margin: 0 0 0.85rem;
+  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
+  font-size: 1.05rem;
+  font-weight: 700;
   color: #1e2a44;
-  line-height: 1.25;
 }
 
-.phraseLocal {
-  margin: 0.12rem 0 0;
-  font-size: 0.72rem;
-  font-weight: 500;
-  color: #6b6570;
-  line-height: 1.25;
-}
-
-.languageNote {
-  margin: 0.65rem 0 0;
-  font-size: 0.68rem;
-  color: #8a857d;
-  line-height: 1.4;
-}
-
-.currencyCard {
+.currencyGrid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1rem;
-  background: white;
-  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
-  border-radius: 1rem;
-  padding: 0.9rem 0.95rem;
-  margin-bottom: 0.65rem;
+  gap: 1.15rem;
 }
 
-.currencyAdvice {
+.currencyLeft,
+.currencyRight {
   display: grid;
-  gap: 0.85rem;
+  gap: 0.9rem;
+  min-width: 0;
 }
 
 .currencyBlock {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.65rem;
-  align-items: start;
+  gap: 0.35rem;
+}
+
+.sectionLabel {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #8a7355;
+}
+
+.currencyName {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 750;
+  color: #1e2a44;
+}
+
+.fxPill {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  margin-top: 0.15rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, #6b7c3a 12%, white);
+  border: 1px solid color-mix(in srgb, #6b7c3a 22%, transparent);
+  color: #4f5d2c;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 750;
+  width: fit-content;
+}
+
+.fxPillSub {
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: #6b7c3a;
+  opacity: 0.85;
+}
+
+.taxLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0;
+}
+
+.taxBadge {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #1e2a44;
+}
+
+.taxIncluded {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  color: #55632e;
+  font-weight: 600;
+}
+
+.pricesBlock {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.priceTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+}
+
+.priceTable th {
+  text-align: left;
+  font-weight: 700;
+  color: #8a857d;
+  padding: 0.35rem 0.4rem;
+  border-bottom: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+}
+
+.priceTable td {
+  padding: 0.4rem;
+  color: #1e2a44;
+  border-bottom: 1px solid color-mix(in srgb, #1e2a44 6%, transparent);
+  vertical-align: top;
+}
+
+.priceTable td:nth-child(2),
+.priceTable td:nth-child(3),
+.priceTable th:nth-child(2),
+.priceTable th:nth-child(3) {
+  text-align: right;
+  white-space: nowrap;
 }
 
 .tipCalc {
   display: grid;
-  gap: 0.65rem;
-  min-width: 0;
-}
-
-.tipCalcHead {
-  display: flex;
-  align-items: center;
   gap: 0.55rem;
 }
 
@@ -508,17 +475,10 @@
 .tipInputWrap {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
   border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
   border-radius: 0.75rem;
-  background: color-mix(in srgb, var(--tl-mobile-surface, #fafaf9) 50%, white);
-  padding: 0.45rem 0.65rem;
-}
-
-.tipCurrencyPrefix {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: #5c6570;
+  background: #f7f5f1;
+  padding: 0.5rem 0.7rem;
 }
 
 .tipInput {
@@ -526,11 +486,42 @@
   min-width: 0;
   border: none;
   background: transparent;
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: 1rem;
+  font-weight: 750;
   color: #1e2a44;
   outline: none;
   font-family: inherit;
+}
+
+.tipPctLabel {
+  margin: 0.15rem 0 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #8a7355;
+}
+
+.tipPctRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.tipPctBtn {
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  border-radius: 999px;
+  background: white;
+  color: #1e2a44;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.tipPctBtnOn {
+  background: #6b7c3a;
+  border-color: #6b7c3a;
+  color: white;
 }
 
 .tipCustomInput {
@@ -545,45 +536,19 @@
   font-family: inherit;
 }
 
-.tipPctRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.tipPctBtn {
-  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
-  border-radius: 999px;
-  background: white;
-  color: #1e2a44;
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 0.38rem 0.7rem;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.tipPctBtnOn {
-  background: #6b7c3a;
-  border-color: #6b7c3a;
-  color: white;
-}
-
 .tipResultBox {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.75rem;
+  gap: 0.7rem;
   border-radius: 0.85rem;
   background: color-mix(in srgb, #6b7c3a 10%, white);
   border: 1px solid color-mix(in srgb, #6b7c3a 18%, transparent);
-  padding: 0.75rem 0.8rem;
+  padding: 0.75rem 0.85rem;
 }
 
 .tipResultLocal,
 .tipResultHome {
   display: grid;
   gap: 0.35rem;
-  min-width: 0;
 }
 
 .tipResultRow {
@@ -591,18 +556,18 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 0.5rem;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   color: #5c6570;
 }
 
 .tipResultRow strong {
-  font-size: 0.92rem;
+  font-size: 0.95rem;
   font-weight: 800;
   color: #1e2a44;
 }
 
 .tipResultHomeLabel {
-  margin: 0 0 0.15rem;
+  margin: 0 0 0.1rem;
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -611,14 +576,262 @@
 }
 
 .tipRateNote {
-  margin: 0.2rem 0 0;
+  margin: 0.15rem 0 0;
   font-size: 0.62rem;
   color: #8a857d;
 }
 
+.tipAdvice {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.tipAdviceList {
+  margin: 0.25rem 0 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: #5c6570;
+  line-height: 1.4;
+}
+
+/* —— Coffee + language —— */
+.essentialsPair {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+}
+
+.coffeeCard,
+.languageSection {
+  background: white;
+  border: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
+  border-radius: 1rem;
+  padding: 0.9rem 0.95rem;
+  position: relative;
+}
+
+.essentialsTitle {
+  margin: 0;
+  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e2a44;
+}
+
+.coffeePref {
+  margin: 0.45rem 0 0;
+  font-size: 0.75rem;
+  color: #5c6570;
+}
+
+.coffeePref strong {
+  color: #1e2a44;
+}
+
+.coffeeAsk {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.55rem;
+  align-items: start;
+  margin-top: 0.65rem;
+  padding: 0.75rem 0.8rem;
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, #6b7c3a 10%, white);
+  border: 1px solid color-mix(in srgb, #6b7c3a 18%, transparent);
+  font-size: 0.85rem;
+  color: #1e2a44;
+  line-height: 1.4;
+}
+
+.coffeeAsk p {
+  margin: 0;
+}
+
+.coffeeFlag {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: white;
+  color: #6b7c3a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.coffeeNote {
+  margin: 0.55rem 0 0;
+  font-size: 0.68rem;
+  color: #8a857d;
+  line-height: 1.4;
+  padding-right: 2rem;
+}
+
+.coffeeSpeak {
+  position: absolute;
+  right: 0.85rem;
+  bottom: 0.85rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #2f5eb8 22%, transparent);
+  background: color-mix(in srgb, #2f5eb8 8%, white);
+  color: #2f5eb8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.languageHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.hearAllBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid color-mix(in srgb, #2f5eb8 25%, transparent);
+  background: color-mix(in srgb, #2f5eb8 10%, white);
+  color: #2f5eb8;
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  font: inherit;
+  white-space: nowrap;
+}
+
+.phraseGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.phraseCard {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.4rem;
+  align-items: flex-start;
+  text-align: left;
+  padding: 0.55rem 0.55rem;
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
+  background: #faf9f6;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.phrasePlay {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  background: white;
+  border: 1px solid color-mix(in srgb, #2f5eb8 20%, transparent);
+  color: #2f5eb8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.phraseCopy {
+  min-width: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.phraseEnglish {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #1e2a44;
+  line-height: 1.2;
+}
+
+.phraseLocal {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: #6b6570;
+  line-height: 1.25;
+}
+
+.languageNote {
+  margin: 0.65rem 0 0;
+  font-size: 0.68rem;
+  color: #8a857d;
+  line-height: 1.4;
+}
+
+/* —— Local tip bar —— */
+.localTipBar {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.55rem;
+  align-items: start;
+  background: white;
+  border: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
+  border-radius: 999px;
+  padding: 0.55rem 0.9rem;
+}
+
+.localTipIcon {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, #c4a574 22%, white);
+  color: #8a7355;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.localTipText {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #5c6570;
+  line-height: 1.4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.55rem;
+}
+
+.localTipText strong {
+  color: #8a7355;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.source {
+  margin: 0.15rem 0 0;
+  font-size: 0.62rem;
+  color: #8a857d;
+  text-align: center;
+}
+
+/* —— iPad portrait —— */
+[data-shell='ipad-portrait'] .body {
+  padding-left: 1.35rem;
+  padding-right: 1.35rem;
+  padding-top: max(1rem, env(safe-area-inset-top, 0));
+}
+
+[data-shell='ipad-portrait'] .page {
+  gap: 0.9rem;
+}
+
 [data-shell='ipad-portrait'] .hero {
-  grid-template-columns: 4.75rem 1fr auto;
-  margin-bottom: 1.15rem;
+  grid-template-columns: minmax(0, 1.05fr) minmax(14rem, 0.95fr);
+  gap: 1rem;
 }
 
 [data-shell='ipad-portrait'] .heroIcon {
@@ -631,58 +844,44 @@
 }
 
 [data-shell='ipad-portrait'] .localGreeting {
-  font-size: 1.2rem;
+  font-size: 1.25rem;
 }
 
 [data-shell='ipad-portrait'] .title {
-  font-size: 1.85rem;
+  font-size: 2.15rem;
 }
 
-[data-shell='ipad-portrait'] .location {
-  font-size: 0.95rem;
+[data-shell='ipad-portrait'] .metaLine {
+  font-size: 0.92rem;
 }
 
-[data-shell='ipad-portrait'] .localTime {
-  font-size: 0.85rem;
+[data-shell='ipad-portrait'] .localZone {
+  font-size: 0.82rem;
+}
+
+[data-shell='ipad-portrait'] .heroPhoto {
+  min-height: 11.5rem;
+  border-radius: 1.15rem;
+}
+
+[data-shell='ipad-portrait'] .closeBtn {
+  width: 2.45rem;
+  height: 2.45rem;
+  font-size: 1.35rem;
 }
 
 [data-shell='ipad-portrait'] .mapBtn {
-  font-size: 0.82rem;
-  padding: 0.5rem 0.85rem;
+  font-size: 0.85rem;
+  padding: 0.48rem 0.9rem;
 }
 
 [data-shell='ipad-portrait'] .forecastTitle {
-  font-size: 1.2rem;
-  font-family: Georgia, 'Palatino Linotype', Palatino, serif;
-}
-
-[data-shell='ipad-portrait'] .infoCardTitle {
-  font-size: 0.95rem;
-}
-
-[data-shell='ipad-portrait'] .infoLine {
-  font-size: 0.98rem;
-}
-
-[data-shell='ipad-portrait'] .infoSub {
-  font-size: 0.82rem;
-}
-
-[data-shell='ipad-portrait'] .sectionLabel {
-  font-size: 0.85rem;
-}
-
-[data-shell='ipad-portrait'] .sectionText {
-  font-size: 1.05rem;
-}
-
-[data-shell='ipad-portrait'] .sectionSub {
-  font-size: 0.95rem;
+  font-size: 1.25rem;
 }
 
 [data-shell='ipad-portrait'] .forecastDay {
-  min-width: 4.6rem;
-  padding: 0.6rem 0.45rem;
+  flex-basis: 4.7rem;
+  padding: 0.6rem 0.4rem;
 }
 
 [data-shell='ipad-portrait'] .forecastDayName {
@@ -693,86 +892,117 @@
   font-size: 1.05rem;
 }
 
-[data-shell='ipad-portrait'] .sectionIcon {
-  width: 2.75rem;
-  height: 2.75rem;
+[data-shell='ipad-portrait'] .infoCardTitle {
+  font-size: 0.9rem;
 }
 
-[data-shell='ipad-portrait'] .closeBtn {
-  width: 2.55rem;
-  height: 2.55rem;
+[data-shell='ipad-portrait'] .currentTemp {
+  font-size: 1.35rem;
 }
 
-[data-shell='ipad-portrait'] .currencyCard {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
-  gap: 1.25rem;
-  padding: 1.1rem 1.15rem;
-  border-radius: 1.15rem;
+[data-shell='ipad-portrait'] .currentDesc {
+  font-size: 0.92rem;
 }
 
-[data-shell='ipad-portrait'] .tipLabel {
+[data-shell='ipad-portrait'] .infoSub {
   font-size: 0.82rem;
 }
 
+[data-shell='ipad-portrait'] .currencySection {
+  padding: 1.15rem 1.2rem;
+  border-radius: 1.15rem;
+}
+
+[data-shell='ipad-portrait'] .sectionHeading {
+  font-size: 1.35rem;
+}
+
+[data-shell='ipad-portrait'] .currencyGrid {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 1.5rem;
+}
+
+[data-shell='ipad-portrait'] .sectionLabel {
+  font-size: 0.82rem;
+}
+
+[data-shell='ipad-portrait'] .currencyName {
+  font-size: 1.15rem;
+}
+
+[data-shell='ipad-portrait'] .fxPill {
+  font-size: 0.92rem;
+}
+
+[data-shell='ipad-portrait'] .priceTable {
+  font-size: 0.88rem;
+}
+
 [data-shell='ipad-portrait'] .tipInput {
-  font-size: 1.1rem;
+  font-size: 1.15rem;
 }
 
 [data-shell='ipad-portrait'] .tipPctBtn {
-  font-size: 0.88rem;
-  padding: 0.45rem 0.85rem;
+  font-size: 0.9rem;
+  padding: 0.48rem 0.9rem;
 }
 
 [data-shell='ipad-portrait'] .tipResultRow {
-  font-size: 0.92rem;
+  font-size: 0.95rem;
 }
 
 [data-shell='ipad-portrait'] .tipResultRow strong {
   font-size: 1.1rem;
 }
 
-[data-shell='ipad-portrait'] .tipResultHomeLabel {
-  font-size: 0.72rem;
+[data-shell='ipad-portrait'] .tipAdviceList {
+  font-size: 0.9rem;
 }
 
-[data-shell='ipad-portrait'] .tipResultBox {
+[data-shell='ipad-portrait'] .essentialsPair {
   grid-template-columns: 1fr 1fr;
-  align-items: start;
+  gap: 0.85rem;
 }
 
-[data-shell='ipad-portrait'] .languageSection {
-  padding: 1.1rem 1.15rem;
-  border-radius: 1.15rem;
+[data-shell='ipad-portrait'] .essentialsTitle {
+  font-size: 1.25rem;
 }
 
-[data-shell='ipad-portrait'] .languageTitle {
-  font-size: 1.35rem;
+[data-shell='ipad-portrait'] .coffeeAsk {
+  font-size: 1rem;
 }
 
-[data-shell='ipad-portrait'] .hearAllBtn {
-  font-size: 0.88rem;
-  padding: 0.42rem 0.9rem;
+[data-shell='ipad-portrait'] .coffeeNote {
+  font-size: 0.82rem;
 }
 
-[data-shell='ipad-portrait'] .phraseCard {
-  padding: 0.8rem 0.85rem;
+[data-shell='ipad-portrait'] .phraseGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 [data-shell='ipad-portrait'] .phraseEnglish {
-  font-size: 1.05rem;
+  font-size: 0.95rem;
 }
 
 [data-shell='ipad-portrait'] .phraseLocal {
-  font-size: 0.92rem;
+  font-size: 0.82rem;
 }
 
-[data-shell='ipad-portrait'] .phrasePlay {
-  width: 2.25rem;
-  height: 2.25rem;
+[data-shell='ipad-portrait'] .hearAllBtn {
+  font-size: 0.85rem;
+  padding: 0.4rem 0.9rem;
 }
 
 [data-shell='ipad-portrait'] .languageNote {
-  font-size: 0.88rem;
+  font-size: 0.82rem;
+}
+
+[data-shell='ipad-portrait'] .localTipBar {
+  padding: 0.7rem 1.1rem;
+}
+
+[data-shell='ipad-portrait'] .localTipText {
+  font-size: 0.92rem;
 }
 
 [data-shell='ipad-portrait'] .unitBtn {

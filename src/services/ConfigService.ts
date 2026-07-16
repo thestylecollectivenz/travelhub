@@ -32,6 +32,11 @@ export interface UserConfig {
   browserVoiceURI: string;
   /** When false, day budget breakdown starts collapsed on each day. */
   dayBreakdownVisibleByDefault: boolean;
+  /**
+   * Usual coffee order at home (e.g. "Flat white (trim milk)").
+   * Used on Weather & Tips to suggest how to order it abroad.
+   */
+  usualCoffee: string;
 }
 
 export const DEFAULT_USER_CONFIG: UserConfig = {
@@ -49,7 +54,8 @@ export const DEFAULT_USER_CONFIG: UserConfig = {
   elevenLabsVoiceId: '',
   speechEngine: 'browser',
   browserVoiceURI: '',
-  dayBreakdownVisibleByDefault: true
+  dayBreakdownVisibleByDefault: true,
+  usualCoffee: ''
 };
 
 /** Canonical property names the app uses in payloads / mapping. */
@@ -71,7 +77,8 @@ const CANONICAL_FIELDS = [
   'ElevenLabsVoiceId',
   'SpeechEngine',
   'BrowserVoiceURI',
-  'DayBreakdownVisibleByDefault'
+  'DayBreakdownVisibleByDefault',
+  'UsualCoffee'
 ] as const;
 
 type CanonicalField = (typeof CANONICAL_FIELDS)[number];
@@ -263,7 +270,8 @@ export class ConfigService {
       dayBreakdownVisibleByDefault: asBoolean(
         fmap.read(item, 'DayBreakdownVisibleByDefault'),
         DEFAULT_USER_CONFIG.dayBreakdownVisibleByDefault
-      )
+      ),
+      usualCoffee: asString(fmap.read(item, 'UsualCoffee'))
     };
   }
 
@@ -286,7 +294,8 @@ export class ConfigService {
       ElevenLabsVoiceId: config.elevenLabsVoiceId ?? '',
       SpeechEngine: config.speechEngine === 'elevenlabs' ? 'elevenlabs' : 'browser',
       BrowserVoiceURI: config.browserVoiceURI ?? '',
-      DayBreakdownVisibleByDefault: config.dayBreakdownVisibleByDefault
+      DayBreakdownVisibleByDefault: config.dayBreakdownVisibleByDefault,
+      UsualCoffee: config.usualCoffee ?? ''
     };
   }
 

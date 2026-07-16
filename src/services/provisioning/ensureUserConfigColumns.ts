@@ -23,6 +23,7 @@ export async function ensureUserConfigColumns(ctx: WebPartContext): Promise<void
     { internalName: 'ElevenLabsVoiceId', type: 'Text' },
     { internalName: 'SpeechEngine', type: 'Text' },
     { internalName: 'BrowserVoiceURI', type: 'Text' },
-    { internalName: 'DayBreakdownVisibleByDefault', type: 'Boolean' }
+    { internalName: 'DayBreakdownVisibleByDefault', type: 'Boolean' },
+    { internalName: 'UsualCoffee', type: 'Text' }
   ]);
 }
