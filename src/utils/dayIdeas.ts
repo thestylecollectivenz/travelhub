@@ -159,7 +159,12 @@ export function canManageDayIdeaReply(
 }
 
 export function buildDayIdeaMetaForCreate(ctx: WebPartContext): string {
-  return serializeDayIdeaMeta({ authorEmail: getCurrentUserEmail(ctx), readBy: [] });
+  const authorEmail = normEmail(getCurrentUserEmail(ctx));
+  return serializeDayIdeaMeta({
+    authorEmail,
+    readBy: [],
+    favouritedBy: authorEmail ? [authorEmail] : []
+  });
 }
 
 export function isDayIdeaAuthor(

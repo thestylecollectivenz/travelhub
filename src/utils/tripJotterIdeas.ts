@@ -210,6 +210,7 @@ export async function createJotterIdea(
   if (!isValidJotterIdeaText(trimmed)) {
     throw new Error('Invalid jotter idea text');
   }
+  const authorEmail = getCurrentUserEmail(spContext).trim().toLowerCase();
   const svc = new ReminderService(spContext);
   const created = await svc.create({
     title: trimmed.slice(0, 80),
@@ -219,10 +220,12 @@ export async function createJotterIdea(
     reminderType: JOTTER_IDEA_REMINDER_TYPE,
     reminderText: trimmed,
     taskNote: serializeMeta({
-      authorEmail: getCurrentUserEmail(spContext),
+      authorEmail,
       isAi,
       location: options?.location?.trim() || undefined,
-      focusDayId: options?.focusDayId
+      focusDayId: options?.focusDayId,
+      // User-authored ideas start favourited by their creator; AI suggestions do not.
+      favouritedBy: !isAi && authorEmail ? [authorEmail] : []
     }),
     assignedTo: isAi ? 'AI' : travellerLabelForCurrentUser(spContext, members),
     isComplete: false,
