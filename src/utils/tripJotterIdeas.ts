@@ -10,7 +10,7 @@ import type { TripDay } from '../models/TripDay';
 import type { Place } from '../models/Place';
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 import { isPreTripDayRow } from './itineraryDayEntries';
-import { itineraryLocationsForDay, resolveDayStopLabel } from './ideaLocationLabel';
+import { isBroadPlaceLabel, itineraryLocationsForDay, placeTitleLabel, resolveDayStopLabel } from './ideaLocationLabel';
 
 export const JOTTER_IDEA_REMINDER_TYPE = 'JotterIdea';
 
@@ -39,6 +39,8 @@ export interface JotterIdeaRow {
   createdAt?: string;
   authorLabel?: string;
   isAi: boolean;
+  location?: string;
+  focusDayId?: string;
 }
 
 export interface JotterDisplayRow extends JotterIdeaRow {
@@ -145,7 +147,9 @@ function rowFromReminder(r: TripReminder): JotterIdeaRow {
     text: r.reminderText || r.title || '',
     createdAt: r.dueDate,
     authorLabel: r.assignedTo,
-    isAi: Boolean(meta.isAi)
+    isAi: Boolean(meta.isAi),
+    location: meta.location,
+    focusDayId: meta.focusDayId
   };
 }
 
@@ -257,6 +261,61 @@ export async function setJotterIdeaComplete(spContext: WebPartContext, id: strin
 
 const AI_DAY_CURSOR_KEY = 'travelhub-jotter-ai-day';
 
+function normalizeLocationKey(label: string | undefined): string {
+  return (label || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/\s*,\s*/g, ', ');
+}
+
+function shortLocationLabel(label: string | undefined): string | undefined {
+  const short = (label || '').split(',')[0].trim();
+  if (!short || isBroadPlaceLabel(short)) return undefined;
+  return short;
+}
+
+function isLikelyHomeLabel(label: string | undefined): boolean {
+  const key = normalizeLocationKey(label);
+  return key === 'home' || key === 'return home' || key === 'home base' || key === 'origin';
+}
+
+function pushUniqueLocation(out: Array<{ dayId: string; label: string }>, dayId: string, label: string | undefined): void {
+  const short = shortLocationLabel(label);
+  if (!short || isLikelyHomeLabel(short)) return;
+  const key = normalizeLocationKey(short);
+  if (out.some((x) => normalizeLocationKey(x.label) === key)) return;
+  out.push({ dayId, label: short });
+}
+
+function aiFocusLocations(
+  tripDays: TripDay[],
+  trip?: Trip,
+  placeById?: (id: string) => Place | undefined,
+  entries: ItineraryEntry[] = []
+): Array<{ dayId: string; label: string }> {
+  const eligibleDays = [...tripDays].filter((d) => !isPreTripDayRow(d)).sort((a, b) => a.dayNumber - b.dayNumber);
+  const locations: Array<{ dayId: string; label: string }> = [];
+  const getPlace = placeById || (() => undefined);
+
+  for (const day of eligibleDays) {
+    if (day.primaryPlaceId) {
+      pushUniqueLocation(locations, day.id, placeTitleLabel(getPlace(day.primaryPlaceId), day));
+    }
+    pushUniqueLocation(locations, day.id, dayLocationLabel(day, trip, placeById, entries));
+
+    for (const loc of itineraryLocationsForDay(day.id, entries)) {
+      pushUniqueLocation(locations, day.id, loc);
+    }
+  }
+
+  // First and last unique stops are commonly home/departure/return locations.
+  if (locations.length > 2) {
+    return locations.slice(1, -1);
+  }
+  return locations.filter((loc) => !isLikelyHomeLabel(loc.label));
+}
+
 function dayLocationLabel(
   day: TripDay | undefined,
   trip?: Trip,
@@ -273,25 +332,50 @@ export function nextAiFocusDay(
   tripDays: TripDay[],
   trip?: Trip,
   placeById?: (id: string) => Place | undefined,
-  entries: ItineraryEntry[] = []
+  entries: ItineraryEntry[] = [],
+  existingAiIdeas: JotterIdeaRow[] = []
 ): { dayId: string; label: string } | null {
-  const eligible = [...tripDays].filter((d) => !isPreTripDayRow(d)).sort((a, b) => a.dayNumber - b.dayNumber);
-  if (!eligible.length) return null;
+  const focusLocations = aiFocusLocations(tripDays, trip, placeById, entries);
+  if (!focusLocations.length) {
+    const eligible = [...tripDays].filter((d) => !isPreTripDayRow(d)).sort((a, b) => a.dayNumber - b.dayNumber);
+    if (!eligible.length) return null;
+    const day = eligible[0];
+    const label = dayLocationLabel(day, trip, placeById, entries);
+    return { dayId: day.id, label: label || `Day ${day.dayNumber}` };
+  }
+
+  const counts = new Map<string, number>();
+  const dayToLocation = new Map<string, string>();
+  for (const loc of focusLocations) {
+    const key = normalizeLocationKey(loc.label);
+    counts.set(key, 0);
+    dayToLocation.set(loc.dayId, key);
+  }
+
+  for (const idea of existingAiIdeas) {
+    const focusKey = idea.focusDayId ? dayToLocation.get(idea.focusDayId) : undefined;
+    const locationKey = normalizeLocationKey(shortLocationLabel(idea.location) || idea.location);
+    const key = focusKey || (counts.has(locationKey) ? locationKey : undefined);
+    if (!key || !counts.has(key)) continue;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+
+  const minCount = Math.min(...Array.from(counts.values()));
+  const candidates = focusLocations.filter((loc) => (counts.get(normalizeLocationKey(loc.label)) || 0) === minCount);
   const key = `${AI_DAY_CURSOR_KEY}-${tripId}`;
   let idx = 0;
   try {
-    idx = Number.parseInt(window.sessionStorage.getItem(key) || '0', 10) || 0;
+    idx = Number.parseInt(window.localStorage.getItem(key) || '0', 10) || 0;
   } catch {
     /* ignore */
   }
-  const day = eligible[((idx % eligible.length) + eligible.length) % eligible.length];
+  const focus = candidates[((idx % candidates.length) + candidates.length) % candidates.length];
   try {
-    window.sessionStorage.setItem(key, String((idx + 1) % eligible.length));
+    window.localStorage.setItem(key, String((idx + 1) % candidates.length));
   } catch {
     /* ignore */
   }
-  const label = dayLocationLabel(day, trip, placeById, entries);
-  return { dayId: day.id, label: label || `Day ${day.dayNumber}` };
+  return focus;
 }
 
 export function homeAiSuggestionChips(trip?: Trip): string[] {
@@ -371,9 +455,10 @@ export async function createPersistedJotterAiIdea(
   itineraryPlaces: string[] = [],
   tripDays: TripDay[] = [],
   placeById?: (id: string) => Place | undefined,
-  entries: ItineraryEntry[] = []
+  entries: ItineraryEntry[] = [],
+  existingAiIdeas: JotterIdeaRow[] = []
 ): Promise<JotterIdeaRow | null> {
-  const focus = nextAiFocusDay(tripId, tripDays, trip, placeById, entries);
+  const focus = nextAiFocusDay(tripId, tripDays, trip, placeById, entries, existingAiIdeas);
   const text = await fetchJotterAiIdeaText(
     apiKey || '',
     trip,
@@ -441,7 +526,8 @@ export async function buildJotterHomeDisplay(
       itineraryPlaces,
       tripDays,
       placeById,
-      entries
+      entries,
+      aiIdeas
     );
     if (fresh) {
       aiIdeas = [fresh, ...aiIdeas.filter((r) => r.id !== fresh.id)];
@@ -460,7 +546,8 @@ export async function buildJotterHomeDisplay(
       itineraryPlaces,
       tripDays,
       placeById,
-      entries
+      entries,
+      aiIdeas
     );
     if (!created) break;
     aiIdeas = [...aiIdeas, created];
