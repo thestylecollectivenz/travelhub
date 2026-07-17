@@ -220,7 +220,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   }, [initialCategory]);
 
   const [sortBy, setSortBy] = React.useState('Distance');
-  const [distanceKm, setDistanceKm] = React.useState(2);
+  const [distanceKm, setDistanceKm] = React.useState(10);
   const [minRating, setMinRating] = React.useState<number | null>(null);
   const [priceFilter, setPriceFilter] = React.useState<string | null>(null);
   const [openNow, setOpenNow] = React.useState(false);
@@ -365,7 +365,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
         }
         setResults(cards);
         setVisibleCount(6);
-        if (useCache) {
+        if (useCache && cards.length > 0) {
           saveNearYouCache(cacheScope, toolKey, {
             results: cards,
             fetchedAt: new Date().toISOString(),
@@ -416,6 +416,22 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
       if (km == null) return true;
       return km <= distanceKm;
     });
+    // If the distance slider would hide every AI result, keep showing them (photos optional).
+    if (!rows.length && results.length) {
+      rows = results.slice();
+      if (minRating != null) {
+        rows = rows.filter((r) => typeof r.rating === 'number' && r.rating >= minRating);
+      }
+      if (priceFilter) {
+        rows = rows.filter((r) => (r.priceLevel || '').includes(priceFilter));
+      }
+      if (cuisine) {
+        const q = cuisine.toLowerCase();
+        rows = rows.filter((r) =>
+          [r.aiBlurb, r.note, r.categoryLabel, ...(r.tags || [])].join(' ').toLowerCase().includes(q)
+        );
+      }
+    }
     rows = rows.slice().sort((a, b) => {
       if (sortBy === 'Name') {
         return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });

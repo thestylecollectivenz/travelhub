@@ -307,6 +307,48 @@ export const COUNTRY_DATA: Record<string, CountryData> = {
     ]),
     region: 'Western Europe'
   },
+  NL: {
+    currency: 'Euro',
+    currencyCode: 'EUR',
+    tipping: 'Round up or 5-10% for good service',
+    tippingBullets: [
+      'Service is often included; rounding up is common.',
+      '5–10% is appreciated for sit-down restaurants when service is good.',
+      'For cafés and bars, leaving small change is fine.'
+    ],
+    taxLabel: 'VAT: 21%',
+    taxIncluded: true,
+    typicalPrices: prices([
+      ['Coffee (café)', 3.5],
+      ['Café lunch', 14],
+      ['Restaurant dinner (mid-range)', 40],
+      ['Beer (local)', 4.5],
+      ['Taxi (5 km)', 20],
+      ['OV chipkaart / transit single', 3.5]
+    ]),
+    region: 'Western Europe'
+  },
+  NO: {
+    currency: 'Norwegian Krone',
+    currencyCode: 'NOK',
+    tipping: 'Round up or 10% for restaurants',
+    tippingBullets: [
+      'Service is often included; rounding up the bill is common.',
+      'Around 10% is appreciated for good restaurant service.',
+      'Tipping taxis and cafés is optional — small change is fine.'
+    ],
+    taxLabel: 'VAT: 25%',
+    taxIncluded: true,
+    typicalPrices: prices([
+      ['Coffee (café)', 45],
+      ['Café lunch', 180],
+      ['Restaurant dinner (mid-range)', 450],
+      ['Beer (local)', 90],
+      ['Taxi (5 km)', 250],
+      ['Local bus / ferry single', 40]
+    ]),
+    region: 'Western Europe'
+  },
   ES: {
     currency: 'Euro',
     currencyCode: 'EUR',
@@ -539,3 +581,43 @@ export const COUNTRY_DATA: Record<string, CountryData> = {
     region: 'Caribbean'
   }
 };
+
+const COUNTRY_NAME_ALIASES: Record<string, string> = {
+  netherlands: 'NL',
+  'the netherlands': 'NL',
+  holland: 'NL',
+  nederland: 'NL',
+  norway: 'NO',
+  norge: 'NO',
+  'kingdom of norway': 'NO',
+  france: 'FR',
+  germany: 'DE',
+  deutschland: 'DE',
+  spain: 'ES',
+  italy: 'IT',
+  'united kingdom': 'GB',
+  england: 'GB',
+  scotland: 'GB',
+  wales: 'GB',
+  singapore: 'SG',
+  'new zealand': 'NZ',
+  australia: 'AU'
+};
+
+/** Resolve currency/tipping guidance by ISO code or country name. */
+export function resolveCountryData(
+  countryCode?: string,
+  countryName?: string
+): CountryData | undefined {
+  const code = (countryCode || '').trim().toUpperCase();
+  if (code && COUNTRY_DATA[code]) return COUNTRY_DATA[code];
+  const nameKey = (countryName || '').trim().toLowerCase();
+  if (!nameKey) return undefined;
+  const aliased = COUNTRY_NAME_ALIASES[nameKey];
+  if (aliased && COUNTRY_DATA[aliased]) return COUNTRY_DATA[aliased];
+  // Fuzzy: country name contains a known alias key
+  for (const [alias, iso] of Object.entries(COUNTRY_NAME_ALIASES)) {
+    if (nameKey.includes(alias) && COUNTRY_DATA[iso]) return COUNTRY_DATA[iso];
+  }
+  return undefined;
+}

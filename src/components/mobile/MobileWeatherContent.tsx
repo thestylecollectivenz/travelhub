@@ -1,7 +1,7 @@
 import * as React from 'react';
 import type { Place } from '../../models/Place';
 import { useConfig } from '../../context/ConfigContext';
-import { COUNTRY_DATA } from '../../data/countryData';
+import { resolveCountryData } from '../../data/countryData';
 import { SEASONAL_BY_REGION } from '../../data/seasonalWeather';
 import { WeatherIcon } from '../shared/WeatherIcon';
 import { placeDisplayLabel } from '../../utils/placeDisplayLabel';
@@ -125,7 +125,7 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
   const [tipCustom, setTipCustom] = React.useState(false);
   const [customPercent, setCustomPercent] = React.useState('12');
   const [heroPhoto, setHeroPhoto] = React.useState<{ imageUrl: string; sourceUrl: string } | null>(null);
-  const countryData = COUNTRY_DATA[place.countryCode];
+  const countryData = resolveCountryData(place.countryCode, place.country);
   const mapsUrl = placeQueryMapsUrl(placeDisplayLabel(place));
   const forecastDates = React.useMemo(() => forecastDatesFromToday(10), []);
   const today = todayYmd();

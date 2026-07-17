@@ -44,7 +44,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
   activePlaceInfoId: controlledActivePlaceInfoId,
   onActivePlaceInfoChange
 }) => {
-  const { updateDay, reloadItineraryEntries, trip, tripDays, localEntries } = useTripWorkspace();
+  const { updateDay, updateTrip, reloadItineraryEntries, trip, tripDays, localEntries } = useTripWorkspace();
   const { config } = useConfig();
   const { searchPlaces, createOrReusePlace, placeById, ensurePlacesLoaded } = usePlaces();
   const spContext = useSpContext();
@@ -426,10 +426,31 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
                     <span className={styles.placePill}>
                       <span aria-hidden>📍</span> {placeLabel}
                       {row.primary ? <span className={styles.placeMeta}>Primary</span> : null}
+                      {trip?.homePlaceId && row.placeId === trip.homePlaceId ? (
+                        <span className={styles.placeMeta}>Home</span>
+                      ) : null}
                     </span>
                   </button>
                   {!isShared && row.place ? (
                     <div className={styles.locationInlineActions}>
+                        {row.primary ? (
+                          <button
+                            type="button"
+                            className={styles.iconActionBtn}
+                            onClick={() => {
+                              const isHome = (trip?.homePlaceId || '') === row.placeId;
+                              updateTrip({ homePlaceId: isHome ? '' : row.placeId });
+                              setLocationMessage(isHome ? 'Home location cleared' : 'Marked as home location');
+                            }}
+                            title={
+                              (trip?.homePlaceId || '') === row.placeId
+                                ? 'Clear home location'
+                                : 'Mark as home (excluded from AI ideas)'
+                            }
+                          >
+                            {(trip?.homePlaceId || '') === row.placeId ? '⌂✓' : '⌂'}
+                          </button>
+                        ) : null}
                         {!row.primary ? (
                           <button
                             type="button"

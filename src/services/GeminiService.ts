@@ -666,9 +666,10 @@ Rules:
 - mapsUrl: REQUIRED Google Maps place/search URL for this exact venue (name + address)
 - websiteUrl: official site when known; otherwise omit
 - tripadvisorUrl: TripAdvisor listing URL when a real listing exists; otherwise omit (do not invent)
-- photoUrl: prefer a TripAdvisor or official exterior photo URL of the venue building/facade — NO people, NO stock models, NO food-only closeups when an exterior exists; omit if unsure of a real URL
+- photoUrl: prefer a TripAdvisor or official exterior photo URL of the venue building/facade — NO people, NO stock models, NO food-only closeups when an exterior exists; include a real https image URL whenever possible; omit only if unsure
+- Always return venues even when photoUrl is omitted — never drop a place for missing photos
 - why should be specific and useful for a traveller (not generic)
-- Keep each string under 140 characters except photoUrl/tripadvisorUrl/websiteUrl
+- Keep each string under 140 characters except photoUrl/tripadvisorUrl/websiteUrl/address
 - ${preferLine}
 - Omit empty optional URL fields rather than inventing websites or photos`;
 }
@@ -707,7 +708,8 @@ Rules:
 - mapsUrl: REQUIRED Google Maps URL for this exact place
 - websiteUrl: official site when known; otherwise omit
 - tripadvisorUrl: TripAdvisor listing when a real listing exists; otherwise omit
-- photoUrl: prefer TripAdvisor or official exterior photo — no people; omit if unsure
+- photoUrl: prefer TripAdvisor or official exterior photo — no people; include a real https image URL whenever possible; omit only if unsure
+- Always return places even when photoUrl is omitted
 - servicesSummary should be category-appropriate and practical
 - No markdown, no code fences`;
 }

@@ -107,16 +107,36 @@ function detectExtras(preference: string, drink: string, milk: MilkStyle): strin
   for (const { re, label } of [...EXTRA_PATTERNS, ...TOPPING_PATTERNS]) {
     if (re.test(preference)) found.add(label);
   }
-  const stripped = preference
-    .replace(new RegExp(drink, 'i'), '')
-    .replace(/\b(trim|skim|oat|soy|almond|coconut|milk|large|medium|small|shot[s]?|sugar.?free)\b/gi, '')
-    .split(/[,;+]/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 2 && !/^\(.*\)$/.test(s));
-  for (const bit of stripped) {
-    const clean = bit.replace(/\(.*?\)/g, '').trim();
-    if (clean.length > 2 && clean.length < 40) found.add(clean.toLowerCase());
+
+  // Strip known drink/milk/size/shot/topping tokens so residual fragments are not re-added.
+  let residual = preference.toLowerCase();
+  residual = residual.replace(new RegExp(drink.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), ' ');
+  residual = residual.replace(
+    /\b(double\s*shot|single\s*shot|extra\s*shot|doppio|\d\s*shots?|decaf|extra\s*strong|strong)\b/gi,
+    ' '
+  );
+  residual = residual.replace(
+    /\b(trim|lite|light|low[-\s]?fat|skim(?:med)?|non[-\s]?fat|fat[-\s]?free|full[-\s]?cream|whole|regular\s+milk|lactose[-\s]?free|soy|oat|almond|coconut|milk)\b/gi,
+    ' '
+  );
+  residual = residual.replace(
+    /\b(extra[-\s]?large|xl|venti|large|grande|big|medium|regular|tall|small|short)\b/gi,
+    ' '
+  );
+  residual = residual.replace(/\b(sugar[-\s]?free|no\s+sugar|unsweetened|without\s+sugar)\b/gi, ' ');
+  for (const { re } of [...EXTRA_PATTERNS, ...TOPPING_PATTERNS]) {
+    residual = residual.replace(re, ' ');
   }
+  residual = residual.replace(/\b(with|and|plus|a|an|the)\b/gi, ' ');
+  residual = residual.replace(/[^a-z0-9\s-]/gi, ' ').replace(/\s+/g, ' ').trim();
+
+  if (residual.length > 2 && residual.length < 40 && !found.has(residual)) {
+    // Only keep residual if it looks like a real modifier, not connector debris.
+    if (!/^(with|and|double|shot|shots)$/i.test(residual)) {
+      found.add(residual);
+    }
+  }
+
   if (milk !== 'none') {
     for (const key of Array.from(found)) {
       if (/\bmilk\b/.test(key)) found.delete(key);
@@ -393,6 +413,26 @@ function resolveLexicon(lang?: string): CoffeeLexicon | null {
   return hit ? hit[1] : null;
 }
 
+const EXTRA_LOCAL: Record<string, Record<string, string>> = {
+  'fr-FR': { cinnamon: 'cannelle', vanilla: 'vanille', caramel: 'caramel', hazelnut: 'noisette', chocolate: 'chocolat' },
+  'de-DE': { cinnamon: 'Zimt', vanilla: 'Vanille', caramel: 'Karamell', hazelnut: 'Haselnuss', chocolate: 'Schokolade' },
+  'es-ES': { cinnamon: 'canela', vanilla: 'vainilla', caramel: 'caramelo', hazelnut: 'avellana', chocolate: 'chocolate' },
+  'it-IT': { cinnamon: 'cannella', vanilla: 'vaniglia', caramel: 'caramello', hazelnut: 'nocciola', chocolate: 'cioccolato' },
+  'nl-NL': { cinnamon: 'kaneel', vanilla: 'vanille', caramel: 'karamel', hazelnut: 'hazelnoot', chocolate: 'chocolade' },
+  'nb-NO': { cinnamon: 'kanel', vanilla: 'vanilje', caramel: 'karamell', hazelnut: 'hasselnøtt', chocolate: 'sjokolade' },
+  'ja-JP': { cinnamon: 'シナモン', vanilla: 'バニラ', caramel: 'キャラメル', hazelnut: 'ヘーゼルナッツ', chocolate: 'チョコレート' },
+  'th-TH': { cinnamon: 'อบเชย', vanilla: 'วานิลลา', caramel: 'คาราเมล', hazelnut: 'เฮเซลนัท', chocolate: 'ช็อกโกแลต' }
+};
+
+function localizeExtra(extra: string, lang?: string): string {
+  if (!lang) return extra;
+  const direct = EXTRA_LOCAL[lang];
+  if (direct?.[extra]) return direct[extra];
+  const base = lang.split('-')[0];
+  const hit = Object.entries(EXTRA_LOCAL).find(([k]) => k.startsWith(`${base}-`));
+  return hit?.[1]?.[extra] || extra;
+}
+
 function buildLocalOrder(parsed: ParsedCoffee, lang?: string): string {
   const lex = resolveLexicon(lang);
   if (!lex) return '';
@@ -409,6 +449,12 @@ function buildLocalOrder(parsed: ParsedCoffee, lang?: string): string {
     parts.push(parsed.shots);
   } else if (parsed.shots === 'decaf') {
     parts.push('decaf');
+  }
+  for (const extra of parsed.extras) {
+    const local = localizeExtra(extra, lang);
+    if (!parts.some((p) => p.toLowerCase().includes(local.toLowerCase()) || p.toLowerCase().includes(extra))) {
+      parts.push(local);
+    }
   }
   return parts.join(', ');
 }

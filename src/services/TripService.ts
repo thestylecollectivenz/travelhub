@@ -8,7 +8,8 @@ const LIST = 'Trips';
 const TRIP_SELECT_CORE =
   'ID,Title,Destination,DateStart,DateEnd,HeroImageUrl,Status,SharedViewEnabled,Description';
 const TRIP_SELECT_WITH_AUTHOR = `${TRIP_SELECT_CORE},ShowAuthorName`;
-const TRIP_SELECT_FULL = `${TRIP_SELECT_WITH_AUTHOR},ShowJournalEntryDate`;
+const TRIP_SELECT_WITH_JOURNAL = `${TRIP_SELECT_WITH_AUTHOR},ShowJournalEntryDate`;
+const TRIP_SELECT_FULL = `${TRIP_SELECT_WITH_JOURNAL},HomePlaceId`;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapToTrip(item: any): Trip {
@@ -27,7 +28,8 @@ function mapToTrip(item: any): Trip {
     sharedViewEnabled: item.SharedViewEnabled === true,
     showAuthorName,
     showJournalEntryDate,
-    description: item.Description ?? ''
+    description: item.Description ?? '',
+    homePlaceId: item.HomePlaceId ? String(item.HomePlaceId).trim() : undefined
   };
 }
 
@@ -45,6 +47,7 @@ function mapToSpItem(trip: Partial<Trip>): Record<string, any> {
   if (trip.showAuthorName !== undefined) item.ShowAuthorName = trip.showAuthorName;
   if (trip.showJournalEntryDate !== undefined) item.ShowJournalEntryDate = trip.showJournalEntryDate;
   if (trip.description !== undefined) item.Description = trip.description;
+  if (trip.homePlaceId !== undefined) item.HomePlaceId = trip.homePlaceId || '';
   return item;
 }
 
@@ -59,7 +62,7 @@ export class TripService {
 
   /** SharePoint rejects $select when a column is not provisioned yet — fall back gracefully. */
   private async getWithSelectFallback(itemUrl: string): Promise<Record<string, unknown>> {
-    const selects = [TRIP_SELECT_FULL, TRIP_SELECT_WITH_AUTHOR, TRIP_SELECT_CORE];
+    const selects = [TRIP_SELECT_FULL, TRIP_SELECT_WITH_JOURNAL, TRIP_SELECT_WITH_AUTHOR, TRIP_SELECT_CORE];
     let lastStatus = 0;
     for (const fields of selects) {
       const url = `${itemUrl}${itemUrl.includes('?') ? '&' : '?'}$select=${fields}`;
@@ -131,12 +134,14 @@ export class TripService {
   async update(id: string, trip: Partial<Trip>): Promise<void> {
     const url = `${this.baseUrl}(${id})`;
     const fullItem = mapToSpItem(trip);
-    const withoutJournalDate = { ...fullItem };
+    const withoutHome = { ...fullItem };
+    delete withoutHome.HomePlaceId;
+    const withoutJournalDate = { ...withoutHome };
     delete withoutJournalDate.ShowJournalEntryDate;
     const withoutOptional = { ...withoutJournalDate };
     delete withoutOptional.ShowAuthorName;
 
-    const payloads = [fullItem, withoutJournalDate, withoutOptional];
+    const payloads = [fullItem, withoutHome, withoutJournalDate, withoutOptional];
     let lastStatus = 0;
     try {
       for (const item of payloads) {
