@@ -1,8 +1,7 @@
 import * as React from 'react';
 import { useConfig } from '../../context/ConfigContext';
 import { resolveDestinationHeroPhoto } from '../../utils/placePhotoResolve';
-import { resolveVenueListingPhoto } from '../../utils/venueListingPhoto';
-import { placeDirectionsFromHereUrl, placeDirectionsFromCoordsUrl, placeQueryMapsUrl } from '../../utils/googleMapsLink';
+import { placeDirectionsFromHereUrl, placeDirectionsFromCoordsUrl, placeDirectionsFromOriginUrl, googleMapsDirectionsBetweenCoordsUrl, placeQueryMapsUrl } from '../../utils/googleMapsLink';
 import { formatModeMinutes } from '../../utils/travelModeDurations';
 import { openMobileExternalUrl } from '../../hooks/useMobileDetailHistory';
 import styles from './MobilePlaceDiscoverCard.module.css';
@@ -27,6 +26,9 @@ export type PlaceDiscoverCardModel = {
   transitMinutes?: number;
   /** Prefer Wikipedia-style hero photos (sights/parks). Default venue listing. */
   photoKind?: 'landmark' | 'venue';
+  /** Gemini / TripAdvisor image URL when available. */
+  photoUrl?: string;
+  tripadvisorUrl?: string;
 };
 
 export type PlaceDiscoverPrimaryKind = 'save' | 'delete' | 'label';
@@ -36,6 +38,10 @@ export interface MobilePlaceDiscoverCardProps {
   startingPointLabel: string;
   cityFallback: string;
   layout?: 'strip' | 'list';
+  /** When set, Directions use this origin (Explore). When omitted, use current location (Near Me). */
+  directionsOrigin?: { lat: number; lng: number };
+  /** Prefer Gemini/TripAdvisor photo + click URL over Google Places. */
+  preferProvidedPhoto?: boolean;
   primaryAction?: {
     label: string;
     onClick: () => void;
@@ -180,6 +186,8 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
   startingPointLabel,
   cityFallback,
   layout = 'list',
+  directionsOrigin,
+  preferProvidedPhoto = false,
   primaryAction,
   secondaryAction,
   tertiaryAction
@@ -197,6 +205,23 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
   React.useEffect(() => {
     let cancelled = false;
     const run = async (): Promise<void> => {
+      const providedPhoto = (card.photoUrl || '').trim();
+      const tripadvisor = (card.tripadvisorUrl || '').trim();
+      const website = (card.websiteUrl || '').trim();
+      const providedClick = tripadvisor || website || placeQueryMapsUrl(card.name, card.address) || '';
+
+      if (preferProvidedPhoto || providedPhoto || tripadvisor) {
+        if (!cancelled) {
+          setPhoto({
+            imageUrl: providedPhoto,
+            sourceUrl: providedClick,
+            displayName: card.name,
+            provider: 'other'
+          });
+        }
+        return;
+      }
+
       if (card.photoKind === 'landmark') {
         const hit = await resolveDestinationHeroPhoto(card.name, city);
         if (!cancelled) {
@@ -210,22 +235,15 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
         }
         return;
       }
-      const hit = await resolveVenueListingPhoto({
-        name: card.name,
-        address: card.address,
-        city,
-        latitude: card.latitude,
-        longitude: card.longitude,
-        googleMapsApiKey: config.googleMapsApiKey
-      });
+
+      // Prefer Gemini-provided media; avoid Google Places photos for Explore venues.
       if (!cancelled) {
-        setPhoto(
-          hit || {
-            imageUrl: '',
-            sourceUrl: placeQueryMapsUrl(card.name, card.address) || '',
-            provider: undefined
-          }
-        );
+        setPhoto({
+          imageUrl: providedPhoto,
+          sourceUrl: providedClick || placeQueryMapsUrl(card.name, card.address) || '',
+          displayName: card.name,
+          provider: providedPhoto ? 'other' : undefined
+        });
       }
     };
     void run();
@@ -236,9 +254,13 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
     card.name,
     card.address,
     card.photoKind,
+    card.photoUrl,
+    card.tripadvisorUrl,
+    card.websiteUrl,
     card.latitude,
     card.longitude,
     city,
+    preferProvidedPhoto,
     config.googleMapsApiKey
   ]);
 
@@ -251,18 +273,37 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
   const distShort = (card.distanceRaw || '').match(/^([\d.]+\s*(?:m|km|mi))\b/i)?.[1];
   const displayName = (photo?.displayName || '').trim() || card.name;
 
-  const directions =
-    (Number.isFinite(card.latitude) && Number.isFinite(card.longitude)
-      ? placeDirectionsFromCoordsUrl(Number(card.latitude), Number(card.longitude))
-      : undefined) ||
-    placeDirectionsFromHereUrl(displayName, card.address, city) ||
-    undefined;
-  // Listing URL: Google place_id first, then name+address search — never address-only (wrong pin).
+  const destQuery =
+    (card.address || '').trim() ||
+    [displayName, city].filter(Boolean).join(', ');
+  const directions = directionsOrigin
+    ? Number.isFinite(card.latitude) && Number.isFinite(card.longitude)
+      ? googleMapsDirectionsBetweenCoordsUrl(
+          directionsOrigin.lat,
+          directionsOrigin.lng,
+          Number(card.latitude),
+          Number(card.longitude)
+        )
+      : placeDirectionsFromOriginUrl(
+          directionsOrigin.lat,
+          directionsOrigin.lng,
+          displayName,
+          card.address,
+          city
+        )
+    : (Number.isFinite(card.latitude) && Number.isFinite(card.longitude)
+        ? placeDirectionsFromCoordsUrl(Number(card.latitude), Number(card.longitude))
+        : undefined) ||
+      placeDirectionsFromHereUrl(displayName, card.address, city) ||
+      undefined;
+
   const listingHref =
+    (card.tripadvisorUrl || '').trim() ||
+    (card.websiteUrl || '').trim() ||
     (photo?.sourceUrl || '').trim() ||
     (card.mapsUrl || '').trim() ||
     placeQueryMapsUrl(displayName, card.address) ||
-    placeQueryMapsUrl(card.name, card.address) ||
+    placeQueryMapsUrl(destQuery) ||
     undefined;
   const photoHref = listingHref;
   const kind = primaryAction?.kind || 'label';
@@ -280,8 +321,8 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
           target="_blank"
           rel="noopener noreferrer"
           style={photo?.imageUrl ? { backgroundImage: `url(${photo.imageUrl})` } : undefined}
-          aria-label={`Open Google listing for ${displayName}`}
-          title="Open Google listing"
+          aria-label={`Open listing for ${displayName}`}
+          title="Open listing"
           onClick={openListing}
         />
       ) : (
@@ -362,6 +403,7 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
               href={directions}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={(e) => openMobileExternalUrl(directions, e)}
             >
               <IconDirections /> Directions
             </a>

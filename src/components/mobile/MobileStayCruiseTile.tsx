@@ -138,7 +138,7 @@ export const MobileStayCruiseTile: React.FC<MobileStayCruiseTileProps> = ({
     setHeroFailed(false);
     setHeroUrl(stayHeroPlaceholderUrl(heroTitle, heroPlace, mode));
     setHeroClickUrl('');
-    void resolveStayHero(heroTitle, heroPlace, mode, config.googleMapsApiKey).then((hit) => {
+    void resolveStayHero(heroTitle, heroPlace, mode, config.googleMapsApiKey, config.geminiApiKey).then((hit) => {
       if (cancelled) return;
       if (hit.imageUrl) setHeroUrl(hit.imageUrl);
       if (hit.clickUrl) setHeroClickUrl(hit.clickUrl);

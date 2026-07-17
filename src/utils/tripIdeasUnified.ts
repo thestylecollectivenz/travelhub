@@ -10,7 +10,8 @@ import {
   formatDayIdeaAuthor,
   isDayIdeaAuthor,
   isDayIdeaReminder,
-  parseDayIdeaMeta
+  parseDayIdeaMeta,
+  serializeDayIdeaMeta
 } from './dayIdeas';
 import {
   isJotterIdeaReminder,
@@ -24,7 +25,7 @@ import { itineraryLocationsForDay, resolveIdeaLocationLabel } from './ideaLocati
 
 export type UnifiedIdeaSource = 'jotter' | 'day';
 
-export type TripIdeasFilter = 'all' | 'yours' | 'ai' | 'replies' | 'complete' | 'open';
+export type TripIdeasFilter = 'all' | 'yours' | 'ai' | 'replies' | 'complete' | 'open' | 'favourites';
 
 export interface UnifiedTripIdea {
   id: string;
@@ -39,6 +40,7 @@ export interface UnifiedTripIdea {
   dayId?: string;
   locationLabel?: string;
   replyCount: number;
+  favouritedBy: string[];
 }
 
 function rowFromReminder(
@@ -69,7 +71,8 @@ function rowFromReminder(
       authorEmail: meta.authorEmail,
       dayId: meta.focusDayId || reminder.dayId || undefined,
       locationLabel: resolveIdeaLocationLabel(day, meta.location, placeById, dayLocations, tripDestination),
-      replyCount: replies.length
+      replyCount: replies.length,
+      favouritedBy: meta.favouritedBy ?? []
     };
   }
 
@@ -90,7 +93,8 @@ function rowFromReminder(
       authorEmail: meta.authorEmail,
       dayId: reminder.dayId || undefined,
       locationLabel: resolveIdeaLocationLabel(day, undefined, placeById, dayLocations, tripDestination),
-      replyCount: replies.length
+      replyCount: replies.length,
+      favouritedBy: meta.favouritedBy ?? []
     };
   }
 
@@ -139,7 +143,42 @@ export function matchesTripIdeasFilter(
   if (filter === 'ai') return idea.isAi;
   if (filter === 'yours') return isUnifiedIdeaYours(idea, spContext, members);
   if (filter === 'replies') return idea.replyCount > 0;
+  if (filter === 'favourites') {
+    const mine = getCurrentUserEmail(spContext).trim().toLowerCase();
+    return (idea.favouritedBy || []).some((e) => e.toLowerCase() === mine);
+  }
   return true;
+}
+
+export function ideaIsFavouritedByMe(idea: UnifiedTripIdea, spContext: WebPartContext): boolean {
+  const mine = getCurrentUserEmail(spContext).trim().toLowerCase();
+  return (idea.favouritedBy || []).some((e) => e.toLowerCase() === mine);
+}
+
+export async function toggleUnifiedIdeaFavourite(
+  spContext: WebPartContext,
+  idea: UnifiedTripIdea
+): Promise<void> {
+  const mine = getCurrentUserEmail(spContext).trim().toLowerCase();
+  if (!mine) return;
+  const svc = new ReminderService(spContext);
+  if (idea.source === 'jotter' || isJotterIdeaReminder(idea.reminder)) {
+    const meta = parseJotterIdeaMeta(idea.reminder.taskNote);
+    const set = new Set((meta.favouritedBy || []).map((e) => e.toLowerCase()));
+    if (set.has(mine)) set.delete(mine);
+    else set.add(mine);
+    await svc.update(idea.id, {
+      taskNote: JSON.stringify({ ...meta, favouritedBy: Array.from(set) })
+    });
+    return;
+  }
+  const meta = parseDayIdeaMeta(idea.reminder.taskNote);
+  const set = new Set((meta.favouritedBy || []).map((e) => e.toLowerCase()));
+  if (set.has(mine)) set.delete(mine);
+  else set.add(mine);
+  await svc.update(idea.id, {
+    taskNote: serializeDayIdeaMeta({ ...meta, favouritedBy: Array.from(set) })
+  });
 }
 
 export function isIdeaRecentlyAdded(iso?: string, withinHours = 48): boolean {

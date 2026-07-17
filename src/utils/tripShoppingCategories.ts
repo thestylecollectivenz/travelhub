@@ -1,7 +1,21 @@
 const KEY = 'travelhub-trip-shopping-categories-';
 
+/** Shared taxonomy for packing + shopping list category filters. */
+export const DEFAULT_SHARED_LIST_CATEGORIES = [
+  'Clothing',
+  'Shoes',
+  'Accessories',
+  'Toiletries',
+  'Electronics',
+  'Documents',
+  'Medications',
+  'Other'
+];
+
 export const SHOPPING_CATEGORIES_CHANGED_EVENT = 'travelhub-shopping-categories-changed';
 export const SHOPPING_ITEMS_CHANGED_EVENT = 'travelhub-shopping-items-changed';
+/** Alias — packing and shopping share one category store. */
+export const LIST_CATEGORIES_CHANGED_EVENT = SHOPPING_CATEGORIES_CHANGED_EVENT;
 
 export function notifyShoppingItemsChanged(tripId: string): void {
   window.dispatchEvent(
@@ -28,12 +42,20 @@ function normalizeList(categories: string[]): string[] {
 export function loadTripShoppingCategories(tripId: string): string[] {
   try {
     const raw = window.localStorage.getItem(`${KEY}${tripId}`);
-    if (!raw) return [];
+    if (!raw) {
+      return saveTripShoppingCategories(tripId, DEFAULT_SHARED_LIST_CATEGORIES);
+    }
     const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return normalizeList(parsed.filter((x) => typeof x === 'string') as string[]);
+    if (!Array.isArray(parsed)) {
+      return saveTripShoppingCategories(tripId, DEFAULT_SHARED_LIST_CATEGORIES);
+    }
+    const saved = normalizeList(parsed.filter((x) => typeof x === 'string') as string[]);
+    if (!saved.length) {
+      return saveTripShoppingCategories(tripId, DEFAULT_SHARED_LIST_CATEGORIES);
+    }
+    return saved;
   } catch {
-    return [];
+    return [...DEFAULT_SHARED_LIST_CATEGORIES];
   }
 }
 
@@ -90,3 +112,8 @@ export function notifyShoppingCategoriesChanged(tripId: string): void {
     })
   );
 }
+
+/** Same store as shopping — use for packing filters/selects. */
+export const loadTripListCategories = loadTripShoppingCategories;
+export const rememberTripListCategory = rememberTripShoppingCategory;
+export const saveTripListCategories = saveTripShoppingCategories;

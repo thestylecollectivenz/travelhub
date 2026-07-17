@@ -92,7 +92,8 @@ export const DEFAULT_BOOKING_AFFILIATE_PARTNERS: BookingAffiliatePartnerDef[] = 
     logoDomain: 'booking.com',
     recommended: true,
     sortOrder: 20,
-    hrefTemplate: 'https://www.booking.com/searchresults.html?ss={destination}',
+    hrefTemplate:
+      'https://www.booking.com/searchresults.html?ss={destination}&checkin={checkin}&checkout={checkout}',
     affiliateQueryParam: 'aid'
   },
   {
@@ -103,7 +104,8 @@ export const DEFAULT_BOOKING_AFFILIATE_PARTNERS: BookingAffiliatePartnerDef[] = 
     logoDomain: 'expedia.com',
     recommended: true,
     sortOrder: 30,
-    hrefTemplate: 'https://www.expedia.com/Hotel-Search?destination={destination}'
+    hrefTemplate:
+      'https://www.expedia.com/Hotel-Search?destination={destination}&startDate={checkin}&endDate={checkout}'
   },
   {
     id: 'skyscanner',
@@ -252,19 +254,54 @@ export function serializeBookingAffiliateOverrides(map: BookingAffiliateOverride
   return JSON.stringify(map, null, 2);
 }
 
-function buildHref(def: BookingAffiliatePartnerDef, destination: string, override?: BookingAffiliatePartnerOverride): string {
-  const trimmed = destination.trim();
+function ymdToPartnerDate(ymd: string): string {
+  // Most partners expect YYYY-MM-DD; leave as-is when valid.
+  const t = ymd.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+  return t;
+}
+
+function stripEmptyQueryParams(url: string, keys: string[]): string {
+  let next = url;
+  for (const key of keys) {
+    const re = new RegExp(`([?&])${key}=(?:&|$)`, 'gi');
+    next = next.replace(re, (_, sep: string) => (sep === '?' ? '?' : ''));
+  }
+  return next.replace(/\?&/, '?').replace(/[?&]$/, '').replace(/\?$/, '');
+}
+
+export type BookingSearchParams = {
+  destination?: string;
+  dateFrom?: string;
+  dateTo?: string;
+};
+
+function buildHref(
+  def: BookingAffiliatePartnerDef,
+  search: BookingSearchParams,
+  override?: BookingAffiliatePartnerOverride
+): string {
+  const trimmed = (search.destination || '').trim();
   const dest = encodeURIComponent(trimmed);
-  let url = (override?.hrefOverride || def.hrefTemplate).replace(/\{destination\}/g, dest);
+  const checkin = encodeURIComponent(ymdToPartnerDate(search.dateFrom || ''));
+  const checkout = encodeURIComponent(ymdToPartnerDate(search.dateTo || ''));
+  let url = (override?.hrefOverride || def.hrefTemplate)
+    .replace(/\{destination\}/g, dest)
+    .replace(/\{checkin\}/g, checkin)
+    .replace(/\{checkout\}/g, checkout);
+
   // When no place is entered, leave partner landing URLs without forcing a generic search term.
   if (!trimmed) {
-    url = url
-      .replace(/([?&])(q|ss|query|destination|location|ss_raw|ssne|text)=(&|$)/gi, (_, sep: string, __: string, end: string) =>
-        end === '&' ? sep : ''
-      )
-      .replace(/\?&/, '?')
-      .replace(/[?&]$/, '');
+    url = stripEmptyQueryParams(url, ['q', 'ss', 'query', 'destination', 'location', 'ss_raw', 'ssne', 'text']);
   }
+  if (!(search.dateFrom || '').trim()) {
+    url = stripEmptyQueryParams(url, ['checkin', 'checkIn', 'checkin_date', 'fromDate', 'depart', 'outbound']);
+  }
+  if (!(search.dateTo || '').trim()) {
+    url = stripEmptyQueryParams(url, ['checkout', 'checkOut', 'checkout_date', 'toDate', 'return', 'inbound']);
+  }
+
+  // Affiliate id always applied last so profile overrides never break.
   const affiliateId = (override?.affiliateId || '').trim();
   if (affiliateId && def.affiliateQueryParam) {
     const sep = url.includes('?') ? '&' : '?';
@@ -274,9 +311,13 @@ function buildHref(def: BookingAffiliatePartnerDef, destination: string, overrid
 }
 
 export function resolveBookingAffiliatePartners(
-  destination = '',
+  destinationOrSearch: string | BookingSearchParams = '',
   overridesJson?: string
 ): ResolvedBookingAffiliatePartner[] {
+  const search: BookingSearchParams =
+    typeof destinationOrSearch === 'string'
+      ? { destination: destinationOrSearch }
+      : destinationOrSearch || {};
   const overrides = parseOverridesJson(overridesJson);
   return DEFAULT_BOOKING_AFFILIATE_PARTNERS.map((def) => {
     const o = overrides[def.id];
@@ -288,7 +329,7 @@ export function resolveBookingAffiliatePartners(
       description: def.description,
       category: def.category,
       logoUrl: partnerLogoUrl(def.logoDomain),
-      href: buildHref(def, destination, o),
+      href: buildHref(def, search, o),
       recommended: o?.recommended ?? def.recommended,
       sortOrder: o?.sortOrder ?? def.sortOrder
     };

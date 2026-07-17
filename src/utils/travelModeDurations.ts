@@ -46,13 +46,13 @@ export async function resolveTravelModeDurations(
     osrmMinutes('driving', fromLat, fromLng, toLat, toLng)
   ]);
 
-  // OSRM can fail (CORS/rate) — sensible haversine fallbacks so UI still shows modes.
+  // Separate haversine fallbacks — never copy walk onto drive.
   const walk =
     walkMinutes ??
     (straight > 0 ? Math.max(1, Math.round((straight * 1000 * 1.25) / 80)) : undefined);
   const drive =
     driveMinutes ??
-    (straight > 0.2 ? Math.max(1, Math.round((straight * 1.3 * 60) / 28)) : walk);
+    (straight > 0.05 ? Math.max(1, Math.round((straight * 1.35 * 60) / 32)) : undefined);
 
   return {
     walkMinutes: walk && walk <= 180 ? walk : undefined,

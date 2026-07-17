@@ -80,6 +80,15 @@ function cruisePortOnCalendarDate(
   );
 }
 
+/** Port stop card for a calendar day (Explore / Location Info should use this, not the ship). */
+export function cruisePortEntryForDay(
+  entries: ItineraryEntry[],
+  tripDays: TripDay[],
+  calendarDate: string
+): ItineraryEntry | undefined {
+  return cruisePortOnCalendarDate(entries, tripDays, ymdSlice(calendarDate));
+}
+
 export interface CruisePortPlannerBlock {
   keySuffix: string;
   startMinutes: number;

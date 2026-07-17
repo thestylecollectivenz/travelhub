@@ -236,7 +236,7 @@ export const MobileCruiseDetail: React.FC<MobileCruiseDetailProps> = ({
     let cancelled = false;
     setHeroSrc(stayHeroPlaceholderUrl(heroTitle, heroPlace, 'cruise'));
     setHeroClickUrl('');
-    void resolveStayHero(heroTitle, heroPlace, 'cruise', config.googleMapsApiKey).then((hit) => {
+    void resolveStayHero(heroTitle, heroPlace, 'cruise', config.googleMapsApiKey, config.geminiApiKey).then((hit) => {
       if (cancelled) return;
       if (hit.imageUrl) setHeroSrc(hit.imageUrl);
       if (hit.clickUrl) setHeroClickUrl(hit.clickUrl);

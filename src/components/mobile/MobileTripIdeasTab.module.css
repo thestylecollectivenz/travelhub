@@ -88,6 +88,23 @@
   flex-shrink: 0;
 }
 
+.favBtn,
+.favBtnOn {
+  border: none;
+  background: transparent;
+  color: var(--tl-muted);
+  padding: 0.15rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.favBtnOn {
+  color: #c45c5c;
+}
+
 .replyBtn {
   border: 1px solid var(--tl-line);
   border-radius: 999px;

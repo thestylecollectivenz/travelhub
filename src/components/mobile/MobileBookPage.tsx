@@ -17,6 +17,10 @@ export interface MobileBookPageProps {
   showTitle?: boolean;
   onViewAllPartners?: (destination: string) => void;
   onViewTripOverview?: () => void;
+  /** When set (e.g. from itinerary Book tab), pre-fill Booking for. Home leaves blank. */
+  defaultDestination?: string;
+  defaultDateFrom?: string;
+  defaultDateTo?: string;
 }
 
 type BookFilter = 'all' | 'category';
@@ -41,22 +45,40 @@ async function resolveNearMePlace(): Promise<string> {
 export const MobileBookPage: React.FC<MobileBookPageProps> = ({
   showTitle = true,
   onViewAllPartners,
-  onViewTripOverview
+  onViewTripOverview,
+  defaultDestination = '',
+  defaultDateFrom = '',
+  defaultDateTo = ''
 }) => {
   const { appConfig } = useAppConfig();
   const canManageSite = useCanManageSiteConfig();
   const shellMode = useShellMode();
-  // Never pre-fill from trip title/destination — user chooses where to search.
-  const [query, setQuery] = React.useState('');
+  const [query, setQuery] = React.useState(() => (defaultDestination || '').trim());
+  const [dateFrom, setDateFrom] = React.useState(() => (defaultDateFrom || '').trim());
+  const [dateTo, setDateTo] = React.useState(() => (defaultDateTo || '').trim());
   const [filter, setFilter] = React.useState<BookFilter>('all');
   const [nearBusy, setNearBusy] = React.useState(false);
   const [affiliateSettingsOpen, setAffiliateSettingsOpen] = React.useState(false);
 
+  React.useEffect(() => {
+    setQuery((defaultDestination || '').trim());
+  }, [defaultDestination]);
+  React.useEffect(() => {
+    setDateFrom((defaultDateFrom || '').trim());
+  }, [defaultDateFrom]);
+  React.useEffect(() => {
+    setDateTo((defaultDateTo || '').trim());
+  }, [defaultDateTo]);
+
   const overridesJson = appConfig.get(BOOKING_AFFILIATES_CONFIG_KEY);
 
   const partners = React.useMemo(
-    () => resolveBookingAffiliatePartners(query, overridesJson),
-    [query, overridesJson]
+    () =>
+      resolveBookingAffiliatePartners(
+        { destination: query, dateFrom, dateTo },
+        overridesJson
+      ),
+    [query, dateFrom, dateTo, overridesJson]
   );
   const recommended = React.useMemo(() => recommendedBookingPartners(partners), [partners]);
   const more = React.useMemo(() => moreBookingPartners(partners), [partners]);
@@ -109,6 +131,29 @@ export const MobileBookPage: React.FC<MobileBookPageProps> = ({
           </svg>
           {nearBusy ? 'Locating…' : 'Near me'}
         </button>
+      </div>
+
+      <div className={styles.dateRow}>
+        <label className={styles.dateLabel}>
+          From
+          <input
+            type="date"
+            className={styles.dateInput}
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            aria-label="From date"
+          />
+        </label>
+        <label className={styles.dateLabel}>
+          To
+          <input
+            type="date"
+            className={styles.dateInput}
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            aria-label="To date"
+          />
+        </label>
       </div>
 
       <div className={styles.filterRow} role="tablist" aria-label="Partner view">

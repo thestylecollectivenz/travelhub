@@ -8,6 +8,8 @@ export interface NearYouCachedResult {
   mapsUrl?: string;
   websiteUrl?: string;
   reviewsUrl?: string;
+  tripadvisorUrl?: string;
+  photoUrl?: string;
   aiBlurb?: string;
   topPick?: boolean;
   latitude?: number;

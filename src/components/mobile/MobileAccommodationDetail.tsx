@@ -200,7 +200,7 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
 
   React.useEffect(() => {
     let cancelled = false;
-    void resolveStayHero(heroTitle, heroPlace, 'accommodation', config.googleMapsApiKey).then((hit) => {
+    void resolveStayHero(heroTitle, heroPlace, 'accommodation', config.googleMapsApiKey, config.geminiApiKey).then((hit) => {
       if (cancelled) return;
       if (hit.imageUrl) setHeroSrc(hit.imageUrl);
       if (hit.clickUrl) setHeroClickUrl(hit.clickUrl);

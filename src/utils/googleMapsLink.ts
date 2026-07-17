@@ -34,6 +34,43 @@ export function placeQueryDirectionsUrl(name: string, address?: string): string 
   return googleMapsDirectionsUrl(q);
 }
 
+/** Directions from lat/lng origin to destination (Explore / Location Info). */
+export function googleMapsDirectionsFromOriginUrl(
+  originLat: number,
+  originLng: number,
+  destination: string
+): string | undefined {
+  const dest = destination.trim();
+  if (!dest || !Number.isFinite(originLat) || !Number.isFinite(originLng)) return undefined;
+  return (
+    `https://www.google.com/maps/dir/?api=1` +
+    `&origin=${encodeURIComponent(`${originLat},${originLng}`)}` +
+    `&destination=${encodeURIComponent(dest)}`
+  );
+}
+
+/** Directions from origin coords to destination coords. */
+export function googleMapsDirectionsBetweenCoordsUrl(
+  originLat: number,
+  originLng: number,
+  destLat: number,
+  destLng: number
+): string | undefined {
+  if (
+    !Number.isFinite(originLat) ||
+    !Number.isFinite(originLng) ||
+    !Number.isFinite(destLat) ||
+    !Number.isFinite(destLng)
+  ) {
+    return undefined;
+  }
+  return (
+    `https://www.google.com/maps/dir/?api=1` +
+    `&origin=${encodeURIComponent(`${originLat},${originLng}`)}` +
+    `&destination=${encodeURIComponent(`${destLat},${destLng}`)}`
+  );
+}
+
 /**
  * Directions from the user's current location to a place.
  * Prefer a street address only — establishment names often resolve to the wrong pin.
@@ -54,6 +91,24 @@ export function placeDirectionsFromHereUrl(
       ? `${addr}, ${locality.trim()}`
       : addr;
   return googleMapsDirectionsUrl(dest);
+}
+
+/** Directions from a fixed starting point (trip Explore) to a place. */
+export function placeDirectionsFromOriginUrl(
+  originLat: number,
+  originLng: number,
+  name: string,
+  address?: string,
+  locality?: string
+): string | undefined {
+  const addr = (address || '').trim();
+  const dest = addr
+    ? locality && !addr.toLowerCase().includes(locality.toLowerCase())
+      ? `${addr}, ${locality.trim()}`
+      : addr
+    : name.trim();
+  if (!dest) return undefined;
+  return googleMapsDirectionsFromOriginUrl(originLat, originLng, dest);
 }
 
 /** Directions using coordinates when available (most accurate). */

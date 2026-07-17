@@ -41,6 +41,36 @@
   margin-bottom: 0.75rem;
 }
 
+.dateRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  margin-bottom: 0.75rem;
+}
+
+.dateLabel {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #8a7355;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dateInput {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  border-radius: 0.75rem;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #1e2a44;
+  background: white;
+  font: inherit;
+}
+
 .searchLabel {
   display: grid;
   gap: 0.35rem;

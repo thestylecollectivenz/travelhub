@@ -1,14 +1,16 @@
 import * as React from 'react';
 import { usePlanView } from '../../context/PlanViewContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { useSpContext } from '../../context/SpContext';
+import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
 import { loadTripTravellers, saveTripTravellers } from '../../utils/tripTravellers';
 import styles from './TripSidebar.module.css';
-
-const CATEGORIES = ['Clothing', 'Toiletries', 'Electronics', 'Documents', 'Medications', 'Other'];
 
 export const SidebarPackingCategories: React.FC = () => {
   const plan = usePlanView();
   const { trip } = useTripWorkspace();
+  const spContext = useSpContext();
+  const { categories } = useTripShoppingCategories(trip?.id, spContext);
   const selected = plan?.packingCategory ?? 'Other';
   const traveller = plan?.packingTraveller ?? null;
   const [travellers, setTravellers] = React.useState<string[]>(['Traveller 1']);
@@ -129,7 +131,7 @@ export const SidebarPackingCategories: React.FC = () => {
             All items
           </button>
         </li>
-        {CATEGORIES.map((c) => (
+        {categories.map((c) => (
           <li key={c}>
             <button
               type="button"

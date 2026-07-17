@@ -9,9 +9,9 @@ import { useTripMembers } from '../../hooks/useTripMembers';
 import { useCompanionListDefaults } from '../../hooks/useCompanionListDefaults';
 import { assigneeLabelsMatch, resolveOwnerEmailForAssignee } from '../../utils/tripMemberIdentity';
 import { MOBILE_OPEN_PACKING_ADD } from '../../utils/mobileHomePendingAction';
+import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
+import { categoriesForItemSelect, rememberTripShoppingCategory } from '../../utils/tripShoppingCategories';
 import styles from './MobileShell.module.css';
-
-const CATEGORIES = ['Clothing', 'Shoes', 'Accessories', 'Toiletries', 'Electronics', 'Documents', 'Medications', 'Other'];
 
 export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const spContext = useSpContext();
@@ -21,6 +21,7 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
   const activeTraveller = planView?.packingTraveller ?? null;
   const { role } = useTripRole();
   const { members, travellers } = useTripMembers(trip?.id);
+  const { categories } = useTripShoppingCategories(trip?.id, spContext);
   useCompanionListDefaults(planView, role, members);
   const service = React.useMemo(() => new PackingService(spContext), [spContext]);
   const [items, setItems] = React.useState<PackingItem[]>([]);
@@ -59,9 +60,10 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
       );
     }
     if (activeCategory !== '__all__') {
-      rows = rows.filter(
-        (i) => (CATEGORIES.indexOf(i.category) >= 0 ? i.category : 'Other') === activeCategory
-      );
+      rows = rows.filter((i) => {
+        const cat = (i.category || '').trim() || 'Other';
+        return cat.toLowerCase() === activeCategory.trim().toLowerCase();
+      });
     }
     rows = [...rows].sort((a, b) =>
       sortAlpha
@@ -91,12 +93,15 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
   const addItem = (): void => {
     if (!trip?.id || !name.trim()) return;
     const traveller = activeTraveller || travellers[0] || 'Traveller 1';
+    const fallback =
+      categories.find((c) => c.toLowerCase() === 'other') || categories[0] || 'Other';
     const itemCategory =
       activeCategory === '__all__'
-        ? CATEGORIES.indexOf(planView?.packingCategory ?? '') >= 0
+        ? categories.some((c) => c.toLowerCase() === (planView?.packingCategory ?? '').toLowerCase())
           ? (planView?.packingCategory as string)
-          : 'Other'
+          : fallback
         : activeCategory;
+    rememberTripShoppingCategory(trip.id, itemCategory);
     service
       .create({
         tripId: trip.id,
@@ -117,6 +122,8 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
       })
       .catch(console.error);
   };
+
+  const categoryOptions = (itemCategory: string): string[] => categoriesForItemSelect(categories, itemCategory);
 
   return (
     <section className={styles.mobileListSection} aria-label="Packing list">
@@ -163,18 +170,20 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
           <div className={styles.mobileAddRow}>
             <select
               className={styles.mobileField}
-              value={activeCategory === '__all__' ? (planView?.packingCategory ?? 'Other') : activeCategory}
+              value={
+                activeCategory === '__all__'
+                  ? categories.some((c) => c === planView?.packingCategory)
+                    ? (planView?.packingCategory as string)
+                    : categories[0] || 'Other'
+                  : activeCategory
+              }
               onChange={(e) => planView?.setPackingCategory(e.target.value)}
             >
-              {activeCategory === '__all__' ? (
-                CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))
-              ) : (
-                <option value={activeCategory}>{activeCategory}</option>
-              )}
+              {(activeCategory === '__all__' ? categories : categoryOptions(activeCategory)).map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
             </select>
             <input
               className={styles.mobileFieldQty}
@@ -262,10 +271,11 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
                             className={styles.mobileField}
                             value={item.category || 'Other'}
                             onChange={(e) => {
+                              if (trip?.id) rememberTripShoppingCategory(trip.id, e.target.value);
                               service.update(item.id, { category: e.target.value }).then(refresh).catch(console.error);
                             }}
                           >
-                            {CATEGORIES.map((c) => (
+                            {categoryOptions(item.category).map((c) => (
                               <option key={c} value={c}>
                                 {c}
                               </option>

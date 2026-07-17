@@ -19,6 +19,7 @@ import { rememberTripTaskCategory } from '../../utils/tripTaskCategories';
 import { ReminderService } from '../../services/ReminderService';
 import { usePlaces } from '../../context/PlacesContext';
 import { findStayTileForDay } from '../../utils/mobileDayStay';
+import { cruisePortEntryForDay } from '../../utils/cruisePlannerUtils';
 import { ItineraryCardEdit } from '../itinerary/ItineraryCardEdit';
 import { MobileLocationInfoContent } from './MobileLocationInfoContent';
 import { MobileLocationHighlightsEdit } from './MobileLocationHighlightsEdit';
@@ -29,6 +30,11 @@ import { MobileExplorePlacesView } from './MobileExplorePlacesView';
 import { MobileSavedPlacesView } from './MobileSavedPlacesView';
 import { MobileStartPointPicker, type StartPointSelection } from './MobileStartPointPicker';
 import { MobileDayPickActions, type DayPickOption } from './MobileDayPickActions';
+import { MobileTipItemEdit, MobileTipListChooser, type TipListTarget } from './MobileTipListChooser';
+import { PackingService } from '../../services/PackingService';
+import { ShoppingListService } from '../../services/ShoppingListService';
+import { getCurrentUserEmail } from '../../utils/currentUserEmail';
+import { rememberTripShoppingCategory } from '../../utils/tripShoppingCategories';
 import { MobilePencilButton } from './MobilePencilButton';
 import type { NearYouToolId } from '../../utils/nearYouTools';
 import { NEAR_YOU_TOOLS } from '../../utils/nearYouTools';
@@ -50,7 +56,7 @@ import {
   upsertSharedStartingPoint
 } from '../../utils/locationSharedStartPoints';
 import { formatStartLabelWithAddress, reverseGeocodeAddress } from '../../utils/googlePlacePhoto';
-import { geocodeStayFromHotelRecord } from '../../utils/stayGeocode';
+import { geocodeStayFromHotelRecord, geocodeStayQuery } from '../../utils/stayGeocode';
 import cardStyles from '../itinerary/ItineraryCard.module.css';
 import styles from './MobileLocationInfo.module.css';
 
@@ -70,6 +76,11 @@ type DayPickState = {
   note: string;
   mapsUrl?: string;
 };
+
+type TipSaveState =
+  | { stage: 'list'; tip: string }
+  | { stage: 'edit'; tip: string; kind: TipListTarget; title: string; notes: string }
+  | null;
 
 function isValidLatLng(lat: number, lng: number): boolean {
   return Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
@@ -102,6 +113,8 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   const [savedCategory, setSavedCategory] = React.useState<string | undefined>();
   const [nearActionMsg, setNearActionMsg] = React.useState('');
   const [dayPick, setDayPick] = React.useState<DayPickState | null>(null);
+  const [tipSave, setTipSave] = React.useState<TipSaveState>(null);
+  const [tipSaveBusy, setTipSaveBusy] = React.useState(false);
   const [startingPoint, setStartingPoint] = React.useState<StartPointSelection | null>(null);
   const [startHistory, setStartHistory] = React.useState<Array<StartPointSelection | null>>([]);
   const [startPickerOpen, setStartPickerOpen] = React.useState(false);
@@ -193,18 +206,31 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
       return undefined;
     }
     let cancelled = false;
-    void geocodeStayFromHotelRecord({
-      title: stay.title,
-      streetAddress: stay.streetAddress,
-      location: stay.location
-    }).then((geo) => {
+
+    // Cruise days: Explore/near searches use the port card for this day, not the ship name.
+    const port =
+      stayPrimary?.mode === 'cruise'
+        ? cruisePortEntryForDay(localEntries, tripDays, calendarDate)
+        : undefined;
+    const geoPromise = port
+      ? geocodeStayQuery(
+          [port.location || port.title, port.streetAddress].filter(Boolean).join(', '),
+          (port.location || port.title || '').trim() || 'Port'
+        )
+      : geocodeStayFromHotelRecord({
+          title: stay.title,
+          streetAddress: stay.streetAddress,
+          location: stay.location
+        });
+
+    void geoPromise.then((geo) => {
       if (cancelled || !geo) return;
       setStayCentre(geo);
     });
     return () => {
       cancelled = true;
     };
-  }, [stayPrimary]);
+  }, [stayPrimary, localEntries, tripDays, calendarDate]);
 
   const promotedStartsRef = React.useRef<string>('');
 
@@ -540,14 +566,63 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     [locationDayOptions, selectedDayId, createTask, addItinerary]
   );
 
-  const onCreateTaskFromTip = React.useCallback(
-    (tipText: string): void => {
-      const tip = tipText.trim();
-      if (!tip) return;
-      resolveDayId({ mode: 'task', title: tip.slice(0, 80), note: tip });
-    },
-    [resolveDayId]
-  );
+  const onCreateTaskFromTip = React.useCallback((tipText: string): void => {
+    const tip = tipText.trim();
+    if (!tip) return;
+    setTipSave({ stage: 'list', tip });
+  }, []);
+
+  const saveTipListItem = React.useCallback(async (): Promise<void> => {
+    if (!tipSave || tipSave.stage !== 'edit' || !trip?.id) return;
+    const title = tipSave.title.trim();
+    if (!title) return;
+    setTipSaveBusy(true);
+    try {
+      const ownerEmail = getCurrentUserEmail(spContext) || '';
+      if (tipSave.kind === 'todo') {
+        await createTask(title, tipSave.notes, selectedDayId || undefined);
+      } else if (tipSave.kind === 'packing') {
+        const svc = new PackingService(spContext);
+        await svc.create({
+          tripId: trip.id,
+          category: 'Other',
+          itemName: title,
+          quantity: 1,
+          isPacked: false,
+          isTemplate: false,
+          traveller: '',
+          ownerEmail,
+          itemNotes: tipSave.notes.trim() || undefined
+        });
+        setNearActionMsg(`Added to packing: ${title}`);
+      } else {
+        const svc = new ShoppingListService(spContext);
+        await svc.create({
+          tripId: trip.id,
+          category: 'Other',
+          itemName: title,
+          traveller: '',
+          budgetAmount: 0,
+          actualAmount: 0,
+          currency: 'NZD',
+          purchaseMonth: '',
+          websiteUrl: '',
+          notes: tipSave.notes.trim() || '',
+          isPurchased: false,
+          ownerEmail
+        });
+        rememberTripShoppingCategory(trip.id, 'Other');
+        setNearActionMsg(`Added to shopping: ${title}`);
+      }
+      setTipSave(null);
+      window.setTimeout(() => setNearActionMsg(''), 2800);
+    } catch (err) {
+      setNearActionMsg(err instanceof Error ? err.message : 'Could not save.');
+      window.setTimeout(() => setNearActionMsg(''), 3200);
+    } finally {
+      setTipSaveBusy(false);
+    }
+  }, [tipSave, trip?.id, spContext, createTask, selectedDayId]);
 
   const onAddTipToItinerary = React.useCallback(
     (tipText: string): void => {
@@ -635,9 +710,15 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   if (!entry || !liveEntry) return null;
 
   const isEditing = editingCardId === entry.id;
+  const portForDay =
+    stayPrimary?.mode === 'cruise'
+      ? cruisePortEntryForDay(localEntries, tripDays, calendarDate)
+      : undefined;
   const title = place
     ? compactPlaceLabel(place.title, place.country)
     : (entry.title || entry.location || 'Location').trim() || 'Location';
+  const exploreLocationLabel =
+    (portForDay?.location || portForDay?.title || '').trim() || title;
   const shellAttr = shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined;
 
   if (isEditing) {
@@ -721,8 +802,37 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   };
 
   const dayPickUi =
-    dayPick || nearActionMsg ? (
+    dayPick || tipSave || nearActionMsg ? (
       <div style={{ display: 'grid', gap: '0.45rem', marginBottom: '0.65rem' }}>
+        {tipSave?.stage === 'list' ? (
+          <MobileTipListChooser
+            open
+            tipPreview={tipSave.tip}
+            onPick={(kind) => {
+              setTipSave({
+                stage: 'edit',
+                tip: tipSave.tip,
+                kind,
+                title: tipSave.tip.slice(0, 80),
+                notes: tipSave.tip
+              });
+            }}
+            onCancel={() => setTipSave(null)}
+          />
+        ) : null}
+        {tipSave?.stage === 'edit' ? (
+          <MobileTipItemEdit
+            open
+            kind={tipSave.kind === 'todo' ? 'todo' : tipSave.kind}
+            title={tipSave.title}
+            notes={tipSave.notes}
+            onChangeTitle={(v) => setTipSave({ ...tipSave, title: v })}
+            onChangeNotes={(v) => setTipSave({ ...tipSave, notes: v })}
+            onSave={() => void saveTipListItem()}
+            onCancel={() => setTipSave(null)}
+            busy={tipSaveBusy}
+          />
+        ) : null}
         {dayPick ? (
           <MobileDayPickActions
             open
@@ -787,11 +897,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
               <MobileExplorePlacesView
                 place={place}
                 locationEntryId={entry.id}
-                locationLabel={title}
-                startingPointLabel={startingPointLabel}
-                overrideCoords={overrideCoords}
-                searchAnchorLabel={startingPointLabel}
-                initialCategory={exploreCategory}
+                locationLabel={exploreLocationLabel}
                 practicalTipsHtml={data?.practicalTips}
                 onBack={closePanels}
                 onSavePlace={canEditItinerary ? saveNearPlace : undefined}

@@ -111,7 +111,7 @@ async function generateTip(apiKey: string, prompt: string): Promise<string> {
 }
 
 /**
- * Live AI travel tip strip — refreshes on demand and automatically every minute.
+ * Live AI travel tip strip — refreshes on demand and automatically every 30 seconds.
  * Save stores tips under Location Info (not Notes). Saved list only on Location Info.
  */
 export const MobileLocationTravelTip: React.FC<MobileLocationTravelTipProps> = ({
@@ -133,6 +133,10 @@ export const MobileLocationTravelTip: React.FC<MobileLocationTravelTipProps> = (
   const [nonce, setNonce] = React.useState(0);
   const requestGenRef = React.useRef(0);
   const recentTipsRef = React.useRef<string[]>([]);
+  // Stabilize saved-tips identity so parent re-renders don't re-fire Gemini.
+  const savedTipsKey = savedTips.map((t) => t.trim()).filter(Boolean).join('\n');
+  const savedTipsRef = React.useRef(savedTips);
+  savedTipsRef.current = savedTips;
 
   const loadTip = React.useCallback(async (): Promise<void> => {
     const apiKey = (config.geminiApiKey || '').trim();
@@ -149,7 +153,7 @@ export const MobileLocationTravelTip: React.FC<MobileLocationTravelTipProps> = (
 
     const near = startingPointLabel ? ` near ${startingPointLabel}` : '';
     const cat = categoryLabel ? ` focusing on ${categoryLabel}` : '';
-    const avoid = [...recentTipsRef.current, ...savedTips]
+    const avoid = [...recentTipsRef.current, ...savedTipsRef.current]
       .filter(Boolean)
       .slice(-8)
       .map((t) => `- ${t}`)
@@ -179,14 +183,15 @@ export const MobileLocationTravelTip: React.FC<MobileLocationTravelTipProps> = (
     } finally {
       if (gen === requestGenRef.current) setBusy(false);
     }
-  }, [placeLabel, categoryLabel, startingPointLabel, config.geminiApiKey, savedTips, nonce]);
+    // savedTipsKey keeps avoid-list fresh without array-identity churn
+  }, [placeLabel, categoryLabel, startingPointLabel, config.geminiApiKey, savedTipsKey, nonce]);
 
   React.useEffect(() => {
     void loadTip();
   }, [loadTip]);
 
   React.useEffect(() => {
-    const id = window.setInterval(() => setNonce((n) => n + 1), 60_000);
+    const id = window.setInterval(() => setNonce((n) => n + 1), 30_000);
     return () => window.clearInterval(id);
   }, []);
 

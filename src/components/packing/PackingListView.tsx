@@ -10,9 +10,9 @@ import { PACKING_DRAG_MIME, parsePackingTemplateDrag } from '../../utils/packing
 import { useTripMembers } from '../../hooks/useTripMembers';
 import { useCompanionListDefaults } from '../../hooks/useCompanionListDefaults';
 import { assigneeLabelsMatch, resolveOwnerEmailForAssignee } from '../../utils/tripMemberIdentity';
+import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
+import { categoriesForItemSelect, rememberTripShoppingCategory } from '../../utils/tripShoppingCategories';
 import styles from './PackingListView.module.css';
-
-const CATEGORIES = ['Clothing', 'Shoes', 'Accessories', 'Toiletries', 'Electronics', 'Documents', 'Medications', 'Other'];
 
 export const PackingListView: React.FC = () => {
   const spContext = useSpContext();
@@ -22,6 +22,7 @@ export const PackingListView: React.FC = () => {
   const activeTraveller = planView?.packingTraveller ?? null;
   const { role } = useTripRole();
   const { members, travellers } = useTripMembers(trip?.id);
+  const { categories } = useTripShoppingCategories(trip?.id, spContext);
   useCompanionListDefaults(planView, role, members);
   const service = React.useMemo(() => new PackingService(spContext), [spContext]);
   const canEditItem = React.useCallback(
@@ -38,6 +39,12 @@ export const PackingListView: React.FC = () => {
   const [templateName, setTemplateName] = React.useState('');
   const [noteDrafts, setNoteDrafts] = React.useState<Record<string, string>>({});
 
+  React.useEffect(() => {
+    if (categories.length && !categories.some((c) => c.toLowerCase() === category.toLowerCase())) {
+      setCategory(categories.find((c) => c.toLowerCase() === 'other') || categories[0]);
+    }
+  }, [categories, category]);
+
   const refresh = React.useCallback(() => {
     if (!trip?.id) return;
     service.getForTrip(trip.id).then(setItems).catch(console.error);
@@ -51,7 +58,9 @@ export const PackingListView: React.FC = () => {
     (itemName: string, category: string, quantity: number): void => {
       if (!trip?.id || !itemName.trim()) return;
       const traveller = activeTraveller || travellers[0] || 'Traveller 1';
-      const cat = CATEGORIES.indexOf(category) >= 0 ? category : 'Other';
+      const fallback = categories.find((c) => c.toLowerCase() === 'other') || categories[0] || 'Other';
+      const cat = categories.some((c) => c.toLowerCase() === category.trim().toLowerCase()) ? category : fallback;
+      rememberTripShoppingCategory(trip.id, cat);
       service
         .create({
           tripId: trip.id,
@@ -67,7 +76,7 @@ export const PackingListView: React.FC = () => {
         .then(refresh)
         .catch(console.error);
     },
-    [service, trip?.id, activeTraveller, travellers, activeCategory, refresh]
+    [service, trip?.id, activeTraveller, travellers, activeCategory, categories, refresh]
   );
 
   React.useEffect(() => {
@@ -102,16 +111,6 @@ export const PackingListView: React.FC = () => {
     return () => window.removeEventListener('open-packing-templates', openTemplates);
   }, [service]);
 
-  const grouped = React.useMemo(() => {
-    const map = new Map<string, PackingItem[]>();
-    for (const c of CATEGORIES) map.set(c, []);
-    for (const item of items) {
-      const c = CATEGORIES.indexOf(item.category) >= 0 ? item.category : 'Other';
-      map.set(c, [...(map.get(c) ?? []), item]);
-    }
-    return CATEGORIES.map((c) => ({ category: c, rows: map.get(c) ?? [] }));
-  }, [items]);
-
   const packedCount = items.filter((i) => i.isPacked).length;
   const filteredItems = React.useMemo(() => {
     let rows = items;
@@ -126,9 +125,14 @@ export const PackingListView: React.FC = () => {
   const categoryRows = React.useMemo(() => {
     if (activeCategory === '__all__') return filteredItems;
     return filteredItems.filter(
-      (i) => (CATEGORIES.indexOf(i.category) >= 0 ? i.category : 'Other') === activeCategory
+      (i) => ((i.category || '').trim() || 'Other').toLowerCase() === activeCategory.trim().toLowerCase()
     );
   }, [filteredItems, activeCategory]);
+
+  const categoryOptions = React.useCallback(
+    (itemCategory: string): string[] => categoriesForItemSelect(categories, itemCategory),
+    [categories]
+  );
 
   React.useEffect(() => {
     const next: Record<string, string> = {};
@@ -167,15 +171,17 @@ export const PackingListView: React.FC = () => {
         <input className={styles.input} placeholder="Item name" value={name} onChange={(e) => setName(e.target.value)} />
         <select className={styles.select} value={activeCategory === '__all__' ? category : activeCategory} onChange={(e) => planView?.setPackingCategory(e.target.value)}>
           <option value="__all__">All items</option>
-          {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          {categories.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
         <input className={styles.input} type="number" min={1} value={qty} onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))} />
         <button className={styles.button} type="button" onClick={() => {
           if (!trip?.id || !name.trim()) return;
           const traveller = activeTraveller || travellers[0] || 'Traveller 1';
+          const itemCategory = activeCategory === '__all__' ? category : activeCategory;
+          rememberTripShoppingCategory(trip.id, itemCategory);
           service.create({
             tripId: trip.id,
-            category: activeCategory === '__all__' ? category : activeCategory,
+            category: itemCategory,
             traveller,
             itemName: name.trim(),
             quantity: qty,
@@ -299,13 +305,14 @@ export const PackingListView: React.FC = () => {
             <select
               className={styles.select}
               aria-label="Category"
-              value={CATEGORIES.indexOf(item.category) >= 0 ? item.category : 'Other'}
+              value={(item.category || '').trim() || 'Other'}
               disabled={!editable}
               onChange={(e) => {
+                if (trip?.id) rememberTripShoppingCategory(trip.id, e.target.value);
                 void service.update(item.id, { category: e.target.value }).then(refresh).catch(console.error);
               }}
             >
-              {CATEGORIES.map((c) => (
+              {categoryOptions(item.category).map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>

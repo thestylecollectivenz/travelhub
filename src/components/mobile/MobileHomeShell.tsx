@@ -922,7 +922,16 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
           <MobileBrandHeader
             safeAreaTop={false}
             navRow={
-              <button type="button" className={styles.tripsBackBtn} onClick={() => setTab('home')}>
+              <button
+                type="button"
+                className={styles.tripsBackBtn}
+                onClick={() => {
+                  setNearToolId(null);
+                  setNearExploreOpen(false);
+                  setNearSavedOpen(false);
+                  setTab('home');
+                }}
+              >
                 {'< Home'}
               </button>
             }

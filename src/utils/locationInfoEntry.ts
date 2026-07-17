@@ -65,6 +65,8 @@ export type NearestPlaceRow = {
   mapsUrl?: string;
   reviewsUrl?: string;
   websiteUrl?: string;
+  tripadvisorUrl?: string;
+  photoUrl?: string;
   servicesSummary?: string;
   /** Search-anchor label when saved (e.g. stay name). */
   nearLabel?: string;
@@ -88,6 +90,8 @@ export type DiningSuggestionRow = {
   mapsUrl?: string;
   reviewsUrl?: string;
   websiteUrl?: string;
+  tripadvisorUrl?: string;
+  photoUrl?: string;
   done?: boolean;
   /** Search-anchor label when saved (e.g. stay name). */
   nearLabel?: string;

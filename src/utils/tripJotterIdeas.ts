@@ -29,6 +29,7 @@ export interface JotterIdeaMeta {
   location?: string;
   focusDayId?: string;
   replies?: JotterIdeaReply[];
+  favouritedBy?: string[];
 }
 
 export interface JotterIdeaRow {
@@ -63,6 +64,9 @@ function parseMeta(taskNote?: string): JotterIdeaMeta {
       isAi: parsed.isAi,
       location: parsed.location?.trim() || undefined,
       focusDayId: parsed.focusDayId,
+      favouritedBy: Array.isArray(parsed.favouritedBy)
+        ? parsed.favouritedBy.map((e) => String(e).trim().toLowerCase()).filter(Boolean)
+        : [],
       replies: Array.isArray(parsed.replies)
         ? parsed.replies
             .filter((r): r is JotterIdeaReply => Boolean(r && typeof r === 'object' && typeof r.text === 'string'))

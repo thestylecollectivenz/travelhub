@@ -124,6 +124,8 @@ function toCardsFromDining(items: DiningSuggestionRow[], categoryLabel: string):
     mapsUrl: p.mapsUrl || placeQueryMapsUrl(p.name, p.address),
     websiteUrl: p.websiteUrl || placeWebsiteSearchUrl(p.name, p.address),
     reviewsUrl: p.reviewsUrl,
+    tripadvisorUrl: p.tripadvisorUrl,
+    photoUrl: p.photoUrl,
     aiBlurb: p.why || p.bestFor,
     topPick: i === 0,
     categoryLabel,
@@ -147,6 +149,8 @@ function toCardsFromNearest(places: NearestPlaceRow[], categoryLabel: string): E
     mapsUrl: p.mapsUrl || placeQueryMapsUrl(p.name, p.address),
     websiteUrl: p.websiteUrl || placeWebsiteSearchUrl(p.name, p.address),
     reviewsUrl: p.reviewsUrl,
+    tripadvisorUrl: p.tripadvisorUrl,
+    photoUrl: p.photoUrl,
     aiBlurb: p.servicesSummary || p.note,
     topPick: i === 0,
     categoryLabel,
@@ -637,6 +641,12 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
                 layout="list"
                 startingPointLabel={stayName}
                 cityFallback={shortPlace}
+                directionsOrigin={
+                  !isGps && mapCentre
+                    ? { lat: mapCentre.lat, lng: mapCentre.lng }
+                    : undefined
+                }
+                preferProvidedPhoto
                 card={{
                   id: r.id,
                   name: r.name,
@@ -646,6 +656,9 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
                   distanceRaw: r.distanceRaw || r.note,
                   address: r.address,
                   mapsUrl: r.mapsUrl,
+                  websiteUrl: r.websiteUrl,
+                  tripadvisorUrl: r.tripadvisorUrl,
+                  photoUrl: r.photoUrl,
                   tags: r.tags,
                   city: shortPlace,
                   latitude: r.latitude,

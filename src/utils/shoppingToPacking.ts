@@ -19,7 +19,18 @@ export async function offerAddPurchasedShoppingToPacking(
   const label = (item.itemName || 'this item').trim() || 'this item';
   const ok = await confirmUserAction(`Add "${label}" to the packing list for ${traveller}?`);
   if (!ok) return;
+  await addShoppingItemToPacking(ctx, tripId, item, members);
+}
 
+/** Copy a shopping row onto the packing list (no extra confirm). */
+export async function addShoppingItemToPacking(
+  ctx: WebPartContext,
+  tripId: string,
+  item: ShoppingItem,
+  members?: TripMember[]
+): Promise<void> {
+  const traveller = (item.traveller || '').trim() || 'Traveller';
+  const label = (item.itemName || 'this item').trim() || 'this item';
   const packing = new PackingService(ctx);
   const ownerEmail =
     (item.ownerEmail || '').trim() || resolveOwnerEmailForAssignee(ctx, traveller, members ?? []);

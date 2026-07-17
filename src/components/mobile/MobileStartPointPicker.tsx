@@ -28,24 +28,54 @@ function shortCoordLabel(lat: number, lng: number): string {
   return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 }
 
+function labelWithCountry(
+  placeName: string | undefined,
+  displayName: string | undefined,
+  country: string | undefined,
+  fallback: string
+): string {
+  const place =
+    (placeName || '').trim() ||
+    (displayName || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)[0] ||
+    '';
+  const c = (country || '').trim() ||
+    (displayName || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(-1)[0] ||
+    '';
+  if (place && c && !place.toLowerCase().includes(c.toLowerCase())) return `${place}, ${c}`;
+  if (place) return place;
+  if (c) return c;
+  return fallback;
+}
+
 async function reverseGeocode(lat: number, lng: number): Promise<string | undefined> {
   try {
-    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`;
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`;
     const resp = await nominatimFetch(url, { headers: { Accept: 'application/json' } });
     if (!resp.ok) return undefined;
     const data = (await resp.json()) as {
       name?: string;
       display_name?: string;
-      address?: { tourism?: string; amenity?: string; road?: string; suburb?: string; city?: string };
+      address?: {
+        tourism?: string;
+        amenity?: string;
+        road?: string;
+        suburb?: string;
+        city?: string;
+        town?: string;
+        village?: string;
+        country?: string;
+      };
     };
     const a = data.address;
-    const named = data.name || a?.tourism || a?.amenity;
-    if (named) return named;
-    if (a?.road && a?.suburb) return `${a.road}, ${a.suburb}`;
-    if (a?.road) return a.road;
-    if (a?.city) return a.city;
-    const display = (data.display_name || '').split(',').slice(0, 2).join(',').trim();
-    return display || undefined;
+    const named = data.name || a?.tourism || a?.amenity || a?.road || a?.city || a?.town || a?.village;
+    return labelWithCountry(named, data.display_name, a?.country, shortCoordLabel(lat, lng));
   } catch {
     return undefined;
   }
@@ -182,19 +212,27 @@ export const MobileStartPointPicker: React.FC<MobileStartPointPickerProps> = ({
     setSearchBusy(true);
     setSearchError('');
     try {
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6`;
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&addressdetails=1`;
       const resp = await nominatimFetch(url, { headers: { Accept: 'application/json' } });
       if (!resp.ok) throw new Error('Search failed');
-      const data = (await resp.json()) as Array<{ lat?: string; lon?: string; display_name?: string; name?: string }>;
+      const data = (await resp.json()) as Array<{
+        lat?: string;
+        lon?: string;
+        display_name?: string;
+        name?: string;
+        address?: { country?: string; city?: string; town?: string; village?: string };
+      }>;
       const hits = data
         .map((row) => {
           const lat = Number(row.lat);
           const lng = Number(row.lon);
           if (!isValid(lat, lng)) return null;
-          const label =
-            (row.name || '').trim() ||
-            (row.display_name || '').split(',').slice(0, 2).join(',').trim() ||
-            shortCoordLabel(lat, lng);
+          const label = labelWithCountry(
+            row.name || row.address?.city || row.address?.town || row.address?.village,
+            row.display_name,
+            row.address?.country,
+            shortCoordLabel(lat, lng)
+          );
           return { lat, lng, label };
         })
         .filter((h): h is { lat: number; lng: number; label: string } => Boolean(h));

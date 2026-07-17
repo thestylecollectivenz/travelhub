@@ -9,7 +9,7 @@ import { categoriesForItemSelect, rememberTripShoppingCategory, notifyShoppingIt
 import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
 import { summarizeShoppingItems } from '../../utils/shoppingSummary';
 import { confirmUserAction } from '../../utils/confirmAction';
-import { offerAddPurchasedShoppingToPacking } from '../../utils/shoppingToPacking';
+import { offerAddPurchasedShoppingToPacking, addShoppingItemToPacking } from '../../utils/shoppingToPacking';
 import { useTripRole } from '../../context/TripRoleContext';
 import { canEditOwnedRecord } from '../../utils/canEditOwnedRecord';
 import { useCanSeeFinancials } from '../../hooks/useCanSeeFinancials';
@@ -430,6 +430,27 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
                             />
                           </>
                         ) : null}
+                        <button
+                          type="button"
+                          className={styles.mobilePrimaryBtn}
+                          onClick={() => {
+                            if (!trip?.id) return;
+                            void (async () => {
+                              const ok = await confirmUserAction(
+                                `Add "${item.itemName}" to the packing list?`
+                              );
+                              if (!ok) return;
+                              try {
+                                await addShoppingItemToPacking(spContext, trip.id, item, members);
+                              } catch (err) {
+                                // eslint-disable-next-line no-console
+                                console.error('Add to packing failed', err);
+                              }
+                            })();
+                          }}
+                        >
+                          Add to packing list
+                        </button>
                         <button
                           type="button"
                           className={styles.mobileDangerBtn}

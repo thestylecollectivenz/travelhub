@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { ShoppingListService } from '../services/ShoppingListService';
+import { PackingService } from '../services/PackingService';
 import {
   SHOPPING_CATEGORIES_CHANGED_EVENT,
   deleteTripShoppingCategory,
@@ -9,6 +10,7 @@ import {
   renameTripShoppingCategory
 } from '../utils/tripShoppingCategories';
 
+/** Shared packing + shopping category taxonomy for a trip. */
 export function useTripShoppingCategories(
   tripId: string | undefined,
   spContext?: WebPartContext
@@ -54,13 +56,22 @@ export function useTripShoppingCategories(
       const next = renameTripShoppingCategory(tripId, oldName, newName);
       setCategories(next);
       if (spContext) {
-        const svc = new ShoppingListService(spContext);
-        const items = await svc.getForTrip(tripId);
-        await Promise.all(
-          items
-            .filter((item) => item.category.trim().toLowerCase() === oldName.trim().toLowerCase())
-            .map((item) => svc.update(item.id, { category: newName.trim() }))
-        );
+        const shopping = new ShoppingListService(spContext);
+        const packing = new PackingService(spContext);
+        const [shopItems, packItems] = await Promise.all([
+          shopping.getForTrip(tripId),
+          packing.getForTrip(tripId)
+        ]);
+        const oldKey = oldName.trim().toLowerCase();
+        const trimmedNew = newName.trim();
+        await Promise.all([
+          ...shopItems
+            .filter((item) => item.category.trim().toLowerCase() === oldKey)
+            .map((item) => shopping.update(item.id, { category: trimmedNew })),
+          ...packItems
+            .filter((item) => (item.category || '').trim().toLowerCase() === oldKey)
+            .map((item) => packing.update(item.id, { category: trimmedNew }))
+        ]);
       }
       return next;
     },
@@ -73,13 +84,21 @@ export function useTripShoppingCategories(
       const next = deleteTripShoppingCategory(tripId, name);
       setCategories(next);
       if (spContext) {
-        const svc = new ShoppingListService(spContext);
-        const items = await svc.getForTrip(tripId);
-        await Promise.all(
-          items
-            .filter((item) => item.category.trim().toLowerCase() === name.trim().toLowerCase())
-            .map((item) => svc.update(item.id, { category: '' }))
-        );
+        const shopping = new ShoppingListService(spContext);
+        const packing = new PackingService(spContext);
+        const [shopItems, packItems] = await Promise.all([
+          shopping.getForTrip(tripId),
+          packing.getForTrip(tripId)
+        ]);
+        const key = name.trim().toLowerCase();
+        await Promise.all([
+          ...shopItems
+            .filter((item) => item.category.trim().toLowerCase() === key)
+            .map((item) => shopping.update(item.id, { category: '' })),
+          ...packItems
+            .filter((item) => (item.category || '').trim().toLowerCase() === key)
+            .map((item) => packing.update(item.id, { category: 'Other' }))
+        ]);
       }
       return next;
     },
@@ -88,3 +107,5 @@ export function useTripShoppingCategories(
 
   return { categories, addCategory, renameCategory, deleteCategory, reload };
 }
+
+export const useTripListCategories = useTripShoppingCategories;

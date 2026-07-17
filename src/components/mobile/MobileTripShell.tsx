@@ -386,13 +386,21 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
     case 'map':
       body = <MobileMapView />;
       break;
-    case 'book':
+    case 'book': {
+      const day = tripDays.find((d) => d.id === selectedDayId) ?? tripDays[0];
+      const bookDest = (trip?.destination || '').trim();
+      const bookFrom = (day?.calendarDate || trip?.dateStart || '').slice(0, 10);
+      const bookTo = (trip?.dateEnd || day?.calendarDate || '').slice(0, 10);
       body = (
         <MobileBookPage
           showTitle={false}
+          defaultDestination={bookDest}
+          defaultDateFrom={bookFrom}
+          defaultDateTo={bookTo}
         />
       );
       break;
+    }
     default:
       body = <MobileDayView onOpenMembers={handleOpenMembers} onAskAi={handleAskAi} onDetailChange={handleDetailChange} />;
   }

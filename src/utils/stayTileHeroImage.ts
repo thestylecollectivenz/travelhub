@@ -1,12 +1,14 @@
-const CACHE_KEY = 'travelhub-stay-hero-images-v7';
+const CACHE_KEY = 'travelhub-stay-hero-images-v8';
 
 type CacheRow = Record<string, string>;
+type MetaCacheRow = Record<string, { imageUrl: string; clickUrl: string; displayName?: string }>;
+const META_CACHE_KEY = 'travelhub-stay-hero-meta-v8';
 
 export type StayHeroMode = 'accommodation' | 'cruise';
 
 export type StayHeroResolved = {
   imageUrl: string;
-  /** Official website when known; else Google listing. */
+  /** TripAdvisor or official website when known; else Maps search. */
   clickUrl: string;
   displayName?: string;
 };
@@ -182,15 +184,6 @@ async function resolveLegacyStayImage(
   const queries = buildQueries(name, place, mode);
 
   for (const q of queries) {
-    const wiki = await fetchWikiThumbnail(q, matchHint, mode);
-    if (wiki) {
-      cache[key] = wiki;
-      saveCache(cache);
-      return wiki;
-    }
-  }
-
-  for (const q of queries) {
     const commons = await fetchCommonsThumbnail(
       mode === 'cruise' ? `${q} cruise ship OR vessel OR riverboat` : `${q} facade OR exterior OR building`,
       matchHint,
@@ -209,66 +202,135 @@ async function resolveLegacyStayImage(
   return url;
 }
 
+function loadMetaCache(): MetaCacheRow {
+  try {
+    const raw = window.sessionStorage.getItem(META_CACHE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === 'object' ? (parsed as MetaCacheRow) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveMetaCache(row: MetaCacheRow): void {
+  try {
+    window.sessionStorage.setItem(META_CACHE_KEY, JSON.stringify(row));
+  } catch {
+    /* ignore */
+  }
+}
+
+async function resolveGeminiStayMedia(
+  name: string,
+  place: string,
+  mode: StayHeroMode,
+  apiKey: string
+): Promise<{ imageUrl?: string; clickUrl?: string; displayName?: string } | null> {
+  const key = (apiKey || '').trim();
+  if (!key) return null;
+  const subject =
+    mode === 'cruise'
+      ? `cruise ship "${name}"${place ? ` (${place})` : ''}`
+      : `hotel/accommodation "${name}"${place ? ` in ${place}` : ''}`;
+  const prompt =
+    `Find media for ${subject}. Respond with ONLY JSON (no markdown):\n` +
+    `{"displayName":"official name","tripadvisorUrl":"https://...","websiteUrl":"https://...","photoUrl":"https://..."}\n` +
+    `Rules:\n` +
+    `- Prefer TripAdvisor listing URL when a real listing exists; otherwise omit tripadvisorUrl\n` +
+    `- photoUrl: exterior of the ${mode === 'cruise' ? 'ship' : 'building'} from TripAdvisor or official site — NO people, NO interiors-only when exterior exists\n` +
+    `- websiteUrl: official site when known\n` +
+    `- Omit any field you are not confident is a real URL — never invent URLs`;
+  try {
+    const { GEMINI_MODEL_FALLBACK_CHAIN } = await import('../services/GeminiService');
+    for (const model of GEMINI_MODEL_FALLBACK_CHAIN) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.2, maxOutputTokens: 400 }
+        })
+      });
+      if (!resp.ok) continue;
+      const data = (await resp.json()) as {
+        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+      };
+      const raw = (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) continue;
+      const parsed = JSON.parse(jsonMatch[0]) as {
+        displayName?: string;
+        tripadvisorUrl?: string;
+        websiteUrl?: string;
+        photoUrl?: string;
+      };
+      const photoUrl = (parsed.photoUrl || '').trim();
+      const clickUrl =
+        (parsed.tripadvisorUrl || '').trim() || (parsed.websiteUrl || '').trim() || undefined;
+      if (!photoUrl && !clickUrl) continue;
+      return {
+        imageUrl: photoUrl || undefined,
+        clickUrl,
+        displayName: (parsed.displayName || '').trim() || undefined
+      };
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
 /**
- * Prefer Google Place Photos (when Maps API key is set), then Wikipedia/Commons, then Pollinations.
- * Also returns a click URL: official website when known, else Google listing.
+ * Prefer Gemini TripAdvisor-first exterior media; fall back to Commons/Pollinations.
+ * Wikipedia is NOT used for hotel/cruise heroes (reserved for Location Info overview).
  */
 export async function resolveStayHero(
   title: string,
   location: string,
   mode: StayHeroMode,
-  googleMapsApiKey?: string
+  googleMapsApiKey?: string,
+  geminiApiKey?: string
 ): Promise<StayHeroResolved> {
+  void googleMapsApiKey;
   const name = title.trim() || (mode === 'cruise' ? 'Cruise ship' : 'Hotel');
   const place = location.trim();
   const clickFallback = listingFallbackUrl(name, place);
   const key = cacheKey(name, place, mode);
   const cache = loadCache();
+  const meta = loadMetaCache();
+  if (meta[key]?.imageUrl) {
+    return meta[key];
+  }
 
-  const mapsKey = (googleMapsApiKey || '').trim();
-  if (mapsKey) {
-    try {
-      const { resolveVenueListingPhoto } = await import('./venueListingPhoto');
-      const { placeWebsiteSearchUrl } = await import('./googleMapsLink');
-      const hit = await resolveVenueListingPhoto({
-        name,
-        address: place,
-        city: place,
-        googleMapsApiKey: mapsKey
-      });
-      if (hit && (hit.imageUrl || '').trim()) {
-        cache[key] = hit.imageUrl;
-        saveCache(cache);
-        return {
-          imageUrl: hit.imageUrl,
-          clickUrl:
-            (hit.websiteUrl || '').trim() ||
-            (hit.sourceUrl || '').trim() ||
-            placeWebsiteSearchUrl(hit.displayName || name, place) ||
-            clickFallback,
-          displayName: hit.displayName
-        };
-      }
-      if (hit?.sourceUrl || hit?.websiteUrl) {
-        const clickUrl =
-          (hit.websiteUrl || '').trim() ||
-          (hit.sourceUrl || '').trim() ||
-          placeWebsiteSearchUrl(hit.displayName || name, place) ||
-          clickFallback;
-        const imageUrl = await resolveLegacyStayImage(name, place, mode, key, cache);
-        return { imageUrl, clickUrl, displayName: hit.displayName };
-      }
-    } catch {
-      /* fall through */
+  const geminiKey = (geminiApiKey || '').trim();
+  if (geminiKey) {
+    const hit = await resolveGeminiStayMedia(name, place, mode, geminiKey);
+    if (hit?.imageUrl || hit?.clickUrl) {
+      const imageUrl = (hit.imageUrl || '').trim() || (await resolveLegacyStayImage(name, place, mode, key, cache));
+      const resolved: StayHeroResolved = {
+        imageUrl,
+        clickUrl: (hit.clickUrl || '').trim() || clickFallback,
+        displayName: hit.displayName
+      };
+      meta[key] = resolved;
+      saveMetaCache(meta);
+      cache[key] = imageUrl;
+      saveCache(cache);
+      return resolved;
     }
   }
 
   const imageUrl = await resolveLegacyStayImage(name, place, mode, key, cache);
   const { placeWebsiteSearchUrl } = await import('./googleMapsLink');
-  return {
+  const resolved: StayHeroResolved = {
     imageUrl,
     clickUrl: placeWebsiteSearchUrl(name, place) || clickFallback
   };
+  meta[key] = resolved;
+  saveMetaCache(meta);
+  return resolved;
 }
 
 /** Prefer resolveStayHero — kept for call sites that only need an image URL. */
@@ -276,9 +338,10 @@ export async function resolveStayHeroImageUrl(
   title: string,
   location: string,
   mode: StayHeroMode,
-  googleMapsApiKey?: string
+  googleMapsApiKey?: string,
+  geminiApiKey?: string
 ): Promise<string> {
-  const hit = await resolveStayHero(title, location, mode, googleMapsApiKey);
+  const hit = await resolveStayHero(title, location, mode, googleMapsApiKey, geminiApiKey);
   return hit.imageUrl;
 }
 

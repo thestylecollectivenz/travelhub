@@ -20,11 +20,13 @@ import {
 import { notifyDayIdeasChanged } from '../../hooks/useTripDayIdeas';
 import {
   formatIdeaTime,
+  ideaIsFavouritedByMe,
   isIdeaRecentlyAdded,
   isUnifiedIdeaYours,
   loadUnifiedTripIdeas,
   matchesTripIdeasFilter,
   notifyTripIdeasChanged,
+  toggleUnifiedIdeaFavourite,
   TRIP_IDEAS_CHANGED_EVENT,
   type TripIdeasFilter,
   type UnifiedTripIdea
@@ -124,6 +126,7 @@ export const MobileTripJotterList: React.FC = () => {
     return {
       all: open.length,
       yours: open.filter((r) => isUnifiedIdeaYours(r, spContext, members)).length,
+      favourites: open.filter((r) => ideaIsFavouritedByMe(r, spContext)).length,
       ai: open.filter((r) => r.isAi).length,
       replies: open.filter((r) => r.replyCount > 0).length,
       complete: rows.filter((r) => r.isComplete).length
@@ -221,6 +224,17 @@ export const MobileTripJotterList: React.FC = () => {
     setMenuId(null);
   };
 
+  const toggleFavourite = async (idea: UnifiedTripIdea): Promise<void> => {
+    try {
+      await toggleUnifiedIdeaFavourite(spContext, idea);
+      await refresh();
+      notifyTripIdeasChanged();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('MobileTripIdeasTab: favourite toggle failed', err);
+    }
+  };
+
   const canManage = (idea: UnifiedTripIdea): boolean => {
     if (canEditItinerary) return true;
     if (idea.isAi) return false;
@@ -234,6 +248,7 @@ export const MobileTripJotterList: React.FC = () => {
   const filterChips: Array<{ key: TripIdeasFilter; label: string; count?: number }> = [
     { key: 'all', label: 'All', count: counts.all },
     { key: 'yours', label: 'Yours', count: counts.yours },
+    { key: 'favourites', label: 'My favourites', count: counts.favourites },
     { key: 'ai', label: 'AI', count: counts.ai },
     { key: 'replies', label: 'With replies', count: counts.replies },
     { key: 'complete', label: 'Complete', count: counts.complete }
@@ -313,6 +328,7 @@ export const MobileTripJotterList: React.FC = () => {
         const manageable = canManage(idea);
         const canDelete = manageable || (idea.isAi && canEditItinerary);
         const isNew = !idea.isComplete && isIdeaRecentlyAdded(idea.createdAt);
+        const favourited = ideaIsFavouritedByMe(idea, spContext);
         return (
           <article key={idea.id} className={`${styles.ideaCard} ${idea.isComplete ? styles.ideaCardDone : ''} ${isNew ? styles.ideaCardNew : ''}`}>
             <div className={styles.ideaCardHead}>
@@ -338,6 +354,27 @@ export const MobileTripJotterList: React.FC = () => {
                 <p className={styles.ideaCardTime}>{formatIdeaTime(idea.createdAt)}</p>
               </div>
               <div className={styles.ideaCardActions}>
+                {canContribute ? (
+                  <button
+                    type="button"
+                    className={favourited ? styles.favBtnOn : styles.favBtn}
+                    aria-label={favourited ? 'Remove from favourites' : 'Add to favourites'}
+                    aria-pressed={favourited}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void toggleFavourite(idea);
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden>
+                      <path
+                        d="M12 20.2s-7.2-4.6-7.2-10.2A4.4 4.4 0 0 1 12 6.6a4.4 4.4 0 0 1 7.2 3.4c0 5.6-7.2 10.2-7.2 10.2Z"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        fill={favourited ? 'currentColor' : 'none'}
+                      />
+                    </svg>
+                  </button>
+                ) : null}
                 <button type="button" className={styles.replyBtn} onClick={() => setMenuId(null)}>
                   {idea.replyCount ? `${idea.replyCount} repl${idea.replyCount === 1 ? 'y' : 'ies'} ›` : 'No replies'}
                 </button>

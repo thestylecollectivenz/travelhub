@@ -4,6 +4,7 @@ import {
   type BookingAffiliateCategory,
   type ResolvedBookingAffiliatePartner
 } from '../../utils/bookingAffiliateLinks';
+import { openMobileExternalUrl } from '../../hooks/useMobileDetailHistory';
 import { BookingPartnerLogo } from './BookingPartnerLogo';
 import styles from './MobileBookPage.module.css';
 
@@ -30,29 +31,47 @@ function CategoryBadge({ category }: { category: BookingAffiliateCategory }): Re
   return <span className={`${styles.badge} ${cls}`}>{bookingAffiliateCategoryLabel(category)}</span>;
 }
 
+function PartnerLink(props: {
+  className: string;
+  href: string;
+  children: React.ReactNode;
+}): React.ReactElement {
+  return (
+    <a
+      className={props.className}
+      href={props.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => openMobileExternalUrl(props.href, e)}
+    >
+      {props.children}
+    </a>
+  );
+}
+
 export const BookingPartnerCard: React.FC<BookingPartnerCardProps> = ({ partner, variant = 'recommended' }) => {
   if (variant === 'compact') {
     return (
-      <a className={styles.moreCard} href={partner.href} target="_blank" rel="noopener noreferrer">
+      <PartnerLink className={styles.moreCard} href={partner.href}>
         <BookingPartnerLogo label={partner.label} logoUrl={partner.logoUrl} size="sm" />
         <span className={styles.moreName}>{partner.label}</span>
         <CategoryBadge category={partner.category} />
-      </a>
+      </PartnerLink>
     );
   }
 
   if (variant === 'grid') {
     return (
-      <a className={styles.gridCard} href={partner.href} target="_blank" rel="noopener noreferrer">
+      <PartnerLink className={styles.gridCard} href={partner.href}>
         <BookingPartnerLogo label={partner.label} logoUrl={partner.logoUrl} size="sm" />
         <span className={styles.gridName}>{partner.label}</span>
         <CategoryBadge category={partner.category} />
-      </a>
+      </PartnerLink>
     );
   }
 
   return (
-    <a className={styles.recCard} href={partner.href} target="_blank" rel="noopener noreferrer">
+    <PartnerLink className={styles.recCard} href={partner.href}>
       <BookingPartnerLogo label={partner.label} logoUrl={partner.logoUrl} size="md" />
       <span className={styles.recBody}>
         <span className={styles.recTop}>
@@ -64,6 +83,6 @@ export const BookingPartnerCard: React.FC<BookingPartnerCardProps> = ({ partner,
       <span className={styles.recChevron} aria-hidden>
         ›
       </span>
-    </a>
+    </PartnerLink>
   );
 };

@@ -17,6 +17,8 @@ export interface DayIdeaMeta {
   authorEmail?: string;
   readBy: string[];
   replies?: DayIdeaReply[];
+  /** Emails of users who favourited this idea. */
+  favouritedBy?: string[];
 }
 
 function newReplyId(): string {
@@ -65,6 +67,9 @@ export function parseDayIdeaMeta(taskNote?: string): DayIdeaMeta {
       return {
         authorEmail: parsed.authorEmail ? normEmail(parsed.authorEmail) : undefined,
         readBy: Array.isArray(parsed.readBy) ? parsed.readBy.map(normEmail).filter(Boolean) : [],
+        favouritedBy: Array.isArray(parsed.favouritedBy)
+          ? parsed.favouritedBy.map(normEmail).filter(Boolean)
+          : [],
         replies: Array.isArray(parsed.replies)
           ? parsed.replies
               .filter((r): r is DayIdeaReply => Boolean(r && typeof r === 'object' && typeof (r as DayIdeaReply).text === 'string'))
@@ -88,6 +93,7 @@ export function serializeDayIdeaMeta(meta: DayIdeaMeta): string {
   return JSON.stringify({
     authorEmail: meta.authorEmail ? normEmail(meta.authorEmail) : undefined,
     readBy: meta.readBy.map(normEmail).filter(Boolean),
+    favouritedBy: (meta.favouritedBy ?? []).map(normEmail).filter(Boolean),
     replies: (meta.replies ?? []).map((r) => ({
       id: r.id,
       authorEmail: normEmail(r.authorEmail),

@@ -56,9 +56,21 @@ export function useMobileDetailHistory(
   return { closeDetail };
 }
 
-/** Open external URLs in a new tab without navigating the SPA away (mobile PDF viewer). */
+/** Open external URLs without navigating the SPA away (keeps Safari Back on the Travel Hub page). */
 export function openMobileExternalUrl(url: string, event?: React.MouseEvent): void {
   event?.preventDefault();
   event?.stopPropagation();
-  window.open(url, '_blank', 'noopener,noreferrer');
+  const href = (url || '').trim();
+  if (!href) return;
+  const opened = window.open(href, '_blank', 'noopener,noreferrer');
+  if (!opened) {
+    // Popup blocked — still avoid replacing the SPA document when possible.
+    const a = document.createElement('a');
+    a.href = href;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
 }

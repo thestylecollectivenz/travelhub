@@ -655,19 +655,22 @@ ${geo}
 ${venueLine}
 
 Respond with ONLY a compact JSON object (no markdown, no code fences):
-{"items":[{"name":"Official venue name","description":"","why":"why go — one rich sentence","bestFor":"short phrase","priceLevel":"$$","rating":4.4,"ratingSource":"google","address":"street address or neighbourhood","latitude":0,"longitude":0,"mapsUrl":"https://www.google.com/maps/search/?api=1&query=...","reviewsUrl":"","websiteUrl":"https://..."}]}
+{"items":[{"name":"Official venue name","description":"","why":"why go — one rich sentence","bestFor":"short phrase","priceLevel":"$$","rating":4.4,"ratingSource":"tripadvisor","address":"street address or neighbourhood","latitude":0,"longitude":0,"mapsUrl":"https://www.google.com/maps/search/?api=1&query=...","reviewsUrl":"","websiteUrl":"https://...","tripadvisorUrl":"https://www.tripadvisor.com/...","photoUrl":"https://..."}]}
 
 Rules:
 - Exactly 4 REAL venues that exist at this destination — never invent fictional venues
-- name: use the FULL official Google Maps / trade name EXACTLY (e.g. "Bar Ayla" not "Ayla"; "Hilton Rotterdam" not "Hilton") — NEVER shorten, nickname, or translate the business name
+- name: use the FULL official trade name EXACTLY (e.g. "Bar Ayla" not "Ayla"; "Hilton Rotterdam" not "Hilton") — NEVER shorten, nickname, or translate the business name
 - description: leave empty string — the app calculates walking/driving distance from coordinates
 - latitude and longitude: REQUIRED decimal degrees for the real venue near the search anchor (honest coordinates only)
-- mapsUrl: REQUIRED Google Maps place/search URL for this exact venue (name + address), so the Maps side panel can open for verification
+- address: REQUIRED street address or clear neighbourhood when known
+- mapsUrl: REQUIRED Google Maps place/search URL for this exact venue (name + address)
 - websiteUrl: official site when known; otherwise omit
+- tripadvisorUrl: TripAdvisor listing URL when a real listing exists; otherwise omit (do not invent)
+- photoUrl: prefer a TripAdvisor or official exterior photo URL of the venue building/facade — NO people, NO stock models, NO food-only closeups when an exterior exists; omit if unsure of a real URL
 - why should be specific and useful for a traveller (not generic)
-- Keep each string under 140 characters
+- Keep each string under 140 characters except photoUrl/tripadvisorUrl/websiteUrl
 - ${preferLine}
-- Omit empty optional URL fields rather than inventing websites`;
+- Omit empty optional URL fields rather than inventing websites or photos`;
 }
 
 function buildNearestPrompt(kind: NearestPlaceKind, ctx: LocationSearchContext): string {
@@ -693,15 +696,18 @@ ${geo}
 ${kindGuide[kind] || ''}
 
 Respond with ONLY JSON:
-{"places":[{"name":"Official business name","note":"","address":"street or area","latitude":0,"longitude":0,"servicesSummary":"key services/features useful to a traveller in one sentence","mapsUrl":"https://www.google.com/maps/search/?api=1&query=...","reviewsUrl":"","websiteUrl":"https://..."}]}
+{"places":[{"name":"Official business name","note":"","address":"street or area","latitude":0,"longitude":0,"servicesSummary":"key services/features useful to a traveller in one sentence","mapsUrl":"https://www.google.com/maps/search/?api=1&query=...","reviewsUrl":"","websiteUrl":"https://...","tripadvisorUrl":"https://www.tripadvisor.com/...","photoUrl":"https://..."}]}
 
 Rules:
 - 3-5 REAL results nearest the search anchor — never invent businesses
-- name: official brand / trade name EXACTLY as on the shopfront and Google Maps — NEVER translate names into English
+- name: official brand / trade name EXACTLY as on the shopfront — NEVER translate names into English
 - note: leave empty — the app calculates distance from latitude/longitude
+- address: REQUIRED when known
 - latitude and longitude: REQUIRED decimal degrees for the real place
-- mapsUrl: REQUIRED Google Maps URL for this exact place so the Maps detail panel can open
+- mapsUrl: REQUIRED Google Maps URL for this exact place
 - websiteUrl: official site when known; otherwise omit
+- tripadvisorUrl: TripAdvisor listing when a real listing exists; otherwise omit
+- photoUrl: prefer TripAdvisor or official exterior photo — no people; omit if unsure
 - servicesSummary should be category-appropriate and practical
 - No markdown, no code fences`;
 }
@@ -773,6 +779,8 @@ export async function generateDiningSuggestions(
       mapsUrl?: string;
       reviewsUrl?: string;
       websiteUrl?: string;
+      tripadvisorUrl?: string;
+      photoUrl?: string;
     }>;
   }>(buildDiningPrompt(options.searchContext, venueFocus), apiKey, options.model);
   const rawItems: DiningSuggestionRow[] = [];
@@ -798,6 +806,8 @@ export async function generateDiningSuggestions(
       mapsUrl: (arr[i]?.mapsUrl ?? '').trim() || undefined,
       reviewsUrl: (arr[i]?.reviewsUrl ?? '').trim() || undefined,
       websiteUrl: (arr[i]?.websiteUrl ?? '').trim() || undefined,
+      tripadvisorUrl: (arr[i]?.tripadvisorUrl ?? '').trim() || undefined,
+      photoUrl: (arr[i]?.photoUrl ?? '').trim() || undefined,
       done: false,
       latitude: Number.isFinite(lat) ? lat : undefined,
       longitude: Number.isFinite(lng) ? lng : undefined
@@ -857,6 +867,8 @@ export async function generateNearestPlaces(
       mapsUrl?: string;
       reviewsUrl?: string;
       websiteUrl?: string;
+      tripadvisorUrl?: string;
+      photoUrl?: string;
     }>;
   }>(buildNearestPrompt(kind, options.searchContext), apiKey, options.model);
   const rawPlaces: NearestPlaceRow[] = [];
@@ -875,6 +887,8 @@ export async function generateNearestPlaces(
       mapsUrl: (arr[i]?.mapsUrl ?? '').trim() || undefined,
       reviewsUrl: (arr[i]?.reviewsUrl ?? '').trim() || undefined,
       websiteUrl: (arr[i]?.websiteUrl ?? '').trim() || undefined,
+      tripadvisorUrl: (arr[i]?.tripadvisorUrl ?? '').trim() || undefined,
+      photoUrl: (arr[i]?.photoUrl ?? '').trim() || undefined,
       latitude: Number.isFinite(lat) ? lat : undefined,
       longitude: Number.isFinite(lng) ? lng : undefined
     });
