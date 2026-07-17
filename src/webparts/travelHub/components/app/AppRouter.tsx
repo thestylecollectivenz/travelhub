@@ -9,14 +9,32 @@ import { useShellMode, isCompactTouchShell } from '../../../../hooks/useShellMod
 import { MobileHomeShell } from '../../../../components/mobile/MobileHomeShell';
 import { IpadLandscapePlaceholder } from '../../../../components/ipad/IpadLandscapePlaceholder';
 import type { MobileTab } from '../../../../components/mobile/mobileTypes';
+import {
+  clearPersistedTripNav,
+  loadPersistedMobileNav,
+  persistMobileNav
+} from '../../../../utils/mobileNavPersistence';
 
 type AppView = 'multiTrip' | 'singleTrip' | 'createTrip' | 'terms';
 
+function initialViewFromSession(): { view: AppView; tripId: string; tab?: MobileTab } {
+  const nav = loadPersistedMobileNav();
+  if (nav.view === 'singleTrip' && (nav.tripId || '').trim()) {
+    return {
+      view: 'singleTrip',
+      tripId: nav.tripId!.trim(),
+      tab: (nav.tripTab as MobileTab | undefined) || undefined
+    };
+  }
+  return { view: 'multiTrip', tripId: '' };
+}
+
 export const AppRouter: React.FC = () => {
   const shellMode = useShellMode();
-  const [view, setView] = React.useState<AppView>('multiTrip');
-  const [selectedTripId, setSelectedTripId] = React.useState<string>('');
-  const [initialMobileTab, setInitialMobileTab] = React.useState<MobileTab | undefined>(undefined);
+  const boot = React.useMemo(() => initialViewFromSession(), []);
+  const [view, setView] = React.useState<AppView>(boot.view);
+  const [selectedTripId, setSelectedTripId] = React.useState<string>(boot.tripId);
+  const [initialMobileTab, setInitialMobileTab] = React.useState<MobileTab | undefined>(boot.tab);
   const [configOpen, setConfigOpen] = React.useState(false);
 
   React.useEffect(() => {
@@ -25,10 +43,25 @@ export const AppRouter: React.FC = () => {
     return () => window.removeEventListener('travelhub-open-settings', openSettings);
   }, []);
 
+  // Restore trip after SharePoint / Safari remount when returning from an external site.
+  React.useEffect(() => {
+    const restore = (): void => {
+      const nav = loadPersistedMobileNav();
+      if (nav.view === 'singleTrip' && (nav.tripId || '').trim()) {
+        setSelectedTripId(nav.tripId!.trim());
+        setInitialMobileTab((nav.tripTab as MobileTab | undefined) || undefined);
+        setView('singleTrip');
+      }
+    };
+    window.addEventListener('pageshow', restore);
+    return () => window.removeEventListener('pageshow', restore);
+  }, []);
+
   const goToTrip = (id: string, tab?: MobileTab): void => {
     setSelectedTripId(id);
     setInitialMobileTab(tab);
     setView('singleTrip');
+    persistMobileNav({ view: 'singleTrip', tripId: id, tripTab: tab || 'today' });
   };
 
   let content: React.ReactNode;
@@ -40,6 +73,7 @@ export const AppRouter: React.FC = () => {
         tripId={selectedTripId}
         onBack={() => {
           setInitialMobileTab(undefined);
+          clearPersistedTripNav();
           setView('multiTrip');
         }}
         initialMobileTab={initialMobileTab}

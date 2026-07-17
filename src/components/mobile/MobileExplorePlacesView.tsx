@@ -58,7 +58,7 @@ export interface MobileExplorePlacesViewProps {
   activeStart?: StoredStartPoint | null;
   accommodationStart?: StoredStartPoint | null;
   onSaveTip?: (tipText: string) => void;
-  savedTips?: string[];
+  savedTips?: import('../../utils/locationInfoEntry').SavedTravelTip[];
   onAddToItinerary?: (place: {
     name: string;
     note?: string;

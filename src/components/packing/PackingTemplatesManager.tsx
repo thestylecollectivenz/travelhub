@@ -4,7 +4,31 @@ import { PackingService } from '../../services/PackingService';
 import { confirmUserAction } from '../../utils/confirmAction';
 import styles from '../packing/PackingListView.module.css';
 
-const CATEGORIES = ['Clothing', 'Shoes', 'Accessories', 'Toiletries', 'Electronics', 'Documents', 'Medications', 'Other'];
+const CATEGORIES = [
+  'Clothing',
+  'Shoes',
+  'Accessories',
+  'Underwear & sleepwear',
+  'Outerwear',
+  'Swimwear',
+  'Toiletries',
+  'Medications',
+  'First aid',
+  'Electronics',
+  'Chargers & cables',
+  'Documents',
+  'Money & cards',
+  'Bags',
+  'Laundry',
+  'Beach & pool',
+  'Sports & activity',
+  'Kids',
+  'Food & snacks',
+  'Drinks',
+  'Souvenirs & gifts',
+  'Household',
+  'Other'
+];
 
 export const PackingTemplatesManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const spContext = useSpContext();

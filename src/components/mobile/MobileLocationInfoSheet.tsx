@@ -7,7 +7,14 @@ import { confirmUserAction } from '../../utils/confirmAction';
 import { notifyExpandUnscheduled } from '../../utils/mobileItineraryUiEvents';
 import { useSpContext } from '../../context/SpContext';
 import { compactPlaceLabel } from '../../utils/placeDisplayLabel';
-import { parseLocationInfoNotes, serializeLocationInfoNotes, locationInfoPlaceId, normalizeLocationInfoNotes, type LocationInfoQaEntry } from '../../utils/locationInfoEntry';
+import {
+  createSavedTravelTip,
+  parseLocationInfoNotes,
+  serializeLocationInfoNotes,
+  locationInfoPlaceId,
+  normalizeLocationInfoNotes,
+  type LocationInfoQaEntry
+} from '../../utils/locationInfoEntry';
 import { buildCanonicalLocationInfoByPlaceId } from '../../utils/locationInfoDayResolve';
 import { appendNearYouPlaceToLocationInfo } from '../../utils/nearYouLocationSave';
 import { createItineraryEntryFromNearYouPlace } from '../../utils/addPlaceToItinerary';
@@ -369,10 +376,10 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
       const tip = tipText.trim();
       if (!tip) return;
       const existing = notes.savedTravelTips || [];
-      if (existing.some((t) => t.trim().toLowerCase() === tip.toLowerCase())) return;
+      if (existing.some((t) => t.text.trim().toLowerCase() === tip.toLowerCase())) return;
       const next = normalizeLocationInfoNotes({
         ...notes,
-        savedTravelTips: [...existing, tip]
+        savedTravelTips: [...existing, createSavedTravelTip(tip)]
       });
       updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(next) });
     },
@@ -380,16 +387,14 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   );
 
   const deleteTravelTip = React.useCallback(
-    (tipText: string): void => {
+    (tipId: string): void => {
       const notes = parseLocationInfoNotes(liveEntry?.notes);
       if (!liveEntry || !notes || !canEditItinerary) return;
-      const tip = tipText.trim();
-      if (!tip) return;
+      const id = tipId.trim();
+      if (!id) return;
       const next = normalizeLocationInfoNotes({
         ...notes,
-        savedTravelTips: (notes.savedTravelTips || []).filter(
-          (t) => t.trim().toLowerCase() !== tip.toLowerCase()
-        )
+        savedTravelTips: (notes.savedTravelTips || []).filter((t) => t.id !== id)
       });
       updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(next) });
     },

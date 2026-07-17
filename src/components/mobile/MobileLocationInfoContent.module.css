@@ -4,68 +4,84 @@
   gap: 1.1rem;
 }
 
-.homeBanner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.55rem 0.75rem;
-  padding: 0.7rem 0.85rem;
-  border-radius: 1rem;
-  border: 1px solid color-mix(in srgb, #0f766e 22%, transparent);
-  background: color-mix(in srgb, #ccfbf1 55%, white);
-}
-
-.homeBannerCopy {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem 0.55rem;
-  flex: 1 1 12rem;
-  min-width: 0;
-}
-
-.homeBadge {
+.homeBadgeInline {
   display: inline-flex;
   align-items: center;
-  padding: 0.12rem 0.45rem;
+  margin-left: 0.45rem;
+  padding: 0.1rem 0.4rem;
   border-radius: 999px;
   background: #0f766e;
   color: white;
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
+  vertical-align: middle;
 }
 
-.homeHint {
-  font-size: 0.78rem;
-  line-height: 1.35;
-  color: #334155;
+.sectionHeadActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
-.homeBtn {
-  border: 1.5px solid color-mix(in srgb, #0f766e 40%, transparent);
-  background: white;
-  color: #0f766e;
+.homeMenuWrap {
+  position: relative;
+}
+
+.homeMenuBtn {
+  border: none;
+  background: transparent;
+  color: #6b6570;
+  font-size: 1.25rem;
+  line-height: 1;
+  width: 2rem;
+  height: 2rem;
   border-radius: 999px;
-  padding: 0.38rem 0.75rem;
-  font-size: 0.78rem;
-  font-weight: 700;
   cursor: pointer;
-  white-space: nowrap;
 }
 
-.homeBtnActive {
-  background: #0f766e;
-  border-color: #0f766e;
-  color: white;
+.homeMenuBtn:hover {
+  background: color-mix(in srgb, #1e2a44 6%, white);
+  color: #1e2a44;
 }
 
-.homeMsg {
-  flex: 1 1 100%;
-  font-size: 0.72rem;
-  color: #0f766e;
+.homeMenu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.25rem);
+  z-index: 20;
+  min-width: 12.5rem;
+  padding: 0.35rem;
+  border-radius: 0.75rem;
+  background: white;
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  box-shadow: 0 8px 24px color-mix(in srgb, #1e2a44 12%, transparent);
+}
+
+.homeMenuItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.85rem;
   font-weight: 600;
+  color: #1e2a44;
+  cursor: pointer;
+}
+
+.homeMenuItem:hover {
+  background: color-mix(in srgb, #0f766e 10%, white);
+}
+
+.homeMenuHint {
+  margin: 0.15rem 0.35rem 0.35rem;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: #6b6570;
 }
 
 .section {

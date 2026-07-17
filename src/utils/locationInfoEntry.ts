@@ -22,6 +22,14 @@ export type LocationInfoQaEntry = {
   createdAt: string;
 };
 
+/** Saved tip with optional Ask-AI thread (legacy tips were plain strings). */
+export type SavedTravelTip = {
+  id: string;
+  text: string;
+  createdAt?: string;
+  qaThread?: LocationInfoQaEntry[];
+};
+
 export type NearestPlaceKind =
   | 'pharmacy'
   | 'grocery'
@@ -111,8 +119,8 @@ export type LocationInfoNotes = {
   practicalTips: string;
   /** Traveller's own notes — edited only via the Notes field/UI. */
   userNotes?: string;
-  /** Saved travel tips (from tip strip / Explore / Saved places). */
-  savedTravelTips?: string[];
+  /** Saved travel tips (from tip strip / Explore / Saved places). Legacy string[] still parses. */
+  savedTravelTips?: SavedTravelTip[];
   iconicSightsItems?: LocationInfoCheckItem[];
   foodDrinkItems?: LocationInfoCheckItem[];
   drinkItems?: LocationInfoCheckItem[];
@@ -233,6 +241,53 @@ function migrateDiningSuggestions(raw?: DiningSuggestionRow[] | LocationInfoChec
 
 function labelKey(label: string): string {
   return (label || '').trim().toLowerCase();
+}
+
+function newTipId(): string {
+  return `tip-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function migrateSavedTravelTips(raw: unknown): SavedTravelTip[] {
+  if (!Array.isArray(raw) || !raw.length) return [];
+  const out: SavedTravelTip[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const row = raw[i];
+    if (typeof row === 'string') {
+      const text = row.trim();
+      if (!text) continue;
+      out.push({ id: `tip-legacy-${i}-${labelKey(text).slice(0, 24)}`, text });
+      continue;
+    }
+    if (!row || typeof row !== 'object') continue;
+    const obj = row as SavedTravelTip;
+    const text = (obj.text || '').trim();
+    if (!text) continue;
+    const qa = Array.isArray(obj.qaThread)
+      ? obj.qaThread
+          .filter((q) => q && typeof q.question === 'string' && typeof q.answer === 'string')
+          .map((q, qi) => ({
+            id: q.id || `tip-qa-${i}-${qi}`,
+            question: q.question.trim(),
+            answer: q.answer,
+            createdAt: q.createdAt || new Date().toISOString()
+          }))
+      : undefined;
+    out.push({
+      id: (obj.id || '').trim() || `tip-${i}-${labelKey(text).slice(0, 24)}`,
+      text,
+      createdAt: obj.createdAt,
+      qaThread: qa?.length ? qa : undefined
+    });
+  }
+  return out;
+}
+
+export function savedTravelTipTexts(tips: SavedTravelTip[] | undefined): string[] {
+  return (tips || []).map((t) => t.text).filter(Boolean);
+}
+
+export function createSavedTravelTip(text: string): SavedTravelTip {
+  return { id: newTipId(), text: text.trim(), createdAt: new Date().toISOString(), qaThread: [] };
 }
 
 function suppressedKeySet(data: LocationInfoNotes): Set<string> {
@@ -688,6 +743,7 @@ export function normalizeLocationInfoNotes(data: LocationInfoNotes): LocationInf
     foodDrink: checkItemsToText(foodDrinkItems),
     diningSuggestions: migrateDiningSuggestions(data.diningSuggestions as DiningSuggestionRow[] | LocationInfoCheckItem[] | undefined),
     nearestPlaces: migrateNearestPlaces(data.nearestPlaces as Partial<Record<string, NearestPlaceRow[]>> | undefined),
+    savedTravelTips: migrateSavedTravelTips(data.savedTravelTips),
     aiQaThread: data.aiQaThread ?? [],
     savedStartingPoints: migrateSavedStartingPoints(data.savedStartingPoints)
   };
@@ -702,7 +758,9 @@ export function parseLocationInfoNotes(notes: string | undefined): LocationInfoN
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as LocationInfoNotes;
-    if (parsed && typeof parsed.placeId === 'string') return parsed;
+    if (parsed && typeof parsed.placeId === 'string') {
+      return normalizeLocationInfoNotes(parsed);
+    }
   } catch {
     /* legacy plain text */
   }

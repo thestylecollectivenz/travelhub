@@ -48,6 +48,7 @@ import { useTripDayIdeas } from '../../hooks/useTripDayIdeas';
 import { useTripRole } from '../../context/TripRoleContext';
 import { SOLUTION_VERSION } from '../../appVersion';
 import { MobileBrandHeader } from './MobileBrandHeader';
+import { loadPersistedMobileNav, persistMobileNav } from '../../utils/mobileNavPersistence';
 import { MobileHeaderChromeProvider } from './MobileHeaderChromeContext';
 import { resolveSharePointMediaSrc } from '../../utils/sharePointUrl';
 import styles from './MobileShell.module.css';
@@ -160,7 +161,19 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
   const showIdeasBadge = (role === 'Editor' || role === 'Companion') && ideasUnread > 0;
   const [tab, setTab] = React.useState<MobileTab>(() => {
     if (initialTab === 'tasks') return 'lists';
-    return initialTab ?? 'today';
+    if (initialTab) return initialTab;
+    const nav = loadPersistedMobileNav();
+    if (nav.tripTab === 'tasks') return 'lists';
+    if (
+      nav.tripTab === 'today' ||
+      nav.tripTab === 'journal' ||
+      nav.tripTab === 'lists' ||
+      nav.tripTab === 'map' ||
+      nav.tripTab === 'book'
+    ) {
+      return nav.tripTab;
+    }
+    return 'today';
   });
   const [cameFromHome] = React.useState(() => peekCameFromHome());
   const [membersOpen, setMembersOpen] = React.useState(false);
@@ -184,6 +197,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
 
   React.useEffect(() => {
     if (trip?.id) logTripAccessOnce(spContext, trip.id, 'view.mobile', tab);
+    if (trip?.id) persistMobileNav({ view: 'singleTrip', tripId: trip.id, tripTab: tab });
   }, [trip?.id, tab, spContext]);
 
   const handleOpenMembers = React.useCallback(() => setMembersOpen(true), []);

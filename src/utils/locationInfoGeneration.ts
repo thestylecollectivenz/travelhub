@@ -127,7 +127,7 @@ export async function applyLocationInfoQuestion(options: {
     })(),
     existing.practicalTips.trim() ? `Practical tips: ${existing.practicalTips.trim()}` : '',
     (existing.savedTravelTips || []).length
-      ? `Saved travel tips: ${(existing.savedTravelTips || []).join('; ')}`
+      ? `Saved travel tips: ${existing.savedTravelTips!.map((t) => (typeof t === 'string' ? t : t.text)).join('; ')}`
       : '',
     (existing.userNotes || '').trim() ? `Traveller notes: ${(existing.userNotes || '').trim()}` : ''
   ].filter(Boolean);
@@ -254,6 +254,90 @@ export function scheduleLocationInfoQuestion(options: {
     } catch (err) {
       const message = formatGeminiUserMessage(err);
       emitLocationInfoAIStatus({ entryId: entry.id, loading: false, section: 'qa', error: message });
+      if (onComplete) onComplete();
+    }
+  })();
+}
+
+/** Ask AI about a saved travel tip — answer is stored on that tip's qaThread. */
+export function scheduleTravelTipQuestion(options: {
+  spContext: WebPartContext;
+  entry: ItineraryEntry;
+  place: Place;
+  apiKey: string;
+  tipId: string;
+  question: string;
+  onComplete?: () => void;
+}): void {
+  const { spContext, entry, place, apiKey, tipId, question, onComplete } = options;
+  const key = (apiKey || '').trim();
+  if (!key) return;
+  const parsed = parseLocationInfoNotes(entry.notes);
+  if (!parsed) return;
+  const q = (question || '').trim();
+  const tipKey = (tipId || '').trim();
+  if (!q || !tipKey) return;
+
+  const section = 'tip-qa' as const;
+  emitLocationInfoAIStatus({ entryId: entry.id, loading: true, section, tipId: tipKey });
+
+  void (async () => {
+    try {
+      const targetEntry = await resolveCanonicalLocationEntry(spContext, entry, place);
+      if (targetEntry.id !== entry.id) {
+        emitLocationInfoAIStatus({ entryId: targetEntry.id, loading: true, section, tipId: tipKey });
+      }
+      const latest = await loadLatestNotes(spContext, targetEntry, parsed);
+      const tips = latest.savedTravelTips || [];
+      const tip = tips.find((t) => t.id === tipKey);
+      if (!tip) throw new Error('Travel tip not found.');
+
+      const { placeName, country } = placeNameAndCountry(place);
+      const contextSummary = [
+        `Travel tip: ${tip.text}`,
+        tip.qaThread?.length
+          ? `Earlier tip Q&A:\n${tip.qaThread.map((x) => `Q: ${x.question}\nA: ${x.answer}`).join('\n')}`
+          : '',
+        latest.overview.trim() ? `Place overview: ${latest.overview.trim()}` : ''
+      ]
+        .filter(Boolean)
+        .join('\n\n');
+      const { answer, model } = await answerLocationQuestion(placeName, country, q, {
+        apiKey: key,
+        contextSummary
+      });
+      const qa: LocationInfoQaEntry = {
+        id: `tip-qa-${Date.now()}`,
+        question: q,
+        answer,
+        createdAt: new Date().toISOString()
+      };
+      const nextTips = tips.map((t) =>
+        t.id === tipKey ? { ...t, qaThread: [...(t.qaThread ?? []), qa] } : t
+      );
+      const merged: LocationInfoNotes = {
+        ...latest,
+        savedTravelTips: nextTips,
+        aiModel: model,
+        aiError: ''
+      };
+      const svc = new ItineraryService(spContext);
+      await svc.update(targetEntry.id, { notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(merged)) });
+      emitLocationInfoAIStatus({ entryId: entry.id, loading: false, section, tipId: tipKey, success: true });
+      if (targetEntry.id !== entry.id) {
+        emitLocationInfoAIStatus({
+          entryId: targetEntry.id,
+          loading: false,
+          section,
+          tipId: tipKey,
+          success: true
+        });
+      }
+      if (onComplete) onComplete();
+      window.dispatchEvent(new Event('trip-itinerary-updated'));
+    } catch (err) {
+      const message = formatGeminiUserMessage(err);
+      emitLocationInfoAIStatus({ entryId: entry.id, loading: false, section, tipId: tipKey, error: message });
       if (onComplete) onComplete();
     }
   })();

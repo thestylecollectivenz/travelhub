@@ -51,7 +51,7 @@ export interface MobileSavedPlacesViewProps {
   activeStart?: StoredStartPoint | null;
   accommodationStart?: StoredStartPoint | null;
   onSaveTip?: (tipText: string) => void;
-  savedTips?: string[];
+  savedTips?: import('../../utils/locationInfoEntry').SavedTravelTip[];
 }
 
 type SavedCard = {

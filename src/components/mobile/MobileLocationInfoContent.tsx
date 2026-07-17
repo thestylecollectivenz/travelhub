@@ -5,6 +5,7 @@ import { useConfig } from '../../context/ConfigContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useTripPermissions } from '../../hooks/useTripPermissions';
 import {
+  createSavedTravelTip,
   locationHighlightRows,
   normalizeLocationInfoNotes,
   parseLocationInfoNotes,
@@ -15,7 +16,8 @@ import {
   type LocationInfoNotes,
   type LocationInfoQaEntry,
   type NearestPlaceKind,
-  type NearestPlaceRow
+  type NearestPlaceRow,
+  type SavedTravelTip
 } from '../../utils/locationInfoEntry';
 import type { StoredStartPoint } from '../../utils/locationStartPointStorage';
 import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
@@ -221,11 +223,13 @@ export interface MobileLocationInfoContentProps {
   onSelectSavedStart?: (point: StoredStartPoint) => void;
   onRemoveSavedStart?: (point: StoredStartPoint) => void;
   activeStart?: StoredStartPoint | null;
-  onDeleteTip?: (tipText: string) => void;
+  onDeleteTip?: (tipId: string) => void;
   onCreateTaskFromTip?: (tipText: string) => void;
   onAddTipToItinerary?: (tipText: string) => void;
   onCreateTaskFromQa?: (item: LocationInfoQaEntry) => void;
   onAddQaToItinerary?: (item: LocationInfoQaEntry) => void;
+  onCreateTaskFromTipQa?: (item: LocationInfoQaEntry) => void;
+  onAddTipQaToItinerary?: (item: LocationInfoQaEntry) => void;
   onCreateTaskFromSavedPlace?: (place: { name: string; note?: string; mapsUrl?: string }) => void;
   onAddSavedPlaceToItinerary?: (place: { name: string; note?: string; mapsUrl?: string }) => void;
 }
@@ -259,6 +263,8 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
   onAddTipToItinerary,
   onCreateTaskFromQa,
   onAddQaToItinerary,
+  onCreateTaskFromTipQa,
+  onAddTipQaToItinerary,
   onCreateTaskFromSavedPlace,
   onAddSavedPlaceToItinerary
 }) => {
@@ -268,10 +274,11 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
   const { canManageTrip } = useTripPermissions();
   const askRef = React.useRef<HTMLElement | null>(null);
   const pillsRef = React.useRef<HTMLDivElement | null>(null);
+  const homeMenuRef = React.useRef<HTMLDivElement | null>(null);
   const [askExpanded, setAskExpanded] = React.useState(false);
   const [collapsedGroups, setCollapsedGroups] = React.useState<Record<string, boolean>>({});
   const [heroPhoto, setHeroPhoto] = React.useState<{ imageUrl: string; sourceUrl: string } | null>(null);
-  const [homeMsg, setHomeMsg] = React.useState('');
+  const [homeMenuOpen, setHomeMenuOpen] = React.useState(false);
 
   const data = parseLocationInfoNotes(entry.notes);
   const placeId = (data?.placeId || place?.id || '').trim();
@@ -341,28 +348,27 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
     return Array.from(map.entries()).map(([label, cards]) => ({ label, cards }));
   }, [featured, defaultNearLabel]);
 
+  React.useEffect(() => {
+    if (!homeMenuOpen) return;
+    const onDoc = (e: MouseEvent): void => {
+      if (homeMenuRef.current && !homeMenuRef.current.contains(e.target as Node)) {
+        setHomeMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [homeMenuOpen]);
+
+  const toggleHomePlace = (): void => {
+    if (!placeId || !canManageTrip) return;
+    const next = toggleTripHomePlaceId(trip?.homePlaceIds, placeId);
+    updateTrip({ homePlaceIds: next });
+    setHomeMenuOpen(false);
+  };
+
   if (!data) {
     return (
       <div className={styles.root}>
-        {placeId && (canManageTrip || isHome) ? (
-          <div className={styles.homeBanner}>
-            {isHome ? <span className={styles.homeBadge}>Home</span> : null}
-            {canManageTrip ? (
-              <button
-                type="button"
-                className={styles.homeBtn}
-                onClick={() => {
-                  const next = toggleTripHomePlaceId(trip?.homePlaceIds, placeId);
-                  updateTrip({ homePlaceIds: next });
-                  setHomeMsg(next.includes(placeId) ? 'Saved as home for this trip' : 'Removed from home locations');
-                }}
-              >
-                {isHome ? 'Remove from home' : 'Mark as home'}
-              </button>
-            ) : null}
-            {homeMsg ? <span className={styles.homeMsg}>{homeMsg}</span> : null}
-          </div>
-        ) : null}
         <p className={styles.empty}>No location data for this place yet.</p>
       </div>
     );
@@ -437,38 +443,41 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
 
   return (
     <div className={styles.root}>
-      {placeId && (canManageTrip || isHome) ? (
-        <div className={styles.homeBanner}>
-          <div className={styles.homeBannerCopy}>
-            {isHome ? <span className={styles.homeBadge}>Home</span> : null}
-            <span className={styles.homeHint}>
-              {isHome
-                ? 'Excluded from AI idea suggestions for everyone on this trip.'
-                : 'Mark home cities (you can pick more than one) so AI ideas skip them.'}
-            </span>
-          </div>
-          {canManageTrip ? (
-            <button
-              type="button"
-              className={`${styles.homeBtn} ${isHome ? styles.homeBtnActive : ''}`}
-              onClick={() => {
-                const next = toggleTripHomePlaceId(trip?.homePlaceIds, placeId);
-                updateTrip({ homePlaceIds: next });
-                setHomeMsg(next.includes(placeId) ? 'Saved as home for this trip' : 'Removed from home locations');
-              }}
-            >
-              {isHome ? '⌂ Home · remove' : '⌂ Mark as home'}
-            </button>
-          ) : null}
-          {homeMsg ? <span className={styles.homeMsg}>{homeMsg}</span> : null}
-        </div>
-      ) : null}
       <section className={styles.section}>
         <div className={styles.sectionHead}>
-          <h3 className={styles.sectionTitle}>Overview</h3>
-          {canEditHighlights && onEditOverview ? (
-            <MobilePencilButton onClick={onEditOverview} ariaLabel="Edit overview" />
-          ) : null}
+          <h3 className={styles.sectionTitle}>
+            Overview
+            {isHome ? <span className={styles.homeBadgeInline}>Home</span> : null}
+          </h3>
+          <div className={styles.sectionHeadActions}>
+            {canManageTrip && placeId ? (
+              <div className={styles.homeMenuWrap} ref={homeMenuRef}>
+                <button
+                  type="button"
+                  className={styles.homeMenuBtn}
+                  aria-label="Place options"
+                  aria-expanded={homeMenuOpen}
+                  title="Place options"
+                  onClick={() => setHomeMenuOpen((v) => !v)}
+                >
+                  ⋯
+                </button>
+                {homeMenuOpen ? (
+                  <div className={styles.homeMenu} role="menu">
+                    <button type="button" className={styles.homeMenuItem} role="menuitem" onClick={toggleHomePlace}>
+                      {isHome ? 'Remove as trip home' : 'Mark as trip home'}
+                    </button>
+                    <p className={styles.homeMenuHint}>
+                      Home places are shared for everyone on this trip and skipped by AI ideas.
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            {canEditHighlights && onEditOverview ? (
+              <MobilePencilButton onClick={onEditOverview} ariaLabel="Edit overview" />
+            ) : null}
+          </div>
         </div>
         <div className={styles.overviewSplit}>
           <div className={styles.overviewTextCol}>
@@ -778,16 +787,19 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
         startingPointLabel={stayName}
         savedTips={data?.savedTravelTips || []}
         showSavedList={true}
+        entry={entry}
+        place={place}
+        readOnly={readOnly}
         onSaveTip={
           canEditHighlights && data
             ? (tipText) => {
                 const tip = tipText.trim();
                 if (!tip) return;
                 const existing = data.savedTravelTips || [];
-                if (existing.some((t) => t.trim().toLowerCase() === tip.toLowerCase())) return;
+                if (existing.some((t) => t.text.trim().toLowerCase() === tip.toLowerCase())) return;
                 persist({
                   ...data,
-                  savedTravelTips: [...existing, tip]
+                  savedTravelTips: [...existing, createSavedTravelTip(tip)]
                 });
               }
             : undefined
@@ -796,20 +808,23 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
           onDeleteTip
             ? onDeleteTip
             : canEditHighlights && data
-              ? (tipText) => {
-                  const tip = tipText.trim();
-                  if (!tip) return;
+              ? (tipId) => {
                   persist({
                     ...data,
-                    savedTravelTips: (data.savedTravelTips || []).filter(
-                      (t) => t.trim().toLowerCase() !== tip.toLowerCase()
-                    )
+                    savedTravelTips: (data.savedTravelTips || []).filter((t) => t.id !== tipId)
                   });
                 }
               : undefined
         }
+        onTipsChange={
+          canEditHighlights && data
+            ? (tips: SavedTravelTip[]) => persist({ ...data, savedTravelTips: tips })
+            : undefined
+        }
         onCreateTaskFromTip={onCreateTaskFromTip}
         onAddTipToItinerary={onAddTipToItinerary}
+        onCreateTaskFromTipQa={onCreateTaskFromTipQa || onCreateTaskFromQa}
+        onAddTipQaToItinerary={onAddTipQaToItinerary || onAddQaToItinerary}
       />
     </div>
   );

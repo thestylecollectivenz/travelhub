@@ -5,6 +5,7 @@ import {
   placeWebsiteSearchUrl
 } from '../../utils/googleMapsLink';
 import type { NearYouCachedResult } from '../../utils/nearYouResultCache';
+import { openMobileExternalUrl } from '../../hooks/useMobileDetailHistory';
 import styles from './NearYouResultCard.module.css';
 
 export type NearYouResultCardData = NearYouCachedResult;
@@ -111,7 +112,15 @@ export const NearYouResultCard: React.FC<NearYouResultCardProps> = ({
     }
     if (action.href) {
       return (
-        <a key={action.id} className={styles.actionBtn} href={action.href} target="_blank" rel="noopener noreferrer" title={action.label}>
+        <a
+          key={action.id}
+          className={styles.actionBtn}
+          href={action.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={action.label}
+          onClick={(e) => openMobileExternalUrl(action.href!, e)}
+        >
           {icon}
           <span>{action.label}</span>
         </a>
@@ -134,7 +143,13 @@ export const NearYouResultCard: React.FC<NearYouResultCardProps> = ({
         <div className={styles.cardMain}>
           <div className={styles.cardTitleRow}>
             {mapsPlace ? (
-              <a className={styles.cardTitleLink} href={mapsPlace} target="_blank" rel="noopener noreferrer">
+              <a
+                className={styles.cardTitleLink}
+                href={mapsPlace}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => openMobileExternalUrl(mapsPlace, e)}
+              >
                 <h3 className={styles.cardTitle}>{result.name}</h3>
               </a>
             ) : (
@@ -160,7 +175,14 @@ export const NearYouResultCard: React.FC<NearYouResultCardProps> = ({
         ) : (
           <>
             {directions ? (
-              <a className={styles.actionBtn} href={directions} target="_blank" rel="noopener noreferrer" title="Directions">
+              <a
+                className={styles.actionBtn}
+                href={directions}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Directions"
+                onClick={(e) => openMobileExternalUrl(directions, e)}
+              >
                 <IconDirections />
                 <span>Directions</span>
               </a>
@@ -183,7 +205,14 @@ export const NearYouResultCard: React.FC<NearYouResultCardProps> = ({
               </button>
             ) : null}
             {website ? (
-              <a className={styles.actionBtn} href={website} target="_blank" rel="noopener noreferrer" title="Website">
+              <a
+                className={styles.actionBtn}
+                href={website}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Website"
+                onClick={(e) => openMobileExternalUrl(website, e)}
+              >
                 <IconWebsite />
                 <span>Website</span>
               </a>

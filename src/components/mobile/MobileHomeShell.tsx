@@ -27,6 +27,7 @@ import {
   saveTripSavedSpot
 } from '../../utils/tripSavedSpots';
 import { setPendingMobileItineraryEdit } from '../../utils/mobileItineraryEditPending';
+import { loadPersistedMobileNav, persistMobileNav } from '../../utils/mobileNavPersistence';
 import { useContinuousSpeechInput } from '../../hooks/useContinuousSpeechInput';
 import { useCurrentUserRole } from '../../hooks/useCurrentUserRole';
 import { useTripMembers } from '../../hooks/useTripMembers';
@@ -184,7 +185,12 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
 }) => {
   const spContext = useSpContext();
   const { config, greetingName } = useConfig();
-  const [tab, setTab] = React.useState<MobileHomeTab>('home');
+  const [tab, setTab] = React.useState<MobileHomeTab>(() => {
+    const nav = loadPersistedMobileNav();
+    const t = nav.homeTab;
+    if (t === 'home' || t === 'trips' || t === 'spots' || t === 'find' || t === 'book') return t;
+    return 'home';
+  });
   const [trips, setTrips] = React.useState<Trip[]>([]);
   const [allPlaces, setAllPlaces] = React.useState<
     Array<{ id: string; title: string; lat: number; lon: number; countryCode: string; country: string }>
@@ -209,6 +215,11 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   React.useEffect(() => {
     if (tab !== 'book') setBookView('main');
   }, [tab]);
+
+  React.useEffect(() => {
+    persistMobileNav({ homeTab: tab });
+  }, [tab]);
+
   const [nearActionMsg, setNearActionMsg] = React.useState('');
   const mapRef = React.useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = React.useRef<L.Map | null>(null);

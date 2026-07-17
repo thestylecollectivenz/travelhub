@@ -3,7 +3,9 @@ import type { NearestPlaceKind } from './locationInfoEntry';
 export type LocationInfoAIEventDetail = {
   entryId: string;
   loading: boolean;
-  section?: 'sights' | 'food' | 'drink' | 'souvenirs' | 'all' | 'qa' | 'dining' | NearestPlaceKind;
+  section?: 'sights' | 'food' | 'drink' | 'souvenirs' | 'all' | 'qa' | 'dining' | 'tip-qa' | NearestPlaceKind;
+  /** When section is tip-qa, the saved tip id being answered. */
+  tipId?: string;
   error?: string;
   success?: boolean;
 };

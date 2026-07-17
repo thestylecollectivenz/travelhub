@@ -1,16 +1,31 @@
-const KEY = 'travelhub-trip-shopping-categories-';
-
 /** Shared taxonomy for packing + shopping list category filters. */
 export const DEFAULT_SHARED_LIST_CATEGORIES = [
   'Clothing',
   'Shoes',
   'Accessories',
+  'Underwear & sleepwear',
+  'Outerwear',
+  'Swimwear',
   'Toiletries',
-  'Electronics',
-  'Documents',
   'Medications',
+  'First aid',
+  'Electronics',
+  'Chargers & cables',
+  'Documents',
+  'Money & cards',
+  'Bags',
+  'Laundry',
+  'Beach & pool',
+  'Sports & activity',
+  'Kids',
+  'Food & snacks',
+  'Drinks',
+  'Souvenirs & gifts',
+  'Household',
   'Other'
 ];
+
+const KEY = 'travelhub-trip-shopping-categories-';
 
 export const SHOPPING_CATEGORIES_CHANGED_EVENT = 'travelhub-shopping-categories-changed';
 export const SHOPPING_ITEMS_CHANGED_EVENT = 'travelhub-shopping-items-changed';
@@ -39,6 +54,11 @@ function normalizeList(categories: string[]): string[] {
   return out.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 }
 
+/** Always include the full default set, then any custom categories the trip added. */
+function mergeWithDefaults(saved: string[]): string[] {
+  return normalizeList([...DEFAULT_SHARED_LIST_CATEGORIES, ...saved]);
+}
+
 export function loadTripShoppingCategories(tripId: string): string[] {
   try {
     const raw = window.localStorage.getItem(`${KEY}${tripId}`);
@@ -50,17 +70,19 @@ export function loadTripShoppingCategories(tripId: string): string[] {
       return saveTripShoppingCategories(tripId, DEFAULT_SHARED_LIST_CATEGORIES);
     }
     const saved = normalizeList(parsed.filter((x) => typeof x === 'string') as string[]);
-    if (!saved.length) {
-      return saveTripShoppingCategories(tripId, DEFAULT_SHARED_LIST_CATEGORIES);
+    const merged = mergeWithDefaults(saved);
+    // Backfill defaults if an older culled list was stored.
+    if (merged.length !== saved.length) {
+      return saveTripShoppingCategories(tripId, merged);
     }
-    return saved;
+    return merged.length ? merged : saveTripShoppingCategories(tripId, DEFAULT_SHARED_LIST_CATEGORIES);
   } catch {
     return [...DEFAULT_SHARED_LIST_CATEGORIES];
   }
 }
 
 export function saveTripShoppingCategories(tripId: string, categories: string[]): string[] {
-  const normalized = normalizeList(categories);
+  const normalized = mergeWithDefaults(categories);
   try {
     window.localStorage.setItem(`${KEY}${tripId}`, JSON.stringify(normalized));
   } catch {
@@ -90,6 +112,10 @@ export function renameTripShoppingCategory(tripId: string, oldName: string, newN
 
 export function deleteTripShoppingCategory(tripId: string, category: string): string[] {
   const key = category.trim().toLowerCase();
+  // Keep defaults — only remove custom categories from the stored list after merge.
+  if (DEFAULT_SHARED_LIST_CATEGORIES.some((c) => c.toLowerCase() === key)) {
+    return loadTripShoppingCategories(tripId);
+  }
   const existing = loadTripShoppingCategories(tripId);
   return saveTripShoppingCategories(
     tripId,
