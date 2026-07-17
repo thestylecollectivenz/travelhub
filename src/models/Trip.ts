@@ -21,6 +21,9 @@ export interface Trip {
   showJournalEntryDate: boolean;
   /** Optional short trip blurb; omit or leave empty to hide on hero. */
   description?: string;
-  /** Trip-scoped home/origin place ID — excluded from AI idea location balancing. */
-  homePlaceId?: string;
+  /**
+   * Trip-scoped home/origin place IDs (shared for all travellers).
+   * Excluded from AI idea location balancing. Multiple allowed (e.g. Wellington + Auckland).
+   */
+  homePlaceIds?: string[];
 }

@@ -2,6 +2,7 @@ import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 import { Trip, TripLifecycleStatus } from '../models';
 import { getCurrentUserEmail } from '../utils/currentUserEmail';
+import { parseHomePlaceIds, serializeHomePlaceIds } from '../utils/tripHomePlaces';
 
 const LIST = 'Trips';
 
@@ -29,7 +30,7 @@ function mapToTrip(item: any): Trip {
     showAuthorName,
     showJournalEntryDate,
     description: item.Description ?? '',
-    homePlaceId: item.HomePlaceId ? String(item.HomePlaceId).trim() : undefined
+    homePlaceIds: parseHomePlaceIds(item.HomePlaceId)
   };
 }
 
@@ -47,7 +48,7 @@ function mapToSpItem(trip: Partial<Trip>): Record<string, any> {
   if (trip.showAuthorName !== undefined) item.ShowAuthorName = trip.showAuthorName;
   if (trip.showJournalEntryDate !== undefined) item.ShowJournalEntryDate = trip.showJournalEntryDate;
   if (trip.description !== undefined) item.Description = trip.description;
-  if (trip.homePlaceId !== undefined) item.HomePlaceId = trip.homePlaceId || '';
+  if (trip.homePlaceIds !== undefined) item.HomePlaceId = serializeHomePlaceIds(trip.homePlaceIds);
   return item;
 }
 

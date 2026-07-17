@@ -740,7 +740,9 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
       </div>
 
       {dayLocationEntries.length ? (
-        <p className={styles.locationStripHint}>Tap a place for weather, tips, currency and saved suggestions.</p>
+        <p className={styles.locationStripHint}>
+          Tap a place for weather, tips, currency — and to mark home cities (⌂) for AI ideas.
+        </p>
       ) : null}
       {weatherOpen && primaryPlace ? (
         <MobileWeatherSheet

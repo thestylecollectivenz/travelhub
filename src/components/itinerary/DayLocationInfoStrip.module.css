@@ -111,3 +111,12 @@
   padding: 0.7rem 1.15rem 0.7rem 0.75rem;
   max-width: 15rem;
 }
+
+.chipHome:not(.chipPrimary) {
+  border-color: color-mix(in srgb, #0f766e 55%, transparent);
+}
+
+.chipHomeMark {
+  font-weight: 700;
+  opacity: 0.9;
+}

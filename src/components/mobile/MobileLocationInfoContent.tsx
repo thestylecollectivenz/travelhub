@@ -3,6 +3,7 @@ import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import type { Place } from '../../models/Place';
 import { useConfig } from '../../context/ConfigContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { useTripPermissions } from '../../hooks/useTripPermissions';
 import {
   locationHighlightRows,
   normalizeLocationInfoNotes,
@@ -18,6 +19,7 @@ import {
 } from '../../utils/locationInfoEntry';
 import type { StoredStartPoint } from '../../utils/locationStartPointStorage';
 import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
+import { isTripHomePlace, toggleTripHomePlaceId } from '../../utils/tripHomePlaces';
 import { resolveDestinationHeroPhoto } from '../../utils/placePhotoResolve';
 import { scheduleLocationInfoQuestion } from '../../utils/locationInfoGeneration';
 import { useSpContext } from '../../context/SpContext';
@@ -252,14 +254,18 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
 }) => {
   const { config } = useConfig();
   const spContext = useSpContext();
-  const { updateEntry } = useTripWorkspace();
+  const { trip, updateEntry, updateTrip } = useTripWorkspace();
+  const { canManageTrip } = useTripPermissions();
   const askRef = React.useRef<HTMLElement | null>(null);
   const pillsRef = React.useRef<HTMLDivElement | null>(null);
   const [askExpanded, setAskExpanded] = React.useState(false);
   const [collapsedGroups, setCollapsedGroups] = React.useState<Record<string, boolean>>({});
   const [heroPhoto, setHeroPhoto] = React.useState<{ imageUrl: string; sourceUrl: string } | null>(null);
+  const [homeMsg, setHomeMsg] = React.useState('');
 
   const data = parseLocationInfoNotes(entry.notes);
+  const placeId = (data?.placeId || place?.id || '').trim();
+  const isHome = isTripHomePlace(trip, placeId);
   const rows = data ? locationHighlightRows(data) : [];
   const rowsByKind = React.useMemo(() => {
     const map: Record<LocationHighlightKind, LocationHighlightRow[]> = {
@@ -326,7 +332,30 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
   }, [featured, defaultNearLabel]);
 
   if (!data) {
-    return <p className={styles.empty}>No location data for this place yet.</p>;
+    return (
+      <div className={styles.root}>
+        {placeId && (canManageTrip || isHome) ? (
+          <div className={styles.homeBanner}>
+            {isHome ? <span className={styles.homeBadge}>Home</span> : null}
+            {canManageTrip ? (
+              <button
+                type="button"
+                className={styles.homeBtn}
+                onClick={() => {
+                  const next = toggleTripHomePlaceId(trip?.homePlaceIds, placeId);
+                  updateTrip({ homePlaceIds: next });
+                  setHomeMsg(next.includes(placeId) ? 'Saved as home for this trip' : 'Removed from home locations');
+                }}
+              >
+                {isHome ? 'Remove from home' : 'Mark as home'}
+              </button>
+            ) : null}
+            {homeMsg ? <span className={styles.homeMsg}>{homeMsg}</span> : null}
+          </div>
+        ) : null}
+        <p className={styles.empty}>No location data for this place yet.</p>
+      </div>
+    );
   }
 
   const persist = (next: LocationInfoNotes): void => {
@@ -398,6 +427,32 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
 
   return (
     <div className={styles.root}>
+      {placeId && (canManageTrip || isHome) ? (
+        <div className={styles.homeBanner}>
+          <div className={styles.homeBannerCopy}>
+            {isHome ? <span className={styles.homeBadge}>Home</span> : null}
+            <span className={styles.homeHint}>
+              {isHome
+                ? 'Excluded from AI idea suggestions for everyone on this trip.'
+                : 'Mark home cities (you can pick more than one) so AI ideas skip them.'}
+            </span>
+          </div>
+          {canManageTrip ? (
+            <button
+              type="button"
+              className={`${styles.homeBtn} ${isHome ? styles.homeBtnActive : ''}`}
+              onClick={() => {
+                const next = toggleTripHomePlaceId(trip?.homePlaceIds, placeId);
+                updateTrip({ homePlaceIds: next });
+                setHomeMsg(next.includes(placeId) ? 'Saved as home for this trip' : 'Removed from home locations');
+              }}
+            >
+              {isHome ? '⌂ Home · remove' : '⌂ Mark as home'}
+            </button>
+          ) : null}
+          {homeMsg ? <span className={styles.homeMsg}>{homeMsg}</span> : null}
+        </div>
+      ) : null}
       <section className={styles.section}>
         <div className={styles.sectionHead}>
           <h3 className={styles.sectionTitle}>Overview</h3>

@@ -1,12 +1,15 @@
 import * as React from 'react';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { usePlaces } from '../../context/PlacesContext';
+import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import {
   isLocationInfoEntry,
   locationHighlightRows,
+  locationInfoPlaceId,
   parseLocationInfoNotes
 } from '../../utils/locationInfoEntry';
 import { compactPlaceLabel } from '../../utils/placeDisplayLabel';
+import { isTripHomePlace } from '../../utils/tripHomePlaces';
 import { LocationInfoStripPinIcon } from './LocationInfoPanelContent';
 import styles from './DayLocationInfoStrip.module.css';
 
@@ -39,6 +42,7 @@ export const DayLocationInfoStrip: React.FC<DayLocationInfoStripProps> = ({
   variant = 'default'
 }) => {
   const { placeById } = usePlaces();
+  const { trip } = useTripWorkspace();
   const locationEntries = React.useMemo(
     () => entries.filter((e) => isLocationInfoEntry(e) && !e.parentEntryId),
     [entries]
@@ -66,14 +70,15 @@ export const DayLocationInfoStrip: React.FC<DayLocationInfoStripProps> = ({
         const partial = total > 0 && done > 0 && done < total;
         const active = activeEntryId === entry.id;
         const isPrimary = variant === 'pills' && entry.id === resolvedPrimary;
+        const isHome = isTripHomePlace(trip, locationInfoPlaceId(entry) || data?.placeId);
 
         return (
           <button
             key={entry.id}
             type="button"
-            className={`${styles.chip} ${variant === 'pills' ? styles.chipPill : ''} ${isPrimary ? styles.chipPrimary : ''} ${active ? styles.chipActive : ''} ${complete ? styles.chipComplete : ''}`}
-            title={label}
-            aria-label={`${label}${total ? ` — ${done} of ${total} done` : ''}${isPrimary ? ' (primary)' : ''}`}
+            className={`${styles.chip} ${variant === 'pills' ? styles.chipPill : ''} ${isPrimary ? styles.chipPrimary : ''} ${active ? styles.chipActive : ''} ${complete ? styles.chipComplete : ''} ${isHome ? styles.chipHome : ''}`}
+            title={isHome ? `${label} (Home)` : label}
+            aria-label={`${label}${total ? ` — ${done} of ${total} done` : ''}${isPrimary ? ' (primary)' : ''}${isHome ? ' (home)' : ''}`}
             onClick={() => onSelect(entry.id)}
           >
             <span className={styles.chipIcon}>
@@ -81,6 +86,7 @@ export const DayLocationInfoStrip: React.FC<DayLocationInfoStripProps> = ({
             </span>
             <span className={styles.chipLabel}>
               {short}
+              {isHome ? <span className={styles.chipHomeMark}> ⌂</span> : null}
               {variant === 'pills' ? <span aria-hidden> ›</span> : null}
             </span>
             {partial ? <span className={styles.chipDot} aria-hidden /> : null}

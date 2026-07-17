@@ -10,6 +10,7 @@ import { formatDayDate } from '../../utils/dateUtils';
 import { compareTripDaysChronological } from '../../utils/tripDateRangeSync';
 import { parseAdditionalPlaceRefs, serializeAdditionalPlaceRef } from '../../utils/tripDayPlaces';
 import { placeDisplayLabel } from '../../utils/placeDisplayLabel';
+import { isTripHomePlace, toggleTripHomePlaceId } from '../../utils/tripHomePlaces';
 import type { DayPlanningStatus } from '../../models/TripDay';
 import styles from './DayHeader.module.css';
 
@@ -426,31 +427,33 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
                     <span className={styles.placePill}>
                       <span aria-hidden>📍</span> {placeLabel}
                       {row.primary ? <span className={styles.placeMeta}>Primary</span> : null}
-                      {trip?.homePlaceId && row.placeId === trip.homePlaceId ? (
+                      {isTripHomePlace(trip, row.placeId) ? (
                         <span className={styles.placeMeta}>Home</span>
                       ) : null}
                     </span>
                   </button>
                   {!isShared && row.place ? (
                     <div className={styles.locationInlineActions}>
-                        {row.primary ? (
-                          <button
-                            type="button"
-                            className={styles.iconActionBtn}
-                            onClick={() => {
-                              const isHome = (trip?.homePlaceId || '') === row.placeId;
-                              updateTrip({ homePlaceId: isHome ? '' : row.placeId });
-                              setLocationMessage(isHome ? 'Home location cleared' : 'Marked as home location');
-                            }}
-                            title={
-                              (trip?.homePlaceId || '') === row.placeId
-                                ? 'Clear home location'
-                                : 'Mark as home (excluded from AI ideas)'
-                            }
-                          >
-                            {(trip?.homePlaceId || '') === row.placeId ? '⌂✓' : '⌂'}
-                          </button>
-                        ) : null}
+                        <button
+                          type="button"
+                          className={styles.iconActionBtn}
+                          onClick={() => {
+                            const next = toggleTripHomePlaceId(trip?.homePlaceIds, row.placeId);
+                            updateTrip({ homePlaceIds: next });
+                            setLocationMessage(
+                              next.includes(row.placeId)
+                                ? 'Marked as home location'
+                                : 'Removed from home locations'
+                            );
+                          }}
+                          title={
+                            isTripHomePlace(trip, row.placeId)
+                              ? 'Remove from home locations (AI ideas)'
+                              : 'Mark as home (excluded from AI ideas)'
+                          }
+                        >
+                          {isTripHomePlace(trip, row.placeId) ? '⌂✓' : '⌂'}
+                        </button>
                         {!row.primary ? (
                           <button
                             type="button"

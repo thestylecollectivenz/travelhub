@@ -11,6 +11,7 @@ import type { Place } from '../models/Place';
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 import { isPreTripDayRow } from './itineraryDayEntries';
 import { isBroadPlaceLabel, itineraryLocationsForDay, placeTitleLabel, resolveDayStopLabel } from './ideaLocationLabel';
+import { tripHomePlaceIds } from './tripHomePlaces';
 
 export const JOTTER_IDEA_REMINDER_TYPE = 'JotterIdea';
 
@@ -297,32 +298,42 @@ function aiFocusLocations(
   const eligibleDays = [...tripDays].filter((d) => !isPreTripDayRow(d)).sort((a, b) => a.dayNumber - b.dayNumber);
   const locations: Array<{ dayId: string; label: string }> = [];
   const getPlace = placeById || (() => undefined);
-  const homePlaceId = (trip?.homePlaceId || '').trim();
-  const homePlace = homePlaceId ? getPlace(homePlaceId) : undefined;
-  const homeLabelKey = normalizeLocationKey(shortLocationLabel(placeTitleLabel(homePlace)) || homePlace?.title);
+  const homeIds = new Set(tripHomePlaceIds(trip));
+  const homeLabelKeys = new Set<string>();
+  for (const homeId of Array.from(homeIds)) {
+    const homePlace = getPlace(homeId);
+    const key = normalizeLocationKey(shortLocationLabel(placeTitleLabel(homePlace)) || homePlace?.title);
+    if (key) homeLabelKeys.add(key);
+  }
+  const hasExplicitHomes = homeIds.size > 0;
 
   for (const day of eligibleDays) {
-    if (homePlaceId && day.primaryPlaceId === homePlaceId) {
+    if (day.primaryPlaceId && homeIds.has(day.primaryPlaceId)) {
       // Explicit trip home overnight — skip for AI idea rotation.
       continue;
     }
     if (day.primaryPlaceId) {
       const primaryLabel = placeTitleLabel(getPlace(day.primaryPlaceId), day);
-      if (homeLabelKey && normalizeLocationKey(shortLocationLabel(primaryLabel)) === homeLabelKey) {
+      if (homeLabelKeys.has(normalizeLocationKey(shortLocationLabel(primaryLabel)))) {
         continue;
       }
       pushUniqueLocation(locations, day.id, primaryLabel);
     }
-    pushUniqueLocation(locations, day.id, dayLocationLabel(day, trip, placeById, entries));
+    {
+      const dayLabel = dayLocationLabel(day, trip, placeById, entries);
+      if (!homeLabelKeys.has(normalizeLocationKey(shortLocationLabel(dayLabel)))) {
+        pushUniqueLocation(locations, day.id, dayLabel);
+      }
+    }
 
     for (const loc of itineraryLocationsForDay(day.id, entries)) {
-      if (homeLabelKey && normalizeLocationKey(shortLocationLabel(loc)) === homeLabelKey) continue;
+      if (homeLabelKeys.has(normalizeLocationKey(shortLocationLabel(loc)))) continue;
       pushUniqueLocation(locations, day.id, loc);
     }
   }
 
   // When home is not marked, first and last unique stops are commonly home/departure/return.
-  if (!homePlaceId && locations.length > 2) {
+  if (!hasExplicitHomes && locations.length > 2) {
     return locations.slice(1, -1);
   }
   return locations.filter((loc) => !isLikelyHomeLabel(loc.label));
