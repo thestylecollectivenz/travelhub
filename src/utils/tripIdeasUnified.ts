@@ -25,7 +25,15 @@ import { itineraryLocationsForDay, resolveIdeaLocationLabel } from './ideaLocati
 
 export type UnifiedIdeaSource = 'jotter' | 'day';
 
-export type TripIdeasFilter = 'all' | 'yours' | 'ai' | 'replies' | 'complete' | 'open' | 'favourites';
+export type TripIdeasFilter =
+  | 'all'
+  | 'yours'
+  | 'ai'
+  | 'replies'
+  | 'complete'
+  | 'open'
+  | 'favourites'
+  | 'favouritesByTraveller';
 
 export interface UnifiedTripIdea {
   id: string;
@@ -147,12 +155,78 @@ export function matchesTripIdeasFilter(
     const mine = getCurrentUserEmail(spContext).trim().toLowerCase();
     return (idea.favouritedBy || []).some((e) => e.toLowerCase() === mine);
   }
+  if (filter === 'favouritesByTraveller') {
+    return (idea.favouritedBy || []).length > 0;
+  }
   return true;
 }
 
 export function ideaIsFavouritedByMe(idea: UnifiedTripIdea, spContext: WebPartContext): boolean {
   const mine = getCurrentUserEmail(spContext).trim().toLowerCase();
   return (idea.favouritedBy || []).some((e) => e.toLowerCase() === mine);
+}
+
+export function ideaHasAnyFavourite(idea: UnifiedTripIdea): boolean {
+  return (idea.favouritedBy || []).length > 0;
+}
+
+export function resolveFavouriterLabel(
+  email: string,
+  members?: TripMember[]
+): { email: string; name: string; avatarUrl?: string } {
+  const key = email.trim().toLowerCase();
+  const match = (members || []).find((m) => m.userEmail.trim().toLowerCase() === key);
+  if (match) {
+    return {
+      email: key,
+      name: (match.userDisplayName || match.userEmail || key).trim() || key,
+      avatarUrl: match.avatarUrl
+    };
+  }
+  return { email: key, name: key };
+}
+
+/** Groups open favourited ideas under each traveller who favourited them (idea may appear in multiple groups). */
+export function groupIdeasByFavouriter(
+  ideas: UnifiedTripIdea[],
+  spContext: WebPartContext,
+  members?: TripMember[]
+): Array<{ email: string; name: string; avatarUrl?: string; isMe: boolean; ideas: UnifiedTripIdea[] }> {
+  const mine = getCurrentUserEmail(spContext).trim().toLowerCase();
+  const map = new Map<string, UnifiedTripIdea[]>();
+  for (const idea of ideas) {
+    for (const raw of idea.favouritedBy || []) {
+      const email = raw.trim().toLowerCase();
+      if (!email) continue;
+      const list = map.get(email) ?? [];
+      list.push(idea);
+      map.set(email, list);
+    }
+  }
+  const groups = Array.from(map.entries()).map(([email, groupIdeas]) => {
+    const label = resolveFavouriterLabel(email, members);
+    return {
+      email,
+      name: label.name,
+      avatarUrl: label.avatarUrl,
+      isMe: email === mine,
+      ideas: groupIdeas
+    };
+  });
+  groups.sort((a, b) => {
+    if (a.isMe !== b.isMe) return a.isMe ? -1 : 1;
+    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+  });
+  return groups;
+}
+
+export function favouritedByLabels(
+  idea: UnifiedTripIdea,
+  members?: TripMember[]
+): Array<{ email: string; name: string }> {
+  return (idea.favouritedBy || [])
+    .map((e) => resolveFavouriterLabel(e, members))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 }
 
 export async function toggleUnifiedIdeaFavourite(

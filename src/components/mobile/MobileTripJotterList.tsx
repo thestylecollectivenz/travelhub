@@ -19,7 +19,10 @@ import {
 } from '../../utils/tripJotterIdeas';
 import { notifyDayIdeasChanged } from '../../hooks/useTripDayIdeas';
 import {
+  favouritedByLabels,
   formatIdeaTime,
+  groupIdeasByFavouriter,
+  ideaHasAnyFavourite,
   ideaIsFavouritedByMe,
   isIdeaRecentlyAdded,
   isUnifiedIdeaYours,
@@ -127,6 +130,7 @@ export const MobileTripJotterList: React.FC = () => {
       all: open.length,
       yours: open.filter((r) => isUnifiedIdeaYours(r, spContext, members)).length,
       favourites: open.filter((r) => ideaIsFavouritedByMe(r, spContext)).length,
+      favouritesByTraveller: open.filter((r) => ideaHasAnyFavourite(r)).length,
       ai: open.filter((r) => r.isAi).length,
       replies: open.filter((r) => r.replyCount > 0).length,
       complete: rows.filter((r) => r.isComplete).length
@@ -141,7 +145,8 @@ export const MobileTripJotterList: React.FC = () => {
         (r) =>
           r.text.toLowerCase().includes(q) ||
           (r.locationLabel || '').toLowerCase().includes(q) ||
-          (r.authorLabel || '').toLowerCase().includes(q)
+          (r.authorLabel || '').toLowerCase().includes(q) ||
+          favouritedByLabels(r, members).some((f) => f.name.toLowerCase().includes(q))
       );
     }
     list = [...list].sort((a, b) => {
@@ -150,6 +155,11 @@ export const MobileTripJotterList: React.FC = () => {
     });
     return list;
   }, [rows, filter, search, sort, spContext, members]);
+
+  const favouritesByTravellerGroups = React.useMemo(() => {
+    if (filter !== 'favouritesByTraveller') return [];
+    return groupIdeasByFavouriter(filtered, spContext, members);
+  }, [filter, filtered, spContext, members]);
 
   const addIdea = async (): Promise<void> => {
     const text = draft.trim();
@@ -249,10 +259,172 @@ export const MobileTripJotterList: React.FC = () => {
     { key: 'all', label: 'All', count: counts.all },
     { key: 'yours', label: 'Yours', count: counts.yours },
     { key: 'favourites', label: 'My favourites', count: counts.favourites },
+    { key: 'favouritesByTraveller', label: 'Favourites by traveller', count: counts.favouritesByTraveller },
     { key: 'ai', label: 'AI', count: counts.ai },
     { key: 'replies', label: 'With replies', count: counts.replies },
     { key: 'complete', label: 'Complete', count: counts.complete }
   ];
+
+  const renderIdeaCard = (idea: UnifiedTripIdea, keySuffix = ''): React.ReactNode => {
+    const author = memberForIdea(idea, members);
+    const editing = editingId === idea.id;
+    const manageable = canManage(idea);
+    const canDelete = manageable || (idea.isAi && canEditItinerary);
+    const isNew = !idea.isComplete && isIdeaRecentlyAdded(idea.createdAt);
+    const favourited = ideaIsFavouritedByMe(idea, spContext);
+    const favouriters = favouritedByLabels(idea, members);
+    return (
+      <article
+        key={`${idea.id}${keySuffix}`}
+        className={`${styles.ideaCard} ${idea.isComplete ? styles.ideaCardDone : ''} ${isNew ? styles.ideaCardNew : ''}`}
+      >
+        <div className={styles.ideaCardHead}>
+          {idea.isAi ? (
+            <span className={styles.aiAvatar} style={{ width: 34, height: 34 }} aria-hidden>
+              AI
+            </span>
+          ) : (
+            <TravellerAvatar displayName={author.name} avatarUrl={author.avatarUrl} size={34} />
+          )}
+          <div className={styles.ideaCardMeta}>
+            <div className={styles.ideaCardNameRow}>
+              <p className={styles.ideaCardName}>{author.name}</p>
+              {idea.isAi ? (
+                <span className={`${styles.ideaBadge} ${styles.badgeAi}`}>AI</span>
+              ) : idea.source === 'day' ? (
+                <span className={`${styles.ideaBadge} ${styles.badgeDay}`}>Day idea</span>
+              ) : isUnifiedIdeaYours(idea, spContext, members) ? (
+                <span className={`${styles.ideaBadge} ${styles.badgeYours}`}>Yours</span>
+              ) : null}
+              {isNew ? <span className={`${styles.ideaBadge} ${styles.badgeNew}`}>New</span> : null}
+            </div>
+            <p className={styles.ideaCardTime}>{formatIdeaTime(idea.createdAt)}</p>
+          </div>
+          <div className={styles.ideaCardActions}>
+            {canContribute ? (
+              <button
+                type="button"
+                className={favourited ? styles.favBtnOn : styles.favBtn}
+                aria-label={favourited ? 'Remove from favourites' : 'Add to favourites'}
+                aria-pressed={favourited}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void toggleFavourite(idea);
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden>
+                  <path
+                    d="M12 20.2s-7.2-4.6-7.2-10.2A4.4 4.4 0 0 1 12 6.6a4.4 4.4 0 0 1 7.2 3.4c0 5.6-7.2 10.2-7.2 10.2Z"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    fill={favourited ? 'currentColor' : 'none'}
+                  />
+                </svg>
+              </button>
+            ) : null}
+            <button type="button" className={styles.replyBtn} onClick={() => setMenuId(null)}>
+              {idea.replyCount ? `${idea.replyCount} repl${idea.replyCount === 1 ? 'y' : 'ies'} ›` : 'No replies'}
+            </button>
+            {canDelete || manageable ? (
+              <div className={styles.menuWrap}>
+                <button
+                  type="button"
+                  className={styles.menuBtn}
+                  aria-label="Idea actions"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuId(menuId === idea.id ? null : idea.id);
+                  }}
+                >
+                  …
+                </button>
+                {menuId === idea.id ? (
+                  <div className={styles.menuPanel} onClick={(e) => e.stopPropagation()}>
+                    {manageable && !idea.isAi ? (
+                      <button
+                        type="button"
+                        className={styles.menuItem}
+                        onClick={() => {
+                          setEditingId(idea.id);
+                          setEditText(idea.text);
+                          setMenuId(null);
+                        }}
+                      >
+                        Edit
+                      </button>
+                    ) : null}
+                    <button type="button" className={styles.menuItem} onClick={() => void toggleComplete(idea)}>
+                      {idea.isComplete ? 'Mark open' : 'Mark complete'}
+                    </button>
+                    <button type="button" className={styles.menuItem} onClick={() => void shareIdea(idea)}>
+                      Share
+                    </button>
+                    {canDelete ? (
+                      <button
+                        type="button"
+                        className={`${styles.menuItem} ${styles.menuItemDanger}`}
+                        onClick={() => void deleteIdea(idea)}
+                      >
+                        Delete
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        {editing ? (
+          <>
+            <textarea
+              className={styles.editInput}
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+              aria-label="Edit idea"
+              rows={3}
+            />
+            <div className={styles.composeActions}>
+              <button type="button" className={styles.composeCancel} onClick={() => setEditingId(null)}>
+                Cancel
+              </button>
+              <button type="button" className={styles.composeSave} onClick={() => void saveEdit(idea)}>
+                Save
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className={styles.ideaText}>{idea.text}</p>
+        )}
+
+        {favouriters.length ? (
+          <p className={styles.favouritedBy}>
+            Favourited by {favouriters.map((f) => f.name).join(', ')}
+          </p>
+        ) : null}
+
+        {idea.locationLabel ? (
+          <p className={styles.locationStamp}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M12 21s6.5-5.2 6.5-10.2A6.5 6.5 0 0 0 12 4.3a6.5 6.5 0 0 0-6.5 6.5C5.5 15.8 12 21 12 21Z" stroke="currentColor" strokeWidth="1.8" />
+              <circle cx="12" cy="10.8" r="2" stroke="currentColor" strokeWidth="1.8" />
+            </svg>
+            {idea.locationLabel}
+          </p>
+        ) : null}
+
+        <TripIdeaReplies
+          row={idea.reminder}
+          spContext={spContext}
+          members={members}
+          canContribute={canContribute}
+          canEditItinerary={canEditItinerary}
+          onUpdated={() => void refresh()}
+          compact
+        />
+      </article>
+    );
+  };
 
   return (
     <div>
@@ -320,158 +492,32 @@ export const MobileTripJotterList: React.FC = () => {
         </div>
       ) : null}
 
-      {!filtered.length ? <p className={chrome.muted}>No ideas match this filter yet.</p> : null}
-
-      {filtered.map((idea) => {
-        const author = memberForIdea(idea, members);
-        const editing = editingId === idea.id;
-        const manageable = canManage(idea);
-        const canDelete = manageable || (idea.isAi && canEditItinerary);
-        const isNew = !idea.isComplete && isIdeaRecentlyAdded(idea.createdAt);
-        const favourited = ideaIsFavouritedByMe(idea, spContext);
-        return (
-          <article key={idea.id} className={`${styles.ideaCard} ${idea.isComplete ? styles.ideaCardDone : ''} ${isNew ? styles.ideaCardNew : ''}`}>
-            <div className={styles.ideaCardHead}>
-              {idea.isAi ? (
-                <span className={styles.aiAvatar} style={{ width: 34, height: 34 }} aria-hidden>
-                  AI
-                </span>
-              ) : (
-                <TravellerAvatar displayName={author.name} avatarUrl={author.avatarUrl} size={34} />
-              )}
-              <div className={styles.ideaCardMeta}>
-                <div className={styles.ideaCardNameRow}>
-                  <p className={styles.ideaCardName}>{author.name}</p>
-                  {idea.isAi ? (
-                    <span className={`${styles.ideaBadge} ${styles.badgeAi}`}>AI</span>
-                  ) : idea.source === 'day' ? (
-                    <span className={`${styles.ideaBadge} ${styles.badgeDay}`}>Day idea</span>
-                  ) : isUnifiedIdeaYours(idea, spContext, members) ? (
-                    <span className={`${styles.ideaBadge} ${styles.badgeYours}`}>Yours</span>
-                  ) : null}
-                  {isNew ? <span className={`${styles.ideaBadge} ${styles.badgeNew}`}>New</span> : null}
+      {filter === 'favouritesByTraveller' ? (
+        !favouritesByTravellerGroups.length ? (
+          <p className={chrome.muted}>No favourited ideas yet. Tap the heart on an idea to save it.</p>
+        ) : (
+          favouritesByTravellerGroups.map((group) => (
+            <section key={group.email} className={styles.favouritesGroup} aria-label={`Favourites for ${group.name}`}>
+              <div className={styles.favouritesGroupHead}>
+                <TravellerAvatar displayName={group.name} avatarUrl={group.avatarUrl} size={28} />
+                <div>
+                  <h3 className={styles.favouritesGroupTitle}>
+                    {group.isMe ? `${group.name} (you)` : group.name}
+                  </h3>
+                  <p className={styles.favouritesGroupMeta}>
+                    {group.ideas.length} favourited idea{group.ideas.length === 1 ? '' : 's'}
+                  </p>
                 </div>
-                <p className={styles.ideaCardTime}>{formatIdeaTime(idea.createdAt)}</p>
               </div>
-              <div className={styles.ideaCardActions}>
-                {canContribute ? (
-                  <button
-                    type="button"
-                    className={favourited ? styles.favBtnOn : styles.favBtn}
-                    aria-label={favourited ? 'Remove from favourites' : 'Add to favourites'}
-                    aria-pressed={favourited}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void toggleFavourite(idea);
-                    }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden>
-                      <path
-                        d="M12 20.2s-7.2-4.6-7.2-10.2A4.4 4.4 0 0 1 12 6.6a4.4 4.4 0 0 1 7.2 3.4c0 5.6-7.2 10.2-7.2 10.2Z"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                        fill={favourited ? 'currentColor' : 'none'}
-                      />
-                    </svg>
-                  </button>
-                ) : null}
-                <button type="button" className={styles.replyBtn} onClick={() => setMenuId(null)}>
-                  {idea.replyCount ? `${idea.replyCount} repl${idea.replyCount === 1 ? 'y' : 'ies'} ›` : 'No replies'}
-                </button>
-                {canDelete || manageable ? (
-                  <div className={styles.menuWrap}>
-                    <button
-                      type="button"
-                      className={styles.menuBtn}
-                      aria-label="Idea actions"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setMenuId(menuId === idea.id ? null : idea.id);
-                      }}
-                    >
-                      …
-                    </button>
-                    {menuId === idea.id ? (
-                      <div className={styles.menuPanel} onClick={(e) => e.stopPropagation()}>
-                        {manageable && !idea.isAi ? (
-                          <button
-                            type="button"
-                            className={styles.menuItem}
-                            onClick={() => {
-                              setEditingId(idea.id);
-                              setEditText(idea.text);
-                              setMenuId(null);
-                            }}
-                          >
-                            Edit
-                          </button>
-                        ) : null}
-                        <button type="button" className={styles.menuItem} onClick={() => void toggleComplete(idea)}>
-                          {idea.isComplete ? 'Mark open' : 'Mark complete'}
-                        </button>
-                        <button type="button" className={styles.menuItem} onClick={() => void shareIdea(idea)}>
-                          Share
-                        </button>
-                        {canDelete ? (
-                          <button
-                            type="button"
-                            className={`${styles.menuItem} ${styles.menuItemDanger}`}
-                            onClick={() => void deleteIdea(idea)}
-                          >
-                            Delete
-                          </button>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
-            {editing ? (
-              <>
-                <textarea
-                  className={styles.editInput}
-                  value={editText}
-                  onChange={(e) => setEditText(e.target.value)}
-                  aria-label="Edit idea"
-                  rows={3}
-                />
-                <div className={styles.composeActions}>
-                  <button type="button" className={styles.composeCancel} onClick={() => setEditingId(null)}>
-                    Cancel
-                  </button>
-                  <button type="button" className={styles.composeSave} onClick={() => void saveEdit(idea)}>
-                    Save
-                  </button>
-                </div>
-              </>
-            ) : (
-              <p className={styles.ideaText}>{idea.text}</p>
-            )}
-
-            {idea.locationLabel ? (
-              <p className={styles.locationStamp}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
-                  <path d="M12 21s6.5-5.2 6.5-10.2A6.5 6.5 0 0 0 12 4.3a6.5 6.5 0 0 0-6.5 6.5C5.5 15.8 12 21 12 21Z" stroke="currentColor" strokeWidth="1.8" />
-                  <circle cx="12" cy="10.8" r="2" stroke="currentColor" strokeWidth="1.8" />
-                </svg>
-                {idea.locationLabel}
-              </p>
-            ) : null}
-
-            <TripIdeaReplies
-              row={idea.reminder}
-              spContext={spContext}
-              members={members}
-              canContribute={canContribute}
-              canEditItinerary={canEditItinerary}
-              onUpdated={() => void refresh()}
-              compact
-            />
-          </article>
-        );
-      })}
+              {group.ideas.map((idea) => renderIdeaCard(idea, `:${group.email}`))}
+            </section>
+          ))
+        )
+      ) : !filtered.length ? (
+        <p className={chrome.muted}>No ideas match this filter yet.</p>
+      ) : (
+        filtered.map((idea) => renderIdeaCard(idea))
+      )}
 
       <div className={styles.banner}>
         <p className={styles.bannerText}>💡 Ideas are better together</p>
@@ -484,6 +530,10 @@ export const MobileTripJotterList: React.FC = () => {
           <p>
             Capture ideas on the home jotter or here in Lists. AI suggestions rotate across your itinerary days and tag
             the stop they relate to.
+          </p>
+          <p>
+            Heart an idea to favourite it — companions can see each other’s favourites under Favourites by traveller, and
+            My favourites shows only yours.
           </p>
           <p>
             Tap an idea to expand replies — companions can add detail, links, or votes. Mark complete when you have

@@ -105,6 +105,37 @@
   color: #c45c5c;
 }
 
+.favouritedBy {
+  margin: 0.35rem 0 0;
+  font-size: 0.68rem;
+  color: #c45c5c;
+  font-weight: 600;
+}
+
+.favouritesGroup {
+  margin-bottom: 1.1rem;
+}
+
+.favouritesGroupHead {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0.35rem 0 0.55rem;
+}
+
+.favouritesGroupTitle {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--tl-navy);
+}
+
+.favouritesGroupMeta {
+  margin: 0.1rem 0 0;
+  font-size: 0.68rem;
+  color: var(--tl-muted);
+}
+
 .replyBtn {
   border: 1px solid var(--tl-line);
   border-radius: 999px;
