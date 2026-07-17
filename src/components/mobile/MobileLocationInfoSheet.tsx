@@ -402,6 +402,8 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
       note?: string;
       mapsUrl?: string;
       websiteUrl?: string;
+      tripadvisorUrl?: string;
+      photoUrl?: string;
       toolId?: string;
       address?: string;
       why?: string;

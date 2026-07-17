@@ -162,6 +162,8 @@ function migrateNearestPlaceRow(row: NearestPlaceRow, index: number): NearestPla
     mapsUrl: row.mapsUrl?.trim() || undefined,
     reviewsUrl: row.reviewsUrl?.trim() || undefined,
     websiteUrl: row.websiteUrl?.trim() || undefined,
+    tripadvisorUrl: row.tripadvisorUrl?.trim() || undefined,
+    photoUrl: row.photoUrl?.trim() || undefined,
     servicesSummary: row.servicesSummary?.trim() || undefined,
     nearLabel: typeof row.nearLabel === 'string' ? row.nearLabel.trim() || undefined : undefined
   };
@@ -207,6 +209,8 @@ function migrateDiningSuggestions(raw?: DiningSuggestionRow[] | LocationInfoChec
         mapsUrl: row.mapsUrl?.trim() || undefined,
         reviewsUrl: row.reviewsUrl?.trim() || undefined,
         websiteUrl: row.websiteUrl?.trim() || undefined,
+        tripadvisorUrl: row.tripadvisorUrl?.trim() || undefined,
+        photoUrl: row.photoUrl?.trim() || undefined,
         done: Boolean(row.done),
         nearLabel: typeof row.nearLabel === 'string' ? row.nearLabel.trim() || undefined : undefined
       });

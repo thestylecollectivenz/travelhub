@@ -36,7 +36,15 @@ export interface MobileNearYouResultsProps {
     mapsUrl?: string;
     websiteUrl?: string;
   }) => void | Promise<void>;
-  onSavePlace?: (place: { name: string; note?: string; mapsUrl?: string; websiteUrl?: string; toolId?: string }) => boolean | void;
+  onSavePlace?: (place: {
+    name: string;
+    note?: string;
+    mapsUrl?: string;
+    websiteUrl?: string;
+    tripadvisorUrl?: string;
+    photoUrl?: string;
+    toolId?: string;
+  }) => boolean | void;
 }
 
 type ViewMode = 'map' | 'list' | 'ai';
@@ -73,6 +81,8 @@ function toCardsFromDining(items: DiningSuggestionRow[]): NearYouCachedResult[] 
     priceLevel: p.priceLevel,
     mapsUrl: p.mapsUrl || placeQueryMapsUrl(p.name),
     websiteUrl: p.websiteUrl || placeWebsiteSearchUrl(p.name),
+    tripadvisorUrl: p.tripadvisorUrl,
+    photoUrl: p.photoUrl,
     reviewsUrl: p.reviewsUrl,
     aiBlurb: p.why || p.description || p.bestFor,
     topPick: i === 0
@@ -87,6 +97,8 @@ function toCardsFromNearest(places: NearestPlaceRow[]): NearYouCachedResult[] {
     address: p.address,
     mapsUrl: p.mapsUrl || placeQueryMapsUrl(p.name, p.address),
     websiteUrl: p.websiteUrl || placeWebsiteSearchUrl(p.name, p.address),
+    tripadvisorUrl: p.tripadvisorUrl,
+    photoUrl: p.photoUrl,
     reviewsUrl: p.reviewsUrl,
     aiBlurb: p.note || p.servicesSummary,
     topPick: i === 0
@@ -405,6 +417,8 @@ export const MobileNearYouResults: React.FC<MobileNearYouResultsProps> = ({
                       note: r.note,
                       mapsUrl: r.mapsUrl,
                       websiteUrl: r.websiteUrl,
+                      tripadvisorUrl: r.tripadvisorUrl,
+                      photoUrl: r.photoUrl,
                       toolId
                     });
                     if (saved !== false) showToast(locationEntryId ? `Saved · ${r.name}` : `Saved · ${r.name}`);

@@ -443,10 +443,20 @@ export const MobileCruiseDetail: React.FC<MobileCruiseDetailProps> = ({
                 title="Open listing"
                 onClick={(e) => openUrl(heroClickUrl, e)}
               >
-                <img className={styles.heroPhoto} src={heroSrc} alt="" />
+                <img
+                  className={styles.heroPhoto}
+                  src={heroSrc}
+                  alt=""
+                  onError={() => setHeroSrc(stayHeroPlaceholderUrl(heroTitle, heroPlace, 'cruise'))}
+                />
               </a>
             ) : (
-              <img className={styles.heroPhoto} src={heroSrc} alt="" />
+              <img
+                className={styles.heroPhoto}
+                src={heroSrc}
+                alt=""
+                onError={() => setHeroSrc(stayHeroPlaceholderUrl(heroTitle, heroPlace, 'cruise'))}
+              />
             )}
           </div>
           <div className={styles.heroCopy}>

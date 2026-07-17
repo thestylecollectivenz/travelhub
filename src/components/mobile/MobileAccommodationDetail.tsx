@@ -442,10 +442,20 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
                 title="Open hotel website"
                 onClick={(e) => openMobileExternalUrl(heroClickUrl, e)}
               >
-                <img className={styles.heroPhoto} src={heroSrc} alt="" />
+                <img
+                  className={styles.heroPhoto}
+                  src={heroSrc}
+                  alt=""
+                  onError={() => setHeroSrc(stayHeroPlaceholderUrl(heroTitle, heroPlace, 'accommodation'))}
+                />
               </a>
             ) : (
-              <img className={styles.heroPhoto} src={heroSrc} alt="" />
+              <img
+                className={styles.heroPhoto}
+                src={heroSrc}
+                alt=""
+                onError={() => setHeroSrc(stayHeroPlaceholderUrl(heroTitle, heroPlace, 'accommodation'))}
+              />
             )}
           </div>
           <div className={styles.heroCopy}>

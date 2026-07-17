@@ -23,6 +23,7 @@ import { isTripHomePlace, toggleTripHomePlaceId } from '../../utils/tripHomePlac
 import { resolveDestinationHeroPhoto } from '../../utils/placePhotoResolve';
 import { scheduleLocationInfoQuestion } from '../../utils/locationInfoGeneration';
 import { useSpContext } from '../../context/SpContext';
+import { openMobileExternalUrl } from '../../hooks/useMobileDetailHistory';
 import {
   exploreCategoriesSorted,
   savedRowToExploreCategory,
@@ -135,6 +136,9 @@ type FeaturedCard = {
   distanceRaw?: string;
   address?: string;
   mapsUrl?: string;
+  websiteUrl?: string;
+  tripadvisorUrl?: string;
+  photoUrl?: string;
   city?: string;
   nearLabel?: string;
 };
@@ -155,6 +159,9 @@ function buildFeaturedCards(data: LocationInfoNotes, city: string): FeaturedCard
     distanceRaw: row.description,
     address: row.address,
     mapsUrl: row.mapsUrl,
+    websiteUrl: row.websiteUrl,
+    tripadvisorUrl: row.tripadvisorUrl,
+    photoUrl: row.photoUrl,
     city,
     nearLabel: row.nearLabel
   }));
@@ -178,6 +185,9 @@ function buildFeaturedCards(data: LocationInfoNotes, city: string): FeaturedCard
         distanceRaw: row.note,
         address: row.address,
         mapsUrl: row.mapsUrl,
+        websiteUrl: row.websiteUrl,
+        tripadvisorUrl: row.tripadvisorUrl,
+        photoUrl: row.photoUrl,
         city,
         nearLabel: row.nearLabel
       });
@@ -484,6 +494,7 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
                 rel="noopener noreferrer"
                 aria-label="Open photo source"
                 title="Open photo source"
+                onClick={(e) => openMobileExternalUrl(heroPhoto.sourceUrl, e)}
               />
             ) : null}
           </div>
@@ -656,8 +667,12 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
                             distanceRaw: card.distanceRaw,
                             address: card.address,
                             mapsUrl: card.mapsUrl,
+                            websiteUrl: card.websiteUrl,
+                            tripadvisorUrl: card.tripadvisorUrl,
+                            photoUrl: card.photoUrl,
                             city: card.city || shortPlace,
-                            nearLabel: card.nearLabel
+                            nearLabel: card.nearLabel,
+                            photoKind: card.exploreCategory === 'sights' || card.exploreCategory === 'parks' || card.exploreCategory === 'museums' || card.exploreCategory === 'viewpoints' ? 'landmark' : 'venue'
                           }}
                           secondaryAction={
                             onAddSavedPlaceToItinerary

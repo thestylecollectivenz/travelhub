@@ -21,6 +21,8 @@ export function appendNearYouPlaceToLocationInfo(
     note?: string;
     mapsUrl?: string;
     websiteUrl?: string;
+    tripadvisorUrl?: string;
+    photoUrl?: string;
     address?: string;
     why?: string;
     bestFor?: string;
@@ -48,6 +50,8 @@ export function appendNearYouPlaceToLocationInfo(
       address: place.address,
       mapsUrl: place.mapsUrl,
       websiteUrl: place.websiteUrl,
+      tripadvisorUrl: place.tripadvisorUrl,
+      photoUrl: place.photoUrl,
       done: false,
       nearLabel: anchor
     };
@@ -71,6 +75,8 @@ export function appendNearYouPlaceToLocationInfo(
     servicesSummary: place.servicesSummary || place.why || place.note,
     mapsUrl: place.mapsUrl,
     websiteUrl: place.websiteUrl,
+    tripadvisorUrl: place.tripadvisorUrl,
+    photoUrl: place.photoUrl,
     nearLabel: anchor
   };
   return normalizeLocationInfoNotes({

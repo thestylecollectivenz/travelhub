@@ -26,12 +26,12 @@ export function serializeHomePlaceIds(ids: string[] | undefined): string {
   return uniqueIds(ids || []).join(';');
 }
 
-export function tripHomePlaceIds(trip: Pick<Trip, 'homePlaceIds'> | undefined): string[] {
+export function tripHomePlaceIds(trip: Pick<Trip, 'homePlaceIds'> | null | undefined): string[] {
   return trip?.homePlaceIds?.length ? [...trip.homePlaceIds] : [];
 }
 
 export function isTripHomePlace(
-  trip: Pick<Trip, 'homePlaceIds'> | undefined,
+  trip: Pick<Trip, 'homePlaceIds'> | null | undefined,
   placeId: string | undefined
 ): boolean {
   const id = (placeId || '').trim();

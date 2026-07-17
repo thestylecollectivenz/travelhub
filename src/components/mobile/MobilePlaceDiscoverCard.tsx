@@ -1,9 +1,10 @@
 import * as React from 'react';
 import { useConfig } from '../../context/ConfigContext';
-import { resolveDestinationHeroPhoto } from '../../utils/placePhotoResolve';
 import { placeDirectionsFromHereUrl, placeDirectionsFromCoordsUrl, placeDirectionsFromOriginUrl, googleMapsDirectionsBetweenCoordsUrl, placeQueryMapsUrl } from '../../utils/googleMapsLink';
 import { formatModeMinutes } from '../../utils/travelModeDurations';
 import { openMobileExternalUrl } from '../../hooks/useMobileDetailHistory';
+import { normalizeHttpsUrl } from '../../utils/imageUrlUtils';
+import { resolvePlaceCardPhoto } from '../../utils/resolvePlaceCardPhoto';
 import styles from './MobilePlaceDiscoverCard.module.css';
 
 export type PlaceDiscoverCardModel = {
@@ -187,7 +188,7 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
   cityFallback,
   layout = 'list',
   directionsOrigin,
-  preferProvidedPhoto = false,
+  preferProvidedPhoto: _preferProvidedPhoto = false,
   primaryAction,
   secondaryAction,
   tertiaryAction
@@ -205,46 +206,30 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
   React.useEffect(() => {
     let cancelled = false;
     const run = async (): Promise<void> => {
-      const providedPhoto = (card.photoUrl || '').trim();
-      const tripadvisor = (card.tripadvisorUrl || '').trim();
-      const website = (card.websiteUrl || '').trim();
-      const providedClick = tripadvisor || website || placeQueryMapsUrl(card.name, card.address) || '';
-
-      if (preferProvidedPhoto || providedPhoto || tripadvisor) {
-        if (!cancelled) {
-          setPhoto({
-            imageUrl: providedPhoto,
-            sourceUrl: providedClick,
-            displayName: card.name,
-            provider: 'other'
-          });
+      const hit = await resolvePlaceCardPhoto({
+        name: card.name,
+        address: card.address,
+        city,
+        latitude: card.latitude,
+        longitude: card.longitude,
+        photoKind: card.photoKind,
+        photoUrl: card.photoUrl,
+        tripadvisorUrl: card.tripadvisorUrl,
+        websiteUrl: card.websiteUrl,
+        googleMapsApiKey: config.googleMapsApiKey
+      });
+      if (cancelled) return;
+      setPhoto(
+        hit || {
+          imageUrl: '',
+          sourceUrl:
+            normalizeHttpsUrl(card.tripadvisorUrl) ||
+            normalizeHttpsUrl(card.websiteUrl) ||
+            placeQueryMapsUrl(card.name, card.address) ||
+            '',
+          displayName: card.name
         }
-        return;
-      }
-
-      if (card.photoKind === 'landmark') {
-        const hit = await resolveDestinationHeroPhoto(card.name, city);
-        if (!cancelled) {
-          setPhoto(
-            hit || {
-              imageUrl: '',
-              sourceUrl: placeQueryMapsUrl(card.name, card.address) || '',
-              provider: undefined
-            }
-          );
-        }
-        return;
-      }
-
-      // Prefer Gemini-provided media; avoid Google Places photos for Explore venues.
-      if (!cancelled) {
-        setPhoto({
-          imageUrl: providedPhoto,
-          sourceUrl: providedClick || placeQueryMapsUrl(card.name, card.address) || '',
-          displayName: card.name,
-          provider: providedPhoto ? 'other' : undefined
-        });
-      }
+      );
     };
     void run();
     return () => {
@@ -260,7 +245,6 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
     card.latitude,
     card.longitude,
     city,
-    preferProvidedPhoto,
     config.googleMapsApiKey
   ]);
 
@@ -298,10 +282,10 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
       undefined;
 
   const listingHref =
-    (card.tripadvisorUrl || '').trim() ||
-    (card.websiteUrl || '').trim() ||
-    (photo?.sourceUrl || '').trim() ||
-    (card.mapsUrl || '').trim() ||
+    normalizeHttpsUrl(card.tripadvisorUrl) ||
+    normalizeHttpsUrl(card.websiteUrl) ||
+    normalizeHttpsUrl(photo?.sourceUrl) ||
+    normalizeHttpsUrl(card.mapsUrl) ||
     placeQueryMapsUrl(displayName, card.address) ||
     placeQueryMapsUrl(destQuery) ||
     undefined;

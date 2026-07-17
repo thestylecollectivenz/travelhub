@@ -1,3 +1,6 @@
+import { isLikelyImageUrl, normalizeHttpsUrl, probeImageLoads } from './imageUrlUtils';
+import { resolveVenueListingPhoto } from './venueListingPhoto';
+
 const CACHE_KEY = 'travelhub-stay-hero-images-v8';
 
 type CacheRow = Record<string, string>;
@@ -268,10 +271,14 @@ async function resolveGeminiStayMedia(
       };
       const photoUrl = (parsed.photoUrl || '').trim();
       const clickUrl =
-        (parsed.tripadvisorUrl || '').trim() || (parsed.websiteUrl || '').trim() || undefined;
+        normalizeHttpsUrl(parsed.tripadvisorUrl) || normalizeHttpsUrl(parsed.websiteUrl) || undefined;
       if (!photoUrl && !clickUrl) continue;
+      let imageUrl: string | undefined;
+      if (photoUrl && isLikelyImageUrl(photoUrl) && (await probeImageLoads(photoUrl))) {
+        imageUrl = photoUrl;
+      }
       return {
-        imageUrl: photoUrl || undefined,
+        imageUrl,
         clickUrl,
         displayName: (parsed.displayName || '').trim() || undefined
       };
@@ -293,7 +300,6 @@ export async function resolveStayHero(
   googleMapsApiKey?: string,
   geminiApiKey?: string
 ): Promise<StayHeroResolved> {
-  void googleMapsApiKey;
   const name = title.trim() || (mode === 'cruise' ? 'Cruise ship' : 'Hotel');
   const place = location.trim();
   const clickFallback = listingFallbackUrl(name, place);
@@ -308,7 +314,19 @@ export async function resolveStayHero(
   if (geminiKey) {
     const hit = await resolveGeminiStayMedia(name, place, mode, geminiKey);
     if (hit?.imageUrl || hit?.clickUrl) {
-      const imageUrl = (hit.imageUrl || '').trim() || (await resolveLegacyStayImage(name, place, mode, key, cache));
+      let imageUrl = (hit.imageUrl || '').trim();
+      if (imageUrl && !(await probeImageLoads(imageUrl))) {
+        imageUrl = '';
+      }
+      if (!imageUrl) {
+        const venue = await resolveVenueListingPhoto({
+          name,
+          address: place,
+          city: place,
+          googleMapsApiKey
+        });
+        imageUrl = (venue?.imageUrl || '').trim() || (await resolveLegacyStayImage(name, place, mode, key, cache));
+      }
       const resolved: StayHeroResolved = {
         imageUrl,
         clickUrl: (hit.clickUrl || '').trim() || clickFallback,
@@ -322,7 +340,14 @@ export async function resolveStayHero(
     }
   }
 
-  const imageUrl = await resolveLegacyStayImage(name, place, mode, key, cache);
+  const venue = await resolveVenueListingPhoto({
+    name,
+    address: place,
+    city: place,
+    googleMapsApiKey
+  });
+  const imageUrl =
+    (venue?.imageUrl || '').trim() || (await resolveLegacyStayImage(name, place, mode, key, cache));
   const { placeWebsiteSearchUrl } = await import('./googleMapsLink');
   const resolved: StayHeroResolved = {
     imageUrl,

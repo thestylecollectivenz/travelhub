@@ -70,6 +70,8 @@ export interface MobileExplorePlacesViewProps {
     note?: string;
     mapsUrl?: string;
     websiteUrl?: string;
+    tripadvisorUrl?: string;
+    photoUrl?: string;
     toolId?: string;
     address?: string;
     why?: string;
@@ -695,6 +697,8 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
                             note: r.distanceRaw || r.note,
                             mapsUrl: r.mapsUrl,
                             websiteUrl: r.websiteUrl,
+                            tripadvisorUrl: r.tripadvisorUrl,
+                            photoUrl: r.photoUrl,
                             toolId: saveToolId,
                             address: r.address,
                             why: r.aiBlurb,
