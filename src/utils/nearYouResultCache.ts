@@ -10,6 +10,8 @@ export interface NearYouCachedResult {
   reviewsUrl?: string;
   tripadvisorUrl?: string;
   photoUrl?: string;
+  /** Google Place ID when the result came from Google Places (accurate directions). */
+  placeId?: string;
   aiBlurb?: string;
   topPick?: boolean;
   latitude?: number;

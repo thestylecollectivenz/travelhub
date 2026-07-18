@@ -7,6 +7,7 @@ import { ensureHomePlaceIdOnTrips } from './ensureHomePlaceIdOnTrips';
 import { ensureUserConfigColumns } from './ensureUserConfigColumns';
 import { ensureAppConfigList } from './ensureAppConfigList';
 import { ensureItineraryTransportColumns } from './ensureItineraryTransportColumns';
+import { ensureNearbySearchCacheList } from './ensureNearbySearchCacheList';
 import { runOwnerEmailBackfill } from './backfillOwnerEmail';
 import { runTripEditorEmailBackfill } from './backfillTripEditorEmail';
 
@@ -30,6 +31,7 @@ export function runTravelHubProvisioning(ctx: WebPartContext): void {
       await ensureEditorEmailOnTrips(ctx);
       await ensureHomePlaceIdOnTrips(ctx);
       await ensureItineraryTransportColumns(ctx);
+      await ensureNearbySearchCacheList(ctx);
       runOwnerEmailBackfill(ctx);
       runTripEditorEmailBackfill(ctx);
     } catch (err) {

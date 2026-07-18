@@ -1,26 +1,23 @@
 import * as React from 'react';
 import type { Place } from '../../models/Place';
 import { useConfig } from '../../context/ConfigContext';
-import { generateDiningSuggestions, generateNearestPlaces } from '../../services/GeminiService';
-import type { DiningSuggestionRow, NearestPlaceRow } from '../../utils/locationInfoEntry';
+import { useSpContext } from '../../context/SpContext';
 import { MOBILE_NEAR_YOU_ON_SITE_KM, resolveLocationSearchContext } from '../../utils/locationGeoContext';
-import { placeQueryMapsUrl, placeWebsiteSearchUrl } from '../../utils/googleMapsLink';
 import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
 import {
   exploreCategoryById,
-  exploreCategoryDiningFocus,
-  exploreCategoryNearestKind,
   exploreCategoryToNearTool,
   normalizeExploreCategory,
   type ExploreCategoryId
 } from '../../utils/exploreCategories';
+import type { NearYouCachedResult } from '../../utils/nearYouResultCache';
+import { searchNearbyPlaces } from '../../utils/searchNearbyPlaces';
 import {
-  loadNearYouCache,
-  nearYouScopeForHome,
-  nearYouScopeForLocation,
-  saveNearYouCache,
-  type NearYouCachedResult
-} from '../../utils/nearYouResultCache';
+  estimateDriveMinutesFromMetres,
+  estimateWalkMinutesFromMetres,
+  formatDistanceMetres,
+  type NearbyPlace
+} from '../../utils/nearbyPlaceModel';
 import { parseDistanceKm } from '../../utils/locationDistanceLabel';
 import type { NearYouToolId } from '../../utils/nearYouTools';
 import type { StoredStartPoint } from '../../utils/locationStartPointStorage';
@@ -115,64 +112,47 @@ function isAttractionCategory(id: ExploreCategoryId): boolean {
   return ATTRACTION_CATEGORIES.indexOf(id) >= 0;
 }
 
-function toCardsFromDining(items: DiningSuggestionRow[], categoryLabel: string): ExploreCard[] {
-  return items.map((p, i) => ({
-    id: p.id,
-    name: p.name,
-    note: p.description || p.bestFor,
-    address: p.address,
-    rating: p.rating,
-    priceLevel: p.priceLevel,
-    mapsUrl: p.mapsUrl || placeQueryMapsUrl(p.name, p.address),
-    websiteUrl: p.websiteUrl || placeWebsiteSearchUrl(p.name, p.address),
-    reviewsUrl: p.reviewsUrl,
-    tripadvisorUrl: p.tripadvisorUrl,
-    photoUrl: p.photoUrl,
-    aiBlurb: p.why || p.bestFor,
-    topPick: i === 0,
-    categoryLabel,
-    tags: [p.bestFor, p.priceLevel].filter(Boolean).slice(0, 3) as string[],
-    walkHint: p.description,
-    distanceRaw: p.description,
-    latitude: p.latitude,
-    longitude: p.longitude,
-    walkMinutes: p.walkMinutes,
-    driveMinutes: p.driveMinutes,
-    transitMinutes: p.transitMinutes
-  }));
+function prettyType(type: string | undefined): string {
+  return (type || '')
+    .replace(/_/g, ' ')
+    .replace(/^\w/, (c) => c.toUpperCase());
 }
 
-function toCardsFromNearest(places: NearestPlaceRow[], categoryLabel: string): ExploreCard[] {
+function factualSummary(p: NearbyPlace): string {
+  const parts: string[] = [];
+  const type = prettyType(p.primaryType);
+  if (type) parts.push(type);
+  if (Number.isFinite(Number(p.reviewCount)) && Number(p.reviewCount) > 0) {
+    parts.push(`${Number(p.reviewCount).toLocaleString()} reviews`);
+  }
+  if (p.isOpenNow === true) parts.push('Open now');
+  if (p.source === 'openstreetmap') parts.push('OpenStreetMap');
+  return parts.join(' · ');
+}
+
+function toCardsFromNearby(places: NearbyPlace[], categoryLabel: string): ExploreCard[] {
   return places.map((p, i) => ({
     id: p.id,
     name: p.name,
-    note: p.note || p.servicesSummary,
+    note: formatDistanceMetres(p.distanceMetres),
     address: p.address,
-    mapsUrl: p.mapsUrl || placeQueryMapsUrl(p.name, p.address),
-    websiteUrl: p.websiteUrl || placeWebsiteSearchUrl(p.name, p.address),
-    reviewsUrl: p.reviewsUrl,
-    tripadvisorUrl: p.tripadvisorUrl,
+    rating: p.rating,
+    priceLevel: p.priceLevel,
+    mapsUrl: p.mapsUrl,
+    websiteUrl: p.websiteUrl,
     photoUrl: p.photoUrl,
-    aiBlurb: p.servicesSummary || p.note,
+    placeId: p.source === 'google' ? p.sourcePlaceId : undefined,
+    aiBlurb: factualSummary(p),
     topPick: i === 0,
     categoryLabel,
-    tags: (p.servicesSummary || '')
-      .split(/[,;·|/]/)
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .slice(0, 3),
-    walkHint: p.note,
-    distanceRaw: p.note,
+    tags: [p.priceLevel, p.isOpenNow === true ? 'Open now' : undefined].filter(Boolean) as string[],
+    walkHint: formatDistanceMetres(p.distanceMetres),
+    distanceRaw: formatDistanceMetres(p.distanceMetres),
     latitude: p.latitude,
     longitude: p.longitude,
-    walkMinutes: p.walkMinutes,
-    driveMinutes: p.driveMinutes,
-    transitMinutes: p.transitMinutes
+    walkMinutes: estimateWalkMinutesFromMetres(p.distanceMetres),
+    driveMinutes: estimateDriveMinutesFromMetres(p.distanceMetres)
   }));
-}
-
-function cacheToolKey(category: ExploreCategoryId): string {
-  return `explore:${category}`;
 }
 
 export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = ({
@@ -203,6 +183,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   onSavePlace
 }) => {
   const { config } = useConfig();
+  const spCtx = useSpContext();
   const isGps = mode === 'gps';
   const shortPlace = isGps
     ? 'your area'
@@ -211,6 +192,8 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState('');
   const [fromCache, setFromCache] = React.useState(false);
+  const [lastRefreshed, setLastRefreshed] = React.useState('');
+  const [staleWarning, setStaleWarning] = React.useState('');
   const [results, setResults] = React.useState<ExploreCard[]>([]);
   const [visibleCount, setVisibleCount] = React.useState(6);
   const [toast, setToast] = React.useState('');
@@ -271,45 +254,20 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
 
   const load = React.useCallback(
     async (forceRefresh = false): Promise<void> => {
-      const apiKey = (config.geminiApiKey || '').trim();
-      if (!apiKey) {
-        setError('Add a Gemini API key in Profile / User settings.');
-        setResults([]);
-        return;
-      }
       const coords =
         overrideLat != null && overrideLng != null ? { lat: overrideLat, lng: overrideLng } : undefined;
-      const cacheScope = isGps
-        ? nearYouScopeForHome()
-        : nearYouScopeForLocation(locationEntryId, coords);
-      const toolKey = cacheToolKey(category);
-      const focus = exploreCategoryDiningFocus(category);
-      const nearestKind = exploreCategoryNearestKind(category);
-      const useCache = Boolean(focus || nearestKind || exploreCategoryToNearTool(category));
 
-      if (!forceRefresh && useCache) {
-        const cached = loadNearYouCache(cacheScope, toolKey);
-        if (cached?.results?.length) {
-          setResults(
-            cached.results.map((r, i) => ({
-              ...r,
-              categoryLabel: catDef.label,
-              tags: [r.priceLevel, r.note].filter(Boolean).slice(0, 3) as string[],
-              walkHint: r.note,
-              distanceRaw: r.note,
-              topPick: i === 0
-            }))
-          );
-          setFromCache(true);
-          setError('');
-          return;
-        }
+      const mapsKey = (config.googleMapsApiKey || '').trim();
+      if (!mapsKey) {
+        setError('Add a Google Maps API key in Profile / User settings to search nearby places.');
+        if (!forceRefresh) setResults([]);
+        return;
       }
 
       setBusy(true);
       setError('');
-      setFromCache(false);
-      setResults([]);
+      setStaleWarning('');
+      if (forceRefresh) setFromCache(false);
       try {
         let searchContext;
         if (isGps) {
@@ -349,31 +307,22 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
           return;
         }
 
-        let cards: ExploreCard[] = [];
-        const diningFocus = exploreCategoryDiningFocus(category);
-        if (diningFocus) {
-          const { items } = await generateDiningSuggestions({
-            apiKey,
-            searchContext,
-            venueFocus: diningFocus
-          });
-          cards = toCardsFromDining(items, catDef.label);
-        } else if (nearestKind) {
-          const { places } = await generateNearestPlaces(nearestKind, { apiKey, searchContext });
-          cards = toCardsFromNearest(places, catDef.label);
-        } else {
-          setError(`No AI search configured for ${catDef.label}.`);
-          return;
-        }
-        setResults(cards);
+        // Factual search: Google Places first, OSM fallback — never Gemini.
+        const response = await searchNearbyPlaces({
+          ctx: spCtx,
+          googleMapsApiKey: mapsKey,
+          originLatitude: searchContext.latitude,
+          originLongitude: searchContext.longitude,
+          categoryId: category,
+          forceRefresh,
+          locationEntryId: isGps ? undefined : locationEntryId || undefined
+        });
+
+        setResults(toCardsFromNearby(response.results, catDef.label));
         setVisibleCount(6);
-        if (useCache && cards.length > 0) {
-          saveNearYouCache(cacheScope, toolKey, {
-            results: cards,
-            fetchedAt: new Date().toISOString(),
-            contextLabel: isGps ? 'Near your current location' : `Near ${stayName}`
-          });
-        }
+        setFromCache(response.cache.status === 'hit' || response.cache.status === 'stale-fallback');
+        setLastRefreshed(response.cache.searchedAt);
+        if (response.warning) setStaleWarning(response.warning);
       } catch (err) {
         setResults([]);
         setError(err instanceof Error ? err.message : 'Could not find nearby places.');
@@ -385,13 +334,13 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
       anchorLabel,
       catDef.label,
       category,
-      config.geminiApiKey,
+      config.googleMapsApiKey,
       isGps,
       locationEntryId,
       overrideLat,
       overrideLng,
       place,
-      stayName
+      spCtx
     ]
   );
 
@@ -625,7 +574,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
         <div className={styles.results}>
           <div className={styles.resultsHead}>
             <p className={styles.resultsCount}>
-              {busy && !results.length ? 'Searching…' : `${filtered.length} places found`}
+              {busy && !results.length ? 'Searching for places…' : `${filtered.length} places found`}
               {fromCache ? ' · cached' : ''}
             </p>
             <div className={styles.resultsHeadActions}>
@@ -646,9 +595,16 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
               ) : null}
             </div>
           </div>
-          {fromCache ? (
-            <p className={styles.cachedNote}>Showing cached results · tap ↻ to refresh</p>
+          {lastRefreshed ? (
+            <p className={styles.cachedNote}>
+              Last refreshed {new Date(lastRefreshed).toLocaleString()}
+              {fromCache ? ' · tap ↻ for live results' : ''}
+            </p>
           ) : null}
+          {busy && results.length ? (
+            <p className={styles.cachedNote}>Searching for updated places…</p>
+          ) : null}
+          {staleWarning ? <p className={styles.cachedNote}>{staleWarning}</p> : null}
 
           {error ? <p className={styles.error}>{error}</p> : null}
 
@@ -677,6 +633,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
                   websiteUrl: r.websiteUrl,
                   tripadvisorUrl: r.tripadvisorUrl,
                   photoUrl: r.photoUrl,
+                  placeId: r.placeId,
                   tags: r.tags,
                   city: shortPlace,
                   latitude: r.latitude,
@@ -740,8 +697,8 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
           ) : null}
 
           <p className={styles.disclaimer}>
-            Place suggestions are AI-generated and may be incomplete or outdated. Always verify opening hours,
-            prices, and directions before you go.
+            Results are from Google Places and OpenStreetMap. Always verify opening hours, prices, and
+            directions before you go.
           </p>
         </div>
       </div>

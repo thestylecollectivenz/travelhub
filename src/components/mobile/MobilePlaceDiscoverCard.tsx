@@ -1,9 +1,10 @@
 import * as React from 'react';
 import { useConfig } from '../../context/ConfigContext';
-import { placeDirectionsFromHereUrl, placeDirectionsFromCoordsUrl, placeDirectionsFromOriginUrl, googleMapsDirectionsBetweenCoordsUrl, placeQueryMapsUrl } from '../../utils/googleMapsLink';
+import { placeDirectionsFromHereUrl, placeDirectionsFromCoordsUrl, placeDirectionsFromOriginUrl, placeQueryMapsUrl } from '../../utils/googleMapsLink';
 import { formatModeMinutes } from '../../utils/travelModeDurations';
 import { openMobileExternalUrl } from '../../hooks/useMobileDetailHistory';
 import { normalizeHttpsUrl } from '../../utils/imageUrlUtils';
+import { nearbyDirectionsUrl } from '../../utils/nearbyPlaceModel';
 import { resolvePlaceCardPhoto } from '../../utils/resolvePlaceCardPhoto';
 import styles from './MobilePlaceDiscoverCard.module.css';
 
@@ -30,6 +31,8 @@ export type PlaceDiscoverCardModel = {
   /** Gemini / TripAdvisor image URL when available. */
   photoUrl?: string;
   tripadvisorUrl?: string;
+  /** Google Place ID when the result came from Google Places (accurate directions). */
+  placeId?: string;
 };
 
 export type PlaceDiscoverPrimaryKind = 'save' | 'delete' | 'label';
@@ -262,11 +265,12 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
     [displayName, city].filter(Boolean).join(', ');
   const directions = directionsOrigin
     ? Number.isFinite(card.latitude) && Number.isFinite(card.longitude)
-      ? googleMapsDirectionsBetweenCoordsUrl(
+      ? nearbyDirectionsUrl(
           directionsOrigin.lat,
           directionsOrigin.lng,
           Number(card.latitude),
-          Number(card.longitude)
+          Number(card.longitude),
+          card.placeId
         )
       : placeDirectionsFromOriginUrl(
           directionsOrigin.lat,
