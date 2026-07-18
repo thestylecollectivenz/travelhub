@@ -1,5 +1,6 @@
 import type { ResolvedPlacePhoto } from './placePhotoResolve';
 import { reverseGeocodeAddress } from './googlePlacePhoto';
+import { loadGoogleMapsPlacesScript } from './googleMapsScriptLoader';
 
 type CacheRow = Record<string, ResolvedPlacePhoto>;
 const CACHE_KEY = 'travelhub-venue-photos-v5';
@@ -133,51 +134,11 @@ declare global {
   }
 }
 
-function loadGoogleMapsPlaces(apiKey: string): Promise<typeof window.google | undefined> {
+async function loadGoogleMapsPlaces(apiKey: string): Promise<typeof window.google | undefined> {
   const w = window;
-  if (w.google?.maps?.places) return Promise.resolve(w.google);
-  return new Promise((resolve) => {
-    let settled = false;
-    const done = (value: typeof window.google | undefined): void => {
-      if (settled) return;
-      settled = true;
-      resolve(value);
-    };
-    // Never hang photo loading if the Maps script stalls.
-    const timeout = window.setTimeout(() => done(w.google?.maps?.places ? w.google : undefined), 6000);
-
-    const existing = document.querySelector<HTMLScriptElement>('script[data-th-google-places]');
-    if (existing) {
-      if (w.google?.maps?.places) {
-        window.clearTimeout(timeout);
-        done(w.google);
-        return;
-      }
-      existing.addEventListener('load', () => {
-        window.clearTimeout(timeout);
-        done(w.google?.maps?.places ? w.google : undefined);
-      });
-      existing.addEventListener('error', () => {
-        window.clearTimeout(timeout);
-        done(undefined);
-      });
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.dataset.thGooglePlaces = '1';
-    script.async = true;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places`;
-    script.onload = () => {
-      window.clearTimeout(timeout);
-      done(w.google?.maps?.places ? w.google : undefined);
-    };
-    script.onerror = () => {
-      window.clearTimeout(timeout);
-      done(undefined);
-    };
-    document.head.appendChild(script);
-  });
+  if (w.google?.maps?.places) return w.google;
+  await loadGoogleMapsPlacesScript(apiKey);
+  return w.google?.maps?.places ? w.google : undefined;
 }
 
 async function googleJsPlacePhoto(options: {

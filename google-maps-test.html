@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
+  <title>Google Maps and Places API Test</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+
+    #status {
+      padding: 12px;
+      margin-bottom: 15px;
+      background: #f3f3f3;
+      white-space: pre-wrap;
+      border-radius: 6px;
+    }
+
+    #map {
+      width: 100%;
+      height: 450px;
+      margin-bottom: 20px;
+    }
+
+    #results {
+      max-width: 900px;
+    }
+
+    .place {
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 10px;
+      cursor: pointer;
+    }
+
+    .place:hover {
+      background: #f5f5f5;
+    }
+
+    .place-name {
+      font-size: 17px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .place-detail {
+      margin-top: 3px;
+      color: #444;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Google Maps and Legacy Places API Test</h1>
+
+  <div id="status">Loading Google Maps…</div>
+
+  <div id="map"></div>
+
+  <h2>Actual places returned</h2>
+
+  <div id="results">
+    Waiting for results…
+  </div>
+
+  <script>
+    let map;
+    let infoWindow;
+
+    function initMap() {
+      const statusBox = document.getElementById("status");
+      const resultsBox = document.getElementById("results");
+
+      // Palmerston North city centre.
+      const searchCentre = {
+        lat: -40.3564,
+        lng: 175.6111
+      };
+
+      try {
+        map = new google.maps.Map(
+          document.getElementById("map"),
+          {
+            center: searchCentre,
+            zoom: 13
+          }
+        );
+
+        infoWindow = new google.maps.InfoWindow();
+
+        statusBox.textContent =
+          "✅ Maps JavaScript API loaded successfully.\n" +
+          "Testing Legacy Places API…\n\n" +
+          "Page URL: " + window.location.href + "\n" +
+          "Page origin: " + window.location.origin;
+
+        const placesService =
+          new google.maps.places.PlacesService(map);
+
+        const request = {
+          location: searchCentre,
+          radius: 5000,
+          keyword: "cafe"
+        };
+
+        placesService.nearbySearch(
+          request,
+          function (places, placesStatus) {
+            console.log("Places status:", placesStatus);
+            console.log("Places returned:", places);
+
+            if (
+              placesStatus !==
+              google.maps.places.PlacesServiceStatus.OK
+            ) {
+              statusBox.textContent =
+                "✅ Maps JavaScript API loaded.\n" +
+                "❌ Legacy Places search failed.\n" +
+                "Status: " + placesStatus + "\n\n" +
+                "Page URL: " + window.location.href;
+
+              resultsBox.textContent =
+                "No places were returned.";
+
+              return;
+            }
+
+            if (!places || places.length === 0) {
+              statusBox.textContent =
+                "✅ Maps JavaScript API loaded.\n" +
+                "⚠️ The Places request succeeded, but no places were returned.";
+
+              resultsBox.textContent =
+                "No places were returned.";
+
+              return;
+            }
+
+            statusBox.textContent =
+              "✅ Maps JavaScript API is working.\n" +
+              "✅ Legacy Places API is working.\n" +
+              "✅ Google returned " + places.length +
+              " real place records.\n\n" +
+              "Search: cafes within 5 km of Palmerston North\n" +
+              "Page URL: " + window.location.href + "\n" +
+              "Page origin: " + window.location.origin;
+
+            resultsBox.innerHTML = "";
+
+            places.forEach(function (place, index) {
+              if (!place.geometry?.location) {
+                return;
+              }
+
+              const marker =
+                new google.maps.Marker({
+                  map: map,
+                  position: place.geometry.location,
+                  title: place.name,
+                  label: String(index + 1)
+                });
+
+              const placeCard =
+                document.createElement("div");
+
+              placeCard.className = "place";
+
+              const rating =
+                place.rating !== undefined
+                  ? place.rating
+                  : "Not supplied";
+
+              const reviewCount =
+                place.user_ratings_total !== undefined
+                  ? place.user_ratings_total
+                  : "Not supplied";
+
+              const address =
+                place.vicinity ||
+                place.formatted_address ||
+                "Address not supplied";
+
+              const latitude =
+                place.geometry.location.lat();
+
+              const longitude =
+                place.geometry.location.lng();
+
+              placeCard.innerHTML = `
+                <div class="place-name">
+                  ${index + 1}. ${escapeHtml(place.name || "Unnamed place")}
+                </div>
+
+                <div class="place-detail">
+                  <strong>Address:</strong>
+                  ${escapeHtml(address)}
+                </div>
+
+                <div class="place-detail">
+                  <strong>Rating:</strong>
+                  ${escapeHtml(String(rating))}
+                </div>
+
+                <div class="place-detail">
+                  <strong>Number of reviews:</strong>
+                  ${escapeHtml(String(reviewCount))}
+                </div>
+
+                <div class="place-detail">
+                  <strong>Place ID:</strong>
+                  ${escapeHtml(place.place_id || "Not supplied")}
+                </div>
+
+                <div class="place-detail">
+                  <strong>Coordinates:</strong>
+                  ${latitude.toFixed(6)},
+                  ${longitude.toFixed(6)}
+                </div>
+              `;
+
+              function showPlace() {
+                map.panTo(place.geometry.location);
+                map.setZoom(16);
+
+                infoWindow.setContent(`
+                  <div>
+                    <strong>${escapeHtml(place.name || "Unnamed place")}</strong>
+                    <br>
+                    ${escapeHtml(address)}
+                    <br>
+                    Rating: ${escapeHtml(String(rating))}
+                  </div>
+                `);
+
+                infoWindow.open({
+                  map: map,
+                  anchor: marker
+                });
+              }
+
+              marker.addListener("click", showPlace);
+              placeCard.addEventListener("click", showPlace);
+
+              resultsBox.appendChild(placeCard);
+            });
+          }
+        );
+      } catch (error) {
+        statusBox.textContent =
+          "❌ Test failed:\n" + error.message;
+
+        resultsBox.textContent =
+          "The test could not run.";
+
+        console.error(error);
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    window.gm_authFailure = function () {
+      document.getElementById("status").textContent =
+        "❌ Google rejected the API key.\n" +
+        "Open the browser console for the exact error.";
+    };
+  </script>
+
+  <script
+    async
+    defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDNmZ5LnadJVyaOCOSGGRXDvnX2ZyMXCRI&libraries=places&callback=initMap">
+  </script>
+</body>
+</html>

@@ -7,6 +7,54 @@
  */
 
 const KEY = 'travelhub-mobile-nav-v1';
+const EXTERNAL_NAV_KEY = 'travelhub-external-nav-at';
+
+/**
+ * Restore is only wanted when the page remounts because the user went to an
+ * external website and came back. A plain refresh or a next-day visit should
+ * start at Home as usual, so restores are gated on this recency window.
+ */
+const EXTERNAL_NAV_MAX_AGE_MS = 30 * 60 * 1000;
+
+/** Call right before opening an external URL. */
+export function markExternalNavigation(): void {
+  try {
+    window.localStorage.setItem(EXTERNAL_NAV_KEY, String(Date.now()));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function hasRecentExternalNavigation(): boolean {
+  try {
+    const at = Number(window.localStorage.getItem(EXTERNAL_NAV_KEY) || 0);
+    return at > 0 && Date.now() - at < EXTERNAL_NAV_MAX_AGE_MS;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Catch every external link click (plain <a target="_blank"> included) so the
+ * restore gate works regardless of how the link was rendered.
+ */
+export function installExternalNavigationTracker(): () => void {
+  const onClick = (ev: MouseEvent): void => {
+    const target = ev.target as HTMLElement | null;
+    const anchor = target?.closest ? target.closest('a[href]') : null;
+    if (!anchor) return;
+    const href = anchor.getAttribute('href') || '';
+    if (!/^https?:\/\//i.test(href)) return;
+    try {
+      if (new URL(href).origin === window.location.origin) return;
+    } catch {
+      return;
+    }
+    markExternalNavigation();
+  };
+  document.addEventListener('click', onClick, true);
+  return () => document.removeEventListener('click', onClick, true);
+}
 
 export type PersistedMobileNav = {
   view?: 'multiTrip' | 'singleTrip';

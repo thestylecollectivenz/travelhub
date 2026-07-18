@@ -61,8 +61,14 @@ function googleStatusHint(status: string | undefined): string | undefined {
       'and the key\u2019s Website restrictions include this SharePoint domain.'
     );
   }
+  if (status === 'MAPS_JS_BLOCKED') {
+    return (
+      'The Google Maps script was blocked on this device (a Safari content blocker, Lockdown Mode, or a network ' +
+      'filter blocking maps.googleapis.com). Tap refresh to retry, or check Safari settings for this site.'
+    );
+  }
   if (status === 'MAPS_JS_NOT_LOADED') {
-    return 'The Google Maps script did not load on this page (blocked or timed out). Try again on a fresh page load.';
+    return 'The Google Maps script timed out loading. Tap the refresh icon to retry — it will reload the script.';
   }
   if (status === 'OVER_QUERY_LIMIT') {
     return 'Google Places quota exceeded for now. Showing OpenStreetMap results where available.';

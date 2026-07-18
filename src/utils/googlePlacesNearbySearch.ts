@@ -5,6 +5,7 @@ import {
   nearbyDirectionsUrl,
   nearbyMapsListingUrl
 } from './nearbyPlaceModel';
+import { loadGoogleMapsPlacesScript, lastMapsLoadFailure } from './googleMapsScriptLoader';
 
 /**
  * Factual nearby search via the legacy Google Maps JS Places library.
@@ -112,37 +113,11 @@ export function googleMapsScriptKeyMismatch(apiKey: string): boolean {
   }
 }
 
-/** Load the Maps JS Places library (shares the script tag with venueListingPhoto). */
-export function loadGooglePlacesLibrary(apiKey: string): Promise<GmPlacesNamespace | undefined> {
+/** Load the Maps JS Places library via the shared self-healing loader. */
+export async function loadGooglePlacesLibrary(apiKey: string): Promise<GmPlacesNamespace | undefined> {
   hookAuthFailure();
-  const existingNs = placesNamespace();
-  if (existingNs) return Promise.resolve(existingNs);
-  return new Promise((resolve) => {
-    let settled = false;
-    const done = (): void => {
-      if (settled) return;
-      settled = true;
-      resolve(placesNamespace());
-    };
-    const timeout = window.setTimeout(done, 8000);
-    const finish = (): void => {
-      window.clearTimeout(timeout);
-      done();
-    };
-    const existing = document.querySelector<HTMLScriptElement>('script[data-th-google-places]');
-    if (existing) {
-      existing.addEventListener('load', finish);
-      existing.addEventListener('error', finish);
-      return;
-    }
-    const script = document.createElement('script');
-    script.dataset.thGooglePlaces = '1';
-    script.async = true;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places`;
-    script.onload = finish;
-    script.onerror = finish;
-    document.head.appendChild(script);
-  });
+  await loadGoogleMapsPlacesScript(apiKey);
+  return placesNamespace();
 }
 
 function coordNumber(v: number | (() => number) | undefined): number {
@@ -278,7 +253,13 @@ export async function googleNearbySearch(options: {
 }): Promise<GoogleNearbySearchResult> {
   const { apiKey, originLat, originLng, config } = options;
   const ns = await loadGooglePlacesLibrary(apiKey);
-  if (!ns) return { places: [], errorStatus: 'MAPS_JS_NOT_LOADED' };
+  if (!ns) {
+    if (mapsAuthFailed) return { places: [], errorStatus: 'AUTH_FAILURE' };
+    return {
+      places: [],
+      errorStatus: lastMapsLoadFailure() === 'script-error' ? 'MAPS_JS_BLOCKED' : 'MAPS_JS_NOT_LOADED'
+    };
+  }
   const host = document.createElement('div');
   const svc = new ns.PlacesService(host);
   const location = { lat: originLat, lng: originLng };

@@ -27,7 +27,11 @@ import {
   saveTripSavedSpot
 } from '../../utils/tripSavedSpots';
 import { setPendingMobileItineraryEdit } from '../../utils/mobileItineraryEditPending';
-import { loadPersistedMobileNav, persistMobileNav } from '../../utils/mobileNavPersistence';
+import {
+  hasRecentExternalNavigation,
+  loadPersistedMobileNav,
+  persistMobileNav
+} from '../../utils/mobileNavPersistence';
 import { useContinuousSpeechInput } from '../../hooks/useContinuousSpeechInput';
 import { useCurrentUserRole } from '../../hooks/useCurrentUserRole';
 import { useTripMembers } from '../../hooks/useTripMembers';
@@ -186,6 +190,9 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   const spContext = useSpContext();
   const { config, greetingName } = useConfig();
   const [tab, setTab] = React.useState<MobileHomeTab>(() => {
+    // Only restore the last home tab when remounting after an external site
+    // visit; a plain refresh should land on the Home tab.
+    if (!hasRecentExternalNavigation()) return 'home';
     const nav = loadPersistedMobileNav();
     const t = nav.homeTab;
     if (t === 'home' || t === 'trips' || t === 'spots' || t === 'find' || t === 'book') return t;

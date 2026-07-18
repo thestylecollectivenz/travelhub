@@ -11,6 +11,8 @@ import { IpadLandscapePlaceholder } from '../../../../components/ipad/IpadLandsc
 import type { MobileTab } from '../../../../components/mobile/mobileTypes';
 import {
   clearPersistedTripNav,
+  hasRecentExternalNavigation,
+  installExternalNavigationTracker,
   loadPersistedMobileNav,
   persistMobileNav
 } from '../../../../utils/mobileNavPersistence';
@@ -18,6 +20,9 @@ import {
 type AppView = 'multiTrip' | 'singleTrip' | 'createTrip' | 'terms';
 
 function initialViewFromSession(): { view: AppView; tripId: string; tab?: MobileTab } {
+  // Only restore the last screen when this load is the remount caused by
+  // returning from an external website. A plain refresh starts at Home.
+  if (!hasRecentExternalNavigation()) return { view: 'multiTrip', tripId: '' };
   const nav = loadPersistedMobileNav();
   if (nav.view === 'singleTrip' && (nav.tripId || '').trim()) {
     return {
@@ -43,9 +48,16 @@ export const AppRouter: React.FC = () => {
     return () => window.removeEventListener('travelhub-open-settings', openSettings);
   }, []);
 
-  // Restore trip after SharePoint / Safari remount when returning from an external site.
+  // Track external link clicks so the boot restore above knows this reload
+  // came from returning off-site rather than a plain refresh.
+  React.useEffect(() => installExternalNavigationTracker(), []);
+
+  // Restore trip after a bfcache resurrection (pageshow persisted) when
+  // returning from an external site. Focus/visibility restores were removed:
+  // they hijacked normal in-app navigation on every tab switch.
   React.useEffect(() => {
-    const restore = (): void => {
+    const onPageShow = (ev: PageTransitionEvent): void => {
+      if (!ev.persisted || !hasRecentExternalNavigation()) return;
       const nav = loadPersistedMobileNav();
       if (nav.view === 'singleTrip' && (nav.tripId || '').trim()) {
         setSelectedTripId(nav.tripId!.trim());
@@ -53,17 +65,8 @@ export const AppRouter: React.FC = () => {
         setView('singleTrip');
       }
     };
-    const onVisibility = (): void => {
-      if (document.visibilityState === 'visible') restore();
-    };
-    window.addEventListener('pageshow', restore);
-    window.addEventListener('focus', restore);
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => {
-      window.removeEventListener('pageshow', restore);
-      window.removeEventListener('focus', restore);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
   }, []);
 
   const goToTrip = (id: string, tab?: MobileTab): void => {

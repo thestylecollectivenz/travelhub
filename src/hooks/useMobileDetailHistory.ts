@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { markExternalNavigation } from '../utils/mobileNavPersistence';
 
 export interface MobileDetailHistoryTarget {
   entryId: string;
@@ -66,6 +67,9 @@ export function openMobileExternalUrl(url: string, event?: React.MouseEvent): vo
   event?.stopPropagation();
   const href = (url || '').trim();
   if (!href) return;
+  // Restoring the previous screen after a remount is only allowed shortly
+  // after an external navigation — record that this is one.
+  markExternalNavigation();
   const a = document.createElement('a');
   a.href = href;
   a.target = '_blank';

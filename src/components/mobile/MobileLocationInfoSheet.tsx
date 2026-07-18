@@ -35,7 +35,11 @@ import { MobileLocationOverviewEdit } from './MobileLocationOverviewEdit';
 import { MobileNearYouResults } from './MobileNearYouResults';
 import { MobileExplorePlacesView } from './MobileExplorePlacesView';
 import { MobileSavedPlacesView } from './MobileSavedPlacesView';
-import { loadPersistedMobileNav, persistMobileNav } from '../../utils/mobileNavPersistence';
+import {
+  hasRecentExternalNavigation,
+  loadPersistedMobileNav,
+  persistMobileNav
+} from '../../utils/mobileNavPersistence';
 import { MobileStartPointPicker, type StartPointSelection } from './MobileStartPointPicker';
 import { MobileDayPickActions, type DayPickOption } from './MobileDayPickActions';
 import { MobileTipItemEdit, MobileTipListChooser, type TipListTarget } from './MobileTipListChooser';
@@ -116,6 +120,9 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   const spContext = useSpContext();
   const { placeById } = usePlaces();
   const [panel, setPanel] = React.useState<Panel>(() => {
+    // Only reopen a sub-panel when this mount is the remount after visiting an
+    // external site; otherwise location info always opens at its main page.
+    if (!hasRecentExternalNavigation()) return 'main';
     const nav = loadPersistedMobileNav();
     if (nav.locationEntryId === entry?.id && (nav.locationPanel === 'explore' || nav.locationPanel === 'saved')) {
       return nav.locationPanel as Panel;
@@ -124,6 +131,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   });
   const [nearToolId, setNearToolId] = React.useState<NearYouToolId | null>(null);
   const [exploreCategory, setExploreCategory] = React.useState<string | undefined>(() => {
+    if (!hasRecentExternalNavigation()) return undefined;
     const nav = loadPersistedMobileNav();
     return nav.locationEntryId === entry?.id ? nav.exploreCategory : undefined;
   });
@@ -719,8 +727,28 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
         locationEntryId: entry.id,
         exploreCategory: exploreCategory
       });
+    } else {
+      persistMobileNav({
+        locationPanel: undefined,
+        locationEntryId: undefined,
+        exploreCategory: undefined
+      });
     }
   }, [panel, exploreCategory, entry?.id, trip?.id]);
+
+  // In-app close of the sheet (unmount) must not leave a stale sub-panel
+  // behind; a hard page reload skips this cleanup, which is exactly what lets
+  // the back-from-external-site restore still work.
+  React.useEffect(
+    () => () => {
+      persistMobileNav({
+        locationPanel: undefined,
+        locationEntryId: undefined,
+        exploreCategory: undefined
+      });
+    },
+    []
+  );
 
   React.useEffect(() => {
     if (!entry) return undefined;
