@@ -56,21 +56,21 @@ export function useMobileDetailHistory(
   return { closeDetail };
 }
 
-/** Open external URLs without navigating the SPA away (keeps Safari Back on the Travel Hub page). */
+/**
+ * Open external URLs in a new tab without replacing the SPA document.
+ * Prefer a real <a target="_blank"> click — window.open on iPad Safari often
+ * produces a blank interstitial ("white screen with X") and then remounts SharePoint.
+ */
 export function openMobileExternalUrl(url: string, event?: React.MouseEvent): void {
   event?.preventDefault();
   event?.stopPropagation();
   const href = (url || '').trim();
   if (!href) return;
-  const opened = window.open(href, '_blank', 'noopener,noreferrer');
-  if (!opened) {
-    // Popup blocked — still avoid replacing the SPA document when possible.
-    const a = document.createElement('a');
-    a.href = href;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  }
+  const a = document.createElement('a');
+  a.href = href;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }

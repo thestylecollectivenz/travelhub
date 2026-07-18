@@ -70,9 +70,18 @@ const CONFIGS: NearbyCategoryConfig[] = [
   {
     id: 'sights',
     label: 'Sights',
-    googleTypes: ['tourist_attraction'],
-    googleTextQueries: ['landmark'],
-    osmTags: [{ tourism: 'attraction' }, { historic: 'monument' }],
+    googleTypes: ['tourist_attraction', 'church', 'museum'],
+    googleTextQueries: ['landmark', 'cathedral', 'historic site', 'tourist attraction'],
+    osmTags: [
+      { tourism: 'attraction' },
+      { tourism: 'museum' },
+      { historic: 'monument' },
+      { historic: 'castle' },
+      { historic: 'church' },
+      { historic: 'ruins' },
+      { building: 'cathedral' },
+      { amenity: 'place_of_worship' }
+    ],
     defaultRadiusMetres: 5000,
     minimumResults: 6,
     maximumResults: 12,

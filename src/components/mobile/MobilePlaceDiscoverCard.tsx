@@ -46,6 +46,12 @@ export interface MobilePlaceDiscoverCardProps {
   directionsOrigin?: { lat: number; lng: number };
   /** Prefer Gemini/TripAdvisor photo + click URL over Google Places. */
   preferProvidedPhoto?: boolean;
+  /**
+   * When true, only show a real place photo URL already on the card (e.g. Google
+   * Place Photo). Skip Commons/Openverse/Wikipedia stock fallbacks that often
+   * show unrelated people or scenery.
+   */
+  factualPhotosOnly?: boolean;
   primaryAction?: {
     label: string;
     onClick: () => void;
@@ -192,6 +198,7 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
   layout = 'list',
   directionsOrigin,
   preferProvidedPhoto: _preferProvidedPhoto = false,
+  factualPhotosOnly = false,
   primaryAction,
   secondaryAction,
   tertiaryAction
@@ -209,6 +216,27 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
   React.useEffect(() => {
     let cancelled = false;
     const run = async (): Promise<void> => {
+      const listingFallback =
+        normalizeHttpsUrl(card.tripadvisorUrl) ||
+        normalizeHttpsUrl(card.websiteUrl) ||
+        normalizeHttpsUrl(card.mapsUrl) ||
+        placeQueryMapsUrl(card.name, card.address) ||
+        '';
+
+      // Explore nearby: only use verified Google Place photos — never stock/Commons people shots.
+      if (factualPhotosOnly) {
+        const provided = normalizeHttpsUrl(card.photoUrl);
+        if (!cancelled) {
+          setPhoto({
+            imageUrl: provided || '',
+            sourceUrl: listingFallback,
+            displayName: card.name,
+            provider: provided ? 'google' : undefined
+          });
+        }
+        return;
+      }
+
       const hit = await resolvePlaceCardPhoto({
         name: card.name,
         address: card.address,
@@ -225,11 +253,7 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
       setPhoto(
         hit || {
           imageUrl: '',
-          sourceUrl:
-            normalizeHttpsUrl(card.tripadvisorUrl) ||
-            normalizeHttpsUrl(card.websiteUrl) ||
-            placeQueryMapsUrl(card.name, card.address) ||
-            '',
+          sourceUrl: listingFallback,
           displayName: card.name
         }
       );
@@ -245,10 +269,12 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
     card.photoUrl,
     card.tripadvisorUrl,
     card.websiteUrl,
+    card.mapsUrl,
     card.latitude,
     card.longitude,
     city,
-    config.googleMapsApiKey
+    config.googleMapsApiKey,
+    factualPhotosOnly
   ]);
 
   const parsed = parseModeMinutes(card.distanceRaw);

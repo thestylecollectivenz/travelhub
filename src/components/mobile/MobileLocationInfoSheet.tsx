@@ -35,6 +35,7 @@ import { MobileLocationOverviewEdit } from './MobileLocationOverviewEdit';
 import { MobileNearYouResults } from './MobileNearYouResults';
 import { MobileExplorePlacesView } from './MobileExplorePlacesView';
 import { MobileSavedPlacesView } from './MobileSavedPlacesView';
+import { loadPersistedMobileNav, persistMobileNav } from '../../utils/mobileNavPersistence';
 import { MobileStartPointPicker, type StartPointSelection } from './MobileStartPointPicker';
 import { MobileDayPickActions, type DayPickOption } from './MobileDayPickActions';
 import { MobileTipItemEdit, MobileTipListChooser, type TipListTarget } from './MobileTipListChooser';
@@ -114,9 +115,18 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   const shellMode = useShellMode();
   const spContext = useSpContext();
   const { placeById } = usePlaces();
-  const [panel, setPanel] = React.useState<Panel>('main');
+  const [panel, setPanel] = React.useState<Panel>(() => {
+    const nav = loadPersistedMobileNav();
+    if (nav.locationEntryId === entry?.id && (nav.locationPanel === 'explore' || nav.locationPanel === 'saved')) {
+      return nav.locationPanel as Panel;
+    }
+    return 'main';
+  });
   const [nearToolId, setNearToolId] = React.useState<NearYouToolId | null>(null);
-  const [exploreCategory, setExploreCategory] = React.useState<string | undefined>();
+  const [exploreCategory, setExploreCategory] = React.useState<string | undefined>(() => {
+    const nav = loadPersistedMobileNav();
+    return nav.locationEntryId === entry?.id ? nav.exploreCategory : undefined;
+  });
   const [savedCategory, setSavedCategory] = React.useState<string | undefined>();
   const [nearActionMsg, setNearActionMsg] = React.useState('');
   const [dayPick, setDayPick] = React.useState<DayPickState | null>(null);
@@ -692,7 +702,25 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     setExploreCategory(undefined);
     setSavedCategory(undefined);
     setDayPick(null);
+    persistMobileNav({
+      locationPanel: undefined,
+      locationEntryId: undefined,
+      exploreCategory: undefined
+    });
   }, []);
+
+  React.useEffect(() => {
+    if (!entry?.id || !trip?.id) return;
+    if (panel === 'explore' || panel === 'saved') {
+      persistMobileNav({
+        view: 'singleTrip',
+        tripId: trip.id,
+        locationPanel: panel,
+        locationEntryId: entry.id,
+        exploreCategory: exploreCategory
+      });
+    }
+  }, [panel, exploreCategory, entry?.id, trip?.id]);
 
   React.useEffect(() => {
     if (!entry) return undefined;

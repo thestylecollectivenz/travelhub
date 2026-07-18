@@ -53,8 +53,17 @@ export const AppRouter: React.FC = () => {
         setView('singleTrip');
       }
     };
+    const onVisibility = (): void => {
+      if (document.visibilityState === 'visible') restore();
+    };
     window.addEventListener('pageshow', restore);
-    return () => window.removeEventListener('pageshow', restore);
+    window.addEventListener('focus', restore);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pageshow', restore);
+      window.removeEventListener('focus', restore);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, []);
 
   const goToTrip = (id: string, tab?: MobileTab): void => {

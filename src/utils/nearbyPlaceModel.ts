@@ -256,7 +256,7 @@ export function rankNearbyPlaces(places: NearbyPlace[], config: NearbyCategoryCo
 /* Cache validity                                                      */
 /* ------------------------------------------------------------------ */
 
-export const NEARBY_CACHE_REQUEST_VERSION = 'v1';
+export const NEARBY_CACHE_REQUEST_VERSION = 'v2';
 
 export function isNearbyCacheValid(
   payload: Pick<NearbySearchCachePayload, 'expiresAt' | 'results'> | undefined,

@@ -163,21 +163,29 @@ function toNearbyPlace(
   };
 }
 
+interface SearchBatch {
+  results: GmPlaceResult[];
+  status: string;
+}
+
 function runNearbySearch(
   svc: GmPlacesService,
   ns: GmPlacesNamespace,
   req: { location: { lat: number; lng: number }; radius: number; type?: string; keyword?: string }
-): Promise<GmPlaceResult[]> {
+): Promise<SearchBatch> {
   return new Promise((resolve) => {
-    const timeout = window.setTimeout(() => resolve([]), 9000);
+    const timeout = window.setTimeout(() => resolve({ results: [], status: 'TIMEOUT' }), 9000);
     try {
       svc.nearbySearch(req, (results, status) => {
         window.clearTimeout(timeout);
-        resolve(status === ns.PlacesServiceStatus.OK && results ? results : []);
+        resolve({
+          results: status === ns.PlacesServiceStatus.OK && results ? results : [],
+          status
+        });
       });
     } catch {
       window.clearTimeout(timeout);
-      resolve([]);
+      resolve({ results: [], status: 'EXCEPTION' });
     }
   });
 }
@@ -186,19 +194,32 @@ function runTextSearch(
   svc: GmPlacesService,
   ns: GmPlacesNamespace,
   req: { query: string; location: { lat: number; lng: number }; radius: number }
-): Promise<GmPlaceResult[]> {
+): Promise<SearchBatch> {
   return new Promise((resolve) => {
-    const timeout = window.setTimeout(() => resolve([]), 9000);
+    const timeout = window.setTimeout(() => resolve({ results: [], status: 'TIMEOUT' }), 9000);
     try {
       svc.textSearch(req, (results, status) => {
         window.clearTimeout(timeout);
-        resolve(status === ns.PlacesServiceStatus.OK && results ? results : []);
+        resolve({
+          results: status === ns.PlacesServiceStatus.OK && results ? results : [],
+          status
+        });
       });
     } catch {
       window.clearTimeout(timeout);
-      resolve([]);
+      resolve({ results: [], status: 'EXCEPTION' });
     }
   });
+}
+
+export interface GoogleNearbySearchResult {
+  places: NearbyPlace[];
+  /**
+   * Set when Google returned no places because of an error (REQUEST_DENIED,
+   * OVER_QUERY_LIMIT, …) rather than a genuine lack of venues. Lets the UI
+   * tell the user their Google key needs fixing instead of failing silently.
+   */
+  errorStatus?: string;
 }
 
 /**
@@ -211,16 +232,16 @@ export async function googleNearbySearch(options: {
   originLat: number;
   originLng: number;
   config: NearbyCategoryConfig;
-}): Promise<NearbyPlace[]> {
+}): Promise<GoogleNearbySearchResult> {
   const { apiKey, originLat, originLng, config } = options;
   const ns = await loadGooglePlacesLibrary(apiKey);
-  if (!ns) return [];
+  if (!ns) return { places: [], errorStatus: 'MAPS_JS_NOT_LOADED' };
   const host = document.createElement('div');
   const svc = new ns.PlacesService(host);
   const location = { lat: originLat, lng: originLng };
   const radius = config.defaultRadiusMetres;
 
-  const batches: GmPlaceResult[][] = [];
+  const batches: SearchBatch[] = [];
   // Sequential requests keep us well inside Places JS rate limits.
   for (const type of config.googleTypes) {
     // eslint-disable-next-line no-await-in-loop
@@ -231,14 +252,22 @@ export async function googleNearbySearch(options: {
     batches.push(await runTextSearch(svc, ns, { query, location, radius }));
   }
 
-  const mapped: NearbyPlace[] = [];
+  const places: NearbyPlace[] = [];
   for (const batch of batches) {
-    for (const raw of batch) {
+    for (const raw of batch.results) {
       const place = toNearbyPlace(raw, originLat, originLng, config.id);
-      if (place) mapped.push(place);
+      if (place) places.push(place);
     }
   }
-  return mapped;
+
+  let errorStatus: string | undefined;
+  if (!places.length) {
+    const failing = batches.find(
+      (b) => b.status !== ns.PlacesServiceStatus.OK && b.status !== ns.PlacesServiceStatus.ZERO_RESULTS
+    );
+    errorStatus = failing?.status;
+  }
+  return { places, errorStatus };
 }
 
 const DETAIL_FIELDS = [

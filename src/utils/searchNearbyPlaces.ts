@@ -1,3 +1,11 @@
+/**
+ * Factual nearby-place search orchestrator (Explore).
+ *
+ * Flow: validate → local L1 cache → SharePoint cache (unless forceRefresh) →
+ * Google Places discovery → OSM Overpass fallback when short → dedupe/filter/rank →
+ * Details enrichment for the final set only → save both caches → return.
+ * A failed forced refresh falls back to previous cached results ("stale-fallback").
+ */
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import type { ExploreCategoryId } from './exploreCategories';
 import { nearbyCategoryConfig } from './nearbyCategoryConfig';
@@ -12,16 +20,8 @@ import {
 import { enrichGooglePlaceDetails, googleNearbySearch } from './googlePlacesNearbySearch';
 import { overpassNearbySearch } from './overpassNearbySearch';
 import { NearbySearchCacheService } from '../services/NearbySearchCacheService';
+import { loadNearbyLocalCache, saveNearbyLocalCache } from './nearbyLocalCache';
 
-/**
- * Factual nearby-place search orchestrator (Explore).
- *
- * Flow: validate → cache (unless forceRefresh) → Google Places discovery →
- * OSM Overpass fallback when short → dedupe/filter/rank → Details enrichment
- * for the final set only → save cache → return with cache metadata.
- * A failed forced refresh falls back to the previous cached results
- * ("stale-fallback") and never deletes the cache.
- */
 export interface SearchNearbyPlacesOptions {
   ctx: WebPartContext;
   googleMapsApiKey: string;
@@ -44,6 +44,20 @@ function isValidLatLng(lat: number, lng: number): boolean {
   return Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
 }
 
+function googleStatusHint(status: string | undefined): string | undefined {
+  if (!status) return undefined;
+  if (status === 'REQUEST_DENIED' || status === 'MAPS_JS_NOT_LOADED') {
+    return (
+      'Google Places could not run (API key, billing, or Places API not enabled). ' +
+      'Check Google Cloud Console — Places API and Maps JavaScript API must both be enabled.'
+    );
+  }
+  if (status === 'OVER_QUERY_LIMIT') {
+    return 'Google Places quota exceeded for now. Showing OpenStreetMap results where available.';
+  }
+  return `Google Places returned ${status}.`;
+}
+
 export async function searchNearbyPlaces(options: SearchNearbyPlacesOptions): Promise<NearbySearchResponse> {
   const { ctx, googleMapsApiKey, originLatitude, originLongitude, categoryId, locationEntryId } = options;
   if (!isValidLatLng(originLatitude, originLongitude)) {
@@ -61,23 +75,36 @@ export async function searchNearbyPlaces(options: SearchNearbyPlacesOptions): Pr
   if (forceRefresh) {
     const last = lastForcedRefreshAt.get(flightKey) || 0;
     if (Date.now() - last < FORCE_REFRESH_MIN_INTERVAL_MS) {
-      // Double-tap protection: treat as a normal cached request.
       forceRefresh = false;
     } else {
       lastForcedRefreshAt.set(flightKey, Date.now());
     }
   }
 
-  // A request may wait for an identical in-progress search and reuse its result.
   const pending = inFlight.get(flightKey);
   if (pending && !forceRefresh) return pending;
 
   const cacheService = new NearbySearchCacheService(ctx);
 
   const run = (async (): Promise<NearbySearchResponse> => {
-    const cached = await cacheService.get(locationKey, categoryId);
+    // Instant device cache first (survives SharePoint latency and remounts).
+    const local = !forceRefresh ? loadNearbyLocalCache(locationKey, categoryId) : undefined;
+    if (local && isNearbyCacheValid(local)) {
+      // Still try SharePoint in the background path below only when we miss —
+      // for hits, return local immediately so reopen is never blank.
+      return {
+        results: local.results,
+        cache: {
+          status: 'hit',
+          searchedAt: local.searchedAt,
+          expiresAt: local.expiresAt
+        }
+      };
+    }
 
+    const cached = await cacheService.get(locationKey, categoryId);
     if (!forceRefresh && cached && isNearbyCacheValid(cached.payload)) {
+      saveNearbyLocalCache(locationKey, categoryId, cached.payload);
       return {
         results: cached.payload.results,
         cache: {
@@ -89,16 +116,16 @@ export async function searchNearbyPlaces(options: SearchNearbyPlacesOptions): Pr
     }
 
     try {
-      const googleResults = googleMapsApiKey
+      const google = googleMapsApiKey
         ? await googleNearbySearch({
             apiKey: googleMapsApiKey,
             originLat: originLatitude,
             originLng: originLongitude,
             config
           })
-        : [];
+        : { places: [] as NearbyPlace[], errorStatus: 'NO_API_KEY' };
 
-      let merged: NearbyPlace[] = dedupeNearbyPlaces(filterNearbyPlaces(googleResults, config));
+      let merged: NearbyPlace[] = dedupeNearbyPlaces(filterNearbyPlaces(google.places, config));
 
       let osmCount = 0;
       if (merged.length < config.minimumResults) {
@@ -112,7 +139,8 @@ export async function searchNearbyPlaces(options: SearchNearbyPlacesOptions): Pr
       }
 
       if (!merged.length) {
-        throw new Error('No nearby places were returned by the search services.');
+        const hint = googleStatusHint(google.errorStatus);
+        throw new Error(hint || 'No nearby places were returned by the search services.');
       }
 
       let ranked = rankNearbyPlaces(merged, config);
@@ -126,10 +154,10 @@ export async function searchNearbyPlaces(options: SearchNearbyPlacesOptions): Pr
         results: ranked,
         searchedAt,
         expiresAt,
-        googleResultCount: googleResults.length,
+        googleResultCount: google.places.length,
         osmResultCount: osmCount
       };
-      // Persist for every traveller on the trip; failure to save never blocks results.
+      saveNearbyLocalCache(locationKey, categoryId, payload);
       await cacheService.upsert(
         locationKey,
         categoryId,
@@ -138,23 +166,27 @@ export async function searchNearbyPlaces(options: SearchNearbyPlacesOptions): Pr
         payload
       );
 
+      const googleHint = googleStatusHint(google.errorStatus);
       return {
         results: ranked,
         cache: {
           status: forceRefresh ? 'refreshed' : 'miss',
           searchedAt,
           expiresAt
-        }
+        },
+        warning: googleHint && google.places.length === 0 ? googleHint : undefined
       };
     } catch (err) {
-      // Live search failed: keep and return previous cached results if any.
-      if (cached && cached.payload.results.length) {
+      const fallback = cached?.payload.results.length
+        ? cached.payload
+        : loadNearbyLocalCache(locationKey, categoryId);
+      if (fallback && fallback.results.length) {
         return {
-          results: cached.payload.results,
+          results: fallback.results,
           cache: {
             status: 'stale-fallback',
-            searchedAt: cached.payload.searchedAt,
-            expiresAt: cached.payload.expiresAt
+            searchedAt: fallback.searchedAt,
+            expiresAt: fallback.expiresAt
           },
           warning: 'We could not update nearby places just now. Showing the previous results.'
         };

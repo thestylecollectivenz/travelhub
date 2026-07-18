@@ -324,7 +324,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
         setLastRefreshed(response.cache.searchedAt);
         if (response.warning) setStaleWarning(response.warning);
       } catch (err) {
-        setResults([]);
+        // Do not clear existing cards — reopen/refresh failures should not blank the list.
         setError(err instanceof Error ? err.message : 'Could not find nearby places.');
       } finally {
         setBusy(false);
@@ -621,6 +621,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
                     : undefined
                 }
                 preferProvidedPhoto
+                factualPhotosOnly
                 card={{
                   id: r.id,
                   name: r.name,
