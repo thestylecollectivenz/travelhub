@@ -46,17 +46,32 @@ function isValidLatLng(lat: number, lng: number): boolean {
 
 function googleStatusHint(status: string | undefined): string | undefined {
   if (!status) return undefined;
-  if (status === 'REQUEST_DENIED' || status === 'MAPS_JS_NOT_LOADED') {
+  if (status === 'KEY_CHANGED_RELOAD_NEEDED') {
+    return 'The Google Maps key was changed after this page loaded. Fully reload the app to use the new key.';
+  }
+  if (status === 'AUTH_FAILURE') {
     return (
-      'Google Places could not run (API key, billing, or Places API not enabled). ' +
-      'Check Google Cloud Console — Places API and Maps JavaScript API must both be enabled.'
+      'Google rejected the API key for this site (AUTH_FAILURE). The key works elsewhere, so check its ' +
+      'Website restrictions in Google Cloud Console — they must include https://*.sharepoint.com/* (or be unrestricted).'
     );
+  }
+  if (status === 'REQUEST_DENIED') {
+    return (
+      'Google Places returned REQUEST_DENIED. Check Google Cloud Console: Places API enabled, billing active, ' +
+      'and the key\u2019s Website restrictions include this SharePoint domain.'
+    );
+  }
+  if (status === 'MAPS_JS_NOT_LOADED') {
+    return 'The Google Maps script did not load on this page (blocked or timed out). Try again on a fresh page load.';
   }
   if (status === 'OVER_QUERY_LIMIT') {
     return 'Google Places quota exceeded for now. Showing OpenStreetMap results where available.';
   }
   return `Google Places returned ${status}.`;
 }
+
+/** When Google errored, cache OSM-only results briefly so it self-heals once the key works. */
+const DEGRADED_CACHE_TTL_MS = 60 * 60 * 1000;
 
 export async function searchNearbyPlaces(options: SearchNearbyPlacesOptions): Promise<NearbySearchResponse> {
   const { ctx, googleMapsApiKey, originLatitude, originLongitude, categoryId, locationEntryId } = options;
@@ -138,9 +153,14 @@ export async function searchNearbyPlaces(options: SearchNearbyPlacesOptions): Pr
         merged = dedupeNearbyPlaces(filterNearbyPlaces([...merged, ...osmResults], config));
       }
 
+      const keyTail = googleMapsApiKey ? `…${googleMapsApiKey.slice(-6)}` : 'not set';
       if (!merged.length) {
         const hint = googleStatusHint(google.errorStatus);
-        throw new Error(hint || 'No nearby places were returned by the search services.');
+        throw new Error(
+          hint
+            ? `${hint} (app is using key ending ${keyTail})`
+            : 'No nearby places were returned by the search services.'
+        );
       }
 
       let ranked = rankNearbyPlaces(merged, config);
@@ -149,7 +169,12 @@ export async function searchNearbyPlaces(options: SearchNearbyPlacesOptions): Pr
       }
 
       const searchedAt = new Date().toISOString();
-      const expiresAt = new Date(Date.now() + config.cacheTtlDays * 24 * 60 * 60 * 1000).toISOString();
+      const expiresAt = new Date(
+        Date.now() +
+          (google.errorStatus
+            ? DEGRADED_CACHE_TTL_MS
+            : config.cacheTtlDays * 24 * 60 * 60 * 1000)
+      ).toISOString();
       const payload = {
         results: ranked,
         searchedAt,
@@ -174,7 +199,10 @@ export async function searchNearbyPlaces(options: SearchNearbyPlacesOptions): Pr
           searchedAt,
           expiresAt
         },
-        warning: googleHint && google.places.length === 0 ? googleHint : undefined
+        warning:
+          googleHint && google.places.length === 0
+            ? `${googleHint} (app is using key ending ${keyTail})`
+            : undefined
       };
     } catch (err) {
       const fallback = cached?.payload.results.length

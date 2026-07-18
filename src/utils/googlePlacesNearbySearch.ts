@@ -70,8 +70,51 @@ function placesNamespace(): GmPlacesNamespace | undefined {
   return w.google?.maps?.places;
 }
 
+/**
+ * Google calls window.gm_authFailure when the Maps JS key is rejected for this
+ * page (invalid key, billing, or website/referrer restrictions blocking this
+ * domain). Capture it so we can report the real reason instead of a generic one.
+ */
+let mapsAuthFailed = false;
+
+function hookAuthFailure(): void {
+  const w = window as unknown as { gm_authFailure?: () => void };
+  if (w.gm_authFailure && (w.gm_authFailure as { thHooked?: boolean }).thHooked) return;
+  const prev = w.gm_authFailure;
+  const hooked = (): void => {
+    mapsAuthFailed = true;
+    // eslint-disable-next-line no-console
+    console.warn('Google Maps rejected the API key for this page (gm_authFailure).');
+    if (typeof prev === 'function') prev();
+  };
+  (hooked as { thHooked?: boolean }).thHooked = true;
+  w.gm_authFailure = hooked;
+}
+
+export function googleMapsAuthFailed(): boolean {
+  return mapsAuthFailed;
+}
+
+/**
+ * The Maps script loads once per page with the key used first. If the user has
+ * since saved a different key in settings, requests keep using the old one
+ * until a full reload — detect that so the UI can say so.
+ */
+export function googleMapsScriptKeyMismatch(apiKey: string): boolean {
+  const existing = document.querySelector<HTMLScriptElement>('script[data-th-google-places]');
+  if (!existing?.src) return false;
+  const match = existing.src.match(/[?&]key=([^&]+)/);
+  if (!match) return false;
+  try {
+    return decodeURIComponent(match[1]) !== apiKey;
+  } catch {
+    return match[1] !== apiKey;
+  }
+}
+
 /** Load the Maps JS Places library (shares the script tag with venueListingPhoto). */
 export function loadGooglePlacesLibrary(apiKey: string): Promise<GmPlacesNamespace | undefined> {
+  hookAuthFailure();
   const existingNs = placesNamespace();
   if (existingNs) return Promise.resolve(existingNs);
   return new Promise((resolve) => {
@@ -262,10 +305,16 @@ export async function googleNearbySearch(options: {
 
   let errorStatus: string | undefined;
   if (!places.length) {
-    const failing = batches.find(
-      (b) => b.status !== ns.PlacesServiceStatus.OK && b.status !== ns.PlacesServiceStatus.ZERO_RESULTS
-    );
-    errorStatus = failing?.status;
+    if (googleMapsScriptKeyMismatch(apiKey)) {
+      errorStatus = 'KEY_CHANGED_RELOAD_NEEDED';
+    } else if (mapsAuthFailed) {
+      errorStatus = 'AUTH_FAILURE';
+    } else {
+      const failing = batches.find(
+        (b) => b.status !== ns.PlacesServiceStatus.OK && b.status !== ns.PlacesServiceStatus.ZERO_RESULTS
+      );
+      errorStatus = failing?.status;
+    }
   }
   return { places, errorStatus };
 }
