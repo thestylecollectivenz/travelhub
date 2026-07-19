@@ -60,6 +60,31 @@ export function exploreCategoriesSorted(): ExploreCategoryDef[] {
   return [...EXPLORE_CATEGORIES].sort((a, b) => a.priority - b.priority || a.label.localeCompare(b.label));
 }
 
+/**
+ * Functional places (pharmacy, fuel, ATM, …) use a mini-map instead of a
+ * Google Place photo — skips photo API use and shows a map pin / walk route.
+ * Experience places (restaurants, sights, …) keep rich photos.
+ */
+export type ExploreCardStyle = 'functional' | 'experience';
+
+const FUNCTIONAL_EXPLORE_CATEGORIES: ExploreCategoryId[] = [
+  'groceries',
+  'pharmacy',
+  'atm',
+  'restroom',
+  'transport',
+  'medical',
+  'fuel'
+];
+
+export function isFunctionalExploreCategory(id: ExploreCategoryId | string | undefined): boolean {
+  return FUNCTIONAL_EXPLORE_CATEGORIES.indexOf(id as ExploreCategoryId) !== -1;
+}
+
+export function exploreCategoryCardStyle(id: ExploreCategoryId | string | undefined): ExploreCardStyle {
+  return isFunctionalExploreCategory(id) ? 'functional' : 'experience';
+}
+
 export function exploreCategoryById(id: string | undefined): ExploreCategoryDef {
   return EXPLORE_CATEGORIES.find((c) => c.id === id) ?? EXPLORE_CATEGORIES[0];
 }

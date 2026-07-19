@@ -1,11 +1,18 @@
 import * as React from 'react';
 import { useConfig } from '../../context/ConfigContext';
-import { placeDirectionsFromHereUrl, placeDirectionsFromCoordsUrl, placeDirectionsFromOriginUrl, placeQueryMapsUrl } from '../../utils/googleMapsLink';
+import {
+  placeDirectionsFromHereUrl,
+  placeDirectionsFromCoordsUrl,
+  placeDirectionsFromOriginUrl,
+  placeQueryMapsUrl
+} from '../../utils/googleMapsLink';
 import { formatModeMinutes } from '../../utils/travelModeDurations';
 import { openMobileExternalUrl } from '../../hooks/useMobileDetailHistory';
 import { normalizeHttpsUrl } from '../../utils/imageUrlUtils';
-import { nearbyDirectionsUrl } from '../../utils/nearbyPlaceModel';
+import { nearbyDirectionsUrl, nearbyMapsListingUrl } from '../../utils/nearbyPlaceModel';
+import { nearbyStaticMiniMapUrl } from '../../utils/nearbyStaticMiniMap';
 import { resolvePlaceCardPhoto } from '../../utils/resolvePlaceCardPhoto';
+import type { ExploreCardStyle } from '../../utils/exploreCategories';
 import styles from './MobilePlaceDiscoverCard.module.css';
 
 export type PlaceDiscoverCardModel = {
@@ -18,6 +25,7 @@ export type PlaceDiscoverCardModel = {
   address?: string;
   mapsUrl?: string;
   websiteUrl?: string;
+  phoneNumber?: string;
   tags?: string[];
   city?: string;
   nearLabel?: string;
@@ -33,6 +41,8 @@ export type PlaceDiscoverCardModel = {
   tripadvisorUrl?: string;
   /** Google Place ID when the result came from Google Places (accurate directions). */
   placeId?: string;
+  /** Functional = mini-map (no photo). Experience = rich photo. */
+  cardStyle?: ExploreCardStyle;
 };
 
 export type PlaceDiscoverPrimaryKind = 'save' | 'delete' | 'label';
@@ -133,6 +143,33 @@ function IconDirections(): React.ReactElement {
   );
 }
 
+function IconOpenInNew(): React.ReactElement {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M14 4h6v6M10 14 20 4M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconPhone(): React.ReactElement {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M8.5 4.5h-2A1.5 1.5 0 0 0 5 6v1.2c0 7 5.8 12.8 12.8 12.8H19a1.5 1.5 0 0 0 1.5-1.5v-2l-3.2-1.6-1.6 1.6a11 11 0 0 1-5-5l1.6-1.6L10.7 4.5H8.5Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function IconItinerary(): React.ReactElement {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -205,16 +242,38 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
 }) => {
   const { config } = useConfig();
   const city = card.city || cityFallback;
+  const isFunctional = card.cardStyle === 'functional';
   const [photo, setPhoto] = React.useState<{
     imageUrl: string;
     sourceUrl: string;
     displayName?: string;
     provider?: 'google' | 'wikipedia' | 'commons' | 'openverse' | 'other';
   } | null>(null);
+  const [miniMapFailed, setMiniMapFailed] = React.useState(false);
   const [mode, setMode] = React.useState<'drive' | 'transit' | 'walk'>('walk');
+
+  const destHasCoords = Number.isFinite(card.latitude) && Number.isFinite(card.longitude);
+  const miniMapUrl =
+    isFunctional && destHasCoords && !miniMapFailed
+      ? nearbyStaticMiniMapUrl({
+          destination: { lat: Number(card.latitude), lng: Number(card.longitude) },
+          origin: directionsOrigin,
+          width: layout === 'list' ? 400 : 640,
+          height: layout === 'list' ? 400 : 360
+        })
+      : undefined;
+
+  React.useEffect(() => {
+    setMiniMapFailed(false);
+  }, [card.id]);
 
   React.useEffect(() => {
     let cancelled = false;
+    // Functional cards never request or resolve photos — mini-map only.
+    if (isFunctional) {
+      setPhoto(null);
+      return;
+    }
     const run = async (): Promise<void> => {
       const listingFallback =
         normalizeHttpsUrl(card.tripadvisorUrl) ||
@@ -263,6 +322,7 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
       cancelled = true;
     };
   }, [
+    isFunctional,
     card.name,
     card.address,
     card.photoKind,
@@ -287,8 +347,7 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
   const displayName = (photo?.displayName || '').trim() || card.name;
 
   const destQuery =
-    (card.address || '').trim() ||
-    [displayName, city].filter(Boolean).join(', ');
+    (card.address || '').trim() || [displayName, city].filter(Boolean).join(', ');
   const directions = directionsOrigin
     ? Number.isFinite(card.latitude) && Number.isFinite(card.longitude)
       ? nearbyDirectionsUrl(
@@ -311,24 +370,75 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
       placeDirectionsFromHereUrl(displayName, card.address, city) ||
       undefined;
 
+  const viewPlaceHref =
+    normalizeHttpsUrl(card.mapsUrl) ||
+    nearbyMapsListingUrl(card.placeId, displayName, card.address) ||
+    placeQueryMapsUrl(displayName, card.address) ||
+    placeQueryMapsUrl(destQuery) ||
+    undefined;
+
   const listingHref =
     normalizeHttpsUrl(card.tripadvisorUrl) ||
     normalizeHttpsUrl(card.websiteUrl) ||
     normalizeHttpsUrl(photo?.sourceUrl) ||
-    normalizeHttpsUrl(card.mapsUrl) ||
-    placeQueryMapsUrl(displayName, card.address) ||
-    placeQueryMapsUrl(destQuery) ||
-    undefined;
+    viewPlaceHref;
   const photoHref = listingHref;
   const kind = primaryAction?.kind || 'label';
+  const phoneHref = (card.phoneNumber || '').trim()
+    ? `tel:${(card.phoneNumber || '').replace(/[^\d+]/g, '')}`
+    : undefined;
+
   const openListing = (e: React.MouseEvent): void => {
     if (!listingHref) return;
     openMobileExternalUrl(listingHref, e);
   };
+  const openViewPlace = (e: React.MouseEvent): void => {
+    if (!viewPlaceHref) return;
+    openMobileExternalUrl(viewPlaceHref, e);
+  };
+
+  const mediaClass = `${styles.photo} ${isFunctional ? styles.miniMap : ''}`;
+  const mediaInner = isFunctional ? (
+    miniMapUrl ? (
+      <img
+        className={styles.miniMapImg}
+        src={miniMapUrl}
+        alt=""
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        onError={() => setMiniMapFailed(true)}
+      />
+    ) : (
+      <div className={styles.miniMapFallback} aria-hidden>
+        <span className={styles.miniMapPin} />
+        <span className={styles.miniMapLabel}>{card.categoryLabel}</span>
+      </div>
+    )
+  ) : null;
 
   return (
     <article className={`${styles.card} ${layout === 'strip' ? styles.strip : styles.list}`}>
-      {photoHref ? (
+      {isFunctional ? (
+        viewPlaceHref ? (
+          <a
+            className={mediaClass}
+            href={viewPlaceHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`View ${displayName} on map`}
+            title="View place on Google Maps"
+            onClick={openViewPlace}
+          >
+            {mediaInner}
+            {miniMapUrl ? <span className={styles.miniMapCredit}>© OpenStreetMap</span> : null}
+          </a>
+        ) : (
+          <div className={mediaClass} aria-hidden>
+            {mediaInner}
+            {miniMapUrl ? <span className={styles.miniMapCredit}>© OpenStreetMap</span> : null}
+          </div>
+        )
+      ) : photoHref ? (
         <a
           className={styles.photo}
           href={photoHref}
@@ -361,7 +471,7 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
           ) : (
             <strong className={styles.name}>{displayName}</strong>
           )}
-          {typeof card.rating === 'number' ? (
+          {!isFunctional && typeof card.rating === 'number' ? (
             <span className={styles.rating}>★ {card.rating.toFixed(1)}</span>
           ) : null}
         </div>
@@ -422,6 +532,19 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
               <IconDirections /> Directions
             </a>
           ) : null}
+          {viewPlaceHref ? (
+            <a
+              className={`${styles.action} ${styles.actionViewPlace}`}
+              href={viewPlaceHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="View place on Google Maps"
+              title="View place on Google Maps"
+              onClick={openViewPlace}
+            >
+              <IconOpenInNew /> View place
+            </a>
+          ) : null}
           {secondaryAction ? (
             <button
               type="button"
@@ -432,6 +555,11 @@ export const MobilePlaceDiscoverCard: React.FC<MobilePlaceDiscoverCardProps> = (
             >
               <IconItinerary /> {secondaryAction.label}
             </button>
+          ) : null}
+          {phoneHref ? (
+            <a className={`${styles.action} ${styles.actionIcon}`} href={phoneHref} aria-label="Call" title="Call">
+              <IconPhone />
+            </a>
           ) : null}
           {tertiaryAction ? (
             <button

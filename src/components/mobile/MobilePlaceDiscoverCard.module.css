@@ -213,6 +213,12 @@
   color: white;
 }
 
+.actionViewPlace {
+  background: #2f5eb8;
+  border-color: #2f5eb8;
+  color: white;
+}
+
 .actionIcon {
   width: 2.65rem;
   height: 2.65rem;
@@ -223,6 +229,63 @@
 .actionIconDanger {
   color: #b42318;
   border-color: color-mix(in srgb, #b42318 30%, transparent);
+}
+
+.miniMap {
+  background-color: #dfe8f0;
+  background-image: none;
+  overflow: hidden;
+}
+
+.miniMapImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.miniMapFallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at 30% 40%, #c5d6e8 0%, transparent 55%),
+    radial-gradient(circle at 70% 65%, #b7c9d8 0%, transparent 50%),
+    linear-gradient(160deg, #e8eef5, #d4e0ea);
+}
+
+.miniMapPin {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 50% 50% 50% 0;
+  background: #c0392b;
+  transform: rotate(-45deg);
+  box-shadow: 0 1px 4px color-mix(in srgb, #1e2a44 25%, transparent);
+}
+
+.miniMapLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #3d4f66;
+  letter-spacing: 0.01em;
+}
+
+.miniMapCredit {
+  position: absolute;
+  right: 0.35rem;
+  bottom: 0.25rem;
+  font-size: 0.55rem;
+  font-weight: 600;
+  color: #3d4f66;
+  background: color-mix(in srgb, white 78%, transparent);
+  border-radius: 0.25rem;
+  padding: 0.05rem 0.3rem;
+  pointer-events: none;
 }
 
 [data-shell='ipad-portrait'] .name {

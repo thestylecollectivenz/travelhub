@@ -14,6 +14,7 @@ import {
 import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
 import {
   EXPLORE_CATEGORIES,
+  exploreCategoryCardStyle,
   normalizeExploreCategory,
   savedRowToExploreCategory,
   type ExploreCategoryId,
@@ -549,7 +550,8 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
                   mapsUrl: r.mapsUrl,
                   tags: r.tags,
                   city: shortPlace,
-                  nearLabel: r.nearLabel
+                  nearLabel: r.nearLabel,
+                  cardStyle: exploreCategoryCardStyle(r.category)
                 }}
                 primaryAction={
                   entry

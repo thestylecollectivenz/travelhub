@@ -6,7 +6,9 @@ import { MOBILE_NEAR_YOU_ON_SITE_KM, resolveLocationSearchContext } from '../../
 import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
 import {
   exploreCategoryById,
+  exploreCategoryCardStyle,
   exploreCategoryToNearTool,
+  isFunctionalExploreCategory,
   normalizeExploreCategory,
   type ExploreCategoryId
 } from '../../utils/exploreCategories';
@@ -88,6 +90,8 @@ type ExploreCard = NearYouCachedResult & {
   tags: string[];
   walkHint?: string;
   distanceRaw?: string;
+  phoneNumber?: string;
+  cardStyle?: 'functional' | 'experience';
 };
 
 /** Results shown initially and added per "Load more" tap. */
@@ -137,7 +141,8 @@ function factualSummary(p: NearbyPlace): string {
   return parts.join(' · ');
 }
 
-function toCardsFromNearby(places: NearbyPlace[], categoryLabel: string): ExploreCard[] {
+function toCardsFromNearby(places: NearbyPlace[], categoryId: ExploreCategoryId, categoryLabel: string): ExploreCard[] {
+  const cardStyle = exploreCategoryCardStyle(categoryId);
   return places.map((p, i) => ({
     id: p.id,
     name: p.name,
@@ -147,7 +152,7 @@ function toCardsFromNearby(places: NearbyPlace[], categoryLabel: string): Explor
     priceLevel: p.priceLevel,
     mapsUrl: p.mapsUrl,
     websiteUrl: p.websiteUrl,
-    photoUrl: p.photoUrl,
+    photoUrl: cardStyle === 'functional' ? undefined : p.photoUrl,
     placeId: p.source === 'google' ? p.sourcePlaceId : undefined,
     aiBlurb: factualSummary(p),
     topPick: i === 0,
@@ -158,7 +163,9 @@ function toCardsFromNearby(places: NearbyPlace[], categoryLabel: string): Explor
     latitude: p.latitude,
     longitude: p.longitude,
     walkMinutes: estimateWalkMinutesFromMetres(p.distanceMetres),
-    driveMinutes: estimateDriveMinutesFromMetres(p.distanceMetres)
+    driveMinutes: estimateDriveMinutesFromMetres(p.distanceMetres),
+    phoneNumber: p.phoneNumber,
+    cardStyle
   }));
 }
 
@@ -388,13 +395,14 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
         const display = isCachedResponse
           ? response.results.map((p) => (p.source === 'google' ? { ...p, photoUrl: undefined } : p))
           : response.results;
-        setResults(toCardsFromNearby(display, catDef.label));
+        setResults(toCardsFromNearby(display, category, catDef.label));
         setVisibleCount(PAGE_SIZE);
         setFromCache(isCachedResponse);
         setLastRefreshed(response.cache.searchedAt);
         if (response.warning) setStaleWarning(response.warning);
 
-        if (isCachedResponse) {
+        // Functional categories use free OSM mini-maps — never spend Photo quota.
+        if (isCachedResponse && !isFunctionalExploreCategory(category)) {
           void refreshPhotosUpTo(PAGE_SIZE, mapsKey, seq);
         }
       } catch (err) {
@@ -486,7 +494,8 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   const geminiKey = (config.geminiApiKey || '').trim();
   const visibleIdsKey = visible.map((r) => r.id).join('|');
   React.useEffect(() => {
-    if (!geminiKey || !visibleIdsKey) return;
+    // Functional cards show address / open status only — skip Gemini blurbs.
+    if (!geminiKey || !visibleIdsKey || isFunctionalExploreCategory(category)) return;
     const targets = visible
       .filter((r) => !blurbs[r.id] && !requestedBlurbIdsRef.current.has(r.id))
       .map((r) => ({
@@ -503,12 +512,12 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
       setBlurbs((prev) => ({ ...prev, ...got }));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibleIdsKey, geminiKey]);
+  }, [visibleIdsKey, geminiKey, category]);
 
   const handleLoadMore = (): void => {
     const next = visibleCount + PAGE_SIZE;
     setVisibleCount(next);
-    if (fromCache) {
+    if (fromCache && !isFunctionalExploreCategory(category)) {
       void refreshPhotosUpTo(next, (config.googleMapsApiKey || '').trim(), loadSeqRef.current);
     }
   };
@@ -728,7 +737,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
                     : undefined
                 }
                 preferProvidedPhoto
-                factualPhotosOnly
+                factualPhotosOnly={!isFunctionalExploreCategory(category)}
                 card={{
                   id: r.id,
                   name: r.name,
@@ -742,6 +751,8 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
                   tripadvisorUrl: r.tripadvisorUrl,
                   photoUrl: r.photoUrl,
                   placeId: r.placeId,
+                  phoneNumber: r.phoneNumber,
+                  cardStyle: r.cardStyle || exploreCategoryCardStyle(category),
                   tags: r.tags,
                   city: shortPlace,
                   latitude: r.latitude,

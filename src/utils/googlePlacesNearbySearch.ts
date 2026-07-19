@@ -1,4 +1,5 @@
 import type { NearbyCategoryConfig } from './nearbyCategoryConfig';
+import { isFunctionalExploreCategory } from './exploreCategories';
 import type { NearbyPlace } from './nearbyPlaceModel';
 import {
   distanceMetresBetween,
@@ -149,7 +150,10 @@ function toNearbyPlace(
   const lng = coordNumber(raw.geometry?.location?.lng);
   if (!placeId || !name || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
   const distanceMetres = distanceMetresBetween(originLat, originLng, lat, lng);
-  const photo = raw.photos?.[0];
+  // Functional categories (pharmacy, fuel, ATM, …) never mint Place Photo
+  // URLs — cards use a free OSM mini-map instead, saving Photo API quota.
+  const skipPhotos = isFunctionalExploreCategory(categoryId);
+  const photo = skipPhotos ? undefined : raw.photos?.[0];
   let photoUrl: string | undefined;
   try {
     photoUrl = photo ? photo.getUrl({ maxWidth: 800 }) : undefined;
