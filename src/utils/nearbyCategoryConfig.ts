@@ -20,6 +20,12 @@ export interface NearbyCategoryConfig {
   googleTypes: string[];
   /** Controlled text queries for textSearch when types alone are not enough. */
   googleTextQueries: string[];
+  /**
+   * Google results whose PRIMARY type (types[0]) is in this list are dropped —
+   * e.g. hotels with in-house restaurants surface under type=restaurant but
+   * their primary type is 'lodging'.
+   */
+  googleExcludedPrimaryTypes?: string[];
   /** OSM tag filters for the Overpass fallback (each entry is one selector). */
   osmTags: Array<Record<string, string>>;
   defaultRadiusMetres: number;
@@ -37,6 +43,16 @@ const CONFIGS: NearbyCategoryConfig[] = [
     label: 'Restaurants',
     googleTypes: ['restaurant'],
     googleTextQueries: [],
+    googleExcludedPrimaryTypes: [
+      'lodging',
+      'meal_takeaway',
+      'meal_delivery',
+      'gas_station',
+      'supermarket',
+      'grocery_or_supermarket',
+      'convenience_store',
+      'night_club'
+    ],
     osmTags: [{ amenity: 'restaurant' }],
     defaultRadiusMetres: 2500,
     minimumResults: 6,
@@ -49,6 +65,7 @@ const CONFIGS: NearbyCategoryConfig[] = [
     label: 'Cafés',
     googleTypes: ['cafe'],
     googleTextQueries: ['coffee'],
+    googleExcludedPrimaryTypes: ['lodging', 'gas_station', 'supermarket', 'grocery_or_supermarket'],
     osmTags: [{ amenity: 'cafe' }],
     defaultRadiusMetres: 2000,
     minimumResults: 6,
@@ -72,6 +89,7 @@ const CONFIGS: NearbyCategoryConfig[] = [
     label: 'Sights',
     googleTypes: ['tourist_attraction', 'church', 'museum'],
     googleTextQueries: ['landmark', 'cathedral', 'historic site', 'tourist attraction'],
+    googleExcludedPrimaryTypes: ['lodging', 'restaurant', 'travel_agency', 'real_estate_agency'],
     osmTags: [
       { tourism: 'attraction' },
       { tourism: 'museum' },
@@ -92,6 +110,7 @@ const CONFIGS: NearbyCategoryConfig[] = [
     label: 'Bakeries',
     googleTypes: ['bakery'],
     googleTextQueries: ['patisserie'],
+    googleExcludedPrimaryTypes: ['lodging', 'supermarket', 'grocery_or_supermarket'],
     osmTags: [{ shop: 'bakery' }],
     defaultRadiusMetres: 2500,
     minimumResults: 4,
@@ -158,6 +177,7 @@ const CONFIGS: NearbyCategoryConfig[] = [
     label: 'Nightlife',
     googleTypes: ['bar', 'night_club'],
     googleTextQueries: ['cocktail bar', 'wine bar'],
+    googleExcludedPrimaryTypes: ['lodging'],
     osmTags: [{ amenity: 'bar' }, { amenity: 'pub' }, { amenity: 'nightclub' }],
     defaultRadiusMetres: 4000,
     minimumResults: 5,

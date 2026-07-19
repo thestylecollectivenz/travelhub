@@ -32,6 +32,10 @@ import {
 } from '../../utils/mobileTripDayPending';
 import { itineraryEntryFromSubItem } from '../../utils/mobileSubItemEntry';
 import { useMobileDetailHistory } from '../../hooks/useMobileDetailHistory';
+import {
+  hasRecentExternalNavigation,
+  loadPersistedMobileNav
+} from '../../utils/mobileNavPersistence';
 import { useShellMode } from '../../hooks/useShellMode';
 import { todayYmd } from '../../utils/placeForecastDates';
 import { EXPAND_UNSCHEDULED_EVENT, notifyExpandUnscheduled } from '../../utils/mobileItineraryUiEvents';
@@ -149,7 +153,12 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
 
   const [detailTarget, setDetailTarget] = React.useState<MobileDetailTarget | null>(null);
   const touchStartRef = React.useRef<{ x: number; y: number } | null>(null);
-  const [locationPanelEntryId, setLocationPanelEntryId] = React.useState<string | null>(null);
+  const [locationPanelEntryId, setLocationPanelEntryId] = React.useState<string | null>(() => {
+    // Reopen the location info page when this mount is the remount caused by
+    // returning from an external website (link opened from that page).
+    if (!hasRecentExternalNavigation()) return null;
+    return loadPersistedMobileNav().locationEntryId || null;
+  });
   const [unschedOpen, setUnschedOpen] = React.useState(false);
   const [aiPrompt, setAiPrompt] = React.useState('');
   const [adding, setAdding] = React.useState(false);
@@ -251,8 +260,13 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     return locationInfoEntriesForDay(day, localEntries, trip.id);
   }, [day, localEntries, trip]);
 
-  // Clear open sheet when day changes; do not auto-open location info on itinerary load.
+  // Clear open sheet when the user changes day; the initial day resolving on
+  // mount must not clear a location page restored after an external return.
+  const prevDayIdRef = React.useRef<string | undefined>(undefined);
   React.useEffect(() => {
+    const prev = prevDayIdRef.current;
+    prevDayIdRef.current = day?.id;
+    if (!prev || prev === day?.id) return;
     setLocationPanelEntryId(null);
   }, [day?.id]);
 

@@ -717,23 +717,17 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     });
   }, []);
 
+  // Persist which location entry is open (any panel) so returning from an
+  // external website can reopen this page instead of the bare itinerary.
   React.useEffect(() => {
     if (!entry?.id || !trip?.id) return;
-    if (panel === 'explore' || panel === 'saved') {
-      persistMobileNav({
-        view: 'singleTrip',
-        tripId: trip.id,
-        locationPanel: panel,
-        locationEntryId: entry.id,
-        exploreCategory: exploreCategory
-      });
-    } else {
-      persistMobileNav({
-        locationPanel: undefined,
-        locationEntryId: undefined,
-        exploreCategory: undefined
-      });
-    }
+    persistMobileNav({
+      view: 'singleTrip',
+      tripId: trip.id,
+      locationEntryId: entry.id,
+      locationPanel: panel === 'explore' || panel === 'saved' ? panel : undefined,
+      exploreCategory: panel === 'explore' ? exploreCategory : undefined
+    });
   }, [panel, exploreCategory, entry?.id, trip?.id]);
 
   // In-app close of the sheet (unmount) must not leave a stale sub-panel

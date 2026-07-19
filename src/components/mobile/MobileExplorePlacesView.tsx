@@ -12,6 +12,7 @@ import {
 } from '../../utils/exploreCategories';
 import type { NearYouCachedResult } from '../../utils/nearYouResultCache';
 import { searchNearbyPlaces } from '../../utils/searchNearbyPlaces';
+import { refreshGooglePlacePhotos } from '../../utils/googlePlacesNearbySearch';
 import {
   estimateDriveMinutesFromMetres,
   estimateWalkMinutesFromMetres,
@@ -199,10 +200,22 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   const [toast, setToast] = React.useState('');
   const [mapOpen, setMapOpen] = React.useState(false);
   const [gpsCentre, setGpsCentre] = React.useState<{ lat: number; lng: number } | null>(null);
+  /** Guards against a slow response for an old category/photo refresh overwriting a newer one. */
+  const loadSeqRef = React.useRef(0);
 
   React.useEffect(() => {
     setCategory(normalizeExploreCategory(initialCategory));
   }, [initialCategory]);
+
+  // Switching category must never keep showing the previous category's list.
+  React.useEffect(() => {
+    setResults([]);
+    setVisibleCount(6);
+    setFromCache(false);
+    setLastRefreshed('');
+    setStaleWarning('');
+    setError('');
+  }, [category]);
 
   const [sortBy, setSortBy] = React.useState('Distance');
   const [distanceKm, setDistanceKm] = React.useState(10);
@@ -318,11 +331,23 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
           locationEntryId: isGps ? undefined : locationEntryId || undefined
         });
 
+        const seq = ++loadSeqRef.current;
         setResults(toCardsFromNearby(response.results, catDef.label));
         setVisibleCount(6);
-        setFromCache(response.cache.status === 'hit' || response.cache.status === 'stale-fallback');
+        const isCachedResponse =
+          response.cache.status === 'hit' || response.cache.status === 'stale-fallback';
+        setFromCache(isCachedResponse);
         setLastRefreshed(response.cache.searchedAt);
         if (response.warning) setStaleWarning(response.warning);
+
+        // Cached Google photo URLs carry session tokens that die on reload —
+        // re-resolve them in the background so reopen never shows broken images.
+        if (isCachedResponse && response.results.some((p) => p.source === 'google')) {
+          void refreshGooglePlacePhotos(response.results, mapsKey).then((updated) => {
+            if (loadSeqRef.current !== seq) return;
+            setResults(toCardsFromNearby(updated, catDef.label));
+          });
+        }
       } catch (err) {
         // Do not clear existing cards — reopen/refresh failures should not blank the list.
         setError(err instanceof Error ? err.message : 'Could not find nearby places.');

@@ -276,9 +276,12 @@ export async function googleNearbySearch(options: {
     batches.push(await runTextSearch(svc, ns, { query, location, radius }));
   }
 
+  const excludedPrimary = config.googleExcludedPrimaryTypes || [];
   const places: NearbyPlace[] = [];
   for (const batch of batches) {
     for (const raw of batch.results) {
+      const primaryType = raw.types?.[0] || '';
+      if (primaryType && excludedPrimary.indexOf(primaryType) !== -1) continue;
       const place = toNearbyPlace(raw, originLat, originLng, config.id);
       if (place) places.push(place);
     }
@@ -298,6 +301,63 @@ export async function googleNearbySearch(options: {
     }
   }
   return { places, errorStatus };
+}
+
+/**
+ * Photo URLs returned by the Places JS library embed short-lived session
+ * tokens, so URLs stored in the cache stop loading after a page reload (red-X
+ * images on reopen). Re-resolve photos for cached Google places via a cheap
+ * photos-only Details call before display.
+ */
+export async function refreshGooglePlacePhotos(
+  places: NearbyPlace[],
+  apiKey: string
+): Promise<NearbyPlace[]> {
+  const ns = await loadGooglePlacesLibrary(apiKey);
+  if (!ns) return places;
+  const host = document.createElement('div');
+  const svc = new ns.PlacesService(host);
+
+  const refreshOne = (place: NearbyPlace): Promise<NearbyPlace> =>
+    new Promise((resolve) => {
+      if (place.source !== 'google') {
+        resolve(place);
+        return;
+      }
+      const timeout = window.setTimeout(() => resolve({ ...place, photoUrl: undefined }), 5000);
+      try {
+        svc.getDetails({ placeId: place.sourcePlaceId, fields: ['photos'] }, (detail, status) => {
+          window.clearTimeout(timeout);
+          if (status !== ns.PlacesServiceStatus.OK || !detail) {
+            // The stored URL is dead — no image beats a broken one.
+            resolve({ ...place, photoUrl: undefined });
+            return;
+          }
+          const photo = detail.photos?.[0];
+          let photoUrl: string | undefined;
+          try {
+            photoUrl = photo ? photo.getUrl({ maxWidth: 800 }) : undefined;
+          } catch {
+            photoUrl = undefined;
+          }
+          resolve({
+            ...place,
+            photoUrl,
+            photoAttribution: stripAttributionHtml(photo?.html_attributions?.[0]) || place.photoAttribution
+          });
+        });
+      } catch {
+        window.clearTimeout(timeout);
+        resolve({ ...place, photoUrl: undefined });
+      }
+    });
+
+  const out: NearbyPlace[] = [];
+  for (const place of places) {
+    // eslint-disable-next-line no-await-in-loop
+    out.push(await refreshOne(place));
+  }
+  return out;
 }
 
 const DETAIL_FIELDS = [

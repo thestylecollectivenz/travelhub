@@ -259,8 +259,17 @@ export async function resolveVenueListingPhoto(options: {
   const key = (options.googleMapsApiKey || '').trim();
   const ck = `${name.toLowerCase()}|${city.toLowerCase()}|${options.latitude ?? ''}|${options.longitude ?? ''}|k:${key ? '1' : '0'}`;
   const cache = loadCache();
-  // Only reuse cache hits that actually have an image (empty shells caused grey tiles).
-  if ((cache[ck]?.imageUrl || '').trim()) return cache[ck];
+  // Only reuse cache hits that actually have an image (empty shells caused grey
+  // tiles). Google photo URLs embed session tokens that expire after a reload,
+  // so verify those still load before trusting the cache.
+  const cachedHit = cache[ck];
+  if ((cachedHit?.imageUrl || '').trim()) {
+    if (cachedHit.provider !== 'google') return cachedHit;
+    const { probeImageLoads } = await import('./imageUrlUtils');
+    if (await probeImageLoads(cachedHit.imageUrl)) return cachedHit;
+    delete cache[ck];
+    saveCache(cache);
+  }
 
   const listing = mapsListingUrl(name, options.address, options.latitude, options.longitude);
   let googleListing = listing;
