@@ -37,6 +37,7 @@ import { MobileExplorePlacesView } from './MobileExplorePlacesView';
 import { MobileSavedPlacesView } from './MobileSavedPlacesView';
 import {
   loadPersistedMobileNav,
+  parseNavHash,
   persistMobileNav,
   shouldRestoreMobileNav
 } from '../../utils/mobileNavPersistence';
@@ -120,8 +121,12 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   const spContext = useSpContext();
   const { placeById } = usePlaces();
   const [panel, setPanel] = React.useState<Panel>(() => {
-    // Only reopen a sub-panel when this mount is a restore (deep-screen reload
-    // or external-site return); otherwise location info opens at its main page.
+    // The URL route decides which sub-page reopens on a restore (deep-screen
+    // reload or external-site return); otherwise open at the main page.
+    const route = parseNavHash();
+    if (route) {
+      return route.locationEntryId === entry?.id && route.locationPanel ? (route.locationPanel as Panel) : 'main';
+    }
     if (!shouldRestoreMobileNav()) return 'main';
     const nav = loadPersistedMobileNav();
     if (nav.locationEntryId === entry?.id && (nav.locationPanel === 'explore' || nav.locationPanel === 'saved')) {
@@ -131,11 +136,21 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   });
   const [nearToolId, setNearToolId] = React.useState<NearYouToolId | null>(null);
   const [exploreCategory, setExploreCategory] = React.useState<string | undefined>(() => {
+    const route = parseNavHash();
+    if (route) {
+      return route.locationEntryId === entry?.id && route.locationPanel === 'explore' ? route.panelCategory : undefined;
+    }
     if (!shouldRestoreMobileNav()) return undefined;
     const nav = loadPersistedMobileNav();
     return nav.locationEntryId === entry?.id ? nav.exploreCategory : undefined;
   });
-  const [savedCategory, setSavedCategory] = React.useState<string | undefined>();
+  const [savedCategory, setSavedCategory] = React.useState<string | undefined>(() => {
+    const route = parseNavHash();
+    if (route && route.locationEntryId === entry?.id && route.locationPanel === 'saved') {
+      return route.panelCategory;
+    }
+    return undefined;
+  });
   const [nearActionMsg, setNearActionMsg] = React.useState('');
   const [dayPick, setDayPick] = React.useState<DayPickState | null>(null);
   const [tipSave, setTipSave] = React.useState<TipSaveState>(null);
@@ -726,9 +741,10 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
       tripId: trip.id,
       locationEntryId: entry.id,
       locationPanel: panel === 'explore' || panel === 'saved' ? panel : undefined,
-      exploreCategory: panel === 'explore' ? exploreCategory : undefined
+      exploreCategory:
+        panel === 'explore' ? exploreCategory : panel === 'saved' ? savedCategory : undefined
     });
-  }, [panel, exploreCategory, entry?.id, trip?.id]);
+  }, [panel, exploreCategory, savedCategory, entry?.id, trip?.id]);
 
   // In-app close of the sheet (unmount) must not leave a stale sub-panel
   // behind; a hard page reload skips this cleanup, which is exactly what lets
@@ -955,6 +971,8 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
                 place={place}
                 locationEntryId={entry.id}
                 locationLabel={exploreLocationLabel}
+                initialCategory={exploreCategory}
+                onCategoryChange={setExploreCategory}
                 practicalTipsHtml={data?.practicalTips}
                 onBack={closePanels}
                 onSavePlace={canEditItinerary ? saveNearPlace : undefined}
@@ -984,6 +1002,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
                 data={data}
                 entry={liveEntry}
                 initialCategory={savedCategory}
+                onCategoryChange={setSavedCategory}
                 startingPointLabel={startingPointLabel}
                 overrideCoords={overrideCoords}
                 onBack={closePanels}

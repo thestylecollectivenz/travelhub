@@ -35,21 +35,82 @@ export function hasRecentExternalNavigation(): boolean {
 }
 
 /**
- * URL hash marker that makes deep app screens behave like proper pages: while
- * the user is inside a trip the URL carries "#thnav", so any reload (manual
- * refresh, or SharePoint remounting after an external website) restores the
- * saved screen from localStorage. Going back Home removes the marker, so a
- * fresh visit starts at Home as usual.
+ * Proper-page routing via the URL hash. While the user is inside a trip the
+ * URL always encodes the full route, e.g.
+ *
+ *   #th/trip/<tripId>/<tab>
+ *   #th/trip/<tripId>/<tab>/loc/<entryId>
+ *   #th/trip/<tripId>/<tab>/loc/<entryId>/explore/<category>
+ *   #th/trip/<tripId>/<tab>/loc/<entryId>/saved/<category?>
+ *
+ * Any reload — manual refresh, or SharePoint remounting the page after the
+ * user returns from an external website — reopens exactly that route.
+ * Going back Home clears the hash, so a fresh visit starts at Home.
  */
-const NAV_HASH = '#thnav';
+const HASH_PREFIX = '#th/';
+/** Pre-1.0.11.207 marker; still honoured as "restore from localStorage". */
+const LEGACY_NAV_HASH = '#thnav';
 
-/** Keep the URL hash in sync with whether deep state exists. */
-export function syncNavHash(deepState: boolean): void {
+export interface ParsedNavHash {
+  tripId: string;
+  tripTab?: string;
+  locationEntryId?: string;
+  locationPanel?: 'explore' | 'saved';
+  /** Explore category or saved-places category, depending on locationPanel. */
+  panelCategory?: string;
+}
+
+function buildNavHash(nav: PersistedMobileNav): string {
+  if (nav.view !== 'singleTrip' || !(nav.tripId || '').trim()) return '';
+  const seg = (v: string): string => encodeURIComponent(v);
+  let hash = `${HASH_PREFIX}trip/${seg(nav.tripId!.trim())}/${seg((nav.tripTab || 'today').trim() || 'today')}`;
+  if ((nav.locationEntryId || '').trim()) {
+    hash += `/loc/${seg(nav.locationEntryId!.trim())}`;
+    if (nav.locationPanel === 'explore' || nav.locationPanel === 'saved') {
+      hash += `/${nav.locationPanel}`;
+      if ((nav.exploreCategory || '').trim()) hash += `/${seg(nav.exploreCategory!.trim())}`;
+    }
+  }
+  return hash;
+}
+
+export function parseNavHash(): ParsedNavHash | undefined {
   try {
-    const hasMarker = window.location.hash.indexOf(NAV_HASH) === 0;
-    if (deepState === hasMarker) return;
+    const hash = window.location.hash || '';
+    if (hash.indexOf(HASH_PREFIX) !== 0) return undefined;
+    const parts = hash.slice(HASH_PREFIX.length).split('/').map((p) => {
+      try {
+        return decodeURIComponent(p);
+      } catch {
+        return p;
+      }
+    });
+    if (parts[0] !== 'trip' || !(parts[1] || '').trim()) return undefined;
+    const out: ParsedNavHash = { tripId: parts[1].trim(), tripTab: (parts[2] || '').trim() || undefined };
+    if (parts[3] === 'loc' && (parts[4] || '').trim()) {
+      out.locationEntryId = parts[4].trim();
+      if (parts[5] === 'explore' || parts[5] === 'saved') {
+        out.locationPanel = parts[5];
+        out.panelCategory = (parts[6] || '').trim() || undefined;
+      }
+    }
+    return out;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Keep the URL hash in sync with the current navigation state. */
+export function syncNavHash(nav: PersistedMobileNav): void {
+  try {
+    const next = buildNavHash(nav);
+    const current = window.location.hash || '';
+    if (next === current) return;
+    if (!next && current.indexOf(HASH_PREFIX) !== 0 && current.indexOf(LEGACY_NAV_HASH) !== 0) {
+      return; // never clobber a non-TravelHub hash
+    }
     const base = window.location.pathname + window.location.search;
-    window.history.replaceState(window.history.state, '', deepState ? base + NAV_HASH : base);
+    window.history.replaceState(window.history.state, '', next ? base + next : base);
   } catch {
     /* ignore */
   }
@@ -58,7 +119,8 @@ export function syncNavHash(deepState: boolean): void {
 /** Restore saved navigation on this mount? True after external-site returns and marked reloads. */
 export function shouldRestoreMobileNav(): boolean {
   try {
-    if (window.location.hash.indexOf(NAV_HASH) === 0) return true;
+    const hash = window.location.hash || '';
+    if (hash.indexOf(HASH_PREFIX) === 0 || hash.indexOf(LEGACY_NAV_HASH) === 0) return true;
   } catch {
     /* ignore */
   }
@@ -121,7 +183,7 @@ export function persistMobileNav(partial: PersistedMobileNav): void {
     } catch {
       /* ignore */
     }
-    syncNavHash(next.view === 'singleTrip');
+    syncNavHash(next);
   } catch {
     /* ignore */
   }
@@ -142,7 +204,7 @@ export function clearPersistedTripNav(): void {
     } catch {
       /* ignore */
     }
-    syncNavHash(false);
+    syncNavHash(next);
   } catch {
     /* ignore */
   }

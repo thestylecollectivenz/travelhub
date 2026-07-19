@@ -36,6 +36,8 @@ export interface MobileSavedPlacesViewProps {
   data: LocationInfoNotes;
   entry?: ItineraryEntry;
   initialCategory?: string;
+  /** Reports the active category so the caller can keep the URL route in sync. */
+  onCategoryChange?: (category: string) => void;
   startingPointLabel?: string;
   overrideCoords?: { lat: number; lng: number };
   onBack: () => void;
@@ -194,6 +196,7 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
   data,
   entry,
   initialCategory,
+  onCategoryChange,
   startingPointLabel,
   overrideCoords,
   onBack,
@@ -251,6 +254,11 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
   React.useEffect(() => {
     setCategory(normalizeInitialSavedCategory(initialCategory));
   }, [initialCategory]);
+
+  React.useEffect(() => {
+    onCategoryChange?.(category);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category]);
 
   const showDiningFilters = isDiningCategory(category);
   const showEssentialsExtras = isEssentialsCategory(category);

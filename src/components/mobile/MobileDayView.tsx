@@ -34,6 +34,7 @@ import { itineraryEntryFromSubItem } from '../../utils/mobileSubItemEntry';
 import { useMobileDetailHistory } from '../../hooks/useMobileDetailHistory';
 import {
   loadPersistedMobileNav,
+  parseNavHash,
   shouldRestoreMobileNav
 } from '../../utils/mobileNavPersistence';
 import { useShellMode } from '../../hooks/useShellMode';
@@ -154,8 +155,10 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   const [detailTarget, setDetailTarget] = React.useState<MobileDetailTarget | null>(null);
   const touchStartRef = React.useRef<{ x: number; y: number } | null>(null);
   const [locationPanelEntryId, setLocationPanelEntryId] = React.useState<string | null>(() => {
-    // Reopen the location info page when this mount is a restore (reload of a
-    // deep screen, or the remount after returning from an external website).
+    // Reopen the location info page when the URL route names one (deep-screen
+    // reload, or the remount after returning from an external website).
+    const route = parseNavHash();
+    if (route) return route.locationEntryId || null;
     if (!shouldRestoreMobileNav()) return null;
     return loadPersistedMobileNav().locationEntryId || null;
   });

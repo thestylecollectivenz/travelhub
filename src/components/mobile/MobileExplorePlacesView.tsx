@@ -42,6 +42,8 @@ export interface MobileExplorePlacesViewProps {
   overrideCoords?: { lat: number; lng: number };
   searchAnchorLabel?: string;
   initialCategory?: string;
+  /** Reports the active category so the caller can keep the URL route in sync. */
+  onCategoryChange?: (category: string) => void;
   /** Practical tips from location notes for the bottom tip strip. */
   practicalTipsHtml?: string;
   onBack: () => void;
@@ -169,6 +171,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   overrideCoords,
   searchAnchorLabel,
   initialCategory,
+  onCategoryChange,
   practicalTipsHtml,
   onBack,
   onChangeStartingPoint,
@@ -217,6 +220,11 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   React.useEffect(() => {
     setCategory(normalizeExploreCategory(initialCategory));
   }, [initialCategory]);
+
+  React.useEffect(() => {
+    onCategoryChange?.(category);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category]);
 
   // Switching category must never keep showing the previous category's list.
   React.useEffect(() => {
