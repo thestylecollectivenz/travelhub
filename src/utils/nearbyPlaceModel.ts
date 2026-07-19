@@ -69,16 +69,24 @@ export function formatDistanceMetres(metres: number): string {
   return `${(metres / 1000).toFixed(1)} km`;
 }
 
-/** Deterministic walk estimate (~80 m/min on roads ≈ 1.25× straight line). */
+/**
+ * Deterministic walk estimate calibrated against Google walking directions in
+ * town centres: street routes run ~1.35× the straight line at ~75 m/min.
+ */
 export function estimateWalkMinutesFromMetres(metres: number): number | undefined {
   if (!Number.isFinite(metres) || metres <= 0) return undefined;
-  const mins = Math.max(1, Math.round((metres * 1.25) / 80));
+  const mins = Math.max(1, Math.round((metres * 1.35) / 75));
   return mins <= 180 ? mins : undefined;
 }
 
+/**
+ * Drive estimate: ~1.4× route factor at ~26 km/h urban average, plus ~1.5 min
+ * of start/park overhead — Google rarely reports “1 min” drives in town.
+ */
 export function estimateDriveMinutesFromMetres(metres: number): number | undefined {
   if (!Number.isFinite(metres) || metres <= 50) return undefined;
-  const mins = Math.max(1, Math.round(((metres / 1000) * 1.35 * 60) / 32));
+  const routeKm = (metres / 1000) * 1.4;
+  const mins = Math.max(2, Math.round(1.5 + (routeKm * 60) / 26));
   return mins <= 180 ? mins : undefined;
 }
 

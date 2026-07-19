@@ -89,7 +89,15 @@ const CONFIGS: NearbyCategoryConfig[] = [
     label: 'Sights',
     googleTypes: ['tourist_attraction', 'church', 'museum'],
     googleTextQueries: ['landmark', 'cathedral', 'historic site', 'tourist attraction'],
-    googleExcludedPrimaryTypes: ['lodging', 'restaurant', 'travel_agency', 'real_estate_agency'],
+    googleExcludedPrimaryTypes: [
+      'lodging',
+      'restaurant',
+      'bar',
+      'cafe',
+      'night_club',
+      'travel_agency',
+      'real_estate_agency'
+    ],
     osmTags: [
       { tourism: 'attraction' },
       { tourism: 'museum' },

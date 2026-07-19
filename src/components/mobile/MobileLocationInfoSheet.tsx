@@ -36,9 +36,9 @@ import { MobileNearYouResults } from './MobileNearYouResults';
 import { MobileExplorePlacesView } from './MobileExplorePlacesView';
 import { MobileSavedPlacesView } from './MobileSavedPlacesView';
 import {
-  hasRecentExternalNavigation,
   loadPersistedMobileNav,
-  persistMobileNav
+  persistMobileNav,
+  shouldRestoreMobileNav
 } from '../../utils/mobileNavPersistence';
 import { MobileStartPointPicker, type StartPointSelection } from './MobileStartPointPicker';
 import { MobileDayPickActions, type DayPickOption } from './MobileDayPickActions';
@@ -120,9 +120,9 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   const spContext = useSpContext();
   const { placeById } = usePlaces();
   const [panel, setPanel] = React.useState<Panel>(() => {
-    // Only reopen a sub-panel when this mount is the remount after visiting an
-    // external site; otherwise location info always opens at its main page.
-    if (!hasRecentExternalNavigation()) return 'main';
+    // Only reopen a sub-panel when this mount is a restore (deep-screen reload
+    // or external-site return); otherwise location info opens at its main page.
+    if (!shouldRestoreMobileNav()) return 'main';
     const nav = loadPersistedMobileNav();
     if (nav.locationEntryId === entry?.id && (nav.locationPanel === 'explore' || nav.locationPanel === 'saved')) {
       return nav.locationPanel as Panel;
@@ -131,7 +131,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   });
   const [nearToolId, setNearToolId] = React.useState<NearYouToolId | null>(null);
   const [exploreCategory, setExploreCategory] = React.useState<string | undefined>(() => {
-    if (!hasRecentExternalNavigation()) return undefined;
+    if (!shouldRestoreMobileNav()) return undefined;
     const nav = loadPersistedMobileNav();
     return nav.locationEntryId === entry?.id ? nav.exploreCategory : undefined;
   });

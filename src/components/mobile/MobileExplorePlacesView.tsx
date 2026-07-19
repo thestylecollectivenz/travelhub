@@ -13,6 +13,7 @@ import {
 import type { NearYouCachedResult } from '../../utils/nearYouResultCache';
 import { searchNearbyPlaces } from '../../utils/searchNearbyPlaces';
 import { refreshGooglePlacePhotos } from '../../utils/googlePlacesNearbySearch';
+import { getNearbyPlaceBlurbs } from '../../utils/nearbyPlaceBlurbs';
 import {
   estimateDriveMinutesFromMetres,
   estimateWalkMinutesFromMetres,
@@ -86,6 +87,9 @@ type ExploreCard = NearYouCachedResult & {
   walkHint?: string;
   distanceRaw?: string;
 };
+
+/** Results shown initially and added per "Load more" tap. */
+const PAGE_SIZE = 5;
 
 const DINING_CATEGORIES: ExploreCategoryId[] = ['restaurants', 'cafes', 'bakeries', 'nightlife'];
 const ESSENTIALS_CATEGORIES: ExploreCategoryId[] = [
@@ -196,12 +200,19 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   const [lastRefreshed, setLastRefreshed] = React.useState('');
   const [staleWarning, setStaleWarning] = React.useState('');
   const [results, setResults] = React.useState<ExploreCard[]>([]);
-  const [visibleCount, setVisibleCount] = React.useState(6);
+  const [visibleCount, setVisibleCount] = React.useState(PAGE_SIZE);
+  const [blurbs, setBlurbs] = React.useState<Record<string, string>>({});
   const [toast, setToast] = React.useState('');
   const [mapOpen, setMapOpen] = React.useState(false);
   const [gpsCentre, setGpsCentre] = React.useState<{ lat: number; lng: number } | null>(null);
   /** Guards against a slow response for an old category/photo refresh overwriting a newer one. */
   const loadSeqRef = React.useRef(0);
+  /** Raw places from the last response — used for on-demand photo refresh of visible items. */
+  const rawPlacesRef = React.useRef<NearbyPlace[]>([]);
+  /** Place ids whose photos were already requested for this result set. */
+  const requestedPhotoIdsRef = React.useRef<Set<string>>(new Set());
+  /** Place ids whose blurbs were already requested this mount. */
+  const requestedBlurbIdsRef = React.useRef<Set<string>>(new Set());
 
   React.useEffect(() => {
     setCategory(normalizeExploreCategory(initialCategory));
@@ -210,11 +221,12 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   // Switching category must never keep showing the previous category's list.
   React.useEffect(() => {
     setResults([]);
-    setVisibleCount(6);
+    setVisibleCount(PAGE_SIZE);
     setFromCache(false);
     setLastRefreshed('');
     setStaleWarning('');
     setError('');
+    requestedPhotoIdsRef.current = new Set();
   }, [category]);
 
   const [sortBy, setSortBy] = React.useState('Distance');
@@ -264,6 +276,30 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
     setFilterOutdoor(false);
     setFilterReservations(false);
   };
+
+  /**
+   * Re-mint photo URLs for the first `count` cached places only (visible
+   * ones). Session-memoised inside refreshGooglePlacePhotos, so each place
+   * costs at most one Details call per page-load.
+   */
+  const refreshPhotosUpTo = React.useCallback(
+    async (count: number, mapsKey: string, seq: number): Promise<void> => {
+      const targets = rawPlacesRef.current
+        .slice(0, count)
+        .filter((p) => p.source === 'google' && !requestedPhotoIdsRef.current.has(p.id));
+      if (!targets.length) return;
+      targets.forEach((p) => requestedPhotoIdsRef.current.add(p.id));
+      const refreshed = await refreshGooglePlacePhotos(targets, mapsKey);
+      if (loadSeqRef.current !== seq) return;
+      setResults((prev) =>
+        prev.map((card) => {
+          const updated = refreshed.find((p) => p.id === card.id);
+          return updated ? { ...card, photoUrl: updated.photoUrl } : card;
+        })
+      );
+    },
+    []
+  );
 
   const load = React.useCallback(
     async (forceRefresh = false): Promise<void> => {
@@ -332,21 +368,26 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
         });
 
         const seq = ++loadSeqRef.current;
-        setResults(toCardsFromNearby(response.results, catDef.label));
-        setVisibleCount(6);
         const isCachedResponse =
           response.cache.status === 'hit' || response.cache.status === 'stale-fallback';
+        rawPlacesRef.current = response.results;
+        requestedPhotoIdsRef.current = new Set();
+
+        // Cached Google photo URLs carry session tokens that die on reload —
+        // Google serves a red-X placeholder for them, so never render them.
+        // Visible items get fresh photo URLs below (session-memoised, so this
+        // costs at most one Details call per place per page-load).
+        const display = isCachedResponse
+          ? response.results.map((p) => (p.source === 'google' ? { ...p, photoUrl: undefined } : p))
+          : response.results;
+        setResults(toCardsFromNearby(display, catDef.label));
+        setVisibleCount(PAGE_SIZE);
         setFromCache(isCachedResponse);
         setLastRefreshed(response.cache.searchedAt);
         if (response.warning) setStaleWarning(response.warning);
 
-        // Cached Google photo URLs carry session tokens that die on reload —
-        // re-resolve them in the background so reopen never shows broken images.
-        if (isCachedResponse && response.results.some((p) => p.source === 'google')) {
-          void refreshGooglePlacePhotos(response.results, mapsKey).then((updated) => {
-            if (loadSeqRef.current !== seq) return;
-            setResults(toCardsFromNearby(updated, catDef.label));
-          });
+        if (isCachedResponse) {
+          void refreshPhotosUpTo(PAGE_SIZE, mapsKey, seq);
         }
       } catch (err) {
         // Do not clear existing cards — reopen/refresh failures should not blank the list.
@@ -365,6 +406,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
       overrideLat,
       overrideLng,
       place,
+      refreshPhotosUpTo,
       spCtx
     ]
   );
@@ -430,6 +472,38 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
 
   const visible = filtered.slice(0, visibleCount);
   const saveToolId = exploreCategoryToNearTool(category) ?? 'dining';
+
+  // Richer card text: one batched Gemini call describes the visible verified
+  // places (cached per device, never used for discovery).
+  const geminiKey = (config.geminiApiKey || '').trim();
+  const visibleIdsKey = visible.map((r) => r.id).join('|');
+  React.useEffect(() => {
+    if (!geminiKey || !visibleIdsKey) return;
+    const targets = visible
+      .filter((r) => !blurbs[r.id] && !requestedBlurbIdsRef.current.has(r.id))
+      .map((r) => ({
+        id: r.id,
+        name: r.name,
+        categoryLabel: [r.aiBlurb, r.categoryLabel].filter(Boolean).join(' — '),
+        address: r.address,
+        city: shortPlace
+      }));
+    if (!targets.length) return;
+    targets.forEach((t) => requestedBlurbIdsRef.current.add(t.id));
+    void getNearbyPlaceBlurbs(targets, geminiKey).then((got) => {
+      if (!Object.keys(got).length) return;
+      setBlurbs((prev) => ({ ...prev, ...got }));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleIdsKey, geminiKey]);
+
+  const handleLoadMore = (): void => {
+    const next = visibleCount + PAGE_SIZE;
+    setVisibleCount(next);
+    if (fromCache) {
+      void refreshPhotosUpTo(next, (config.googleMapsApiKey || '').trim(), loadSeqRef.current);
+    }
+  };
 
   const showToast = (msg: string): void => {
     setToast(msg);
@@ -652,7 +726,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
                   name: r.name,
                   categoryLabel: r.categoryLabel,
                   rating: r.rating,
-                  description: r.aiBlurb,
+                  description: blurbs[r.id] || r.aiBlurb,
                   distanceRaw: r.distanceRaw || r.note,
                   address: r.address,
                   mapsUrl: r.mapsUrl,
@@ -684,11 +758,11 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
                             photoUrl: r.photoUrl,
                             toolId: saveToolId,
                             address: r.address,
-                            why: r.aiBlurb,
+                            why: blurbs[r.id] || r.aiBlurb,
                             bestFor: r.categoryLabel,
                             rating: r.rating,
                             priceLevel: r.priceLevel,
-                            servicesSummary: r.aiBlurb
+                            servicesSummary: blurbs[r.id] || r.aiBlurb
                           });
                           if (saved !== false) showToast(`Saved · ${r.name}`);
                         }
@@ -717,7 +791,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
           </div>
 
           {visibleCount < filtered.length ? (
-            <button type="button" className={styles.loadMore} onClick={() => setVisibleCount((n) => n + 6)}>
+            <button type="button" className={styles.loadMore} onClick={handleLoadMore}>
               Load more
             </button>
           ) : null}

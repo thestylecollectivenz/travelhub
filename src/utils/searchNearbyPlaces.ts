@@ -17,7 +17,11 @@ import {
   nearbyLocationKey,
   rankNearbyPlaces
 } from './nearbyPlaceModel';
-import { enrichGooglePlaceDetails, googleNearbySearch } from './googlePlacesNearbySearch';
+import {
+  enrichGooglePlaceDetails,
+  googleNearbySearch,
+  rememberSessionPhotoUrls
+} from './googlePlacesNearbySearch';
 import { overpassNearbySearch } from './overpassNearbySearch';
 import { NearbySearchCacheService } from '../services/NearbySearchCacheService';
 import { loadNearbyLocalCache, saveNearbyLocalCache } from './nearbyLocalCache';
@@ -173,6 +177,8 @@ export async function searchNearbyPlaces(options: SearchNearbyPlacesOptions): Pr
       if (googleMapsApiKey) {
         ranked = await enrichGooglePlaceDetails(ranked, googleMapsApiKey);
       }
+      // Photo URLs minted now stay valid all page-load — reuse them for free.
+      rememberSessionPhotoUrls(ranked);
 
       const searchedAt = new Date().toISOString();
       const expiresAt = new Date(

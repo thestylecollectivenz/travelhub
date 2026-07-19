@@ -11,18 +11,18 @@ import { IpadLandscapePlaceholder } from '../../../../components/ipad/IpadLandsc
 import type { MobileTab } from '../../../../components/mobile/mobileTypes';
 import {
   clearPersistedTripNav,
-  hasRecentExternalNavigation,
   installExternalNavigationTracker,
   loadPersistedMobileNav,
-  persistMobileNav
+  persistMobileNav,
+  shouldRestoreMobileNav
 } from '../../../../utils/mobileNavPersistence';
 
 type AppView = 'multiTrip' | 'singleTrip' | 'createTrip' | 'terms';
 
 function initialViewFromSession(): { view: AppView; tripId: string; tab?: MobileTab } {
-  // Only restore the last screen when this load is the remount caused by
-  // returning from an external website. A plain refresh starts at Home.
-  if (!hasRecentExternalNavigation()) return { view: 'multiTrip', tripId: '' };
+  // Restore the last screen when the URL carries the deep-state marker
+  // (in-trip reloads, external-site returns). A fresh visit starts at Home.
+  if (!shouldRestoreMobileNav()) return { view: 'multiTrip', tripId: '' };
   const nav = loadPersistedMobileNav();
   if (nav.view === 'singleTrip' && (nav.tripId || '').trim()) {
     return {
@@ -57,7 +57,7 @@ export const AppRouter: React.FC = () => {
   // they hijacked normal in-app navigation on every tab switch.
   React.useEffect(() => {
     const onPageShow = (ev: PageTransitionEvent): void => {
-      if (!ev.persisted || !hasRecentExternalNavigation()) return;
+      if (!ev.persisted || !shouldRestoreMobileNav()) return;
       const nav = loadPersistedMobileNav();
       if (nav.view === 'singleTrip' && (nav.tripId || '').trim()) {
         setSelectedTripId(nav.tripId!.trim());

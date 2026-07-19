@@ -35,6 +35,37 @@ export function hasRecentExternalNavigation(): boolean {
 }
 
 /**
+ * URL hash marker that makes deep app screens behave like proper pages: while
+ * the user is inside a trip the URL carries "#thnav", so any reload (manual
+ * refresh, or SharePoint remounting after an external website) restores the
+ * saved screen from localStorage. Going back Home removes the marker, so a
+ * fresh visit starts at Home as usual.
+ */
+const NAV_HASH = '#thnav';
+
+/** Keep the URL hash in sync with whether deep state exists. */
+export function syncNavHash(deepState: boolean): void {
+  try {
+    const hasMarker = window.location.hash.indexOf(NAV_HASH) === 0;
+    if (deepState === hasMarker) return;
+    const base = window.location.pathname + window.location.search;
+    window.history.replaceState(window.history.state, '', deepState ? base + NAV_HASH : base);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Restore saved navigation on this mount? True after external-site returns and marked reloads. */
+export function shouldRestoreMobileNav(): boolean {
+  try {
+    if (window.location.hash.indexOf(NAV_HASH) === 0) return true;
+  } catch {
+    /* ignore */
+  }
+  return hasRecentExternalNavigation();
+}
+
+/**
  * Catch every external link click (plain <a target="_blank"> included) so the
  * restore gate works regardless of how the link was rendered.
  */
@@ -90,6 +121,7 @@ export function persistMobileNav(partial: PersistedMobileNav): void {
     } catch {
       /* ignore */
     }
+    syncNavHash(next.view === 'singleTrip');
   } catch {
     /* ignore */
   }
@@ -110,6 +142,7 @@ export function clearPersistedTripNav(): void {
     } catch {
       /* ignore */
     }
+    syncNavHash(false);
   } catch {
     /* ignore */
   }

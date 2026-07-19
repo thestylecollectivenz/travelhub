@@ -33,8 +33,8 @@ import {
 import { itineraryEntryFromSubItem } from '../../utils/mobileSubItemEntry';
 import { useMobileDetailHistory } from '../../hooks/useMobileDetailHistory';
 import {
-  hasRecentExternalNavigation,
-  loadPersistedMobileNav
+  loadPersistedMobileNav,
+  shouldRestoreMobileNav
 } from '../../utils/mobileNavPersistence';
 import { useShellMode } from '../../hooks/useShellMode';
 import { todayYmd } from '../../utils/placeForecastDates';
@@ -154,9 +154,9 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   const [detailTarget, setDetailTarget] = React.useState<MobileDetailTarget | null>(null);
   const touchStartRef = React.useRef<{ x: number; y: number } | null>(null);
   const [locationPanelEntryId, setLocationPanelEntryId] = React.useState<string | null>(() => {
-    // Reopen the location info page when this mount is the remount caused by
-    // returning from an external website (link opened from that page).
-    if (!hasRecentExternalNavigation()) return null;
+    // Reopen the location info page when this mount is a restore (reload of a
+    // deep screen, or the remount after returning from an external website).
+    if (!shouldRestoreMobileNav()) return null;
     return loadPersistedMobileNav().locationEntryId || null;
   });
   const [unschedOpen, setUnschedOpen] = React.useState(false);

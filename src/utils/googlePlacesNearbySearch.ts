@@ -265,26 +265,38 @@ export async function googleNearbySearch(options: {
   const location = { lat: originLat, lng: originLng };
   const radius = config.defaultRadiusMetres;
 
-  const batches: SearchBatch[] = [];
-  // Sequential requests keep us well inside Places JS rate limits.
-  for (const type of config.googleTypes) {
-    // eslint-disable-next-line no-await-in-loop
-    batches.push(await runNearbySearch(svc, ns, { location, radius, type }));
-  }
-  for (const query of config.googleTextQueries) {
-    // eslint-disable-next-line no-await-in-loop
-    batches.push(await runTextSearch(svc, ns, { query, location, radius }));
-  }
-
   const excludedPrimary = config.googleExcludedPrimaryTypes || [];
   const places: NearbyPlace[] = [];
-  for (const batch of batches) {
+  const seenIds = new Set<string>();
+  const collect = (batch: SearchBatch): void => {
     for (const raw of batch.results) {
       const primaryType = raw.types?.[0] || '';
       if (primaryType && excludedPrimary.indexOf(primaryType) !== -1) continue;
       const place = toNearbyPlace(raw, originLat, originLng, config.id);
-      if (place) places.push(place);
+      if (!place || seenIds.has(place.sourcePlaceId)) continue;
+      seenIds.add(place.sourcePlaceId);
+      places.push(place);
     }
+  };
+  // Enough distinct candidates for ranking — stop issuing paid requests early.
+  const enough = (): boolean => places.length >= config.maximumResults * 2;
+
+  const batches: SearchBatch[] = [];
+  // Sequential requests keep us well inside Places JS rate limits and let us
+  // stop as soon as one type/query has produced a full candidate set.
+  for (const type of config.googleTypes) {
+    if (enough()) break;
+    // eslint-disable-next-line no-await-in-loop
+    const batch = await runNearbySearch(svc, ns, { location, radius, type });
+    batches.push(batch);
+    collect(batch);
+  }
+  for (const query of config.googleTextQueries) {
+    if (enough()) break;
+    // eslint-disable-next-line no-await-in-loop
+    const batch = await runTextSearch(svc, ns, { query, location, radius });
+    batches.push(batch);
+    collect(batch);
   }
 
   let errorStatus: string | undefined;
@@ -304,24 +316,41 @@ export async function googleNearbySearch(options: {
 }
 
 /**
+ * Photo URLs from this page-load stay valid for the whole session, so remember
+ * every URL we mint and never pay for the same place's photo twice per visit.
+ */
+const sessionPhotoUrls = new Map<string, string | undefined>();
+
+/**
  * Photo URLs returned by the Places JS library embed short-lived session
- * tokens, so URLs stored in the cache stop loading after a page reload (red-X
- * images on reopen). Re-resolve photos for cached Google places via a cheap
- * photos-only Details call before display.
+ * tokens, so URLs stored in the cache stop loading after a page reload
+ * (Google serves a red-X placeholder). Re-resolve photos for cached Google
+ * places via a photos-only Details call — but only for the places passed in
+ * (callers pass the visible slice) and never twice per page-load.
  */
 export async function refreshGooglePlacePhotos(
   places: NearbyPlace[],
   apiKey: string
 ): Promise<NearbyPlace[]> {
-  const ns = await loadGooglePlacesLibrary(apiKey);
-  if (!ns) return places;
-  const host = document.createElement('div');
-  const svc = new ns.PlacesService(host);
+  const needsLookup = places.some(
+    (p) => p.source === 'google' && p.photoUrl && !sessionPhotoUrls.has(p.sourcePlaceId)
+  );
+  const ns = needsLookup ? await loadGooglePlacesLibrary(apiKey) : undefined;
+  const svc = ns ? new ns.PlacesService(document.createElement('div')) : undefined;
 
   const refreshOne = (place: NearbyPlace): Promise<NearbyPlace> =>
     new Promise((resolve) => {
       if (place.source !== 'google') {
         resolve(place);
+        return;
+      }
+      if (sessionPhotoUrls.has(place.sourcePlaceId)) {
+        resolve({ ...place, photoUrl: sessionPhotoUrls.get(place.sourcePlaceId) });
+        return;
+      }
+      // A cached place that never had a photo is not worth a paid lookup.
+      if (!place.photoUrl || !svc || !ns) {
+        resolve({ ...place, photoUrl: undefined });
         return;
       }
       const timeout = window.setTimeout(() => resolve({ ...place, photoUrl: undefined }), 5000);
@@ -330,6 +359,7 @@ export async function refreshGooglePlacePhotos(
           window.clearTimeout(timeout);
           if (status !== ns.PlacesServiceStatus.OK || !detail) {
             // The stored URL is dead — no image beats a broken one.
+            sessionPhotoUrls.set(place.sourcePlaceId, undefined);
             resolve({ ...place, photoUrl: undefined });
             return;
           }
@@ -340,6 +370,7 @@ export async function refreshGooglePlacePhotos(
           } catch {
             photoUrl = undefined;
           }
+          sessionPhotoUrls.set(place.sourcePlaceId, photoUrl);
           resolve({
             ...place,
             photoUrl,
@@ -360,6 +391,13 @@ export async function refreshGooglePlacePhotos(
   return out;
 }
 
+/** Record photo URLs minted by a live search so cached reopens reuse them free. */
+export function rememberSessionPhotoUrls(places: NearbyPlace[]): void {
+  for (const place of places) {
+    if (place.source === 'google') sessionPhotoUrls.set(place.sourcePlaceId, place.photoUrl);
+  }
+}
+
 const DETAIL_FIELDS = [
   'place_id',
   'website',
@@ -371,12 +409,14 @@ const DETAIL_FIELDS = [
 ];
 
 /**
- * Enrich only the final displayed Google results with Details fields
- * (website, maps URI, opening hours). Strict field mask per call.
+ * Enrich only the top displayed Google results with Details fields
+ * (website, maps URI, opening hours). Strict field mask per call, and capped
+ * at `limit` places — Details calls are the main Places API quota cost.
  */
 export async function enrichGooglePlaceDetails(
   places: NearbyPlace[],
-  apiKey: string
+  apiKey: string,
+  limit = 6
 ): Promise<NearbyPlace[]> {
   const ns = await loadGooglePlacesLibrary(apiKey);
   if (!ns) return places;
@@ -422,9 +462,15 @@ export async function enrichGooglePlaceDetails(
     });
 
   const out: NearbyPlace[] = [];
+  let spent = 0;
   for (const place of places) {
-    // eslint-disable-next-line no-await-in-loop
-    out.push(await enrichOne(place));
+    if (place.source === 'google' && spent < limit) {
+      spent += 1;
+      // eslint-disable-next-line no-await-in-loop
+      out.push(await enrichOne(place));
+    } else {
+      out.push(place);
+    }
   }
   return out;
 }
