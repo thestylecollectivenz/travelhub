@@ -119,9 +119,15 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId, dayLabel 
   const saveQaThread = async (rowId: string, taskNote: string | undefined, next: IdeaQaEntry[]): Promise<void> => {
     const meta = parseDayIdeaMeta(taskNote);
     const svc = new ReminderService(spContext);
-    await svc.update(rowId, { taskNote: serializeDayIdeaMeta({ ...meta, qaThread: next }) });
-    refresh();
-    notifyDayIdeasChanged();
+    try {
+      await svc.update(rowId, { taskNote: serializeDayIdeaMeta({ ...meta, qaThread: next }) });
+      refresh();
+      notifyDayIdeasChanged();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('MobileDayIdeas: save Q&A failed', err);
+      throw err;
+    }
   };
 
   const dayUnread = rows.filter((r) => isDayIdeaUnread(r, spContext, members)).length;

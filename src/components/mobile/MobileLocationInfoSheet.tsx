@@ -195,6 +195,11 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     const canonical = buildCanonicalLocationInfoByPlaceId(localEntries, trip.id).get(placeId);
     return canonical ?? byId;
   }, [entry, localEntries, trip?.id]);
+  const startPointStorageId = React.useMemo(() => {
+    const placeId = liveEntry ? locationInfoPlaceId(liveEntry) : '';
+    if (placeId) return `place:${placeId}`;
+    return entry?.id || '';
+  }, [liveEntry, entry?.id]);
   const data = liveEntry ? parseLocationInfoNotes(liveEntry.notes) : null;
   const place = data ? placeById(data.placeId) : undefined;
 
@@ -279,41 +284,41 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
 
   React.useEffect(() => {
     if (!entry?.id) return;
-    const stored = loadLocationStartPoint(entry.id);
-    if (stored) rememberLocationStartPoint(entry.id, stored);
+    const stored = loadLocationStartPoint(startPointStorageId);
+    if (stored) rememberLocationStartPoint(startPointStorageId, stored);
     setStartingPoint(stored);
-    const local = loadLocationStartPointList(entry.id);
+    const local = loadLocationStartPointList(startPointStorageId);
     const notes = parseLocationInfoNotes(liveEntry?.notes);
     setSavedStarts(mergeSharedAndLocalStarts(notes?.savedStartingPoints, local));
     setStartHistory([]);
     setStartPickerOpen(false);
 
     // One-time promote per entry: local starts that already have saved places → SharePoint.
-    if (notes && liveEntry && canEditItinerary && local.length && promotedStartsRef.current !== entry.id) {
+    if (notes && liveEntry && canEditItinerary && local.length && promotedStartsRef.current !== startPointStorageId) {
       const promoted = promoteAttachedLocalStarts(notes, local);
       const before = JSON.stringify(notes.savedStartingPoints || []);
       const after = JSON.stringify(promoted.savedStartingPoints || []);
-      promotedStartsRef.current = entry.id;
+      promotedStartsRef.current = startPointStorageId;
       if (before !== after) {
         updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(promoted)) });
       }
     }
-  }, [calendarDate, entry?.id, liveEntry, canEditItinerary, updateEntry]);
+  }, [calendarDate, entry?.id, startPointStorageId, liveEntry, canEditItinerary, updateEntry]);
 
   // When SharePoint notes change (another save), refresh the merged start list.
   React.useEffect(() => {
-    if (!entry?.id) return;
-    const local = loadLocationStartPointList(entry.id);
+    if (!startPointStorageId) return;
+    const local = loadLocationStartPointList(startPointStorageId);
     const notes = parseLocationInfoNotes(liveEntry?.notes);
     setSavedStarts(mergeSharedAndLocalStarts(notes?.savedStartingPoints, local));
-  }, [entry?.id, liveEntry?.notes]);
+  }, [startPointStorageId, liveEntry?.notes]);
 
   const refreshSavedStarts = React.useCallback((): void => {
-    if (!entry?.id) return;
-    const local = loadLocationStartPointList(entry.id);
+    if (!startPointStorageId) return;
+    const local = loadLocationStartPointList(startPointStorageId);
     const notes = parseLocationInfoNotes(liveEntry?.notes);
     setSavedStarts(mergeSharedAndLocalStarts(notes?.savedStartingPoints, local));
-  }, [entry?.id, liveEntry?.notes]);
+  }, [startPointStorageId, liveEntry?.notes]);
 
   const startingPointLabel =
     startingPoint?.label || stayCentre?.label || stayCandidates[0] || placeCentre?.label || undefined;
@@ -337,12 +342,12 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     (next: StartPointSelection | null): void => {
       setStartHistory((prev) => [...prev, startingPoint]);
       setStartingPoint(next);
-      if (entry?.id) {
-        saveLocationStartPoint(entry.id, next);
+      if (startPointStorageId) {
+        saveLocationStartPoint(startPointStorageId, next);
         refreshSavedStarts();
       }
-      if (next && entry?.id) {
-        const entryId = entry.id;
+      if (next && startPointStorageId) {
+        const storageId = startPointStorageId;
         const base = { lat: next.lat, lng: next.lng, label: next.label };
         void reverseGeocodeAddress(base.lat, base.lng).then((addr) => {
           if (!addr) return;
@@ -352,12 +357,12 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
           setStartingPoint((cur) =>
             cur && startPointKey(cur) === startPointKey(enriched) ? enriched : cur
           );
-          saveLocationStartPoint(entryId, enriched);
+          saveLocationStartPoint(storageId, enriched);
           refreshSavedStarts();
         });
       }
     },
-    [startingPoint, entry?.id, refreshSavedStarts]
+    [startingPoint, startPointStorageId, refreshSavedStarts]
   );
 
   const undoStartingPoint = React.useCallback((): void => {
@@ -365,13 +370,13 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
       if (!prev.length) return prev;
       const prior = prev[prev.length - 1];
       setStartingPoint(prior);
-      if (entry?.id) {
-        saveLocationStartPoint(entry.id, prior);
+      if (startPointStorageId) {
+        saveLocationStartPoint(startPointStorageId, prior);
         refreshSavedStarts();
       }
       return prev.slice(0, -1);
     });
-  }, [entry?.id, refreshSavedStarts]);
+  }, [startPointStorageId, refreshSavedStarts]);
 
   const resetToAccommodation = React.useCallback((): void => {
     if (startingPoint === null) return;
@@ -394,15 +399,15 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
         window.setTimeout(() => setNearActionMsg(''), 2800);
         return;
       }
-      removeLocationStartPoint(entry.id, point);
+      removeLocationStartPoint(startPointStorageId, point);
       if (notes && liveEntry && canEditItinerary) {
         const next = removeSharedStartingPoint(notes, point);
         updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(next)) });
       }
       refreshSavedStarts();
-      setStartingPoint(loadLocationStartPoint(entry.id));
+      setStartingPoint(loadLocationStartPoint(startPointStorageId));
     },
-    [entry?.id, liveEntry, canEditItinerary, updateEntry, refreshSavedStarts]
+    [startPointStorageId, liveEntry, canEditItinerary, updateEntry, refreshSavedStarts]
   );
 
   const saveTravelTip = React.useCallback(

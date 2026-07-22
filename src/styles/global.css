@@ -31,9 +31,9 @@
   --tl-mobile-surface-muted: #f3f2f0;
   /**
    * Bottom inset for tab bars on iOS / SharePoint (safe-area env is often 0
-   * without viewport-fit=cover). 1.75rem ≈ home-indicator clearance.
+   * without viewport-fit=cover). 2.25rem ≈ home-indicator clearance on iPhone.
    */
-  --th-bottom-inset: max(env(safe-area-inset-bottom, 0px), 1.75rem);
+  --th-bottom-inset: max(env(safe-area-inset-bottom, 0px), 2.25rem);
 
   /* Warm Sand — backgrounds, cards, neutral surfaces */
   --color-sand-50: #FAF8F4;

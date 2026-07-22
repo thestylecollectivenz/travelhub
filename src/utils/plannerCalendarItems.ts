@@ -89,6 +89,7 @@ export function accommodationPlannerBlocks(
   const day = ymdSlice(calendarDate);
   const checkInDay = ymdSlice(entry.dateStart);
   const checkOutDay = ymdSlice(entry.dateEnd);
+  const sameDayStay = Boolean(checkInDay && checkOutDay && checkInDay === checkOutDay);
   const base = entry.title?.trim() || 'Accommodation';
   const blocks: Array<{ keySuffix: string; startMinutes: number; durationMinutes: number; title: string }> = [];
   if (day && checkInDay === day) {
@@ -103,10 +104,19 @@ export function accommodationPlannerBlocks(
     }
   }
   if (day && checkOutDay === day) {
-    const start = minutesFromTimeStart(effectiveAccommodationDepartureTime(entry));
+    let start = minutesFromTimeStart(effectiveAccommodationDepartureTime(entry));
+    if (start === undefined) {
+      // Same-day stays must not default checkout to 08:00 — that inverts arrive/depart order.
+      const checkinBlock = blocks.find((b) => b.keySuffix === 'checkin');
+      start = sameDayStay && checkinBlock ? checkinBlock.startMinutes + PORT_MARKER_MINUTES : 8 * 60;
+    }
+    const checkinBlock = blocks.find((b) => b.keySuffix === 'checkin');
+    if (sameDayStay && checkinBlock && start <= checkinBlock.startMinutes) {
+      start = checkinBlock.startMinutes + PORT_MARKER_MINUTES;
+    }
     blocks.push({
       keySuffix: 'checkout',
-      startMinutes: start ?? 8 * 60,
+      startMinutes: start,
       durationMinutes: PORT_MARKER_MINUTES,
       title: `${base} · ${formatAccommodationDepartLabel(entry)}`
     });
@@ -360,6 +370,11 @@ export function adjustPlannerAccommodationOrder(items: PlannerTimedItem[]): void
 
   for (const item of items) {
     if (!item.key.endsWith('-acc-checkin')) continue;
+    const entry = item.entry;
+    const sameDayStay =
+      ymdSlice(entry.dateStart) === ymdSlice(entry.dateEnd) && Boolean(entry.dateStart?.trim());
+    // Daycation check-in stays at its scheduled time — do not push after evening transport.
+    if (sameDayStay) continue;
     const originalStart = item.startMinutes;
     if (originalStart >= latestJourneyEnd) continue;
     const fromLabel = formatTimeHHMM(effectiveAccommodationArrivalTime(item.entry));
@@ -367,6 +382,17 @@ export function adjustPlannerAccommodationOrder(items: PlannerTimedItem[]): void
     if (fromLabel) {
       const base = item.entry.title?.trim() || 'Accommodation';
       item.title = `${base} · ${formatAccommodationArriveLabel(item.entry)}`;
+    }
+  }
+
+  // Same-day stays: checkout must always follow check-in in the timeline.
+  for (const item of items) {
+    if (!item.key.endsWith('-acc-checkout')) continue;
+    const entry = item.entry;
+    if (ymdSlice(entry.dateStart) !== ymdSlice(entry.dateEnd)) continue;
+    const checkin = items.find((i) => i.key === `${entry.id}-acc-checkin`);
+    if (checkin && item.startMinutes <= checkin.startMinutes) {
+      item.startMinutes = Math.min(checkin.startMinutes + PORT_MARKER_MINUTES, MINUTES_PER_DAY - 1);
     }
   }
 }

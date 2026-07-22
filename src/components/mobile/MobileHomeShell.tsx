@@ -224,7 +224,15 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   }, [tab]);
 
   React.useEffect(() => {
-    persistMobileNav({ homeTab: tab });
+    persistMobileNav({
+      view: 'multiTrip',
+      homeTab: tab,
+      tripId: undefined,
+      tripTab: undefined,
+      locationEntryId: undefined,
+      locationPanel: undefined,
+      exploreCategory: undefined
+    });
   }, [tab]);
 
   const [nearActionMsg, setNearActionMsg] = React.useState('');
@@ -983,7 +991,12 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
         <button
           type="button"
           className={`${styles.navBtn} ${tab === 'home' ? styles.navBtnActive : ''}`}
-          onClick={() => setTab('home')}
+          onClick={() => {
+            setNearToolId(null);
+            setNearExploreOpen(false);
+            setNearSavedOpen(false);
+            setTab('home');
+          }}
         >
           <IconHome />
           Home

@@ -240,9 +240,18 @@ function isCruiseMainCard(entry: ItineraryEntry): boolean {
   return t.includes('cruise');
 }
 
-function findAccommodationAnchor(entries: ItineraryEntry[]): ItineraryEntry | undefined {
+function findAccommodationAnchor(
+  entries: ItineraryEntry[],
+  timed: PlannerTimedItem[]
+): ItineraryEntry | undefined {
   const accommodation = entries.find((e) => (e.category || '').trim() === 'Accommodation');
-  if (accommodation) return accommodation;
+  if (accommodation) {
+    const hasTimedAccBlocks = timed.some(
+      (t) => t.entry.id === accommodation.id && t.key.includes('-acc-')
+    );
+    if (hasTimedAccBlocks) return undefined;
+    return accommodation;
+  }
   return entries.find((e) => isCruiseMainCard(e));
 }
 
@@ -1171,7 +1180,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
               shouldRenderPlannerItem(item, cal)
             );
             const unsched = expandPlannerUnscheduledItems(list, cal, tripDays, entriesForTrip);
-            const accommodationEntry = findAccommodationAnchor(list);
+            const accommodationEntry = findAccommodationAnchor(list, timed);
             const collapsed = Boolean(unschedCollapsed[day.id]);
             return (
               <div key={day.id} className={styles.mobileDayStack}>
@@ -1441,7 +1450,8 @@ export const ItineraryDayPlannerView: React.FC = () => {
                   (() => {
                     const cal = day.calendarDate || '';
                     const list = entriesForPlannerColumn(day);
-                    const accommodationEntry = findAccommodationAnchor(list);
+                    const timedForAnchor = expandPlannerTimedItems(list, cal, tripDays, entriesForTrip);
+                    const accommodationEntry = findAccommodationAnchor(list, timedForAnchor);
                     return (
                   <div key={`loc-${day.id}`} className={styles.unschedCell}>
                     <DayLocationInfoStrip

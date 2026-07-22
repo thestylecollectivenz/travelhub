@@ -560,6 +560,22 @@ function mergeQaThreads(primary: LocationInfoQaEntry[], secondary: LocationInfoQ
   return out.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
 }
 
+function mergeSavedTravelTips(
+  primary: SavedTravelTip[] | undefined,
+  secondary: SavedTravelTip[] | undefined
+): SavedTravelTip[] {
+  const combined = [...migrateSavedTravelTips(primary ?? []), ...migrateSavedTravelTips(secondary ?? [])];
+  const seen = new Set<string>();
+  const out: SavedTravelTip[] = [];
+  for (const tip of combined) {
+    const key = tip.text.trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(tip);
+  }
+  return out.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+}
+
 /**
  * Merge two destination-guide payloads for the same place so Q&A, saved places,
  * highlights, and notes survive when duplicate day cards are consolidated.
@@ -579,6 +595,7 @@ export function mergeLocationInfoNotes(primary: LocationInfoNotes, secondary: Lo
     diningSuggestions: mergeDiningRows(primary.diningSuggestions ?? [], secondary.diningSuggestions ?? []),
     nearestPlaces: mergeNearestMaps(primary.nearestPlaces, secondary.nearestPlaces),
     aiQaThread: mergeQaThreads(primary.aiQaThread ?? [], secondary.aiQaThread ?? []),
+    savedTravelTips: mergeSavedTravelTips(primary.savedTravelTips, secondary.savedTravelTips),
     savedStartingPoints: migrateSavedStartingPoints([
       ...(primary.savedStartingPoints ?? []),
       ...(secondary.savedStartingPoints ?? [])

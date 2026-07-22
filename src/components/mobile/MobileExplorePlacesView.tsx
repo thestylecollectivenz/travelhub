@@ -15,6 +15,7 @@ import {
 import type { NearYouCachedResult } from '../../utils/nearYouResultCache';
 import { searchNearbyPlaces } from '../../utils/searchNearbyPlaces';
 import { refreshGooglePlacePhotos } from '../../utils/googlePlacesNearbySearch';
+import { reverseGeocodeAddress } from '../../utils/googlePlacePhoto';
 import { getNearbyPlaceBlurbs } from '../../utils/nearbyPlaceBlurbs';
 import {
   estimateDriveMinutesFromMetres,
@@ -200,8 +201,9 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   const { config } = useConfig();
   const spCtx = useSpContext();
   const isGps = mode === 'gps';
+  const [gpsLocality, setGpsLocality] = React.useState('');
   const shortPlace = isGps
-    ? 'your area'
+    ? gpsLocality.trim() || 'your area'
     : placeNameFromTitle(place?.title || '') || locationLabel.split(',')[0] || 'this place';
   const [category, setCategory] = React.useState<ExploreCategoryId>(() => normalizeExploreCategory(initialCategory));
   const [busy, setBusy] = React.useState(false);
@@ -256,7 +258,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
 
   const catDef = exploreCategoryById(category);
   const stayName = isGps
-    ? 'your current location'
+    ? gpsLocality.trim() || 'your current location'
     : (startingPointLabel || '').trim() || shortPlace;
   const showDiningFilters = isDiningCategory(category);
   const showEssentialsExtras = isEssentialsCategory(category);
@@ -347,11 +349,13 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
             });
           });
           setGpsCentre({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          const locality = await reverseGeocodeAddress(pos.coords.latitude, pos.coords.longitude);
+          if (locality?.trim()) setGpsLocality(locality.trim());
           searchContext = {
             mode: 'onsite' as const,
             latitude: pos.coords.latitude,
             longitude: pos.coords.longitude,
-            placeName: 'Current location',
+            placeName: locality?.trim() || 'Current location',
             country: ''
           };
         } else {
@@ -823,7 +827,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
       </div>
 
       <MobileLocationTravelTip
-        placeLabel={isGps ? 'your area' : shortPlace}
+        placeLabel={shortPlace}
         categoryLabel={catDef.label}
         startingPointLabel={stayName}
         onSaveTip={onSaveTip}

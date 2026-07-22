@@ -39,6 +39,7 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
   const { config } = useConfig();
   const { canUseAiHelpers } = useTripPermissions();
   const [open, setOpen] = React.useState(Boolean(thread.length));
+  const [localThread, setLocalThread] = React.useState(thread);
   const [question, setQuestion] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState('');
@@ -47,6 +48,10 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
     setQuestion((prev) => `${prev}${prev ? ' ' : ''}${chunk}`);
   }, []);
   const { listening, toggleListening, stopListening, supported } = useContinuousSpeechInput(appendVoice);
+
+  React.useEffect(() => {
+    setLocalThread(thread);
+  }, [thread]);
 
   if (!canUseAiHelpers) return null;
 
@@ -77,8 +82,14 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
         answer: (answer || '').trim(),
         createdAt: new Date().toISOString()
       };
-      await onThreadChange([...thread, entry]);
+      const next = [...localThread, entry];
+      setLocalThread(next);
       setQuestion('');
+      try {
+        await onThreadChange(next);
+      } catch {
+        setError('Answer received but could not save — check your connection and try asking again.');
+      }
       if (entry.answer) speak(entry.answer);
     } catch (err) {
       setError(formatGeminiUserMessage(err));
@@ -88,14 +99,16 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
   };
 
   const removeEntry = (id: string): void => {
-    void onThreadChange(thread.filter((t) => t.id !== id));
+    const next = localThread.filter((t) => t.id !== id);
+    setLocalThread(next);
+    void onThreadChange(next);
   };
 
   return (
     <div className={`${styles.root} ${compact ? styles.compact : ''}`}>
       <button type="button" className={styles.toggle} onClick={() => setOpen((v) => !v)} aria-expanded={open}>
         <span aria-hidden>✦</span> Ask AI about this idea {open ? '▾' : '▸'}
-        {thread.length ? <span className={styles.count}>{thread.length}</span> : null}
+        {localThread.length ? <span className={styles.count}>{localThread.length}</span> : null}
       </button>
       {open ? (
         <div className={styles.panel}>
@@ -134,9 +147,9 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
           </div>
           {error ? <p className={styles.error}>{error}</p> : null}
           {busy ? <p className={styles.muted}>Thinking…</p> : null}
-          {thread.length ? (
+          {localThread.length ? (
             <ul className={styles.thread}>
-              {thread.map((item) => (
+              {localThread.map((item) => (
                 <li key={item.id} className={styles.threadItem}>
                   <p className={styles.q}>
                     <strong>Q:</strong> {item.question}

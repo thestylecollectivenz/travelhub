@@ -116,7 +116,11 @@ export const MobileNearYouPage: React.FC<MobileNearYouPageProps> = ({
         mode="gps"
         initialCategory={toolId ? nearToolToExploreCategory(toolId) : 'restaurants'}
         onBack={() => {
-          // Home "See all" opens explore directly — Back returns to Home, not the category hub.
+          // Home-shell Find tab: Back always returns to Home, not the category hub.
+          if (hideBack) {
+            onBack();
+            return;
+          }
           if (initialOpenExplore || initialToolId) onBack();
           else if (toolId) setToolId(null);
           else setExploreOpen(false);

@@ -22,7 +22,21 @@ import {
 type AppView = 'multiTrip' | 'singleTrip' | 'createTrip' | 'terms';
 
 function initialViewFromSession(): { view: AppView; tripId: string; tab?: MobileTab } {
-  // URL hash is the page route — restore trip/tab whenever it is present.
+  const restore = shouldRestoreMobileNav();
+  if (!restore) {
+    clearPersistedTripNav();
+    try {
+      const hash = window.location.hash || '';
+      if (hash.indexOf('#th/') === 0) {
+        const base = window.location.pathname + window.location.search;
+        window.history.replaceState(window.history.state, '', base);
+      }
+    } catch {
+      /* ignore */
+    }
+    return { view: 'multiTrip', tripId: '' };
+  }
+  // URL hash is the page route — restore trip/tab after external return.
   const route = parseNavHash();
   if (route) {
     persistMobileNav({
@@ -33,17 +47,13 @@ function initialViewFromSession(): { view: AppView; tripId: string; tab?: Mobile
       locationPanel: route.locationPanel,
       exploreCategory: route.panelCategory
     });
-    // Consumed: don't keep re-triggering deep restores from the external marker.
-    if (shouldRestoreMobileNav()) clearExternalNavigationMarker();
+    clearExternalNavigationMarker();
     return {
       view: 'singleTrip',
       tripId: route.tripId,
       tab: (route.tripTab as MobileTab | undefined) || undefined
     };
   }
-  // No hash: only restore from localStorage after a recent external return.
-  // Plain refreshes / next-day visits start at Home (avoids random last-session jumps).
-  if (!shouldRestoreMobileNav()) return { view: 'multiTrip', tripId: '' };
   const nav = loadPersistedMobileNav();
   clearExternalNavigationMarker();
   if (nav.view === 'singleTrip' && (nav.tripId || '').trim()) {
@@ -80,6 +90,7 @@ export const AppRouter: React.FC = () => {
   React.useEffect(() => {
     const onPageShow = (ev: PageTransitionEvent): void => {
       if (!ev.persisted) return;
+      if (!shouldRestoreMobileNav()) return;
       const route = parseNavHash();
       if (route) {
         setSelectedTripId(route.tripId);

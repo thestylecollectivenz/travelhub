@@ -173,19 +173,25 @@ export const MobileTripJotterList: React.FC = () => {
 
   const saveIdeaQaThread = async (idea: UnifiedTripIdea, next: IdeaQaEntry[]): Promise<void> => {
     const svc = new ReminderService(spContext);
-    if (isJotterIdeaReminder(idea.reminder)) {
-      const meta = parseJotterIdeaMeta(idea.reminder.taskNote);
-      await svc.update(idea.id, {
-        taskNote: JSON.stringify({ ...meta, qaThread: next })
-      });
-    } else {
-      const meta = parseDayIdeaMeta(idea.reminder.taskNote);
-      await svc.update(idea.id, {
-        taskNote: serializeDayIdeaMeta({ ...meta, qaThread: next })
-      });
+    try {
+      if (isJotterIdeaReminder(idea.reminder)) {
+        const meta = parseJotterIdeaMeta(idea.reminder.taskNote);
+        await svc.update(idea.id, {
+          taskNote: JSON.stringify({ ...meta, qaThread: next })
+        });
+      } else {
+        const meta = parseDayIdeaMeta(idea.reminder.taskNote);
+        await svc.update(idea.id, {
+          taskNote: serializeDayIdeaMeta({ ...meta, qaThread: next })
+        });
+      }
+      notifyTripIdeasChanged();
+      await refresh();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('MobileTripJotterList: save idea Q&A failed', err);
+      throw err;
     }
-    notifyTripIdeasChanged();
-    await refresh();
   };
 
   const addIdea = async (): Promise<void> => {
