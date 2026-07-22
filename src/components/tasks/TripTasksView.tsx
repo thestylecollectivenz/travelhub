@@ -48,6 +48,41 @@ function dueFilterLabel(key: TaskDueFilter): string {
   return 'Due tomorrow';
 }
 
+function IconOpenInItinerary(): React.ReactElement {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M15 3h6v6M21 3l-9 9"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconTrash(): React.ReactElement {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M5 7h14M10 7V5h4v2m-6 3v8m4-8v8M7 7l1 13h8l1-13"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function DueFilterChips(props: {
   ariaLabel: string;
   value: TaskDueFilter;
@@ -1014,12 +1049,14 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                         ) : null}
                         {target ? (
                           <button
-                            className={styles.iconBtn}
+                            className={`${styles.iconBtn} ${styles.iconBtnWide}`}
                             type="button"
-                            title="Open in itinerary"
+                            title="Open linked itinerary item"
+                            aria-label="Open in itinerary"
                             onClick={() => openEntryInItineraryRead(target.openEntryId, target.openDayId)}
                           >
-                            ↗
+                            <IconOpenInItinerary />
+                            Open
                           </button>
                         ) : null}
                         {canEditManualTask(m.assignedTo) ? (
@@ -1027,6 +1064,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                           className={styles.iconBtn}
                           type="button"
                           title="Delete"
+                          aria-label="Delete"
                           onClick={() => {
                             void (async () => {
                               if (!(await confirmUserAction('Delete this task?'))) return;
@@ -1034,7 +1072,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                             })();
                           }}
                         >
-                          🗑
+                          <IconTrash />
                         </button>
                         ) : null}
                       </>
@@ -1079,12 +1117,14 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                 </div>
                 <div className={`${styles.iconActions} ${styles.noPrint}`}>
                   <button
-                    className={styles.iconBtn}
+                    className={`${styles.iconBtn} ${styles.iconBtnWide}`}
                     type="button"
-                    title="Open in itinerary"
+                    title="Open linked itinerary item"
+                    aria-label="Open in itinerary"
                     onClick={() => openEntryInItineraryRead(entry.id, entry.dayId)}
                   >
-                    ↗
+                    <IconOpenInItinerary />
+                    Open
                   </button>
                   <button
                     className={styles.iconBtn}
@@ -1155,12 +1195,14 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                 </div>
                 <div className={`${styles.iconActions} ${styles.noPrint}`}>
                   <button
-                    className={styles.iconBtn}
+                    className={`${styles.iconBtn} ${styles.iconBtnWide}`}
                     type="button"
-                    title="Open in itinerary"
+                    title="Open linked itinerary item"
+                    aria-label="Open in itinerary"
                     onClick={() => openEntryInItineraryRead(entry.id, entry.dayId)}
                   >
-                    ↗
+                    <IconOpenInItinerary />
+                    Open
                   </button>
                   <button
                     className={styles.iconBtn}
@@ -1227,12 +1269,14 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                     <div className={`${styles.iconActions} ${styles.noPrint}`}>
                       {target ? (
                         <button
-                          className={styles.iconBtn}
+                          className={`${styles.iconBtn} ${styles.iconBtnWide}`}
                           type="button"
-                          title="Open in itinerary"
+                          title="Open linked itinerary item"
+                          aria-label="Open in itinerary"
                           onClick={() => openEntryInItineraryRead(target.openEntryId, target.openDayId)}
                         >
-                          ↗
+                          <IconOpenInItinerary />
+                          Open
                         </button>
                       ) : null}
                       <button
@@ -1249,6 +1293,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                         className={styles.iconBtn}
                         type="button"
                         title="Delete"
+                        aria-label="Delete"
                         onClick={() => {
                           void (async () => {
                             if (!(await confirmUserAction('Delete this reminder?'))) return;
@@ -1256,7 +1301,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                           })();
                         }}
                       >
-                        🗑
+                        <IconTrash />
                       </button>
                       ) : null}
                     </div>

@@ -123,6 +123,16 @@ export function deleteTripShoppingCategory(tripId: string, category: string): st
   );
 }
 
+export function isDefaultListCategory(category: string): boolean {
+  const key = category.trim().toLowerCase();
+  return DEFAULT_SHARED_LIST_CATEGORIES.some((c) => c.toLowerCase() === key);
+}
+
+/** Force-merge the full built-in list back into the trip's master categories. */
+export function restoreDefaultListCategories(tripId: string): string[] {
+  return saveTripShoppingCategories(tripId, loadTripShoppingCategories(tripId));
+}
+
 /** Include a legacy/orphan category on an item row when it is not in the saved list. */
 export function categoriesForItemSelect(saved: string[], itemCategory: string): string[] {
   const trimmed = itemCategory.trim();

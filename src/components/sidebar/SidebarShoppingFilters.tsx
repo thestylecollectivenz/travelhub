@@ -5,13 +5,17 @@ import { useSpContext } from '../../context/SpContext';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
 import { useTripMembers } from '../../hooks/useTripMembers';
+import { isDefaultListCategory } from '../../utils/tripShoppingCategories';
 import styles from './TripSidebar.module.css';
 
 export const SidebarShoppingFilters: React.FC = () => {
   const plan = usePlanView();
   const { trip } = useTripWorkspace();
   const spContext = useSpContext();
-  const { categories, addCategory, renameCategory, deleteCategory } = useTripShoppingCategories(trip?.id, spContext);
+  const { categories, addCategory, renameCategory, deleteCategory, restoreDefaults } = useTripShoppingCategories(
+    trip?.id,
+    spContext
+  );
   const { travellers } = useTripMembers(trip?.id);
   const traveller = plan?.shoppingTraveller ?? null;
   const category = plan?.shoppingCategory ?? '__all__';
@@ -44,10 +48,16 @@ export const SidebarShoppingFilters: React.FC = () => {
         ))}
       </div>
 
-      <h2 className={styles.dayListHeading}>Categories</h2>
+      <h2 className={styles.dayListHeading}>Master category list</h2>
       <p className={styles.dayListHint}>
-        Add categories here — they appear in the item pick list. Rename or delete using the actions beside each name.
+        Shared packing + shopping categories. Add custom names below. Built-in categories cannot be deleted — use Restore
+        full list if chips look culled.
       </p>
+      <div className={styles.travellerAddRow}>
+        <button type="button" className={styles.travellerActionBtn} onClick={() => restoreDefaults()}>
+          Restore full default list
+        </button>
+      </div>
       <ul className={styles.dayList}>
         <li>
           <button
@@ -110,6 +120,7 @@ export const SidebarShoppingFilters: React.FC = () => {
                   >
                     ✎
                   </button>
+                  {!isDefaultListCategory(c) ? (
                   <button
                     type="button"
                     className={styles.travellerActionBtn}
@@ -124,6 +135,7 @@ export const SidebarShoppingFilters: React.FC = () => {
                   >
                     ×
                   </button>
+                  ) : null}
                 </div>
               )}
             </li>

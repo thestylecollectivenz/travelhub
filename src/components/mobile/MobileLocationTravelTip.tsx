@@ -228,8 +228,8 @@ const SavedTipCard: React.FC<{
   };
 
   const speakAnswer = (answer: string): void => {
+    // Stop mic only — speakPlainText cancels any prior TTS (extra cancel breaks iOS gesture).
     stopListening();
-    stopSpeech();
     const plain = richTextToPlainText(answer).trim() || answer.trim();
     if (plain) speak(plain);
   };

@@ -7,7 +7,8 @@ import {
   deleteTripShoppingCategory,
   loadTripShoppingCategories,
   rememberTripShoppingCategory,
-  renameTripShoppingCategory
+  renameTripShoppingCategory,
+  restoreDefaultListCategories
 } from '../utils/tripShoppingCategories';
 
 /** Shared packing + shopping category taxonomy for a trip. */
@@ -19,6 +20,7 @@ export function useTripShoppingCategories(
   addCategory: (name: string) => string[];
   renameCategory: (oldName: string, newName: string) => Promise<string[]>;
   deleteCategory: (name: string) => Promise<string[]>;
+  restoreDefaults: () => string[];
   reload: () => void;
 } {
   const [categories, setCategories] = React.useState<string[]>([]);
@@ -105,7 +107,14 @@ export function useTripShoppingCategories(
     [tripId, spContext]
   );
 
-  return { categories, addCategory, renameCategory, deleteCategory, reload };
+  const restoreDefaults = React.useCallback((): string[] => {
+    if (!tripId) return [];
+    const next = restoreDefaultListCategories(tripId);
+    setCategories(next);
+    return next;
+  }, [tripId]);
+
+  return { categories, addCategory, renameCategory, deleteCategory, restoreDefaults, reload };
 }
 
 export const useTripListCategories = useTripShoppingCategories;

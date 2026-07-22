@@ -87,10 +87,25 @@ export function getSpeechRecognitionCtor(): SpeechRecognitionCtor | undefined {
   return w.SpeechRecognition || w.webkitSpeechRecognition;
 }
 
+function speechSynthesisBusy(): boolean {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return false;
+  return window.speechSynthesis.speaking || window.speechSynthesis.pending || window.speechSynthesis.paused;
+}
+
+/** iPad/iPhone: async speak after cancel() loses the user-gesture and silently fails. */
+function isAppleTouchBrowser(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  if (/iPad|iPhone|iPod/i.test(ua)) return true;
+  // iPadOS desktop UA
+  return navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1;
+}
+
 export function stopSpeechOutput(): void {
   if (typeof window === 'undefined') return;
+  const busy = speechSynthesisBusy() || Boolean(activeAudio);
   browserSpeakToken += 1;
-  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  if (busy && window.speechSynthesis) window.speechSynthesis.cancel();
   clearActiveAudio();
   notifyState('idle');
 }
@@ -285,7 +300,8 @@ function speakWithBrowser(
   text: string,
   onStateChange?: (state: SpeechOutputState) => void,
   voiceURI?: string,
-  langHint?: string
+  langHint?: string,
+  settleMs = 80
 ): void {
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
   const chunks = splitSpeakableChunks(text);
@@ -335,16 +351,33 @@ function speakWithBrowser(
       // Chrome can stick in paused after cancel(); resume before speak.
       if (window.speechSynthesis.paused) window.speechSynthesis.resume();
       window.speechSynthesis.speak(utter);
+      // iOS sometimes stays paused after cancel — nudge resume while speaking.
+      if (isAppleTouchBrowser() && index === 0) {
+        window.setTimeout(() => {
+          if (token !== browserSpeakToken) return;
+          try {
+            if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+          } catch {
+            /* ignore */
+          }
+        }, 250);
+      }
     } catch {
       if (token === browserSpeakToken) onStateChange?.('idle');
     }
   };
 
-  // cancel() + immediate speak() is dropped by Chrome/Edge — settle first.
+  // Desktop Chrome/Edge: cancel()+immediate speak is dropped — settle first.
+  // iOS/iPadOS: any delay after the tap loses user-gesture and TTS silently fails.
+  const delay = isAppleTouchBrowser() ? 0 : Math.max(0, settleMs);
+  if (delay === 0) {
+    speakChunk(0);
+    return;
+  }
   window.setTimeout(() => {
     if (token !== browserSpeakToken) return;
     speakChunk(0);
-  }, 80);
+  }, delay);
 }
 
 async function speakWithElevenLabs(
@@ -390,6 +423,7 @@ export function speakPlainText(
 ): void {
   const t = (text || '').trim();
   if (!t || typeof window === 'undefined') return;
+  const wasBusy = speechSynthesisBusy() || Boolean(activeAudio);
   stateListener = onStateChange;
   stopSpeechOutput();
   stateListener = onStateChange;
@@ -398,17 +432,18 @@ export function speakPlainText(
   const key = (options?.elevenLabsApiKey || '').trim();
   const browserVoiceURI = (options?.browserVoiceURI || '').trim();
   const lang = (options?.lang || '').trim();
+  const settleMs = wasBusy ? 80 : 0;
 
   if (engine === 'elevenlabs' && key && !lang) {
     onStateChange?.('speaking');
     void speakWithElevenLabs(t, key, (options?.elevenLabsVoiceId || '').trim(), onStateChange).catch(() => {
-      speakWithBrowser(t, onStateChange, browserVoiceURI, lang);
+      speakWithBrowser(t, onStateChange, browserVoiceURI, lang, settleMs);
     });
     return;
   }
 
   // Prefer browser TTS with a matching language voice for native-language phrases.
-  speakWithBrowser(t, onStateChange, lang ? undefined : browserVoiceURI, lang);
+  speakWithBrowser(t, onStateChange, lang ? undefined : browserVoiceURI, lang, settleMs);
 }
 
 export function collectFinalTranscript(event: SpeechRecognitionResultEvent): string {

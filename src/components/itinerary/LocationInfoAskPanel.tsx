@@ -105,15 +105,14 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
   }, [autoReadAnswers, lastAnswerId, lastAnswerText, speak, stopVoiceInput, thread]);
 
   const speakAnswer = (answer: string): void => {
+    // Stop mic only — speakPlainText cancels any prior TTS (extra cancel breaks iOS gesture).
     stopVoiceInput();
-    stopSpeech();
     const plain = richTextToPlainText(answer).trim() || answer.trim();
     if (plain) speak(plain);
   };
 
   const speakAllAnswers = (): void => {
     stopVoiceInput();
-    stopSpeech();
     const text = thread
       .map((item) => richTextToPlainText(item.answer).trim() || item.answer.trim())
       .filter(Boolean)

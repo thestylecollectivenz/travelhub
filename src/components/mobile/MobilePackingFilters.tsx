@@ -5,6 +5,7 @@ import { useSpContext } from '../../context/SpContext';
 import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
 import { useTripPermissions } from '../../hooks/useTripPermissions';
 import { confirmUserAction } from '../../utils/confirmAction';
+import { isDefaultListCategory } from '../../utils/tripShoppingCategories';
 import chrome from './MobileTabChrome.module.css';
 import shell from './MobileShell.module.css';
 
@@ -17,7 +18,10 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({ trav
   const plan = usePlanView();
   const { trip } = useTripWorkspace();
   const spContext = useSpContext();
-  const { categories, addCategory, renameCategory, deleteCategory } = useTripShoppingCategories(trip?.id, spContext);
+  const { categories, addCategory, renameCategory, deleteCategory, restoreDefaults } = useTripShoppingCategories(
+    trip?.id,
+    spContext
+  );
   const { canManageTrip } = useTripPermissions();
   const [newCategoryName, setNewCategoryName] = React.useState('');
   const [editingCategory, setEditingCategory] = React.useState<string | null>(null);
@@ -108,9 +112,18 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({ trav
         {canManageTrip && categories.length > 0 ? (
           <>
             <button type="button" className={chrome.chip} onClick={() => setManageOpen((v) => !v)}>
-              {manageOpen ? 'Hide category manager' : 'Manage categories'}
+              {manageOpen ? 'Hide master category list' : 'Edit master category list'}
             </button>
             {manageOpen ? (
+              <div>
+                <p className={shell.filterLabel}>
+                  Shared packing + shopping categories for this trip. Built-in categories cannot be deleted.
+                </p>
+                <div className={shell.filterAddRow}>
+                  <button type="button" className={chrome.chip} onClick={() => restoreDefaults()}>
+                    Restore full default list
+                  </button>
+                </div>
               <ul className={shell.categoryManageList}>
                 {categories.map((c) => (
                   <li key={c} className={shell.categoryManageRow}>
@@ -154,6 +167,7 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({ trav
                         >
                           Rename
                         </button>
+                        {!isDefaultListCategory(c) ? (
                         <button
                           type="button"
                           className={chrome.chip}
@@ -167,11 +181,13 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({ trav
                         >
                           Delete
                         </button>
+                        ) : null}
                       </>
                     )}
                   </li>
                 ))}
               </ul>
+              </div>
             ) : null}
           </>
         ) : null}
