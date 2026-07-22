@@ -10,6 +10,7 @@ import { MobileHomeShell } from '../../../../components/mobile/MobileHomeShell';
 import { IpadLandscapePlaceholder } from '../../../../components/ipad/IpadLandscapePlaceholder';
 import type { MobileTab } from '../../../../components/mobile/mobileTypes';
 import {
+  clearExternalNavigationMarker,
   clearPersistedTripNav,
   installExternalNavigationTracker,
   loadPersistedMobileNav,
@@ -21,14 +22,9 @@ import {
 type AppView = 'multiTrip' | 'singleTrip' | 'createTrip' | 'terms';
 
 function initialViewFromSession(): { view: AppView; tripId: string; tab?: MobileTab } {
-  // The URL hash is the route: if it names a trip, open that trip/tab
-  // directly — this is what makes deep screens behave like proper pages
-  // across reloads and external-site returns.
+  // URL hash is the page route — restore trip/tab whenever it is present.
   const route = parseNavHash();
   if (route) {
-    // Seed localStorage from the route so later merged writes (e.g. the trip
-    // shell persisting its tab) don't drop the location segments from the hash
-    // before the location page has mounted.
     persistMobileNav({
       view: 'singleTrip',
       tripId: route.tripId,
@@ -37,15 +33,19 @@ function initialViewFromSession(): { view: AppView; tripId: string; tab?: Mobile
       locationPanel: route.locationPanel,
       exploreCategory: route.panelCategory
     });
+    // Consumed: don't keep re-triggering deep restores from the external marker.
+    if (shouldRestoreMobileNav()) clearExternalNavigationMarker();
     return {
       view: 'singleTrip',
       tripId: route.tripId,
       tab: (route.tripTab as MobileTab | undefined) || undefined
     };
   }
-  // Legacy marker / recent-external-nav fallback: restore from localStorage.
+  // No hash: only restore from localStorage after a recent external return.
+  // Plain refreshes / next-day visits start at Home (avoids random last-session jumps).
   if (!shouldRestoreMobileNav()) return { view: 'multiTrip', tripId: '' };
   const nav = loadPersistedMobileNav();
+  clearExternalNavigationMarker();
   if (nav.view === 'singleTrip' && (nav.tripId || '').trim()) {
     return {
       view: 'singleTrip',

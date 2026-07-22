@@ -41,7 +41,7 @@
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: max(1.35rem, env(safe-area-inset-top, 0)) var(--space-4) calc(5.5rem + env(safe-area-inset-bottom, 0));
+  padding: max(1.35rem, env(safe-area-inset-top, 0)) var(--space-4) calc(5.5rem + var(--th-bottom-inset));
   -webkit-overflow-scrolling: touch;
 }
 
@@ -523,7 +523,7 @@
   grid-template-columns: repeat(5, 1fr);
   align-items: end;
   gap: 0;
-  padding: 0.55rem 0.5rem calc(0.65rem + env(safe-area-inset-bottom, 0));
+  padding: 0.55rem 0.5rem calc(0.65rem + var(--th-bottom-inset));
   background: color-mix(in srgb, white 92%, var(--tl-cream));
   border-top: 1px solid var(--tl-line);
   box-shadow: 0 -8px 24px color-mix(in srgb, var(--tl-navy) 8%, transparent);
@@ -700,6 +700,7 @@
 .homeRoot[data-shell='ipad-portrait'] .bottomNav {
   padding-left: max(0.75rem, env(safe-area-inset-left, 0));
   padding-right: max(0.75rem, env(safe-area-inset-right, 0));
+  padding-bottom: calc(0.65rem + var(--th-bottom-inset));
 }
 
 .homeRoot[data-shell='ipad-portrait'] .nearItem {

@@ -109,7 +109,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   padding: var(--space-3);
-  padding-bottom: calc(5.75rem + env(safe-area-inset-bottom, 0));
+  padding-bottom: calc(5.75rem + var(--th-bottom-inset));
   -webkit-overflow-scrolling: touch;
 }
 
@@ -173,7 +173,7 @@
   grid-template-columns: repeat(5, 1fr);
   border-top: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
   background: color-mix(in srgb, white 92%, var(--tl-mobile-surface, #fafaf9));
-  padding: 0.55rem 0.5rem calc(0.65rem + env(safe-area-inset-bottom, 0));
+  padding: 0.55rem 0.5rem calc(0.65rem + var(--th-bottom-inset));
   box-shadow: 0 -8px 24px color-mix(in srgb, #1e2a44 8%, transparent);
 }
 

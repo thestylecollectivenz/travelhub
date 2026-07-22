@@ -116,15 +116,28 @@ export function syncNavHash(nav: PersistedMobileNav): void {
   }
 }
 
-/** Restore saved navigation on this mount? True after external-site returns and marked reloads. */
+/** Restore deep sub-screens (location info, explore) after external-site return only. */
 export function shouldRestoreMobileNav(): boolean {
+  return hasRecentExternalNavigation();
+}
+
+/** Trip + tab from URL hash on any reload (hash is the page route). */
+export function hasTripNavHash(): boolean {
   try {
     const hash = window.location.hash || '';
-    if (hash.indexOf(HASH_PREFIX) === 0 || hash.indexOf(LEGACY_NAV_HASH) === 0) return true;
+    return hash.indexOf(HASH_PREFIX) === 0;
+  } catch {
+    return false;
+  }
+}
+
+/** Clear the external-return marker once deep state has been restored. */
+export function clearExternalNavigationMarker(): void {
+  try {
+    window.localStorage.removeItem(EXTERNAL_NAV_KEY);
   } catch {
     /* ignore */
   }
-  return hasRecentExternalNavigation();
 }
 
 /**

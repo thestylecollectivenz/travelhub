@@ -35,6 +35,7 @@ import { useMobileDetailHistory } from '../../hooks/useMobileDetailHistory';
 import {
   loadPersistedMobileNav,
   parseNavHash,
+  persistMobileNav,
   shouldRestoreMobileNav
 } from '../../utils/mobileNavPersistence';
 import { useShellMode } from '../../hooks/useShellMode';
@@ -271,6 +272,11 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     prevDayIdRef.current = day?.id;
     if (!prev || prev === day?.id) return;
     setLocationPanelEntryId(null);
+    persistMobileNav({
+      locationPanel: undefined,
+      locationEntryId: undefined,
+      exploreCategory: undefined
+    });
   }, [day?.id]);
 
   const locationPanelEntry = locationPanelEntryId
@@ -279,6 +285,11 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
 
   const closeLocation = React.useCallback(() => {
     setLocationPanelEntryId(null);
+    persistMobileNav({
+      locationPanel: undefined,
+      locationEntryId: undefined,
+      exploreCategory: undefined
+    });
   }, []);
 
   const locationDisplayName = React.useMemo(() => {

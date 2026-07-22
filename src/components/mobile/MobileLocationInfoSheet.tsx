@@ -732,8 +732,10 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     });
   }, []);
 
-  // Persist which location entry is open (any panel) so returning from an
-  // external website can reopen this page instead of the bare itinerary.
+  // Persist the open location page into the URL hash so it behaves like a real
+  // page across remounts / external-site returns. Cleared only via closePanels
+  // or MobileDayView.closeLocation — never on unmount (SharePoint remounts
+  // briefly and that was wiping the route mid-return).
   React.useEffect(() => {
     if (!entry?.id || !trip?.id) return;
     persistMobileNav({
@@ -745,20 +747,6 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
         panel === 'explore' ? exploreCategory : panel === 'saved' ? savedCategory : undefined
     });
   }, [panel, exploreCategory, savedCategory, entry?.id, trip?.id]);
-
-  // In-app close of the sheet (unmount) must not leave a stale sub-panel
-  // behind; a hard page reload skips this cleanup, which is exactly what lets
-  // the back-from-external-site restore still work.
-  React.useEffect(
-    () => () => {
-      persistMobileNav({
-        locationPanel: undefined,
-        locationEntryId: undefined,
-        exploreCategory: undefined
-      });
-    },
-    []
-  );
 
   React.useEffect(() => {
     if (!entry) return undefined;
