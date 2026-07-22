@@ -24,6 +24,13 @@ export interface JotterIdeaReply {
   createdAt: string;
 }
 
+export interface JotterIdeaQaEntry {
+  id: string;
+  question: string;
+  answer: string;
+  createdAt: string;
+}
+
 export interface JotterIdeaMeta {
   authorEmail?: string;
   isAi?: boolean;
@@ -31,6 +38,7 @@ export interface JotterIdeaMeta {
   focusDayId?: string;
   replies?: JotterIdeaReply[];
   favouritedBy?: string[];
+  qaThread?: JotterIdeaQaEntry[];
 }
 
 export interface JotterIdeaRow {
@@ -80,6 +88,20 @@ function parseMeta(taskNote?: string): JotterIdeaMeta {
               createdAt: r.createdAt || new Date().toISOString()
             }))
             .filter((r) => r.text && r.authorEmail)
+        : [],
+      qaThread: Array.isArray(parsed.qaThread)
+        ? parsed.qaThread
+            .filter(
+              (q): q is JotterIdeaQaEntry =>
+                Boolean(q && typeof q === 'object' && typeof (q as JotterIdeaQaEntry).question === 'string')
+            )
+            .map((q) => ({
+              id: q.id || `qa-${Date.now()}`,
+              question: String(q.question).trim(),
+              answer: String(q.answer || '').trim(),
+              createdAt: q.createdAt || new Date().toISOString()
+            }))
+            .filter((q) => q.question)
         : []
     };
   } catch {

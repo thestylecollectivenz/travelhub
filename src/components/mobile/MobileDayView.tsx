@@ -901,7 +901,17 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
           <p className={styles.emptyDay}>No itinerary items for this day yet.</p>
         ) : null}
 
-        <MobileDayIdeas dayId={day.id} />
+        <MobileDayIdeas
+          dayId={day.id}
+          dayLabel={
+            [
+              day ? `Day ${day.dayNumber}` : '',
+              shortDate(day?.calendarDate)
+            ]
+              .filter(Boolean)
+              .join(' · ') || undefined
+          }
+        />
       </div>
 
       <div className={styles.aiBarWrap}>

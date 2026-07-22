@@ -13,12 +13,21 @@ export interface DayIdeaReply {
   createdAt: string;
 }
 
+export interface DayIdeaQaEntry {
+  id: string;
+  question: string;
+  answer: string;
+  createdAt: string;
+}
+
 export interface DayIdeaMeta {
   authorEmail?: string;
   readBy: string[];
   replies?: DayIdeaReply[];
   /** Emails of users who favourited this idea. */
   favouritedBy?: string[];
+  /** Ask AI Q&A thread saved with the idea. */
+  qaThread?: DayIdeaQaEntry[];
 }
 
 function newReplyId(): string {
@@ -80,6 +89,20 @@ export function parseDayIdeaMeta(taskNote?: string): DayIdeaMeta {
                 createdAt: r.createdAt || new Date().toISOString()
               }))
               .filter((r) => r.text && r.authorEmail)
+          : [],
+        qaThread: Array.isArray(parsed.qaThread)
+          ? parsed.qaThread
+              .filter(
+                (q): q is DayIdeaQaEntry =>
+                  Boolean(q && typeof q === 'object' && typeof (q as DayIdeaQaEntry).question === 'string')
+              )
+              .map((q) => ({
+                id: q.id || newReplyId(),
+                question: String(q.question).trim(),
+                answer: String(q.answer || '').trim(),
+                createdAt: q.createdAt || new Date().toISOString()
+              }))
+              .filter((q) => q.question)
           : []
       };
     } catch {
@@ -99,6 +122,12 @@ export function serializeDayIdeaMeta(meta: DayIdeaMeta): string {
       authorEmail: normEmail(r.authorEmail),
       text: r.text.trim(),
       createdAt: r.createdAt
+    })),
+    qaThread: (meta.qaThread ?? []).map((q) => ({
+      id: q.id,
+      question: q.question.trim(),
+      answer: (q.answer || '').trim(),
+      createdAt: q.createdAt
     }))
   });
 }

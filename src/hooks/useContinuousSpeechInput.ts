@@ -3,6 +3,7 @@ import { collectFinalTranscript, getSpeechRecognitionCtor, type SpeechRecognitio
 
 export function useContinuousSpeechInput(onFinalChunk: (transcript: string) => void): {
   listening: boolean;
+  supported: boolean;
   startListening: () => void;
   stopListening: () => void;
   toggleListening: () => void;
@@ -83,5 +84,6 @@ export function useContinuousSpeechInput(onFinalChunk: (transcript: string) => v
 
   React.useEffect(() => () => stopListening(), [stopListening]);
 
-  return { listening, startListening, stopListening, toggleListening };
+  const supported = Boolean(getSpeechRecognitionCtor());
+  return { listening, supported, startListening, stopListening, toggleListening };
 }

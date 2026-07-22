@@ -33,7 +33,8 @@ export type TripIdeasFilter =
   | 'complete'
   | 'open'
   | 'favourites'
-  | 'favouritesByTraveller';
+  | 'favouritesByTraveller'
+  | 'favouritesByLocation';
 
 export interface UnifiedTripIdea {
   id: string;
@@ -170,7 +171,7 @@ export function matchesTripIdeasFilter(
     const mine = getCurrentUserEmail(spContext).trim().toLowerCase();
     return (idea.favouritedBy || []).some((e) => e.toLowerCase() === mine);
   }
-  if (filter === 'favouritesByTraveller') {
+  if (filter === 'favouritesByTraveller' || filter === 'favouritesByLocation') {
     return (idea.favouritedBy || []).length > 0;
   }
   return true;
@@ -233,6 +234,27 @@ export function groupIdeasByFavouriter(
     return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
   });
   return groups;
+}
+
+/** Groups favourited ideas under each location label. */
+export function groupIdeasByLocation(
+  ideas: UnifiedTripIdea[]
+): Array<{ location: string; ideas: UnifiedTripIdea[] }> {
+  const map = new Map<string, UnifiedTripIdea[]>();
+  for (const idea of ideas) {
+    if (!(idea.favouritedBy || []).length) continue;
+    const location = (idea.locationLabel || '').trim() || 'No location';
+    const list = map.get(location) ?? [];
+    list.push(idea);
+    map.set(location, list);
+  }
+  return Array.from(map.entries())
+    .map(([location, groupIdeas]) => ({ location, ideas: groupIdeas }))
+    .sort((a, b) => {
+      if (a.location === 'No location') return 1;
+      if (b.location === 'No location') return -1;
+      return a.location.localeCompare(b.location, undefined, { sensitivity: 'base' });
+    });
 }
 
 export function favouritedByLabels(

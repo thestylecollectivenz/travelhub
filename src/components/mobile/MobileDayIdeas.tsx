@@ -10,20 +10,24 @@ import {
   buildDayIdeaMetaForCreate,
   DAY_IDEA_REMINDER_TYPE,
   formatDayIdeaAuthor,
-  formatDayIdeaStamp,
   isDayIdeaAuthor,
-  isDayIdeaUnread
+  isDayIdeaUnread,
+  parseDayIdeaMeta,
+  serializeDayIdeaMeta
 } from '../../utils/dayIdeas';
 import { travellerLabelForCurrentUser } from '../../utils/tripMemberIdentity';
 import { notifyDayIdeasChanged } from '../../hooks/useTripDayIdeas';
 import { DayIdeaReplies } from '../dayIdeas/DayIdeaReplies';
+import { MobileIdeaAskAi, type IdeaQaEntry } from './MobileIdeaAskAi';
 import styles from './MobileItinerary.module.css';
 
 export interface MobileDayIdeasProps {
   dayId: string;
+  /** Shown on each idea so it is clear which day it belongs to. */
+  dayLabel?: string;
 }
 
-export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId }) => {
+export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId, dayLabel }) => {
   const spContext = useSpContext();
   const { trip } = useTripWorkspace();
   const { role } = useTripRole();
@@ -36,6 +40,7 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId }) => {
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editText, setEditText] = React.useState('');
   const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState('');
 
   const refresh = React.useCallback(() => {
     if (!trip?.id) return;
@@ -70,11 +75,16 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId }) => {
   const addIdea = async (): Promise<void> => {
     const text = draft.trim();
     if (!text || !trip?.id || !canContribute) return;
+    if (text.length < 3) {
+      setError('Write a short idea (at least 3 characters).');
+      return;
+    }
     setBusy(true);
+    setError('');
     try {
       const svc = new ReminderService(spContext);
       await svc.create({
-        title: text,
+        title: text.slice(0, 255),
         tripId: trip.id,
         dayId,
         reminderType: DAY_IDEA_REMINDER_TYPE,
@@ -88,6 +98,8 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId }) => {
       setDraft('');
       refresh();
       notifyDayIdeasChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save this idea. Try again.');
     } finally {
       setBusy(false);
     }
@@ -97,9 +109,17 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId }) => {
     const text = editText.trim();
     if (!text) return;
     const svc = new ReminderService(spContext);
-    await svc.update(id, { title: text, reminderText: text });
+    await svc.update(id, { title: text.slice(0, 255), reminderText: text });
     setEditingId(null);
     setEditText('');
+    refresh();
+    notifyDayIdeasChanged();
+  };
+
+  const saveQaThread = async (rowId: string, taskNote: string | undefined, next: IdeaQaEntry[]): Promise<void> => {
+    const meta = parseDayIdeaMeta(taskNote);
+    const svc = new ReminderService(spContext);
+    await svc.update(rowId, { taskNote: serializeDayIdeaMeta({ ...meta, qaThread: next }) });
     refresh();
     notifyDayIdeasChanged();
   };
@@ -113,7 +133,9 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId }) => {
           <h3 className={styles.dayIdeasTitle}>Ideas for this day</h3>
           {dayUnread > 0 ? <span className={styles.dayIdeasNewBadge}>{dayUnread} new</span> : null}
         </div>
-        <span className={styles.dayIdeasHint}>Swap ideas as you plan — check off when agreed. Day ideas also appear under Lists → Ideas.</span>
+        <span className={styles.dayIdeasHint}>
+          Swap ideas as you plan — check off when agreed. Day ideas also appear under Lists → Ideas.
+        </span>
       </div>
       {rows.length ? (
         <ul className={styles.dayIdeasList}>
@@ -122,6 +144,7 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId }) => {
             const unread = isDayIdeaUnread(row, spContext, members);
             const manageable = canManageRow(row);
             const authorLabel = formatDayIdeaAuthor(row, members);
+            const qaThread = parseDayIdeaMeta(row.taskNote).qaThread || [];
             return (
               <li
                 key={row.id}
@@ -157,8 +180,7 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId }) => {
                     </div>
                   )}
                   <p className={styles.dayIdeaMeta}>
-                    {authorLabel ? `${authorLabel} · ` : ''}
-                    {formatDayIdeaStamp(row.dueDate)}
+                    {[authorLabel, dayLabel].filter(Boolean).join(' · ')}
                   </p>
                   <DayIdeaReplies
                     row={row}
@@ -169,6 +191,15 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId }) => {
                     onUpdated={refresh}
                     compact
                   />
+                  {canContribute ? (
+                    <MobileIdeaAskAi
+                      ideaText={row.reminderText || row.title}
+                      dayLabel={dayLabel}
+                      thread={qaThread}
+                      onThreadChange={(next) => saveQaThread(row.id, row.taskNote, next)}
+                      compact
+                    />
+                  ) : null}
                 </div>
                 {manageable ? (
                   <div className={styles.dayIdeaActions}>
@@ -217,8 +248,9 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId }) => {
           })}
         </ul>
       ) : (
-        <p className={styles.dayIdeasEmpty}>No ideas yet — add one below.</p>
+        <p className={styles.dayIdeasEmpty}>No ideas for this day yet.</p>
       )}
+
       {canContribute ? (
         <div className={styles.dayIdeasAdd}>
           <input
@@ -226,7 +258,7 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId }) => {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Add an idea for this day…"
-            aria-label="New day idea"
+            aria-label="Add an idea for this day"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && draft.trim()) void addIdea();
             }}
@@ -236,6 +268,7 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId }) => {
           </button>
         </div>
       ) : null}
+      {error ? <p className={styles.dayIdeasError}>{error}</p> : null}
     </section>
   );
 };

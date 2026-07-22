@@ -14,14 +14,17 @@ import {
   deleteJotterIdea,
   isJotterIdeaReminder,
   JOTTER_IDEAS_CHANGED_EVENT,
+  parseJotterIdeaMeta,
   setJotterIdeaComplete,
   updateJotterIdeaText
 } from '../../utils/tripJotterIdeas';
+import { parseDayIdeaMeta, serializeDayIdeaMeta } from '../../utils/dayIdeas';
 import { notifyDayIdeasChanged } from '../../hooks/useTripDayIdeas';
 import {
   favouritedByLabels,
   formatIdeaTime,
   groupIdeasByFavouriter,
+  groupIdeasByLocation,
   ideaHasAnyFavourite,
   ideaIsFavouritedByMe,
   isIdeaRecentlyAdded,
@@ -34,6 +37,7 @@ import {
   type TripIdeasFilter,
   type UnifiedTripIdea
 } from '../../utils/tripIdeasUnified';
+import { MobileIdeaAskAi, type IdeaQaEntry } from './MobileIdeaAskAi';
 import { MOBILE_OPEN_JOTTER_COMPOSE } from '../../utils/mobileHomePendingAction';
 import { consumePendingJotterCompose } from '../../utils/mobileHomePendingAction';
 import chrome from './MobileTabChrome.module.css';
@@ -131,6 +135,7 @@ export const MobileTripJotterList: React.FC = () => {
       yours: open.filter((r) => isUnifiedIdeaYours(r, spContext, members)).length,
       favourites: open.filter((r) => ideaIsFavouritedByMe(r, spContext)).length,
       favouritesByTraveller: open.filter((r) => ideaHasAnyFavourite(r)).length,
+      favouritesByLocation: open.filter((r) => ideaHasAnyFavourite(r)).length,
       ai: open.filter((r) => r.isAi).length,
       replies: open.filter((r) => r.replyCount > 0).length,
       complete: rows.filter((r) => r.isComplete).length
@@ -160,6 +165,28 @@ export const MobileTripJotterList: React.FC = () => {
     if (filter !== 'favouritesByTraveller') return [];
     return groupIdeasByFavouriter(filtered, spContext, members);
   }, [filter, filtered, spContext, members]);
+
+  const favouritesByLocationGroups = React.useMemo(() => {
+    if (filter !== 'favouritesByLocation') return [];
+    return groupIdeasByLocation(filtered);
+  }, [filter, filtered]);
+
+  const saveIdeaQaThread = async (idea: UnifiedTripIdea, next: IdeaQaEntry[]): Promise<void> => {
+    const svc = new ReminderService(spContext);
+    if (isJotterIdeaReminder(idea.reminder)) {
+      const meta = parseJotterIdeaMeta(idea.reminder.taskNote);
+      await svc.update(idea.id, {
+        taskNote: JSON.stringify({ ...meta, qaThread: next })
+      });
+    } else {
+      const meta = parseDayIdeaMeta(idea.reminder.taskNote);
+      await svc.update(idea.id, {
+        taskNote: serializeDayIdeaMeta({ ...meta, qaThread: next })
+      });
+    }
+    notifyTripIdeasChanged();
+    await refresh();
+  };
 
   const addIdea = async (): Promise<void> => {
     const text = draft.trim();
@@ -260,6 +287,7 @@ export const MobileTripJotterList: React.FC = () => {
     { key: 'yours', label: 'Yours', count: counts.yours },
     { key: 'favourites', label: 'My favourites', count: counts.favourites },
     { key: 'favouritesByTraveller', label: 'Favourites by traveller', count: counts.favouritesByTraveller },
+    { key: 'favouritesByLocation', label: 'Favourites by location', count: counts.favouritesByLocation },
     { key: 'ai', label: 'AI', count: counts.ai },
     { key: 'replies', label: 'With replies', count: counts.replies },
     { key: 'complete', label: 'Complete', count: counts.complete }
@@ -427,6 +455,19 @@ export const MobileTripJotterList: React.FC = () => {
           onUpdated={() => void refresh()}
           compact
         />
+
+        <MobileIdeaAskAi
+          ideaText={idea.text}
+          locationLabel={idea.locationLabel}
+          dayLabel={idea.dayLabel}
+          thread={
+            (isJotterIdeaReminder(idea.reminder)
+              ? parseJotterIdeaMeta(idea.reminder.taskNote).qaThread
+              : parseDayIdeaMeta(idea.reminder.taskNote).qaThread) || []
+          }
+          onThreadChange={(next) => saveIdeaQaThread(idea, next)}
+          compact
+        />
       </article>
     );
   };
@@ -515,6 +556,24 @@ export const MobileTripJotterList: React.FC = () => {
                 </div>
               </div>
               {group.ideas.map((idea) => renderIdeaCard(idea, `:${group.email}`))}
+            </section>
+          ))
+        )
+      ) : filter === 'favouritesByLocation' ? (
+        !favouritesByLocationGroups.length ? (
+          <p className={chrome.muted}>No favourited ideas yet. Tap the heart on an idea to save it.</p>
+        ) : (
+          favouritesByLocationGroups.map((group) => (
+            <section key={group.location} className={styles.favouritesGroup} aria-label={`Favourites in ${group.location}`}>
+              <div className={styles.favouritesGroupHead}>
+                <div>
+                  <h3 className={styles.favouritesGroupTitle}>{group.location}</h3>
+                  <p className={styles.favouritesGroupMeta}>
+                    {group.ideas.length} favourited idea{group.ideas.length === 1 ? '' : 's'}
+                  </p>
+                </div>
+              </div>
+              {group.ideas.map((idea) => renderIdeaCard(idea, `:${group.location}`))}
             </section>
           ))
         )

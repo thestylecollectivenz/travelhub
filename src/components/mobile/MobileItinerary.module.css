@@ -1142,6 +1142,12 @@
   color: var(--tl-muted);
 }
 
+.dayIdeasError {
+  margin: 0.4rem 0 0;
+  font-size: 0.72rem;
+  color: #b42318;
+}
+
 .dayIdeasAdd {
   display: flex;
   gap: 0.4rem;
