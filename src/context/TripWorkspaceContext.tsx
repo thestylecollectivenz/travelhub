@@ -103,7 +103,9 @@ export interface TripWorkspaceContextValue {
   clearDeleteTripError: () => void;
   updateDay: (dayId: string, partial: Partial<TripDay>) => void;
   reloadItineraryEntries: () => Promise<void>;
-  updateEntry: (updated: ItineraryEntry) => void;
+  updateEntry: (updated: ItineraryEntry, options?: { persistPending?: boolean }) => void;
+  /** Add or update a pending draft in local state only — does not persist to SharePoint. */
+  stageDraftEntry: (draft: ItineraryEntry) => void;
   /** Ensure a draft entry exists in SharePoint; returns the persisted row (same id if already saved). */
   persistEntry: (entry: ItineraryEntry) => Promise<ItineraryEntry>;
   deleteEntry: (entryId: string) => void;
@@ -474,30 +476,37 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
     return promise;
   }, [spContext]);
 
-  const updateEntry = React.useCallback((updated: ItineraryEntry) => {
-    const isNew = isPendingItineraryEntryId(updated.id);
+  const stageDraftEntry = React.useCallback((draft: ItineraryEntry) => {
+    if (!isPendingItineraryEntryId(draft.id)) return;
+    setLocalEntries((prev) => {
+      const i = prev.findIndex((e) => e.id === draft.id);
+      if (i >= 0) return prev.map((e, idx) => (idx === i ? draft : e));
+      return [...prev, draft];
+    });
+  }, []);
 
-    if (isNew) {
-      const tempId = updated.id;
-      const prev = localEntriesRef.current;
-      const exists = prev.findIndex((e) => e.id === tempId);
-      const next =
-        exists >= 0
-          ? prev.map((e, i) => (i === exists ? updated : e))
-          : [...prev, updated];
-      setLocalEntries(next);
-      syncDayColumnsForEntryTimeOrder(updated, next, tripDays);
-      void persistEntry(updated).catch((err) => {
-        // eslint-disable-next-line no-console
-        console.error('updateEntry (create): SP persist failed', err);
-      });
-    } else {
-      const prevEntry = localEntriesRef.current.find((e) => e.id === updated.id);
-      const timeChanged = prevEntry ? itineraryEntryTimeFieldsChanged(prevEntry, updated) : false;
+  const updateEntry = React.useCallback(
+    (updated: ItineraryEntry, options?: { persistPending?: boolean }) => {
+      const isNew = isPendingItineraryEntryId(updated.id);
       const prev = localEntriesRef.current;
       const i = prev.findIndex((e) => e.id === updated.id);
       const next = i >= 0 ? prev.map((e, idx) => (idx === i ? updated : e)) : [...prev, updated];
+      localEntriesRef.current = next;
       setLocalEntries(next);
+
+      if (isNew) {
+        syncDayColumnsForEntryTimeOrder(updated, next, tripDays);
+        if (options?.persistPending) {
+          void persistEntry(updated).catch((err) => {
+            // eslint-disable-next-line no-console
+            console.error('updateEntry (create): SP persist failed', err);
+          });
+        }
+        return;
+      }
+
+      const prevEntry = prev.find((e) => e.id === updated.id);
+      const timeChanged = prevEntry ? itineraryEntryTimeFieldsChanged(prevEntry, updated) : false;
       if (timeChanged) {
         syncDayColumnsForEntryTimeOrder(updated, next, tripDays, { reposition: true });
         void persistHomeDaySortOrders(spContext, updated.dayId, next, tripDays, setLocalEntries).catch((sortErr) => {
@@ -518,9 +527,9 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
           // eslint-disable-next-line no-console
           console.error('updateEntry (update): SP persist or cancellation reminder sync failed', err);
         });
-    }
-
-  }, [spContext, persistEntry, tripDays]);
+    },
+    [spContext, persistEntry, tripDays]
+  );
 
   const deleteEntry = React.useCallback(
     (entryId: string) => {
@@ -532,6 +541,10 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       setEditingCardId((prev) => (prev === entryId ? null : prev));
       setEditingSubItem((prev) => (prev?.parentEntryId === entryId ? null : prev));
       setLocalEntries((prev) => prev.filter((e) => e.id !== entryId && e.parentEntryId !== entryId));
+
+      if (isPendingItineraryEntryId(entryId)) {
+        return;
+      }
 
       const entrySvc = new ItineraryService(spContext);
       const reminderSvc = new ReminderService(spContext);
@@ -1079,6 +1092,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       updateDay,
       reloadItineraryEntries,
       updateEntry,
+      stageDraftEntry,
       persistEntry,
       deleteEntry,
       duplicateEntry,
@@ -1153,6 +1167,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       updateDay,
       reloadItineraryEntries,
       updateEntry,
+      stageDraftEntry,
       persistEntry,
       deleteEntry,
       duplicateEntry,

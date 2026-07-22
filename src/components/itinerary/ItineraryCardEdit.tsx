@@ -23,7 +23,17 @@ import { sortEntryDocuments } from '../../utils/entryDocumentSort';
 import { sortEntryLinks } from '../../utils/entryLinkSort';
 import { ymdSlice } from '../../utils/tripListSort';
 import { activityTitlesForDay } from '../../utils/dayActivityTitles';
+import { FieldSuggestionList } from '../shared/FieldSuggestionList';
+import { isCompactTouchShell, useShellMode } from '../../hooks/useShellMode';
 import styles from './ItineraryCardEdit.module.css';
+
+function categoryUsesDayIdMembership(category: string | undefined): boolean {
+  const c = (category || '').trim();
+  if (c === 'Accommodation' || c === 'Cruise' || c === 'Flights' || c === 'Transport' || c === 'Location info') {
+    return false;
+  }
+  return true;
+}
 
 export interface ItineraryCardEditProps {
   entry: ItineraryEntry;
@@ -52,6 +62,9 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   const returnEndTimeManualRef = React.useRef(Boolean(formatTimeHHMM(entry.returnArrivalTime ?? '')));
   const [returnDurationInput, setReturnDurationInput] = React.useState('');
   const [attachmentEntryId, setAttachmentEntryId] = React.useState(entry.id);
+  const touchShell = isCompactTouchShell(useShellMode());
+  const [supplierSuggestOpen, setSupplierSuggestOpen] = React.useState(false);
+  const [locationSuggestOpen, setLocationSuggestOpen] = React.useState(false);
 
   React.useEffect(() => {
     notesTouchedRef.current = false;
@@ -76,6 +89,25 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
     }
     setDraft((d) => ({ ...d, ...partial }));
   }, []);
+
+  const patchDateStart = React.useCallback(
+    (date: string) => {
+      const partial: Partial<ItineraryEntry> = { dateStart: date };
+      if (trip?.id) {
+        const day = tripDays.find((d) => d.tripId === trip.id && ymdSlice(d.calendarDate) === ymdSlice(date));
+        if (
+          day &&
+          (categoryUsesDayIdMembership(draft.category) ||
+            draft.category === 'Transport' ||
+            draft.category === 'Accommodation')
+        ) {
+          partial.dayId = day.id;
+        }
+      }
+      patch(partial);
+    },
+    [trip?.id, tripDays, draft.category, patch]
+  );
   const isAccommodation = draft.category === 'Accommodation';
   const isFlights = draft.category === 'Flights';
   const isTransport = draft.category === 'Transport';
@@ -430,6 +462,17 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
         rememberTripBookingMechanism(trip.id, saved.bookingMechanism);
       }
     }
+    if (categoryUsesDayIdMembership(saved.category)) {
+      saved.dateStart = saved.dateStart || calendarDate;
+      if (saved.dateStart && trip) {
+        const day = tripDays.find(
+          (d) => d.tripId === trip.id && ymdSlice(d.calendarDate) === ymdSlice(saved.dateStart)
+        );
+        if (day) {
+          saved.dayId = day.id;
+        }
+      }
+    }
     onSave(saved);
   }, [calendarDate, draft, timeValue, nights, perNight, trip, tripDays, config.homeCurrency, isTransport]);
 
@@ -509,7 +552,9 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
     perNight,
     homeCurrency: config.homeCurrency,
     usedCurrencies,
-    usedSuppliers
+    usedSuppliers,
+    touchShell,
+    patchDateStart
   };
 
   return (
@@ -540,14 +585,29 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
             <label className={styles.label} htmlFor={`loc-${draft.id}`}>
               Location
             </label>
-            <input
-              id={`loc-${draft.id}`}
-              className={styles.input}
-              list={`day-places-${draft.id}`}
-              value={draft.location ?? ''}
-              onChange={(e) => patch({ location: e.target.value, title: e.target.value.trim() || draft.title })}
-              placeholder="Place name or pick from day locations"
-            />
+            <div className={styles.fieldWithSuggestions}>
+              <input
+                id={`loc-${draft.id}`}
+                className={styles.input}
+                list={`day-places-${draft.id}`}
+                value={draft.location ?? ''}
+                onChange={(e) => patch({ location: e.target.value, title: e.target.value.trim() || draft.title })}
+                onFocus={() => touchShell && setLocationSuggestOpen(true)}
+                onBlur={() => window.setTimeout(() => setLocationSuggestOpen(false), 120)}
+                placeholder="Place name or pick from day locations"
+              />
+              {touchShell ? (
+                <FieldSuggestionList
+                  options={dayPlaceOptions}
+                  value={draft.location ?? ''}
+                  onSelect={(value) => {
+                    patch({ location: value, title: value.trim() || draft.title });
+                    setLocationSuggestOpen(false);
+                  }}
+                  active={locationSuggestOpen || Boolean((draft.location ?? '').trim())}
+                />
+              ) : null}
+            </div>
             <datalist id={`day-places-${draft.id}`}>
               {dayPlaceOptions.map((name) => (
                 <option key={name} value={name} />
@@ -585,13 +645,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
                   className={styles.input}
                   type="date"
                   value={draft.dateStart ?? calendarDate}
-                  onChange={(e) => {
-                    const date = e.target.value;
-                    const day = tripDays.find(
-                      (d) => d.tripId === trip?.id && ymdSlice(d.calendarDate) === ymdSlice(date)
-                    );
-                    patch({ dateStart: date, ...(day ? { dayId: day.id } : {}) });
-                  }}
+                  onChange={(e) => patchDateStart(e.target.value)}
                 />
               </>
             ) : null}
@@ -615,6 +669,21 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
             </select>
           </>
         )}
+
+        {(isActivities || draft.category === 'Other') && !isOption ? (
+          <>
+            <label className={styles.label} htmlFor={`act-date-${draft.id}`}>
+              Date
+            </label>
+            <input
+              id={`act-date-${draft.id}`}
+              className={styles.input}
+              type="date"
+              value={draft.dateStart ?? calendarDate}
+              onChange={(e) => patchDateStart(e.target.value)}
+            />
+          </>
+        ) : null}
 
         <label className={styles.label} htmlFor={`time-${draft.id}`}>
           Time
@@ -779,7 +848,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
               className={styles.input}
               type="date"
               value={draft.dateStart ?? ''}
-              onChange={(e) => patch({ dateStart: e.target.value })}
+              onChange={(e) => patchDateStart(e.target.value)}
             />
 
             <label className={styles.label} htmlFor={`checkout-${draft.id}`}>
@@ -803,14 +872,29 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
             <label className={styles.label} htmlFor={`sup-${draft.id}`}>
               Supplier
             </label>
-            <input
-              id={`sup-${draft.id}`}
-              className={styles.input}
-              type="text"
-              list={`supplier-list-${draft.id}`}
-              value={draft.supplier}
-              onChange={(e) => patch({ supplier: e.target.value })}
-            />
+            <div className={styles.fieldWithSuggestions}>
+              <input
+                id={`sup-${draft.id}`}
+                className={styles.input}
+                type="text"
+                list={`supplier-list-${draft.id}`}
+                value={draft.supplier}
+                onChange={(e) => patch({ supplier: e.target.value })}
+                onFocus={() => touchShell && setSupplierSuggestOpen(true)}
+                onBlur={() => window.setTimeout(() => setSupplierSuggestOpen(false), 120)}
+              />
+              {touchShell ? (
+                <FieldSuggestionList
+                  options={usedSuppliers}
+                  value={draft.supplier}
+                  onSelect={(value) => {
+                    patch({ supplier: value });
+                    setSupplierSuggestOpen(false);
+                  }}
+                  active={supplierSuggestOpen || Boolean(draft.supplier.trim())}
+                />
+              ) : null}
+            </div>
             <datalist id={`supplier-list-${draft.id}`}>
               {usedSuppliers.map((value) => (
                 <option key={value} value={value} />
@@ -893,14 +977,29 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
         <label className={styles.label} htmlFor={`loc-${draft.id}`}>
           Location
         </label>
-        <input
-          id={`loc-${draft.id}`}
-          className={styles.input}
-          type="text"
-          list={`location-list-${draft.id}`}
-          value={draft.location ?? ''}
-          onChange={(e) => patch({ location: e.target.value })}
-        />
+        <div className={styles.fieldWithSuggestions}>
+          <input
+            id={`loc-${draft.id}`}
+            className={styles.input}
+            type="text"
+            list={`location-list-${draft.id}`}
+            value={draft.location ?? ''}
+            onChange={(e) => patch({ location: e.target.value })}
+            onFocus={() => touchShell && setLocationSuggestOpen(true)}
+            onBlur={() => window.setTimeout(() => setLocationSuggestOpen(false), 120)}
+          />
+          {touchShell ? (
+            <FieldSuggestionList
+              options={dayPlaceOptions}
+              value={draft.location ?? ''}
+              onSelect={(value) => {
+                patch({ location: value });
+                setLocationSuggestOpen(false);
+              }}
+              active={locationSuggestOpen || Boolean((draft.location ?? '').trim())}
+            />
+          ) : null}
+        </div>
         <datalist id={`location-list-${draft.id}`}>
           {dayPlaceOptions.map((value) => (
             <option key={`day-${value}`} value={value} />

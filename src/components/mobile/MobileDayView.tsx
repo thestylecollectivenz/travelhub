@@ -146,7 +146,7 @@ const MAX_VISIBLE_AVATARS = 3;
 
 export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onAskAi, onDetailChange }) => {
   const shellMode = useShellMode();
-  const { trip, tripDays, localEntries, selectedDayId, setSelectedDayId, updateEntry, setEditingCardId, loading } =
+  const { trip, tripDays, localEntries, selectedDayId, setSelectedDayId, stageDraftEntry, setEditingCardId, loading } =
     useTripWorkspace();
   const { role } = useTripRole();
   const { placeById } = usePlaces();
@@ -166,7 +166,6 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   const [locationFocusAskAi, setLocationFocusAskAi] = React.useState(false);
   const [unschedOpen, setUnschedOpen] = React.useState(false);
   const [aiPrompt, setAiPrompt] = React.useState('');
-  const [adding, setAdding] = React.useState(false);
   const [dayPickOpen, setDayPickOpen] = React.useState(false);
   const [weatherSummary, setWeatherSummary] = React.useState<{
     label: string;
@@ -448,7 +447,6 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
       if (!trip) return;
       const targetDay = days.find((d) => d.id === targetDayId) ?? day;
       if (!targetDay) return;
-      setAdding(true);
       const targetEntries = sortEntriesForDay(
         localEntries,
         targetDay.id,
@@ -462,9 +460,10 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
         id: newDraftId(),
         tripId: trip.id,
         dayId: targetDay.id,
-        title: 'New item',
+        title: '',
         category: 'Other',
         location: '',
+        dateStart: (targetDay.calendarDate || '').slice(0, 10),
         timeStart: '',
         duration: '',
         supplier: '',
@@ -481,15 +480,25 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
       if (targetDay.id !== selectedDayId) {
         setSelectedDayId(targetDay.id);
       }
-      updateEntry(draft);
-      window.setTimeout(() => {
-        setAdding(false);
-        setUnschedOpen(true);
-        setEditingCardId(draft.id);
-        notifyExpandUnscheduled();
-      }, 300);
+      stageDraftEntry(draft);
+      setUnschedOpen(true);
+      notifyExpandUnscheduled();
+      openDetail(draft.id);
+      setEditingCardId(draft.id);
     },
-    [trip, day, days, localEntries, preTripDayId, tripDays, selectedDayId, setSelectedDayId, updateEntry, setEditingCardId]
+    [
+      trip,
+      day,
+      days,
+      localEntries,
+      preTripDayId,
+      tripDays,
+      selectedDayId,
+      setSelectedDayId,
+      stageDraftEntry,
+      setEditingCardId,
+      openDetail
+    ]
   );
 
   const beginItineraryAdd = React.useCallback(() => {
@@ -808,13 +817,6 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
           if (dx > 0 && dayIndex > 0) setSelectedDayId(days[dayIndex - 1].id);
         }}
       >
-        {adding ? (
-          <div className={styles.addingBanner}>
-            <div className={styles.addingSpinner} />
-            <span>Creating new item…</span>
-          </div>
-        ) : null}
-
         {stayTile ? (
           <MobileStayCruiseTile
             mode={stayTile.mode}

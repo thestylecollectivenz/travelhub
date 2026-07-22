@@ -1,0 +1,28 @@
+.list {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  max-height: 11rem;
+  overflow-y: auto;
+}
+
+.item {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0.45rem 0.65rem;
+  text-align: left;
+  font-size: var(--font-size-sm);
+  color: var(--color-blue-800);
+  cursor: pointer;
+}
+
+.item:hover,
+.item:focus-visible {
+  background: color-mix(in srgb, var(--color-primary) 10%, white);
+  outline: none;
+}

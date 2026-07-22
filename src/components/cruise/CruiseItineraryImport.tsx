@@ -409,7 +409,7 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
                 otherNotes.push(`Could not save the map location for scenic day “${displayPort}”.`);
               }
             }
-            updateEntry(makeSegmentEntry(day.id, row, nextSort, displayPort));
+            updateEntry(makeSegmentEntry(day.id, row, nextSort, displayPort), { persistPending: true });
             resolved.push({ row, dayId: day.id, calendarDate: day.calendarDate });
             await delay(250);
             continue;
@@ -425,7 +425,7 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
             if (!mapPinMisses.some((m) => m.port === displayPort && m.date === dateKey)) {
               mapPinMisses.push({ port: displayPort, date: dateKey });
             }
-            updateEntry(makeSegmentEntry(day.id, row, nextSort, displayPort, shipMeta));
+            updateEntry(makeSegmentEntry(day.id, row, nextSort, displayPort, shipMeta), { persistPending: true });
             resolved.push({ row, dayId: day.id, calendarDate: day.calendarDate });
             continue;
           }
@@ -439,14 +439,14 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
             if (!mapPinMisses.some((m) => m.port === displayPort && m.date === dateKey)) {
               mapPinMisses.push({ port: displayPort, date: dateKey });
             }
-            updateEntry(makeSegmentEntry(day.id, row, nextSort, displayPort, shipMeta));
+            updateEntry(makeSegmentEntry(day.id, row, nextSort, displayPort, shipMeta), { persistPending: true });
             resolved.push({ row, dayId: day.id, calendarDate: day.calendarDate });
             continue;
           }
           if (!firstLandPlaceId) {
             firstLandPlaceId = place.id;
           }
-          updateEntry(makeSegmentEntry(day.id, row, nextSort, displayPort, shipMeta));
+          updateEntry(makeSegmentEntry(day.id, row, nextSort, displayPort, shipMeta), { persistPending: true });
           resolved.push({ row, dayId: day.id, calendarDate: day.calendarDate });
           await delay(200);
         }
@@ -507,7 +507,7 @@ export const CruiseItineraryImport: React.FC<CruiseItineraryImportProps> = ({ tr
         sortOrder: cruiseSortOrder
       };
 
-      updateEntry(cruiseEntry);
+      updateEntry(cruiseEntry, { persistPending: true });
 
       const missingDays = tripDaysMissingFromSnapshot(dayIdsBefore, tripDays, trip.id);
       if (missingDays.length || tripDateRangeChanged(dateRangeBefore, trip)) {

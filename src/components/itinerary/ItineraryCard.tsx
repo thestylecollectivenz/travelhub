@@ -77,7 +77,7 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
 
   const handleSave = React.useCallback(
     (saved: ItineraryEntry) => {
-      updateEntry(saved);
+      updateEntry(saved, { persistPending: true });
       setEditingCardId(null);
     },
     [updateEntry, setEditingCardId]

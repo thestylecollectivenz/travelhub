@@ -53,12 +53,19 @@ export const MobileDetailAiPanel: React.FC<MobileDetailAiPanelProps> = ({
   const [answer, setAnswer] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState('');
-  const [added, setAdded] = React.useState(false);
   const { speechState, speak, pause, resume, stop: stopSpeech } = useSpeechOutput();
   const appendVoice = React.useCallback((chunk: string) => {
     setPrompt((prev) => `${prev}${prev ? ' ' : ''}${chunk}`);
   }, []);
-  const { listening, toggleListening, stopListening } = useContinuousSpeechInput(appendVoice);
+  const { listening, supported, toggleListening, stopListening } = useContinuousSpeechInput(appendVoice);
+
+  const resetQa = React.useCallback(() => {
+    setPrompt('');
+    setAnswer('');
+    setError('');
+    stopListening();
+    stopSpeech();
+  }, [stopListening, stopSpeech]);
 
   if (!canUseAiHelpers) return null;
 
@@ -77,7 +84,6 @@ export const MobileDetailAiPanel: React.FC<MobileDetailAiPanelProps> = ({
     if (!text || busy) return;
     setBusy(true);
     setError('');
-    setAdded(false);
     stopListening();
     try {
       const day = tripDays.find((d) => d.id === entry.dayId);
@@ -121,17 +127,17 @@ export const MobileDetailAiPanel: React.FC<MobileDetailAiPanelProps> = ({
 
   const addToNotes = (): void => {
     if (!canEditItinerary || !answer.trim()) return;
-    const notes = appendNoteHtml(entry.notes, answer);
+    const latestEntry = localEntries.find((e) => e.id === entry.id) ?? entry;
+    const notes = appendNoteHtml(latestEntry.notes, answer);
     if (optionContext) {
       const parent = localEntries.find((e) => e.id === optionContext.parentEntryId);
       const sub = parent?.subItems?.find((s) => s.id === optionContext.subItemId);
       if (!parent || !sub) return;
       updateSubItem(parent.id, { ...sub, notes });
     } else {
-      updateEntry({ ...entry, notes });
+      updateEntry({ ...latestEntry, notes });
     }
-    setAdded(true);
-    window.setTimeout(() => setAdded(false), 2200);
+    resetQa();
   };
 
   return (
@@ -160,8 +166,15 @@ export const MobileDetailAiPanel: React.FC<MobileDetailAiPanelProps> = ({
               type="button"
               className={`${styles.iconBtn} ${listening ? styles.iconBtnOn : ''}`}
               onClick={toggleListening}
+              disabled={!supported}
               aria-label={listening ? 'Stop listening' : 'Speak your question'}
-              title={listening ? 'Stop listening' : 'Speak your question'}
+              title={
+                !supported
+                  ? 'Speech input is not supported in this browser'
+                  : listening
+                    ? 'Stop listening'
+                    : 'Speak your question'
+              }
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" strokeWidth="1.8" />
@@ -172,6 +185,9 @@ export const MobileDetailAiPanel: React.FC<MobileDetailAiPanelProps> = ({
               Ask
             </button>
           </div>
+          {!supported ? (
+            <p className={styles.micUnsupported}>Microphone input is not supported in this browser.</p>
+          ) : null}
           {error ? <p className={styles.error}>{error}</p> : null}
           {busy ? <p className={styles.muted}>Thinking…</p> : null}
           {answer ? (
@@ -195,9 +211,12 @@ export const MobileDetailAiPanel: React.FC<MobileDetailAiPanelProps> = ({
                 />
                 {canEditItinerary ? (
                   <button type="button" className={styles.smallBtnPrimary} onClick={addToNotes}>
-                    {added ? 'Added' : 'Add to notes'}
+                    Add to notes
                   </button>
                 ) : null}
+                <button type="button" className={styles.smallBtn} onClick={resetQa}>
+                  Clear
+                </button>
               </div>
             </div>
           ) : null}

@@ -562,7 +562,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
                   entry={editingEntry}
                   calendarDate={editingDay?.calendarDate || ''}
                   onSave={(saved) => {
-                    updateEntry(saved);
+                    updateEntry(saved, { persistPending: true });
                     setEditingCardId(null);
                   }}
                   onCancel={() => setEditingCardId(null)}

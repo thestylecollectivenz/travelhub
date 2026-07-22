@@ -5,7 +5,7 @@ import { useAttachments } from '../../context/AttachmentsContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useTripPermissions } from '../../hooks/useTripPermissions';
 import { confirmUserAction } from '../../utils/confirmAction';
-import { isPendingSubItemId } from '../../utils/itineraryEntryIds';
+import { isPendingItineraryEntryId, isPendingSubItemId } from '../../utils/itineraryEntryIds';
 import { editableEntryToSubItem, subItemToEditableEntry } from '../../utils/optionEntryAdapter';
 import { CategoryIcon } from '../shared/CategoryIcon';
 import { getCategorySlug } from '../../utils/categoryUtils';
@@ -101,9 +101,19 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
   const { documents, links } = useAttachments();
   const canSeeFinancials = useCanSeeFinancials();
   const [showBookingSites, setShowBookingSites] = React.useState(false);
+  const liveSourceEntry = React.useMemo(
+    () => localEntries.find((e) => e.id === sourceEntry.id) ?? sourceEntry,
+    [localEntries, sourceEntry]
+  );
+  const attachmentEntryIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    if (sourceEntry.id) ids.add(sourceEntry.id);
+    if (liveSourceEntry.id) ids.add(liveSourceEntry.id);
+    return ids;
+  }, [liveSourceEntry.id, sourceEntry.id]);
   const entry = displayEntry;
-  const entryDocs = documents.filter((d) => d.entryId === sourceEntry.id);
-  const entryLinks = links.filter((l) => l.entryId === sourceEntry.id);
+  const entryDocs = documents.filter((d) => attachmentEntryIds.has(d.entryId));
+  const entryLinks = links.filter((l) => attachmentEntryIds.has(l.entryId));
   const confirmationDoc = findConfirmationDocument(entryDocs);
   const booked = effectiveBookingStatus(entry, { hasConfirmationDoc: Boolean(confirmationDoc) });
   const mapsPlaceUrl = entryMapsPlaceUrl(entry);
@@ -221,6 +231,22 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
     })();
   }, [deleteEntry, onClose, setEditingCardId, sourceEntry.id]);
 
+  const discardBlankPendingDraft = React.useCallback((): boolean => {
+    if (!isPendingItineraryEntryId(sourceEntry.id)) return false;
+    const latest = localEntries.find((e) => e.id === sourceEntry.id) ?? sourceEntry;
+    const hasContent = Boolean(
+      latest.title.trim() ||
+        latest.supplier.trim() ||
+        (latest.location ?? '').trim() ||
+        latest.notes.trim() ||
+        latest.duration.trim() ||
+        latest.timeStart.trim()
+    );
+    if (hasContent) return false;
+    deleteEntry(sourceEntry.id);
+    return true;
+  }, [deleteEntry, localEntries, sourceEntry]);
+
   if (isEditingOption && optionSub) {
     const editable = subItemToEditableEntry(sourceEntry, optionSub);
     return ReactDOM.createPortal(
@@ -268,10 +294,14 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
             entry={sourceEntry}
             calendarDate={calendarDate}
             onSave={(saved) => {
-              updateEntry(saved);
+              updateEntry(saved, { persistPending: true });
               setEditingCardId(null);
             }}
-            onCancel={() => setEditingCardId(null)}
+            onCancel={() => {
+              const discarded = discardBlankPendingDraft();
+              setEditingCardId(null);
+              if (discarded) onClose();
+            }}
             onDelete={handleDelete}
           />
         </div>

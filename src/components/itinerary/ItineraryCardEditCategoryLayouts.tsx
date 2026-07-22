@@ -24,6 +24,7 @@ import { scheduleLocationInfoAIGeneration } from '../../utils/locationInfoGenera
 import { combineDayAndTime, formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { CurrencySelect } from '../shared/CurrencySelect';
 import { RichTextField } from '../shared/RichTextField';
+import { FieldSuggestionList } from '../shared/FieldSuggestionList';
 import styles from './ItineraryCardEdit.module.css';
 
 export interface CategoryEditLayoutProps {
@@ -37,6 +38,8 @@ export interface CategoryEditLayoutProps {
   homeCurrency: string;
   usedCurrencies?: string[];
   usedSuppliers?: string[];
+  touchShell?: boolean;
+  patchDateStart?: (date: string) => void;
 }
 
 function StatusFields({ draft, patch }: Pick<CategoryEditLayoutProps, 'draft' | 'patch'>): React.ReactElement {
@@ -216,7 +219,10 @@ export function CancellationPolicyFields({
 }
 
 export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
-  const { draft, calendarDate, dayPlaceOptions, patch } = props;
+  const { draft, calendarDate, dayPlaceOptions, patch, usedSuppliers, touchShell } = props;
+  const [supplierSuggestOpen, setSupplierSuggestOpen] = React.useState(false);
+  const [fromSuggestOpen, setFromSuggestOpen] = React.useState(false);
+  const [toSuggestOpen, setToSuggestOpen] = React.useState(false);
   const timeValue = formatTimeHHMM(draft.timeStart);
   const arrivalTimeValue = formatTimeHHMM(draft.arrivalTime ?? '');
 
@@ -241,23 +247,53 @@ export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
       <label className={styles.label} htmlFor={`tf-${draft.id}`}>
         From location
       </label>
-      <input
-        id={`tf-${draft.id}`}
-        className={styles.input}
-        list={`location-list-${draft.id}`}
-        value={draft.transportFrom ?? ''}
-        onChange={(e) => patch({ transportFrom: e.target.value })}
-      />
+      <div className={styles.fieldWithSuggestions}>
+        <input
+          id={`tf-${draft.id}`}
+          className={styles.input}
+          list={`location-list-${draft.id}`}
+          value={draft.transportFrom ?? ''}
+          onChange={(e) => patch({ transportFrom: e.target.value })}
+          onFocus={() => touchShell && setFromSuggestOpen(true)}
+          onBlur={() => window.setTimeout(() => setFromSuggestOpen(false), 120)}
+        />
+        {touchShell ? (
+          <FieldSuggestionList
+            options={dayPlaceOptions}
+            value={draft.transportFrom ?? ''}
+            onSelect={(value) => {
+              patch({ transportFrom: value });
+              setFromSuggestOpen(false);
+            }}
+            active={fromSuggestOpen || Boolean((draft.transportFrom ?? '').trim())}
+          />
+        ) : null}
+      </div>
       <label className={styles.label} htmlFor={`tt-${draft.id}`}>
         To location
       </label>
-      <input
-        id={`tt-${draft.id}`}
-        className={styles.input}
-        list={`location-list-${draft.id}`}
-        value={draft.transportTo ?? ''}
-        onChange={(e) => patch({ transportTo: e.target.value })}
-      />
+      <div className={styles.fieldWithSuggestions}>
+        <input
+          id={`tt-${draft.id}`}
+          className={styles.input}
+          list={`location-list-${draft.id}`}
+          value={draft.transportTo ?? ''}
+          onChange={(e) => patch({ transportTo: e.target.value })}
+          onFocus={() => touchShell && setToSuggestOpen(true)}
+          onBlur={() => window.setTimeout(() => setToSuggestOpen(false), 120)}
+        />
+        {touchShell ? (
+          <FieldSuggestionList
+            options={dayPlaceOptions}
+            value={draft.transportTo ?? ''}
+            onSelect={(value) => {
+              patch({ transportTo: value });
+              setToSuggestOpen(false);
+            }}
+            active={toSuggestOpen || Boolean((draft.transportTo ?? '').trim())}
+          />
+        ) : null}
+      </div>
       <datalist id={`location-list-${draft.id}`}>
         {dayPlaceOptions.map((value) => (
           <option key={value} value={value} />
@@ -317,12 +353,33 @@ export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
       <label className={styles.label} htmlFor={`airline-${draft.id}`}>
         Airline
       </label>
-      <input
-        id={`airline-${draft.id}`}
-        className={styles.input}
-        value={draft.supplier}
-        onChange={(e) => patch({ supplier: e.target.value })}
-      />
+      <div className={styles.fieldWithSuggestions}>
+        <input
+          id={`airline-${draft.id}`}
+          className={styles.input}
+          list={`supplier-list-f-${draft.id}`}
+          value={draft.supplier}
+          onChange={(e) => patch({ supplier: e.target.value })}
+          onFocus={() => touchShell && setSupplierSuggestOpen(true)}
+          onBlur={() => window.setTimeout(() => setSupplierSuggestOpen(false), 120)}
+        />
+        {touchShell ? (
+          <FieldSuggestionList
+            options={usedSuppliers ?? []}
+            value={draft.supplier}
+            onSelect={(value) => {
+              patch({ supplier: value });
+              setSupplierSuggestOpen(false);
+            }}
+            active={supplierSuggestOpen || Boolean(draft.supplier.trim())}
+          />
+        ) : null}
+      </div>
+      <datalist id={`supplier-list-f-${draft.id}`}>
+        {(usedSuppliers ?? []).map((value) => (
+          <option key={value} value={value} />
+        ))}
+      </datalist>
       <label className={styles.label} htmlFor={`bref-f-${draft.id}`}>
         Booking ref
       </label>
@@ -391,7 +448,20 @@ export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
 };
 
 export const AccommodationEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
-  const { draft, calendarDate, dayPlaceOptions, bookingMechanismOptions, patch, nights, perNight, usedSuppliers } = props;
+  const {
+    draft,
+    calendarDate,
+    dayPlaceOptions,
+    bookingMechanismOptions,
+    patch,
+    nights,
+    perNight,
+    usedSuppliers,
+    touchShell,
+    patchDateStart
+  } = props;
+  const [supplierSuggestOpen, setSupplierSuggestOpen] = React.useState(false);
+  const [locationSuggestOpen, setLocationSuggestOpen] = React.useState(false);
 
   return (
     <div className={styles.grid}>
@@ -414,13 +484,28 @@ export const AccommodationEditLayout: React.FC<CategoryEditLayoutProps> = (props
       <label className={styles.label} htmlFor={`loc-${draft.id}`}>
         Location
       </label>
-      <input
-        id={`loc-${draft.id}`}
-        className={styles.input}
-        list={`location-list-${draft.id}`}
-        value={draft.location ?? ''}
-        onChange={(e) => patch({ location: e.target.value })}
-      />
+      <div className={styles.fieldWithSuggestions}>
+        <input
+          id={`loc-${draft.id}`}
+          className={styles.input}
+          list={`location-list-${draft.id}`}
+          value={draft.location ?? ''}
+          onChange={(e) => patch({ location: e.target.value })}
+          onFocus={() => touchShell && setLocationSuggestOpen(true)}
+          onBlur={() => window.setTimeout(() => setLocationSuggestOpen(false), 120)}
+        />
+        {touchShell ? (
+          <FieldSuggestionList
+            options={dayPlaceOptions}
+            value={draft.location ?? ''}
+            onSelect={(value) => {
+              patch({ location: value });
+              setLocationSuggestOpen(false);
+            }}
+            active={locationSuggestOpen || Boolean((draft.location ?? '').trim())}
+          />
+        ) : null}
+      </div>
       <datalist id={`location-list-${draft.id}`}>
         {dayPlaceOptions.map((value) => (
           <option key={value} value={value} />
@@ -438,14 +523,29 @@ export const AccommodationEditLayout: React.FC<CategoryEditLayoutProps> = (props
       <label className={styles.label} htmlFor={`sup-a-${draft.id}`}>
         Supplier
       </label>
-      <input
-        id={`sup-a-${draft.id}`}
-        className={styles.input}
-        type="text"
-        list={`supplier-list-a-${draft.id}`}
-        value={draft.supplier}
-        onChange={(e) => patch({ supplier: e.target.value })}
-      />
+      <div className={styles.fieldWithSuggestions}>
+        <input
+          id={`sup-a-${draft.id}`}
+          className={styles.input}
+          type="text"
+          list={`supplier-list-a-${draft.id}`}
+          value={draft.supplier}
+          onChange={(e) => patch({ supplier: e.target.value })}
+          onFocus={() => touchShell && setSupplierSuggestOpen(true)}
+          onBlur={() => window.setTimeout(() => setSupplierSuggestOpen(false), 120)}
+        />
+        {touchShell ? (
+          <FieldSuggestionList
+            options={usedSuppliers ?? []}
+            value={draft.supplier}
+            onSelect={(value) => {
+              patch({ supplier: value });
+              setSupplierSuggestOpen(false);
+            }}
+            active={supplierSuggestOpen || Boolean(draft.supplier.trim())}
+          />
+        ) : null}
+      </div>
       <datalist id={`supplier-list-a-${draft.id}`}>
         {(usedSuppliers ?? []).map((value) => (
           <option key={value} value={value} />
@@ -459,7 +559,7 @@ export const AccommodationEditLayout: React.FC<CategoryEditLayoutProps> = (props
         className={styles.input}
         type="date"
         value={draft.dateStart ?? ''}
-        onChange={(e) => patch({ dateStart: e.target.value })}
+        onChange={(e) => (patchDateStart ? patchDateStart(e.target.value) : patch({ dateStart: e.target.value }))}
       />
       <label className={styles.label} htmlFor={`checkout-${draft.id}`}>
         Check-out date

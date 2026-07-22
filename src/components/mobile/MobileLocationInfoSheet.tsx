@@ -794,7 +794,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
             entry={entry}
             calendarDate={calendarDate}
             onSave={(saved) => {
-              updateEntry(saved);
+              updateEntry(saved, { persistPending: true });
               setEditingCardId(null);
             }}
             onCancel={() => setEditingCardId(null)}

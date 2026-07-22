@@ -19,6 +19,7 @@ import { isRichTextEditorEmpty } from '../../utils/journalRichText';
 import { RichTextContent } from '../shared/RichTextContent';
 import { MobilePencilButton } from './MobilePencilButton';
 import { MobileDetailAiPanel } from './MobileDetailAiPanel';
+import { MobileDocsLinksSection } from './MobileDocsLinksSection';
 import { openMobileExternalUrl } from '../../hooks/useMobileDetailHistory';
 import styles from './MobileDiningDetail.module.css';
 
@@ -346,42 +347,10 @@ export const MobileDiningDetail: React.FC<MobileDiningDetailProps> = ({
         ) : null}
       </section>
 
-      {docLinkItems.length ? (
-        <section className={styles.sectionCard}>
-          <div className={styles.sectionHead}>
-            <span className={styles.sectionIcon}>{sectionIcon('docs')}</span>
-            <h2 className={styles.sectionTitle}>Documents &amp; links</h2>
-          </div>
-          <div className={styles.docLinkRow}>
-            {docLinkItems.map((item) => (
-              <a
-                key={item.id}
-                className={styles.docLinkItem}
-                href={item.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => openUrl(item.href, e)}
-              >
-                {item.kind === 'document' ? (
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
-                    <rect x="2" y="1.5" width="8" height="9" rx="1" stroke="currentColor" strokeWidth="1" />
-                  </svg>
-                ) : (
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
-                    <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1" />
-                  </svg>
-                )}
-                <span>{item.label}</span>
-                {item.kind === 'link' ? (
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
-                    <path d="M3.5 1.5h5v5M8.5 1.5 1.5 8.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-                  </svg>
-                ) : null}
-              </a>
-            ))}
-          </div>
-        </section>
-      ) : null}
+      <MobileDocsLinksSection
+        items={docLinkItems}
+        emptyHint={canEdit ? 'No documents or links yet — tap the pencil to add attachments when editing.' : undefined}
+      />
 
       {hasNotes ? (
         <section className={styles.sectionCard} id="dining-notes" ref={notesRef}>

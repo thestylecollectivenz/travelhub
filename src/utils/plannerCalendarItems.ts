@@ -4,6 +4,7 @@ import { parseDurationMinutes, durationFromDateTimes } from './durationFromTimes
 import { cruisePortPlannerBlocks, isCruiseSeaOrScenicEntry } from './cruisePlannerUtils';
 import { effectivePlannerTimeStart } from './itineraryDayEntries';
 import { isLocationInfoEntry } from './locationInfoEntry';
+import { isPendingItineraryEntryId } from './itineraryEntryIds';
 import { formatTimeHHMM, minutesFromTimeStart, effectiveAccommodationArrivalTime, effectiveAccommodationDepartureTime, effectiveCruiseBoardingTime, effectiveCruiseDisembarkTime, formatAccommodationArriveLabel, formatAccommodationDepartLabel } from './itineraryTimeUtils';
 import { filterSubItemsForDay } from './subItemDateUtils';
 
@@ -27,6 +28,10 @@ export interface PlannerUnscheduledItem {
 
 const PORT_MARKER_MINUTES = 60;
 const MINUTES_PER_DAY = 24 * 60;
+
+function skipPendingBlankDraft(entry: ItineraryEntry): boolean {
+  return isPendingItineraryEntryId(entry.id) && !entry.title.trim();
+}
 
 function ymdSlice(value: string | undefined): string {
   return (value || '').slice(0, 10);
@@ -377,6 +382,7 @@ export function expandPlannerTimedItems(
   const items: PlannerTimedItem[] = [];
   for (const entry of entries) {
     if (isLocationInfoEntry(entry)) continue;
+    if (skipPendingBlankDraft(entry)) continue;
     const subs = filterSubItemsForDay(entry.subItems, calendarDate).sort(
       (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
     );
@@ -497,6 +503,7 @@ export function expandPlannerUnscheduledItems(
   const items: PlannerUnscheduledItem[] = [];
   for (const entry of entries) {
     if (isLocationInfoEntry(entry)) continue;
+    if (skipPendingBlankDraft(entry)) continue;
     const untimedSubs = filterSubItemsForDay(entry.subItems, calendarDate).filter(
       (s) => minutesFromTimeStart(s.startTime || '') === undefined
     );
