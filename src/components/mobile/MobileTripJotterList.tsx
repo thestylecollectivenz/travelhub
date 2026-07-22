@@ -298,7 +298,12 @@ export const MobileTripJotterList: React.FC = () => {
               ) : null}
               {isNew ? <span className={`${styles.ideaBadge} ${styles.badgeNew}`}>New</span> : null}
             </div>
-            <p className={styles.ideaCardTime}>{formatIdeaTime(idea.createdAt)}</p>
+            {!idea.isAi ? <p className={styles.ideaCardTime}>{formatIdeaTime(idea.createdAt)}</p> : null}
+            {idea.locationLabel || idea.dayLabel ? (
+              <p className={styles.ideaCardTime}>
+                {[idea.dayLabel, idea.locationLabel].filter(Boolean).join(' · ')}
+              </p>
+            ) : null}
           </div>
           <div className={styles.ideaCardActions}>
             {canContribute ? (

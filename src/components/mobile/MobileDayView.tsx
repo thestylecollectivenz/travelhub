@@ -163,6 +163,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     if (!shouldRestoreMobileNav()) return null;
     return loadPersistedMobileNav().locationEntryId || null;
   });
+  const [locationFocusAskAi, setLocationFocusAskAi] = React.useState(false);
   const [unschedOpen, setUnschedOpen] = React.useState(false);
   const [aiPrompt, setAiPrompt] = React.useState('');
   const [adding, setAdding] = React.useState(false);
@@ -285,6 +286,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
 
   const closeLocation = React.useCallback(() => {
     setLocationPanelEntryId(null);
+    setLocationFocusAskAi(false);
     persistMobileNav({
       locationPanel: undefined,
       locationEntryId: undefined,
@@ -516,6 +518,13 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   }, [beginItineraryAdd]);
 
   const handleAskAi = (): void => {
+    const primaryId = dayLocationEntries[0]?.id;
+    if (primaryId) {
+      setLocationFocusAskAi(true);
+      setLocationPanelEntryId(primaryId);
+      setAiPrompt('');
+      return;
+    }
     const p = aiPrompt.trim();
     if (onAskAi) onAskAi(p || undefined);
     setAiPrompt('');
@@ -579,6 +588,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
         calendarDate={day.calendarDate || ''}
         onClose={closeLocation}
         asPage
+        initialFocusAskAi={locationFocusAskAi}
       />
     );
   }
@@ -752,6 +762,9 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
                 {weatherSummary.hiLo ? <span className={styles.weatherHiLo}>{weatherSummary.hiLo}</span> : null}
                 {weatherSummary.precip ? <span className={styles.weatherHiLo}>{weatherSummary.precip}</span> : null}
               </span>
+              <span className={styles.weatherChevron} aria-hidden>
+                ›
+              </span>
             </span>
             {weatherAhead.length ? (
               <span className={styles.weatherAheadRow} aria-hidden>
@@ -767,11 +780,6 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
         ) : null}
       </div>
 
-      {dayLocationEntries.length ? (
-        <p className={styles.locationStripHint}>
-          Tap a place for weather, tips and currency. Editors can mark trip home cities from the place ⋯ menu.
-        </p>
-      ) : null}
       {weatherOpen && primaryPlace ? (
         <MobileWeatherSheet
           place={primaryPlace}

@@ -204,6 +204,8 @@ export interface MobileLocationInfoContentProps {
   readOnly?: boolean;
   canEditSavedPlaces?: boolean;
   canEditHighlights?: boolean;
+  /** Expand and scroll to the Q&A section on mount. */
+  initialFocusAskAi?: boolean;
   onOpenNearTool?: (toolId: NearYouToolId) => void;
   onEditHighlights?: () => void;
   onEditOverview?: () => void;
@@ -240,6 +242,7 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
   readOnly = false,
   canEditSavedPlaces = false,
   canEditHighlights = false,
+  initialFocusAskAi = false,
   onOpenNearTool,
   onEditHighlights,
   onEditOverview,
@@ -275,10 +278,16 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
   const askRef = React.useRef<HTMLElement | null>(null);
   const pillsRef = React.useRef<HTMLDivElement | null>(null);
   const homeMenuRef = React.useRef<HTMLDivElement | null>(null);
-  const [askExpanded, setAskExpanded] = React.useState(false);
+  const [askExpanded, setAskExpanded] = React.useState(Boolean(initialFocusAskAi));
   const [collapsedGroups, setCollapsedGroups] = React.useState<Record<string, boolean>>({});
   const [heroPhoto, setHeroPhoto] = React.useState<{ imageUrl: string; sourceUrl: string } | null>(null);
   const [homeMenuOpen, setHomeMenuOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!initialFocusAskAi) return;
+    setAskExpanded(true);
+    window.setTimeout(() => askRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+  }, [initialFocusAskAi, entry.id]);
 
   const data = parseLocationInfoNotes(entry.notes);
   const placeId = (data?.placeId || place?.id || '').trim();

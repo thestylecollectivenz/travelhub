@@ -443,6 +443,16 @@
   flex-direction: column;
   gap: 0.12rem;
   min-width: 0;
+  flex: 1;
+}
+
+.weatherChevron {
+  flex-shrink: 0;
+  align-self: center;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #6b6570;
+  line-height: 1;
 }
 
 .weatherHiLo {

@@ -79,6 +79,8 @@ export interface MobileLocationInfoSheetProps {
   onClose: () => void;
   /** Render as an in-flow page (BrandHeader owns title/back) instead of a bottom sheet. */
   asPage?: boolean;
+  /** Open scrolled to the location Q&A Ask AI section. */
+  initialFocusAskAi?: boolean;
 }
 
 type Panel = 'main' | 'explore' | 'saved' | 'near' | 'highlights' | 'notes' | 'overview';
@@ -112,7 +114,8 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
   entry,
   calendarDate,
   onClose,
-  asPage = false
+  asPage = false,
+  initialFocusAskAi = false
 }) => {
   const { trip, tripDays, selectedDayId, setSelectedDayId, editingCardId, setEditingCardId, updateEntry, deleteEntry, reloadItineraryEntries, localEntries } =
     useTripWorkspace();
@@ -1016,6 +1019,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
         readOnly={!canUseAiHelpers}
         canEditSavedPlaces={canEditItinerary}
         canEditHighlights={canEditItinerary}
+        initialFocusAskAi={initialFocusAskAi}
         calendarDate={calendarDate}
         startingPointLabel={startingPointLabel}
         onEditOverview={() => setPanel('overview')}

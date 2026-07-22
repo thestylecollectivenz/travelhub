@@ -46,9 +46,22 @@ export interface UnifiedTripIdea {
   authorLabel?: string;
   authorEmail?: string;
   dayId?: string;
+  /** e.g. "Day 12 · 18 Nov" when the idea is tied to a trip day. */
+  dayLabel?: string;
   locationLabel?: string;
   replyCount: number;
   favouritedBy: string[];
+}
+
+function formatIdeaDayLabel(day: TripDay | undefined): string | undefined {
+  if (!day) return undefined;
+  const ymd = (day.calendarDate || '').slice(0, 10);
+  const datePart = ymd
+    ? new Date(`${ymd}T12:00:00`).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' })
+    : '';
+  const dayPart = typeof day.dayNumber === 'number' ? `Day ${day.dayNumber}` : '';
+  const out = [dayPart, datePart].filter(Boolean).join(' · ');
+  return out || undefined;
 }
 
 function rowFromReminder(
@@ -78,6 +91,7 @@ function rowFromReminder(
       authorLabel: reminder.assignedTo,
       authorEmail: meta.authorEmail,
       dayId: meta.focusDayId || reminder.dayId || undefined,
+      dayLabel: formatIdeaDayLabel(day),
       locationLabel: resolveIdeaLocationLabel(day, meta.location, placeById, dayLocations, tripDestination),
       replyCount: replies.length,
       favouritedBy: meta.favouritedBy ?? []
@@ -100,6 +114,7 @@ function rowFromReminder(
       authorLabel: formatDayIdeaAuthor(reminder) || reminder.assignedTo,
       authorEmail: meta.authorEmail,
       dayId: reminder.dayId || undefined,
+      dayLabel: formatIdeaDayLabel(day),
       locationLabel: resolveIdeaLocationLabel(day, undefined, placeById, dayLocations, tripDestination),
       replyCount: replies.length,
       favouritedBy: meta.favouritedBy ?? []
