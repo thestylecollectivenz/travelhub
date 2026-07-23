@@ -261,8 +261,8 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
 
   const dayLocationEntries = React.useMemo(() => {
     if (!day || !trip) return [];
-    return locationInfoEntriesForDay(day, localEntries, trip.id);
-  }, [day, localEntries, trip]);
+    return locationInfoEntriesForDay(day, localEntries, trip.id, placeById);
+  }, [day, localEntries, trip, placeById]);
 
   // Clear open sheet when the user changes day; the initial day resolving on
   // mount must not clear a location page restored after an external return.

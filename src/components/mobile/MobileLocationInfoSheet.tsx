@@ -192,9 +192,9 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
     const byId = localEntries.find((e) => e.id === entry.id) ?? entry;
     const placeId = locationInfoPlaceId(byId);
     if (!placeId || !trip?.id) return byId;
-    const canonical = buildCanonicalLocationInfoByPlaceId(localEntries, trip.id).get(placeId);
+    const canonical = buildCanonicalLocationInfoByPlaceId(localEntries, trip.id, placeById).get(placeId);
     return canonical ?? byId;
-  }, [entry, localEntries, trip?.id]);
+  }, [entry, localEntries, trip?.id, placeById]);
   const startPointStorageId = React.useMemo(() => {
     const placeId = liveEntry ? locationInfoPlaceId(liveEntry) : '';
     if (placeId) return `place:${placeId}`;

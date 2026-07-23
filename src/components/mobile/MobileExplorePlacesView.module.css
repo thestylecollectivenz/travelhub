@@ -218,6 +218,11 @@
   gap: 1rem;
 }
 
+.layoutFiltersClosed {
+  display: flex;
+  flex-direction: column;
+}
+
 .filters {
   background: white;
   border: 1px solid var(--ex-line);
@@ -588,6 +593,10 @@
   align-items: start;
 }
 
+[data-shell='ipad-portrait'] .layoutFiltersClosed {
+  display: block;
+}
+
 [data-shell='ipad-portrait'] .filters {
   position: sticky;
   top: 0.5rem;
@@ -615,6 +624,10 @@
     grid-template-columns: minmax(13rem, 16rem) minmax(0, 1fr);
     gap: 1.1rem;
     align-items: start;
+  }
+
+  .layoutFiltersClosed {
+    display: block;
   }
 
   .card {

@@ -70,7 +70,7 @@ export const LocationInfoSlidePanel: React.FC<LocationInfoSlidePanelProps> = ({ 
     const byId = localEntries.find((e) => e.id === entry.id) ?? entry;
     const placeId = locationInfoPlaceId(byId);
     if (!placeId || !trip?.id) return byId;
-    return buildCanonicalLocationInfoByPlaceId(localEntries, trip.id).get(placeId) ?? byId;
+    return buildCanonicalLocationInfoByPlaceId(localEntries, trip.id, placeById).get(placeId) ?? byId;
   }, [entry, localEntries, trip?.id]);
 
   React.useEffect(() => {

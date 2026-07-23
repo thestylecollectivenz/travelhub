@@ -4,6 +4,7 @@ import type { EntryDocument, EntryLink } from '../../models';
 import type { TripDay } from '../../models/TripDay';
 import type { ItineraryEntry, ItinerarySubItem } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { usePlaces } from '../../context/PlacesContext';
 import { useAttachments } from '../../context/AttachmentsContext';
 import {
   effectivePlannerTimeStart,
@@ -365,6 +366,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
     selectedDayId,
     setSelectedDayId
   } = useTripWorkspace();
+  const { placeById } = usePlaces();
   const { docsForEntry, linksForEntry } = useAttachments();
   const [filter, setFilter] = React.useState<PlannerFilter>('entire_trip');
   const [customStart, setCustomStart] = React.useState('');
@@ -1187,7 +1189,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                 <PlannerDayHead day={day} className={styles.dayHead} />
                 {trip ? (
                   <DayLocationInfoStrip
-                    entries={locationInfoEntriesForDay(day, localEntries, trip.id)}
+                    entries={locationInfoEntriesForDay(day, localEntries, trip.id, placeById)}
                     activeEntryId={locationPanelEntryId}
                     onSelect={setLocationPanelEntryId}
                   />
@@ -1455,7 +1457,7 @@ export const ItineraryDayPlannerView: React.FC = () => {
                     return (
                   <div key={`loc-${day.id}`} className={styles.unschedCell}>
                     <DayLocationInfoStrip
-                      entries={locationInfoEntriesForDay(day, localEntries, trip.id)}
+                      entries={locationInfoEntriesForDay(day, localEntries, trip.id, placeById)}
                       activeEntryId={locationPanelEntryId}
                       onSelect={setLocationPanelEntryId}
                     />

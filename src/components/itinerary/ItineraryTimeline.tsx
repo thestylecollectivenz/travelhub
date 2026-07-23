@@ -2,6 +2,7 @@ import * as React from 'react';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { usePlaces } from '../../context/PlacesContext';
 import { useSpContext } from '../../context/SpContext';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
@@ -88,6 +89,7 @@ const NewComposer: React.FC<NewComposerProps> = ({ tripId, dayId, calendarDate, 
 
 export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) => {
   const spContext = useSpContext();
+  const { placeById } = usePlaces();
   const { trip, editingCardId, setEditingCardId, focusedEntryId, setFocusedEntryId, tripDays, localEntries } = useTripWorkspace();
   const [taskEntryIds, setTaskEntryIds] = React.useState<Set<string>>(new Set());
   const [entryLinkedTask, setEntryLinkedTask] = React.useState<Map<string, LinkedEntryTask>>(new Map());
@@ -152,8 +154,8 @@ export const ItineraryTimeline: React.FC<ItineraryTimelineProps> = ({ dayId }) =
 
   const dayLocationEntries = React.useMemo(() => {
     if (!trip || !dayMeta) return [];
-    return locationInfoEntriesForDay(dayMeta, localEntries, trip.id);
-  }, [localEntries, dayMeta, trip]);
+    return locationInfoEntriesForDay(dayMeta, localEntries, trip.id, placeById);
+  }, [localEntries, dayMeta, trip, placeById]);
 
   const locationPanelEntry = React.useMemo(
     () => (locationPanelEntryId ? localEntries.find((e) => e.id === locationPanelEntryId) ?? null : null),

@@ -15,6 +15,7 @@ import {
   isJotterIdeaReminder,
   JOTTER_IDEAS_CHANGED_EVENT,
   parseJotterIdeaMeta,
+  serializeJotterIdeaMeta,
   setJotterIdeaComplete,
   updateJotterIdeaText
 } from '../../utils/tripJotterIdeas';
@@ -38,6 +39,7 @@ import {
   type UnifiedTripIdea
 } from '../../utils/tripIdeasUnified';
 import { MobileIdeaAskAi, type IdeaQaEntry } from './MobileIdeaAskAi';
+import { MobileFilterDisclosure } from './MobileFilterDisclosure';
 import { MOBILE_OPEN_JOTTER_COMPOSE } from '../../utils/mobileHomePendingAction';
 import { consumePendingJotterCompose } from '../../utils/mobileHomePendingAction';
 import chrome from './MobileTabChrome.module.css';
@@ -67,6 +69,7 @@ export const MobileTripJotterList: React.FC = () => {
   const { canEditItinerary } = useTripPermissions();
   const [rows, setRows] = React.useState<UnifiedTripIdea[]>([]);
   const [filter, setFilter] = React.useState<TripIdeasFilter>('all');
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
   const [sort, setSort] = React.useState<SortOrder>('newest');
   const [draft, setDraft] = React.useState('');
@@ -177,7 +180,7 @@ export const MobileTripJotterList: React.FC = () => {
       if (isJotterIdeaReminder(idea.reminder)) {
         const meta = parseJotterIdeaMeta(idea.reminder.taskNote);
         await svc.update(idea.id, {
-          taskNote: JSON.stringify({ ...meta, qaThread: next })
+          taskNote: serializeJotterIdeaMeta({ ...meta, qaThread: next })
         });
       } else {
         const meta = parseDayIdeaMeta(idea.reminder.taskNote);
@@ -484,19 +487,21 @@ export const MobileTripJotterList: React.FC = () => {
         Trip ideas from the home jotter and itinerary days, including AI suggestions.
       </p>
 
-      <div className={chrome.filterChipRow} role="group" aria-label="Filter ideas">
-        {filterChips.map(({ key, label, count }) => (
-          <button
-            key={key}
-            type="button"
-            className={filter === key ? chrome.filterChipOn : chrome.filterChip}
-            onClick={() => setFilter(key)}
-          >
-            {label}
-            {count !== undefined ? ` (${count})` : ''}
-          </button>
-        ))}
-      </div>
+      <MobileFilterDisclosure open={filtersOpen} onToggle={() => setFiltersOpen((v) => !v)}>
+        <div className={chrome.filterChipRow} role="group" aria-label="Filter ideas">
+          {filterChips.map(({ key, label, count }) => (
+            <button
+              key={key}
+              type="button"
+              className={filter === key ? chrome.filterChipOn : chrome.filterChip}
+              onClick={() => setFilter(key)}
+            >
+              {label}
+              {count !== undefined ? ` (${count})` : ''}
+            </button>
+          ))}
+        </div>
+      </MobileFilterDisclosure>
 
       <div className={styles.toolbar}>
         <input

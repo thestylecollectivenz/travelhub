@@ -73,8 +73,9 @@ export function effectiveCruiseDisembarkTime(entry: ItineraryEntry): string {
 
 /** Schedule hero / timeline label for planned accommodation arrival. */
 export function formatAccommodationArriveLabel(entry: ItineraryEntry, nights?: number): string {
-  const planned = formatTimeHHMM(effectiveAccommodationArrivalTime(entry));
-  const contractual = entry.checkInTime?.trim() ? formatTimeHHMM(entry.checkInTime) : '';
+  // Prefer planned arrival for the timeline; contractual check-in only when planned is blank.
+  const planned = formatTimeHHMM(entry.plannedArrivalTime ?? '');
+  const contractual = formatTimeHHMM(entry.checkInTime ?? '');
   if (!planned && !contractual) {
     return nights && nights > 0 ? `${nights} night${nights === 1 ? '' : 's'}` : 'Arrive';
   }
@@ -89,8 +90,8 @@ export const formatAccommodationCheckInLabel = formatAccommodationArriveLabel;
 
 /** Schedule hero / timeline label for planned accommodation departure. */
 export function formatAccommodationDepartLabel(entry: ItineraryEntry): string {
-  const planned = formatTimeHHMM(effectiveAccommodationDepartureTime(entry));
-  const contractual = entry.checkOutTime?.trim() ? formatTimeHHMM(entry.checkOutTime) : '';
+  const planned = formatTimeHHMM(entry.plannedDepartureTime ?? '');
+  const contractual = formatTimeHHMM(entry.checkOutTime ?? '');
   if (!planned && !contractual) return 'Depart';
   const time = planned || contractual;
   const suffix = planned && contractual && planned !== contractual ? ` (${contractual} latest)` : '';
@@ -102,8 +103,8 @@ export const formatAccommodationCheckOutLabel = formatAccommodationDepartLabel;
 
 /** Mobile / detail arrival line, e.g. "Arrive 25 Oct 2026 23:59 (from 15:00)". */
 export function formatAccommodationArriveDetail(dateLabel: string, entry: ItineraryEntry): string {
-  const planned = formatTimeHHMM(effectiveAccommodationArrivalTime(entry));
-  const contractual = entry.checkInTime?.trim() ? formatTimeHHMM(entry.checkInTime) : '';
+  const planned = formatTimeHHMM(entry.plannedArrivalTime ?? '');
+  const contractual = formatTimeHHMM(entry.checkInTime ?? '');
   const time = planned || contractual;
   if (!time) return dateLabel;
   const suffix = planned && contractual && planned !== contractual ? ` (from ${contractual})` : '';

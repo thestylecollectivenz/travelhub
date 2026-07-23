@@ -359,26 +359,27 @@ function pushTimedSubs(
 
 /** Defer hotel check-in until after same-day flights/transport when wall-clock time is earlier. */
 export function adjustPlannerAccommodationOrder(items: PlannerTimedItem[]): void {
-  let latestJourneyEnd = -1;
+  // Only inbound flights should push a contractual check-in later.
+  // Local taxis/transfers must not rewrite planned arrival (and must never move it earlier).
+  let latestFlightEnd = -1;
   for (const item of items) {
     if (item.key.includes('-acc-')) continue;
-    if (item.category === 'Flights' || item.category === 'Transport') {
-      latestJourneyEnd = Math.max(latestJourneyEnd, item.startMinutes + item.durationMinutes);
+    if (item.category === 'Flights') {
+      latestFlightEnd = Math.max(latestFlightEnd, item.startMinutes + item.durationMinutes);
     }
   }
-  if (latestJourneyEnd < 0) return;
 
   for (const item of items) {
     if (!item.key.endsWith('-acc-checkin')) continue;
-    const entry = item.entry;
-    const sameDayStay =
-      ymdSlice(entry.dateStart) === ymdSlice(entry.dateEnd) && Boolean(entry.dateStart?.trim());
-    // Daycation check-in stays at its scheduled time — do not push after evening transport.
-    if (sameDayStay) continue;
+    // Planned arrival is authoritative for the timeline.
+    if ((item.entry.plannedArrivalTime || '').trim()) continue;
+    if (latestFlightEnd < 0) continue;
     const originalStart = item.startMinutes;
-    if (originalStart >= latestJourneyEnd) continue;
+    if (originalStart >= latestFlightEnd) continue;
+    const next = latestFlightEnd + 5;
+    // Never move earlier than the scheduled time (old 23:00 cap did that for late arrivals).
+    item.startMinutes = Math.max(originalStart, Math.min(next, MINUTES_PER_DAY - 1));
     const fromLabel = formatTimeHHMM(effectiveAccommodationArrivalTime(item.entry));
-    item.startMinutes = Math.min(latestJourneyEnd + 5, MINUTES_PER_DAY - PORT_MARKER_MINUTES);
     if (fromLabel) {
       const base = item.entry.title?.trim() || 'Accommodation';
       item.title = `${base} · ${formatAccommodationArriveLabel(item.entry)}`;

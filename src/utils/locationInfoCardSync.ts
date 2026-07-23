@@ -51,7 +51,7 @@ export async function syncLocationInfoCards(options: {
     survivors.push(card);
   }
 
-  const canonicalByPlace = buildCanonicalLocationInfoByPlaceId(survivors, tripId);
+  const canonicalByPlace = buildCanonicalLocationInfoByPlaceId(survivors, tripId, placeById);
   const mergedNotesByCanonicalId = new Map<string, string>();
   const deletedIds = new Set<string>();
 
@@ -83,7 +83,7 @@ export async function syncLocationInfoCards(options: {
       const notesJson = mergedNotesByCanonicalId.get(e.id);
       return notesJson ? { ...e, notes: notesJson } : e;
     });
-  const byPlace = buildCanonicalLocationInfoByPlaceId(remaining, tripId);
+  const byPlace = buildCanonicalLocationInfoByPlaceId(remaining, tripId, placeById);
 
   const placeIdsList: string[] = [];
   placeIdsInUse.forEach((id) => placeIdsList.push(id));

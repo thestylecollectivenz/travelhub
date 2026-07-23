@@ -158,6 +158,10 @@ function serializeMeta(meta: JotterIdeaMeta): string {
   return JSON.stringify(meta);
 }
 
+export function serializeJotterIdeaMeta(meta: JotterIdeaMeta): string {
+  return serializeMeta(meta);
+}
+
 export function isJotterIdeaReminder(reminder: Pick<TripReminder, 'reminderType'>): boolean {
   return reminder.reminderType === JOTTER_IDEA_REMINDER_TYPE;
 }

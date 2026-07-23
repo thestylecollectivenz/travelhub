@@ -98,6 +98,39 @@ export async function resolveGooglePlaceListingPhoto(options: {
   }
 }
 
+/** Reverse geocode city + country for GPS Near You tips (not street-only). */
+export async function reverseGeocodeLocality(lat: number, lng: number): Promise<string | undefined> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`;
+    const resp = await nominatimFetch(url, { headers: { Accept: 'application/json' } });
+    if (!resp.ok) return undefined;
+    const data = (await resp.json()) as {
+      display_name?: string;
+      address?: {
+        city?: string;
+        town?: string;
+        village?: string;
+        municipality?: string;
+        suburb?: string;
+        state?: string;
+        country?: string;
+      };
+    };
+    const a = data.address;
+    if (!a) return undefined;
+    const city = a.city || a.town || a.village || a.municipality || a.suburb || a.state;
+    const country = (a.country || '').trim();
+    if (city && country) return `${city}, ${country}`;
+    if (city) return city;
+    if (country) return country;
+    const display = (data.display_name || '').split(',').map((p) => p.trim()).filter(Boolean);
+    if (display.length >= 2) return `${display[0]}, ${display[display.length - 1]}`;
+    return display[0];
+  } catch {
+    return undefined;
+  }
+}
+
 /** Reverse geocode a short street address for labels (name + address in brackets). */
 export async function reverseGeocodeAddress(lat: number, lng: number): Promise<string | undefined> {
   try {

@@ -1,6 +1,8 @@
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { TripDay } from '../models/TripDay';
+import type { Place } from '../models/Place';
 import { compareTripDaysChronological } from './tripDateRangeSync';
+import { placeNameFromTitle } from './placeDisplayLabel';
 import {
   isLocationInfoEntry,
   locationInfoContentScore,
@@ -26,6 +28,22 @@ export function collectPlaceIdsForDay(day: TripDay): string[] {
   return unique;
 }
 
+/**
+ * Merge key so "Singapore" and "Singapore, Singapore" (different Place rows)
+ * still share one destination guide across days.
+ * Within a trip, city name is enough — country mismatches (empty vs filled) must not split guides.
+ */
+export function placeGuideIdentityKey(
+  placeId: string,
+  placeById?: (id: string) => Place | undefined
+): string {
+  const place = placeById?.(placeId);
+  if (!place) return `pid:${placeId}`;
+  const name = placeNameFromTitle(place.title).toLowerCase().replace(/\s+/g, ' ').trim();
+  if (name) return `name:${name}`;
+  return `pid:${placeId}`;
+}
+
 function cardPopulatedScore(entry: ItineraryEntry): number {
   const data = parseLocationInfoNotes(entry.notes);
   if (!data) return 0;
@@ -42,33 +60,38 @@ function preferCanonical(a: ItineraryEntry, b: ItineraryEntry): ItineraryEntry {
 }
 
 /**
- * One canonical Location info card per placeId for the trip.
- * Notes are the union of all duplicate cards (Q&A, saved places, etc.) so the UI
- * never drops data that still lives on a non-keeper duplicate before sync deletes it.
+ * One canonical Location info card per place for the trip.
+ * Groups by city/country identity (when placeById is provided) so multi-day stays
+ * with duplicate Place rows still show one merged guide on every day.
  */
 export function buildCanonicalLocationInfoByPlaceId(
   entries: ItineraryEntry[],
-  tripId: string
+  tripId: string,
+  placeById?: (id: string) => Place | undefined
 ): Map<string, ItineraryEntry> {
   const cards = entries.filter((e) => e.tripId === tripId && isLocationInfoEntry(e) && !e.parentEntryId);
   const groups = new Map<string, ItineraryEntry[]>();
   for (const card of cards) {
     const pid = locationInfoPlaceId(card);
     if (!pid) continue;
-    const list = groups.get(pid) ?? [];
+    const key = placeGuideIdentityKey(pid, placeById);
+    const list = groups.get(key) ?? [];
     list.push(card);
-    groups.set(pid, list);
+    groups.set(key, list);
   }
 
   const byPlace = new Map<string, ItineraryEntry>();
-  groups.forEach((group, pid) => {
+  groups.forEach((group) => {
     let keeper = group[0];
     for (let i = 1; i < group.length; i++) {
       keeper = preferCanonical(keeper, group[i]);
     }
     let mergedNotes = parseLocationInfoNotes(keeper.notes);
     if (!mergedNotes) {
-      byPlace.set(pid, keeper);
+      for (const card of group) {
+        const pid = locationInfoPlaceId(card);
+        if (pid) byPlace.set(pid, keeper);
+      }
       return;
     }
     for (let i = 0; i < group.length; i++) {
@@ -77,10 +100,14 @@ export function buildCanonicalLocationInfoByPlaceId(
       if (!other) continue;
       mergedNotes = mergeLocationInfoNotes(mergedNotes, other);
     }
-    byPlace.set(pid, {
+    const canonical: ItineraryEntry = {
       ...keeper,
       notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(mergedNotes))
-    });
+    };
+    for (const card of group) {
+      const pid = locationInfoPlaceId(card);
+      if (pid) byPlace.set(pid, canonical);
+    }
   });
   return byPlace;
 }
@@ -89,15 +116,19 @@ export function buildCanonicalLocationInfoByPlaceId(
 export function locationInfoEntriesForDay(
   day: TripDay,
   entries: ItineraryEntry[],
-  tripId: string
+  tripId: string,
+  placeById?: (id: string) => Place | undefined
 ): ItineraryEntry[] {
   const placeIds = collectPlaceIdsForDay(day);
   if (!placeIds.length) return [];
-  const byPlace = buildCanonicalLocationInfoByPlaceId(entries, tripId);
+  const byPlace = buildCanonicalLocationInfoByPlaceId(entries, tripId, placeById);
   const result: ItineraryEntry[] = [];
+  const seenCardIds = new Set<string>();
   for (let i = 0; i < placeIds.length; i++) {
     const card = byPlace.get(placeIds[i]);
-    if (card) result.push(card);
+    if (!card || seenCardIds.has(card.id)) continue;
+    seenCardIds.add(card.id);
+    result.push(card);
   }
   return result;
 }

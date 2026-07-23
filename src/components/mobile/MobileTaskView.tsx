@@ -12,6 +12,7 @@ import { isJotterIdeaReminder } from '../../utils/tripJotterIdeas';
 import { isSavedSpotReminder } from '../../utils/tripSavedSpots';
 import { TripTasksView } from '../tasks/TripTasksView';
 import { MobileTaskFilters } from './MobileTaskFilters';
+import { MobileFilterDisclosure } from './MobileFilterDisclosure';
 import { useShellMode } from '../../hooks/useShellMode';
 import chrome from './MobileTabChrome.module.css';
 
@@ -34,6 +35,7 @@ const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
   const [overdueCount, setOverdueCount] = React.useState(0);
   const [dueTodayCount, setDueTodayCount] = React.useState(0);
   const [doneCount, setDoneCount] = React.useState(0);
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (!trip?.id) return;
@@ -122,7 +124,9 @@ const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
         </div>
       </div>
 
-      <MobileTaskFilters travellers={travellers} />
+      <MobileFilterDisclosure open={filtersOpen} onToggle={() => setFiltersOpen((v) => !v)}>
+        <MobileTaskFilters travellers={travellers} />
+      </MobileFilterDisclosure>
       <TripTasksView variant="tasks" mobileLayout />
     </div>
   );

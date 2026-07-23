@@ -224,6 +224,33 @@
   border-radius: 1rem;
 }
 
+.filterToggleRow {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 0.55rem;
+}
+
+.filterToggle,
+.filterToggleOn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 14%, transparent);
+  background: white;
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #1e2a44;
+  cursor: pointer;
+}
+
+.filterToggleOn {
+  background: color-mix(in srgb, #2f5eb8 12%, white);
+  border-color: color-mix(in srgb, #2f5eb8 35%, transparent);
+  color: #2f5eb8;
+}
+
 .filterGroupTitle {
   margin: 0;
   font-size: 0.68rem;

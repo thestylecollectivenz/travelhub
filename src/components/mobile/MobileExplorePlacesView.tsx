@@ -15,7 +15,7 @@ import {
 import type { NearYouCachedResult } from '../../utils/nearYouResultCache';
 import { searchNearbyPlaces } from '../../utils/searchNearbyPlaces';
 import { refreshGooglePlacePhotos } from '../../utils/googlePlacesNearbySearch';
-import { reverseGeocodeAddress } from '../../utils/googlePlacePhoto';
+import { reverseGeocodeLocality } from '../../utils/googlePlacePhoto';
 import { getNearbyPlaceBlurbs } from '../../utils/nearbyPlaceBlurbs';
 import {
   estimateDriveMinutesFromMetres,
@@ -32,6 +32,7 @@ import { MobileSubpageHeader } from './MobileSubpageHeader';
 import { MobileExploreCategoryPills } from './MobileExploreCategoryPills';
 import { MobileResultsMapSheet } from './MobileResultsMapSheet';
 import { MobileLocationTravelTip } from './MobileLocationTravelTip';
+import { MobileFilterDisclosure } from './MobileFilterDisclosure';
 import styles from './MobileExplorePlacesView.module.css';
 
 export interface MobileExplorePlacesViewProps {
@@ -255,6 +256,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
   const [filterWifi, setFilterWifi] = React.useState(false);
   const [filterOutdoor, setFilterOutdoor] = React.useState(false);
   const [filterReservations, setFilterReservations] = React.useState(false);
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
 
   const catDef = exploreCategoryById(category);
   const stayName = isGps
@@ -349,7 +351,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
             });
           });
           setGpsCentre({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-          const locality = await reverseGeocodeAddress(pos.coords.latitude, pos.coords.longitude);
+          const locality = await reverseGeocodeLocality(pos.coords.latitude, pos.coords.longitude);
           if (locality?.trim()) setGpsLocality(locality.trim());
           searchContext = {
             mode: 'onsite' as const,
@@ -567,7 +569,10 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
         showOtherStarts={!isGps}
       />
 
-      <div className={styles.layout}>
+      <MobileFilterDisclosure open={filtersOpen} onToggle={() => setFiltersOpen((v) => !v)} />
+
+      <div className={`${styles.layout} ${filtersOpen ? '' : styles.layoutFiltersClosed}`.trim()}>
+        {filtersOpen ? (
         <aside className={styles.filters} aria-label="Filters">
           <div className={styles.filterHead}>
             <h2 className={styles.filterTitle}>Filters</h2>
@@ -690,6 +695,7 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
             Save search
           </button>
         </aside>
+        ) : null}
 
         <div className={styles.results}>
           <div className={styles.resultsHead}>
@@ -826,14 +832,16 @@ export const MobileExplorePlacesView: React.FC<MobileExplorePlacesViewProps> = (
         </div>
       </div>
 
-      <MobileLocationTravelTip
-        placeLabel={shortPlace}
-        categoryLabel={catDef.label}
-        startingPointLabel={stayName}
-        onSaveTip={onSaveTip}
-        savedTips={savedTips}
-        showSavedList={false}
-      />
+      {(!isGps || Boolean(gpsLocality.trim())) ? (
+        <MobileLocationTravelTip
+          placeLabel={shortPlace}
+          categoryLabel={catDef.label}
+          startingPointLabel={stayName}
+          onSaveTip={onSaveTip}
+          savedTips={savedTips}
+          showSavedList={false}
+        />
+      ) : null}
 
       {mapOpen && mapCentre ? (
         <MobileResultsMapSheet

@@ -1,11 +1,12 @@
 import * as React from 'react';
 import { useConfig } from '../../context/ConfigContext';
 import { useTripPermissions } from '../../hooks/useTripPermissions';
-import { answerTravelChat } from '../../services/GeminiService';
+import { answerLocationQuestion } from '../../services/GeminiService';
 import { formatGeminiUserMessage } from '../../services/geminiErrorMessage';
 import { useSpeechOutput } from '../../hooks/useSpeechOutput';
 import { useContinuousSpeechInput } from '../../hooks/useContinuousSpeechInput';
 import { SpeechPlaybackControls } from '../shared/SpeechPlaybackControls';
+import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
 import styles from './MobileIdeaAskAi.module.css';
 
 export interface IdeaQaEntry {
@@ -26,6 +27,18 @@ export interface MobileIdeaAskAiProps {
 
 function newQaId(): string {
   return `idea-qa-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/** Match location-info Q&A: no markdown asterisks / focus preamble in stored answers. */
+export function sanitizeIdeaAiAnswer(raw: string): string {
+  let text = (raw || '').trim();
+  text = text.replace(/^CURRENT FOCUS:.*$/gim, '');
+  text = text.replace(/^Latest traveller message:.*$/gim, '');
+  text = text.replace(/\*\*([^*]+)\*\*/g, '$1');
+  text = text.replace(/\*([^*\n]+)\*/g, '$1');
+  text = text.replace(/^#{1,6}\s+/gm, '');
+  text = text.replace(/`([^`]+)`/g, '$1');
+  return text.replace(/\n{3,}/g, '\n\n').trim();
 }
 
 export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
@@ -68,18 +81,32 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
     stopListening();
     setOpen(true);
     try {
-      const context = [
+      const placeLabel = (locationLabel || '').trim();
+      const placeName = placeNameFromTitle(placeLabel) || placeLabel || 'this trip';
+      const country =
+        placeLabel.includes(',')
+          ? placeLabel
+              .split(',')
+              .map((p) => p.trim())
+              .filter(Boolean)
+              .slice(-1)[0] || ''
+          : '';
+      const contextSummary = [
         `Trip idea: ${ideaText}`,
-        dayLabel ? `Day: ${dayLabel}` : '',
-        locationLabel ? `Location: ${locationLabel}` : ''
+        dayLabel ? `Day / date: ${dayLabel}` : '',
+        placeLabel ? `Idea location: ${placeLabel}` : ''
       ]
         .filter(Boolean)
         .join('\n');
-      const { answer } = await answerTravelChat(key, [{ role: 'user', text: `${context}\n\nQuestion: ${q}` }]);
+      // Same Q&A path as location-info pages (plain JSON answer, no CURRENT FOCUS / markdown).
+      const { answer } = await answerLocationQuestion(placeName, country || 'unknown', q, {
+        apiKey: key,
+        contextSummary
+      });
       const entry: IdeaQaEntry = {
         id: newQaId(),
         question: q,
-        answer: (answer || '').trim(),
+        answer: sanitizeIdeaAiAnswer(answer || ''),
         createdAt: new Date().toISOString()
       };
       const next = [...localThread, entry];
@@ -117,8 +144,8 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
               className={styles.input}
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Ask a question about this idea…"
-              aria-label="Ask AI about this idea"
+              placeholder="Ask anything about this idea…"
+              aria-label="Ask about this idea"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') void ask();
               }}
@@ -126,6 +153,7 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
             <button
               type="button"
               className={`${styles.iconBtn} ${listening ? styles.iconBtnOn : ''}`}
+              disabled={!supported}
               onClick={() => {
                 if (!supported) {
                   setError('Microphone dictation is not available in this browser.');

@@ -29,6 +29,7 @@ import { MobileSubpageHeader } from './MobileSubpageHeader';
 import { MobileExploreCategoryPills } from './MobileExploreCategoryPills';
 import { MobileResultsMapSheet } from './MobileResultsMapSheet';
 import { MobileLocationTravelTip } from './MobileLocationTravelTip';
+import { MobileFilterDisclosure } from './MobileFilterDisclosure';
 import styles from './MobileSavedPlacesView.module.css';
 
 export interface MobileSavedPlacesViewProps {
@@ -251,6 +252,7 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
   const [filterReservations, setFilterReservations] = React.useState(false);
   const [mapOpen, setMapOpen] = React.useState(false);
   const [startFilter, setStartFilter] = React.useState<string>('all');
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
 
   React.useEffect(() => {
     setCategory(normalizeInitialSavedCategory(initialCategory));
@@ -398,7 +400,10 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
         showOtherStarts
       />
 
-      <div className={styles.layout}>
+      <MobileFilterDisclosure open={filtersOpen} onToggle={() => setFiltersOpen((v) => !v)} />
+
+      <div className={`${styles.layout} ${filtersOpen ? '' : styles.layoutFiltersClosed}`.trim()}>
+        {filtersOpen ? (
         <aside className={styles.filters} aria-label="Filters">
           <div className={styles.filterHead}>
             <h2 className={styles.filterTitle}>Filters</h2>
@@ -517,6 +522,7 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
             </div>
           ) : null}
         </aside>
+        ) : null}
 
         <div className={styles.results}>
           <div className={styles.resultsHead}>

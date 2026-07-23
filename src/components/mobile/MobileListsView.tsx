@@ -6,6 +6,7 @@ import { MobileShoppingFilters } from './MobileShoppingFilters';
 import { MobilePackingFilters } from './MobilePackingFilters';
 import { MobileTripJotterList } from './MobileTripJotterList';
 import { MobileTaskView } from './MobileTaskView';
+import { MobileFilterDisclosure } from './MobileFilterDisclosure';
 import { useTripMembers } from '../../hooks/useTripMembers';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useTripRole } from '../../context/TripRoleContext';
@@ -33,6 +34,7 @@ function StatIcon({ children, tone }: { children: React.ReactNode; tone: 'olive'
 
 const MobileListsBody: React.FC = () => {
   const [sub, setSub] = React.useState<'packing' | 'shopping' | 'ideas' | 'tasks'>('packing');
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
   const { trip } = useTripWorkspace();
   const planView = usePlanView();
   const spContext = useSpContext();
@@ -60,6 +62,10 @@ const MobileListsBody: React.FC = () => {
       window.removeEventListener(MOBILE_OPEN_TASK_ADD, openTasks);
     };
   }, []);
+
+  React.useEffect(() => {
+    setFiltersOpen(false);
+  }, [sub]);
 
   const [packingTotal, setPackingTotal] = React.useState(0);
   const [packingPacked, setPackingPacked] = React.useState(0);
@@ -180,7 +186,9 @@ const MobileListsBody: React.FC = () => {
               <span className={chrome.statLabel}>Shopping</span>
             </div>
           </div>
-          <MobilePackingFilters travellers={travellers} />
+          <MobileFilterDisclosure open={filtersOpen} onToggle={() => setFiltersOpen((v) => !v)}>
+            <MobilePackingFilters travellers={travellers} />
+          </MobileFilterDisclosure>
           <MobilePackingList embedded />
         </>
       ) : (
@@ -223,7 +231,9 @@ const MobileListsBody: React.FC = () => {
               <span className={chrome.statLabel}>Bought</span>
             </div>
           </div>
-          <MobileShoppingFilters travellers={travellers} />
+          <MobileFilterDisclosure open={filtersOpen} onToggle={() => setFiltersOpen((v) => !v)}>
+            <MobileShoppingFilters travellers={travellers} />
+          </MobileFilterDisclosure>
           <MobileShoppingList embedded />
         </>
       )}

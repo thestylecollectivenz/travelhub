@@ -16,6 +16,7 @@ import {
 import { MobileSubpageHeader } from './MobileSubpageHeader';
 import { MobileExploreCategoryPills } from './MobileExploreCategoryPills';
 import { MobilePlaceDiscoverCard } from './MobilePlaceDiscoverCard';
+import { MobileFilterDisclosure } from './MobileFilterDisclosure';
 import styles from './MobileSavedPlacesView.module.css';
 
 export interface MobileTripSavedPlacesViewProps {
@@ -89,6 +90,7 @@ export const MobileTripSavedPlacesView: React.FC<MobileTripSavedPlacesViewProps>
   const [visibleCount, setVisibleCount] = React.useState(8);
   const [sortBy, setSortBy] = React.useState('Recently saved');
   const [minRating, setMinRating] = React.useState<number | null>(null);
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
 
   const refresh = React.useCallback(() => {
     if (!tripId) {
@@ -148,7 +150,10 @@ export const MobileTripSavedPlacesView: React.FC<MobileTripSavedPlacesViewProps>
         }}
       />
 
-      <div className={styles.layout}>
+      <MobileFilterDisclosure open={filtersOpen} onToggle={() => setFiltersOpen((v) => !v)} />
+
+      <div className={`${styles.layout} ${filtersOpen ? '' : styles.layoutFiltersClosed}`.trim()}>
+        {filtersOpen ? (
         <aside className={styles.filters} aria-label="Filters">
           <div className={styles.filterHead}>
             <h2 className={styles.filterTitle}>Filters</h2>
@@ -174,6 +179,7 @@ export const MobileTripSavedPlacesView: React.FC<MobileTripSavedPlacesViewProps>
             </label>
           ) : null}
         </aside>
+        ) : null}
 
         <div className={styles.results}>
           <div className={styles.resultsHead}>

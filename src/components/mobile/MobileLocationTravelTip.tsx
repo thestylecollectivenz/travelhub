@@ -439,7 +439,7 @@ export const MobileLocationTravelTip: React.FC<MobileLocationTravelTipProps> = (
 
   const loadTip = React.useCallback(async (): Promise<void> => {
     const apiKey = (config.geminiApiKey || '').trim();
-    if (!apiKey || !placeLabel.trim()) {
+    if (!apiKey || !placeLabel.trim() || /^your area$/i.test(placeLabel.trim())) {
       setFailed(true);
       setGenerated('');
       setBusy(false);
@@ -458,8 +458,8 @@ export const MobileLocationTravelTip: React.FC<MobileLocationTravelTipProps> = (
       .map((t) => `- ${t}`)
       .join('\n');
     const prompt =
-      `Write ONE short practical travel tip (max 28 words) for a visitor currently in ${placeLabel}${near}${cat}. ` +
-      `The tip must be specific to ${placeLabel} — do not mention any other city or country. ` +
+      `Write ONE short practical travel tip (max 28 words) for a visitor currently at their GPS location in ${placeLabel}${near}${cat}. ` +
+      `The tip must be specific to ${placeLabel} only — do not mention any other city or country. ` +
       `Make it specific, fresh, and different from generic advice.` +
       (avoid ? `\nDo NOT repeat or closely paraphrase any of these tips:\n${avoid}\n` : '\n') +
       `No quotes, no markdown, no emoji.`;
