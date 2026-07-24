@@ -275,14 +275,14 @@
 }
 
 .itemName {
-  font-size: 0.84rem;
-  font-weight: 700;
+  font-size: 0.78rem;
+  font-weight: 650;
   color: #1e2a44;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .itemCat {
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   color: #6b6570;
 }
 
@@ -301,8 +301,8 @@
 }
 
 .inlineName {
-  font-size: 0.84rem;
-  font-weight: 700;
+  font-size: 0.78rem;
+  font-weight: 650;
   border-color: transparent;
   padding-left: 0;
   background: transparent;

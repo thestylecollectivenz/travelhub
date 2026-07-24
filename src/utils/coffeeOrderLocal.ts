@@ -418,7 +418,7 @@ const LEXICONS: Record<string, CoffeeLexicon> = {
       'lactose-free': '无乳糖牛奶'
     },
     drinks: {
-      'flat white': 'flat white',
+      'flat white': '馥芮白',
       latte: '拿铁',
       cappuccino: '卡布奇诺',
       'long black': '美式咖啡',

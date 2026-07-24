@@ -235,22 +235,28 @@ function resolveBrowserVoice(voiceURI?: string, langHint?: string): SpeechSynthe
   if (typeof window === 'undefined' || !window.speechSynthesis) return undefined;
   const voices = window.speechSynthesis.getVoices() || [];
   const wantedLang = (langHint || '').trim().toLowerCase();
+  const rankForLang = (pool: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined => {
+    if (!pool.length) return undefined;
+    return [...pool].sort((a, b) => {
+      const scoreDiff = scoreBrowserVoiceNaturalness(b) - scoreBrowserVoiceNaturalness(a);
+      if (scoreDiff !== 0) return scoreDiff;
+      const aLocal = a.localService ? 0 : 1;
+      const bLocal = b.localService ? 0 : 1;
+      if (aLocal !== bLocal) return aLocal - bLocal;
+      return (a.name || '').localeCompare(b.name || '');
+    })[0];
+  };
   if (wantedLang) {
-    const exact = voices.find((v) => (v.lang || '').toLowerCase() === wantedLang);
+    const exact = rankForLang(voices.filter((v) => (v.lang || '').toLowerCase() === wantedLang));
     if (exact) return exact;
     const prefix = wantedLang.split('-')[0];
-    const byPrefix = voices
-      .filter((v) => (v.lang || '').toLowerCase().startsWith(prefix))
-      .sort((a, b) => {
-        const aLocal = a.localService ? 0 : 1;
-        const bLocal = b.localService ? 0 : 1;
-        if (aLocal !== bLocal) return aLocal - bLocal;
-        return (a.name || '').localeCompare(b.name || '');
-      });
-    if (byPrefix.length) return byPrefix[0];
+    const byPrefix = rankForLang(
+      voices.filter((v) => (v.lang || '').toLowerCase().startsWith(prefix))
+    );
+    if (byPrefix) return byPrefix;
     // Māori often unavailable — NZ English is the best local accent fallback.
     if (prefix === 'mi') {
-      const enNz = voices.find((v) => (v.lang || '').toLowerCase().startsWith('en-nz'));
+      const enNz = rankForLang(voices.filter((v) => (v.lang || '').toLowerCase().startsWith('en-nz')));
       if (enNz) return enNz;
     }
   }

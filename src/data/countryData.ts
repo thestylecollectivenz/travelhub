@@ -307,6 +307,27 @@ export const COUNTRY_DATA: Record<string, CountryData> = {
     ]),
     region: 'Western Europe'
   },
+  CH: {
+    currency: 'Swiss Franc',
+    currencyCode: 'CHF',
+    tipping: 'Service usually included; round up or 5-10%',
+    tippingBullets: [
+      'Service is often included; rounding up is still appreciated.',
+      '5–10% is fine for particularly good restaurant service.',
+      'In cafés, rounding to the next franc is common.'
+    ],
+    taxLabel: 'VAT: 8.1%',
+    taxIncluded: true,
+    typicalPrices: prices([
+      ['Coffee (café)', 5],
+      ['Café lunch', 20],
+      ['Restaurant dinner (mid-range)', 45],
+      ['Beer (local)', 6],
+      ['Taxi (5 km)', 25],
+      ['Tram single', 3.8]
+    ]),
+    region: 'Western Europe'
+  },
   NL: {
     currency: 'Euro',
     currencyCode: 'EUR',
@@ -600,24 +621,32 @@ const COUNTRY_NAME_ALIASES: Record<string, string> = {
   scotland: 'GB',
   wales: 'GB',
   singapore: 'SG',
+  switzerland: 'CH',
+  'swiss confederation': 'CH',
   'new zealand': 'NZ',
   australia: 'AU'
 };
+
+/** Resolve ISO country code from code and/or country name aliases. */
+export function resolveCountryCode(countryCode?: string, countryName?: string): string {
+  const code = (countryCode || '').trim().toUpperCase();
+  if (code && (COUNTRY_DATA[code] || code.length === 2)) return code;
+  const nameKey = (countryName || '').trim().toLowerCase();
+  if (!nameKey) return code;
+  const aliased = COUNTRY_NAME_ALIASES[nameKey];
+  if (aliased) return aliased;
+  for (const [alias, iso] of Object.entries(COUNTRY_NAME_ALIASES)) {
+    if (nameKey.includes(alias)) return iso;
+  }
+  return code;
+}
 
 /** Resolve currency/tipping guidance by ISO code or country name. */
 export function resolveCountryData(
   countryCode?: string,
   countryName?: string
 ): CountryData | undefined {
-  const code = (countryCode || '').trim().toUpperCase();
+  const code = resolveCountryCode(countryCode, countryName);
   if (code && COUNTRY_DATA[code]) return COUNTRY_DATA[code];
-  const nameKey = (countryName || '').trim().toLowerCase();
-  if (!nameKey) return undefined;
-  const aliased = COUNTRY_NAME_ALIASES[nameKey];
-  if (aliased && COUNTRY_DATA[aliased]) return COUNTRY_DATA[aliased];
-  // Fuzzy: country name contains a known alias key
-  for (const [alias, iso] of Object.entries(COUNTRY_NAME_ALIASES)) {
-    if (nameKey.includes(alias) && COUNTRY_DATA[iso]) return COUNTRY_DATA[iso];
-  }
   return undefined;
 }

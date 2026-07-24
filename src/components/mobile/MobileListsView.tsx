@@ -217,7 +217,7 @@ const MobileListsBody: React.FC = () => {
                 </svg>
               </StatIcon>
               <span className={chrome.statValue}>{shoppingBought}</span>
-              <span className={chrome.statLabel}>Bought</span>
+              <span className={chrome.statLabel}>Purchased</span>
             </div>
           </div>
           <MobileShoppingList embedded />

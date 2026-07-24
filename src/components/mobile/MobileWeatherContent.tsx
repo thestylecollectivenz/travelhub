@@ -1,7 +1,7 @@
 import * as React from 'react';
 import type { Place } from '../../models/Place';
 import { useConfig } from '../../context/ConfigContext';
-import { resolveCountryData } from '../../data/countryData';
+import { resolveCountryCode, resolveCountryData } from '../../data/countryData';
 import { SEASONAL_BY_REGION } from '../../data/seasonalWeather';
 import { WeatherIcon } from '../shared/WeatherIcon';
 import { placeDisplayLabel } from '../../utils/placeDisplayLabel';
@@ -82,10 +82,12 @@ function formatPlaceLocalDateTime(date: Date, timeZone: string): { dateTime: str
         timeZoneName: 'short'
       }).formatToParts(date);
       const abbr = abbrParts.find((p) => p.type === 'timeZoneName')?.value || '';
-      const abbrIsOffset = !abbr || /^(GMT|UTC)/i.test(abbr) || abbr === offset;
-      if (tzName && offset && !abbrIsOffset) zone = `${tzName} (${abbr}, ${offset})`;
-      else if (tzName && offset) zone = `${tzName} (${offset})`;
-      else zone = tzName || timeZone;
+      const isOffsetLike = (v: string): boolean => !v || /^(GMT|UTC)/i.test(v);
+      const abbrIsOffset = isOffsetLike(abbr) || abbr === offset;
+      const nameIsOffset = isOffsetLike(tzName) || tzName === offset || tzName === abbr;
+      if (tzName && offset && !abbrIsOffset && !nameIsOffset) zone = `${tzName} (${abbr}, ${offset})`;
+      else if (tzName && offset && !nameIsOffset) zone = `${tzName} (${offset})`;
+      else zone = offset || tzName || timeZone;
     } catch {
       zone = timeZone;
     }
@@ -125,6 +127,7 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
   const [tipCustom, setTipCustom] = React.useState(false);
   const [customPercent, setCustomPercent] = React.useState('12');
   const [heroPhoto, setHeroPhoto] = React.useState<{ imageUrl: string; sourceUrl: string } | null>(null);
+  const countryCode = resolveCountryCode(place.countryCode, place.country);
   const countryData = resolveCountryData(place.countryCode, place.country);
   const mapsUrl = placeQueryMapsUrl(placeDisplayLabel(place));
   const forecastDates = React.useMemo(() => forecastDatesFromToday(10), []);
@@ -165,11 +168,18 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
 
   const tempSuffix = tempUnit === 'Fahrenheit' ? 'F' : 'C';
   const unitLabel = tempUnit === 'Fahrenheit' ? '°F' : '°C';
-  const languagePack = languagePackForCountry(place.countryCode);
+  const languagePack = languagePackForCountry(countryCode);
   const phraseLang = languagePack.phrases.find((p) => p.lang)?.lang;
   const localCurrency = countryData?.currencyCode || config.homeCurrency || 'NZD';
   const homeCurrency = (config.homeCurrency || 'NZD').toUpperCase();
-  const coffeeGuide = resolveLocalCoffeeOrder(config.usualCoffee, place.countryCode, placeLabel);
+  const coffeeGuide = resolveLocalCoffeeOrder(config.usualCoffee, countryCode, placeLabel);
+  const showLocalCoffee = Boolean(
+    coffeeGuide?.speechLang &&
+      !coffeeGuide.speechLang.toLowerCase().startsWith('en') &&
+      (coffeeGuide.askForLocal || '').trim()
+  );
+  const englishCoffeeSpeechLang =
+    homeCurrency === 'NZD' ? 'en-NZ' : homeCurrency === 'AUD' ? 'en-AU' : homeCurrency === 'GBP' ? 'en-GB' : 'en-GB';
 
   React.useEffect(() => {
     setTempUnit(config.temperatureUnit);
@@ -705,7 +715,7 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
                     <span className={styles.coffeeLangLabel}>In English</span>
                     <strong>&ldquo;{coffeeGuide.askForEnglish}&rdquo;</strong>
                   </p>
-                  {coffeeGuide.askForLocal && coffeeGuide.askForLocal !== coffeeGuide.askForEnglish ? (
+                  {showLocalCoffee ? (
                     <p>
                       <span className={styles.coffeeLangLabel}>In {coffeeGuide.localLanguageName}</span>
                       <strong>&ldquo;{coffeeGuide.askForLocal}&rdquo;</strong>
@@ -721,8 +731,8 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
                   aria-label="Hear coffee order in English"
                   onClick={() => {
                     stopSpeech();
-                    // Prefer the user's configured natural voice (no forced en-NZ local desktop voice).
-                    speak(coffeeGuide.askForEnglish.replace(/\s*\/\s*/g, ' or '));
+                    // Clear English voice matched by lang (avoids odd non-English / robotic configured voices).
+                    speak(coffeeGuide.askForEnglish.replace(/\s*\/\s*/g, ' or '), englishCoffeeSpeechLang);
                   }}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -736,7 +746,7 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
                   </svg>
                   English
                 </button>
-                {coffeeGuide.askForLocal && coffeeGuide.askForLocal !== coffeeGuide.askForEnglish ? (
+                {showLocalCoffee ? (
                   <button
                     type="button"
                     className={styles.coffeeSpeakBtn}
