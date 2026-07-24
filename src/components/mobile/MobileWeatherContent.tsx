@@ -77,14 +77,14 @@ function formatPlaceLocalDateTime(date: Date, timeZone: string): { dateTime: str
         timeZoneName: 'shortOffset'
       }).formatToParts(date);
       const offset = shortParts.find((p) => p.type === 'timeZoneName')?.value || '';
-      // Prefer "Singapore Standard Time (SGT, UTC+8)" style when short name is available.
       const abbrParts = new Intl.DateTimeFormat('en-US', {
         timeZone,
         timeZoneName: 'short'
       }).formatToParts(date);
       const abbr = abbrParts.find((p) => p.type === 'timeZoneName')?.value || '';
-      if (tzName && abbr && offset) zone = `${tzName} (${abbr}, ${offset})`;
-      else if (tzName && offset) zone = `${tzName} (${timeZone}, ${offset})`;
+      const abbrIsOffset = !abbr || /^(GMT|UTC)/i.test(abbr) || abbr === offset;
+      if (tzName && offset && !abbrIsOffset) zone = `${tzName} (${abbr}, ${offset})`;
+      else if (tzName && offset) zone = `${tzName} (${offset})`;
       else zone = tzName || timeZone;
     } catch {
       zone = timeZone;
@@ -721,7 +721,8 @@ export const MobileWeatherContent: React.FC<MobileWeatherContentProps> = ({
                   aria-label="Hear coffee order in English"
                   onClick={() => {
                     stopSpeech();
-                    speak(coffeeGuide.askForEnglish, 'en-NZ');
+                    // Prefer the user's configured natural voice (no forced en-NZ local desktop voice).
+                    speak(coffeeGuide.askForEnglish.replace(/\s*\/\s*/g, ' or '));
                   }}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>

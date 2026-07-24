@@ -59,36 +59,6 @@
   color: white;
 }
 
-.addRow {
-  display: grid;
-  grid-template-columns: 1.5rem 1.6rem minmax(5rem, 1fr) minmax(4.5rem, 0.7fr) auto minmax(4.5rem, 0.7fr) minmax(3rem, 0.7fr) auto;
-  gap: 0.35rem;
-  align-items: center;
-  padding: 0.45rem 0.65rem;
-  border-bottom: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
-  background: color-mix(in srgb, #2f5eb8 4%, white);
-}
-
-.addRowInTable {
-  border-radius: 0;
-  border: none;
-  border-bottom: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
-}
-
-.addName,
-.addSelect,
-.addNotes {
-  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
-  border-radius: 0.55rem;
-  background: white;
-  padding: 0.45rem 0.55rem;
-  font: inherit;
-  font-size: 0.85rem;
-  color: #1e2a44;
-  min-width: 0;
-  width: 100%;
-}
-
 .travellerRow {
   display: flex;
   flex-wrap: wrap;
@@ -227,20 +197,27 @@
   border-bottom: none;
 }
 
-.rowPacked .inlineName,
-.rowPacked .itemName {
+.rowPurchased .inlineName,
+.rowPurchased .itemName {
   text-decoration: line-through;
   color: #6b6570;
 }
 
-/* Phone: compact one-line-ish grid with horizontal scroll if needed */
+/* Phone: compact grid with horizontal scroll if needed */
 .rowMain {
   display: grid;
-  grid-template-columns: 1.4rem 1.5rem minmax(6rem, 1.2fr) auto minmax(4.5rem, 0.75fr) 1.8rem 1.8rem;
+  grid-template-columns:
+    1.4rem 1.5rem minmax(6rem, 1.1fr) minmax(3.6rem, 0.7fr) minmax(3.6rem, 0.65fr) minmax(3.8rem, 0.7fr)
+    minmax(4.2rem, 0.75fr) 1.8rem 1.8rem;
   gap: 0.3rem;
   align-items: center;
   padding: 0.45rem 0.55rem;
   overflow-x: auto;
+}
+
+.rowMain[data-financials='false'] {
+  grid-template-columns:
+    1.4rem 1.5rem minmax(6rem, 1.1fr) minmax(3.6rem, 0.7fr) minmax(3.8rem, 0.7fr) minmax(4.2rem, 0.75fr) 1.8rem 1.8rem;
 }
 
 .checkWrap {
@@ -289,7 +266,10 @@
 .inlineName,
 .inlineCat,
 .inlineFor,
-.inlineNotes {
+.inlineMonth,
+.inlinePrice,
+.inlineNotes,
+.inlineUrl {
   border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
   border-radius: 0.4rem;
   background: white;
@@ -336,14 +316,15 @@
   min-width: 0;
 }
 
-.inlineNotes {
-  font-size: 0.78rem;
+.inlineMonth,
+.inlinePrice {
+  font-size: 0.75rem;
+  text-align: center;
 }
 
-.qtyCell {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.inlineNotes,
+.inlineUrl {
+  font-size: 0.78rem;
 }
 
 .forCell {
@@ -359,6 +340,69 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.priceCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.priceText {
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: #1e2a44;
+  white-space: nowrap;
+}
+
+.monthCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.monthText {
+  font-size: 0.75rem;
+  color: #6b6570;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.statusCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.22rem 0.55rem;
+  font-size: 0.65rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.statusToBuy {
+  background: color-mix(in srgb, #e09020 16%, white);
+  color: #a8670e;
+}
+
+.statusOrdered {
+  background: color-mix(in srgb, #2f5eb8 14%, white);
+  color: #2f5eb8;
+}
+
+.statusPurchased {
+  background: color-mix(in srgb, #6b7c3a 16%, white);
+  color: #6b7c3a;
 }
 
 .notesCell {
@@ -389,7 +433,26 @@
 }
 
 .notesExpand {
-  padding: 0 0.65rem 0.55rem 3.4rem;
+  padding: 0.5rem 0.65rem 0.65rem 3.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.notesExpandRow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.notesExpandLabel {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #8a7355;
+  width: 3.4rem;
 }
 
 .notesText {
@@ -397,7 +460,13 @@
   color: #6b6570;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.linkBtn {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #2f5eb8;
+  text-decoration: none;
 }
 
 .editBtn {
@@ -419,33 +488,42 @@
   justify-self: end;
 }
 
-.qtyStepper {
-  display: inline-flex;
+.addRow {
+  display: grid;
+  grid-template-columns:
+    1.4rem 1.5rem minmax(5rem, 1fr) minmax(4.2rem, 0.7fr) minmax(4.2rem, 0.7fr) minmax(3.6rem, 0.6fr)
+    minmax(3.6rem, 0.6fr) auto;
+  gap: 0.35rem;
   align-items: center;
-  gap: 0.15rem;
-  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
-  border-radius: 999px;
-  padding: 0.08rem;
-  background: white;
+  padding: 0.45rem 0.65rem;
+  border-bottom: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
+  background: color-mix(in srgb, #2f5eb8 4%, white);
 }
 
-.qtyBtn {
-  width: 1.45rem;
-  height: 1.45rem;
+.addRow[data-financials='false'] {
+  grid-template-columns:
+    1.4rem 1.5rem minmax(5rem, 1fr) minmax(4.2rem, 0.7fr) minmax(4.2rem, 0.7fr) minmax(3.6rem, 0.6fr) auto;
+}
+
+.addRowInTable {
+  border-radius: 0;
   border: none;
-  border-radius: 999px;
-  background: color-mix(in srgb, #1e2a44 5%, white);
-  color: #1e2a44;
-  font-weight: 700;
-  cursor: pointer;
+  border-bottom: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
 }
 
-.qtyValue {
-  min-width: 1.15rem;
-  text-align: center;
+.addName,
+.addSelect,
+.addMonth,
+.addPrice {
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  border-radius: 0.55rem;
+  background: white;
+  padding: 0.45rem 0.55rem;
+  font: inherit;
   font-size: 0.85rem;
-  font-weight: 700;
   color: #1e2a44;
+  min-width: 0;
+  width: 100%;
 }
 
 .saveAddBtn {
@@ -467,15 +545,12 @@
 
 /* Phone: stack add row fields */
 @media (max-width: 720px) {
-  .addRow {
+  .addRow,
+  .addRow[data-financials='false'] {
     grid-template-columns: 1fr 1fr;
   }
 
   .addName {
-    grid-column: 1 / -1;
-  }
-
-  .addNotes {
     grid-column: 1 / -1;
   }
 
@@ -494,12 +569,17 @@
 }
 
 [data-shell='ipad-portrait'] .addRow {
-  grid-template-columns: 2rem 2.2rem minmax(8rem, 1.2fr) minmax(6rem, 0.8fr) 5.5rem minmax(6rem, 0.8fr) minmax(5rem, 0.9fr) auto;
+  grid-template-columns:
+    2rem 2.2rem minmax(8rem, 1.2fr) minmax(6rem, 0.8fr) minmax(6rem, 0.8fr) 5.5rem 5.5rem auto;
+}
+
+[data-shell='ipad-portrait'] .addRow[data-financials='false'] {
+  grid-template-columns: 2rem 2.2rem minmax(8rem, 1.2fr) minmax(6rem, 0.8fr) minmax(6rem, 0.8fr) 5.5rem auto;
 }
 
 [data-shell='ipad-portrait'] .tableHead {
   display: grid;
-  grid-template-columns: 2rem 2.2rem minmax(10rem, 1.4fr) 5.5rem 8.5rem 2.2rem 2.4rem;
+  grid-template-columns: 2rem 2.2rem minmax(10rem, 1.4fr) 6rem 5.5rem 6rem 6rem 2.2rem 2.4rem;
   gap: 0.45rem;
   align-items: center;
   padding: 0.45rem 0.85rem;
@@ -512,13 +592,21 @@
   border-bottom: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
 }
 
+[data-shell='ipad-portrait'] .tableHead[data-financials='false'] {
+  grid-template-columns: 2rem 2.2rem minmax(10rem, 1.4fr) 6rem 6rem 6rem 2.2rem 2.4rem;
+}
+
 [data-shell='ipad-portrait'] .rowMain {
   display: grid;
-  grid-template-columns: 2rem 2.2rem minmax(10rem, 1.4fr) 5.5rem 8.5rem 2.2rem 2.4rem;
+  grid-template-columns: 2rem 2.2rem minmax(10rem, 1.4fr) 6rem 5.5rem 6rem 6rem 2.2rem 2.4rem;
   gap: 0.45rem;
   align-items: center;
   padding: 0.5rem 0.85rem;
   overflow: visible;
+}
+
+[data-shell='ipad-portrait'] .rowMain[data-financials='false'] {
+  grid-template-columns: 2rem 2.2rem minmax(10rem, 1.4fr) 6rem 6rem 6rem 2.2rem 2.4rem;
 }
 
 [data-shell='ipad-portrait'] .forName {

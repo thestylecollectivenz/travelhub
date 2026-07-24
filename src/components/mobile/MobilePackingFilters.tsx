@@ -97,8 +97,19 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({
 
   const filteredCats = React.useMemo(() => {
     const q = catQuery.trim().toLowerCase();
-    return categories.filter((c) => !q || c.toLowerCase().includes(q));
-  }, [categories, catQuery]);
+    const rows = categories.filter((c) => !q || c.toLowerCase().includes(q));
+    const withItems = rows
+      .filter((c) => (counts.get(c) ?? 0) > 0)
+      .sort((a, b) => {
+        const diff = (counts.get(b) ?? 0) - (counts.get(a) ?? 0);
+        if (diff !== 0) return diff;
+        return a.localeCompare(b, undefined, { sensitivity: 'base' });
+      });
+    const empty = rows
+      .filter((c) => (counts.get(c) ?? 0) === 0)
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    return [...withItems, ...empty];
+  }, [categories, catQuery, counts]);
 
   const visibleCats = showAllCats || catQuery.trim() ? filteredCats : filteredCats.slice(0, CAT_PREVIEW);
 
@@ -111,12 +122,16 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({
   };
 
   const reset = (): void => {
-    setDraft({
+    const defaults: PackingFilterDraft = {
       category: '__all__',
       packedFilter: 'all',
       hasNotesOnly: false,
       hasQtyGt1: false
-    });
+    };
+    setDraft(defaults);
+    plan.setPackingCategory('__all__');
+    plan.setPackingTraveller(null);
+    onApply(defaults);
   };
 
   const panel = (

@@ -173,7 +173,7 @@ function milkPhraseEnglish(milk: MilkStyle, countryCode: string): { phrase: stri
       if (ukStyle || asia) {
         return { phrase: 'with low-fat milk', note: '“Trim milk” is a NZ/AU term — low-fat or skimmed is clearer abroad.' };
       }
-      return { phrase: 'with trim / low-fat milk', note: 'If they look unsure, say “low-fat milk”.' };
+      return { phrase: 'with trim or low-fat milk', note: 'If they look unsure, say “low-fat milk”.' };
     case 'skim':
       if (usStyle) return { phrase: 'with skim milk', note: 'Skim and nonfat mean the same here.' };
       return { phrase: 'with skimmed milk', note: 'Ask for skimmed (UK spelling) if needed.' };
@@ -402,6 +402,30 @@ const LEXICONS: Record<string, CoffeeLexicon> = {
       espresso: 'เอสเปรสโซ่',
       mocha: 'มอคค่า'
     }
+  },
+  'zh-CN': {
+    with: '加',
+    sugarFree: '无糖',
+    size: { small: '小杯', medium: '中杯', large: '大杯', 'extra large': '超大杯' },
+    milk: {
+      trim: '低脂牛奶',
+      skim: '脱脂牛奶',
+      full: '全脂牛奶',
+      soy: '豆奶',
+      oat: '燕麦奶',
+      almond: '杏仁奶',
+      coconut: '椰奶',
+      'lactose-free': '无乳糖牛奶'
+    },
+    drinks: {
+      'flat white': 'flat white',
+      latte: '拿铁',
+      cappuccino: '卡布奇诺',
+      'long black': '美式咖啡',
+      mocha: '摩卡',
+      espresso: '意式浓缩',
+      macchiato: '玛奇朵'
+    }
   }
 };
 
@@ -421,7 +445,8 @@ const EXTRA_LOCAL: Record<string, Record<string, string>> = {
   'nl-NL': { cinnamon: 'kaneel', vanilla: 'vanille', caramel: 'karamel', hazelnut: 'hazelnoot', chocolate: 'chocolade' },
   'nb-NO': { cinnamon: 'kanel', vanilla: 'vanilje', caramel: 'karamell', hazelnut: 'hasselnøtt', chocolate: 'sjokolade' },
   'ja-JP': { cinnamon: 'シナモン', vanilla: 'バニラ', caramel: 'キャラメル', hazelnut: 'ヘーゼルナッツ', chocolate: 'チョコレート' },
-  'th-TH': { cinnamon: 'อบเชย', vanilla: 'วานิลลา', caramel: 'คาราเมล', hazelnut: 'เฮเซลนัท', chocolate: 'ช็อกโกแลต' }
+  'th-TH': { cinnamon: 'อบเชย', vanilla: 'วานิลลา', caramel: 'คาราเมล', hazelnut: 'เฮเซลนัท', chocolate: 'ช็อกโกแลต' },
+  'zh-CN': { cinnamon: '肉桂', vanilla: '香草', caramel: '焦糖', hazelnut: '榛果', chocolate: '巧克力' }
 };
 
 function localizeExtra(extra: string, lang?: string): string {

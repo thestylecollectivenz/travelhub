@@ -30,7 +30,17 @@ export function useTripMembers(tripId: string | undefined): {
       .getForTrip(tripId)
       .then((rows) => {
         setMembers(rows);
-        setTravellers(mergeTripTravellersWithMembers(tripId, rows));
+        const eligible = rows.filter((m) => m.role === 'Editor' || m.role === 'Companion');
+        const followerNames = new Set(
+          rows
+            .filter((m) => m.role === 'Follower')
+            .map((m) => (m.userDisplayName || '').trim().toLowerCase())
+            .filter(Boolean)
+        );
+        const merged = mergeTripTravellersWithMembers(tripId, eligible).filter(
+          (name) => !followerNames.has(name.trim().toLowerCase())
+        );
+        setTravellers(merged.length ? merged : ['Traveller 1']);
         setLoading(false);
       })
       .catch(() => {

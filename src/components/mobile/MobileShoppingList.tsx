@@ -3,13 +3,16 @@ import { usePlanView } from '../../context/PlanViewContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
 import { useConfig } from '../../context/ConfigContext';
-import { ShoppingListService, type ShoppingItem } from '../../services/ShoppingListService';
+import { ShoppingItem, ShoppingListService } from '../../services/ShoppingListService';
 import { formatCurrency } from '../../utils/financialUtils';
-import { categoriesForItemSelect, rememberTripShoppingCategory, notifyShoppingItemsChanged } from '../../utils/tripShoppingCategories';
+import {
+  categoriesForItemSelect,
+  notifyShoppingItemsChanged,
+  rememberTripShoppingCategory
+} from '../../utils/tripShoppingCategories';
 import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
-import { summarizeShoppingItems } from '../../utils/shoppingSummary';
 import { confirmUserAction } from '../../utils/confirmAction';
-import { offerAddPurchasedShoppingToPacking, addShoppingItemToPacking } from '../../utils/shoppingToPacking';
+import { addShoppingItemToPacking, offerAddPurchasedShoppingToPacking } from '../../utils/shoppingToPacking';
 import { useTripRole } from '../../context/TripRoleContext';
 import { canEditOwnedRecord } from '../../utils/canEditOwnedRecord';
 import { useCanSeeFinancials } from '../../hooks/useCanSeeFinancials';
@@ -17,34 +20,106 @@ import { useTripMembers } from '../../hooks/useTripMembers';
 import { useCompanionListDefaults } from '../../hooks/useCompanionListDefaults';
 import { assigneeLabelsMatch, resolveOwnerEmailForAssignee } from '../../utils/tripMemberIdentity';
 import { MOBILE_OPEN_SHOPPING_ADD } from '../../utils/mobileHomePendingAction';
-import styles from './MobileShell.module.css';
+import { TravellerAvatar } from '../shared/TravellerAvatar';
+import { useShellMode } from '../../hooks/useShellMode';
+import {
+  MobileShoppingFilters,
+  monthLabel,
+  ShoppingFilterDraft,
+  ShoppingStatusFilter,
+  shoppingItemStatus
+} from './MobileShoppingFilters';
+import { PackingCategoryIcon } from './packingCategoryIcon';
+import chrome from './MobileTabChrome.module.css';
+import styles from './MobileShoppingList.module.css';
+
+type ViewMode = 'az' | 'grouped';
+
+function memberForName(
+  name: string,
+  members: ReturnType<typeof useTripMembers>['members']
+): { displayName: string; avatarUrl?: string } {
+  const n = name.trim().toLowerCase();
+  const hit = members.find(
+    (m) =>
+      (m.userDisplayName || '').trim().toLowerCase() === n ||
+      (m.userEmail || '').trim().toLowerCase() === n
+  );
+  return {
+    displayName: hit?.userDisplayName || name,
+    avatarUrl: hit?.avatarUrl
+  };
+}
+
+function DeleteIcon(): React.ReactElement {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function DetailsIcon(): React.ReactElement {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M7 3.5h7.5L19 8v12.5H7V3.5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M14 3.5V8h5" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M9.5 12h5M9.5 15.5h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const spContext = useSpContext();
   const { trip } = useTripWorkspace();
   const { config } = useConfig();
   const planView = usePlanView();
-  const service = React.useMemo(() => new ShoppingListService(spContext), [spContext]);
-  const { categories, addCategory } = useTripShoppingCategories(trip?.id, spContext);
+  const activeCategory = planView?.shoppingCategory ?? '__all__';
+  const activeTraveller = planView?.shoppingTraveller ?? null;
+  const activeMonth = planView?.shoppingMonthFilter ?? null;
   const { role } = useTripRole();
   const { members, travellers } = useTripMembers(trip?.id);
+  const { categories } = useTripShoppingCategories(trip?.id, spContext);
   useCompanionListDefaults(planView, role, members);
   const canSeeFinancials = useCanSeeFinancials();
+  const shellMode = useShellMode();
+  const isIpad = shellMode === 'ipad-portrait';
+  const service = React.useMemo(() => new ShoppingListService(spContext), [spContext]);
   const [items, setItems] = React.useState<ShoppingItem[]>([]);
   const [addOpen, setAddOpen] = React.useState(false);
-  const [expandedId, setExpandedId] = React.useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
+  const [search, setSearch] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState<ShoppingStatusFilter>('all');
+  const [hasNotesOnly, setHasNotesOnly] = React.useState(false);
+  const [viewMode, setViewMode] = React.useState<ViewMode>('az');
   const [name, setName] = React.useState('');
-  const [category, setCategory] = React.useState('');
-  const [purchaseMonth, setPurchaseMonth] = React.useState('');
-  const [websiteUrl, setWebsiteUrl] = React.useState('');
-  const [notes, setNotes] = React.useState('');
-  const [budgetAmount, setBudgetAmount] = React.useState('');
-  const [sortAlpha, setSortAlpha] = React.useState(true);
-  const [groupByCategory, setGroupByCategory] = React.useState(true);
+  const [addCategory, setAddCategory] = React.useState('Other');
+  const [addTraveller, setAddTraveller] = React.useState('');
+  const [addMonth, setAddMonth] = React.useState('');
+  const [addPrice, setAddPrice] = React.useState('');
+  const [noteDrafts, setNoteDrafts] = React.useState<Record<string, string>>({});
+  const [urlDrafts, setUrlDrafts] = React.useState<Record<string, string>>({});
+  const [notesOpenId, setNotesOpenId] = React.useState<string | null>(null);
+  const addNameRef = React.useRef<HTMLInputElement | null>(null);
 
-  const activeTraveller = planView?.shoppingTraveller ?? null;
-  const activeCategory = planView?.shoppingCategory ?? '__all__';
-  const activeMonth = planView?.shoppingMonthFilter ?? null;
+  React.useEffect(() => {
+    const handler = (): void => {
+      setAddOpen(true);
+      window.setTimeout(() => addNameRef.current?.focus(), 50);
+    };
+    window.addEventListener(MOBILE_OPEN_SHOPPING_ADD, handler);
+    return () => window.removeEventListener(MOBILE_OPEN_SHOPPING_ADD, handler);
+  }, []);
+
+  React.useEffect(() => {
+    if (categories.length && !categories.some((c) => c.toLowerCase() === addCategory.toLowerCase())) {
+      setAddCategory(categories.find((c) => c.toLowerCase() === 'other') || categories[0]);
+    }
+  }, [categories, addCategory]);
+
+  React.useEffect(() => {
+    if (!addTraveller && travellers[0]) setAddTraveller(travellers[0]);
+  }, [travellers, addTraveller]);
 
   const canEditItem = React.useCallback(
     (item: ShoppingItem) => canEditOwnedRecord(spContext, item.ownerEmail, role, item.traveller, members),
@@ -67,27 +142,21 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
   }, [refresh]);
 
   React.useEffect(() => {
-    const handler = (): void => {
-      let cat = category;
-      if (!categories.length && trip?.id) {
-        const next = addCategory('General');
-        cat = next[0] || 'General';
-        setCategory(cat);
-      } else if (!cat && categories.length) {
-        cat = categories[0];
-        setCategory(cat);
+    setNoteDrafts((prev) => {
+      const next: Record<string, string> = {};
+      for (const item of items) {
+        next[item.id] = prev[item.id] !== undefined ? prev[item.id] : item.notes ?? '';
       }
-      setAddOpen(true);
-    };
-    window.addEventListener(MOBILE_OPEN_SHOPPING_ADD, handler);
-    return () => window.removeEventListener(MOBILE_OPEN_SHOPPING_ADD, handler);
-  }, [trip?.id, categories, category, addCategory]);
-
-  React.useEffect(() => {
-    if (category && !categories.some((c) => c.toLowerCase() === category.toLowerCase())) {
-      setCategory('');
-    }
-  }, [categories, category]);
+      return next;
+    });
+    setUrlDrafts((prev) => {
+      const next: Record<string, string> = {};
+      for (const item of items) {
+        next[item.id] = prev[item.id] !== undefined ? prev[item.id] : item.websiteUrl ?? '';
+      }
+      return next;
+    });
+  }, [items]);
 
   const filtered = React.useMemo(() => {
     let rows = items;
@@ -95,30 +164,58 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
       rows = rows.filter((i) => !(i.traveller || '').trim());
     } else if (activeTraveller) {
       rows = rows.filter((i) =>
-        assigneeLabelsMatch(spContext, i.traveller || travellers[0], activeTraveller, members)
+        assigneeLabelsMatch(spContext, i.traveller || travellers[0] || '', activeTraveller, members)
       );
     }
     if (activeCategory === '__uncategorised__') {
       rows = rows.filter((i) => !(i.category || '').trim());
     } else if (activeCategory !== '__all__') {
-      rows = rows.filter((i) => i.category === activeCategory);
+      rows = rows.filter((i) => (i.category || '').trim().toLowerCase() === activeCategory.trim().toLowerCase());
     }
     if (activeMonth === '__unscheduled__') {
       rows = rows.filter((i) => !(i.purchaseMonth || '').trim());
     } else if (activeMonth) {
       rows = rows.filter((i) => (i.purchaseMonth || '') === activeMonth);
     }
-    const sorted = [...rows].sort((a, b) => {
-      if (sortAlpha) return (a.itemName || '').localeCompare(b.itemName || '', undefined, { sensitivity: 'base' });
-      return (a.purchaseMonth || '').localeCompare(b.purchaseMonth || '', undefined, { sensitivity: 'base' });
+    if (statusFilter !== 'all') {
+      rows = rows.filter((i) => shoppingItemStatus(i) === statusFilter);
+    }
+    if (hasNotesOnly) rows = rows.filter((i) => !!(i.notes || '').trim());
+    const q = search.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter((i) =>
+        [i.itemName, i.category, i.notes, i.traveller, i.websiteUrl]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+          .includes(q)
+      );
+    }
+    rows = [...rows].sort((a, b) => {
+      if (viewMode === 'az') {
+        return (a.itemName || '').localeCompare(b.itemName || '', undefined, { sensitivity: 'base' });
+      }
+      const cat = (a.category || '').localeCompare(b.category || '', undefined, { sensitivity: 'base' });
+      if (cat !== 0) return cat;
+      return (a.itemName || '').localeCompare(b.itemName || '', undefined, { sensitivity: 'base' });
     });
-    return sorted;
-  }, [items, activeTraveller, activeCategory, activeMonth, travellers, spContext, members, sortAlpha]);
+    return rows;
+  }, [
+    items,
+    activeTraveller,
+    activeCategory,
+    activeMonth,
+    statusFilter,
+    hasNotesOnly,
+    travellers,
+    spContext,
+    members,
+    search,
+    viewMode
+  ]);
 
   const grouped = React.useMemo(() => {
-    if (!groupByCategory) {
-      return [{ key: 'all', label: 'All items', rows: filtered }];
-    }
+    if (viewMode !== 'grouped') return [{ key: 'all', label: 'All items', rows: filtered }];
     const map = new Map<string, ShoppingItem[]>();
     for (const item of filtered) {
       const key = (item.category || 'Uncategorised').trim() || 'Uncategorised';
@@ -129,9 +226,14 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
     return Array.from(map.entries())
       .sort((a, b) => a[0].localeCompare(b[0], undefined, { sensitivity: 'base' }))
       .map(([key, rows]) => ({ key, label: key, rows }));
-  }, [filtered, groupByCategory]);
+  }, [filtered, viewMode]);
+
+  const canAdd = role === 'Editor' || role === 'Companion';
+  const filtersActive =
+    activeCategory !== '__all__' || activeMonth !== null || statusFilter !== 'all' || hasNotesOnly;
 
   const markPurchased = (item: ShoppingItem, purchased: boolean): void => {
+    if (!canEditItem(item)) return;
     void (async () => {
       try {
         await service.update(item.id, { isPurchased: purchased });
@@ -146,344 +248,521 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
     })();
   };
 
-  const summary = React.useMemo(
-    () => summarizeShoppingItems(items, activeTraveller, activeCategory, activeMonth, spContext, members),
-    [items, activeTraveller, activeCategory, activeMonth, spContext, members]
-  );
-
-  const assignTraveller =
-    activeTraveller && activeTraveller !== '__unassigned__'
-      ? activeTraveller
-      : travellers[0] || 'Traveller 1';
-  const canAdd = role === 'Editor' || role === 'Companion';
-
   const addItem = (): void => {
-    if (!trip?.id || !name.trim() || !category.trim()) return;
-    const budget = Number(budgetAmount);
-    rememberTripShoppingCategory(trip.id, category.trim());
+    if (!trip?.id || !name.trim()) return;
+    const traveller = addTraveller || activeTraveller || travellers[0] || 'Traveller 1';
+    const fallback = categories.find((c) => c.toLowerCase() === 'other') || categories[0] || 'Other';
+    const itemCategory = categories.some((c) => c.toLowerCase() === addCategory.toLowerCase())
+      ? addCategory
+      : fallback;
+    rememberTripShoppingCategory(trip.id, itemCategory);
+    const budget = Number(addPrice);
     service
       .create({
         tripId: trip.id,
         itemName: name.trim(),
-        category: category.trim(),
-        traveller: assignTraveller,
-        budgetAmount: Number.isFinite(budget) ? budget : 0,
+        category: itemCategory,
+        traveller,
+        budgetAmount: addPrice.trim() && Number.isFinite(budget) ? Math.max(0, budget) : 0,
         actualAmount: 0,
         currency: config.homeCurrency,
-        purchaseMonth: purchaseMonth.trim(),
-        websiteUrl: websiteUrl.trim(),
-        notes: notes.trim(),
+        purchaseMonth: addMonth.trim(),
+        websiteUrl: '',
+        notes: '',
         isPurchased: false,
-        ownerEmail: resolveOwnerEmailForAssignee(spContext, assignTraveller, members)
+        ownerEmail: resolveOwnerEmailForAssignee(spContext, traveller, members)
       })
       .then(() => {
         setName('');
-        setPurchaseMonth('');
-        setWebsiteUrl('');
-        setNotes('');
-        setBudgetAmount('');
-        setAddOpen(false);
+        setAddMonth('');
+        setAddPrice('');
+        setAddOpen(true);
         refresh();
+        window.setTimeout(() => addNameRef.current?.focus(), 50);
       })
-      .catch(console.error);
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error(err);
+        window.alert(err instanceof Error ? err.message : 'Could not add shopping item.');
+      });
   };
 
   const categoryOptions = (itemCategory: string): string[] => categoriesForItemSelect(categories, itemCategory);
 
-  return (
-    <section className={styles.mobileListSection} aria-label="Shopping list">
-      {!embedded ? (
-        <div className={styles.mobileListHeader}>
-          <div>
-            <h2 className={styles.mobileListTitle}>Shopping</h2>
-            <p className={styles.mobileListMeta}>
-              {filtered.length} items
-              {activeTraveller ? ` · ${activeTraveller}` : ''}
-              {canSeeFinancials
-                ? ` · Budget ${formatCurrency(summary.totals.budget, config.homeCurrency)}`
-                : ''}
-            </p>
-          </div>
-          {canAdd ? (
-            <button type="button" className={styles.mobileFab} onClick={() => setAddOpen((v) => !v)}>
-              {addOpen ? 'Close' : '+ Add'}
-            </button>
-          ) : null}
-        </div>
-      ) : canAdd ? (
-        <div className={styles.mobileListHeader}>
-          <span />
-          <button type="button" className={styles.mobileFab} onClick={() => setAddOpen((v) => !v)}>
-            {addOpen ? 'Close' : '+ Add item'}
-          </button>
-        </div>
-      ) : null}
-      <div className={styles.mobileListOptionsRow}>
-        <button type="button" className={styles.pagerBtn} onClick={() => setSortAlpha((v) => !v)}>
-          {sortAlpha ? 'A-Z' : 'Created'}
-        </button>
-        <button type="button" className={styles.pagerBtn} onClick={() => setGroupByCategory((v) => !v)}>
-          {groupByCategory ? 'Grouped' : 'Flat list'}
-        </button>
-      </div>
+  const onFiltersApply = (draft: ShoppingFilterDraft): void => {
+    setStatusFilter(draft.statusFilter);
+    setHasNotesOnly(draft.hasNotesOnly);
+  };
 
-      {categories.length === 0 ? (
-        <p className={styles.muted}>Add a category in filters above before adding items.</p>
-      ) : null}
+  const renderRow = (item: ShoppingItem): React.ReactNode => {
+    const editable = canEditItem(item);
+    const who = memberForName(item.traveller || travellers[0] || 'Traveller', members);
+    const cat = (item.category || 'Uncategorised').trim() || 'Uncategorised';
+    const status = shoppingItemStatus(item);
+    const notesExpanded = notesOpenId === item.id;
+    const hasDetail = !!(item.notes || '').trim() || !!(item.websiteUrl || '').trim();
+    const statusClass =
+      status === 'purchased' ? styles.statusPurchased : status === 'ordered' ? styles.statusOrdered : styles.statusToBuy;
+    const statusLabel = status === 'purchased' ? 'Purchased' : status === 'ordered' ? 'Ordered' : 'To buy';
 
-      {addOpen ? (
-        <div className={styles.mobileAddCard}>
-          <input
-            className={styles.mobileField}
-            placeholder="Item to buy"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <select className={styles.mobileField} value={category} onChange={(e) => setCategory(e.target.value)}>
-            <option value="">Category…</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-          <input
-            className={styles.mobileField}
-            type="month"
-            value={purchaseMonth}
-            onChange={(e) => setPurchaseMonth(e.target.value)}
-            aria-label="Purchase month"
-          />
-          <input
-            className={styles.mobileField}
-            placeholder="Website URL"
-            value={websiteUrl}
-            onChange={(e) => setWebsiteUrl(e.target.value)}
-          />
-          <textarea
-            className={styles.mobileField}
-            placeholder="Notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={2}
-          />
-          {canSeeFinancials ? (
+    return (
+      <li key={item.id} className={`${styles.row} ${item.isPurchased ? styles.rowPurchased : ''}`.trim()}>
+        <div className={styles.rowMain} data-financials={canSeeFinancials ? 'true' : 'false'}>
+          <label className={styles.checkWrap}>
             <input
-              className={styles.mobileField}
-              type="number"
-              min={0}
-              step="0.01"
-              placeholder={`Budget (${config.homeCurrency})`}
-              value={budgetAmount}
-              onChange={(e) => setBudgetAmount(e.target.value)}
+              type="checkbox"
+              className={styles.check}
+              checked={item.isPurchased}
+              disabled={!editable}
+              aria-label={`Purchased: ${item.itemName}`}
+              onChange={(e) => markPurchased(item, e.target.checked)}
             />
+          </label>
+
+          <span className={styles.catIcon} aria-hidden>
+            <PackingCategoryIcon category={cat} size={isIpad ? 18 : 16} />
+          </span>
+
+          <div className={styles.itemCell}>
+            {editable ? (
+              <>
+                <input
+                  className={styles.inlineName}
+                  defaultValue={item.itemName}
+                  aria-label="Item name"
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    if (v && v !== item.itemName) {
+                      service.update(item.id, { itemName: v }).then(refresh).catch(console.error);
+                    }
+                  }}
+                />
+                <select
+                  className={styles.inlineCat}
+                  value={item.category || 'Uncategorised'}
+                  aria-label="Category"
+                  onChange={(e) => {
+                    if (trip?.id) rememberTripShoppingCategory(trip.id, e.target.value);
+                    service.update(item.id, { category: e.target.value }).then(refresh).catch(console.error);
+                  }}
+                >
+                  {categoryOptions(item.category).map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </>
+            ) : (
+              <>
+                <span className={styles.itemName}>{item.itemName}</span>
+                <span className={styles.itemCat}>{cat}</span>
+              </>
+            )}
+          </div>
+
+          <div className={styles.forCell}>
+            {editable ? (
+              <>
+                <TravellerAvatar displayName={who.displayName} avatarUrl={who.avatarUrl} size={isIpad ? 24 : 20} />
+                <select
+                  className={styles.inlineFor}
+                  value={item.traveller || travellers[0] || ''}
+                  aria-label="For traveller"
+                  onChange={(e) =>
+                    service
+                      .update(item.id, {
+                        traveller: e.target.value,
+                        ownerEmail: resolveOwnerEmailForAssignee(spContext, e.target.value, members)
+                      })
+                      .then(refresh)
+                      .catch(console.error)
+                  }
+                >
+                  {travellers.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </>
+            ) : (
+              <>
+                <TravellerAvatar displayName={who.displayName} avatarUrl={who.avatarUrl} size={isIpad ? 26 : 22} />
+                <span className={styles.forName}>{who.displayName.split(/\s+/)[0] || who.displayName}</span>
+              </>
+            )}
+          </div>
+
+          {canSeeFinancials ? (
+            <div className={styles.priceCell}>
+              {editable ? (
+                <input
+                  className={styles.inlinePrice}
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  defaultValue={item.budgetAmount || ''}
+                  aria-label="Estimated price"
+                  onBlur={(e) => {
+                    const v = Number(e.target.value);
+                    if (!Number.isFinite(v) || v === item.budgetAmount) return;
+                    service.update(item.id, { budgetAmount: Math.max(0, v) }).then(refresh).catch(console.error);
+                  }}
+                />
+              ) : (
+                <span className={styles.priceText}>
+                  {item.budgetAmount ? formatCurrency(item.budgetAmount, item.currency || config.homeCurrency) : '—'}
+                </span>
+              )}
+            </div>
           ) : null}
+
+          <div className={styles.monthCell}>
+            {editable ? (
+              <input
+                className={styles.inlineMonth}
+                type="month"
+                value={item.purchaseMonth || ''}
+                aria-label="Estimated purchase month"
+                onChange={(e) =>
+                  service.update(item.id, { purchaseMonth: e.target.value }).then(refresh).catch(console.error)
+                }
+              />
+            ) : (
+              <span className={styles.monthText}>{item.purchaseMonth ? monthLabel(item.purchaseMonth) : '—'}</span>
+            )}
+          </div>
+
+          <div className={styles.statusCell}>
+            <span className={`${styles.statusBadge} ${statusClass}`}>{statusLabel}</span>
+          </div>
+
+          <div className={styles.notesCell}>
+            <button
+              type="button"
+              className={`${styles.notesIconBtn} ${hasDetail || notesExpanded ? styles.notesIconBtnOn : ''}`}
+              aria-label={notesExpanded ? 'Hide details' : 'Details'}
+              aria-expanded={notesExpanded}
+              disabled={!editable && !hasDetail}
+              onClick={() => setNotesOpenId((prev) => (prev === item.id ? null : item.id))}
+            >
+              <DetailsIcon />
+            </button>
+          </div>
+
+          {editable ? (
+            <button
+              type="button"
+              className={styles.deleteIconBtn}
+              aria-label={`Delete ${item.itemName}`}
+              onClick={() => {
+                void (async () => {
+                  if (!(await confirmUserAction('Delete this shopping item?'))) return;
+                  service.delete(item.id).then(refresh).catch(console.error);
+                })();
+              }}
+            >
+              <DeleteIcon />
+            </button>
+          ) : (
+            <span className={styles.editBtn} />
+          )}
+        </div>
+        {notesExpanded ? (
+          <div className={styles.notesExpand}>
+            <div className={styles.notesExpandRow}>
+              <span className={styles.notesExpandLabel}>Notes</span>
+              {editable ? (
+                <input
+                  className={styles.inlineNotes}
+                  type="text"
+                  placeholder="Add a note…"
+                  value={noteDrafts[item.id] ?? ''}
+                  aria-label="Notes"
+                  onChange={(e) => setNoteDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                  onBlur={() => {
+                    const notes = (noteDrafts[item.id] ?? '').trim();
+                    if (notes !== (item.notes || '')) {
+                      service.update(item.id, { notes }).then(refresh).catch(console.error);
+                    }
+                  }}
+                />
+              ) : (
+                <span className={styles.notesText}>{item.notes?.trim() || 'No notes'}</span>
+              )}
+            </div>
+            <div className={styles.notesExpandRow}>
+              <span className={styles.notesExpandLabel}>Link</span>
+              {editable ? (
+                <input
+                  className={styles.inlineUrl}
+                  type="text"
+                  placeholder="Website URL"
+                  value={urlDrafts[item.id] ?? ''}
+                  aria-label="Website URL"
+                  onChange={(e) => setUrlDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                  onBlur={() => {
+                    const v = (urlDrafts[item.id] ?? '').trim();
+                    if (v !== (item.websiteUrl || '')) {
+                      service.update(item.id, { websiteUrl: v }).then(refresh).catch(console.error);
+                    }
+                  }}
+                />
+              ) : item.websiteUrl?.trim() ? (
+                <a className={styles.linkBtn} href={item.websiteUrl} target="_blank" rel="noopener noreferrer">
+                  Open link
+                </a>
+              ) : (
+                <span className={styles.notesText}>No link</span>
+              )}
+            </div>
+            {editable ? (
+              <button
+                type="button"
+                className={styles.linkBtn}
+                style={{ alignSelf: 'flex-start', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                onClick={() => {
+                  if (!trip?.id) return;
+                  void (async () => {
+                    const ok = await confirmUserAction(`Add "${item.itemName}" to the packing list?`);
+                    if (!ok) return;
+                    try {
+                      await addShoppingItemToPacking(spContext, trip.id, item, members);
+                    } catch (err) {
+                      // eslint-disable-next-line no-console
+                      console.error('Add to packing failed', err);
+                    }
+                  })();
+                }}
+              >
+                Add to packing list
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </li>
+    );
+  };
+
+  return (
+    <section
+      className={styles.page}
+      data-shell={isIpad ? 'ipad-portrait' : undefined}
+      aria-label="Shopping list"
+    >
+      {!embedded ? <h2 className={styles.standaloneTitle}>Shopping</h2> : null}
+
+      <div className={styles.toolbar}>
+        <input
+          className={styles.search}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search shopping list…"
+          aria-label="Search shopping list"
+        />
+        <button
+          type="button"
+          className={filtersOpen || filtersActive ? styles.filterBtnOn : styles.filterBtn}
+          aria-expanded={filtersOpen}
+          onClick={() => setFiltersOpen(true)}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M4 6h16M7 12h10M10 18h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+          Filters
+        </button>
+        {canAdd ? (
           <button
             type="button"
-            className={styles.mobilePrimaryBtn}
-            onClick={addItem}
-            disabled={!name.trim() || !category.trim()}
+            className={styles.addBtn}
+            onClick={() => {
+              setAddOpen(true);
+              window.setTimeout(() => addNameRef.current?.focus(), 50);
+            }}
           >
-            Add item
+            + Add item
+          </button>
+        ) : null}
+      </div>
+
+      <MobileShoppingFilters
+        open={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        items={items}
+        monthFilter={activeMonth}
+        statusFilter={statusFilter}
+        hasNotesOnly={hasNotesOnly}
+        onApply={onFiltersApply}
+      />
+
+      <div className={styles.travellerRow}>
+        <span className={styles.travellerLabel}>Filter by traveller</span>
+        <div className={styles.travellerChips} role="group" aria-label="Filter by traveller">
+          <button
+            type="button"
+            className={`${styles.travChip} ${activeTraveller === null ? styles.travChipOn : ''}`}
+            onClick={() => planView?.setShoppingTraveller(null)}
+          >
+            All
+          </button>
+          {travellers.map((t) => {
+            const who = memberForName(t, members);
+            return (
+              <button
+                key={t}
+                type="button"
+                className={`${styles.travChip} ${activeTraveller === t ? styles.travChipOn : ''}`}
+                onClick={() => planView?.setShoppingTraveller(t)}
+              >
+                <TravellerAvatar displayName={who.displayName} avatarUrl={who.avatarUrl} size={20} />
+                <span>{who.displayName.split(/\s+/)[0] || who.displayName}</span>
+              </button>
+            );
+          })}
+        </div>
+        {activeTraveller ? (
+          <button type="button" className={styles.clearTrav} onClick={() => planView?.setShoppingTraveller(null)}>
+            Clear
+          </button>
+        ) : null}
+      </div>
+
+      <div className={styles.viewRow}>
+        <div className={styles.viewToggle} role="group" aria-label="List view">
+          <button
+            type="button"
+            className={`${styles.viewBtn} ${viewMode === 'az' ? styles.viewBtnOn : ''}`}
+            onClick={() => setViewMode('az')}
+          >
+            A–Z
+          </button>
+          <button
+            type="button"
+            className={`${styles.viewBtn} ${viewMode === 'grouped' ? styles.viewBtnOn : ''}`}
+            onClick={() => setViewMode('grouped')}
+          >
+            Grouped
           </button>
         </div>
-      ) : null}
+        <span className={styles.itemCount}>
+          {filtered.length} item{filtered.length === 1 ? '' : 's'}
+        </span>
+      </div>
 
-      {filtered.length === 0 ? (
-        <p className={styles.muted}>No shopping items yet.</p>
-      ) : (
-        <div className={styles.mobileGroupedList}>
-          {grouped.map((group) => (
-            <section key={group.key} className={styles.mobileGroupBlock}>
-              {groupByCategory ? <h3 className={styles.mobileGroupHeading}>{group.label}</h3> : null}
-              <ul className={styles.mobileItemList}>
-                {group.rows.map((item) => {
-            const editable = canEditItem(item);
-            const open = expandedId === item.id;
-            return (
-              <li
-                key={item.id}
-                className={`${styles.mobileListItem} ${item.isPurchased ? styles.mobileListItemDone : ''}`}
-              >
-                <div className={styles.mobileListItemMain}>
-                  <input
-                    type="checkbox"
-                    checked={item.isPurchased}
-                    disabled={!editable}
-                    aria-label={`Purchased: ${item.itemName}`}
-                    onChange={(e) => markPurchased(item, e.target.checked)}
-                  />
-                  <button
-                    type="button"
-                    className={styles.mobileListItemBtn}
-                    onClick={() => setExpandedId(open ? null : item.id)}
-                  >
-                    <span className={styles.mobileListItemTitle}>{item.itemName}</span>
-                    <span className={styles.mobileListItemSub}>
-                      {item.category || 'Uncategorised'}
-                      {item.traveller ? ` · ${item.traveller}` : ''}
-                      {canSeeFinancials && item.budgetAmount
-                        ? ` · ${formatCurrency(item.budgetAmount, config.homeCurrency)}`
-                        : ''}
-                    </span>
-                  </button>
-                  <span className={styles.mobileChevron} aria-hidden>
-                    {open ? '▴' : '▾'}
-                  </span>
-                </div>
-                {open ? (
-                  <div className={styles.mobileListItemDetail}>
-                    {editable ? (
-                      <>
-                        <select
-                          className={styles.mobileField}
-                          value={item.category || ''}
-                          onChange={(e) => {
-                            const next = e.target.value;
-                            if (trip?.id && next) rememberTripShoppingCategory(trip.id, next);
-                            service.update(item.id, { category: next }).then(refresh).catch(console.error);
-                          }}
-                        >
-                          <option value="">Uncategorised</option>
-                          {categoryOptions(item.category).map((c) => (
-                            <option key={c} value={c}>
-                              {c}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          className={styles.mobileField}
-                          value={item.traveller || travellers[0]}
-                          onChange={(e) =>
-                            service
-                              .update(item.id, {
-                                traveller: e.target.value,
-                                ownerEmail: resolveOwnerEmailForAssignee(spContext, e.target.value, members)
-                              })
-                              .then(refresh)
-                              .catch(console.error)
-                          }
-                        >
-                          {travellers.map((t) => (
-                            <option key={t} value={t}>
-                              {t}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          className={styles.mobileField}
-                          type="month"
-                          value={item.purchaseMonth || ''}
-                          onChange={(e) =>
-                            service.update(item.id, { purchaseMonth: e.target.value }).then(refresh).catch(console.error)
-                          }
-                        />
-                        <input
-                          className={styles.mobileField}
-                          placeholder="Website URL"
-                          defaultValue={item.websiteUrl}
-                          onBlur={(e) => {
-                            const v = e.target.value.trim();
-                            if (v !== (item.websiteUrl || '')) {
-                              service.update(item.id, { websiteUrl: v }).then(refresh).catch(console.error);
-                            }
-                          }}
-                        />
-                        <textarea
-                          className={styles.mobileField}
-                          placeholder="Notes"
-                          defaultValue={item.notes}
-                          onBlur={(e) => {
-                            const v = e.target.value.trim();
-                            if (v !== (item.notes || '')) {
-                              service.update(item.id, { notes: v }).then(refresh).catch(console.error);
-                            }
-                          }}
-                        />
-                        {canSeeFinancials ? (
-                          <>
-                            <input
-                              className={styles.mobileField}
-                              type="number"
-                              min={0}
-                              step="0.01"
-                              placeholder={`Budget (${config.homeCurrency})`}
-                              defaultValue={item.budgetAmount || ''}
-                              onBlur={(e) => {
-                                const v = Number(e.target.value);
-                                if (!Number.isFinite(v) || v === item.budgetAmount) return;
-                                service.update(item.id, { budgetAmount: v }).then(refresh).catch(console.error);
-                              }}
-                            />
-                            <input
-                              className={styles.mobileField}
-                              type="number"
-                              min={0}
-                              step="0.01"
-                              placeholder={`Actual (${config.homeCurrency})`}
-                              defaultValue={item.actualAmount || ''}
-                              onBlur={(e) => {
-                                const v = Number(e.target.value);
-                                if (!Number.isFinite(v) || v === item.actualAmount) return;
-                                service.update(item.id, { actualAmount: v }).then(refresh).catch(console.error);
-                              }}
-                            />
-                          </>
-                        ) : null}
-                        <button
-                          type="button"
-                          className={styles.mobilePrimaryBtn}
-                          onClick={() => {
-                            if (!trip?.id) return;
-                            void (async () => {
-                              const ok = await confirmUserAction(
-                                `Add "${item.itemName}" to the packing list?`
-                              );
-                              if (!ok) return;
-                              try {
-                                await addShoppingItemToPacking(spContext, trip.id, item, members);
-                              } catch (err) {
-                                // eslint-disable-next-line no-console
-                                console.error('Add to packing failed', err);
-                              }
-                            })();
-                          }}
-                        >
-                          Add to packing list
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.mobileDangerBtn}
-                          onClick={() => {
-                            void (async () => {
-                              if (!(await confirmUserAction('Delete this shopping item?'))) return;
-                              service.delete(item.id).then(refresh).catch(console.error);
-                            })();
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        {item.websiteUrl ? (
-                          <a className={styles.linkBtn} href={item.websiteUrl} target="_blank" rel="noopener noreferrer">
-                            Open link
-                          </a>
-                        ) : null}
-                        {item.notes?.trim() ? <p className={styles.muted}>{item.notes}</p> : null}
-                      </>
-                    )}
-                  </div>
-                ) : null}
-              </li>
-            );
-                })}
-              </ul>
-            </section>
-          ))}
+      <div className={styles.tableWrap}>
+        <div
+          className={`${styles.tableHead} ${styles.rowMain}`}
+          data-financials={canSeeFinancials ? 'true' : 'false'}
+          aria-hidden={!isIpad}
+        >
+          <span className={styles.checkWrap} />
+          <span className={styles.catIcon} />
+          <span className={styles.itemCell}>Item</span>
+          <span className={styles.forCell}>For</span>
+          {canSeeFinancials ? <span className={styles.priceCell}>Est. price</span> : null}
+          <span className={styles.monthCell}>Est. month</span>
+          <span className={styles.statusCell}>Status</span>
+          <span className={styles.notesCell} />
+          <span className={styles.editBtn} />
         </div>
-      )}
+        {canAdd && addOpen ? (
+          <div
+            className={`${styles.addRow} ${styles.addRowInTable}`}
+            data-financials={canSeeFinancials ? 'true' : 'false'}
+            role="form"
+            aria-label="Add shopping item"
+          >
+            <span className={styles.checkWrap} />
+            <span className={styles.catIcon} aria-hidden>
+              <PackingCategoryIcon category={addCategory} size={16} />
+            </span>
+            <input
+              ref={addNameRef}
+              className={styles.addName}
+              placeholder="New item name…"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              aria-label="New item name"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') addItem();
+                if (e.key === 'Escape') {
+                  setAddOpen(false);
+                  setName('');
+                }
+              }}
+            />
+            <select
+              className={styles.addSelect}
+              value={addCategory}
+              onChange={(e) => setAddCategory(e.target.value)}
+              aria-label="Category"
+            >
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <select
+              className={styles.addSelect}
+              value={addTraveller || travellers[0] || ''}
+              onChange={(e) => setAddTraveller(e.target.value)}
+              aria-label="For traveller"
+            >
+              {travellers.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            <input
+              className={styles.addMonth}
+              type="month"
+              value={addMonth}
+              onChange={(e) => setAddMonth(e.target.value)}
+              aria-label="Estimated purchase month"
+            />
+            {canSeeFinancials ? (
+              <input
+                className={styles.addPrice}
+                type="number"
+                min={0}
+                step="0.01"
+                placeholder={`Price (${config.homeCurrency})`}
+                value={addPrice}
+                onChange={(e) => setAddPrice(e.target.value)}
+                aria-label="Estimated price"
+              />
+            ) : null}
+            <button type="button" className={styles.saveAddBtn} onClick={addItem} disabled={!name.trim()}>
+              Add
+            </button>
+          </div>
+        ) : null}
+        {filtered.length === 0 && !(canAdd && addOpen) ? (
+          <p className={chrome.muted} style={{ padding: '0.85rem' }}>
+            No shopping items match these filters.
+          </p>
+        ) : (
+          grouped.map((group) => (
+            <section key={group.key} className={styles.group}>
+              {viewMode === 'grouped' ? (
+                <h3 className={styles.groupHeading}>
+                  <span className={styles.catIcon} aria-hidden>
+                    <PackingCategoryIcon category={group.label} size={16} />
+                  </span>
+                  {group.label}
+                  <span className={styles.groupMeta}>
+                    {group.rows.filter((r) => r.isPurchased).length}/{group.rows.length} bought
+                  </span>
+                </h3>
+              ) : null}
+              <ul className={styles.list}>{group.rows.map((item) => renderRow(item))}</ul>
+            </section>
+          ))
+        )}
+      </div>
     </section>
   );
 };

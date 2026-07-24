@@ -72,9 +72,14 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
   const [addTraveller, setAddTraveller] = React.useState('');
   const [addNotes, setAddNotes] = React.useState('');
   const [noteDrafts, setNoteDrafts] = React.useState<Record<string, string>>({});
+  const [notesOpenId, setNotesOpenId] = React.useState<string | null>(null);
+  const addNameRef = React.useRef<HTMLInputElement | null>(null);
 
   React.useEffect(() => {
-    const handler = (): void => setAddOpen(true);
+    const handler = (): void => {
+      setAddOpen(true);
+      window.setTimeout(() => addNameRef.current?.focus(), 50);
+    };
     window.addEventListener(MOBILE_OPEN_PACKING_ADD, handler);
     return () => window.removeEventListener(MOBILE_OPEN_PACKING_ADD, handler);
   }, []);
@@ -206,10 +211,15 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
         setName('');
         setQty(1);
         setAddNotes('');
-        setAddOpen(false);
+        setAddOpen(true);
         refresh();
+        window.setTimeout(() => addNameRef.current?.focus(), 50);
       })
-      .catch(console.error);
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error(err);
+        window.alert(err instanceof Error ? err.message : 'Could not add packing item.');
+      });
   };
 
   const categoryOptions = (itemCategory: string): string[] => categoriesForItemSelect(categories, itemCategory);
@@ -340,24 +350,25 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
           </div>
 
           <div className={styles.notesCell}>
-            {editable ? (
-              <input
-                className={styles.inlineNotes}
-                type="text"
-                placeholder="Notes"
-                value={noteDrafts[item.id] ?? ''}
-                aria-label="Notes"
-                onChange={(e) => setNoteDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))}
-                onBlur={() => {
-                  const notes = (noteDrafts[item.id] ?? '').trim();
-                  if (notes !== (item.itemNotes || '')) {
-                    service.update(item.id, { itemNotes: notes || undefined }).then(refresh).catch(console.error);
-                  }
-                }}
-              />
-            ) : (
-              <span className={styles.notesText}>{item.itemNotes?.trim() || '—'}</span>
-            )}
+            <button
+              type="button"
+              className={`${styles.notesIconBtn} ${(item.itemNotes || '').trim() || notesOpenId === item.id ? styles.notesIconBtnOn : ''}`}
+              aria-label={notesOpenId === item.id ? 'Hide notes' : 'Notes'}
+              aria-expanded={notesOpenId === item.id}
+              disabled={!editable && !(item.itemNotes || '').trim()}
+              onClick={() => setNotesOpenId((prev) => (prev === item.id ? null : item.id))}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M7 3.5h7.5L19 8v12.5H7V3.5Z"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinejoin="round"
+                />
+                <path d="M14 3.5V8h5" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+                <path d="M9.5 12h5M9.5 15.5h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
           </div>
 
           {editable ? (
@@ -378,6 +389,29 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
             <span className={styles.editBtn} />
           )}
         </div>
+        {notesOpenId === item.id ? (
+          <div className={styles.notesExpand}>
+            {editable ? (
+              <input
+                className={styles.inlineNotes}
+                type="text"
+                placeholder="Add a note…"
+                value={noteDrafts[item.id] ?? ''}
+                aria-label="Notes"
+                autoFocus
+                onChange={(e) => setNoteDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                onBlur={() => {
+                  const notes = (noteDrafts[item.id] ?? '').trim();
+                  if (notes !== (item.itemNotes || '')) {
+                    service.update(item.id, { itemNotes: notes || undefined }).then(refresh).catch(console.error);
+                  }
+                }}
+              />
+            ) : (
+              <span className={styles.notesText}>{item.itemNotes?.trim() || 'No notes'}</span>
+            )}
+          </div>
+        ) : null}
       </li>
     );
   };
@@ -410,79 +444,18 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
           Filters
         </button>
         {canAdd ? (
-          <button type="button" className={styles.addBtn} onClick={() => setAddOpen((v) => !v)}>
-            {addOpen ? 'Close' : '+ Add item'}
+          <button
+            type="button"
+            className={styles.addBtn}
+            onClick={() => {
+              setAddOpen(true);
+              window.setTimeout(() => addNameRef.current?.focus(), 50);
+            }}
+          >
+            + Add item
           </button>
         ) : null}
       </div>
-
-      {canAdd && addOpen ? (
-        <div className={styles.addRow} role="form" aria-label="Add packing item">
-          <input
-            className={styles.addName}
-            placeholder="Item name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            aria-label="New item name"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') addItem();
-            }}
-          />
-          <select
-            className={styles.addSelect}
-            value={addCategory}
-            onChange={(e) => setAddCategory(e.target.value)}
-            aria-label="Category"
-          >
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-          <div className={styles.qtyStepper}>
-            <button
-              type="button"
-              className={styles.qtyBtn}
-              onClick={() => setQty((q) => Math.max(1, q - 1))}
-              aria-label="Decrease quantity"
-            >
-              −
-            </button>
-            <span className={styles.qtyValue}>{qty}</span>
-            <button
-              type="button"
-              className={styles.qtyBtn}
-              onClick={() => setQty((q) => q + 1)}
-              aria-label="Increase quantity"
-            >
-              +
-            </button>
-          </div>
-          <select
-            className={styles.addSelect}
-            value={addTraveller || travellers[0] || ''}
-            onChange={(e) => setAddTraveller(e.target.value)}
-            aria-label="For traveller"
-          >
-            {travellers.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-          <input
-            className={styles.addNotes}
-            placeholder="Notes"
-            value={addNotes}
-            onChange={(e) => setAddNotes(e.target.value)}
-            aria-label="Notes"
-          />
-          <button type="button" className={styles.saveAddBtn} onClick={addItem} disabled={!name.trim()}>
-            Add
-          </button>
-        </div>
-      ) : null}
 
       <MobilePackingFilters
         open={filtersOpen}
@@ -548,20 +521,98 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
         </span>
       </div>
 
-      {filtered.length === 0 ? (
-        <p className={chrome.muted}>No packing items match these filters.</p>
-      ) : (
-        <div className={styles.tableWrap}>
-          <div className={`${styles.tableHead} ${styles.rowMain}`} aria-hidden={!isIpad}>
+      <div className={styles.tableWrap}>
+        <div className={`${styles.tableHead} ${styles.rowMain}`} aria-hidden={!isIpad}>
+          <span className={styles.checkWrap} />
+          <span className={styles.catIcon} />
+          <span className={styles.itemCell}>Item</span>
+          <span className={styles.qtyCell}>Qty</span>
+          <span className={styles.forCell}>For</span>
+          <span className={styles.notesCell}>Notes</span>
+          <span className={styles.editBtn} />
+        </div>
+        {canAdd && addOpen ? (
+          <div className={`${styles.addRow} ${styles.addRowInTable}`} role="form" aria-label="Add packing item">
             <span className={styles.checkWrap} />
-            <span className={styles.catIcon} />
-            <span className={styles.itemCell}>Item</span>
-            <span className={styles.qtyCell}>Qty</span>
-            <span className={styles.forCell}>For</span>
-            <span className={styles.notesCell}>Notes</span>
-            <span className={styles.editBtn} />
+            <span className={styles.catIcon} aria-hidden>
+              <PackingCategoryIcon category={addCategory} size={16} />
+            </span>
+            <input
+              ref={addNameRef}
+              className={styles.addName}
+              placeholder="New item name…"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              aria-label="New item name"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') addItem();
+                if (e.key === 'Escape') {
+                  setAddOpen(false);
+                  setName('');
+                }
+              }}
+            />
+            <select
+              className={styles.addSelect}
+              value={addCategory}
+              onChange={(e) => setAddCategory(e.target.value)}
+              aria-label="Category"
+            >
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <div className={styles.qtyStepper}>
+              <button
+                type="button"
+                className={styles.qtyBtn}
+                onClick={() => setQty((q) => Math.max(1, q - 1))}
+                aria-label="Decrease quantity"
+              >
+                −
+              </button>
+              <span className={styles.qtyValue}>{qty}</span>
+              <button
+                type="button"
+                className={styles.qtyBtn}
+                onClick={() => setQty((q) => q + 1)}
+                aria-label="Increase quantity"
+              >
+                +
+              </button>
+            </div>
+            <select
+              className={styles.addSelect}
+              value={addTraveller || travellers[0] || ''}
+              onChange={(e) => setAddTraveller(e.target.value)}
+              aria-label="For traveller"
+            >
+              {travellers.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            <input
+              className={styles.addNotes}
+              placeholder="Notes"
+              value={addNotes}
+              onChange={(e) => setAddNotes(e.target.value)}
+              aria-label="Notes"
+            />
+            <button type="button" className={styles.saveAddBtn} onClick={addItem} disabled={!name.trim()}>
+              Add
+            </button>
           </div>
-          {grouped.map((group) => (
+        ) : null}
+        {filtered.length === 0 && !(canAdd && addOpen) ? (
+          <p className={chrome.muted} style={{ padding: '0.85rem' }}>
+            No packing items match these filters.
+          </p>
+        ) : (
+          grouped.map((group) => (
             <section key={group.key} className={styles.group}>
               {viewMode === 'grouped' ? (
                 <h3 className={styles.groupHeading}>
@@ -576,9 +627,9 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
               ) : null}
               <ul className={styles.list}>{group.rows.map((item) => renderRow(item))}</ul>
             </section>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
     </section>
   );
 };

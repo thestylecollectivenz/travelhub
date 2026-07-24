@@ -107,6 +107,13 @@ const PACKS: Record<string, LanguagePack> = {
     'en-AU',
     true
   ),
+  /** German-speaking Switzerland (Basel, Zürich, Bern). French/Italian cantons still get German coffee wording as a useful default. */
+  CH: pack(
+    'German',
+    ['Grüezi', 'Danke', 'Uf Wiederluege', 'Bitte', 'Entschuldigung', 'Gern geschehen', 'Wo ist…?', 'Wie viel kostet das?', 'Hilfe!'],
+    'de-DE',
+    true
+  ),
   /** Mandarin phrases commonly useful for visitors; English is widely spoken. */
   SG: pack(
     'Mandarin',
