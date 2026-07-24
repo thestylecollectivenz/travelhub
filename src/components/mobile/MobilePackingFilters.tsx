@@ -9,12 +9,23 @@ import { isDefaultListCategory } from '../../utils/tripShoppingCategories';
 import chrome from './MobileTabChrome.module.css';
 import shell from './MobileShell.module.css';
 
+export type PackingPackedFilter = 'all' | 'packed' | 'unpacked';
+
 export interface MobilePackingFiltersProps {
   travellers: string[];
+  /** When true, traveller chips are shown elsewhere (list toolbar). */
+  hideTravellers?: boolean;
+  packedFilter?: PackingPackedFilter;
+  onPackedFilterChange?: (value: PackingPackedFilter) => void;
 }
 
-/** Traveller + shared category filters for mobile packing list. */
-export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({ travellers }) => {
+/** Category / status filters for mobile packing list. */
+export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({
+  travellers,
+  hideTravellers = false,
+  packedFilter = 'all',
+  onPackedFilterChange
+}) => {
   const plan = usePlanView();
   const { trip } = useTripWorkspace();
   const spContext = useSpContext();
@@ -35,28 +46,55 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({ trav
 
   return (
     <div className={chrome.filterPanel}>
-      <div>
-        <p className={chrome.filterGroupTitle}>Assigned to</p>
-        <div className={chrome.chipRow}>
-          <button
-            type="button"
-            className={`${chrome.chip} ${traveller === null ? chrome.chipActive : ''}`}
-            onClick={() => plan.setPackingTraveller(null)}
-          >
-            All
-          </button>
-          {travellers.map((name) => (
+      {!hideTravellers ? (
+        <div>
+          <p className={chrome.filterGroupTitle}>Assigned to</p>
+          <div className={chrome.chipRow}>
             <button
-              key={name}
               type="button"
-              className={`${chrome.chip} ${traveller === name ? chrome.chipActive : ''}`}
-              onClick={() => plan.setPackingTraveller(name)}
+              className={`${chrome.chip} ${traveller === null ? chrome.chipActive : ''}`}
+              onClick={() => plan.setPackingTraveller(null)}
             >
-              {name}
+              All
             </button>
-          ))}
+            {travellers.map((name) => (
+              <button
+                key={name}
+                type="button"
+                className={`${chrome.chip} ${traveller === name ? chrome.chipActive : ''}`}
+                onClick={() => plan.setPackingTraveller(name)}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
+
+      {onPackedFilterChange ? (
+        <div>
+          <p className={chrome.filterGroupTitle}>Item status</p>
+          <div className={chrome.chipRow}>
+            {(
+              [
+                { key: 'all' as const, label: 'All items' },
+                { key: 'packed' as const, label: 'Packed' },
+                { key: 'unpacked' as const, label: 'Not packed' }
+              ]
+            ).map((opt) => (
+              <button
+                key={opt.key}
+                type="button"
+                className={`${chrome.chip} ${packedFilter === opt.key ? chrome.chipActive : ''}`}
+                onClick={() => onPackedFilterChange(opt.key)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div>
         <p className={chrome.filterGroupTitle}>Category</p>
         <div className={chrome.chipRow}>
@@ -65,7 +103,7 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({ trav
             className={`${chrome.chip} ${category === '__all__' ? chrome.chipActive : ''}`}
             onClick={() => plan.setPackingCategory('__all__')}
           >
-            All items
+            All categories
           </button>
           {categories.map((c) => (
             <button
@@ -124,69 +162,69 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({ trav
                     Restore full default list
                   </button>
                 </div>
-              <ul className={shell.categoryManageList}>
-                {categories.map((c) => (
-                  <li key={c} className={shell.categoryManageRow}>
-                    {editingCategory === c ? (
-                      <>
-                        <input
-                          className={shell.dateInput}
-                          value={editCategoryName}
-                          onChange={(e) => setEditCategoryName(e.target.value)}
-                          aria-label="Category name"
-                        />
-                        <button
-                          type="button"
-                          className={chrome.chip}
-                          onClick={() => {
-                            void (async () => {
-                              const next = editCategoryName.trim();
-                              if (!next || next.toLowerCase() === c.toLowerCase()) {
+                <ul className={shell.categoryManageList}>
+                  {categories.map((c) => (
+                    <li key={c} className={shell.categoryManageRow}>
+                      {editingCategory === c ? (
+                        <>
+                          <input
+                            className={shell.dateInput}
+                            value={editCategoryName}
+                            onChange={(e) => setEditCategoryName(e.target.value)}
+                            aria-label="Category name"
+                          />
+                          <button
+                            type="button"
+                            className={chrome.chip}
+                            onClick={() => {
+                              void (async () => {
+                                const next = editCategoryName.trim();
+                                if (!next || next.toLowerCase() === c.toLowerCase()) {
+                                  setEditingCategory(null);
+                                  return;
+                                }
+                                await renameCategory(c, next);
+                                if (category === c) plan.setPackingCategory(next);
                                 setEditingCategory(null);
-                                return;
-                              }
-                              await renameCategory(c, next);
-                              if (category === c) plan.setPackingCategory(next);
-                              setEditingCategory(null);
-                            })();
-                          }}
-                        >
-                          Save
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <span className={shell.filterLabel}>{c}</span>
-                        <button
-                          type="button"
-                          className={chrome.chip}
-                          onClick={() => {
-                            setEditingCategory(c);
-                            setEditCategoryName(c);
-                          }}
-                        >
-                          Rename
-                        </button>
-                        {!isDefaultListCategory(c) ? (
-                        <button
-                          type="button"
-                          className={chrome.chip}
-                          onClick={() => {
-                            void (async () => {
-                              if (!(await confirmUserAction(`Delete category "${c}"?`))) return;
-                              await deleteCategory(c);
-                              if (category === c) plan.setPackingCategory('__all__');
-                            })();
-                          }}
-                        >
-                          Delete
-                        </button>
-                        ) : null}
-                      </>
-                    )}
-                  </li>
-                ))}
-              </ul>
+                              })();
+                            }}
+                          >
+                            Save
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span className={shell.filterLabel}>{c}</span>
+                          <button
+                            type="button"
+                            className={chrome.chip}
+                            onClick={() => {
+                              setEditingCategory(c);
+                              setEditCategoryName(c);
+                            }}
+                          >
+                            Rename
+                          </button>
+                          {!isDefaultListCategory(c) ? (
+                            <button
+                              type="button"
+                              className={chrome.chip}
+                              onClick={() => {
+                                void (async () => {
+                                  if (!(await confirmUserAction(`Delete category "${c}"?`))) return;
+                                  await deleteCategory(c);
+                                  if (category === c) plan.setPackingCategory('__all__');
+                                })();
+                              }}
+                            >
+                              Delete
+                            </button>
+                          ) : null}
+                        </>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               </div>
             ) : null}
           </>

@@ -3,7 +3,6 @@ import { PlanViewProvider } from '../../context/PlanViewContext';
 import { MobilePackingList } from './MobilePackingList';
 import { MobileShoppingList } from './MobileShoppingList';
 import { MobileShoppingFilters } from './MobileShoppingFilters';
-import { MobilePackingFilters } from './MobilePackingFilters';
 import { MobileTripJotterList } from './MobileTripJotterList';
 import { MobileTaskView } from './MobileTaskView';
 import { MobileFilterDisclosure } from './MobileFilterDisclosure';
@@ -186,9 +185,6 @@ const MobileListsBody: React.FC = () => {
               <span className={chrome.statLabel}>Shopping</span>
             </div>
           </div>
-          <MobileFilterDisclosure open={filtersOpen} onToggle={() => setFiltersOpen((v) => !v)}>
-            <MobilePackingFilters travellers={travellers} />
-          </MobileFilterDisclosure>
           <MobilePackingList embedded />
         </>
       ) : (

@@ -1,0 +1,497 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.standaloneTitle {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 750;
+  color: #1e2a44;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.search {
+  flex: 1 1 10rem;
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  border-radius: 999px;
+  background: white;
+  padding: 0.55rem 0.9rem;
+  font: inherit;
+  font-size: 0.88rem;
+  color: #1e2a44;
+}
+
+.filterBtn,
+.filterBtnOn,
+.addBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 14%, transparent);
+  border-radius: 999px;
+  background: white;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #1e2a44;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.filterBtnOn {
+  background: color-mix(in srgb, #2f5eb8 12%, white);
+  border-color: color-mix(in srgb, #2f5eb8 35%, transparent);
+  color: #2f5eb8;
+}
+
+.addBtn {
+  background: #1e2a44;
+  border-color: #1e2a44;
+  color: white;
+}
+
+.travellerRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+}
+
+.travellerLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #8a7355;
+}
+
+.travellerChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex: 1;
+}
+
+.travChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  border-radius: 999px;
+  background: white;
+  padding: 0.28rem 0.65rem 0.28rem 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: #1e2a44;
+  cursor: pointer;
+}
+
+.travChipOn {
+  background: #1e2a44;
+  border-color: #1e2a44;
+  color: white;
+}
+
+.clearTrav {
+  border: none;
+  background: none;
+  color: #2f5eb8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-left: auto;
+}
+
+.viewRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.viewToggle {
+  display: inline-flex;
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  border-radius: 999px;
+  overflow: hidden;
+  background: white;
+}
+
+.viewBtn {
+  border: none;
+  background: transparent;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #1e2a44;
+  cursor: pointer;
+}
+
+.viewBtnOn {
+  background: #1e2a44;
+  color: white;
+}
+
+.itemCount {
+  font-size: 0.78rem;
+  color: #6b6570;
+  font-weight: 650;
+}
+
+.addCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  border-radius: 1rem;
+  background: white;
+}
+
+.tableWrap {
+  border: 1px solid color-mix(in srgb, #1e2a44 10%, transparent);
+  border-radius: 1rem;
+  background: white;
+  overflow: hidden;
+}
+
+.tableHead {
+  display: none;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+}
+
+.groupHeading {
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 750;
+  color: #1e2a44;
+  background: color-mix(in srgb, #1e2a44 3%, white);
+  border-bottom: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
+}
+
+.groupMeta {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: #6b6570;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  border-bottom: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.rowOpen {
+  background: color-mix(in srgb, #2f5eb8 3%, white);
+}
+
+.rowPacked .itemName {
+  text-decoration: line-through;
+  color: #6b6570;
+}
+
+.rowMain {
+  display: grid;
+  grid-template-columns: 1.6rem 1.6rem minmax(0, 1fr) auto;
+  grid-template-areas:
+    'check icon item edit'
+    'check icon meta edit';
+  column-gap: 0.45rem;
+  row-gap: 0.15rem;
+  align-items: center;
+  padding: 0.7rem 0.75rem;
+}
+
+.checkWrap {
+  grid-area: check;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.check {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: #1e2a44;
+}
+
+.catIcon {
+  grid-area: icon;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 0.45rem;
+  background: color-mix(in srgb, #2f5eb8 8%, white);
+  color: #2f5eb8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.itemCell {
+  grid-area: item;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.itemName {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e2a44;
+  line-height: 1.25;
+}
+
+.itemCat {
+  font-size: 0.72rem;
+  color: #6b6570;
+}
+
+.qtyCell {
+  display: none;
+}
+
+.forCell {
+  grid-area: meta;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.forName {
+  font-size: 0.72rem;
+  color: #6b6570;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notesCell {
+  display: none;
+}
+
+.notesText {
+  font-size: 0.78rem;
+  color: #6b6570;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editBtn {
+  grid-area: edit;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  border-radius: 999px;
+  background: white;
+  color: #1e2a44;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  justify-self: end;
+}
+
+.qtyStepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  border-radius: 999px;
+  padding: 0.1rem;
+  background: white;
+}
+
+.qtyBtn {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, #1e2a44 5%, white);
+  color: #1e2a44;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.qtyValue {
+  min-width: 1.2rem;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e2a44;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0 0.85rem 0.9rem;
+  background: color-mix(in srgb, #1e2a44 2%, white);
+}
+
+.detailRow {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.fieldLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8a7355;
+  flex: 1;
+  min-width: 0;
+}
+
+.field,
+.fieldQty {
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  border-radius: 0.55rem;
+  background: white;
+  padding: 0.45rem 0.55rem;
+  font: inherit;
+  font-size: 0.88rem;
+  color: #1e2a44;
+  width: 100%;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 500;
+}
+
+.fieldQty {
+  width: 4.5rem;
+  flex: 0 0 auto;
+}
+
+.saveAddBtn,
+.deleteBtn {
+  border: none;
+  border-radius: 0.55rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.saveAddBtn {
+  background: #1e2a44;
+  color: white;
+}
+
+.saveAddBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.deleteBtn {
+  background: color-mix(in srgb, #b42318 10%, white);
+  color: #b42318;
+}
+
+.readOnlyHint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #6b6570;
+}
+
+/* iPad: full table columns like mockup */
+[data-shell='ipad-portrait'] .toolbar {
+  flex-wrap: nowrap;
+}
+
+[data-shell='ipad-portrait'] .search {
+  flex: 1 1 auto;
+}
+
+[data-shell='ipad-portrait'] .tableHead {
+  display: grid;
+  grid-template-columns: 2rem 2.2rem minmax(10rem, 1.4fr) 5.5rem 7.5rem minmax(6rem, 1fr) 2.4rem;
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8a7355;
+  background: color-mix(in srgb, #1e2a44 3%, white);
+  border-bottom: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
+}
+
+[data-shell='ipad-portrait'] .rowMain {
+  display: grid;
+  grid-template-columns: 2rem 2.2rem minmax(10rem, 1.4fr) 5.5rem 7.5rem minmax(6rem, 1fr) 2.4rem;
+  grid-template-areas: none;
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.75rem 0.9rem;
+}
+
+[data-shell='ipad-portrait'] .checkWrap,
+[data-shell='ipad-portrait'] .catIcon,
+[data-shell='ipad-portrait'] .itemCell,
+[data-shell='ipad-portrait'] .qtyCell,
+[data-shell='ipad-portrait'] .forCell,
+[data-shell='ipad-portrait'] .notesCell,
+[data-shell='ipad-portrait'] .editBtn {
+  grid-area: auto;
+}
+
+[data-shell='ipad-portrait'] .qtyCell,
+[data-shell='ipad-portrait'] .notesCell {
+  display: block;
+}
+
+[data-shell='ipad-portrait'] .forName {
+  font-size: 0.82rem;
+  color: #1e2a44;
+  font-weight: 650;
+}
+
+[data-shell='ipad-portrait'] .itemName {
+  font-size: 1.02rem;
+}
+
+[data-shell='ipad-portrait'] .catIcon {
+  width: 2rem;
+  height: 2rem;
+}
+
+[data-shell='ipad-portrait'] .travChip {
+  padding: 0.35rem 0.8rem 0.35rem 0.35rem;
+  font-size: 0.85rem;
+}
