@@ -304,7 +304,7 @@ function mapToEntry(item: any): ItineraryEntry {
   return {
     id: String(item.ID),
     tripId: item.TripId ?? '',
-    dayId: item.DayId ?? '',
+    dayId: item.DayId != null && item.DayId !== '' ? String(item.DayId) : '',
     title: item.Title ?? '',
     category: item.Category ?? 'Other',
     timeStart: parseTime(item.TimeStart),
@@ -417,7 +417,7 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   const item: Record<string, any> = {};
   if (entry.title !== undefined) item.Title = entry.title;
   if (entry.tripId !== undefined) item.TripId = entry.tripId;
-  if (entry.dayId !== undefined) item.DayId = entry.dayId;
+  if (entry.dayId !== undefined) item.DayId = entry.dayId != null && entry.dayId !== '' ? String(entry.dayId) : '';
   if (entry.category !== undefined) item.Category = entry.category;
   if (entry.timeStart !== undefined) item.TimeStart = serializeTime(entry.timeStart);
   if (entry.arrivalTime !== undefined) item.ArrivalTime = serializeTime(entry.arrivalTime);

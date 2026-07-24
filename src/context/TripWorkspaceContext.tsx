@@ -490,6 +490,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       const isNew = isPendingItineraryEntryId(updated.id);
       const prev = localEntriesRef.current;
       const i = prev.findIndex((e) => e.id === updated.id);
+      const prevEntry = i >= 0 ? prev[i] : undefined;
       const next = i >= 0 ? prev.map((e, idx) => (idx === i ? updated : e)) : [...prev, updated];
       localEntriesRef.current = next;
       setLocalEntries(next);
@@ -500,12 +501,24 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
           void persistEntry(updated).catch((err) => {
             // eslint-disable-next-line no-console
             console.error('updateEntry (create): SP persist failed', err);
+            if (prevEntry) {
+              localEntriesRef.current = prev;
+              setLocalEntries(prev);
+            } else {
+              const rolled = localEntriesRef.current.filter((e) => e.id !== updated.id);
+              localEntriesRef.current = rolled;
+              setLocalEntries(rolled);
+            }
+            window.alert(
+              err instanceof Error
+                ? `Could not save itinerary item: ${err.message}`
+                : 'Could not save itinerary item. Changes were reverted.'
+            );
           });
         }
         return;
       }
 
-      const prevEntry = prev.find((e) => e.id === updated.id);
       const timeChanged = prevEntry ? itineraryEntryTimeFieldsChanged(prevEntry, updated) : false;
       if (timeChanged) {
         syncDayColumnsForEntryTimeOrder(updated, next, tripDays, { reposition: true });
@@ -517,7 +530,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       const svc = new ItineraryService(spContext);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars -- strip nested items before PATCH
       const { subItems: _subItems, ...entryWithoutSubItems } = updated;
-      svc
+      void svc
         .update(updated.id, entryWithoutSubItems)
         .then(async () => {
           await syncEntryCancellationDeadlineReminder(spContext, updated);
@@ -526,6 +539,16 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
         .catch((err) => {
           // eslint-disable-next-line no-console
           console.error('updateEntry (update): SP persist or cancellation reminder sync failed', err);
+          if (prevEntry) {
+            const rolled = localEntriesRef.current.map((e) => (e.id === prevEntry.id ? prevEntry : e));
+            localEntriesRef.current = rolled;
+            setLocalEntries(rolled);
+          }
+          window.alert(
+            err instanceof Error
+              ? `Could not save itinerary item: ${err.message}`
+              : 'Could not save itinerary item. Changes were reverted.'
+          );
         });
     },
     [spContext, persistEntry, tripDays]

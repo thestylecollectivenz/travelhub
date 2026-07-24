@@ -26,6 +26,7 @@ import { ymdSlice } from '../../utils/tripListSort';
 import { activityTitlesForDay } from '../../utils/dayActivityTitles';
 import { FieldSuggestionList } from '../shared/FieldSuggestionList';
 import { isCompactTouchShell, useShellMode } from '../../hooks/useShellMode';
+import { isPreTripDayRow } from '../../utils/itineraryDayEntries';
 import styles from './ItineraryCardEdit.module.css';
 
 function categoryUsesDayIdMembership(category: string | undefined): boolean {
@@ -34,6 +35,16 @@ function categoryUsesDayIdMembership(category: string | undefined): boolean {
     return false;
   }
   return true;
+}
+
+/** Pre-trip cards keep day membership even when DateStart is a policy/purchase date. */
+function dayRowById(
+  tripDays: { id: string; tripId: string; dayNumber: number; dayType: string; calendarDate: string }[],
+  dayId: string | undefined
+): (typeof tripDays)[number] | undefined {
+  const id = String(dayId || '');
+  if (!id) return undefined;
+  return tripDays.find((d) => String(d.id) === id);
 }
 
 export interface ItineraryCardEditProps {
@@ -94,10 +105,17 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   const patchDateStart = React.useCallback(
     (date: string) => {
       const partial: Partial<ItineraryEntry> = { dateStart: date };
+      const homeDay = dayRowById(tripDays, draft.dayId || entry.dayId);
+      // Pre-trip: DateStart is metadata (e.g. buy-by date) — never move the card off Pre-trip.
+      if (homeDay && isPreTripDayRow(homeDay)) {
+        patch(partial);
+        return;
+      }
       if (trip?.id) {
         const day = tripDays.find((d) => d.tripId === trip.id && ymdSlice(d.calendarDate) === ymdSlice(date));
         if (
           day &&
+          !isPreTripDayRow(day) &&
           (categoryUsesDayIdMembership(draft.category) ||
             draft.category === 'Transport' ||
             draft.category === 'Accommodation')
@@ -107,7 +125,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       }
       patch(partial);
     },
-    [trip?.id, tripDays, draft.category, patch]
+    [trip?.id, tripDays, draft.category, draft.dayId, entry.dayId, patch]
   );
   const isAccommodation = draft.category === 'Accommodation';
   const isFlights = draft.category === 'Flights';
@@ -428,12 +446,21 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       transportMode: draft.transportMode?.trim() || undefined,
       transportTransfers: draft.transportTransfers
     };
+    const homeDay = dayRowById(tripDays, draft.dayId || entry.dayId);
+    const keepOnPreTrip = Boolean(homeDay && isPreTripDayRow(homeDay));
+    if (keepOnPreTrip && homeDay) {
+      // Always pin Pre-trip membership; DateStart may still reflect a buy-by / policy date.
+      saved.dayId = homeDay.id;
+    }
     if (saved.category === 'Transport') {
       saved.journeyType = saved.journeyType ?? 'oneway';
       saved.dateStart = saved.dateStart || calendarDate;
-      if (saved.dateStart && trip) {
+      if (!keepOnPreTrip && saved.dateStart && trip) {
         const outboundDay = tripDays.find(
-          (d) => d.tripId === trip.id && ymdSlice(d.calendarDate) === ymdSlice(saved.dateStart)
+          (d) =>
+            d.tripId === trip.id &&
+            ymdSlice(d.calendarDate) === ymdSlice(saved.dateStart) &&
+            !isPreTripDayRow(d)
         );
         if (outboundDay) {
           saved.dayId = outboundDay.id;
@@ -453,8 +480,13 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
     if (saved.category === 'Accommodation') {
       saved.unitType = 'PerNight';
       saved.unitAmount = nights > 0 ? perNight : saved.unitAmount;
-      if (saved.dateStart && trip) {
-        const checkInDay = tripDays.find((d) => d.tripId === trip.id && d.calendarDate === saved.dateStart);
+      if (!keepOnPreTrip && saved.dateStart && trip) {
+        const checkInDay = tripDays.find(
+          (d) =>
+            d.tripId === trip.id &&
+            ymdSlice(d.calendarDate) === ymdSlice(saved.dateStart) &&
+            !isPreTripDayRow(d)
+        );
         if (checkInDay) {
           saved.dayId = checkInDay.id;
         }
@@ -465,9 +497,12 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
     }
     if (categoryUsesDayIdMembership(saved.category)) {
       saved.dateStart = saved.dateStart || calendarDate;
-      if (saved.dateStart && trip) {
+      if (!keepOnPreTrip && saved.dateStart && trip) {
         const day = tripDays.find(
-          (d) => d.tripId === trip.id && ymdSlice(d.calendarDate) === ymdSlice(saved.dateStart)
+          (d) =>
+            d.tripId === trip.id &&
+            ymdSlice(d.calendarDate) === ymdSlice(saved.dateStart) &&
+            !isPreTripDayRow(d)
         );
         if (day) {
           saved.dayId = day.id;
@@ -475,7 +510,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       }
     }
     onSave(saved);
-  }, [calendarDate, draft, timeValue, nights, perNight, trip, tripDays, config.homeCurrency, isTransport]);
+  }, [calendarDate, draft, entry.dayId, timeValue, nights, perNight, trip, tripDays, config.homeCurrency, isTransport]);
 
   const hasMeaningfulDraftContent = React.useMemo(
     () =>
