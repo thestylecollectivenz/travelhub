@@ -25,9 +25,18 @@ export interface MobileDayIdeasProps {
   dayId: string;
   /** Shown on each idea so it is clear which day it belongs to. */
   dayLabel?: string;
+  /** Overnight stay label for AI context (hotel/cruise that night). */
+  overnightLabel?: string;
+  /** Primary place / visit label for the day (may be a day trip). */
+  placeLabel?: string;
 }
 
-export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId, dayLabel }) => {
+export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({
+  dayId,
+  dayLabel,
+  overnightLabel,
+  placeLabel
+}) => {
   const spContext = useSpContext();
   const { trip } = useTripWorkspace();
   const { role } = useTripRole();
@@ -201,6 +210,8 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({ dayId, dayLabel 
                     <MobileIdeaAskAi
                       ideaText={row.reminderText || row.title}
                       dayLabel={dayLabel}
+                      overnightLabel={overnightLabel}
+                      locationLabel={placeLabel}
                       thread={qaThread}
                       onThreadChange={(next) => saveQaThread(row.id, row.taskNote, next)}
                       compact

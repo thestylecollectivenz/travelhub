@@ -294,8 +294,11 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
             entry={sourceEntry}
             calendarDate={calendarDate}
             onSave={(saved) => {
+              const wasPending = isPendingItineraryEntryId(saved.id);
               updateEntry(saved, { persistPending: true });
               setEditingCardId(null);
+              // New items remapped to a SharePoint id — close detail so the day list shows the saved card.
+              if (wasPending) onClose();
             }}
             onCancel={() => {
               const discarded = discardBlankPendingDraft();

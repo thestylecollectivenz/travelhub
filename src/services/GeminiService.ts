@@ -280,10 +280,10 @@ function buildQuestionPrompt(
   question: string,
   contextSummary: string
 ): string {
-  return `You are a travel assistant for a traveller who already has a trip itinerary. Answer their question about a specific place using the trip context when relevant.
+  return `You are a travel assistant for a traveller who already has a trip itinerary. Answer their question using the trip context when relevant.
 
-Place: ${placeName}, ${country}
-${contextSummary ? `Trip + location context (authoritative — includes their hotel/stay and plans):\n${contextSummary}\n` : ''}
+Place / focus: ${placeName}, ${country}
+${contextSummary ? `Trip + location context (authoritative):\n${contextSummary}\n` : ''}
 Question: ${question}
 
 Respond with ONLY a JSON object:
@@ -292,10 +292,12 @@ Respond with ONLY a JSON object:
 Rules:
 - Factual and practical; no marketing fluff
 - Keep restaurant, café, shop, and attraction brand names in their official language — never translate trade names into English
-- Use the Location info highlights, overview, travel tips, and notes in context when they help answer the question
-- If the question mentions “our hotel”, “the hotel”, “our stay”, or similar, use the accommodation/cruise stay named in the trip context — never invent a different hotel
-- Prefer answers that fit their planned itinerary for this place (times, bookings status, nearby stays)
-- If trip context has no hotel listed, say that clearly rather than guessing a hotel name
+- Use itinerary plans, location highlights, overview, travel tips, and notes in context when they help
+- Overnight base vs day visit: hotels/cruise cabins apply only where the context lists an overnight stay. Day-trip or visited places do not need a hotel — do not mention missing hotels for day visits
+- If the question mentions “our hotel”, “the hotel”, or “our stay”, use the overnight accommodation named in context — never invent a different hotel
+- Prefer answers that fit what is already planned that day; do not invent bookings
+- Only say there is no hotel when the traveller is asking about overnight lodging and context has none listed
+- Do not lecture about “lack of context”; use what is provided and answer helpfully
 - If unsure about local facts, say what is uncertain and suggest how to verify
 - No markdown, no code fences`;
 }

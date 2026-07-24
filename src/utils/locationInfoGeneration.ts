@@ -107,8 +107,10 @@ export async function applyLocationInfoQuestion(options: {
   apiKey: string;
   place: Place;
   question: string;
+  /** When set, nest the new Q&A under this parent answer as a reply. */
+  parentQaId?: string;
 }): Promise<LocationInfoNotes> {
-  const { spContext, entry, existing, apiKey, place, question } = options;
+  const { spContext, entry, existing, apiKey, place, question, parentQaId } = options;
   const { placeName, country } = placeNameAndCountry(place);
   const notesBits = [
     existing.overview.trim() ? `Overview: ${existing.overview.trim()}` : '',
@@ -132,7 +134,24 @@ export async function applyLocationInfoQuestion(options: {
     (existing.userNotes || '').trim() ? `Traveller notes: ${(existing.userNotes || '').trim()}` : ''
   ].filter(Boolean);
   const itineraryContext = await loadLocationQaTripContext(spContext, entry.tripId, place);
-  const contextSummary = [itineraryContext, notesBits.join('\n')].filter(Boolean).join('\n\n');
+
+  const parent = parentQaId
+    ? (existing.aiQaThread ?? []).find((q) => q.id === parentQaId)
+    : undefined;
+  const threadBits: string[] = [];
+  if (parent) {
+    threadBits.push(`Original question: ${parent.question}`);
+    threadBits.push(`Original answer: ${parent.answer}`);
+    for (const r of parent.replies ?? []) {
+      threadBits.push(`Earlier follow-up Q: ${r.question}`);
+      threadBits.push(`Earlier follow-up A: ${r.answer}`);
+    }
+    threadBits.push('Answer the follow-up in the context of this thread — do not require the traveller to restate prior details.');
+  }
+
+  const contextSummary = [itineraryContext, notesBits.join('\n'), threadBits.join('\n')]
+    .filter(Boolean)
+    .join('\n\n');
   const { answer, model } = await answerLocationQuestion(placeName, country, question, {
     apiKey,
     contextSummary
@@ -143,9 +162,19 @@ export async function applyLocationInfoQuestion(options: {
     answer,
     createdAt: new Date().toISOString()
   };
+
+  let nextThread = existing.aiQaThread ?? [];
+  if (parentQaId) {
+    nextThread = nextThread.map((item) =>
+      item.id === parentQaId ? { ...item, replies: [...(item.replies ?? []), qa] } : item
+    );
+  } else {
+    nextThread = [...nextThread, qa];
+  }
+
   const merged: LocationInfoNotes = {
     ...existing,
-    aiQaThread: [...(existing.aiQaThread ?? []), qa],
+    aiQaThread: nextThread,
     aiModel: model,
     aiError: ''
   };
@@ -218,9 +247,10 @@ export function scheduleLocationInfoQuestion(options: {
   place: Place;
   apiKey: string;
   question: string;
+  parentQaId?: string;
   onComplete?: () => void;
 }): void {
-  const { spContext, entry, place, apiKey, question, onComplete } = options;
+  const { spContext, entry, place, apiKey, question, parentQaId, onComplete } = options;
   const key = (apiKey || '').trim();
   if (!key) return;
   const parsed = parseLocationInfoNotes(entry.notes);
@@ -243,7 +273,8 @@ export function scheduleLocationInfoQuestion(options: {
         existing: latest,
         apiKey: key,
         place,
-        question: q
+        question: q,
+        parentQaId
       });
       emitLocationInfoAIStatus({ entryId: entry.id, loading: false, section: 'qa', success: true });
       if (targetEntry.id !== entry.id) {

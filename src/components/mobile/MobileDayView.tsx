@@ -15,7 +15,7 @@ import { CategoryIcon } from '../shared/CategoryIcon';
 import { DayLocationInfoStrip } from '../itinerary/DayLocationInfoStrip';
 import { locationInfoEntriesForDay } from '../../utils/locationInfoDayResolve';
 import { parseLocationInfoNotes } from '../../utils/locationInfoEntry';
-import { compactPlaceLabel } from '../../utils/placeDisplayLabel';
+import { compactPlaceLabel, placeDisplayLabel } from '../../utils/placeDisplayLabel';
 import { TravellerAvatar } from '../shared/TravellerAvatar';
 import { useConfig } from '../../context/ConfigContext';
 import { MobileDayMapSnippet } from './MobileDayMapSnippet';
@@ -912,6 +912,23 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
             ]
               .filter(Boolean)
               .join(' · ') || undefined
+          }
+          overnightLabel={
+            stayTile?.entry
+              ? [stayTile.entry.title, stayTile.entry.location || stayTile.entry.streetAddress]
+                  .map((s) => (s || '').trim())
+                  .filter(Boolean)
+                  .join(' · ') || undefined
+              : undefined
+          }
+          placeLabel={
+            dayLocationEntries[0]
+              ? (() => {
+                  const notes = parseLocationInfoNotes(dayLocationEntries[0].notes);
+                  const place = notes ? placeById(notes.placeId) : undefined;
+                  return place ? placeDisplayLabel(place) : dayLocationEntries[0].title;
+                })()
+              : day?.displayTitle || undefined
           }
         />
       </div>

@@ -896,8 +896,17 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                       setCreateAssignedTo('');
                       setCreateCustomTaskCategory('');
                       refresh();
+                      window.dispatchEvent(new Event('trip-reminders-updated'));
                     })
-                    .catch(console.error);
+                    .catch((err) => {
+                      // eslint-disable-next-line no-console
+                      console.error(err);
+                      window.alert(
+                        err instanceof Error
+                          ? err.message
+                          : `Could not save ${createKind === 'task' ? 'task' : 'reminder'}.`
+                      );
+                    });
                 }}
               >
                 Add {createKind === 'task' ? 'task' : 'reminder'}

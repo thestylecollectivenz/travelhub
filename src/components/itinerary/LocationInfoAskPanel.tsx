@@ -52,6 +52,9 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
   const [voiceError, setVoiceError] = React.useState<string | undefined>();
   const [autoReadAnswers, setAutoReadAnswers] = React.useState(false);
   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(() => new Set());
+  const [replyParentId, setReplyParentId] = React.useState<string | null>(null);
+  const [replyDraft, setReplyDraft] = React.useState('');
+  const [repliesExpanded, setRepliesExpanded] = React.useState<Set<string>>(() => new Set());
   const { speechState, speak, pause, resume, stop: stopSpeech } = useSpeechOutput();
   const appendVoiceInput = React.useCallback((chunk: string) => {
     setQuestion((prev) => `${prev}${prev ? ' ' : ''}${chunk}`);
@@ -71,6 +74,8 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
       } else if (detail.success) {
         setAskError(undefined);
         setQuestion('');
+        setReplyDraft('');
+        setReplyParentId(null);
         stopVoiceInput();
       }
     });
@@ -149,6 +154,25 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
       apiKey: geminiApiKey,
       question: q
     });
+  };
+
+  const submitReply = (parentId: string): void => {
+    if (!place || !hasKey || readOnly) return;
+    const q = replyDraft.trim();
+    if (!q) return;
+    stopVoiceInput();
+    setAskError(undefined);
+    setRepliesExpanded((prev) => new Set(prev).add(parentId));
+    scheduleLocationInfoQuestion({
+      spContext,
+      entry,
+      place,
+      apiKey: geminiApiKey,
+      question: q,
+      parentQaId: parentId
+    });
+    setReplyDraft('');
+    setReplyParentId(null);
   };
 
   const toggleExpanded = (id: string): void => {
@@ -395,8 +419,130 @@ export const LocationInfoAskPanel: React.FC<LocationInfoAskPanelProps> = ({
                                 />
                               </svg>
                             </button>
+                            <button
+                              type="button"
+                              className={styles.iconBtn}
+                              aria-label="Reply"
+                              title="Ask a follow-up"
+                              disabled={asking || !hasKey || !place}
+                              onClick={() => {
+                                setReplyParentId((prev) => (prev === item.id ? null : item.id));
+                                setReplyDraft('');
+                              }}
+                            >
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                                <path
+                                  d="M4 12h12M12 6l6 6-6 6"
+                                  stroke="currentColor"
+                                  strokeWidth="1.7"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </button>
                           </>
                         )}
+                      </div>
+                    ) : null}
+                    {(item.replies?.length || replyParentId === item.id) && !readOnly ? (
+                      <div className={styles.replyThread}>
+                        {(item.replies?.length ?? 0) > 0 ? (
+                          <button
+                            type="button"
+                            className={styles.replyToggle}
+                            aria-expanded={repliesExpanded.has(item.id)}
+                            onClick={() =>
+                              setRepliesExpanded((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(item.id)) next.delete(item.id);
+                                else next.add(item.id);
+                                return next;
+                              })
+                            }
+                          >
+                            {repliesExpanded.has(item.id) ? '▾' : '▸'} {item.replies!.length} follow-up
+                            {item.replies!.length === 1 ? '' : 's'}
+                          </button>
+                        ) : null}
+                        {repliesExpanded.has(item.id)
+                          ? (item.replies ?? []).map((reply) => (
+                              <div key={reply.id} className={styles.replyItem}>
+                                <p className={styles.replyQ}>Q: {qaEntryTitle(reply)}</p>
+                                <div className={styles.replyA}>
+                                  {isLikelyJournalHtml(reply.answer) ? (
+                                    <RichTextContent html={reply.answer} />
+                                  ) : (
+                                    <LinkifiedText text={reply.answer} />
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          : null}
+                        {replyParentId === item.id ? (
+                          <div className={styles.replyComposer}>
+                            <textarea
+                              className={styles.askInput}
+                              rows={2}
+                              value={replyDraft}
+                              onChange={(e) => setReplyDraft(e.target.value)}
+                              placeholder="Ask a follow-up (keeps this thread’s context)…"
+                              aria-label="Follow-up question"
+                            />
+                            <div className={styles.askActions}>
+                              <button
+                                type="button"
+                                className={styles.askBtn}
+                                disabled={asking || !replyDraft.trim()}
+                                onClick={() => submitReply(item.id)}
+                              >
+                                {asking ? 'Asking…' : 'Reply'}
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.qaBtn}
+                                onClick={() => {
+                                  setReplyParentId(null);
+                                  setReplyDraft('');
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : item.replies?.length ? (
+                      <div className={styles.replyThread}>
+                        <button
+                          type="button"
+                          className={styles.replyToggle}
+                          aria-expanded={repliesExpanded.has(item.id)}
+                          onClick={() =>
+                            setRepliesExpanded((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(item.id)) next.delete(item.id);
+                              else next.add(item.id);
+                              return next;
+                            })
+                          }
+                        >
+                          {repliesExpanded.has(item.id) ? '▾' : '▸'} {item.replies.length} follow-up
+                          {item.replies.length === 1 ? '' : 's'}
+                        </button>
+                        {repliesExpanded.has(item.id)
+                          ? item.replies.map((reply) => (
+                              <div key={reply.id} className={styles.replyItem}>
+                                <p className={styles.replyQ}>Q: {qaEntryTitle(reply)}</p>
+                                <div className={styles.replyA}>
+                                  {isLikelyJournalHtml(reply.answer) ? (
+                                    <RichTextContent html={reply.answer} />
+                                  ) : (
+                                    <LinkifiedText text={reply.answer} />
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          : null}
                       </div>
                     ) : null}
                   </div>

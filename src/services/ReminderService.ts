@@ -1,6 +1,7 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 import { ensureReminderTaskNoteLong } from './provisioning/ensureReminderTaskNoteLong';
+import { ensureReminderTaskCategory } from './provisioning/ensureReminderTaskCategory';
 
 const LIST = 'TripReminders';
 /** SharePoint Text columns reject values over 255 chars — long meta goes to TaskNoteLong. */
@@ -74,6 +75,7 @@ function mapToSpItem(partial: Partial<TripReminder>): Record<string, unknown> {
 export class ReminderService {
   private readonly baseUrl: string;
   private ensuredLongNote = false;
+  private ensuredTaskCategory = false;
 
   constructor(private readonly ctx: WebPartContext) {
     this.baseUrl = `${ctx.pageContext.web.absoluteUrl}/_api/web/lists/getbytitle('${LIST}')/items`;
@@ -90,8 +92,23 @@ export class ReminderService {
     }
   }
 
+  private async ensureTaskCategoryColumn(): Promise<void> {
+    if (this.ensuredTaskCategory) return;
+    try {
+      await ensureReminderTaskCategory(this.ctx);
+      this.ensuredTaskCategory = true;
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('ReminderService: could not ensure TaskCategory column', err);
+    }
+  }
+
+  private async ensureColumns(): Promise<void> {
+    await Promise.all([this.ensureLongNoteColumn(), this.ensureTaskCategoryColumn()]);
+  }
+
   async getForTrip(tripId: string): Promise<TripReminder[]> {
-    await this.ensureLongNoteColumn();
+    await this.ensureColumns();
     const safeTripId = tripId.replace(/'/g, "''");
     const urlFull = `${this.baseUrl}?$select=ID,Title,TripId,DayId,EntryId,ReminderType,ReminderText,TaskNote,TaskNoteLong,TaskCategory,AssignedTo,DueDate,IsComplete&$filter=TripId eq '${safeTripId}'&$orderby=ID desc&$top=5000`;
     const urlNoLong = `${this.baseUrl}?$select=ID,Title,TripId,DayId,EntryId,ReminderType,ReminderText,TaskNote,TaskCategory,AssignedTo,DueDate,IsComplete&$filter=TripId eq '${safeTripId}'&$orderby=ID desc&$top=5000`;
@@ -111,25 +128,39 @@ export class ReminderService {
   }
 
   async create(input: Omit<TripReminder, 'id'>): Promise<TripReminder> {
-    await this.ensureLongNoteColumn();
+    await this.ensureColumns();
     const body = mapToSpItem(input);
-    let resp = await this.ctx.spHttpClient.post(this.baseUrl, SPHttpClient.configurations.v1, {
-      headers: { 'Content-Type': 'application/json;odata.metadata=minimal', Accept: 'application/json;odata.metadata=minimal' },
-      body: JSON.stringify(body)
-    });
+    const post = async (payload: Record<string, unknown>): Promise<SPHttpClientResponse> =>
+      this.ctx.spHttpClient.post(this.baseUrl, SPHttpClient.configurations.v1, {
+        headers: { 'Content-Type': 'application/json;odata.metadata=minimal', Accept: 'application/json;odata.metadata=minimal' },
+        body: JSON.stringify(payload)
+      });
+
+    let resp = await post(body);
+    if (!resp.ok && resp.status === 400) {
+      this.ensuredLongNote = false;
+      this.ensuredTaskCategory = false;
+      await this.ensureColumns();
+      resp = await post(body);
+    }
+    if (!resp.ok && resp.status === 400 && body.TaskCategory !== undefined) {
+      const { TaskCategory: _cat, ...noCat } = body;
+      resp = await post(noCat);
+    }
     if (!resp.ok && resp.status === 400 && body.TaskNoteLong !== undefined) {
       const { TaskNoteLong: _long, ...shortOnly } = body;
-      resp = await this.ctx.spHttpClient.post(this.baseUrl, SPHttpClient.configurations.v1, {
-        headers: { 'Content-Type': 'application/json;odata.metadata=minimal', Accept: 'application/json;odata.metadata=minimal' },
-        body: JSON.stringify(shortOnly)
-      });
+      resp = await post(shortOnly);
+      if (!resp.ok && resp.status === 400 && body.TaskCategory !== undefined) {
+        const { TaskCategory: _cat2, ...shortNoCat } = shortOnly;
+        resp = await post(shortNoCat);
+      }
     }
     if (!resp.ok) throw new Error(`ReminderService.create failed: ${resp.status}`);
     return mapToReminder(await resp.json());
   }
 
   async update(id: string, partial: Partial<Omit<TripReminder, 'id' | 'tripId'>>): Promise<void> {
-    await this.ensureLongNoteColumn();
+    await this.ensureColumns();
     const body = mapToSpItem(partial);
     const noteLen = partial.taskNote !== undefined ? (partial.taskNote || '').length : 0;
     const needsLong = noteLen > TASK_NOTE_TEXT_MAX;
@@ -146,11 +177,15 @@ export class ReminderService {
       });
 
     let resp = await patch(body);
-    if (!resp.ok && resp.status !== 204 && resp.status === 400 && body.TaskNoteLong !== undefined) {
-      // Column may still be provisioning — re-ensure once, then retry full payload.
+    if (!resp.ok && resp.status !== 204 && resp.status === 400) {
       this.ensuredLongNote = false;
-      await this.ensureLongNoteColumn();
+      this.ensuredTaskCategory = false;
+      await this.ensureColumns();
       resp = await patch(body);
+    }
+    if (!resp.ok && resp.status !== 204 && resp.status === 400 && body.TaskCategory !== undefined) {
+      const { TaskCategory: _cat, ...noCat } = body;
+      resp = await patch(noCat);
     }
     if (!resp.ok && resp.status !== 204 && resp.status === 400 && body.TaskNoteLong !== undefined && !needsLong) {
       const { TaskNoteLong: _long, ...shortOnly } = body;
@@ -159,10 +194,10 @@ export class ReminderService {
     if (!resp.ok && resp.status !== 204) {
       if (needsLong) {
         throw new Error(
-          'ReminderService.update failed: TaskNoteLong column is required for idea Q&A. Wait a moment after first open and try again.'
+          'Could not save the AI answer: the long-note field is still provisioning. Wait a few seconds and try again.'
         );
       }
-      throw new Error(`ReminderService.update failed: ${resp.status}`);
+      throw new Error(`Could not save reminder/idea (SharePoint ${resp.status}).`);
     }
   }
 

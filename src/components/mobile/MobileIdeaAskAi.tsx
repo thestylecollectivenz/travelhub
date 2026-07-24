@@ -19,6 +19,8 @@ export interface IdeaQaEntry {
 export interface MobileIdeaAskAiProps {
   ideaText: string;
   locationLabel?: string;
+  /** Overnight base for the day (hotel/cruise) — hotels only apply here. */
+  overnightLabel?: string;
   dayLabel?: string;
   thread: IdeaQaEntry[];
   onThreadChange: (next: IdeaQaEntry[]) => void | Promise<void>;
@@ -44,6 +46,7 @@ export function sanitizeIdeaAiAnswer(raw: string): string {
 export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
   ideaText,
   locationLabel,
+  overnightLabel,
   dayLabel,
   thread,
   onThreadChange,
@@ -94,7 +97,13 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
       const contextSummary = [
         `Trip idea: ${ideaText}`,
         dayLabel ? `Day / date: ${dayLabel}` : '',
-        placeLabel ? `Idea location: ${placeLabel}` : ''
+        overnightLabel
+          ? `Overnight base (where we sleep that night — hotel/cruise only if listed): ${overnightLabel}`
+          : 'Overnight base: not listed for this day yet',
+        placeLabel
+          ? `Idea / visit place (day visit — do NOT assume a hotel here unless listed): ${placeLabel}`
+          : '',
+        'Rule: Hotels and cruise cabins apply only to overnight stays. Day trips use the overnight base; do not mention missing hotels at day-visit places.'
       ]
         .filter(Boolean)
         .join('\n');
@@ -114,8 +123,12 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
       setQuestion('');
       try {
         await onThreadChange(next);
-      } catch {
-        setError('Answer received but could not save — check your connection and try asking again.');
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Answer received but could not save. Wait a moment and try again.'
+        );
       }
       if (entry.answer) speak(entry.answer);
     } catch (err) {

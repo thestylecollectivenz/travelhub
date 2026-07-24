@@ -393,3 +393,49 @@
   gap: 0.35rem;
   margin-top: 0.45rem;
 }
+
+.replyThread {
+  margin-top: 0.65rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid color-mix(in srgb, #1e2a44 8%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.replyToggle {
+  border: none;
+  background: none;
+  color: #2f5eb8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+}
+
+.replyItem {
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.55rem;
+  background: color-mix(in srgb, #1e2a44 3%, white);
+}
+
+.replyQ {
+  margin: 0 0 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #1e2a44;
+}
+
+.replyA {
+  font-size: 0.82rem;
+  color: #3d4659;
+  line-height: 1.4;
+}
+
+.replyComposer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}

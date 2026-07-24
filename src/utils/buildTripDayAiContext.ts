@@ -300,12 +300,17 @@ export function buildLocationPlaceAiContext(options: {
     }
   }
 
-  lines.push('Our stay for this place (use this when the traveller says “our hotel”, “the hotel”, or “our stay”):');
+  lines.push('Overnight stays for days that include this place (use when the traveller asks about “our hotel” / “our stay”):');
   if (stayLines.length) {
     stayLines.forEach((l) => lines.push(l));
   } else {
-    lines.push('- (no hotel or cruise stay linked on days at this place yet)');
+    lines.push(
+      '- (no overnight hotel/cruise stay linked on days at this place — it may be a day visit from another overnight base)'
+    );
   }
+  lines.push(
+    'Note: If this place is only visited as a day trip, do not expect or mention a hotel here; use the overnight base from the itinerary instead.'
+  );
 
   lines.push('');
   lines.push('Plans and itinerary items on days at this place:');

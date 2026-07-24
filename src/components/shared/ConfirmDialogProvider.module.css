@@ -1,7 +1,8 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  z-index: 14000;
+  /* Above itinerary edit slide-out (13000) and other mobile portals. */
+  z-index: 26000;
   background: rgba(15, 23, 42, 0.45);
   display: flex;
   align-items: center;

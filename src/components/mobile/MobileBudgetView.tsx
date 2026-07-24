@@ -273,7 +273,7 @@ export const MobileBudgetView: React.FC<MobileBudgetViewProps> = ({ onOpenPlan }
             <div className={styles.lineMoney}>
               <span className={styles.lineTotal}>{formatCurrency(line.total, home)}</span>
               <span className={styles.lineSplit}>
-                Spent {formatCurrency(line.spent, home)} · Left {formatCurrency(line.remaining, home)}
+                Spent {formatCurrency(line.spent, home)} · Remaining {formatCurrency(line.remaining, home)}
               </span>
             </div>
           );
@@ -301,7 +301,7 @@ export const MobileBudgetView: React.FC<MobileBudgetViewProps> = ({ onOpenPlan }
             <div className={styles.lineMoney}>
               <span className={styles.lineTotal}>{formatCurrency(totals.total, home)}</span>
               <span className={styles.lineSplit}>
-                Spent {formatCurrency(totals.spent, home)} · Left {formatCurrency(totals.remaining, home)}
+                Spent {formatCurrency(totals.spent, home)} · Remaining {formatCurrency(totals.remaining, home)}
               </span>
             </div>
           </div>
@@ -610,7 +610,7 @@ export const MobileBudgetView: React.FC<MobileBudgetViewProps> = ({ onOpenPlan }
                       <span className={styles.catHeadlineValue}>{formatCurrency(totals.spent, home)}</span>
                     </span>
                     <span className={styles.catHeadlineItem}>
-                      <span className={styles.catHeadlineLabel}>Left</span>
+                      <span className={styles.catHeadlineLabel}>Remaining</span>
                       <span className={styles.catHeadlineValue}>{formatCurrency(totals.remaining, home)}</span>
                     </span>
                   </span>

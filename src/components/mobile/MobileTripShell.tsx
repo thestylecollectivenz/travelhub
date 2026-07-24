@@ -28,6 +28,8 @@ import { saveTripSavedSpot } from '../../utils/tripSavedSpots';
 import { useTripMembers } from '../../hooks/useTripMembers';
 import { consumePendingMobileItineraryEdit } from '../../utils/mobileItineraryEditPending';
 import { consumePendingMobileHomeAsk } from '../../utils/mobileHomePendingAsk';
+import { flushItineraryEdit } from '../../utils/itineraryEditFlush';
+import { isPendingItineraryEntryId } from '../../utils/itineraryEntryIds';
 import { notifyExpandUnscheduled } from '../../utils/mobileItineraryUiEvents';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { ItineraryCardEdit } from '../itinerary/ItineraryCardEdit';
@@ -336,7 +338,12 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
         <button
           type="button"
           className={styles.backBtn}
-          onClick={() => closeCardDetailRef.current?.()}
+          onClick={() => {
+            // Persist open edit form before tearing down the detail portal.
+            flushItineraryEdit();
+            setEditingCardId(null);
+            closeCardDetailRef.current?.();
+          }}
           aria-label="Back to day"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ verticalAlign: 'middle', marginRight: 3 }} aria-hidden>
@@ -571,7 +578,21 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
                     updateEntry(saved, { persistPending: true });
                     setEditingCardId(null);
                   }}
-                  onCancel={() => setEditingCardId(null)}
+                  onCancel={() => {
+                    if (isPendingItineraryEntryId(editingEntry.id)) {
+                      const hasContent = Boolean(
+                        editingEntry.title.trim() ||
+                          editingEntry.supplier.trim() ||
+                          (editingEntry.location ?? '').trim() ||
+                          editingEntry.notes.trim() ||
+                          editingEntry.duration.trim() ||
+                          editingEntry.timeStart.trim()
+                      );
+                      // Form draft may have content not yet in localEntries — flush cancels blank only via edit form.
+                      if (!hasContent) deleteEntry(editingEntry.id);
+                    }
+                    setEditingCardId(null);
+                  }}
                   onDelete={() => {
                     void (async () => {
                       if (!(await confirmUserAction('Delete this itinerary item?'))) return;

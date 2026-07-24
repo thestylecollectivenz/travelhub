@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import styles from './ConfirmDialogProvider.module.css';
 
 type ConfirmState = {
@@ -57,48 +58,54 @@ export const ConfirmDialogProvider: React.FC<{ children: React.ReactNode }> = ({
     setState(null);
   }, []);
 
+  const dialog =
+    state && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            className={styles.backdrop}
+            role="presentation"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) close(false);
+            }}
+          >
+            <div
+              className={styles.dialog}
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="th-confirm-title"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <h2 id="th-confirm-title" className={styles.title}>
+                Confirm
+              </h2>
+              <p className={styles.message}>{state.message}</p>
+              {state.detail ? <p className={styles.detail}>{state.detail}</p> : null}
+              <div className={styles.actions}>
+                <button type="button" className={styles.cancelBtn} onClick={() => close(false)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className={styles.confirmBtn}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    close(true);
+                  }}
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
     <ConfirmContext.Provider value={confirm}>
       {children}
-      {state ? (
-        <div
-          className={styles.backdrop}
-          role="presentation"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) close(false);
-          }}
-        >
-          <div
-            className={styles.dialog}
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="th-confirm-title"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <h2 id="th-confirm-title" className={styles.title}>
-              Confirm
-            </h2>
-            <p className={styles.message}>{state.message}</p>
-            {state.detail ? <p className={styles.detail}>{state.detail}</p> : null}
-            <div className={styles.actions}>
-              <button type="button" className={styles.cancelBtn} onClick={() => close(false)}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className={styles.confirmBtn}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  close(true);
-                }}
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {dialog}
     </ConfirmContext.Provider>
   );
 };

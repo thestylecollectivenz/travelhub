@@ -16,6 +16,7 @@ import { AccommodationEditLayout, CancellationPolicyFields, FlightEditLayout, Lo
 import { EntryFilesLinksPanel } from './EntryFilesLinksPanel';
 import { isLocationInfoEntry } from '../../utils/locationInfoEntry';
 import { isPendingItineraryEntryId, isPendingSubItemId } from '../../utils/itineraryEntryIds';
+import { registerItineraryEditFlush } from '../../utils/itineraryEditFlush';
 import { editableEntryToSubItem } from '../../utils/optionEntryAdapter';
 import { RichTextField } from '../shared/RichTextField';
 import type { EntryDocumentType, EntryLinkType } from '../../models';
@@ -541,6 +542,14 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           (draft.transportTo ?? '').trim() ||
           (draft.transportMode ?? '').trim()
       ));
+
+  // Mobile header Back flushes the open form so edits are not lost when leaving the portal.
+  React.useEffect(() => {
+    return registerItineraryEditFlush(() => {
+      if (canSave) handleSave();
+      else onCancel();
+    });
+  }, [canSave, handleSave, onCancel]);
 
   const layoutProps = {
     draft,

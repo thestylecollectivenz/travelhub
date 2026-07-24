@@ -20,6 +20,8 @@ export type LocationInfoQaEntry = {
   question: string;
   answer: string;
   createdAt: string;
+  /** Follow-up Q&A nested under this answer (collapsible thread). */
+  replies?: LocationInfoQaEntry[];
 };
 
 /** Saved tip with optional Ask-AI thread (legacy tips were plain strings). */
@@ -549,10 +551,20 @@ function mergeQaThreads(primary: LocationInfoQaEntry[], secondary: LocationInfoQ
     const q = row.question.trim();
     const a = row.answer.trim();
     const pairKey = `${q.toLowerCase()}::${a.toLowerCase()}`;
-    if (byId.has(row.id) || (q && a && byQuestionAnswer.has(pairKey))) continue;
+    if (byId.has(row.id)) {
+      const idx = out.findIndex((x) => x.id === row.id);
+      if (idx >= 0) {
+        out[idx] = {
+          ...out[idx],
+          ...row,
+          replies: mergeQaThreads(out[idx].replies ?? [], row.replies ?? [])
+        };
+      }
+      continue;
+    }
+    if (q && a && byQuestionAnswer.has(pairKey)) continue;
 
     // Same question, different answer: keep both so nothing is lost.
-    // Same question+answer: skip as true duplicate (handled above).
     out.push(row);
     byId.add(row.id);
     if (q && a) byQuestionAnswer.add(pairKey);

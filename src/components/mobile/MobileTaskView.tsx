@@ -40,37 +40,42 @@ const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
   React.useEffect(() => {
     if (!trip?.id) return;
     const today = localTodayYmd();
-    const svc = new ReminderService(spContext);
-    void svc.getForTrip(trip.id).then((rows) => {
-      const manual = rows.filter(
-        (r) =>
-          !isDayIdeaReminder(r) &&
-          !isSavedSpotReminder(r) &&
-          !isJotterIdeaReminder(r) &&
-          (r.reminderType === 'Manual' ||
-          r.reminderType === 'ManualEntryTask' ||
-          r.reminderType === 'Custom' ||
-          r.reminderType === 'CancellationDeadline')
-      );
-      let open = 0;
-      let overdue = 0;
-      let dueToday = 0;
-      let done = 0;
-      for (const m of manual) {
-        if (m.isComplete) {
-          done += 1;
-          continue;
+    const load = (): void => {
+      const svc = new ReminderService(spContext);
+      void svc.getForTrip(trip.id).then((rows) => {
+        const manual = rows.filter(
+          (r) =>
+            !isDayIdeaReminder(r) &&
+            !isSavedSpotReminder(r) &&
+            !isJotterIdeaReminder(r) &&
+            (r.reminderType === 'Manual' ||
+            r.reminderType === 'ManualEntryTask' ||
+            r.reminderType === 'Custom' ||
+            r.reminderType === 'CancellationDeadline')
+        );
+        let open = 0;
+        let overdue = 0;
+        let dueToday = 0;
+        let done = 0;
+        for (const m of manual) {
+          if (m.isComplete) {
+            done += 1;
+            continue;
+          }
+          open += 1;
+          const bucket = dueYmdBucket(ymdFromIso(m.dueDate), today);
+          if (bucket === 'overdue') overdue += 1;
+          if (bucket === 'today') dueToday += 1;
         }
-        open += 1;
-        const bucket = dueYmdBucket(ymdFromIso(m.dueDate), today);
-        if (bucket === 'overdue') overdue += 1;
-        if (bucket === 'today') dueToday += 1;
-      }
-      setOpenCount(open);
-      setOverdueCount(overdue);
-      setDueTodayCount(dueToday);
-      setDoneCount(done);
-    });
+        setOpenCount(open);
+        setOverdueCount(overdue);
+        setDueTodayCount(dueToday);
+        setDoneCount(done);
+      });
+    };
+    load();
+    window.addEventListener('trip-reminders-updated', load);
+    return () => window.removeEventListener('trip-reminders-updated', load);
   }, [trip?.id, spContext]);
 
   return (
