@@ -99,6 +99,9 @@ export const MobileBudgetView: React.FC<MobileBudgetViewProps> = ({ onOpenPlan }
   const [certaintyFilter, setCertaintyFilter] = React.useState<CertaintyFilter>(null);
   const [supplierFilter, setSupplierFilter] = React.useState<string | null>(null);
   const [printHtml, setPrintHtml] = React.useState<string | null>(null);
+  /** Categories expanded in All categories view — start empty (all collapsed). */
+  const [expandedCats, setExpandedCats] = React.useState<ReadonlySet<string>>(() => new Set());
+  const isIpad = shellMode === 'ipad-portrait';
 
   const locationFor = React.useCallback(
     (entry: ItineraryEntry, sub?: ItinerarySubItem): string => {
@@ -221,60 +224,88 @@ export const MobileBudgetView: React.FC<MobileBudgetViewProps> = ({ onOpenPlan }
     }
     const totals = sumBudgetLines(visible);
     return (
-      <div className={styles.lineList}>
+      <div className={`${styles.lineList} ${isIpad ? styles.lineListCols : ''}`.trim()}>
+        {isIpad ? (
+          <div className={`${styles.lineRow} ${styles.lineHeader}`} aria-hidden>
+            <span>Details</span>
+            <span className={styles.colMoney}>Total</span>
+            <span className={styles.colMoney}>Spent</span>
+            <span className={styles.colMoney}>Remaining</span>
+          </div>
+        ) : null}
+        {isIpad ? (
+          <div className={`${styles.lineRow} ${styles.lineTotals}`}>
+            <span className={styles.totalsLabel}>Totals ({visible.length})</span>
+            <span className={`${styles.lineAmount} ${styles.colMoney}`}>{formatCurrency(totals.total, home)}</span>
+            <span className={`${styles.lineAmount} ${styles.colMoney}`}>{formatCurrency(totals.spent, home)}</span>
+            <span className={`${styles.lineAmount} ${styles.colMoney}`}>{formatCurrency(totals.remaining, home)}</span>
+          </div>
+        ) : null}
         {visible.map((line) => {
           const estimated = line.costCertainty === 'Estimated';
           const clickable = canEditItinerary;
-          const body = (
-            <>
-              <div className={styles.lineMain}>
-                <span className={styles.lineTitle}>{line.title}</span>
-                {line.supplier ? <span className={styles.lineMeta}>{line.supplier}</span> : null}
-                {line.locationLine ? <span className={styles.lineMeta}>{line.locationLine}</span> : null}
-                {line.dateLines.map((d) => (
-                  <span key={d} className={styles.lineMeta}>
-                    {d}
-                  </span>
-                ))}
-                {line.spanLabel ? <span className={styles.lineMeta}>{line.spanLabel}</span> : null}
-                {line.avgPerDay !== undefined && line.avgPerDay > 0 ? (
-                  <span className={styles.lineMeta}>
-                    Avg {formatCurrency(line.avgPerDay, home)} / {avgUnitLabel(line.spanLabel)}
-                  </span>
-                ) : null}
-              </div>
-              <div className={styles.lineMoney}>
-                <span className={styles.lineTotal}>{formatCurrency(line.total, home)}</span>
-                <span className={styles.lineSplit}>
-                  Spent {formatCurrency(line.spent, home)} · Left {formatCurrency(line.remaining, home)}
+          const title = line.isSubItem ? `${line.title} (${line.parentTitle || 'Card'})` : line.title;
+          const details = (
+            <div className={styles.lineMain}>
+              <span className={styles.lineTitle}>{title}</span>
+              {line.supplier ? <span className={styles.lineMeta}>{line.supplier}</span> : null}
+              {line.locationLine ? <span className={styles.lineMeta}>{line.locationLine}</span> : null}
+              {line.dateLines.map((d) => (
+                <span key={d} className={styles.lineMeta}>
+                  {d}
                 </span>
-              </div>
-            </>
+              ))}
+              {line.spanLabel ? <span className={styles.lineMeta}>{line.spanLabel}</span> : null}
+              {line.avgPerDay !== undefined && line.avgPerDay > 0 ? (
+                <span className={styles.lineMeta}>
+                  Avg {formatCurrency(line.avgPerDay, home)} / {avgUnitLabel(line.spanLabel)}
+                </span>
+              ) : null}
+            </div>
           );
+          const money = isIpad ? (
+            <>
+              <span className={`${styles.lineAmount} ${styles.colMoney}`}>{formatCurrency(line.total, home)}</span>
+              <span className={`${styles.lineAmount} ${styles.colMoney}`}>{formatCurrency(line.spent, home)}</span>
+              <span className={`${styles.lineAmount} ${styles.colMoney}`}>{formatCurrency(line.remaining, home)}</span>
+            </>
+          ) : (
+            <div className={styles.lineMoney}>
+              <span className={styles.lineTotal}>{formatCurrency(line.total, home)}</span>
+              <span className={styles.lineSplit}>
+                Spent {formatCurrency(line.spent, home)} · Left {formatCurrency(line.remaining, home)}
+              </span>
+            </div>
+          );
+          const rowClass = `${styles.lineRow} ${estimated ? styles.lineEstimated : ''}`.trim();
           return clickable ? (
             <button
               key={line.id}
               type="button"
-              className={`${styles.lineRow} ${estimated ? styles.lineEstimated : ''}`}
+              className={rowClass}
               onClick={() => openEntryForEdit(line.entryId, line.subItemId)}
             >
-              {body}
+              {details}
+              {money}
             </button>
           ) : (
-            <div key={line.id} className={`${styles.lineRow} ${estimated ? styles.lineEstimated : ''}`}>
-              {body}
+            <div key={line.id} className={rowClass}>
+              {details}
+              {money}
             </div>
           );
         })}
-        <div className={`${styles.lineRow} ${styles.lineTotals}`}>
-          <span className={styles.totalsLabel}>Totals ({visible.length})</span>
-          <div className={styles.lineMoney}>
-            <span className={styles.lineTotal}>{formatCurrency(totals.total, home)}</span>
-            <span className={styles.lineSplit}>
-              Spent {formatCurrency(totals.spent, home)} · Left {formatCurrency(totals.remaining, home)}
-            </span>
+        {!isIpad ? (
+          <div className={`${styles.lineRow} ${styles.lineTotals}`}>
+            <span className={styles.totalsLabel}>Totals ({visible.length})</span>
+            <div className={styles.lineMoney}>
+              <span className={styles.lineTotal}>{formatCurrency(totals.total, home)}</span>
+              <span className={styles.lineSplit}>
+                Spent {formatCurrency(totals.spent, home)} · Left {formatCurrency(totals.remaining, home)}
+              </span>
+            </div>
           </div>
-        </div>
+        ) : null}
       </div>
     );
   };
@@ -284,19 +315,73 @@ export const MobileBudgetView: React.FC<MobileBudgetViewProps> = ({ onOpenPlan }
     [entries, category, convertToHomeCurrency, dayLabelFor, tripDays, locationFor]
   );
 
+  const allCategoryBlocks = React.useMemo(() => {
+    return BUDGET_CATEGORY_ORDER.map((cat) => {
+      const lines = buildBudgetDetailLines(
+        entries,
+        cat,
+        convertToHomeCurrency,
+        dayLabelFor,
+        tripDays,
+        locationFor
+      );
+      if (!lines.length) return null;
+      const visible = filterLines(lines, entries, certaintyFilter, lineSort, supplierFilter);
+      const totals = sumBudgetLines(visible.length ? visible : lines);
+      return { cat, lines, visible, totals };
+    }).filter(Boolean) as Array<{
+      cat: BudgetCategoryKey;
+      lines: BudgetDetailLine[];
+      visible: BudgetDetailLine[];
+      totals: ReturnType<typeof sumBudgetLines>;
+    }>;
+  }, [
+    entries,
+    convertToHomeCurrency,
+    dayLabelFor,
+    tripDays,
+    locationFor,
+    certaintyFilter,
+    lineSort,
+    supplierFilter
+  ]);
+
+  const allCatKeys = React.useMemo(() => allCategoryBlocks.map((b) => b.cat), [allCategoryBlocks]);
+
+  const expandAllCats = React.useCallback((): void => {
+    setExpandedCats(new Set(allCatKeys));
+  }, [allCatKeys]);
+
+  const collapseAllCats = React.useCallback((): void => {
+    setExpandedCats(new Set());
+  }, []);
+
+  const toggleCat = React.useCallback((cat: string): void => {
+    setExpandedCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  }, []);
+
+  const switchToAll = React.useCallback((): void => {
+    setViewMode('all');
+    setSelectedBudgetCategory(null);
+    setExpandedCats(new Set());
+  }, [setSelectedBudgetCategory]);
+
   const suppliers = React.useMemo(() => {
     const source =
       viewMode === 'category'
         ? categoryLines
-        : BUDGET_CATEGORY_ORDER.flatMap((cat) =>
-            buildBudgetDetailLines(entries, cat, convertToHomeCurrency, dayLabelFor, tripDays, locationFor)
-          );
+        : allCategoryBlocks.flatMap((b) => b.lines);
     const set = new Set<string>();
     for (const line of source) {
       if (line.supplier) set.add(line.supplier);
     }
     return Array.from(set).sort();
-  }, [viewMode, categoryLines, entries, convertToHomeCurrency, dayLabelFor, tripDays, locationFor]);
+  }, [viewMode, categoryLines, allCategoryBlocks]);
 
   React.useEffect(() => {
     setSupplierFilter(null);
@@ -336,7 +421,22 @@ export const MobileBudgetView: React.FC<MobileBudgetViewProps> = ({ onOpenPlan }
         </div>
       </div>
 
-      <MobileFilterDisclosure open={filtersOpen} onToggle={() => setFiltersOpen((v) => !v)}>
+      <MobileFilterDisclosure
+        open={filtersOpen}
+        onToggle={() => setFiltersOpen((v) => !v)}
+        trailing={
+          viewMode === 'all' ? (
+            <>
+              <button type="button" className={chrome.filterToggle} onClick={expandAllCats}>
+                Expand all
+              </button>
+              <button type="button" className={chrome.filterToggle} onClick={collapseAllCats}>
+                Collapse all
+              </button>
+            </>
+          ) : undefined
+        }
+      >
         <div className={chrome.filterPanel}>
           <div>
             <p className={chrome.filterGroupTitle}>View</p>
@@ -351,10 +451,7 @@ export const MobileBudgetView: React.FC<MobileBudgetViewProps> = ({ onOpenPlan }
               <button
                 type="button"
                 className={`${chrome.chip} ${viewMode === 'all' ? chrome.chipActive : ''}`}
-                onClick={() => {
-                  setViewMode('all');
-                  setSelectedBudgetCategory(null);
-                }}
+                onClick={switchToAll}
               >
                 All categories
               </button>
@@ -484,25 +581,41 @@ export const MobileBudgetView: React.FC<MobileBudgetViewProps> = ({ onOpenPlan }
         </section>
       ) : (
         <div className={styles.allCategories}>
-          {BUDGET_CATEGORY_ORDER.map((cat) => {
-            const lines = buildBudgetDetailLines(
-              entries,
-              cat,
-              convertToHomeCurrency,
-              dayLabelFor,
-              tripDays,
-              locationFor
-            );
-            if (!lines.length) return null;
+          {allCategoryBlocks.map(({ cat, lines, totals }) => {
+            const open = expandedCats.has(cat);
             return (
               <section key={cat} className={styles.section}>
-                <header className={styles.sectionHead}>
-                  <span className={`th-cat-${getCategorySlug(cat)} th-cat-icon`}>
-                    <CategoryIcon category={cat} size={18} />
+                <button
+                  type="button"
+                  className={styles.catToggle}
+                  aria-expanded={open}
+                  onClick={() => toggleCat(cat)}
+                >
+                  <span className={styles.catToggleLeft}>
+                    <span className={styles.catChevron} aria-hidden>
+                      {open ? '▾' : '▸'}
+                    </span>
+                    <span className={`th-cat-${getCategorySlug(cat)} th-cat-icon`}>
+                      <CategoryIcon category={cat} size={18} />
+                    </span>
+                    <span className={styles.sectionTitle}>{cat}</span>
                   </span>
-                  <h3 className={styles.sectionTitle}>{cat}</h3>
-                </header>
-                {renderLineList(lines, cat)}
+                  <span className={styles.catHeadline} aria-label={`${cat} totals`}>
+                    <span className={styles.catHeadlineItem}>
+                      <span className={styles.catHeadlineLabel}>Total</span>
+                      <span className={styles.catHeadlineValue}>{formatCurrency(totals.total, home)}</span>
+                    </span>
+                    <span className={styles.catHeadlineItem}>
+                      <span className={styles.catHeadlineLabel}>Spent</span>
+                      <span className={styles.catHeadlineValue}>{formatCurrency(totals.spent, home)}</span>
+                    </span>
+                    <span className={styles.catHeadlineItem}>
+                      <span className={styles.catHeadlineLabel}>Left</span>
+                      <span className={styles.catHeadlineValue}>{formatCurrency(totals.remaining, home)}</span>
+                    </span>
+                  </span>
+                </button>
+                {open ? renderLineList(lines, cat) : null}
               </section>
             );
           })}

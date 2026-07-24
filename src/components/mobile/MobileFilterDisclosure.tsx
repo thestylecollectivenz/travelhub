@@ -19,6 +19,8 @@ export interface MobileFilterDisclosureProps {
   onToggle: () => void;
   label?: string;
   children?: React.ReactNode;
+  /** Optional controls shown beside the filter toggle (e.g. Expand all). */
+  trailing?: React.ReactNode;
 }
 
 /** Filters stay hidden until the filter control is tapped (mobile + iPad). */
@@ -26,10 +28,12 @@ export const MobileFilterDisclosure: React.FC<MobileFilterDisclosureProps> = ({
   open,
   onToggle,
   label = 'Filters',
-  children
+  children,
+  trailing
 }) => (
   <>
     <div className={chrome.filterToggleRow}>
+      {trailing ? <div className={chrome.filterToggleExtras}>{trailing}</div> : null}
       <button
         type="button"
         className={open ? chrome.filterToggleOn : chrome.filterToggle}
