@@ -32,7 +32,7 @@ import { notifyExpandUnscheduled } from '../../utils/mobileItineraryUiEvents';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { ItineraryCardEdit } from '../itinerary/ItineraryCardEdit';
 import cardStyles from '../itinerary/ItineraryCard.module.css';
-import { MobileDayView } from './MobileDayView';
+import { MobileItineraryPage } from './MobileItineraryPage';
 import { MobileJournalView } from './MobileJournalView';
 import { MobileListsView } from './MobileListsView';
 import { MobileMapView } from './MobileMapView';
@@ -416,7 +416,13 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
       break;
     }
     default:
-      body = <MobileDayView onOpenMembers={handleOpenMembers} onAskAi={handleAskAi} onDetailChange={handleDetailChange} />;
+      body = (
+        <MobileItineraryPage
+          onOpenMembers={handleOpenMembers}
+          onAskAi={handleAskAi}
+          onDetailChange={handleDetailChange}
+        />
+      );
   }
 
   const pageChrome = React.useMemo(() => {
