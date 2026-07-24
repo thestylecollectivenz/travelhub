@@ -1,4 +1,4 @@
-import * as React from 'react';
+﻿import * as React from 'react';
 import { usePlanView } from '../../context/PlanViewContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
@@ -13,12 +13,12 @@ import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories
 import { categoriesForItemSelect, rememberTripShoppingCategory } from '../../utils/tripShoppingCategories';
 import { TravellerAvatar } from '../shared/TravellerAvatar';
 import { useShellMode } from '../../hooks/useShellMode';
-import { MobilePackingFilters } from './MobilePackingFilters';
+import { confirmUserAction } from '../../utils/confirmAction';
+import { MobilePackingFilters, PackingFilterDraft, PackingPackedFilter } from './MobilePackingFilters';
 import { PackingCategoryIcon } from './packingCategoryIcon';
 import chrome from './MobileTabChrome.module.css';
 import styles from './MobilePackingList.module.css';
 
-type PackedStatusFilter = 'all' | 'packed' | 'unpacked';
 type ViewMode = 'az' | 'grouped';
 
 function memberForName(
@@ -37,16 +37,10 @@ function memberForName(
   };
 }
 
-function EditPencilIcon(): React.ReactElement {
+function DeleteIcon(): React.ReactElement {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <path d="M13 6.5 17.5 11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
@@ -67,13 +61,17 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
   const [items, setItems] = React.useState<PackingItem[]>([]);
   const [addOpen, setAddOpen] = React.useState(false);
   const [filtersOpen, setFiltersOpen] = React.useState(false);
-  const [expandedId, setExpandedId] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState('');
-  const [packedFilter, setPackedFilter] = React.useState<PackedStatusFilter>('all');
+  const [packedFilter, setPackedFilter] = React.useState<PackingPackedFilter>('all');
+  const [hasNotesOnly, setHasNotesOnly] = React.useState(false);
+  const [hasQtyGt1, setHasQtyGt1] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<ViewMode>('az');
   const [name, setName] = React.useState('');
   const [qty, setQty] = React.useState(1);
   const [addCategory, setAddCategory] = React.useState('Other');
+  const [addTraveller, setAddTraveller] = React.useState('');
+  const [addNotes, setAddNotes] = React.useState('');
+  const [noteDrafts, setNoteDrafts] = React.useState<Record<string, string>>({});
 
   React.useEffect(() => {
     const handler = (): void => setAddOpen(true);
@@ -86,6 +84,10 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
       setAddCategory(categories.find((c) => c.toLowerCase() === 'other') || categories[0]);
     }
   }, [categories, addCategory]);
+
+  React.useEffect(() => {
+    if (!addTraveller && travellers[0]) setAddTraveller(travellers[0]);
+  }, [travellers, addTraveller]);
 
   const canEditItem = React.useCallback(
     (item: PackingItem) => canEditOwnedRecord(spContext, item.ownerEmail, role, item.traveller, members),
@@ -100,6 +102,16 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
   React.useEffect(() => {
     refresh();
   }, [refresh]);
+
+  React.useEffect(() => {
+    setNoteDrafts((prev) => {
+      const next: Record<string, string> = {};
+      for (const item of items) {
+        next[item.id] = prev[item.id] !== undefined ? prev[item.id] : item.itemNotes ?? '';
+      }
+      return next;
+    });
+  }, [items]);
 
   const filtered = React.useMemo(() => {
     let rows = items;
@@ -116,6 +128,8 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
     }
     if (packedFilter === 'packed') rows = rows.filter((i) => i.isPacked);
     if (packedFilter === 'unpacked') rows = rows.filter((i) => !i.isPacked);
+    if (hasNotesOnly) rows = rows.filter((i) => !!(i.itemNotes || '').trim());
+    if (hasQtyGt1) rows = rows.filter((i) => (i.quantity || 1) > 1);
     const q = search.trim().toLowerCase();
     if (q) {
       rows = rows.filter((i) =>
@@ -143,6 +157,8 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
     spContext,
     members,
     packedFilter,
+    hasNotesOnly,
+    hasQtyGt1,
     search,
     viewMode
   ]);
@@ -162,17 +178,16 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
   }, [filtered, viewMode]);
 
   const canAdd = role === 'Editor' || role === 'Companion';
+  const filtersActive =
+    activeCategory !== '__all__' || packedFilter !== 'all' || hasNotesOnly || hasQtyGt1;
 
   const addItem = (): void => {
     if (!trip?.id || !name.trim()) return;
-    const traveller = activeTraveller || travellers[0] || 'Traveller 1';
+    const traveller = addTraveller || activeTraveller || travellers[0] || 'Traveller 1';
     const fallback = categories.find((c) => c.toLowerCase() === 'other') || categories[0] || 'Other';
-    const itemCategory =
-      activeCategory !== '__all__'
-        ? activeCategory
-        : categories.some((c) => c.toLowerCase() === addCategory.toLowerCase())
-          ? addCategory
-          : fallback;
+    const itemCategory = categories.some((c) => c.toLowerCase() === addCategory.toLowerCase())
+      ? addCategory
+      : fallback;
     rememberTripShoppingCategory(trip.id, itemCategory);
     service
       .create({
@@ -184,11 +199,13 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
         isPacked: false,
         isTemplate: false,
         templateId: '',
+        itemNotes: addNotes.trim() || undefined,
         ownerEmail: resolveOwnerEmailForAssignee(spContext, traveller, members)
       })
       .then(() => {
         setName('');
         setQty(1);
+        setAddNotes('');
         setAddOpen(false);
         refresh();
       })
@@ -204,17 +221,19 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
     service.update(item.id, { quantity: next }).then(refresh).catch(console.error);
   };
 
+  const onFiltersApply = (draft: PackingFilterDraft): void => {
+    setPackedFilter(draft.packedFilter);
+    setHasNotesOnly(draft.hasNotesOnly);
+    setHasQtyGt1(draft.hasQtyGt1);
+  };
+
   const renderRow = (item: PackingItem): React.ReactNode => {
     const editable = canEditItem(item);
-    const open = expandedId === item.id;
     const who = memberForName(item.traveller || travellers[0] || 'Traveller', members);
     const cat = (item.category || 'Other').trim() || 'Other';
 
     return (
-      <li
-        key={item.id}
-        className={`${styles.row} ${item.isPacked ? styles.rowPacked : ''} ${open ? styles.rowOpen : ''}`.trim()}
-      >
+      <li key={item.id} className={`${styles.row} ${item.isPacked ? styles.rowPacked : ''}`.trim()}>
         <div className={styles.rowMain}>
           <label className={styles.checkWrap}>
             <input
@@ -234,12 +253,45 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
           </span>
 
           <div className={styles.itemCell}>
-            <span className={styles.itemName}>{item.itemName}</span>
-            <span className={styles.itemCat}>{cat}</span>
+            {editable ? (
+              <>
+                <input
+                  className={styles.inlineName}
+                  defaultValue={item.itemName}
+                  aria-label="Item name"
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    if (v && v !== item.itemName) {
+                      service.update(item.id, { itemName: v }).then(refresh).catch(console.error);
+                    }
+                  }}
+                />
+                <select
+                  className={styles.inlineCat}
+                  value={item.category || 'Other'}
+                  aria-label="Category"
+                  onChange={(e) => {
+                    if (trip?.id) rememberTripShoppingCategory(trip.id, e.target.value);
+                    service.update(item.id, { category: e.target.value }).then(refresh).catch(console.error);
+                  }}
+                >
+                  {categoryOptions(item.category).map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </>
+            ) : (
+              <>
+                <span className={styles.itemName}>{item.itemName}</span>
+                <span className={styles.itemCat}>{cat}</span>
+              </>
+            )}
           </div>
 
           <div className={styles.qtyCell} aria-label={`Quantity ${item.quantity}`}>
-            {isIpad && editable ? (
+            {editable ? (
               <div className={styles.qtyStepper}>
                 <button type="button" className={styles.qtyBtn} onClick={() => bumpQty(item, -1)} aria-label="Decrease">
                   −
@@ -255,128 +307,77 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
           </div>
 
           <div className={styles.forCell}>
-            <TravellerAvatar displayName={who.displayName} avatarUrl={who.avatarUrl} size={isIpad ? 26 : 22} />
-            <span className={styles.forName}>{who.displayName.split(/\s+/)[0] || who.displayName}</span>
+            {editable ? (
+              <>
+                <TravellerAvatar displayName={who.displayName} avatarUrl={who.avatarUrl} size={isIpad ? 24 : 20} />
+                <select
+                  className={styles.inlineFor}
+                  value={item.traveller || travellers[0] || ''}
+                  aria-label="For traveller"
+                  onChange={(e) =>
+                    service
+                      .update(item.id, {
+                        traveller: e.target.value,
+                        ownerEmail: resolveOwnerEmailForAssignee(spContext, e.target.value, members)
+                      })
+                      .then(refresh)
+                      .catch(console.error)
+                  }
+                >
+                  {travellers.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </>
+            ) : (
+              <>
+                <TravellerAvatar displayName={who.displayName} avatarUrl={who.avatarUrl} size={isIpad ? 26 : 22} />
+                <span className={styles.forName}>{who.displayName.split(/\s+/)[0] || who.displayName}</span>
+              </>
+            )}
           </div>
 
           <div className={styles.notesCell}>
-            <span className={styles.notesText}>{item.itemNotes?.trim() || '—'}</span>
-          </div>
-
-          <button
-            type="button"
-            className={styles.editBtn}
-            aria-label={open ? 'Close edit' : `Edit ${item.itemName}`}
-            aria-expanded={open}
-            onClick={() => setExpandedId(open ? null : item.id)}
-          >
-            <EditPencilIcon />
-          </button>
-        </div>
-
-        {open ? (
-          <div className={styles.detail}>
             {editable ? (
-              <>
-                <label className={styles.fieldLabel}>
-                  Item
-                  <input
-                    className={styles.field}
-                    defaultValue={item.itemName}
-                    onBlur={(e) => {
-                      const v = e.target.value.trim();
-                      if (v && v !== item.itemName) {
-                        service.update(item.id, { itemName: v }).then(refresh).catch(console.error);
-                      }
-                    }}
-                  />
-                </label>
-                <div className={styles.detailRow}>
-                  <label className={styles.fieldLabel}>
-                    Qty
-                    <input
-                      className={styles.fieldQty}
-                      type="number"
-                      min={1}
-                      defaultValue={item.quantity}
-                      onBlur={(e) => {
-                        const v = Math.max(1, Number(e.target.value) || 1);
-                        if (v !== item.quantity) {
-                          service.update(item.id, { quantity: v }).then(refresh).catch(console.error);
-                        }
-                      }}
-                    />
-                  </label>
-                  <label className={styles.fieldLabel}>
-                    Category
-                    <select
-                      className={styles.field}
-                      value={item.category || 'Other'}
-                      onChange={(e) => {
-                        if (trip?.id) rememberTripShoppingCategory(trip.id, e.target.value);
-                        service.update(item.id, { category: e.target.value }).then(refresh).catch(console.error);
-                      }}
-                    >
-                      {categoryOptions(item.category).map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-                <label className={styles.fieldLabel}>
-                  For
-                  <select
-                    className={styles.field}
-                    value={item.traveller || travellers[0] || ''}
-                    onChange={(e) =>
-                      service
-                        .update(item.id, {
-                          traveller: e.target.value,
-                          ownerEmail: resolveOwnerEmailForAssignee(spContext, e.target.value, members)
-                        })
-                        .then(refresh)
-                        .catch(console.error)
-                    }
-                  >
-                    {travellers.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className={styles.fieldLabel}>
-                  Notes
-                  <textarea
-                    className={styles.field}
-                    rows={2}
-                    placeholder="Notes"
-                    defaultValue={item.itemNotes ?? ''}
-                    onBlur={(e) => {
-                      const v = e.target.value.trim();
-                      if (v !== (item.itemNotes || '')) {
-                        service.update(item.id, { itemNotes: v }).then(refresh).catch(console.error);
-                      }
-                    }}
-                  />
-                </label>
-                <button
-                  type="button"
-                  className={styles.deleteBtn}
-                  onClick={() => {
-                    service.delete(item.id).then(refresh).catch(console.error);
-                  }}
-                >
-                  Delete
-                </button>
-              </>
+              <input
+                className={styles.inlineNotes}
+                type="text"
+                placeholder="Notes"
+                value={noteDrafts[item.id] ?? ''}
+                aria-label="Notes"
+                onChange={(e) => setNoteDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                onBlur={() => {
+                  const notes = (noteDrafts[item.id] ?? '').trim();
+                  if (notes !== (item.itemNotes || '')) {
+                    service.update(item.id, { itemNotes: notes || undefined }).then(refresh).catch(console.error);
+                  }
+                }}
+              />
             ) : (
-              <p className={styles.readOnlyHint}>You can view this item but only the owner or an editor can change it.</p>
+              <span className={styles.notesText}>{item.itemNotes?.trim() || '—'}</span>
             )}
           </div>
-        ) : null}
+
+          {editable ? (
+            <button
+              type="button"
+              className={styles.deleteIconBtn}
+              aria-label={`Delete ${item.itemName}`}
+              onClick={() => {
+                void (async () => {
+                  if (!(await confirmUserAction('Delete this packing item?'))) return;
+                  service.delete(item.id).then(refresh).catch(console.error);
+                })();
+              }}
+            >
+              <DeleteIcon />
+            </button>
+          ) : (
+            <span className={styles.editBtn} />
+          )}
+        </div>
       </li>
     );
   };
@@ -399,9 +400,9 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
         />
         <button
           type="button"
-          className={filtersOpen ? styles.filterBtnOn : styles.filterBtn}
+          className={filtersOpen || filtersActive ? styles.filterBtnOn : styles.filterBtn}
           aria-expanded={filtersOpen}
-          onClick={() => setFiltersOpen((v) => !v)}
+          onClick={() => setFiltersOpen(true)}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path d="M4 6h16M7 12h10M10 18h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -415,14 +416,83 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
         ) : null}
       </div>
 
-      {filtersOpen ? (
-        <MobilePackingFilters
-          travellers={travellers}
-          hideTravellers
-          packedFilter={packedFilter}
-          onPackedFilterChange={setPackedFilter}
-        />
+      {canAdd && addOpen ? (
+        <div className={styles.addRow} role="form" aria-label="Add packing item">
+          <input
+            className={styles.addName}
+            placeholder="Item name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            aria-label="New item name"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') addItem();
+            }}
+          />
+          <select
+            className={styles.addSelect}
+            value={addCategory}
+            onChange={(e) => setAddCategory(e.target.value)}
+            aria-label="Category"
+          >
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          <div className={styles.qtyStepper}>
+            <button
+              type="button"
+              className={styles.qtyBtn}
+              onClick={() => setQty((q) => Math.max(1, q - 1))}
+              aria-label="Decrease quantity"
+            >
+              −
+            </button>
+            <span className={styles.qtyValue}>{qty}</span>
+            <button
+              type="button"
+              className={styles.qtyBtn}
+              onClick={() => setQty((q) => q + 1)}
+              aria-label="Increase quantity"
+            >
+              +
+            </button>
+          </div>
+          <select
+            className={styles.addSelect}
+            value={addTraveller || travellers[0] || ''}
+            onChange={(e) => setAddTraveller(e.target.value)}
+            aria-label="For traveller"
+          >
+            {travellers.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+          <input
+            className={styles.addNotes}
+            placeholder="Notes"
+            value={addNotes}
+            onChange={(e) => setAddNotes(e.target.value)}
+            aria-label="Notes"
+          />
+          <button type="button" className={styles.saveAddBtn} onClick={addItem} disabled={!name.trim()}>
+            Add
+          </button>
+        </div>
       ) : null}
+
+      <MobilePackingFilters
+        open={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        items={items}
+        packedFilter={packedFilter}
+        hasNotesOnly={hasNotesOnly}
+        hasQtyGt1={hasQtyGt1}
+        onApply={onFiltersApply}
+      />
 
       <div className={styles.travellerRow}>
         <span className={styles.travellerLabel}>Filter by traveller</span>
@@ -477,46 +547,6 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
           {filtered.length} item{filtered.length === 1 ? '' : 's'}
         </span>
       </div>
-
-      {addOpen ? (
-        <div className={styles.addCard}>
-          <input
-            className={styles.field}
-            placeholder="Item name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            aria-label="New item name"
-          />
-          <div className={styles.detailRow}>
-            <select
-              className={styles.field}
-              value={activeCategory !== '__all__' ? activeCategory : addCategory}
-              onChange={(e) => {
-                setAddCategory(e.target.value);
-                if (activeCategory !== '__all__') planView?.setPackingCategory(e.target.value);
-              }}
-              aria-label="Category"
-            >
-              {(activeCategory !== '__all__' ? categoryOptions(activeCategory) : categories).map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-            <input
-              className={styles.fieldQty}
-              type="number"
-              min={1}
-              value={qty}
-              onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
-              aria-label="Quantity"
-            />
-          </div>
-          <button type="button" className={styles.saveAddBtn} onClick={addItem} disabled={!name.trim()}>
-            Add item
-          </button>
-        </div>
-      ) : null}
 
       {filtered.length === 0 ? (
         <p className={chrome.muted}>No packing items match these filters.</p>

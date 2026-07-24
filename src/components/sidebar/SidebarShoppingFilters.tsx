@@ -5,7 +5,6 @@ import { useSpContext } from '../../context/SpContext';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
 import { useTripMembers } from '../../hooks/useTripMembers';
-import { isDefaultListCategory } from '../../utils/tripShoppingCategories';
 import styles from './TripSidebar.module.css';
 
 export const SidebarShoppingFilters: React.FC = () => {
@@ -120,22 +119,24 @@ export const SidebarShoppingFilters: React.FC = () => {
                   >
                     ✎
                   </button>
-                  {!isDefaultListCategory(c) ? (
                   <button
                     type="button"
                     className={styles.travellerActionBtn}
-                    title="Delete category"
+                    title="Delete unused category"
                     onClick={() => {
                       void (async () => {
-                        if (!(await confirmUserAction(`Delete category "${c}"? Items in this category will become uncategorised.`))) return;
-                        await deleteCategory(c);
-                        if (category === c) plan.setShoppingCategory('__all__');
+                        if (!(await confirmUserAction(`Delete category "${c}"? Only unused categories can be removed.`))) return;
+                        try {
+                          await deleteCategory(c);
+                          if (category === c) plan.setShoppingCategory('__all__');
+                        } catch (err) {
+                          window.alert(err instanceof Error ? err.message : 'Could not delete category.');
+                        }
                       })();
                     }}
                   >
                     ×
                   </button>
-                  ) : null}
                 </div>
               )}
             </li>

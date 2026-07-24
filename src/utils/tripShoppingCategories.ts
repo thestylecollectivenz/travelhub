@@ -54,7 +54,7 @@ function normalizeList(categories: string[]): string[] {
   return out.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 }
 
-/** Always include the full default set, then any custom categories the trip added. */
+/** Merge defaults with any custom categories (used by restore only). */
 function mergeWithDefaults(saved: string[]): string[] {
   return normalizeList([...DEFAULT_SHARED_LIST_CATEGORIES, ...saved]);
 }
@@ -70,26 +70,23 @@ export function loadTripShoppingCategories(tripId: string): string[] {
       return saveTripShoppingCategories(tripId, DEFAULT_SHARED_LIST_CATEGORIES);
     }
     const saved = normalizeList(parsed.filter((x) => typeof x === 'string') as string[]);
-    const merged = mergeWithDefaults(saved);
-    // Backfill defaults if an older culled list was stored.
-    if (merged.length !== saved.length) {
-      return saveTripShoppingCategories(tripId, merged);
-    }
-    return merged.length ? merged : saveTripShoppingCategories(tripId, DEFAULT_SHARED_LIST_CATEGORIES);
+    // Persist the trip's list as-is so unused defaults can be removed.
+    return saved.length ? saved : saveTripShoppingCategories(tripId, DEFAULT_SHARED_LIST_CATEGORIES);
   } catch {
     return [...DEFAULT_SHARED_LIST_CATEGORIES];
   }
 }
 
 export function saveTripShoppingCategories(tripId: string, categories: string[]): string[] {
-  const normalized = mergeWithDefaults(categories);
+  const normalized = normalizeList(categories);
+  const toSave = normalized.length ? normalized : ['Other'];
   try {
-    window.localStorage.setItem(`${KEY}${tripId}`, JSON.stringify(normalized));
+    window.localStorage.setItem(`${KEY}${tripId}`, JSON.stringify(toSave));
   } catch {
     /* ignore */
   }
   notifyShoppingCategoriesChanged(tripId);
-  return normalized;
+  return toSave;
 }
 
 export function rememberTripShoppingCategory(tripId: string, category: string): string[] {
@@ -112,15 +109,13 @@ export function renameTripShoppingCategory(tripId: string, oldName: string, newN
 
 export function deleteTripShoppingCategory(tripId: string, category: string): string[] {
   const key = category.trim().toLowerCase();
-  // Keep defaults — only remove custom categories from the stored list after merge.
-  if (DEFAULT_SHARED_LIST_CATEGORIES.some((c) => c.toLowerCase() === key)) {
-    return loadTripShoppingCategories(tripId);
-  }
   const existing = loadTripShoppingCategories(tripId);
-  return saveTripShoppingCategories(
-    tripId,
-    existing.filter((c) => c.toLowerCase() !== key)
-  );
+  // Allow removing unused defaults and customs; keep at least Other when emptying.
+  const next = existing.filter((c) => c.toLowerCase() !== key);
+  if (!next.length) {
+    return saveTripShoppingCategories(tripId, key === 'other' ? existing : ['Other']);
+  }
+  return saveTripShoppingCategories(tripId, next);
 }
 
 export function isDefaultListCategory(category: string): boolean {
@@ -130,7 +125,7 @@ export function isDefaultListCategory(category: string): boolean {
 
 /** Force-merge the full built-in list back into the trip's master categories. */
 export function restoreDefaultListCategories(tripId: string): string[] {
-  return saveTripShoppingCategories(tripId, loadTripShoppingCategories(tripId));
+  return saveTripShoppingCategories(tripId, mergeWithDefaults(loadTripShoppingCategories(tripId)));
 }
 
 /** Include a legacy/orphan category on an item row when it is not in the saved list. */

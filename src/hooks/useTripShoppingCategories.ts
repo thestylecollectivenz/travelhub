@@ -83,8 +83,6 @@ export function useTripShoppingCategories(
   const deleteCategory = React.useCallback(
     async (name: string): Promise<string[]> => {
       if (!tripId) return [];
-      const next = deleteTripShoppingCategory(tripId, name);
-      setCategories(next);
       if (spContext) {
         const shopping = new ShoppingListService(spContext);
         const packing = new PackingService(spContext);
@@ -93,15 +91,16 @@ export function useTripShoppingCategories(
           packing.getForTrip(tripId)
         ]);
         const key = name.trim().toLowerCase();
-        await Promise.all([
-          ...shopItems
-            .filter((item) => item.category.trim().toLowerCase() === key)
-            .map((item) => shopping.update(item.id, { category: '' })),
-          ...packItems
-            .filter((item) => (item.category || '').trim().toLowerCase() === key)
-            .map((item) => packing.update(item.id, { category: 'Other' }))
-        ]);
+        const packingUsed = packItems.some((item) => (item.category || '').trim().toLowerCase() === key);
+        const shoppingUsed = shopItems.some((item) => item.category.trim().toLowerCase() === key);
+        if (packingUsed || shoppingUsed) {
+          throw new Error(
+            `“${name}” is still used on packing or shopping items. Reassign those items first, then delete.`
+          );
+        }
       }
+      const next = deleteTripShoppingCategory(tripId, name);
+      setCategories(next);
       return next;
     },
     [tripId, spContext]

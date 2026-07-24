@@ -5,7 +5,6 @@ import { useSpContext } from '../../context/SpContext';
 import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
 import { useTripPermissions } from '../../hooks/useTripPermissions';
 import { confirmUserAction } from '../../utils/confirmAction';
-import { isDefaultListCategory } from '../../utils/tripShoppingCategories';
 import chrome from './MobileTabChrome.module.css';
 import shell from './MobileShell.module.css';
 
@@ -183,21 +182,23 @@ export const MobileShoppingFilters: React.FC<{ travellers: string[] }> = ({ trav
                     <button type="button" className={chrome.chip} onClick={() => { setEditingCategory(c); setEditCategoryName(c); }}>
                       Rename
                     </button>
-                    {!isDefaultListCategory(c) ? (
                     <button
                       type="button"
                       className={chrome.chip}
                       onClick={() => {
                         void (async () => {
                           if (!(await confirmUserAction(`Delete category "${c}"?`))) return;
-                          await deleteCategory(c);
-                          if (category === c) plan.setShoppingCategory('__all__');
+                          try {
+                            await deleteCategory(c);
+                            if (category === c) plan.setShoppingCategory('__all__');
+                          } catch (err) {
+                            window.alert(err instanceof Error ? err.message : 'Could not delete category.');
+                          }
                         })();
                       }}
                     >
                       Delete
                     </button>
-                    ) : null}
                   </>
                 )}
               </li>
