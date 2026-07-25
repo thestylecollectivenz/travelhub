@@ -543,15 +543,17 @@ export function sortEntriesForDay(
     isPreTripDayType(dayType) || (hasPreTripId && dayId === preTripDayId) || preTripRowStrict === true;
 
   if (isStrictDayOnly) {
+    const dayKey = String(dayId);
     return entries
-      .filter((e) => !e.parentEntryId && e.dayId === dayId)
+      .filter((e) => !e.parentEntryId && String(e.dayId) === dayKey)
       .sort(compareBySortOrderThenTimeForDay(calendarDate, tripDays));
   }
 
   const map = new Map<string, ItineraryEntry>();
+  const dayKey = String(dayId);
   for (const e of entries) {
     if (e.parentEntryId) continue;
-    if (e.dayId === dayId || isEntryOnCalendarDate(e, calendarDate, dayType, spanCtx, tripDays)) {
+    if (String(e.dayId) === dayKey || isEntryOnCalendarDate(e, calendarDate, dayType, spanCtx, tripDays)) {
       map.set(e.id, e);
     }
   }

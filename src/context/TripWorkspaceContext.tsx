@@ -427,11 +427,23 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       try {
         const svc = new ItineraryService(spContext);
         const created = await svc.create(itineraryEntryCreatePayload(latest));
-        // Prefer client values when SP create omits Phase 7 fields after fallback stripping.
+        // Prefer client values when SP create response omits fields (common for DayId/Notes)
+        // or Phase 7 columns were stripped on 400 fallback. Empty DayId makes Pre-trip
+        // items vanish from the day list (strict dayId filter).
+        const createdDayId = String(created.dayId || '').trim();
+        const latestDayId = String(latest.dayId || '').trim();
+        const createdNotes = String(created.notes || '').trim();
+        const latestNotes = String(latest.notes || '').trim();
         const merged = {
           ...latest,
           ...created,
           id: created.id,
+          dayId: createdDayId || latestDayId,
+          title: String(created.title || '').trim() || latest.title,
+          category: String(created.category || '').trim() || latest.category,
+          notes: createdNotes || latestNotes,
+          amount: created.amount != null && created.amount !== 0 ? created.amount : latest.amount,
+          currency: String(created.currency || '').trim() || latest.currency,
           transportFrom: created.transportFrom ?? latest.transportFrom,
           transportTo: created.transportTo ?? latest.transportTo,
           transportMode: created.transportMode ?? latest.transportMode,
@@ -442,6 +454,13 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
           returnArrivalTime: created.returnArrivalTime ?? latest.returnArrivalTime,
           subItems: latest.subItems ?? []
         };
+        // Repair DayId on the server when create response omitted it but client had one.
+        if (!createdDayId && latestDayId) {
+          void svc.update(merged.id, { dayId: latestDayId } as Partial<typeof merged>).catch((repairErr) => {
+            // eslint-disable-next-line no-console
+            console.error('persistEntry: DayId repair failed', repairErr);
+          });
+        }
         setLocalEntries((prev) => prev.map((e) => (e.id === tempId ? merged : e)));
         setEditingCardId((prev) => (prev === tempId ? merged.id : prev));
         pendingEntryCreatesRef.current.delete(tempId);

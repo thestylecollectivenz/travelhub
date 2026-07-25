@@ -8,8 +8,11 @@ alwaysApply: true
 When you finish a task that touched the repo (code, config, or docs the user asked to change):
 
 1. If source under `src/` changed, build the SharePoint package:
-   `npx heft test --production; npx heft package-solution --production`
-   (omit `--clean` on heft test to avoid Dropbox file locks). Skip if the task was docs-only or had no `src/` changes.
+   - First wipe stale hashed bundles so the sppkg stays lean (omit `--clean` on heft to avoid Dropbox locks):
+     `Remove-Item -Recurse -Force sharepoint\solution\debug, sharepoint\solution\debug\ClientSideAssets, release\assets, dist -ErrorAction SilentlyContinue`
+     (or equivalent: delete `sharepoint/solution/debug`, `release/assets`, and `dist` if present)
+   - Then: `npx heft test --production; npx heft package-solution --production`
+   Skip packaging if the task was docs-only or had no `src/` changes.
 2. Run `git add .`
 3. Run `git commit -m "<short imperative description of what changed>"` — do **not** ask whether to commit; use a clear message derived from the task.
 4. Run `git push` to `origin` (current branch).

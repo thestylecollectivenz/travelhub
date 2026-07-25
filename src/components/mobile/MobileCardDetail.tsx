@@ -101,10 +101,16 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
   const { documents, links } = useAttachments();
   const canSeeFinancials = useCanSeeFinancials();
   const [showBookingSites, setShowBookingSites] = React.useState(false);
-  const liveSourceEntry = React.useMemo(
-    () => localEntries.find((e) => e.id === sourceEntry.id) ?? sourceEntry,
-    [localEntries, sourceEntry]
-  );
+  const liveSourceEntry = React.useMemo(() => {
+    const bySource = localEntries.find((e) => e.id === sourceEntry.id);
+    if (bySource) return bySource;
+    // After create, pending id is replaced — keep editing against the new SP row.
+    if (editingCardId) {
+      const byEditing = localEntries.find((e) => e.id === editingCardId);
+      if (byEditing) return byEditing;
+    }
+    return sourceEntry;
+  }, [localEntries, sourceEntry, editingCardId]);
   const attachmentEntryIds = React.useMemo(() => {
     const ids = new Set<string>();
     if (sourceEntry.id) ids.add(sourceEntry.id);
@@ -148,7 +154,9 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
         editingSubItem?.parentEntryId === sourceEntry.id &&
         editingSubItem?.subItemId === optionSubItemId
     );
-  const isEditing = !isOptionView && editingCardId === sourceEntry.id;
+  const isEditing =
+    !isOptionView &&
+    (editingCardId === sourceEntry.id || editingCardId === liveSourceEntry.id);
   const isAccommodation = !isOptionView && entry.category === 'Accommodation';
   const isCruise = !isOptionView && entry.category === 'Cruise';
   const isTransport = !isOptionView && entry.category === 'Transport';
@@ -234,13 +242,16 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
   const discardBlankPendingDraft = React.useCallback((): boolean => {
     if (!isPendingItineraryEntryId(sourceEntry.id)) return false;
     const latest = localEntries.find((e) => e.id === sourceEntry.id) ?? sourceEntry;
+    const notesText = (latest.notes || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ').trim();
     const hasContent = Boolean(
       latest.title.trim() ||
         latest.supplier.trim() ||
         (latest.location ?? '').trim() ||
-        latest.notes.trim() ||
+        notesText ||
         latest.duration.trim() ||
-        latest.timeStart.trim()
+        latest.timeStart.trim() ||
+        (latest.amount != null && latest.amount !== 0) ||
+        (latest.category && latest.category !== 'Other')
     );
     if (hasContent) return false;
     deleteEntry(sourceEntry.id);
@@ -290,8 +301,8 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
       <div className={cardStyles.portalEditRoot} role="presentation">
         <div className={cardStyles.portalEditInner}>
           <ItineraryCardEdit
-            key={sourceEntry.id}
-            entry={sourceEntry}
+            key={liveSourceEntry.id}
+            entry={liveSourceEntry}
             calendarDate={calendarDate}
             onSave={(saved) => {
               const wasPending = isPendingItineraryEntryId(saved.id);

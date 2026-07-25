@@ -27,6 +27,7 @@ import { activityTitlesForDay } from '../../utils/dayActivityTitles';
 import { FieldSuggestionList } from '../shared/FieldSuggestionList';
 import { isCompactTouchShell, useShellMode } from '../../hooks/useShellMode';
 import { isPreTripDayRow } from '../../utils/itineraryDayEntries';
+import type { TripDay } from '../../models/TripDay';
 import styles from './ItineraryCardEdit.module.css';
 
 function categoryUsesDayIdMembership(category: string | undefined): boolean {
@@ -38,10 +39,7 @@ function categoryUsesDayIdMembership(category: string | undefined): boolean {
 }
 
 /** Pre-trip cards keep day membership even when DateStart is a policy/purchase date. */
-function dayRowById(
-  tripDays: { id: string; tripId: string; dayNumber: number; dayType: string; calendarDate: string }[],
-  dayId: string | undefined
-): (typeof tripDays)[number] | undefined {
+function dayRowById(tripDays: TripDay[], dayId: string | undefined): TripDay | undefined {
   const id = String(dayId || '');
   if (!id) return undefined;
   return tripDays.find((d) => String(d.id) === id);
@@ -381,6 +379,12 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   }, [isFlights, calendarDate]);
 
   const handleSave = React.useCallback(() => {
+    // Prefer live DOM for notes — iPad contentEditable can lag React state until blur.
+    const notesRoot = document.getElementById(`notes-${draft.id}`);
+    const notesEditable = notesRoot?.querySelector('[contenteditable="true"]') as HTMLElement | null;
+    const notesFromDom = notesEditable ? (notesEditable.innerHTML || '').trim() : '';
+    const notesValue = (notesFromDom || draft.notes || '').trim();
+
     let title = draft.title.trim();
     if (!title && isTransport) {
       const tf = (draft.transportFrom ?? '').trim();
@@ -404,7 +408,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       currency: cur,
       timeStart: timeStart || '',
       supplier: draft.supplier.trim(),
-      notes: draft.notes.trim(),
+      notes: notesValue,
       location: draft.location?.trim() || undefined,
       duration: draft.duration.trim(),
       arrivalTime: draft.arrivalTime,
