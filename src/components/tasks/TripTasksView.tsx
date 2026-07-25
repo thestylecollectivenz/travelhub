@@ -1106,7 +1106,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                   className={styles.completeCheck}
                   type="checkbox"
                   aria-label="Mark booked"
-                  onChange={() => updateEntry({ ...entry, bookingStatus: 'Booked' })}
+                  onChange={() => void updateEntry({ ...entry, bookingStatus: 'Booked' })}
                 />
                 <div className={styles.itemBody}>
                   <div>Book: {entry.title}</div>
@@ -1120,7 +1120,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                       className={styles.input}
                       type="date"
                       value={entry.bookingDueDate?.slice(0, 10) || ''}
-                      onChange={(e) => updateEntry({ ...entry, bookingDueDate: e.target.value || undefined })}
+                      onChange={(e) => void updateEntry({ ...entry, bookingDueDate: e.target.value || undefined })}
                     />
                   </label>
                 </div>
@@ -1139,7 +1139,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                     className={styles.iconBtn}
                     type="button"
                     title="Mark booked"
-                    onClick={() => updateEntry({ ...entry, bookingStatus: 'Booked' })}
+                    onClick={() => void updateEntry({ ...entry, bookingStatus: 'Booked' })}
                   >
                     ✓
                   </button>
@@ -1162,7 +1162,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                   className={styles.completeCheck}
                   type="checkbox"
                   aria-label="Mark paid"
-                  onChange={() => updateEntry({ ...entry, paymentStatus: 'Fully paid', amountPaid: entry.amount })}
+                  onChange={() => void updateEntry({ ...entry, paymentStatus: 'Fully paid', amountPaid: entry.amount })}
                 />
                 <div className={styles.itemBody}>
                   <div>
@@ -1181,7 +1181,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                       className={styles.input}
                       type="date"
                       value={entry.paymentDueDate?.slice(0, 10) || ''}
-                      onChange={(e) => updateEntry({ ...entry, paymentDueDate: e.target.value || undefined })}
+                      onChange={(e) => void updateEntry({ ...entry, paymentDueDate: e.target.value || undefined })}
                     />
                   </label>
                   <label className={styles.dueLabel}>
@@ -1190,7 +1190,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                       className={styles.input}
                       value={entry.paymentDueType || 'Manual'}
                       onChange={(e) =>
-                        updateEntry({
+                        void updateEntry({
                           ...entry,
                           paymentDueType: e.target.value as typeof entry.paymentDueType
                         })
@@ -1217,7 +1217,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                     className={styles.iconBtn}
                     type="button"
                     title="Mark paid"
-                    onClick={() => updateEntry({ ...entry, paymentStatus: 'Fully paid', amountPaid: entry.amount })}
+                    onClick={() => void updateEntry({ ...entry, paymentStatus: 'Fully paid', amountPaid: entry.amount })}
                   >
                     ✓
                   </button>

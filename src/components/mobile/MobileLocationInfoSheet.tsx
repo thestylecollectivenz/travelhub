@@ -300,7 +300,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
       const after = JSON.stringify(promoted.savedStartingPoints || []);
       promotedStartsRef.current = startPointStorageId;
       if (before !== after) {
-        updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(promoted)) });
+        void updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(promoted)) });
       }
     }
   }, [calendarDate, entry?.id, startPointStorageId, liveEntry, canEditItinerary, updateEntry]);
@@ -402,7 +402,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
       removeLocationStartPoint(startPointStorageId, point);
       if (notes && liveEntry && canEditItinerary) {
         const next = removeSharedStartingPoint(notes, point);
-        updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(next)) });
+        void updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(next)) });
       }
       refreshSavedStarts();
       setStartingPoint(loadLocationStartPoint(startPointStorageId));
@@ -422,7 +422,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
         ...notes,
         savedTravelTips: [...existing, createSavedTravelTip(tip)]
       });
-      updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(next) });
+      void updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(next) });
     },
     [liveEntry, canEditItinerary, updateEntry]
   );
@@ -437,7 +437,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
         ...notes,
         savedTravelTips: (notes.savedTravelTips || []).filter((t) => t.id !== id)
       });
-      updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(next) });
+      void updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(next) });
     },
     [liveEntry, canEditItinerary, updateEntry]
   );
@@ -490,7 +490,7 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
           label: startingPointLabel
         });
       }
-      updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(updated)) });
+      void updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(updated)) });
       refreshSavedStarts();
       setNearActionMsg(`Saved ${placeRow.name}`);
       window.setTimeout(() => setNearActionMsg(''), 2500);
@@ -798,8 +798,8 @@ export const MobileLocationInfoSheet: React.FC<MobileLocationInfoSheetProps> = (
             key={entry.id}
             entry={entry}
             calendarDate={calendarDate}
-            onSave={(saved) => {
-              updateEntry(saved, { persistPending: true });
+            onSave={async (saved) => {
+              await updateEntry(saved, { persistPending: true });
               setEditingCardId(null);
             }}
             onCancel={() => setEditingCardId(null)}

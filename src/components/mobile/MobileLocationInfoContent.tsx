@@ -384,7 +384,7 @@ export const MobileLocationInfoContent: React.FC<MobileLocationInfoContentProps>
   }
 
   const persist = (next: LocationInfoNotes): void => {
-    updateEntry({ ...entry, notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(next)) });
+    void updateEntry({ ...entry, notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(next)) });
   };
 
   const toggleHighlight = (key: string): void => {

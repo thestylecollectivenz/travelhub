@@ -135,7 +135,7 @@ export const MobileDetailAiPanel: React.FC<MobileDetailAiPanelProps> = ({
       if (!parent || !sub) return;
       updateSubItem(parent.id, { ...sub, notes });
     } else {
-      updateEntry({ ...latestEntry, notes });
+      void updateEntry({ ...latestEntry, notes });
     }
     resetQa();
   };

@@ -54,7 +54,7 @@ export const MobileLocationHighlightsEdit: React.FC<MobileLocationHighlightsEdit
   const persistRows = (nextRows: LocationHighlightRow[]): void => {
     setRows(nextRows);
     const next: LocationInfoNotes = { ...data, ...splitHighlightRows(nextRows) };
-    updateEntry({ ...entry, notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(next)) });
+    void updateEntry({ ...entry, notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(next)) });
   };
 
   const shellAttr = shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined;

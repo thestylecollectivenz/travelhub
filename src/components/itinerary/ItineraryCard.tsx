@@ -76,8 +76,8 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({
   const isFocused = focusedEntryId === entry.id && !showEdit;
 
   const handleSave = React.useCallback(
-    (saved: ItineraryEntry) => {
-      updateEntry(saved, { persistPending: true });
+    async (saved: ItineraryEntry): Promise<void> => {
+      await updateEntry(saved, { persistPending: true });
       setEditingCardId(null);
     },
     [updateEntry, setEditingCardId]

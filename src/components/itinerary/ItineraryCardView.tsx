@@ -792,7 +792,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
                   ...splitHighlightRows(marked),
                   suppressedHighlightKeys: suppressed
                 });
-                updateEntry({ ...entry, notes: serializeLocationInfoNotes(next) });
+                void updateEntry({ ...entry, notes: serializeLocationInfoNotes(next) });
               }}
             />
           </section>
@@ -811,7 +811,7 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
             onOpenSettings={() => window.dispatchEvent(new Event('travelhub-open-settings'))}
             onThreadChange={(thread) => {
               const next = normalizeLocationInfoNotes({ ...locationInfoData, aiQaThread: thread });
-              updateEntry({ ...entry, notes: serializeLocationInfoNotes(next) });
+              void updateEntry({ ...entry, notes: serializeLocationInfoNotes(next) });
             }}
           />
         </div>

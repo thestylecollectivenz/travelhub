@@ -227,14 +227,14 @@ export const MobileSavedPlacesView: React.FC<MobileSavedPlacesViewProps> = ({
         ...data,
         diningSuggestions: (data.diningSuggestions ?? []).filter((x) => x.id !== card.rowId)
       });
-      updateEntry({ ...entry, notes: serializeLocationInfoNotes(next) });
+      void updateEntry({ ...entry, notes: serializeLocationInfoNotes(next) });
       return;
     }
     if (!card.nearestKind) return;
     const nearest = { ...(data.nearestPlaces ?? {}) };
     nearest[card.nearestKind] = (nearest[card.nearestKind] ?? []).filter((x) => x.id !== card.rowId);
     const next = normalizeLocationInfoNotes({ ...data, nearestPlaces: nearest });
-    updateEntry({ ...entry, notes: serializeLocationInfoNotes(next) });
+    void updateEntry({ ...entry, notes: serializeLocationInfoNotes(next) });
   };
 
   const [category, setCategory] = React.useState<SavedPlacesCategoryId>(() =>

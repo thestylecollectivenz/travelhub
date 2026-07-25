@@ -45,7 +45,7 @@ export const MobileLocationNotesEdit: React.FC<MobileLocationNotesEditProps> = (
       ...data,
       userNotes: isRichTextEditorEmpty(html) ? '' : html
     });
-    updateEntry({ ...entry, notes: serializeLocationInfoNotes(next) });
+    void updateEntry({ ...entry, notes: serializeLocationInfoNotes(next) });
   };
 
   const shellAttr = shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined;

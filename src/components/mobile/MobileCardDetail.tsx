@@ -304,9 +304,9 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
             key={liveSourceEntry.id}
             entry={liveSourceEntry}
             calendarDate={calendarDate}
-            onSave={(saved) => {
+            onSave={async (saved) => {
               const wasPending = isPendingItineraryEntryId(saved.id);
-              updateEntry(saved, { persistPending: true });
+              await updateEntry(saved, { persistPending: true });
               setEditingCardId(null);
               // New items remapped to a SharePoint id — close detail so the day list shows the saved card.
               if (wasPending) onClose();

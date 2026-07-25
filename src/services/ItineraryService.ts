@@ -171,6 +171,67 @@ function stripOptionalSpFields(item: Record<string, unknown>): Record<string, un
   return out;
 }
 
+/** Core columns for a reliable create — avoids large payloads that Safari often surfaces as "Load failed". */
+const SP_CREATE_CORE_KEYS = new Set([
+  'Title',
+  'TripId',
+  'DayId',
+  'Category',
+  'TimeStart',
+  'Duration',
+  'Supplier',
+  'Location',
+  'Notes',
+  'DecisionStatus',
+  'BookingRequired',
+  'BookingStatus',
+  'PaymentStatus',
+  'Amount',
+  'Currency',
+  'DateStart',
+  'DateEnd',
+  'SortOrder',
+  'ParentEntryId',
+  'UnitType',
+  'UnitAmount',
+  'CostCertainty',
+  'AmountPaid'
+]);
+
+function omitNullishSpFields(item: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(item)) {
+    if (value === null || value === undefined) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+function pickCoreSpCreateFields(item: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(item)) {
+    if (!SP_CREATE_CORE_KEYS.has(key)) continue;
+    if (value === null || value === undefined) continue;
+    // Keep empty Title out — caller must supply a real title.
+    if (value === '' && key !== 'DayId' && key !== 'TripId') continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+function isRetryableWriteError(err: unknown): boolean {
+  const status = httpStatus(err);
+  if (status === 400 || status === 429 || status === 503) return true;
+  const msg = err instanceof Error ? err.message : String(err ?? '');
+  return /load failed|failed to fetch|networkerror|network request failed|aborted|timeout|temporarily unavailable/i.test(
+    msg
+  );
+}
+
+function delayMs(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 /** Try progressively narrower $select lists when SharePoint returns 400 (missing columns). */
 async function fetchWithSelectFallback(
   fetchRaw: (selectList: string) => Promise<unknown[]>
@@ -631,42 +692,84 @@ export class ItineraryService {
   }
 
   async create(entry: Omit<ItineraryEntry, 'id' | 'subItems'>): Promise<ItineraryEntry> {
-    const item = mapToSpItem(entry);
-    try {
-      return await this.postItem(item);
-    } catch (err) {
-      if (httpStatus(err) === 400) {
-        // eslint-disable-next-line no-console
-        console.warn(
-          'ItineraryService.create: request failed (likely missing optional columns). Retrying without optional fields.',
-          err
-        );
+    const full = omitNullishSpFields(mapToSpItem(entry));
+    // Identity fields must always be strings — Pre-trip creates fail/disappear when DayId is dropped.
+    if (entry.tripId) full.TripId = String(entry.tripId);
+    if (entry.dayId) full.DayId = String(entry.dayId);
+    if (!full.Title) full.Title = entry.title?.trim() || 'Itinerary item';
+
+    const core = pickCoreSpCreateFields(full);
+    const bodies: Record<string, unknown>[] = [
+      core,
+      omitNullishSpFields(stripOptionalSpFields(full)),
+      omitNullishSpFields(stripPhase7SpFields(full)),
+      full
+    ];
+
+    let created: ItineraryEntry | undefined;
+    let lastErr: unknown;
+    for (const body of bodies) {
+      if (!body.Title || !body.TripId) continue;
+      for (let attempt = 0; attempt < 3; attempt++) {
         try {
-          return await this.postItem(stripOptionalSpFields(item));
-        } catch (errOptional) {
-          if (httpStatus(errOptional) !== 400) {
-            // eslint-disable-next-line no-console
-            console.error('ItineraryService.create optional fallback failed', errOptional);
-            throw errOptional;
-          }
-        }
-        // eslint-disable-next-line no-console
-        console.warn(
-          'ItineraryService.create: retrying without Phase 7 fields.',
-          err
-        );
-        try {
-          return await this.postItem(stripPhase7SpFields(item));
-        } catch (err2) {
+          created = await this.postItem(body);
+          lastErr = undefined;
+          break;
+        } catch (err) {
+          lastErr = err;
+          if (!isRetryableWriteError(err) || attempt === 2) break;
           // eslint-disable-next-line no-console
-          console.error('ItineraryService.create fallback failed', err2);
-          throw err2;
+          console.warn(`ItineraryService.create: retry ${attempt + 1} after`, err);
+          await delayMs(300 * (attempt + 1));
         }
       }
-      // eslint-disable-next-line no-console
-      console.error('ItineraryService.create', err);
-      throw err;
+      if (created) break;
+      if (lastErr && !isRetryableWriteError(lastErr)) break;
     }
+
+    if (!created) {
+      // eslint-disable-next-line no-console
+      console.error('ItineraryService.create', lastErr);
+      throw lastErr instanceof Error ? lastErr : new Error('Could not create itinerary item');
+    }
+
+    // Apply non-core fields in a follow-up PATCH (best-effort — item already exists).
+    const extras: Record<string, unknown> = { ...full };
+    for (const key of Object.keys(core)) {
+      delete extras[key];
+    }
+    if (Object.keys(extras).length > 0) {
+      try {
+        await this.patchItem(created.id, extras);
+      } catch (patchErr) {
+        if (httpStatus(patchErr) === 400) {
+          try {
+            await this.patchItem(created.id, omitNullishSpFields(stripOptionalSpFields(extras)));
+          } catch (err2) {
+            try {
+              await this.patchItem(created.id, omitNullishSpFields(stripPhase7SpFields(extras)));
+            } catch (err3) {
+              // eslint-disable-next-line no-console
+              console.warn('ItineraryService.create: extras patch failed; core row kept', err3);
+            }
+          }
+        } else {
+          // eslint-disable-next-line no-console
+          console.warn('ItineraryService.create: extras patch failed; core row kept', patchErr);
+        }
+      }
+    }
+
+    return {
+      ...created,
+      dayId: String(created.dayId || entry.dayId || ''),
+      tripId: String(created.tripId || entry.tripId || ''),
+      title: created.title || entry.title,
+      category: created.category || entry.category,
+      notes: created.notes || entry.notes,
+      amount: created.amount != null ? created.amount : entry.amount,
+      currency: created.currency || entry.currency
+    };
   }
 
   async update(id: string, entry: Partial<ItineraryEntry>): Promise<void> {

@@ -149,8 +149,8 @@ export const LocationInfoSlidePanel: React.FC<LocationInfoSlidePanelProps> = ({ 
             key={liveEntry.id}
             entry={liveEntry}
             calendarDate={calendarDate}
-            onSave={(saved) => {
-              updateEntry(saved, { persistPending: true });
+            onSave={async (saved) => {
+              await updateEntry(saved, { persistPending: true });
               setEditingCardId(null);
             }}
             onCancel={() => setEditingCardId(null)}

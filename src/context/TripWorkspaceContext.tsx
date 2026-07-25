@@ -103,7 +103,7 @@ export interface TripWorkspaceContextValue {
   clearDeleteTripError: () => void;
   updateDay: (dayId: string, partial: Partial<TripDay>) => void;
   reloadItineraryEntries: () => Promise<void>;
-  updateEntry: (updated: ItineraryEntry, options?: { persistPending?: boolean }) => void;
+  updateEntry: (updated: ItineraryEntry, options?: { persistPending?: boolean }) => void | Promise<void>;
   /** Add or update a pending draft in local state only — does not persist to SharePoint. */
   stageDraftEntry: (draft: ItineraryEntry) => void;
   /** Ensure a draft entry exists in SharePoint; returns the persisted row (same id if already saved). */
@@ -486,7 +486,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
         return merged;
       } catch (err) {
         pendingEntryCreatesRef.current.delete(tempId);
-        setLocalEntries((prev) => prev.filter((e) => e.id !== tempId));
+        // Keep the local draft so the user can retry — wiping it made Pre-trip adds look like "save then vanish".
         throw err;
       }
     })();
@@ -505,7 +505,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
   }, []);
 
   const updateEntry = React.useCallback(
-    (updated: ItineraryEntry, options?: { persistPending?: boolean }) => {
+    async (updated: ItineraryEntry, options?: { persistPending?: boolean }): Promise<void> => {
       const isNew = isPendingItineraryEntryId(updated.id);
       const prev = localEntriesRef.current;
       const i = prev.findIndex((e) => e.id === updated.id);
@@ -517,23 +517,20 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       if (isNew) {
         syncDayColumnsForEntryTimeOrder(updated, next, tripDays);
         if (options?.persistPending) {
-          void persistEntry(updated).catch((err) => {
+          try {
+            await persistEntry(updated);
+          } catch (err) {
             // eslint-disable-next-line no-console
             console.error('updateEntry (create): SP persist failed', err);
-            if (prevEntry) {
-              localEntriesRef.current = prev;
-              setLocalEntries(prev);
-            } else {
-              const rolled = localEntriesRef.current.filter((e) => e.id !== updated.id);
-              localEntriesRef.current = rolled;
-              setLocalEntries(rolled);
-            }
+            // Draft already staged in `next` — reopen edit so the user can retry.
+            setEditingCardId(updated.id);
             window.alert(
               err instanceof Error
                 ? `Could not save itinerary item: ${err.message}`
-                : 'Could not save itinerary item. Changes were reverted.'
+                : 'Could not save itinerary item. Please try again.'
             );
-          });
+            throw err;
+          }
         }
         return;
       }
@@ -549,26 +546,25 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       const svc = new ItineraryService(spContext);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars -- strip nested items before PATCH
       const { subItems: _subItems, ...entryWithoutSubItems } = updated;
-      void svc
-        .update(updated.id, entryWithoutSubItems)
-        .then(async () => {
-          await syncEntryCancellationDeadlineReminder(spContext, updated);
-          window.dispatchEvent(new Event('trip-reminders-updated'));
-        })
-        .catch((err) => {
-          // eslint-disable-next-line no-console
-          console.error('updateEntry (update): SP persist or cancellation reminder sync failed', err);
-          if (prevEntry) {
-            const rolled = localEntriesRef.current.map((e) => (e.id === prevEntry.id ? prevEntry : e));
-            localEntriesRef.current = rolled;
-            setLocalEntries(rolled);
-          }
-          window.alert(
-            err instanceof Error
-              ? `Could not save itinerary item: ${err.message}`
-              : 'Could not save itinerary item. Changes were reverted.'
-          );
-        });
+      try {
+        await svc.update(updated.id, entryWithoutSubItems);
+        await syncEntryCancellationDeadlineReminder(spContext, updated);
+        window.dispatchEvent(new Event('trip-reminders-updated'));
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('updateEntry (update): SP persist or cancellation reminder sync failed', err);
+        if (prevEntry) {
+          const rolled = localEntriesRef.current.map((e) => (e.id === prevEntry.id ? prevEntry : e));
+          localEntriesRef.current = rolled;
+          setLocalEntries(rolled);
+        }
+        window.alert(
+          err instanceof Error
+            ? `Could not save itinerary item: ${err.message}`
+            : 'Could not save itinerary item. Changes were reverted.'
+        );
+        throw err;
+      }
     },
     [spContext, persistEntry, tripDays]
   );

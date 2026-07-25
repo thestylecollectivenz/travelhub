@@ -339,10 +339,17 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
           type="button"
           className={styles.backBtn}
           onClick={() => {
-            // Persist open edit form before tearing down the detail portal.
-            flushItineraryEdit();
-            setEditingCardId(null);
-            closeCardDetailRef.current?.();
+            void (async () => {
+              try {
+                // Persist open edit form before tearing down the detail portal.
+                await flushItineraryEdit();
+              } catch {
+                // Create/update failed — stay on the form (updateEntry reopens edit).
+                return;
+              }
+              setEditingCardId(null);
+              closeCardDetailRef.current?.();
+            })();
           }}
           aria-label="Back to day"
         >
@@ -574,8 +581,8 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
                   key={editingEntry.id}
                   entry={editingEntry}
                   calendarDate={editingDay?.calendarDate || ''}
-                  onSave={(saved) => {
-                    updateEntry(saved, { persistPending: true });
+                  onSave={async (saved) => {
+                    await updateEntry(saved, { persistPending: true });
                     setEditingCardId(null);
                   }}
                   onCancel={() => {

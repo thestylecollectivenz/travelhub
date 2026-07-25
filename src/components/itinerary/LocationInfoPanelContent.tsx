@@ -324,7 +324,7 @@ export const LocationInfoPanelContent: React.FC<LocationInfoPanelContentProps> =
   }
 
   const persist = (next: LocationInfoNotes): void => {
-    updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(next)) });
+    void updateEntry({ ...liveEntry, notes: serializeLocationInfoNotes(normalizeLocationInfoNotes(next)) });
   };
 
   const runDining = (replaceExisting = false): void => {

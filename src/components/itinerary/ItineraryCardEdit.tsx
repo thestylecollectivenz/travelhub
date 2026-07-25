@@ -50,7 +50,7 @@ export interface ItineraryCardEditProps {
   calendarDate: string;
   /** When option, edits a related option using the same form chrome as a day card. */
   variant?: 'entry' | 'option';
-  onSave: (entry: ItineraryEntry) => void;
+  onSave: (entry: ItineraryEntry) => void | Promise<void>;
   onCancel: () => void;
   onDelete: () => void;
 }
@@ -378,7 +378,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
     }));
   }, [isFlights, calendarDate]);
 
-  const handleSave = React.useCallback(() => {
+  const handleSave = React.useCallback(async (): Promise<void> => {
     // Prefer live DOM for notes — iPad contentEditable can lag React state until blur.
     const notesRoot = document.getElementById(`notes-${draft.id}`);
     const notesEditable = notesRoot?.querySelector('[contenteditable="true"]') as HTMLElement | null;
@@ -513,8 +513,8 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
         }
       }
     }
-    onSave(saved);
-  }, [calendarDate, draft, entry.dayId, timeValue, nights, perNight, trip, tripDays, config.homeCurrency, isTransport]);
+    await onSave(saved);
+  }, [calendarDate, draft, entry.dayId, timeValue, nights, perNight, trip, tripDays, config.homeCurrency, isTransport, onSave]);
 
   const hasMeaningfulDraftContent = React.useMemo(
     () =>
@@ -584,8 +584,8 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
 
   // Mobile header Back flushes the open form so edits are not lost when leaving the portal.
   React.useEffect(() => {
-    return registerItineraryEditFlush(() => {
-      if (canSave) handleSave();
+    return registerItineraryEditFlush(async () => {
+      if (canSave) await handleSave();
       else onCancel();
     });
   }, [canSave, handleSave, onCancel]);
@@ -1625,7 +1625,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           <button type="button" className={styles.btnSecondary} onClick={onCancel}>
             Cancel
           </button>
-          <button type="button" className={styles.btnPrimary} disabled={!canSave} onClick={handleSave}>
+          <button type="button" className={styles.btnPrimary} disabled={!canSave} onClick={() => { void handleSave(); }}>
             Save
           </button>
         </div>
