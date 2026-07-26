@@ -275,7 +275,7 @@
 }
 
 .itemName {
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   font-weight: 650;
   color: #1e2a44;
   line-height: 1.15;
@@ -301,7 +301,7 @@
 }
 
 .inlineName {
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   font-weight: 650;
   border-color: transparent;
   padding-left: 0;
@@ -349,16 +349,43 @@
 .forCell {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  justify-content: center;
   min-width: 0;
 }
 
-.forName {
+.qtyIconBtn,
+.forIconBtn {
+  min-width: 1.7rem;
+  height: 1.7rem;
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  border-radius: 0.4rem;
+  background: white;
+  color: #1e2a44;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0 0.25rem;
   font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.qtyIconBtnOn,
+.forIconBtnOn {
+  border-color: color-mix(in srgb, #2f5eb8 45%, transparent);
+  background: color-mix(in srgb, #2f5eb8 8%, white);
+}
+
+.expandLabel {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 650;
   color: #6b6570;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  margin-bottom: 0.25rem;
+}
+
+.forName {
+  display: none;
 }
 
 .notesCell {

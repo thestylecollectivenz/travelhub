@@ -199,7 +199,7 @@ export const MobileShoppingFilters: React.FC<MobileShoppingFiltersProps> = ({
               placeholder="Search categories…"
               aria-label="Search categories"
             />
-            <ul className={styles.catList}>
+            <ul className={`${styles.catList} ${showAllCats || catQuery.trim() ? '' : styles.catListPreview}`.trim()}>
               <li>
                 <button
                   type="button"
@@ -296,7 +296,7 @@ export const MobileShoppingFilters: React.FC<MobileShoppingFiltersProps> = ({
                 [
                   { key: 'all' as const, label: 'All items' },
                   { key: 'tobuy' as const, label: `To buy (${statusCounts.tobuy})` },
-                  { key: 'ordered' as const, label: `Ordered (${statusCounts.ordered})` },
+                  { key: 'ordered' as const, label: `Has link (${statusCounts.ordered})` },
                   { key: 'purchased' as const, label: `Purchased (${statusCounts.purchased})` }
                 ]
               ).map((opt) => (

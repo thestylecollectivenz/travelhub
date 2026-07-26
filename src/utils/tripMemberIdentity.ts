@@ -53,14 +53,28 @@ export function resolveTravellerDisplayLabel(
   return undefined;
 }
 
-/** Label for new rows — prefers TripMembers traveller name over SharePoint login/email. */
-export function travellerLabelForCurrentUser(ctx: WebPartContext, members?: TripMember[]): string {
+/**
+ * Label for new packing/shopping rows.
+ * Prefer journal Display name → TripMembers display → M365 display → email.
+ * Never returns "Traveller 1" / "Follower".
+ */
+export function travellerLabelForCurrentUser(
+  ctx: WebPartContext,
+  members?: TripMember[],
+  journalAuthorName?: string
+): string {
+  const journal = (journalAuthorName || '').trim();
+  if (journal && !/^traveller\s*\d+$/i.test(journal) && !/^follower$/i.test(journal)) {
+    return journal;
+  }
   const fromCompanion = companionAssigneeLabel(ctx, members ?? []);
-  if (fromCompanion) return fromCompanion;
+  if (fromCompanion && !/^traveller\s*\d+$/i.test(fromCompanion) && !/^follower$/i.test(fromCompanion)) {
+    return fromCompanion;
+  }
   const display = ctx.pageContext.user.displayName?.trim();
-  if (display && !display.includes('@')) return display;
+  if (display && !display.includes('@') && !/^traveller\s*\d+$/i.test(display)) return display;
   const resolved = resolveTravellerDisplayLabel(getCurrentUserEmail(ctx), members);
-  if (resolved && !resolved.includes('@')) return resolved;
+  if (resolved && !resolved.includes('@') && !/^traveller\s*\d+$/i.test(resolved)) return resolved;
   return display || resolved || getCurrentUserEmail(ctx);
 }
 

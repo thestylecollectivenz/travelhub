@@ -92,15 +92,17 @@ export const MobileBudgetView: React.FC<MobileBudgetViewProps> = ({ onOpenPlan }
   const { canEditItinerary, canUseExports } = useTripPermissions();
   const shellMode = useShellMode();
   const [viewMode, setViewMode] = React.useState<BudgetViewMode>(
-    selectedBudgetCategory ? 'category' : 'category'
+    selectedBudgetCategory ? 'category' : 'all'
   );
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [lineSort, setLineSort] = React.useState<BudgetLineSort>('date');
   const [certaintyFilter, setCertaintyFilter] = React.useState<CertaintyFilter>(null);
   const [supplierFilter, setSupplierFilter] = React.useState<string | null>(null);
   const [printHtml, setPrintHtml] = React.useState<string | null>(null);
-  /** Categories expanded in All categories view — start empty (all collapsed). */
-  const [expandedCats, setExpandedCats] = React.useState<ReadonlySet<string>>(() => new Set());
+  /** Categories expanded in All categories view — start fully expanded. */
+  const [expandedCats, setExpandedCats] = React.useState<ReadonlySet<string>>(
+    () => new Set(BUDGET_CATEGORY_ORDER)
+  );
   const isIpad = shellMode === 'ipad-portrait';
 
   const locationFor = React.useCallback(
@@ -368,8 +370,8 @@ export const MobileBudgetView: React.FC<MobileBudgetViewProps> = ({ onOpenPlan }
   const switchToAll = React.useCallback((): void => {
     setViewMode('all');
     setSelectedBudgetCategory(null);
-    setExpandedCats(new Set());
-  }, [setSelectedBudgetCategory]);
+    setExpandedCats(new Set(allCatKeys));
+  }, [allCatKeys, setSelectedBudgetCategory]);
 
   const suppliers = React.useMemo(() => {
     const source =

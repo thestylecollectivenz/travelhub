@@ -66,7 +66,7 @@
 .tripTitle {
   margin: 0;
   font-family: var(--tl-serif);
-  font-size: 1.55rem;
+  font-size: 1.15rem;
   font-weight: 400;
   letter-spacing: -0.02em;
   color: var(--tl-navy);
@@ -953,7 +953,7 @@
   position: fixed;
   right: 1.25rem;
   bottom: calc(4.5rem + env(safe-area-inset-bottom, 0));
-  z-index: 10;
+  z-index: 40;
   width: 3.35rem;
   height: 3.35rem;
   border-radius: 999px;
@@ -981,7 +981,7 @@
 }
 
 .itinRoot[data-shell='ipad-portrait'] .tripTitle {
-  font-size: 1.85rem;
+  font-size: 1.25rem;
   font-weight: 400;
 }
 

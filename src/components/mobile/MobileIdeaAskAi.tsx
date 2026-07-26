@@ -7,6 +7,7 @@ import { useSpeechOutput } from '../../hooks/useSpeechOutput';
 import { useContinuousSpeechInput } from '../../hooks/useContinuousSpeechInput';
 import { SpeechPlaybackControls } from '../shared/SpeechPlaybackControls';
 import { placeNameFromTitle } from '../../utils/placeDisplayLabel';
+import { confirmUserAction } from '../../utils/confirmAction';
 import styles from './MobileIdeaAskAi.module.css';
 
 export interface IdeaQaEntry {
@@ -43,6 +44,18 @@ export function sanitizeIdeaAiAnswer(raw: string): string {
   return text.replace(/\n{3,}/g, '\n\n').trim();
 }
 
+const SpeakerIcon: React.FC<{ size?: number }> = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <path d="M3 10v4h4l5 4V6L7 10H3Z" fill="currentColor" />
+    <path
+      d="M16 9a4 4 0 0 1 0 6M18.5 7a7 7 0 0 1 0 10"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
 export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
   ideaText,
   locationLabel,
@@ -59,6 +72,9 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
   const [question, setQuestion] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState('');
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [editQuestionDraft, setEditQuestionDraft] = React.useState('');
+  const [editAnswerDraft, setEditAnswerDraft] = React.useState('');
   const { speechState, speak, pause, resume, stop: stopSpeech } = useSpeechOutput();
   const appendVoice = React.useCallback((chunk: string) => {
     setQuestion((prev) => `${prev}${prev ? ' ' : ''}${chunk}`);
@@ -70,6 +86,17 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
   }, [thread]);
 
   if (!canUseAiHelpers) return null;
+
+  const updateThread = (next: IdeaQaEntry[]): void => {
+    setLocalThread(next);
+    void onThreadChange(next);
+  };
+
+  const speakAnswer = (answer: string): void => {
+    stopListening();
+    const plain = (answer || '').trim();
+    if (plain) speak(plain);
+  };
 
   const ask = async (raw?: string): Promise<void> => {
     const q = (raw ?? question).trim();
@@ -94,6 +121,12 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
               .filter(Boolean)
               .slice(-1)[0] || ''
           : '';
+      const priorThreadBits =
+        localThread.length > 0
+          ? `Earlier idea Q&A:\n${localThread
+              .map((x) => `Q: ${x.question}\nA: ${x.answer}`)
+              .join('\n')}\nAnswer the follow-up in the context of this thread — do not require the traveller to restate prior details.`
+          : '';
       const contextSummary = [
         `Trip idea: ${ideaText}`,
         dayLabel ? `Day / date: ${dayLabel}` : '',
@@ -103,7 +136,8 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
         placeLabel
           ? `Idea / visit place (day visit — do NOT assume a hotel here unless listed): ${placeLabel}`
           : '',
-        'Rule: Hotels and cruise cabins apply only to overnight stays. Day trips use the overnight base; do not mention missing hotels at day-visit places.'
+        'Rule: Hotels and cruise cabins apply only to overnight stays. Day trips use the overnight base; do not mention missing hotels at day-visit places.',
+        priorThreadBits
       ]
         .filter(Boolean)
         .join('\n');
@@ -130,7 +164,7 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
             : 'Answer received but could not save. Wait a moment and try again.'
         );
       }
-      if (entry.answer) speak(entry.answer);
+      // Do not auto-speak — user taps Listen when they want audio.
     } catch (err) {
       setError(formatGeminiUserMessage(err));
     } finally {
@@ -138,10 +172,9 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
     }
   };
 
-  const removeEntry = (id: string): void => {
-    const next = localThread.filter((t) => t.id !== id);
-    setLocalThread(next);
-    void onThreadChange(next);
+  const removeEntry = async (id: string): Promise<void> => {
+    if (!(await confirmUserAction('Delete this Q&A entry?'))) return;
+    updateThread(localThread.filter((t) => t.id !== id));
   };
 
   return (
@@ -177,10 +210,16 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
               aria-label={listening ? 'Stop microphone' : 'Dictate question'}
               title={supported ? (listening ? 'Stop' : 'Dictate') : 'Speech not supported'}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" strokeWidth="1.8" />
-                <path d="M6 11a6 6 0 0 0 12 0M12 17v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              </svg>
+              {listening ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" strokeWidth="1.8" />
+                  <path d="M6 11a6 6 0 0 0 12 0M12 17v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
+              )}
             </button>
             <button type="button" className={styles.askBtn} disabled={busy || !question.trim()} onClick={() => void ask()}>
               Ask
@@ -192,27 +231,146 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
             <ul className={styles.thread}>
               {localThread.map((item) => (
                 <li key={item.id} className={styles.threadItem}>
-                  <p className={styles.q}>
-                    <strong>Q:</strong> {item.question}
-                  </p>
-                  <p className={styles.a}>
-                    <strong>A:</strong> {item.answer}
-                  </p>
+                  {editingId === item.id ? (
+                    <div className={styles.editStack}>
+                      <label className={styles.editLabel} htmlFor={`idea-qa-q-${item.id}`}>
+                        Question
+                      </label>
+                      <textarea
+                        id={`idea-qa-q-${item.id}`}
+                        className={styles.editArea}
+                        rows={2}
+                        value={editQuestionDraft}
+                        onChange={(e) => setEditQuestionDraft(e.target.value)}
+                      />
+                      <label className={styles.editLabel} htmlFor={`idea-qa-a-${item.id}`}>
+                        Answer
+                      </label>
+                      <textarea
+                        id={`idea-qa-a-${item.id}`}
+                        className={styles.editArea}
+                        rows={4}
+                        value={editAnswerDraft}
+                        onChange={(e) => setEditAnswerDraft(e.target.value)}
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <p className={styles.q}>
+                        <strong>Q:</strong> {item.question}
+                      </p>
+                      <p className={styles.a}>
+                        <strong>A:</strong> {item.answer}
+                      </p>
+                    </>
+                  )}
                   <div className={styles.threadActions}>
-                    <button type="button" className={styles.smallBtn} onClick={() => speak(item.answer)}>
-                      Listen
-                    </button>
-                    <SpeechPlaybackControls
-                      speechState={speechState}
-                      onPause={pause}
-                      onResume={resume}
-                      onStop={stopSpeech}
-                      className={styles.playback}
-                      buttonClassName={styles.smallBtn}
-                    />
-                    <button type="button" className={styles.smallBtn} onClick={() => removeEntry(item.id)}>
-                      Delete
-                    </button>
+                    {editingId === item.id ? (
+                      <>
+                        <button
+                          type="button"
+                          className={styles.iconBtn}
+                          aria-label="Save"
+                          title="Save"
+                          onClick={() => {
+                            const nextQ = editQuestionDraft.trim();
+                            const nextA = editAnswerDraft.trim();
+                            if (!nextQ || !nextA) return;
+                            updateThread(
+                              localThread.map((t) =>
+                                t.id === item.id ? { ...t, question: nextQ, answer: nextA } : t
+                              )
+                            );
+                            setEditingId(null);
+                          }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                            <path
+                              d="M5 12.5 9.5 17 19 7.5"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.iconBtn}
+                          aria-label="Cancel"
+                          title="Cancel"
+                          onClick={() => {
+                            setEditingId(null);
+                            setEditQuestionDraft('');
+                            setEditAnswerDraft('');
+                          }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                            <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                          </svg>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {item.answer?.trim() ? (
+                          <button
+                            type="button"
+                            className={styles.iconBtn}
+                            onClick={() => speakAnswer(item.answer)}
+                            aria-label="Read this answer aloud"
+                            title="Listen"
+                          >
+                            <SpeakerIcon size={16} />
+                          </button>
+                        ) : null}
+                        <SpeechPlaybackControls
+                          speechState={speechState}
+                          onPause={pause}
+                          onResume={resume}
+                          onStop={stopSpeech}
+                          className={styles.playback}
+                          buttonClassName={styles.smallBtn}
+                        />
+                        <button
+                          type="button"
+                          className={styles.iconBtn}
+                          aria-label="Edit"
+                          title="Edit"
+                          onClick={() => {
+                            setEditingId(item.id);
+                            setEditQuestionDraft(item.question);
+                            setEditAnswerDraft(item.answer);
+                          }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                            <path
+                              d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"
+                              stroke="currentColor"
+                              strokeWidth="1.7"
+                              strokeLinejoin="round"
+                            />
+                            <path d="M12.5 7.5l3 3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
+                          aria-label="Delete"
+                          title="Delete"
+                          onClick={() => void removeEntry(item.id)}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                            <path
+                              d="M5 7h14M10 7V5h4v2m-6 3v8m4-8v8M7 7l1 13h8l1-13"
+                              stroke="currentColor"
+                              strokeWidth="1.7"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </button>
+                      </>
+                    )}
                   </div>
                 </li>
               ))}

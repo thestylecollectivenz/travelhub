@@ -218,6 +218,26 @@ function transportPlannerBlocks(
   const retYmd = ymdSlice(entry.returnDate || '');
   const blocks: FlightPlannerBlock[] = [];
   const title = entry.title?.trim() || 'Transport';
+  const from = (entry.transportFrom || '').trim();
+  const to = (entry.transportTo || '').trim();
+  const mode = (entry.transportMode || '').trim();
+  const modeSuffix = mode ? ` (${mode})` : '';
+  const outboundTitle =
+    from && to ? `${from} → ${to}${modeSuffix}` : title;
+  const returnTitle =
+    from && to
+      ? `${to} → ${from}${modeSuffix}`
+      : (() => {
+          const parts = title.split(/\s*(?:→|->)\s*/);
+          if (parts.length === 2) {
+            const left = parts[0].trim();
+            const right = parts[1].trim();
+            const modeMatch = right.match(/^(.+?)(\s*\([^)]+\))$/);
+            if (modeMatch) return `${modeMatch[1].trim()} → ${left}${modeMatch[2]}`;
+            return `${right} → ${left}`;
+          }
+          return title;
+        })();
 
   if (depYmd && viewYmd === depYmd) {
     const start = minutesFromTimeStart(entry.timeStart || '');
@@ -227,7 +247,7 @@ function transportPlannerBlocks(
         end !== undefined && end > start
           ? end - start
           : parseDurationMinutes(entry.duration || '') || 60;
-      blocks.push({ keySuffix: 'outbound', startMinutes: start, durationMinutes: dur, title });
+      blocks.push({ keySuffix: 'outbound', startMinutes: start, durationMinutes: dur, title: outboundTitle });
     }
   }
 
@@ -253,7 +273,7 @@ function transportPlannerBlocks(
         keySuffix: 'return',
         startMinutes: start,
         durationMinutes: dur,
-        title: `${title} (return)`
+        title: returnTitle
       });
     }
   }

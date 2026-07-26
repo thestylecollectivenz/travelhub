@@ -18,7 +18,8 @@ import { canEditOwnedRecord } from '../../utils/canEditOwnedRecord';
 import { useCanSeeFinancials } from '../../hooks/useCanSeeFinancials';
 import { useTripMembers } from '../../hooks/useTripMembers';
 import { useCompanionListDefaults } from '../../hooks/useCompanionListDefaults';
-import { assigneeLabelsMatch, resolveOwnerEmailForAssignee } from '../../utils/tripMemberIdentity';
+import { assigneeLabelsMatch, resolveOwnerEmailForAssignee, travellerLabelForCurrentUser } from '../../utils/tripMemberIdentity';
+import { flashToast } from '../../utils/flashToast';
 import { MOBILE_OPEN_SHOPPING_ADD } from '../../utils/mobileHomePendingAction';
 import { TravellerAvatar } from '../shared/TravellerAvatar';
 import { useShellMode } from '../../hooks/useShellMode';
@@ -72,7 +73,7 @@ function DetailsIcon(): React.ReactElement {
 export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const spContext = useSpContext();
   const { trip } = useTripWorkspace();
-  const { config } = useConfig();
+  const { config, journalAuthorName } = useConfig();
   const planView = usePlanView();
   const activeCategory = planView?.shoppingCategory ?? '__all__';
   const activeTraveller = planView?.shoppingTraveller ?? null;
@@ -87,6 +88,7 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
   const service = React.useMemo(() => new ShoppingListService(spContext), [spContext]);
   const [items, setItems] = React.useState<ShoppingItem[]>([]);
   const [addOpen, setAddOpen] = React.useState(false);
+  const [adding, setAdding] = React.useState(false);
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<ShoppingStatusFilter>('all');
@@ -101,6 +103,10 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
   const [urlDrafts, setUrlDrafts] = React.useState<Record<string, string>>({});
   const [notesOpenId, setNotesOpenId] = React.useState<string | null>(null);
   const addNameRef = React.useRef<HTMLInputElement | null>(null);
+  const defaultTraveller = React.useMemo(
+    () => travellerLabelForCurrentUser(spContext, members, journalAuthorName) || travellers[0] || '',
+    [spContext, members, journalAuthorName, travellers]
+  );
 
   React.useEffect(() => {
     const handler = (): void => {
@@ -118,8 +124,8 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
   }, [categories, addCategory]);
 
   React.useEffect(() => {
-    if (!addTraveller && travellers[0]) setAddTraveller(travellers[0]);
-  }, [travellers, addTraveller]);
+    if (!addTraveller && defaultTraveller) setAddTraveller(defaultTraveller);
+  }, [defaultTraveller, addTraveller]);
 
   const canEditItem = React.useCallback(
     (item: ShoppingItem) => canEditOwnedRecord(spContext, item.ownerEmail, role, item.traveller, members),
@@ -249,42 +255,59 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
   };
 
   const addItem = (): void => {
-    if (!trip?.id || !name.trim()) return;
-    const traveller = addTraveller || activeTraveller || travellers[0] || 'Traveller 1';
+    if (!trip?.id || !name.trim() || adding) return;
+    const itemName = name.trim();
+    const traveller = addTraveller || activeTraveller || defaultTraveller;
+    if (!traveller) {
+      window.alert('No travellers available for this trip. Add an Editor or Companion in Access first.');
+      return;
+    }
     const fallback = categories.find((c) => c.toLowerCase() === 'other') || categories[0] || 'Other';
     const itemCategory = categories.some((c) => c.toLowerCase() === addCategory.toLowerCase())
       ? addCategory
       : fallback;
     rememberTripShoppingCategory(trip.id, itemCategory);
     const budget = Number(addPrice);
-    service
-      .create({
-        tripId: trip.id,
-        itemName: name.trim(),
-        category: itemCategory,
-        traveller,
-        budgetAmount: addPrice.trim() && Number.isFinite(budget) ? Math.max(0, budget) : 0,
-        actualAmount: 0,
-        currency: config.homeCurrency,
-        purchaseMonth: addMonth.trim(),
-        websiteUrl: '',
-        notes: '',
-        isPurchased: false,
-        ownerEmail: resolveOwnerEmailForAssignee(spContext, traveller, members)
-      })
-      .then(() => {
-        setName('');
-        setAddMonth('');
-        setAddPrice('');
-        setAddOpen(true);
-        refresh();
-        window.setTimeout(() => addNameRef.current?.focus(), 50);
-      })
-      .catch((err) => {
-        // eslint-disable-next-line no-console
-        console.error(err);
-        window.alert(err instanceof Error ? err.message : 'Could not add shopping item.');
-      });
+    setAdding(true);
+    const attempt = (triesLeft: number): void => {
+      service
+        .create({
+          tripId: trip.id,
+          itemName,
+          category: itemCategory,
+          traveller,
+          budgetAmount: addPrice.trim() && Number.isFinite(budget) ? Math.max(0, budget) : 0,
+          actualAmount: 0,
+          currency: config.homeCurrency,
+          purchaseMonth: addMonth.trim(),
+          websiteUrl: '',
+          notes: '',
+          isPurchased: false,
+          ownerEmail: resolveOwnerEmailForAssignee(spContext, traveller, members)
+        })
+        .then(() => {
+          setName('');
+          setAddMonth('');
+          setAddPrice('');
+          setAddOpen(true);
+          refresh();
+          flashToast(`${itemName} added`);
+          window.setTimeout(() => addNameRef.current?.focus(), 50);
+          setAdding(false);
+        })
+        .catch((err) => {
+          const msg = err instanceof Error ? err.message : String(err ?? '');
+          if (triesLeft > 0 && /load failed|failed to fetch|network/i.test(msg)) {
+            window.setTimeout(() => attempt(triesLeft - 1), 350);
+            return;
+          }
+          // eslint-disable-next-line no-console
+          console.error(err);
+          window.alert(err instanceof Error ? err.message : 'Could not add shopping item.');
+          setAdding(false);
+        });
+    };
+    attempt(2);
   };
 
   const categoryOptions = (itemCategory: string): string[] => categoriesForItemSelect(categories, itemCategory);
@@ -303,7 +326,7 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
     const hasDetail = !!(item.notes || '').trim() || !!(item.websiteUrl || '').trim();
     const statusClass =
       status === 'purchased' ? styles.statusPurchased : status === 'ordered' ? styles.statusOrdered : styles.statusToBuy;
-    const statusLabel = status === 'purchased' ? 'Purchased' : status === 'ordered' ? 'Ordered' : 'To buy';
+    const statusLabel = status === 'purchased' ? 'Purchased' : status === 'ordered' ? 'Has link' : 'To buy';
 
     return (
       <li key={item.id} className={`${styles.row} ${item.isPurchased ? styles.rowPurchased : ''}`.trim()}>
@@ -735,8 +758,8 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
                 aria-label="Estimated price"
               />
             ) : null}
-            <button type="button" className={styles.saveAddBtn} onClick={addItem} disabled={!name.trim()}>
-              Add
+            <button type="button" className={styles.saveAddBtn} onClick={addItem} disabled={!name.trim() || adding}>
+              {adding ? 'Adding…' : 'Add'}
             </button>
           </div>
         ) : null}

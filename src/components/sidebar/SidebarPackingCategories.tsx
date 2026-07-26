@@ -3,33 +3,18 @@ import { usePlanView } from '../../context/PlanViewContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
 import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
-import { loadTripTravellers, saveTripTravellers } from '../../utils/tripTravellers';
+import { useTripMembers } from '../../hooks/useTripMembers';
 import styles from './TripSidebar.module.css';
 
+/** Traveller filters for packing — Editors/Companions only (via useTripMembers). */
 export const SidebarPackingCategories: React.FC = () => {
   const plan = usePlanView();
   const { trip } = useTripWorkspace();
   const spContext = useSpContext();
   const { categories } = useTripShoppingCategories(trip?.id, spContext);
+  const { travellers } = useTripMembers(trip?.id);
   const selected = plan?.packingCategory ?? 'Other';
   const traveller = plan?.packingTraveller ?? null;
-  const [travellers, setTravellers] = React.useState<string[]>(['Traveller 1']);
-  const [newTravellerName, setNewTravellerName] = React.useState('');
-  const [editingTraveller, setEditingTraveller] = React.useState<string | null>(null);
-  const [editName, setEditName] = React.useState('');
-
-  React.useEffect(() => {
-    if (trip?.id) setTravellers(loadTripTravellers(trip.id));
-  }, [trip?.id]);
-
-  const persistTravellers = React.useCallback(
-    (names: string[]) => {
-      if (!trip?.id) return;
-      saveTripTravellers(trip.id, names);
-      setTravellers(names);
-    },
-    [trip?.id]
-  );
 
   if (!plan) return null;
 
@@ -37,7 +22,8 @@ export const SidebarPackingCategories: React.FC = () => {
     <div className={styles.dayListSection}>
       <h2 className={styles.dayListHeading}>Travellers</h2>
       <p className={styles.dayListHint}>
-        Select a traveller to filter the list. New items are assigned to the selected traveller (or the first traveller when viewing all).
+        Select a traveller to filter the list. New items use your journal display name (or the selected traveller).
+        Followers are not listed.
       </p>
       <ul className={styles.dayList}>
         <li>
@@ -51,76 +37,18 @@ export const SidebarPackingCategories: React.FC = () => {
         </li>
         {travellers.map((name) => (
           <li key={name}>
-            {editingTraveller === name ? (
-              <div className={styles.travellerEditRow}>
-                <input
-                  className={styles.travellerInput}
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  aria-label="Traveller name"
-                />
-                <button
-                  type="button"
-                  className={styles.travellerActionBtn}
-                  onClick={() => {
-                    const next = editName.trim();
-                    if (!next) return;
-                    const updated = travellers.map((t) => (t === name ? next : t));
-                    persistTravellers(updated);
-                    if (traveller === name) plan.setPackingTraveller(next);
-                    setEditingTraveller(null);
-                  }}
-                >
-                  Save
-                </button>
-              </div>
-            ) : (
-              <div className={styles.travellerRow}>
-                <button
-                  type="button"
-                  className={`${styles.packingCatBtn} ${traveller === name ? styles.packingCatBtnActive : ''}`}
-                  onClick={() => plan.setPackingTraveller(name)}
-                >
-                  {name}
-                </button>
-                <button
-                  type="button"
-                  className={styles.travellerActionBtn}
-                  title="Rename traveller"
-                  onClick={() => {
-                    setEditingTraveller(name);
-                    setEditName(name);
-                  }}
-                >
-                  ✎
-                </button>
-              </div>
-            )}
+            <button
+              type="button"
+              className={`${styles.packingCatBtn} ${traveller === name ? styles.packingCatBtnActive : ''}`}
+              onClick={() => plan.setPackingTraveller(name)}
+            >
+              {name}
+            </button>
           </li>
         ))}
       </ul>
-      <div className={styles.travellerAddRow}>
-        <input
-          className={styles.travellerInput}
-          placeholder="Add traveller name"
-          value={newTravellerName}
-          onChange={(e) => setNewTravellerName(e.target.value)}
-        />
-        <button
-          type="button"
-          className={styles.travellerActionBtn}
-          onClick={() => {
-            const next = newTravellerName.trim();
-            if (!next || travellers.some((t) => t.toLowerCase() === next.toLowerCase())) return;
-            persistTravellers([...travellers, next]);
-            setNewTravellerName('');
-            plan.setPackingTraveller(next);
-          }}
-        >
-          Add
-        </button>
-      </div>
-      <h2 className={styles.dayListHeading}>Category</h2>
+
+      <h2 className={styles.dayListHeading}>Categories</h2>
       <ul className={styles.dayList}>
         <li>
           <button
@@ -128,17 +56,17 @@ export const SidebarPackingCategories: React.FC = () => {
             className={`${styles.packingCatBtn} ${selected === '__all__' ? styles.packingCatBtnActive : ''}`}
             onClick={() => plan.setPackingCategory('__all__')}
           >
-            All items
+            All categories
           </button>
         </li>
-        {categories.map((c) => (
-          <li key={c}>
+        {categories.map((cat) => (
+          <li key={cat}>
             <button
               type="button"
-              className={`${styles.packingCatBtn} ${selected === c ? styles.packingCatBtnActive : ''}`}
-              onClick={() => plan.setPackingCategory(c)}
+              className={`${styles.packingCatBtn} ${selected === cat ? styles.packingCatBtnActive : ''}`}
+              onClick={() => plan.setPackingCategory(cat)}
             >
-              {c}
+              {cat}
             </button>
           </li>
         ))}

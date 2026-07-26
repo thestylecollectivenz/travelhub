@@ -283,7 +283,8 @@
   background: white;
   box-shadow: 0 2px 10px color-mix(in srgb, #1e2a44 5%, transparent);
   margin-bottom: 0.75rem;
-  overflow: hidden;
+  /* Allow journal card overflow menus to escape the card bounds */
+  overflow: visible;
 }
 
 [data-shell='ipad-portrait'] .mobileRoot .segmentBtn {

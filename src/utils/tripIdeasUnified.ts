@@ -10,6 +10,7 @@ import {
   formatDayIdeaAuthor,
   isDayIdeaAuthor,
   isDayIdeaReminder,
+  isDayIdeaUnread,
   parseDayIdeaMeta,
   serializeDayIdeaMeta
 } from './dayIdeas';
@@ -27,6 +28,8 @@ export type UnifiedIdeaSource = 'jotter' | 'day';
 
 export type TripIdeasFilter =
   | 'all'
+  | 'allByLocation'
+  | 'newByLocation'
   | 'yours'
   | 'ai'
   | 'replies'
@@ -155,6 +158,20 @@ export function isUnifiedIdeaYours(
   return false;
 }
 
+/** New (recently added) or unread day-idea from another traveller. */
+export function isUnifiedIdeaNewOrUnread(
+  idea: UnifiedTripIdea,
+  spContext: WebPartContext,
+  members?: TripMember[]
+): boolean {
+  if (idea.isComplete) return false;
+  if (isIdeaRecentlyAdded(idea.createdAt)) return true;
+  if (idea.source === 'day' || isDayIdeaReminder(idea.reminder)) {
+    return isDayIdeaUnread(idea.reminder, spContext, members);
+  }
+  return false;
+}
+
 export function matchesTripIdeasFilter(
   idea: UnifiedTripIdea,
   filter: TripIdeasFilter,
@@ -163,7 +180,8 @@ export function matchesTripIdeasFilter(
 ): boolean {
   if (filter === 'complete') return idea.isComplete;
   if (idea.isComplete) return false;
-  if (filter === 'open') return true;
+  if (filter === 'open' || filter === 'allByLocation') return true;
+  if (filter === 'newByLocation') return isUnifiedIdeaNewOrUnread(idea, spContext, members);
   if (filter === 'ai') return idea.isAi;
   if (filter === 'yours') return isUnifiedIdeaYours(idea, spContext, members);
   if (filter === 'replies') return idea.replyCount > 0;
@@ -236,13 +254,12 @@ export function groupIdeasByFavouriter(
   return groups;
 }
 
-/** Groups favourited ideas under each location label. */
-export function groupIdeasByLocation(
+/** Groups ideas under each location label (no favourite requirement). */
+export function groupIdeasByLocationLabel(
   ideas: UnifiedTripIdea[]
 ): Array<{ location: string; ideas: UnifiedTripIdea[] }> {
   const map = new Map<string, UnifiedTripIdea[]>();
   for (const idea of ideas) {
-    if (!(idea.favouritedBy || []).length) continue;
     const location = (idea.locationLabel || '').trim() || 'No location';
     const list = map.get(location) ?? [];
     list.push(idea);
@@ -255,6 +272,13 @@ export function groupIdeasByLocation(
       if (b.location === 'No location') return -1;
       return a.location.localeCompare(b.location, undefined, { sensitivity: 'base' });
     });
+}
+
+/** Groups favourited ideas under each location label. */
+export function groupIdeasByLocation(
+  ideas: UnifiedTripIdea[]
+): Array<{ location: string; ideas: UnifiedTripIdea[] }> {
+  return groupIdeasByLocationLabel(ideas.filter((idea) => (idea.favouritedBy || []).length > 0));
 }
 
 export function favouritedByLabels(

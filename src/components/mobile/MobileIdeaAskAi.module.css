@@ -67,7 +67,7 @@
 .smallBtn {
   border: 1px solid color-mix(in srgb, #1e2a44 14%, transparent);
   background: white;
-  border-radius: 0.55rem;
+  border-radius: 999px;
   cursor: pointer;
   font: inherit;
   font-size: 0.75rem;
@@ -85,13 +85,47 @@
   flex-shrink: 0;
 }
 
+.iconBtnDanger {
+  color: #b42318;
+  border-color: color-mix(in srgb, #b42318 25%, transparent);
+  background: color-mix(in srgb, #fdecea 55%, white);
+}
+
 .iconBtnOn {
   background: #2f5eb8;
   border-color: #2f5eb8;
   color: white;
 }
 
+.editStack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.35rem;
+}
+
+.editLabel {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #8a7355;
+}
+
+.editArea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
+  border-radius: 0.55rem;
+  padding: 0.4rem 0.5rem;
+  font: inherit;
+  font-size: 0.8rem;
+  resize: vertical;
+}
+
 .askBtn {
+  width: auto;
+  height: auto;
   padding: 0.4rem 0.7rem;
   background: #2f5eb8;
   border-color: #2f5eb8;

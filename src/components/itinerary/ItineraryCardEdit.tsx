@@ -68,11 +68,13 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   const { config } = useConfig();
   const [draft, setDraft] = React.useState<ItineraryEntry>(() => ({ ...entry }));
   const notesTouchedRef = React.useRef(false);
+  const savingRef = React.useRef(false);
   const endTimeManualRef = React.useRef(Boolean(formatTimeHHMM(entry.arrivalTime ?? '')));
   const returnEndTimeManualRef = React.useRef(Boolean(formatTimeHHMM(entry.returnArrivalTime ?? '')));
   const [returnDurationInput, setReturnDurationInput] = React.useState('');
   const [attachmentEntryId, setAttachmentEntryId] = React.useState(entry.id);
   const touchShell = isCompactTouchShell(useShellMode());
+  const [saving, setSaving] = React.useState(false);
   const [supplierSuggestOpen, setSupplierSuggestOpen] = React.useState(false);
   const [locationSuggestOpen, setLocationSuggestOpen] = React.useState(false);
 
@@ -379,6 +381,10 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   }, [isFlights, calendarDate]);
 
   const handleSave = React.useCallback(async (): Promise<void> => {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    try {
     // Prefer live DOM for notes — iPad contentEditable can lag React state until blur.
     const notesRoot = document.getElementById(`notes-${draft.id}`);
     const notesEditable = notesRoot?.querySelector('[contenteditable="true"]') as HTMLElement | null;
@@ -514,6 +520,11 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       }
     }
     await onSave(saved);
+    } finally {
+      // eslint-disable-next-line require-atomic-updates -- re-entrancy guard for Save taps
+      savingRef.current = false;
+      setSaving(false);
+    }
   }, [calendarDate, draft, entry.dayId, timeValue, nights, perNight, trip, tripDays, config.homeCurrency, isTransport, onSave]);
 
   const hasMeaningfulDraftContent = React.useMemo(
@@ -1625,8 +1636,8 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           <button type="button" className={styles.btnSecondary} onClick={onCancel}>
             Cancel
           </button>
-          <button type="button" className={styles.btnPrimary} disabled={!canSave} onClick={() => { void handleSave(); }}>
-            Save
+          <button type="button" className={styles.btnPrimary} disabled={!canSave || saving} onClick={() => { void handleSave(); }}>
+            {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
       </div>

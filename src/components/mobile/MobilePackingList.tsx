@@ -7,7 +7,9 @@ import { useTripRole } from '../../context/TripRoleContext';
 import { canEditOwnedRecord } from '../../utils/canEditOwnedRecord';
 import { useTripMembers } from '../../hooks/useTripMembers';
 import { useCompanionListDefaults } from '../../hooks/useCompanionListDefaults';
-import { assigneeLabelsMatch, resolveOwnerEmailForAssignee } from '../../utils/tripMemberIdentity';
+import { assigneeLabelsMatch, resolveOwnerEmailForAssignee, travellerLabelForCurrentUser } from '../../utils/tripMemberIdentity';
+import { flashToast } from '../../utils/flashToast';
+import { useConfig } from '../../context/ConfigContext';
 import { MOBILE_OPEN_PACKING_ADD } from '../../utils/mobileHomePendingAction';
 import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
 import { categoriesForItemSelect, rememberTripShoppingCategory } from '../../utils/tripShoppingCategories';
@@ -53,6 +55,7 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
   const activeTraveller = planView?.packingTraveller ?? null;
   const { role } = useTripRole();
   const { members, travellers } = useTripMembers(trip?.id);
+  const { journalAuthorName } = useConfig();
   const { categories } = useTripShoppingCategories(trip?.id, spContext);
   useCompanionListDefaults(planView, role, members);
   const shellMode = useShellMode();
@@ -60,6 +63,7 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
   const service = React.useMemo(() => new PackingService(spContext), [spContext]);
   const [items, setItems] = React.useState<PackingItem[]>([]);
   const [addOpen, setAddOpen] = React.useState(false);
+  const [adding, setAdding] = React.useState(false);
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
   const [packedFilter, setPackedFilter] = React.useState<PackingPackedFilter>('all');
@@ -73,7 +77,13 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
   const [addNotes, setAddNotes] = React.useState('');
   const [noteDrafts, setNoteDrafts] = React.useState<Record<string, string>>({});
   const [notesOpenId, setNotesOpenId] = React.useState<string | null>(null);
+  const [qtyOpenId, setQtyOpenId] = React.useState<string | null>(null);
+  const [forOpenId, setForOpenId] = React.useState<string | null>(null);
   const addNameRef = React.useRef<HTMLInputElement | null>(null);
+  const defaultTraveller = React.useMemo(
+    () => travellerLabelForCurrentUser(spContext, members, journalAuthorName) || travellers[0] || '',
+    [spContext, members, journalAuthorName, travellers]
+  );
 
   React.useEffect(() => {
     const handler = (): void => {
@@ -91,8 +101,8 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
   }, [categories, addCategory]);
 
   React.useEffect(() => {
-    if (!addTraveller && travellers[0]) setAddTraveller(travellers[0]);
-  }, [travellers, addTraveller]);
+    if (!addTraveller && defaultTraveller) setAddTraveller(defaultTraveller);
+  }, [defaultTraveller, addTraveller]);
 
   const canEditItem = React.useCallback(
     (item: PackingItem) => canEditOwnedRecord(spContext, item.ownerEmail, role, item.traveller, members),
@@ -187,39 +197,56 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
     activeCategory !== '__all__' || packedFilter !== 'all' || hasNotesOnly || hasQtyGt1;
 
   const addItem = (): void => {
-    if (!trip?.id || !name.trim()) return;
-    const traveller = addTraveller || activeTraveller || travellers[0] || 'Traveller 1';
+    if (!trip?.id || !name.trim() || adding) return;
+    const itemName = name.trim();
+    const traveller = addTraveller || activeTraveller || defaultTraveller;
+    if (!traveller) {
+      window.alert('No travellers available for this trip. Add an Editor or Companion in Access first.');
+      return;
+    }
     const fallback = categories.find((c) => c.toLowerCase() === 'other') || categories[0] || 'Other';
     const itemCategory = categories.some((c) => c.toLowerCase() === addCategory.toLowerCase())
       ? addCategory
       : fallback;
     rememberTripShoppingCategory(trip.id, itemCategory);
-    service
-      .create({
-        tripId: trip.id,
-        category: itemCategory,
-        traveller,
-        itemName: name.trim(),
-        quantity: qty,
-        isPacked: false,
-        isTemplate: false,
-        templateId: '',
-        itemNotes: addNotes.trim() || undefined,
-        ownerEmail: resolveOwnerEmailForAssignee(spContext, traveller, members)
-      })
-      .then(() => {
-        setName('');
-        setQty(1);
-        setAddNotes('');
-        setAddOpen(true);
-        refresh();
-        window.setTimeout(() => addNameRef.current?.focus(), 50);
-      })
-      .catch((err) => {
-        // eslint-disable-next-line no-console
-        console.error(err);
-        window.alert(err instanceof Error ? err.message : 'Could not add packing item.');
-      });
+    setAdding(true);
+    const attempt = (triesLeft: number): void => {
+      service
+        .create({
+          tripId: trip.id,
+          category: itemCategory,
+          traveller,
+          itemName,
+          quantity: qty,
+          isPacked: false,
+          isTemplate: false,
+          templateId: '',
+          itemNotes: addNotes.trim() || undefined,
+          ownerEmail: resolveOwnerEmailForAssignee(spContext, traveller, members)
+        })
+        .then(() => {
+          setName('');
+          setQty(1);
+          setAddNotes('');
+          setAddOpen(true);
+          refresh();
+          flashToast(`${itemName} added`);
+          window.setTimeout(() => addNameRef.current?.focus(), 50);
+          setAdding(false);
+        })
+        .catch((err) => {
+          const msg = err instanceof Error ? err.message : String(err ?? '');
+          if (triesLeft > 0 && /load failed|failed to fetch|network/i.test(msg)) {
+            window.setTimeout(() => attempt(triesLeft - 1), 350);
+            return;
+          }
+          // eslint-disable-next-line no-console
+          console.error(err);
+          window.alert(err instanceof Error ? err.message : 'Could not add packing item.');
+          setAdding(false);
+        });
+    };
+    attempt(2);
   };
 
   const categoryOptions = (itemCategory: string): string[] => categoriesForItemSelect(categories, itemCategory);
@@ -300,53 +327,38 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
             )}
           </div>
 
-          <div className={styles.qtyCell} aria-label={`Quantity ${item.quantity}`}>
-            {editable ? (
-              <div className={styles.qtyStepper}>
-                <button type="button" className={styles.qtyBtn} onClick={() => bumpQty(item, -1)} aria-label="Decrease">
-                  −
-                </button>
-                <span className={styles.qtyValue}>{item.quantity}</span>
-                <button type="button" className={styles.qtyBtn} onClick={() => bumpQty(item, 1)} aria-label="Increase">
-                  +
-                </button>
-              </div>
-            ) : (
-              <span className={styles.qtyValue}>{item.quantity}</span>
-            )}
+          <div className={styles.qtyCell}>
+            <button
+              type="button"
+              className={`${styles.qtyIconBtn} ${qtyOpenId === item.id ? styles.qtyIconBtnOn : ''}`}
+              aria-label={`Quantity ${item.quantity}`}
+              aria-expanded={qtyOpenId === item.id}
+              disabled={!editable}
+              onClick={() => {
+                setForOpenId(null);
+                setNotesOpenId(null);
+                setQtyOpenId((prev) => (prev === item.id ? null : item.id));
+              }}
+            >
+              {item.quantity}
+            </button>
           </div>
 
           <div className={styles.forCell}>
-            {editable ? (
-              <>
-                <TravellerAvatar displayName={who.displayName} avatarUrl={who.avatarUrl} size={isIpad ? 24 : 20} />
-                <select
-                  className={styles.inlineFor}
-                  value={item.traveller || travellers[0] || ''}
-                  aria-label="For traveller"
-                  onChange={(e) =>
-                    service
-                      .update(item.id, {
-                        traveller: e.target.value,
-                        ownerEmail: resolveOwnerEmailForAssignee(spContext, e.target.value, members)
-                      })
-                      .then(refresh)
-                      .catch(console.error)
-                  }
-                >
-                  {travellers.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </>
-            ) : (
-              <>
-                <TravellerAvatar displayName={who.displayName} avatarUrl={who.avatarUrl} size={isIpad ? 26 : 22} />
-                <span className={styles.forName}>{who.displayName.split(/\s+/)[0] || who.displayName}</span>
-              </>
-            )}
+            <button
+              type="button"
+              className={`${styles.forIconBtn} ${forOpenId === item.id ? styles.forIconBtnOn : ''}`}
+              aria-label={`For ${who.displayName}`}
+              aria-expanded={forOpenId === item.id}
+              disabled={!editable}
+              onClick={() => {
+                setQtyOpenId(null);
+                setNotesOpenId(null);
+                setForOpenId((prev) => (prev === item.id ? null : item.id));
+              }}
+            >
+              <TravellerAvatar displayName={who.displayName} avatarUrl={who.avatarUrl} size={isIpad ? 22 : 18} />
+            </button>
           </div>
 
           <div className={styles.notesCell}>
@@ -356,7 +368,11 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
               aria-label={notesOpenId === item.id ? 'Hide notes' : 'Notes'}
               aria-expanded={notesOpenId === item.id}
               disabled={!editable && !(item.itemNotes || '').trim()}
-              onClick={() => setNotesOpenId((prev) => (prev === item.id ? null : item.id))}
+              onClick={() => {
+                setQtyOpenId(null);
+                setForOpenId(null);
+                setNotesOpenId((prev) => (prev === item.id ? null : item.id));
+              }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <path
@@ -389,6 +405,45 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
             <span className={styles.editBtn} />
           )}
         </div>
+        {qtyOpenId === item.id && editable ? (
+          <div className={styles.notesExpand}>
+            <span className={styles.expandLabel}>Quantity</span>
+            <div className={styles.qtyStepper}>
+              <button type="button" className={styles.qtyBtn} onClick={() => bumpQty(item, -1)} aria-label="Decrease">
+                −
+              </button>
+              <span className={styles.qtyValue}>{item.quantity}</span>
+              <button type="button" className={styles.qtyBtn} onClick={() => bumpQty(item, 1)} aria-label="Increase">
+                +
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {forOpenId === item.id && editable ? (
+          <div className={styles.notesExpand}>
+            <span className={styles.expandLabel}>For</span>
+            <select
+              className={styles.inlineFor}
+              value={item.traveller || defaultTraveller || travellers[0] || ''}
+              aria-label="For traveller"
+              onChange={(e) =>
+                service
+                  .update(item.id, {
+                    traveller: e.target.value,
+                    ownerEmail: resolveOwnerEmailForAssignee(spContext, e.target.value, members)
+                  })
+                  .then(refresh)
+                  .catch(console.error)
+              }
+            >
+              {travellers.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
         {notesOpenId === item.id ? (
           <div className={styles.notesExpand}>
             {editable ? (
@@ -602,8 +657,8 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
               onChange={(e) => setAddNotes(e.target.value)}
               aria-label="Notes"
             />
-            <button type="button" className={styles.saveAddBtn} onClick={addItem} disabled={!name.trim()}>
-              Add
+            <button type="button" className={styles.saveAddBtn} onClick={addItem} disabled={!name.trim() || adding}>
+              {adding ? 'Adding…' : 'Add'}
             </button>
           </div>
         ) : null}

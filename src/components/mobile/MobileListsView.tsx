@@ -208,7 +208,7 @@ const MobileListsBody: React.FC = () => {
                 </svg>
               </StatIcon>
               <span className={chrome.statValue}>{shoppingOrdered}</span>
-              <span className={chrome.statLabel}>Ordered</span>
+              <span className={chrome.statLabel}>Has link</span>
             </div>
             <div className={chrome.statCard}>
               <StatIcon tone="olive">

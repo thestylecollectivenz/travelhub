@@ -42,6 +42,22 @@ export function formatCabinClass(value?: CabinClass | string): string {
   return formatDisplayLabel(value);
 }
 
+const ARROW_SPLIT = /\s*(?:→|->)\s*/;
+
+function flipArrowTitle(title: string): string {
+  const parts = title.split(ARROW_SPLIT);
+  if (parts.length !== 2) return title;
+  const left = parts[0].trim();
+  const rightPart = parts[1].trim();
+  if (!left || !rightPart) return title;
+  const modeMatch = rightPart.match(/^(.+?)(\s*\([^)]+\))$/);
+  if (modeMatch) {
+    return `${modeMatch[1].trim()} → ${left}${modeMatch[2]}`;
+  }
+  return `${rightPart} → ${left}`;
+}
+
+/** True only on the return calendar day (or when explicitly marked return leg). */
 export function isReturnTransportLeg(entry: {
   category: string;
   journeyType?: TransportJourneyType;
@@ -50,11 +66,15 @@ export function isReturnTransportLeg(entry: {
   calendarDate: string;
 }): boolean {
   if (entry.category !== 'Transport') return false;
-  if (entry.journeyType === 'return') return true;
-  const day = entry.calendarDate.slice(0, 10);
+  if (entry.journeyType !== 'return') return false;
+  const day = (entry.calendarDate || '').slice(0, 10);
   const ret = (entry.returnDate || '').slice(0, 10);
   const out = (entry.dateStart || '').slice(0, 10);
-  return Boolean(ret && day && ret === day && out !== day);
+  // Return-leg day: viewing the return date (and it differs from outbound when both set).
+  if (ret && day && ret === day) return true;
+  // Fallback when returnDate missing: never treat every day as return.
+  if (!ret && !out) return false;
+  return false;
 }
 
 export function transportDisplayTitle(
@@ -77,5 +97,7 @@ export function transportDisplayTitle(
   if (from && to) {
     return isReturn ? `${to} → ${from}${suffix}` : `${from} → ${to}${suffix}`;
   }
-  return entry.title;
+  const raw = (entry.title || '').trim();
+  if (!raw) return 'Transport';
+  return isReturn ? flipArrowTitle(raw) : raw;
 }

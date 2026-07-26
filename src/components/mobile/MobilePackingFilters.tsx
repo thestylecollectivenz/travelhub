@@ -165,7 +165,7 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({
               placeholder="Search categories…"
               aria-label="Search categories"
             />
-            <ul className={styles.catList}>
+            <ul className={`${styles.catList} ${showAllCats || catQuery.trim() ? '' : styles.catListPreview}`.trim()}>
               <li>
                 <button
                   type="button"

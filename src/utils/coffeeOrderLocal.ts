@@ -226,6 +226,30 @@ type CoffeeLexicon = {
 };
 
 const LEXICONS: Record<string, CoffeeLexicon> = {
+  'mi-NZ': {
+    with: 'me',
+    sugarFree: 'kore huka',
+    size: { small: 'iti', medium: 'waenga', large: 'rahi', 'extra large': 'tino rahi' },
+    milk: {
+      trim: 'miraka poto-ngako',
+      skim: 'miraka kore-ngako',
+      full: 'miraka katoa',
+      soy: 'miraka soy',
+      oat: 'miraka oat',
+      almond: 'miraka almond',
+      coconut: 'miraka kokonati',
+      'lactose-free': 'miraka kore-lactose'
+    },
+    drinks: {
+      'flat white': 'flat white',
+      latte: 'latte',
+      cappuccino: 'cappuccino',
+      'long black': 'long black',
+      mocha: 'mocha',
+      espresso: 'espresso',
+      macchiato: 'macchiato'
+    }
+  },
   'fr-FR': {
     with: 'avec',
     sugarFree: 'sans sucre',

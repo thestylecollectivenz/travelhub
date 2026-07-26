@@ -26,9 +26,11 @@ import {
   formatIdeaTime,
   groupIdeasByFavouriter,
   groupIdeasByLocation,
+  groupIdeasByLocationLabel,
   ideaHasAnyFavourite,
   ideaIsFavouritedByMe,
   isIdeaRecentlyAdded,
+  isUnifiedIdeaNewOrUnread,
   isUnifiedIdeaYours,
   loadUnifiedTripIdeas,
   matchesTripIdeasFilter,
@@ -135,6 +137,8 @@ export const MobileTripJotterList: React.FC = () => {
     const open = rows.filter((r) => !r.isComplete);
     return {
       all: open.length,
+      allByLocation: open.length,
+      newByLocation: open.filter((r) => isUnifiedIdeaNewOrUnread(r, spContext, members)).length,
       yours: open.filter((r) => isUnifiedIdeaYours(r, spContext, members)).length,
       favourites: open.filter((r) => ideaIsFavouritedByMe(r, spContext)).length,
       favouritesByTraveller: open.filter((r) => ideaHasAnyFavourite(r)).length,
@@ -172,6 +176,11 @@ export const MobileTripJotterList: React.FC = () => {
   const favouritesByLocationGroups = React.useMemo(() => {
     if (filter !== 'favouritesByLocation') return [];
     return groupIdeasByLocation(filtered);
+  }, [filter, filtered]);
+
+  const allByLocationGroups = React.useMemo(() => {
+    if (filter !== 'allByLocation' && filter !== 'newByLocation') return [];
+    return groupIdeasByLocationLabel(filtered);
   }, [filter, filtered]);
 
   const saveIdeaQaThread = async (idea: UnifiedTripIdea, next: IdeaQaEntry[]): Promise<void> => {
@@ -293,6 +302,8 @@ export const MobileTripJotterList: React.FC = () => {
 
   const filterChips: Array<{ key: TripIdeasFilter; label: string; count?: number }> = [
     { key: 'all', label: 'All', count: counts.all },
+    { key: 'allByLocation', label: 'All by location', count: counts.allByLocation },
+    { key: 'newByLocation', label: 'New / unread by location', count: counts.newByLocation },
     { key: 'yours', label: 'Yours', count: counts.yours },
     { key: 'favourites', label: 'My favourites', count: counts.favourites },
     { key: 'favouritesByTraveller', label: 'Favourites by traveller', count: counts.favouritesByTraveller },
@@ -581,6 +592,32 @@ export const MobileTripJotterList: React.FC = () => {
                   <h3 className={styles.favouritesGroupTitle}>{group.location}</h3>
                   <p className={styles.favouritesGroupMeta}>
                     {group.ideas.length} favourited idea{group.ideas.length === 1 ? '' : 's'}
+                  </p>
+                </div>
+              </div>
+              {group.ideas.map((idea) => renderIdeaCard(idea, `:${group.location}`))}
+            </section>
+          ))
+        )
+      ) : filter === 'allByLocation' || filter === 'newByLocation' ? (
+        !allByLocationGroups.length ? (
+          <p className={chrome.muted}>
+            {filter === 'newByLocation'
+              ? 'No new or unread ideas right now.'
+              : 'No ideas match this filter yet.'}
+          </p>
+        ) : (
+          allByLocationGroups.map((group) => (
+            <section
+              key={group.location}
+              className={styles.favouritesGroup}
+              aria-label={`${filter === 'newByLocation' ? 'New ideas' : 'Ideas'} in ${group.location}`}
+            >
+              <div className={styles.favouritesGroupHead}>
+                <div>
+                  <h3 className={styles.favouritesGroupTitle}>{group.location}</h3>
+                  <p className={styles.favouritesGroupMeta}>
+                    {group.ideas.length} idea{group.ideas.length === 1 ? '' : 's'}
                   </p>
                 </div>
               </div>

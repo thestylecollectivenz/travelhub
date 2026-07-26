@@ -1,12 +1,18 @@
 import * as React from 'react';
 import { useJournal } from '../../context/JournalContext';
 import { useConfig } from '../../context/ConfigContext';
+import { useTripWorkspace } from '../../context/TripWorkspaceContext';
+import { usePlaces } from '../../context/PlacesContext';
 import { RichTextEditor } from './RichTextEditor';
 import { isRichTextEditorEmpty } from '../../utils/journalRichText';
 import { answerTravelChat } from '../../services/GeminiService';
 import { formatGeminiUserMessage } from '../../services/geminiErrorMessage';
 import { useContinuousSpeechInput } from '../../hooks/useContinuousSpeechInput';
 import { richTextToPlainText } from '../../utils/journalRichText';
+import { buildAiCurrentFocusBlock, buildTripDayAiContext } from '../../utils/buildTripDayAiContext';
+import { placeDisplayLabel } from '../../utils/placeDisplayLabel';
+import { compressImageForUpload } from '../../utils/compressImageForUpload';
+import { confirmUserAction } from '../../utils/confirmAction';
 import styles from './JournalEntryComposer.module.css';
 
 export interface JournalEntryComposerProps {
@@ -16,6 +22,9 @@ export interface JournalEntryComposerProps {
   /** Increment to open the photo file picker (e.g. Photos tab “new entry” flow). */
   focusPhotoPickerKey?: number;
 }
+
+/** SharePoint / upload soft limit — prompt to compress above this. */
+const LARGE_PHOTO_BYTES = Math.round(4.5 * 1024 * 1024);
 
 function isAllowedImage(file: File): boolean {
   const lower = file.name.toLowerCase();
@@ -27,6 +36,8 @@ function isAllowedImage(file: File): boolean {
 export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayId, onCancel, onSaved, focusPhotoPickerKey }) => {
   const { addEntry, addPhoto } = useJournal();
   const { config } = useConfig();
+  const { trip, tripDays, localEntries } = useTripWorkspace();
+  const { placeById } = usePlaces();
   const [entryHtml, setEntryHtml] = React.useState('<p><br></p>');
   const [location, setLocation] = React.useState('');
   const [files, setFiles] = React.useState<File[]>([]);
@@ -90,21 +101,44 @@ export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayI
 
   const onPickFiles = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const picked = Array.from(e.target.files ?? []);
-    const next: File[] = [];
-    for (const f of picked) {
-      if (f.size > 10 * 1024 * 1024) {
-        setError('Each image must be 10MB or smaller.');
-        continue;
-      }
-      if (!isAllowedImage(f)) {
-        setError('Only JPG, PNG, or WEBP images are supported.');
-        continue;
-      }
-      next.push(f);
-    }
-    setFiles(next);
-    if (next.length) setError(null);
     e.target.value = '';
+    void (async () => {
+      const next: File[] = [];
+      for (const f of picked) {
+        if (f.size > 10 * 1024 * 1024) {
+          setError('Each image must be 10MB or smaller.');
+          continue;
+        }
+        if (!isAllowedImage(f)) {
+          setError('Only JPG, PNG, or WEBP images are supported.');
+          continue;
+        }
+        let file = f;
+        if (f.size > LARGE_PHOTO_BYTES) {
+          const sizeMb = (f.size / (1024 * 1024)).toFixed(1);
+          const ok = await confirmUserAction(
+            'This photo is large',
+            `${f.name} is about ${sizeMb} MB. Compress and resize it before upload?`
+          );
+          if (!ok) {
+            setError('Large photo skipped. Choose Compress next time, or pick a smaller image.');
+            continue;
+          }
+          try {
+            setProgress(`Compressing ${f.name}…`);
+            file = await compressImageForUpload(f, 1920, 0.78);
+          } catch {
+            setError(`Could not compress ${f.name}. Try a smaller image.`);
+            continue;
+          } finally {
+            setProgress(null);
+          }
+        }
+        next.push(file);
+      }
+      setFiles(next);
+      if (next.length) setError(null);
+    })();
   };
 
   const save = async (): Promise<void> => {
@@ -145,11 +179,43 @@ export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayI
     setHelperBusy(true);
     setError(null);
     try {
-      const context = richTextToPlainText(entryHtml).trim();
-      const prompt = context
-        ? `Journal context:\n${context}\n\nQuestion: ${q}`
-        : `Question: ${q}`;
-      const { answer } = await answerTravelChat(key, [{ role: 'user', text: prompt }], undefined, undefined);
+      const day = tripDays.find((d) => d.id === dayId);
+      const place = day?.primaryPlaceId ? placeById(day.primaryPlaceId) : undefined;
+      const placeTitle = place
+        ? placeDisplayLabel(place)
+        : location.trim() || undefined;
+      const tripContext = trip
+        ? buildTripDayAiContext({
+            trip,
+            tripDays,
+            day,
+            entries: localEntries,
+            placeTitle,
+            placeForDay: (d) => {
+              const p = d.primaryPlaceId ? placeById(d.primaryPlaceId) : undefined;
+              return p;
+            },
+            daySpecific: true
+          })
+        : undefined;
+      const focus = buildAiCurrentFocusBlock({
+        isTasksView: false,
+        dayScope: 'day',
+        selectedDay: day,
+        placeTitle,
+        mainWorkspaceTab: 'journal'
+      });
+      const draftPlain = richTextToPlainText(entryHtml).trim();
+      const prompt = [
+        draftPlain ? `Draft journal entry so far:\n${draftPlain}` : '',
+        location.trim() ? `Entry location field: ${location.trim()}` : '',
+        `Question: ${q}`
+      ]
+        .filter(Boolean)
+        .join('\n\n');
+      const { answer } = await answerTravelChat(key, [{ role: 'user', text: prompt }], tripContext, {
+        currentFocusBlock: focus
+      });
       setHelperAnswer(answer.trim());
     } catch (err) {
       setError(formatGeminiUserMessage(err));
