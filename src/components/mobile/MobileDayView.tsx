@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useTripRole } from '../../context/TripRoleContext';
 import { usePlaces } from '../../context/PlacesContext';
@@ -988,17 +989,20 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
         </div>
       </div>
 
-      {isEditor ? (
-        <button
-          type="button"
-          className={styles.addFab}
-          onClick={() => handleAddItem()}
-          aria-label="Add itinerary item"
-          title="Add item to this day"
-        >
-          +
-        </button>
-      ) : null}
+      {isEditor
+        ? ReactDOM.createPortal(
+            <button
+              type="button"
+              className={styles.addFab}
+              onClick={() => handleAddItem()}
+              aria-label="Add itinerary item"
+              title="Add item to this day"
+            >
+              +
+            </button>,
+            document.body
+          )
+        : null}
       {dayPickOpen ? (
         <MobileItineraryDayPicker
           days={days}

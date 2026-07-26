@@ -20,6 +20,31 @@
   min-width: 0;
 }
 
+.statCardBtn {
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.statCardBtn:active {
+  transform: scale(0.98);
+}
+
+.statCardActive {
+  border-color: color-mix(in srgb, #1e2a44 35%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, #1e2a44 12%, transparent);
+  background: color-mix(in srgb, #1e2a44 4%, white);
+}
+
+.statCardAlert .statValueAlert,
+.statValueAlert {
+  color: #c45c3a;
+}
+
 .statIcon {
   width: 1.65rem;
   height: 1.65rem;

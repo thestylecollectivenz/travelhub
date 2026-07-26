@@ -117,6 +117,7 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({
 
   const apply = (): void => {
     plan.setPackingCategory(draft.category);
+    plan.setPackingPackedFilter(draft.packedFilter);
     onApply(draft);
     onClose();
   };
@@ -131,6 +132,7 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({
     setDraft(defaults);
     plan.setPackingCategory('__all__');
     plan.setPackingTraveller(null);
+    plan.setPackingPackedFilter('all');
     onApply(defaults);
   };
 

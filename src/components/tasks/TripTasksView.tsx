@@ -241,10 +241,15 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
   const [createTaskCategory, setCreateTaskCategory] = React.useState('To Do');
   const [createCustomTaskCategory, setCreateCustomTaskCategory] = React.useState('');
   const [dueDateSort, setDueDateSort] = React.useState<DueDateSort>('none');
-  const [taskDueFilter, setTaskDueFilter] = React.useState<TaskDueFilter>('all');
+  const [localTaskDueFilter, setLocalTaskDueFilter] = React.useState<TaskDueFilter>('all');
+  const taskDueFilter = planView?.taskDueFilter ?? localTaskDueFilter;
+  const setTaskDueFilter = planView?.setTaskDueFilter ?? setLocalTaskDueFilter;
   const [bookingDueFilter, setBookingDueFilter] = React.useState<TaskDueFilter>('all');
   const [paymentDueFilter, setPaymentDueFilter] = React.useState<TaskDueFilter>('all');
   const [tasksInsightFocus, setTasksInsightFocus] = React.useState<string | null>(null);
+  const [taskSearch, setTaskSearch] = React.useState('');
+  const [savingReminderId, setSavingReminderId] = React.useState<string | null>(null);
+  const [togglingCompleteId, setTogglingCompleteId] = React.useState<string | null>(null);
   const addTaskInputRef = React.useRef<HTMLInputElement | null>(null);
   const todayYmd = React.useMemo(() => localTodayYmd(), []);
 
@@ -418,14 +423,39 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
     if (tasksInsightFocus === 'no_assignee') {
       rows = rows.filter((m) => !(m.assignedTo || '').trim());
     }
+    const q = taskSearch.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter((m) => {
+        const hay = [
+          reminderDisplayTitle(m),
+          m.taskNote || '',
+          m.assignedTo || '',
+          m.taskCategory || '',
+          m.reminderText || ''
+        ]
+          .join(' ')
+          .toLowerCase();
+        return hay.includes(q);
+      });
+    }
     return rows;
-  }, [manualTodos, taskDueFilter, todayYmd, tasksInsightFocus]);
+  }, [manualTodos, taskDueFilter, todayYmd, tasksInsightFocus, taskSearch]);
 
   const cancellationReminders = React.useMemo(() => {
     let rows = manual.filter((m) => m.reminderType === 'CancellationDeadline');
     rows = rows.filter((m) => matchesTaskCompletionFilter(m.isComplete, taskCompletionFilter));
-    return rows.filter(matchesReminderFilters);
-  }, [manual, taskCompletionFilter, matchesReminderFilters]);
+    rows = rows.filter(matchesReminderFilters);
+    const q = taskSearch.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter((m) => {
+        const hay = [reminderDisplayTitle(m), m.taskNote || '', m.assignedTo || '', m.reminderText || '']
+          .join(' ')
+          .toLowerCase();
+        return hay.includes(q);
+      });
+    }
+    return rows;
+  }, [manual, taskCompletionFilter, matchesReminderFilters, taskSearch]);
 
   React.useEffect(() => {
     const id = planView?.focusedReminderId;
@@ -565,6 +595,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
     (m: TripReminder): void => {
       const trimmed = editTitle.trim();
       if (!trimmed) return;
+      if (savingReminderId === m.id) return;
       const isReminder = m.reminderType === 'Custom' || m.reminderType === 'CancellationDeadline';
       const title = isReminder
         ? trimmed.startsWith('Reminder:')
@@ -574,6 +605,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
           ? trimmed
           : `Task: ${trimmed}`;
       const resolvedCategory = resolveTaskCategorySelection(editTaskCategory, editCustomTaskCategory);
+      setSavingReminderId(m.id);
       svc
         .update(m.id, {
           title,
@@ -589,9 +621,48 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
           setEditingReminderId(null);
           refresh();
         })
-        .catch(console.error);
+        .catch((err) => {
+          // eslint-disable-next-line no-console
+          console.error(err);
+          window.alert(err instanceof Error ? err.message : 'Could not save task. Try again.');
+        })
+        .finally(() => setSavingReminderId(null));
     },
-    [editDueDate, editNote, editTitle, editTaskCategory, editCustomTaskCategory, editAssignedTo, refresh, svc, trip?.id]
+    [
+      editDueDate,
+      editNote,
+      editTitle,
+      editTaskCategory,
+      editCustomTaskCategory,
+      editAssignedTo,
+      refresh,
+      savingReminderId,
+      svc,
+      trip?.id
+    ]
+  );
+
+  const toggleReminderComplete = React.useCallback(
+    (m: TripReminder): void => {
+      if (togglingCompleteId === m.id) return;
+      const next = !m.isComplete;
+      setTogglingCompleteId(m.id);
+      setManual((prev) => prev.map((row) => (row.id === m.id ? { ...row, isComplete: next } : row)));
+      svc
+        .update(m.id, { isComplete: next })
+        .then(() => {
+          window.dispatchEvent(new CustomEvent('trip-reminders-updated'));
+          refresh();
+        })
+        .catch((err) => {
+          // eslint-disable-next-line no-console
+          console.error(err);
+          setManual((prev) => prev.map((row) => (row.id === m.id ? { ...row, isComplete: m.isComplete } : row)));
+          window.alert(err instanceof Error ? err.message : 'Could not update task. Try again.');
+        })
+        .finally(() => setTogglingCompleteId(null));
+    },
+    [refresh, svc, togglingCompleteId]
   );
 
   const renderTaskNote = (note: string | undefined, titleForDedup: string): React.ReactNode => {
@@ -647,6 +718,16 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
       <div className={`${styles.filterBar} ${styles.noPrint}`}>
         <div className={styles.filterBarMain}>
           {!mobileLayout ? <h2 className={styles.title}>Tasks &amp; reminders</h2> : null}
+          <div className={styles.searchRow}>
+            <input
+              className={styles.searchInput}
+              type="search"
+              value={taskSearch}
+              onChange={(e) => setTaskSearch(e.target.value)}
+              placeholder="Search tasks…"
+              aria-label="Search tasks"
+            />
+          </div>
           <select className={styles.select} value={viewMode} onChange={(e) => setViewMode(e.target.value as ViewMode)}>
             <option value="list">List</option>
             <option value="calendar">Calendar</option>
@@ -948,7 +1029,8 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                       type="checkbox"
                       checked={m.isComplete}
                       aria-label={m.isComplete ? 'Mark incomplete' : 'Mark complete'}
-                      onChange={() => svc.update(m.id, { isComplete: !m.isComplete }).then(refresh).catch(console.error)}
+                      onChange={() => toggleReminderComplete(m)}
+                      disabled={togglingCompleteId === m.id}
                     />
                   ) : null}
                   <div className={styles.itemBody}>
@@ -1042,8 +1124,14 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                   <div className={`${styles.iconActions} ${styles.noPrint}`}>
                     {isEditing ? (
                       <>
-                        <button className={styles.iconBtn} type="button" title="Save" onClick={() => saveEditReminder(m)}>
-                          ✓
+                        <button
+                          className={styles.iconBtn}
+                          type="button"
+                          title="Save"
+                          disabled={savingReminderId === m.id}
+                          onClick={() => saveEditReminder(m)}
+                        >
+                          {savingReminderId === m.id ? '…' : '✓'}
                         </button>
                         <button className={styles.iconBtn} type="button" title="Cancel" onClick={() => setEditingReminderId(null)}>
                           ✕
@@ -1250,7 +1338,8 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                       type="checkbox"
                       checked={m.isComplete}
                       aria-label={m.isComplete ? 'Mark incomplete' : 'Mark complete'}
-                      onChange={() => svc.update(m.id, { isComplete: !m.isComplete }).then(refresh).catch(console.error)}
+                      onChange={() => toggleReminderComplete(m)}
+                      disabled={togglingCompleteId === m.id}
                     />
                     <div className={styles.itemBody}>
                       <div className={styles.itemTitleRow}>

@@ -344,7 +344,7 @@ export const TripJournalFeed: React.FC<{ mobileLayout?: boolean }> = ({ mobileLa
 
   const entryList = (
     <div className={styles.list}>
-      {selectedDayId && selectedDayEntryCount === 0 ? (
+      {selectedDayId && layout === 'by-day' && selectedDayEntryCount === 0 ? (
         <div className={styles.empty} role="status">
           No journal entries for the selected day yet.
         </div>

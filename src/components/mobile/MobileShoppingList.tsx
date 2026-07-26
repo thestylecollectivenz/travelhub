@@ -91,7 +91,23 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
   const [adding, setAdding] = React.useState(false);
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
-  const [statusFilter, setStatusFilter] = React.useState<ShoppingStatusFilter>('all');
+  const [statusFilter, setStatusFilterLocal] = React.useState<ShoppingStatusFilter>(
+    () => planView?.shoppingStatusFilter ?? 'all'
+  );
+
+  const setStatusFilter = React.useCallback(
+    (next: ShoppingStatusFilter) => {
+      setStatusFilterLocal(next);
+      planView?.setShoppingStatusFilter(next);
+    },
+    [planView]
+  );
+
+  React.useEffect(() => {
+    const ctx = planView?.shoppingStatusFilter;
+    if (!ctx || ctx === statusFilter) return;
+    setStatusFilterLocal(ctx);
+  }, [planView?.shoppingStatusFilter, statusFilter]);
   const [hasNotesOnly, setHasNotesOnly] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<ViewMode>('az');
   const [name, setName] = React.useState('');
@@ -238,6 +254,27 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
   const filtersActive =
     activeCategory !== '__all__' || activeMonth !== null || statusFilter !== 'all' || hasNotesOnly;
 
+  const monthPriceRollup = React.useMemo(() => {
+    const map = new Map<string, { total: number; currency: string }>();
+    for (const item of items) {
+      if (item.isPurchased) continue;
+      const month = (item.purchaseMonth || '').trim();
+      if (!month) continue;
+      const amt = Number(item.budgetAmount) || 0;
+      if (amt <= 0) continue;
+      const currency = item.currency || config.homeCurrency;
+      const prev = map.get(month);
+      if (prev) {
+        prev.total += amt;
+      } else {
+        map.set(month, { total: amt, currency });
+      }
+    }
+    return Array.from(map.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([month, { total, currency }]) => ({ month, total, currency }));
+  }, [items, config.homeCurrency]);
+
   const markPurchased = (item: ShoppingItem, purchased: boolean): void => {
     if (!canEditItem(item)) return;
     void (async () => {
@@ -324,9 +361,8 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
     const status = shoppingItemStatus(item);
     const notesExpanded = notesOpenId === item.id;
     const hasDetail = !!(item.notes || '').trim() || !!(item.websiteUrl || '').trim();
-    const statusClass =
-      status === 'purchased' ? styles.statusPurchased : status === 'ordered' ? styles.statusOrdered : styles.statusToBuy;
-    const statusLabel = status === 'purchased' ? 'Purchased' : status === 'ordered' ? 'Has link' : 'To buy';
+    const statusClass = status === 'purchased' ? styles.statusPurchased : styles.statusToBuy;
+    const statusLabel = status === 'purchased' ? 'Purchased' : 'To buy';
 
     return (
       <li key={item.id} className={`${styles.row} ${item.isPurchased ? styles.rowPurchased : ''}`.trim()}>
@@ -618,6 +654,19 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
         hasNotesOnly={hasNotesOnly}
         onApply={onFiltersApply}
       />
+
+      {canSeeFinancials && monthPriceRollup.length > 0 ? (
+        <p className={styles.monthRollup} role="status">
+          <span className={styles.monthRollupLabel}>Est. to buy by month</span>
+          {monthPriceRollup.map((row, i) => (
+            <span key={row.month}>
+              {i > 0 ? ' · ' : ' '}
+              <strong>{monthLabel(row.month)}</strong>:{' '}
+              {formatCurrency(row.total, row.currency)}
+            </span>
+          ))}
+        </p>
+      ) : null}
 
       <div className={styles.travellerRow}>
         <span className={styles.travellerLabel}>Filter by traveller</span>

@@ -118,6 +118,28 @@
   gap: 0.5rem;
 }
 
+.monthRollup {
+  margin: 0;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, #c4a574 12%, white);
+  border: 1px solid color-mix(in srgb, #c4a574 28%, transparent);
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: #1e2a44;
+  line-height: 1.45;
+}
+
+.monthRollupLabel {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8a7355;
+  margin-bottom: 0.15rem;
+}
+
 .viewToggle {
   display: inline-flex;
   border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);

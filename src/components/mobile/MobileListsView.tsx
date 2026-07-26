@@ -63,26 +63,31 @@ const MobileListsBody: React.FC = () => {
   const [packingPacked, setPackingPacked] = React.useState(0);
   const [shoppingTotal, setShoppingTotal] = React.useState(0);
   const [shoppingBought, setShoppingBought] = React.useState(0);
-  const [shoppingOrdered, setShoppingOrdered] = React.useState(0);
 
   React.useEffect(() => {
     if (!trip?.id) return;
     const packing = new PackingService(spContext);
     const shopping = new ShoppingListService(spContext);
-    void packing.getForTrip(trip.id).then((rows) => {
-      setPackingTotal(rows.length);
-      setPackingPacked(rows.filter((r) => r.isPacked).length);
-    });
-    void shopping.getForTrip(trip.id).then((rows) => {
-      setShoppingTotal(rows.length);
-      setShoppingBought(rows.filter((r) => r.isPurchased).length);
-      setShoppingOrdered(rows.filter((r) => !r.isPurchased && (r.websiteUrl || '').trim()).length);
-    });
+    const reload = (): void => {
+      void packing.getForTrip(trip.id).then((rows) => {
+        setPackingTotal(rows.length);
+        setPackingPacked(rows.filter((r) => r.isPacked).length);
+      });
+      void shopping.getForTrip(trip.id).then((rows) => {
+        setShoppingTotal(rows.length);
+        setShoppingBought(rows.filter((r) => r.isPurchased).length);
+      });
+    };
+    reload();
+    window.addEventListener('travelhub-shopping-items-changed', reload);
+    return () => window.removeEventListener('travelhub-shopping-items-changed', reload);
   }, [trip?.id, spContext]);
 
-  const shoppingToBuy = Math.max(0, shoppingTotal - shoppingBought - shoppingOrdered);
+  const shoppingToBuy = Math.max(0, shoppingTotal - shoppingBought);
   const canIdeas = role === 'Editor' || role === 'Companion';
   const segmentClass = canIdeas ? `${chrome.segmented} ${chrome.segmented4}` : `${chrome.segmented} ${chrome.segmented3}`;
+  const packingPackedFilter = planView?.packingPackedFilter ?? 'all';
+  const shoppingStatusFilter = planView?.shoppingStatusFilter ?? 'all';
 
   return (
     <div data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}>
@@ -122,8 +127,8 @@ const MobileListsBody: React.FC = () => {
           onClick={() => setSub('tasks')}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M5 12l4 4 10-10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
+            <rect x="5" y="4" width="14" height="16" rx="2" stroke="currentColor" strokeWidth="1.6" />
+            <path d="M8 9h8M8 13h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
           </svg>
           Tasks
         </button>
@@ -136,7 +141,12 @@ const MobileListsBody: React.FC = () => {
             onClick={() => setSub('ideas')}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path d="M9 5h11M9 12h11M9 19h11M4 5h.01M4 12h.01M4 19h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              <path
+                d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.8c.7.5 1.1 1.2 1.2 2.2h4.6c.1-1 .5-1.7 1.2-2.2A6 6 0 0 0 12 3Z"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinejoin="round"
+              />
             </svg>
             Ideas
           </button>
@@ -150,7 +160,11 @@ const MobileListsBody: React.FC = () => {
       ) : sub === 'packing' ? (
         <>
           <div className={`${chrome.statRow} ${chrome.statRow3}`}>
-            <div className={chrome.statCard}>
+            <button
+              type="button"
+              className={`${chrome.statCard} ${chrome.statCardBtn} ${packingPackedFilter === 'all' ? chrome.statCardActive : ''}`}
+              onClick={() => planView?.setPackingPackedFilter('all')}
+            >
               <StatIcon tone="navy">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <rect x="5" y="7" width="14" height="13" rx="2" stroke="currentColor" strokeWidth="1.6" />
@@ -158,8 +172,14 @@ const MobileListsBody: React.FC = () => {
               </StatIcon>
               <span className={chrome.statValue}>{packingTotal}</span>
               <span className={chrome.statLabel}>Total items</span>
-            </div>
-            <div className={chrome.statCard}>
+            </button>
+            <button
+              type="button"
+              className={`${chrome.statCard} ${chrome.statCardBtn} ${packingPackedFilter === 'packed' ? chrome.statCardActive : ''}`}
+              onClick={() =>
+                planView?.setPackingPackedFilter(packingPackedFilter === 'packed' ? 'all' : 'packed')
+              }
+            >
               <StatIcon tone="olive">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <path d="M6 12l4 4 8-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -167,8 +187,12 @@ const MobileListsBody: React.FC = () => {
               </StatIcon>
               <span className={chrome.statValue}>{packingPacked}</span>
               <span className={chrome.statLabel}>Packed</span>
-            </div>
-            <div className={chrome.statCard}>
+            </button>
+            <button
+              type="button"
+              className={`${chrome.statCard} ${chrome.statCardBtn}`}
+              onClick={() => setSub('shopping')}
+            >
               <StatIcon tone="rust">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <path d="M6 7h15l-1.5 9H7.5L6 7Z" stroke="currentColor" strokeWidth="1.6" />
@@ -176,14 +200,18 @@ const MobileListsBody: React.FC = () => {
               </StatIcon>
               <span className={chrome.statValue}>{shoppingTotal}</span>
               <span className={chrome.statLabel}>Shopping</span>
-            </div>
+            </button>
           </div>
           <MobilePackingList embedded />
         </>
       ) : (
         <>
-          <div className={chrome.statRow}>
-            <div className={chrome.statCard}>
+          <div className={`${chrome.statRow} ${chrome.statRow3}`}>
+            <button
+              type="button"
+              className={`${chrome.statCard} ${chrome.statCardBtn} ${shoppingStatusFilter === 'all' ? chrome.statCardActive : ''}`}
+              onClick={() => planView?.setShoppingStatusFilter('all')}
+            >
               <StatIcon tone="navy">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <path d="M6 7h15l-1.5 9H7.5L6 7Z" stroke="currentColor" strokeWidth="1.6" />
@@ -191,8 +219,14 @@ const MobileListsBody: React.FC = () => {
               </StatIcon>
               <span className={chrome.statValue}>{shoppingTotal}</span>
               <span className={chrome.statLabel}>Total items</span>
-            </div>
-            <div className={chrome.statCard}>
+            </button>
+            <button
+              type="button"
+              className={`${chrome.statCard} ${chrome.statCardBtn} ${shoppingStatusFilter === 'tobuy' ? chrome.statCardActive : ''}`}
+              onClick={() =>
+                planView?.setShoppingStatusFilter(shoppingStatusFilter === 'tobuy' ? 'all' : 'tobuy')
+              }
+            >
               <StatIcon tone="rust">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.6" strokeDasharray="3 3" />
@@ -200,17 +234,14 @@ const MobileListsBody: React.FC = () => {
               </StatIcon>
               <span className={chrome.statValue}>{shoppingToBuy}</span>
               <span className={chrome.statLabel}>To buy</span>
-            </div>
-            <div className={chrome.statCard}>
-              <StatIcon tone="tan">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                  <rect x="4" y="6" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="1.6" />
-                </svg>
-              </StatIcon>
-              <span className={chrome.statValue}>{shoppingOrdered}</span>
-              <span className={chrome.statLabel}>Has link</span>
-            </div>
-            <div className={chrome.statCard}>
+            </button>
+            <button
+              type="button"
+              className={`${chrome.statCard} ${chrome.statCardBtn} ${shoppingStatusFilter === 'purchased' ? chrome.statCardActive : ''}`}
+              onClick={() =>
+                planView?.setShoppingStatusFilter(shoppingStatusFilter === 'purchased' ? 'all' : 'purchased')
+              }
+            >
               <StatIcon tone="olive">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <path d="M6 12l4 4 8-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -218,7 +249,7 @@ const MobileListsBody: React.FC = () => {
               </StatIcon>
               <span className={chrome.statValue}>{shoppingBought}</span>
               <span className={chrome.statLabel}>Purchased</span>
-            </div>
+            </button>
           </div>
           <MobileShoppingList embedded />
         </>

@@ -27,6 +27,9 @@ const DEFAULT_PANEL_WIDTH = 352;
 const DEFAULT_PANEL_HEIGHT = 448;
 const MIN_PANEL_WIDTH = 280;
 const MIN_PANEL_HEIGHT = 260;
+/** ~5.75rem — clear mobile/iPad bottom tab bar + Book button zone */
+const TOUCH_COMPACT_BOTTOM_INSET = 88;
+const TOUCH_COMPACT_MAX_WIDTH = 1024;
 
 interface FabPosition {
   x: number;
@@ -38,13 +41,23 @@ interface PanelSize {
   height: number;
 }
 
+function isTouchCompactViewport(): boolean {
+  return typeof window !== 'undefined' && window.innerWidth <= TOUCH_COMPACT_MAX_WIDTH;
+}
+
+/** Bottom clearance so the FAB never sits in the mobile tab-bar zone. */
+function fabBottomInset(): number {
+  return isTouchCompactViewport() ? TOUCH_COMPACT_BOTTOM_INSET : 20;
+}
+
 function defaultFabPosition(): FabPosition {
   if (typeof window === 'undefined') {
     return { x: 0, y: 0 };
   }
+  const bottom = fabBottomInset();
   return {
     x: Math.max(8, window.innerWidth - FAB_SIZE - 20),
-    y: Math.max(8, window.innerHeight - FAB_SIZE - 20)
+    y: Math.max(8, window.innerHeight - FAB_SIZE - bottom)
   };
 }
 
@@ -52,8 +65,9 @@ function clampFabPosition(pos: FabPosition): FabPosition {
   if (typeof window === 'undefined') {
     return pos;
   }
+  const bottom = fabBottomInset();
   const maxX = Math.max(8, window.innerWidth - FAB_SIZE - 8);
-  const maxY = Math.max(8, window.innerHeight - FAB_SIZE - 8);
+  const maxY = Math.max(8, window.innerHeight - FAB_SIZE - bottom);
   return {
     x: Math.min(Math.max(8, pos.x), maxX),
     y: Math.min(Math.max(8, pos.y), maxY)

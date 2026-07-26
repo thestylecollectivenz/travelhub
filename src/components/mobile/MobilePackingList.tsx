@@ -66,7 +66,23 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
   const [adding, setAdding] = React.useState(false);
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
-  const [packedFilter, setPackedFilter] = React.useState<PackingPackedFilter>('all');
+  const [packedFilter, setPackedFilterLocal] = React.useState<PackingPackedFilter>(
+    () => planView?.packingPackedFilter ?? 'all'
+  );
+
+  const setPackedFilter = React.useCallback(
+    (next: PackingPackedFilter) => {
+      setPackedFilterLocal(next);
+      planView?.setPackingPackedFilter(next);
+    },
+    [planView]
+  );
+
+  React.useEffect(() => {
+    const ctx = planView?.packingPackedFilter;
+    if (!ctx || ctx === packedFilter) return;
+    setPackedFilterLocal(ctx);
+  }, [planView?.packingPackedFilter, packedFilter]);
   const [hasNotesOnly, setHasNotesOnly] = React.useState(false);
   const [hasQtyGt1, setHasQtyGt1] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<ViewMode>('az');
@@ -327,38 +343,97 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
             )}
           </div>
 
-          <div className={styles.qtyCell}>
-            <button
-              type="button"
-              className={`${styles.qtyIconBtn} ${qtyOpenId === item.id ? styles.qtyIconBtnOn : ''}`}
-              aria-label={`Quantity ${item.quantity}`}
-              aria-expanded={qtyOpenId === item.id}
-              disabled={!editable}
-              onClick={() => {
-                setForOpenId(null);
-                setNotesOpenId(null);
-                setQtyOpenId((prev) => (prev === item.id ? null : item.id));
-              }}
-            >
-              {item.quantity}
-            </button>
+          <div className={styles.qtyCell} aria-label={`Quantity ${item.quantity}`}>
+            {isIpad ? (
+              editable ? (
+                <div className={styles.qtyStepper}>
+                  <button
+                    type="button"
+                    className={styles.qtyBtn}
+                    onClick={() => bumpQty(item, -1)}
+                    aria-label="Decrease"
+                  >
+                    −
+                  </button>
+                  <span className={styles.qtyValue}>{item.quantity}</span>
+                  <button
+                    type="button"
+                    className={styles.qtyBtn}
+                    onClick={() => bumpQty(item, 1)}
+                    aria-label="Increase"
+                  >
+                    +
+                  </button>
+                </div>
+              ) : (
+                <span className={styles.qtyValue}>{item.quantity}</span>
+              )
+            ) : (
+              <button
+                type="button"
+                className={`${styles.qtyIconBtn} ${qtyOpenId === item.id ? styles.qtyIconBtnOn : ''}`}
+                aria-label={`Quantity ${item.quantity}`}
+                aria-expanded={qtyOpenId === item.id}
+                disabled={!editable}
+                onClick={() => {
+                  setForOpenId(null);
+                  setNotesOpenId(null);
+                  setQtyOpenId((prev) => (prev === item.id ? null : item.id));
+                }}
+              >
+                {item.quantity}
+              </button>
+            )}
           </div>
 
           <div className={styles.forCell}>
-            <button
-              type="button"
-              className={`${styles.forIconBtn} ${forOpenId === item.id ? styles.forIconBtnOn : ''}`}
-              aria-label={`For ${who.displayName}`}
-              aria-expanded={forOpenId === item.id}
-              disabled={!editable}
-              onClick={() => {
-                setQtyOpenId(null);
-                setNotesOpenId(null);
-                setForOpenId((prev) => (prev === item.id ? null : item.id));
-              }}
-            >
-              <TravellerAvatar displayName={who.displayName} avatarUrl={who.avatarUrl} size={isIpad ? 22 : 18} />
-            </button>
+            {isIpad ? (
+              editable ? (
+                <>
+                  <TravellerAvatar displayName={who.displayName} avatarUrl={who.avatarUrl} size={24} />
+                  <select
+                    className={styles.inlineFor}
+                    value={item.traveller || defaultTraveller || travellers[0] || ''}
+                    aria-label="For traveller"
+                    onChange={(e) =>
+                      service
+                        .update(item.id, {
+                          traveller: e.target.value,
+                          ownerEmail: resolveOwnerEmailForAssignee(spContext, e.target.value, members)
+                        })
+                        .then(refresh)
+                        .catch(console.error)
+                    }
+                  >
+                    {travellers.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              ) : (
+                <>
+                  <TravellerAvatar displayName={who.displayName} avatarUrl={who.avatarUrl} size={26} />
+                  <span className={styles.forName}>{who.displayName.split(/\s+/)[0] || who.displayName}</span>
+                </>
+              )
+            ) : (
+              <button
+                type="button"
+                className={`${styles.forIconBtn} ${forOpenId === item.id ? styles.forIconBtnOn : ''}`}
+                aria-label={`For ${who.displayName}`}
+                aria-expanded={forOpenId === item.id}
+                disabled={!editable}
+                onClick={() => {
+                  setQtyOpenId(null);
+                  setNotesOpenId(null);
+                  setForOpenId((prev) => (prev === item.id ? null : item.id));
+                }}
+              >
+                <TravellerAvatar displayName={who.displayName} avatarUrl={who.avatarUrl} size={18} />
+              </button>
+            )}
           </div>
 
           <div className={styles.notesCell}>
@@ -405,7 +480,7 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
             <span className={styles.editBtn} />
           )}
         </div>
-        {qtyOpenId === item.id && editable ? (
+        {qtyOpenId === item.id && editable && !isIpad ? (
           <div className={styles.notesExpand}>
             <span className={styles.expandLabel}>Quantity</span>
             <div className={styles.qtyStepper}>
@@ -419,7 +494,7 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
             </div>
           </div>
         ) : null}
-        {forOpenId === item.id && editable ? (
+        {forOpenId === item.id && editable && !isIpad ? (
           <div className={styles.notesExpand}>
             <span className={styles.expandLabel}>For</span>
             <select

@@ -6,10 +6,11 @@ import { useTripMembers } from '../../hooks/useTripMembers';
 import { useCompanionListDefaults } from '../../hooks/useCompanionListDefaults';
 import { useTripRole } from '../../context/TripRoleContext';
 import { ReminderService } from '../../services/ReminderService';
-import { dueYmdBucket, localTodayYmd, ymdFromIso } from '../../utils/taskDueBuckets';
+import { dueYmdBucket, localTodayYmd, ymdFromIso, type TaskDueFilter } from '../../utils/taskDueBuckets';
 import { isDayIdeaReminder } from '../../utils/dayIdeas';
 import { isJotterIdeaReminder } from '../../utils/tripJotterIdeas';
 import { isSavedSpotReminder } from '../../utils/tripSavedSpots';
+import type { TaskCompletionFilter } from '../../utils/taskFilters';
 import { TripTasksView } from '../tasks/TripTasksView';
 import { MobileTaskFilters } from './MobileTaskFilters';
 import { MobileFilterDisclosure } from './MobileFilterDisclosure';
@@ -20,6 +21,19 @@ function StatIcon({ children, tone }: { children: React.ReactNode; tone: 'olive'
   const cls =
     tone === 'olive' ? chrome.statIconOlive : tone === 'rust' ? chrome.statIconRust : tone === 'tan' ? chrome.statIconTan : chrome.statIconNavy;
   return <span className={`${chrome.statIcon} ${cls}`}>{children}</span>;
+}
+
+type StatKey = 'open' | 'overdue' | 'today' | 'done';
+
+function activeStat(
+  completion: TaskCompletionFilter,
+  due: TaskDueFilter
+): StatKey | null {
+  if (completion === 'completed') return 'done';
+  if (completion === 'incomplete' && due === 'overdue') return 'overdue';
+  if (completion === 'incomplete' && due === 'today') return 'today';
+  if (completion === 'incomplete' && due === 'all') return 'open';
+  return null;
 }
 
 const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
@@ -37,6 +51,36 @@ const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
   const [doneCount, setDoneCount] = React.useState(0);
   const [filtersOpen, setFiltersOpen] = React.useState(false);
 
+  const completion = planView?.taskCompletionFilter ?? 'all';
+  const due = planView?.taskDueFilter ?? 'all';
+  const selected = activeStat(completion, due);
+
+  const applyStat = (key: StatKey): void => {
+    if (!planView) return;
+    if (selected === key) {
+      planView.setTaskCompletionFilter('all');
+      planView.setTaskDueFilter('all');
+      return;
+    }
+    if (key === 'open') {
+      planView.setTaskCompletionFilter('incomplete');
+      planView.setTaskDueFilter('all');
+      return;
+    }
+    if (key === 'overdue') {
+      planView.setTaskCompletionFilter('incomplete');
+      planView.setTaskDueFilter('overdue');
+      return;
+    }
+    if (key === 'today') {
+      planView.setTaskCompletionFilter('incomplete');
+      planView.setTaskDueFilter('today');
+      return;
+    }
+    planView.setTaskCompletionFilter('completed');
+    planView.setTaskDueFilter('all');
+  };
+
   React.useEffect(() => {
     if (!trip?.id) return;
     const today = localTodayYmd();
@@ -49,9 +93,9 @@ const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
             !isSavedSpotReminder(r) &&
             !isJotterIdeaReminder(r) &&
             (r.reminderType === 'Manual' ||
-            r.reminderType === 'ManualEntryTask' ||
-            r.reminderType === 'Custom' ||
-            r.reminderType === 'CancellationDeadline')
+              r.reminderType === 'ManualEntryTask' ||
+              r.reminderType === 'Custom' ||
+              r.reminderType === 'CancellationDeadline')
         );
         let open = 0;
         let overdue = 0;
@@ -88,7 +132,11 @@ const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
       )}
 
       <div className={chrome.statRow}>
-        <div className={chrome.statCard}>
+        <button
+          type="button"
+          className={`${chrome.statCard} ${chrome.statCardBtn} ${selected === 'open' ? chrome.statCardActive : ''}`}
+          onClick={() => applyStat('open')}
+        >
           <StatIcon tone="navy">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
               <rect x="5" y="4" width="14" height="16" rx="2" stroke="currentColor" strokeWidth="1.6" />
@@ -97,18 +145,26 @@ const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
           </StatIcon>
           <span className={chrome.statValue}>{openCount}</span>
           <span className={chrome.statLabel}>Open</span>
-        </div>
-        <div className={chrome.statCard}>
+        </button>
+        <button
+          type="button"
+          className={`${chrome.statCard} ${chrome.statCardBtn} ${selected === 'overdue' ? chrome.statCardActive : ''} ${overdueCount ? chrome.statCardAlert : ''}`}
+          onClick={() => applyStat('overdue')}
+        >
           <StatIcon tone="rust">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
               <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.6" />
               <path d="M12 7v5l3 2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
             </svg>
           </StatIcon>
-          <span className={chrome.statValue}>{overdueCount}</span>
-          <span className={chrome.statLabel}>Overdue</span>
-        </div>
-        <div className={chrome.statCard}>
+          <span className={`${chrome.statValue} ${overdueCount ? chrome.statValueAlert : ''}`}>{overdueCount}</span>
+          <span className={`${chrome.statLabel} ${overdueCount ? chrome.statValueAlert : ''}`}>Overdue</span>
+        </button>
+        <button
+          type="button"
+          className={`${chrome.statCard} ${chrome.statCardBtn} ${selected === 'today' ? chrome.statCardActive : ''}`}
+          onClick={() => applyStat('today')}
+        >
           <StatIcon tone="tan">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
               <rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="1.6" />
@@ -117,8 +173,12 @@ const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
           </StatIcon>
           <span className={chrome.statValue}>{dueTodayCount}</span>
           <span className={chrome.statLabel}>Due today</span>
-        </div>
-        <div className={chrome.statCard}>
+        </button>
+        <button
+          type="button"
+          className={`${chrome.statCard} ${chrome.statCardBtn} ${selected === 'done' ? chrome.statCardActive : ''}`}
+          onClick={() => applyStat('done')}
+        >
           <StatIcon tone="olive">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path d="M6 12l4 4 8-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -126,7 +186,7 @@ const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
           </StatIcon>
           <span className={chrome.statValue}>{doneCount}</span>
           <span className={chrome.statLabel}>Done</span>
-        </div>
+        </button>
       </div>
 
       <MobileFilterDisclosure open={filtersOpen} onToggle={() => setFiltersOpen((v) => !v)}>

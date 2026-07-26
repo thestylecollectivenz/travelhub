@@ -61,8 +61,8 @@ function mapToSpItem(partial: Partial<TripReminder>): Record<string, unknown> {
       out.TaskNoteLong = note;
       out.TaskNote = 'meta:long';
     } else {
+      // Never write TaskNoteLong for short notes — column may be missing / still provisioning.
       out.TaskNote = note;
-      out.TaskNoteLong = note;
     }
   }
   if (partial.taskCategory !== undefined) out.TaskCategory = partial.taskCategory || '';
@@ -70,6 +70,26 @@ function mapToSpItem(partial: Partial<TripReminder>): Record<string, unknown> {
   if (partial.dueDate !== undefined) out.DueDate = partial.dueDate || null;
   if (partial.isComplete !== undefined) out.IsComplete = partial.isComplete;
   return out;
+}
+
+function needsLongNoteColumn(partial: Partial<TripReminder>): boolean {
+  return partial.taskNote !== undefined && (partial.taskNote || '').length > TASK_NOTE_TEXT_MAX;
+}
+
+function needsTaskCategoryColumn(partial: Partial<TripReminder>): boolean {
+  return partial.taskCategory !== undefined;
+}
+
+/** Lean patches (e.g. checkbox) skip column ensure to avoid iPad multi-tap / Load failed. */
+function isLeanCompleteOnly(partial: Partial<Omit<TripReminder, 'id' | 'tripId'>>): boolean {
+  const keys = Object.keys(partial);
+  return keys.length === 1 && keys[0] === 'isComplete';
+}
+
+function isTransientSpFailure(status: number, message?: string): boolean {
+  if (status === 0 || status === 408 || status === 429 || status >= 500) return true;
+  const m = (message || '').toLowerCase();
+  return m.includes('load failed') || m.includes('failed to fetch') || m.includes('network');
 }
 
 export class ReminderService {
@@ -103,8 +123,11 @@ export class ReminderService {
     }
   }
 
-  private async ensureColumns(): Promise<void> {
-    await Promise.all([this.ensureLongNoteColumn(), this.ensureTaskCategoryColumn()]);
+  private async ensureColumns(opts?: { longNote?: boolean; taskCategory?: boolean }): Promise<void> {
+    const jobs: Promise<void>[] = [];
+    if (opts?.longNote !== false) jobs.push(this.ensureLongNoteColumn());
+    if (opts?.taskCategory !== false) jobs.push(this.ensureTaskCategoryColumn());
+    await Promise.all(jobs);
   }
 
   async getForTrip(tripId: string): Promise<TripReminder[]> {
@@ -128,7 +151,10 @@ export class ReminderService {
   }
 
   async create(input: Omit<TripReminder, 'id'>): Promise<TripReminder> {
-    await this.ensureColumns();
+    await this.ensureColumns({
+      longNote: needsLongNoteColumn(input),
+      taskCategory: needsTaskCategoryColumn(input)
+    });
     const body = mapToSpItem(input);
     const post = async (payload: Record<string, unknown>): Promise<SPHttpClientResponse> =>
       this.ctx.spHttpClient.post(this.baseUrl, SPHttpClient.configurations.v1, {
@@ -136,31 +162,62 @@ export class ReminderService {
         body: JSON.stringify(payload)
       });
 
-    let resp = await post(body);
-    if (!resp.ok && resp.status === 400) {
-      this.ensuredLongNote = false;
-      this.ensuredTaskCategory = false;
-      await this.ensureColumns();
-      resp = await post(body);
-    }
-    if (!resp.ok && resp.status === 400 && body.TaskCategory !== undefined) {
-      const { TaskCategory: _cat, ...noCat } = body;
-      resp = await post(noCat);
-    }
-    if (!resp.ok && resp.status === 400 && body.TaskNoteLong !== undefined) {
-      const { TaskNoteLong: _long, ...shortOnly } = body;
-      resp = await post(shortOnly);
-      if (!resp.ok && resp.status === 400 && body.TaskCategory !== undefined) {
-        const { TaskCategory: _cat2, ...shortNoCat } = shortOnly;
-        resp = await post(shortNoCat);
+    let lastErr: Error | undefined;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        let resp = await post(body);
+        if (!resp.ok && resp.status === 400) {
+          this.ensuredLongNote = false;
+          this.ensuredTaskCategory = false;
+          await this.ensureColumns({
+            longNote: needsLongNoteColumn(input),
+            taskCategory: needsTaskCategoryColumn(input)
+          });
+          resp = await post(body);
+        }
+        if (!resp.ok && resp.status === 400 && body.TaskCategory !== undefined) {
+          const { TaskCategory: _cat, ...noCat } = body;
+          resp = await post(noCat);
+        }
+        if (!resp.ok && resp.status === 400 && body.TaskNoteLong !== undefined) {
+          const { TaskNoteLong: _long, ...shortOnly } = body;
+          resp = await post(shortOnly);
+          if (!resp.ok && resp.status === 400 && body.TaskCategory !== undefined) {
+            const { TaskCategory: _cat2, ...shortNoCat } = shortOnly;
+            resp = await post(shortNoCat);
+          }
+        }
+        if (!resp.ok) {
+          const err = new Error(`ReminderService.create failed: ${resp.status}`);
+          if (attempt < 2 && isTransientSpFailure(resp.status)) {
+            lastErr = err;
+            await new Promise((resolve) => window.setTimeout(resolve, 350 * (attempt + 1)));
+            continue;
+          }
+          throw err;
+        }
+        return mapToReminder(await resp.json());
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        lastErr = err instanceof Error ? err : new Error(message);
+        if (attempt < 2 && isTransientSpFailure(0, message)) {
+          await new Promise((resolve) => window.setTimeout(resolve, 350 * (attempt + 1)));
+          continue;
+        }
+        throw lastErr;
       }
     }
-    if (!resp.ok) throw new Error(`ReminderService.create failed: ${resp.status}`);
-    return mapToReminder(await resp.json());
+    throw lastErr || new Error('ReminderService.create failed');
   }
 
   async update(id: string, partial: Partial<Omit<TripReminder, 'id' | 'tripId'>>): Promise<void> {
-    await this.ensureColumns();
+    const lean = isLeanCompleteOnly(partial);
+    if (!lean) {
+      await this.ensureColumns({
+        longNote: needsLongNoteColumn(partial),
+        taskCategory: needsTaskCategoryColumn(partial)
+      });
+    }
     const body = mapToSpItem(partial);
     const noteLen = partial.taskNote !== undefined ? (partial.taskNote || '').length : 0;
     const needsLong = noteLen > TASK_NOTE_TEXT_MAX;
@@ -176,29 +233,51 @@ export class ReminderService {
         body: JSON.stringify(payload)
       });
 
-    let resp = await patch(body);
-    if (!resp.ok && resp.status !== 204 && resp.status === 400) {
-      this.ensuredLongNote = false;
-      this.ensuredTaskCategory = false;
-      await this.ensureColumns();
-      resp = await patch(body);
-    }
-    if (!resp.ok && resp.status !== 204 && resp.status === 400 && body.TaskCategory !== undefined) {
-      const { TaskCategory: _cat, ...noCat } = body;
-      resp = await patch(noCat);
-    }
-    if (!resp.ok && resp.status !== 204 && resp.status === 400 && body.TaskNoteLong !== undefined && !needsLong) {
-      const { TaskNoteLong: _long, ...shortOnly } = body;
-      resp = await patch(shortOnly);
-    }
-    if (!resp.ok && resp.status !== 204) {
-      if (needsLong) {
-        throw new Error(
-          'Could not save the AI answer: the long-note field is still provisioning. Wait a few seconds and try again.'
-        );
+    let lastErr: Error | undefined;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        let resp = await patch(body);
+        if (!resp.ok && resp.status !== 204 && resp.status === 400 && !lean) {
+          this.ensuredLongNote = false;
+          this.ensuredTaskCategory = false;
+          await this.ensureColumns({
+            longNote: needsLongNoteColumn(partial),
+            taskCategory: needsTaskCategoryColumn(partial)
+          });
+          resp = await patch(body);
+        }
+        if (!resp.ok && resp.status !== 204 && resp.status === 400 && body.TaskCategory !== undefined) {
+          const { TaskCategory: _cat, ...noCat } = body;
+          resp = await patch(noCat);
+        }
+        if (!resp.ok && resp.status !== 204 && resp.status === 400 && body.TaskNoteLong !== undefined && !needsLong) {
+          const { TaskNoteLong: _long, ...shortOnly } = body;
+          resp = await patch(shortOnly);
+        }
+        if (!resp.ok && resp.status !== 204) {
+          const errMsg = needsLong
+            ? 'Could not save the AI answer: the long-note field is still provisioning. Wait a few seconds and try again.'
+            : `Could not save reminder/idea (SharePoint ${resp.status}).`;
+          const err = new Error(errMsg);
+          if (attempt < 2 && isTransientSpFailure(resp.status, errMsg)) {
+            lastErr = err;
+            await new Promise((resolve) => window.setTimeout(resolve, 350 * (attempt + 1)));
+            continue;
+          }
+          throw err;
+        }
+        return;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        lastErr = err instanceof Error ? err : new Error(message);
+        if (attempt < 2 && isTransientSpFailure(0, message)) {
+          await new Promise((resolve) => window.setTimeout(resolve, 350 * (attempt + 1)));
+          continue;
+        }
+        throw lastErr;
       }
-      throw new Error(`Could not save reminder/idea (SharePoint ${resp.status}).`);
     }
+    throw lastErr || new Error('Could not save reminder/idea.');
   }
 
   async delete(id: string): Promise<void> {

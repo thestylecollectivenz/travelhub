@@ -949,11 +949,12 @@
 }
 
 /* ─── Editor FAB (blue / navy like mockup) ────────────────────────── */
+/* Portaled to document.body — z-index above mobileRoot (5000) and tab bar */
 .addFab {
   position: fixed;
   right: 1.25rem;
-  bottom: calc(4.5rem + env(safe-area-inset-bottom, 0));
-  z-index: 40;
+  bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
+  z-index: 5100;
   width: 3.35rem;
   height: 3.35rem;
   border-radius: 999px;

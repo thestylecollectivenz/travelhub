@@ -13,6 +13,10 @@ import { buildAiCurrentFocusBlock, buildTripDayAiContext } from '../../utils/bui
 import { placeDisplayLabel } from '../../utils/placeDisplayLabel';
 import { compressImageForUpload } from '../../utils/compressImageForUpload';
 import { confirmUserAction } from '../../utils/confirmAction';
+import { isLocationInfoEntry } from '../../utils/locationInfoEntry';
+import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
+import { markdownToHtml } from '../../utils/markdownToHtml';
+import { RichTextContent } from '../shared/RichTextContent';
 import styles from './JournalEntryComposer.module.css';
 
 export interface JournalEntryComposerProps {
@@ -33,6 +37,28 @@ function isAllowedImage(file: File): boolean {
   return okExt && okMime;
 }
 
+function isTransientSaveError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err ?? '');
+  return /load failed|failed to fetch|network|timeout|temporarily/i.test(msg);
+}
+
+async function withTransientRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+  let last: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      last = err;
+      if (i < attempts - 1 && isTransientSaveError(err)) {
+        await new Promise((resolve) => window.setTimeout(resolve, 350 * (i + 1)));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw last;
+}
+
 export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayId, onCancel, onSaved, focusPhotoPickerKey }) => {
   const { addEntry, addPhoto } = useJournal();
   const { config } = useConfig();
@@ -44,6 +70,7 @@ export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayI
   const [photoCaptions, setPhotoCaptions] = React.useState<string[]>([]);
   const [previewUrls, setPreviewUrls] = React.useState<string[]>([]);
   const [saving, setSaving] = React.useState(false);
+  const savingRef = React.useRef(false);
   const [error, setError] = React.useState<string | null>(null);
   const [progress, setProgress] = React.useState<string | null>(null);
   const [helperQuestion, setHelperQuestion] = React.useState('');
@@ -142,30 +169,38 @@ export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayI
   };
 
   const save = async (): Promise<void> => {
+    if (savingRef.current) return;
     if (isRichTextEditorEmpty(entryHtml)) {
       setError('Please write something for this entry.');
       return;
     }
+    savingRef.current = true;
     setSaving(true);
     stopDictation();
     setError(null);
     setProgress(null);
     try {
-      const entry = await addEntry({ dayId, entryText: entryHtml.trim(), location: location.trim() || undefined });
+      const entry = await withTransientRetry(() =>
+        addEntry({ dayId, entryText: entryHtml.trim(), location: location.trim() || undefined })
+      );
       if (files.length > 0) {
         for (let i = 0; i < files.length; i++) {
           setProgress(`Uploading photo ${i + 1} of ${files.length}…`);
           const cap = photoCaptions[i]?.trim() ?? '';
-          await addPhoto({ journalEntryId: entry.id, dayId, file: files[i], caption: cap });
+          await withTransientRetry(() =>
+            addPhoto({ journalEntryId: entry.id, dayId, file: files[i], caption: cap })
+          );
         }
       }
       onSaved();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save journal entry.');
-    } finally {
-      setSaving(false);
-      setProgress(null);
     }
+    // Reset busy lock after awaits complete (intentional; not a stale read).
+    // eslint-disable-next-line require-atomic-updates -- save serialisation lock
+    savingRef.current = false;
+    setSaving(false);
+    setProgress(null);
   };
 
   const askHelper = async (): Promise<void> => {
@@ -224,6 +259,30 @@ export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayI
     }
   };
 
+  const insertItineraryRecap = (): void => {
+    const dayItems = localEntries
+      .filter((e) => e.dayId === dayId && !e.parentEntryId && !isLocationInfoEntry(e))
+      .slice()
+      .sort((a, b) => {
+        const ta = (a.timeStart || '').trim();
+        const tb = (b.timeStart || '').trim();
+        if (ta && tb && ta !== tb) return ta.localeCompare(tb);
+        if (ta && !tb) return -1;
+        if (!ta && tb) return 1;
+        return (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || (a.title || '').localeCompare(b.title || '');
+      });
+    if (!dayItems.length) {
+      setHelperAnswer('No itinerary items planned for this day.');
+      return;
+    }
+    const lines = dayItems.map((e) => {
+      const title = (e.title || 'Untitled').trim() || 'Untitled';
+      const time = formatTimeHHMM(e.timeStart || '');
+      return time ? `• **${title}** — ${time}` : `• **${title}**`;
+    });
+    setHelperAnswer(`**Itinerary recap**\n\n${lines.join('\n')}`);
+  };
+
   return (
     <div className={styles.root}>
       <div className={styles.label}>
@@ -234,31 +293,55 @@ export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayI
           </button>
         </div>
         <div className={styles.editorWrap}>
-          <RichTextEditor value={entryHtml} onChange={setEntryHtml} disabled={saving} minHeight="9rem" />
+          <RichTextEditor
+            value={entryHtml}
+            onChange={setEntryHtml}
+            disabled={saving}
+            minHeight="9rem"
+            variant="full"
+          />
         </div>
       </div>
       <div className={styles.helperWrap}>
-        <label className={styles.label}>
-          Ask AI helper (e.g. place names, memory prompts)
+        <span className={styles.helperLabel}>Ask AI helper (e.g. place names, memory prompts)</span>
+        <div className={styles.inputRow}>
           <input
-            className={styles.input}
+            className={styles.helperInput}
             value={helperQuestion}
             onChange={(e) => setHelperQuestion(e.target.value)}
-            placeholder="Ask about your day..."
+            placeholder="Ask about your day…"
             disabled={helperBusy || saving}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                void askHelper();
+              }
+            }}
           />
-        </label>
-        <button
-          type="button"
-          className={styles.button}
-          onClick={() => {
-            void askHelper();
-          }}
-          disabled={helperBusy || saving || !helperQuestion.trim()}
-        >
-          {helperBusy ? 'Thinking…' : 'Ask helper'}
-        </button>
-        {helperAnswer ? <div className={styles.helperAnswer}>{helperAnswer}</div> : null}
+          <button
+            type="button"
+            className={styles.askBtn}
+            onClick={() => {
+              void askHelper();
+            }}
+            disabled={helperBusy || saving || !helperQuestion.trim()}
+          >
+            {helperBusy ? '…' : 'Ask'}
+          </button>
+        </div>
+        <div className={styles.helperActions}>
+          <button
+            type="button"
+            className={styles.recapBtn}
+            onClick={insertItineraryRecap}
+            disabled={helperBusy || saving}
+          >
+            Itinerary recap
+          </button>
+        </div>
+        {helperAnswer ? (
+          <RichTextContent html={markdownToHtml(helperAnswer)} className={styles.helperAnswer} />
+        ) : null}
       </div>
       <label className={styles.label}>
         Location (optional)
@@ -300,7 +383,14 @@ export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayI
         <button type="button" className={styles.button} onClick={onCancel} disabled={saving}>
           Cancel
         </button>
-        <button type="button" className={`${styles.button} ${styles.primary}`} onClick={() => save().catch(console.error)} disabled={saving}>
+        <button
+          type="button"
+          className={`${styles.button} ${styles.primary}`}
+          onClick={() => {
+            void save();
+          }}
+          disabled={saving}
+        >
           {saving ? 'Saving…' : 'Save'}
         </button>
       </div>

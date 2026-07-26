@@ -11,12 +11,11 @@ import { PackingCategoryIcon } from './packingCategoryIcon';
 import { useShellMode } from '../../hooks/useShellMode';
 import styles from './MobilePackingFilters.module.css';
 
-export type ShoppingStatusFilter = 'all' | 'tobuy' | 'ordered' | 'purchased';
+export type ShoppingStatusFilter = 'all' | 'tobuy' | 'purchased';
 
-/** Derives the shopping status badge from stored fields (no dedicated status column). */
-export function shoppingItemStatus(item: ShoppingItem): 'tobuy' | 'ordered' | 'purchased' {
+/** Derives shopping status: purchased vs to-buy. Website URL is informational only. */
+export function shoppingItemStatus(item: ShoppingItem): 'tobuy' | 'purchased' {
   if (item.isPurchased) return 'purchased';
-  if ((item.websiteUrl || '').trim()) return 'ordered';
   return 'tobuy';
 }
 
@@ -138,7 +137,7 @@ export const MobileShoppingFilters: React.FC<MobileShoppingFiltersProps> = ({
   }, [items]);
 
   const statusCounts = React.useMemo(() => {
-    const out = { tobuy: 0, ordered: 0, purchased: 0 };
+    const out = { tobuy: 0, purchased: 0 };
     for (const item of items) {
       out[shoppingItemStatus(item)] += 1;
     }
@@ -150,6 +149,7 @@ export const MobileShoppingFilters: React.FC<MobileShoppingFiltersProps> = ({
   const apply = (): void => {
     plan.setShoppingCategory(draft.category);
     plan.setShoppingMonthFilter(draft.monthFilter);
+    plan.setShoppingStatusFilter(draft.statusFilter);
     onApply(draft);
     onClose();
   };
@@ -165,6 +165,7 @@ export const MobileShoppingFilters: React.FC<MobileShoppingFiltersProps> = ({
     plan.setShoppingCategory('__all__');
     plan.setShoppingMonthFilter(null);
     plan.setShoppingTraveller(null);
+    plan.setShoppingStatusFilter('all');
     onApply(defaults);
   };
 
@@ -296,7 +297,6 @@ export const MobileShoppingFilters: React.FC<MobileShoppingFiltersProps> = ({
                 [
                   { key: 'all' as const, label: 'All items' },
                   { key: 'tobuy' as const, label: `To buy (${statusCounts.tobuy})` },
-                  { key: 'ordered' as const, label: `Has link (${statusCounts.ordered})` },
                   { key: 'purchased' as const, label: `Purchased (${statusCounts.purchased})` }
                 ]
               ).map((opt) => (
