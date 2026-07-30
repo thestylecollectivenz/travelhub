@@ -26,6 +26,9 @@ export interface MobileIdeaAskAiProps {
   thread: IdeaQaEntry[];
   onThreadChange: (next: IdeaQaEntry[]) => void | Promise<void>;
   compact?: boolean;
+  onCreateTask?: (item: IdeaQaEntry) => void;
+  onAddToItinerary?: (item: IdeaQaEntry) => void;
+  subjectLabel?: string;
 }
 
 function newQaId(): string {
@@ -63,7 +66,10 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
   dayLabel,
   thread,
   onThreadChange,
-  compact
+  compact,
+  onCreateTask,
+  onAddToItinerary,
+  subjectLabel = 'idea'
 }) => {
   const { config } = useConfig();
   const { canUseAiHelpers } = useTripPermissions();
@@ -75,6 +81,8 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editQuestionDraft, setEditQuestionDraft] = React.useState('');
   const [editAnswerDraft, setEditAnswerDraft] = React.useState('');
+  const [autoReadAnswers, setAutoReadAnswers] = React.useState(false);
+  const lastReadIdRef = React.useRef<string | undefined>();
   const { speechState, speak, pause, resume, stop: stopSpeech } = useSpeechOutput();
   const appendVoice = React.useCallback((chunk: string) => {
     setQuestion((prev) => `${prev}${prev ? ' ' : ''}${chunk}`);
@@ -84,6 +92,18 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
   React.useEffect(() => {
     setLocalThread(thread);
   }, [thread]);
+
+  React.useEffect(() => {
+    if (!autoReadAnswers) return;
+    const last = localThread[localThread.length - 1];
+    if (!last || last.id === lastReadIdRef.current) return;
+    lastReadIdRef.current = last.id;
+    const plain = (last.answer || '').trim();
+    if (plain) {
+      stopListening();
+      speak(plain);
+    }
+  }, [autoReadAnswers, localThread, speak, stopListening]);
 
   if (!canUseAiHelpers) return null;
 
@@ -180,7 +200,7 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
   return (
     <div className={`${styles.root} ${compact ? styles.compact : ''}`}>
       <button type="button" className={styles.toggle} onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-        <span aria-hidden>✦</span> Ask AI about this idea {open ? '▾' : '▸'}
+        <span aria-hidden>✦</span> Ask AI about this {subjectLabel} {open ? '▾' : '▸'}
         {localThread.length ? <span className={styles.count}>{localThread.length}</span> : null}
       </button>
       {open ? (
@@ -190,8 +210,8 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
               className={styles.input}
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Ask anything about this idea…"
-              aria-label="Ask about this idea"
+              placeholder={`Ask anything about this ${subjectLabel}…`}
+              aria-label={`Ask about this ${subjectLabel}`}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') void ask();
               }}
@@ -225,6 +245,18 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
               Ask
             </button>
           </div>
+          <label className={styles.voiceToggle}>
+            <input
+              type="checkbox"
+              checked={autoReadAnswers}
+              onChange={(e) => {
+                const on = e.target.checked;
+                if (on) lastReadIdRef.current = localThread[localThread.length - 1]?.id;
+                setAutoReadAnswers(on);
+              }}
+            />
+            Read new answers aloud
+          </label>
           {error ? <p className={styles.error}>{error}</p> : null}
           {busy ? <p className={styles.muted}>Thinking…</p> : null}
           {localThread.length ? (
@@ -352,6 +384,39 @@ export const MobileIdeaAskAi: React.FC<MobileIdeaAskAiProps> = ({
                             <path d="M12.5 7.5l3 3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
                           </svg>
                         </button>
+                        {onCreateTask ? (
+                          <button
+                            type="button"
+                            className={styles.iconBtn}
+                            aria-label="Create task"
+                            title="Create task"
+                            onClick={() => onCreateTask(item)}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                              <path
+                                d="M9 11.5 11 13.5 15.5 9"
+                                stroke="currentColor"
+                                strokeWidth="1.7"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                              <rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="1.6" />
+                            </svg>
+                          </button>
+                        ) : null}
+                        {onAddToItinerary ? (
+                          <button
+                            type="button"
+                            className={styles.iconBtn}
+                            aria-label="Add to itinerary"
+                            title="Add to itinerary"
+                            onClick={() => onAddToItinerary(item)}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                              <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                            </svg>
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           className={`${styles.iconBtn} ${styles.iconBtnDanger}`}

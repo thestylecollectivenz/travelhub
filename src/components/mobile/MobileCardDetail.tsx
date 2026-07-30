@@ -12,6 +12,7 @@ import { getCategorySlug } from '../../utils/categoryUtils';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { isLocationInfoEntry } from '../../utils/locationInfoEntry';
 import { isRichTextEditorEmpty } from '../../utils/journalRichText';
+import { splitNotesAndQa } from '../../utils/entryQaThread';
 import { SharedLocationInfoBlock } from '../itinerary/SharedLocationInfoBlock';
 import { RichTextContent } from '../shared/RichTextContent';
 import { ItineraryCardEdit } from '../itinerary/ItineraryCardEdit';
@@ -125,7 +126,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
   const mapsPlaceUrl = entryMapsPlaceUrl(entry);
   const mapsDirectionsUrl = entryMapsDirectionsUrl(entry);
   const isLocationInfo = isLocationInfoEntry(entry);
-  const hasNotes = !isLocationInfo && !isRichTextEditorEmpty(entry.notes);
+  const hasNotes = !isLocationInfo && !isRichTextEditorEmpty(splitNotesAndQa(entry.notes).notes);
   const locationLabel = (entry.location ?? '').trim();
   const streetLabel = (entry.streetAddress ?? '').trim();
   const { stats, sections, plannedActivities, showStatsBar } = React.useMemo(
@@ -531,7 +532,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
         <section className={styles.sectionCard}>
           <h3 className={styles.sectionTitle}>Notes</h3>
           <div className={styles.notesBox}>
-            <RichTextContent html={entry.notes} />
+            <RichTextContent html={splitNotesAndQa(entry.notes).notes} />
           </div>
         </section>
       ) : null}

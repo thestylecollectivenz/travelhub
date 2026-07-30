@@ -25,6 +25,7 @@ import { MobileLocationInfoSheet } from './MobileLocationInfoSheet';
 import { MobileWeatherSheet } from './MobileWeatherSheet';
 import { MobileStayCruiseTile } from './MobileStayCruiseTile';
 import { MobileDayIdeas } from './MobileDayIdeas';
+import { MobileItineraryCardExtras } from './MobileItineraryCardExtras';
 import { WeatherIcon } from '../shared/WeatherIcon';
 import { findStayTileForDay } from '../../utils/mobileDayStay';
 import {
@@ -840,24 +841,26 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
                 {unscheduled.map((item) => {
                   const cat = item.entry.category;
                   return (
-                    <button
-                      key={item.key}
-                      type="button"
-                      className={styles.unschedCard}
-                      onClick={() => openDetail(item.entry.id, item.subItem?.id)}
-                    >
-                      <span className={`${styles.unschedCat} th-cat-${getCategorySlug(cat)}`}>
-                        <CategoryIcon category={cat} size={12} color="white" />
-                      </span>
-                      <span className={styles.cardText}>
-                        <div className={styles.cardTitle}>{item.title}</div>
-                        <div className={styles.cardMeta}>
-                          {item.subItem
-                            ? (item.subItem.category || item.entry.category)
-                            : item.entry.category}
-                        </div>
-                      </span>
-                    </button>
+                    <div key={item.key} className={styles.cardStack}>
+                      <button
+                        type="button"
+                        className={styles.unschedCard}
+                        onClick={() => openDetail(item.entry.id, item.subItem?.id)}
+                      >
+                        <span className={`${styles.unschedCat} th-cat-${getCategorySlug(cat)}`}>
+                          <CategoryIcon category={cat} size={12} color="white" />
+                        </span>
+                        <span className={styles.cardText}>
+                          <div className={styles.cardTitle}>{item.title}</div>
+                          <div className={styles.cardMeta}>
+                            {item.subItem
+                              ? (item.subItem.category || item.entry.category)
+                              : item.entry.category}
+                          </div>
+                        </span>
+                      </button>
+                      <MobileItineraryCardExtras entry={item.entry} />
+                    </div>
                   );
                 })}
               </div>
@@ -881,21 +884,24 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
                       <CategoryIcon category={cat} size={14} color="white" />
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    className={styles.timelineCard}
-                    onClick={() => openDetail(item.entry.id, item.subItem?.id)}
-                  >
-                    <span className={styles.cardText}>
-                      <div className={styles.cardTitle}>{item.title}</div>
-                      <div className={styles.cardMeta}>
-                        {locationLabel || item.entry.category}
-                      </div>
-                    </span>
-                    <span className={`${styles.cardTrail} th-cat-${categorySlug}`}>
-                      <CategoryIcon category={cat} size={12} color="currentColor" />
-                    </span>
-                  </button>
+                  <div className={styles.cardStack}>
+                    <button
+                      type="button"
+                      className={styles.timelineCard}
+                      onClick={() => openDetail(item.entry.id, item.subItem?.id)}
+                    >
+                      <span className={styles.cardText}>
+                        <div className={styles.cardTitle}>{item.title}</div>
+                        <div className={styles.cardMeta}>
+                          {locationLabel || item.entry.category}
+                        </div>
+                      </span>
+                      <span className={`${styles.cardTrail} th-cat-${categorySlug}`}>
+                        <CategoryIcon category={cat} size={12} color="currentColor" />
+                      </span>
+                    </button>
+                    <MobileItineraryCardExtras entry={item.entry} />
+                  </div>
                 </div>
               );
             })}

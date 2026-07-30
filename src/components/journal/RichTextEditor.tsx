@@ -21,6 +21,11 @@ export interface RichTextEditorProps {
   minHeight?: string;
   /** `basic` — Bold/Italic/Underline/lists/link only (mobile notes/overview). */
   variant?: 'full' | 'basic';
+  /**
+   * Kept in sync on every input/blur so Save can read the latest HTML even when
+   * iPad contentEditable lags React state.
+   */
+  liveHtmlRef?: React.MutableRefObject<string>;
 }
 
 const FONT_SIZE_PT = [8, 10, 12, 14] as const;
@@ -41,7 +46,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   onChange,
   disabled,
   minHeight = '7rem',
-  variant = 'full'
+  variant = 'full',
+  liveHtmlRef
 }) => {
   const ref = React.useRef<HTMLDivElement>(null);
   const lastExternal = React.useRef<string>(value);
@@ -71,15 +77,18 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     if (value !== lastExternal.current || el.innerHTML !== value) {
       el.innerHTML = value || '<p><br></p>';
       lastExternal.current = value;
+      if (liveHtmlRef) liveHtmlRef.current = el.innerHTML;
     }
-  }, [value]);
+  }, [value, liveHtmlRef]);
 
   const emit = React.useCallback((): void => {
     const el = ref.current;
     if (!el) return;
-    onChange(el.innerHTML);
-    lastExternal.current = el.innerHTML;
-  }, [onChange]);
+    const html = el.innerHTML;
+    if (liveHtmlRef) liveHtmlRef.current = html;
+    onChange(html);
+    lastExternal.current = html;
+  }, [onChange, liveHtmlRef]);
 
   const saveSelection = React.useCallback((): void => {
     const sel = window.getSelection();

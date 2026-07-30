@@ -13,6 +13,10 @@ export interface RichTextFieldProps {
   className?: string;
   labelClassName?: string;
   fullRow?: boolean;
+  /** Passed through to RichTextEditor (mobile notes use `basic`). */
+  variant?: 'full' | 'basic';
+  /** Synced on every keystroke for reliable Save on iPad. */
+  liveHtmlRef?: React.MutableRefObject<string>;
 }
 
 /** Notes / long-form field with journal-grade formatting toolbar. */
@@ -25,7 +29,9 @@ export const RichTextField: React.FC<RichTextFieldProps> = ({
   minHeight = '6rem',
   className,
   labelClassName,
-  fullRow
+  fullRow,
+  variant,
+  liveHtmlRef
 }) => {
   const html = React.useMemo(() => plainTextToEditorHtml(value), [value]);
 
@@ -37,7 +43,14 @@ export const RichTextField: React.FC<RichTextFieldProps> = ({
         </label>
       ) : null}
       <div className={`${styles.editorWrap} ${fullRow ? styles.editorFullRow : ''}`} id={id}>
-        <RichTextEditor value={html} onChange={onChange} disabled={disabled} minHeight={minHeight} />
+        <RichTextEditor
+          value={html}
+          onChange={onChange}
+          disabled={disabled}
+          minHeight={minHeight}
+          variant={variant}
+          liveHtmlRef={liveHtmlRef}
+        />
       </div>
     </div>
   );

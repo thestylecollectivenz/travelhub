@@ -19,6 +19,8 @@ import { travellerLabelForCurrentUser } from '../../utils/tripMemberIdentity';
 import { notifyDayIdeasChanged } from '../../hooks/useTripDayIdeas';
 import { DayIdeaReplies } from '../dayIdeas/DayIdeaReplies';
 import { MobileIdeaAskAi, type IdeaQaEntry } from './MobileIdeaAskAi';
+import { qaEntryTitle } from '../../utils/qaDisplayText';
+import type { ItineraryEntry } from '../../models/ItineraryEntry';
 import styles from './MobileItinerary.module.css';
 
 export interface MobileDayIdeasProps {
@@ -38,7 +40,7 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({
   placeLabel
 }) => {
   const spContext = useSpContext();
-  const { trip } = useTripWorkspace();
+  const { trip, stageDraftEntry, setSelectedDayId, setEditingCardId } = useTripWorkspace();
   const { role } = useTripRole();
   const { members } = useTripMembers(trip?.id);
   const { canEditItinerary } = useTripPermissions();
@@ -139,6 +141,58 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({
     }
   };
 
+  const createTaskFromQa = React.useCallback(
+    (item: IdeaQaEntry): void => {
+      if (!trip?.id || !canEditItinerary) return;
+      const svc = new ReminderService(spContext);
+      void svc
+        .create({
+          title: qaEntryTitle(item),
+          tripId: trip.id,
+          dayId,
+          reminderType: 'Manual',
+          reminderText: qaEntryTitle(item),
+          taskNote: item.answer,
+          dueDate: '',
+          isComplete: false,
+          taskCategory: 'To Do',
+          entryId: ''
+        })
+        .then(() => window.dispatchEvent(new Event('trip-reminders-updated')))
+        .catch(console.error);
+    },
+    [trip?.id, canEditItinerary, spContext, dayId]
+  );
+
+  const addQaToItinerary = React.useCallback(
+    (item: IdeaQaEntry): void => {
+      if (!trip?.id || !canEditItinerary) return;
+      const draftId = `new-${Date.now()}`;
+      const draft: ItineraryEntry = {
+        id: draftId,
+        dayId,
+        tripId: trip.id,
+        title: qaEntryTitle(item),
+        category: 'Activities',
+        timeStart: '',
+        duration: '',
+        supplier: '',
+        notes: item.answer || '',
+        decisionStatus: 'Idea',
+        bookingRequired: false,
+        bookingStatus: 'Not booked',
+        paymentStatus: 'Not paid',
+        amount: 0,
+        currency: 'NZD',
+        sortOrder: 999
+      };
+      stageDraftEntry(draft);
+      setSelectedDayId(dayId);
+      setEditingCardId(draftId);
+    },
+    [trip?.id, canEditItinerary, dayId, stageDraftEntry, setSelectedDayId, setEditingCardId]
+  );
+
   const dayUnread = rows.filter((r) => isDayIdeaUnread(r, spContext, members)).length;
 
   return (
@@ -214,6 +268,8 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({
                       locationLabel={placeLabel}
                       thread={qaThread}
                       onThreadChange={(next) => saveQaThread(row.id, row.taskNote, next)}
+                      onCreateTask={canEditItinerary ? createTaskFromQa : undefined}
+                      onAddToItinerary={canEditItinerary ? addQaToItinerary : undefined}
                       compact
                     />
                   ) : null}

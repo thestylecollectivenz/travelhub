@@ -246,6 +246,12 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
   const setTaskDueFilter = planView?.setTaskDueFilter ?? setLocalTaskDueFilter;
   const [bookingDueFilter, setBookingDueFilter] = React.useState<TaskDueFilter>('all');
   const [paymentDueFilter, setPaymentDueFilter] = React.useState<TaskDueFilter>('all');
+
+  // Keep bookings / payments / cancellations aligned with the shared due filter (mobile stats + chips).
+  React.useEffect(() => {
+    setBookingDueFilter(taskDueFilter);
+    setPaymentDueFilter(taskDueFilter);
+  }, [taskDueFilter]);
   const [tasksInsightFocus, setTasksInsightFocus] = React.useState<string | null>(null);
   const [taskSearch, setTaskSearch] = React.useState('');
   const [savingReminderId, setSavingReminderId] = React.useState<string | null>(null);
@@ -445,6 +451,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
     let rows = manual.filter((m) => m.reminderType === 'CancellationDeadline');
     rows = rows.filter((m) => matchesTaskCompletionFilter(m.isComplete, taskCompletionFilter));
     rows = rows.filter(matchesReminderFilters);
+    rows = rows.filter((m) => matchesTaskDueFilter(m.dueDate, taskDueFilter, todayYmd));
     const q = taskSearch.trim().toLowerCase();
     if (q) {
       rows = rows.filter((m) => {
@@ -455,7 +462,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
       });
     }
     return rows;
-  }, [manual, taskCompletionFilter, matchesReminderFilters, taskSearch]);
+  }, [manual, taskCompletionFilter, matchesReminderFilters, taskSearch, taskDueFilter, todayYmd]);
 
   React.useEffect(() => {
     const id = planView?.focusedReminderId;
@@ -1146,14 +1153,14 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                         ) : null}
                         {target ? (
                           <button
-                            className={`${styles.iconBtn} ${styles.iconBtnWide}`}
+                            className={mobileLayout ? styles.iconBtn : `${styles.iconBtn} ${styles.iconBtnWide}`}
                             type="button"
                             title="Open linked itinerary item"
                             aria-label="Open in itinerary"
                             onClick={() => openEntryInItineraryRead(target.openEntryId, target.openDayId)}
                           >
                             <IconOpenInItinerary />
-                            Open
+                            {mobileLayout ? null : 'Open'}
                           </button>
                         ) : null}
                         {canEditManualTask(m.assignedTo) ? (
@@ -1214,14 +1221,14 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                 </div>
                 <div className={`${styles.iconActions} ${styles.noPrint}`}>
                   <button
-                    className={`${styles.iconBtn} ${styles.iconBtnWide}`}
+                    className={mobileLayout ? styles.iconBtn : `${styles.iconBtn} ${styles.iconBtnWide}`}
                     type="button"
                     title="Open linked itinerary item"
                     aria-label="Open in itinerary"
                     onClick={() => openEntryInItineraryRead(entry.id, entry.dayId)}
                   >
                     <IconOpenInItinerary />
-                    Open
+                    {mobileLayout ? null : 'Open'}
                   </button>
                   <button
                     className={styles.iconBtn}
@@ -1292,14 +1299,14 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                 </div>
                 <div className={`${styles.iconActions} ${styles.noPrint}`}>
                   <button
-                    className={`${styles.iconBtn} ${styles.iconBtnWide}`}
+                    className={mobileLayout ? styles.iconBtn : `${styles.iconBtn} ${styles.iconBtnWide}`}
                     type="button"
                     title="Open linked itinerary item"
                     aria-label="Open in itinerary"
                     onClick={() => openEntryInItineraryRead(entry.id, entry.dayId)}
                   >
                     <IconOpenInItinerary />
-                    Open
+                    {mobileLayout ? null : 'Open'}
                   </button>
                   <button
                     className={styles.iconBtn}
@@ -1367,14 +1374,14 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                     <div className={`${styles.iconActions} ${styles.noPrint}`}>
                       {target ? (
                         <button
-                          className={`${styles.iconBtn} ${styles.iconBtnWide}`}
+                          className={mobileLayout ? styles.iconBtn : `${styles.iconBtn} ${styles.iconBtnWide}`}
                           type="button"
                           title="Open linked itinerary item"
                           aria-label="Open in itinerary"
                           onClick={() => openEntryInItineraryRead(target.openEntryId, target.openDayId)}
                         >
                           <IconOpenInItinerary />
-                          Open
+                          {mobileLayout ? null : 'Open'}
                         </button>
                       ) : null}
                       <button

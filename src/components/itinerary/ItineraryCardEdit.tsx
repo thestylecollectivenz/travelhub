@@ -19,6 +19,7 @@ import { isPendingItineraryEntryId, isPendingSubItemId } from '../../utils/itine
 import { registerItineraryEditFlush } from '../../utils/itineraryEditFlush';
 import { editableEntryToSubItem } from '../../utils/optionEntryAdapter';
 import { RichTextField } from '../shared/RichTextField';
+import { joinNotesAndQa, splitNotesAndQa } from '../../utils/entryQaThread';
 import type { EntryDocumentType, EntryLinkType } from '../../models';
 import { sortEntryDocuments } from '../../utils/entryDocumentSort';
 import { sortEntryLinks } from '../../utils/entryLinkSort';
@@ -66,8 +67,13 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
   const { trip, tripDays, localEntries, usedSuppliers, usedBookingMechanisms, usedLocations, usedCurrencies, persistEntry, persistSubItem, setEditingCardId, setEditingSubItem } = useTripWorkspace();
   const { placeById } = usePlaces();
   const { config } = useConfig();
-  const [draft, setDraft] = React.useState<ItineraryEntry>(() => ({ ...entry }));
+  const [draft, setDraft] = React.useState<ItineraryEntry>(() => {
+    const { notes } = splitNotesAndQa(entry.notes);
+    return { ...entry, notes };
+  });
   const notesTouchedRef = React.useRef(false);
+  const notesLiveRef = React.useRef(splitNotesAndQa(entry.notes).notes);
+  const notesQaThreadRef = React.useRef(splitNotesAndQa(entry.notes).thread);
   const savingRef = React.useRef(false);
   const endTimeManualRef = React.useRef(Boolean(formatTimeHHMM(entry.arrivalTime ?? '')));
   const returnEndTimeManualRef = React.useRef(Boolean(formatTimeHHMM(entry.returnArrivalTime ?? '')));
@@ -80,27 +86,34 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
 
   React.useEffect(() => {
     notesTouchedRef.current = false;
+    const split = splitNotesAndQa(entry.notes);
+    notesLiveRef.current = split.notes;
+    notesQaThreadRef.current = split.thread;
     endTimeManualRef.current = Boolean(formatTimeHHMM(entry.arrivalTime ?? ''));
     returnEndTimeManualRef.current = Boolean(formatTimeHHMM(entry.returnArrivalTime ?? ''));
     setReturnDurationInput('');
     setAttachmentEntryId(entry.id);
-    setDraft({ ...entry });
+    setDraft({ ...entry, notes: split.notes });
   }, [entry.id]);
 
   React.useEffect(() => {
     if (notesTouchedRef.current) return;
-    setDraft((prev) => (prev.id === entry.id ? { ...prev, notes: entry.notes } : prev));
+    const split = splitNotesAndQa(entry.notes);
+    notesQaThreadRef.current = split.thread;
+    notesLiveRef.current = split.notes;
+    setDraft((prev) => (prev.id === entry.id ? { ...prev, notes: split.notes } : prev));
   }, [entry.id, entry.notes]);
-
-  const timeValue = formatTimeHHMM(draft.timeStart);
-  const arrivalTimeValue = formatTimeHHMM(draft.arrivalTime ?? '');
 
   const patch = React.useCallback((partial: Partial<ItineraryEntry>) => {
     if (partial.notes !== undefined) {
       notesTouchedRef.current = true;
+      notesLiveRef.current = partial.notes;
     }
     setDraft((d) => ({ ...d, ...partial }));
   }, []);
+
+  const timeValue = formatTimeHHMM(draft.timeStart);
+  const arrivalTimeValue = formatTimeHHMM(draft.arrivalTime ?? '');
 
   const patchDateStart = React.useCallback(
     (date: string) => {
@@ -385,11 +398,13 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
     savingRef.current = true;
     setSaving(true);
     try {
-    // Prefer live DOM for notes — iPad contentEditable can lag React state until blur.
+    // Prefer live ref / DOM for notes — iPad contentEditable can lag React state until blur.
     const notesRoot = document.getElementById(`notes-${draft.id}`);
     const notesEditable = notesRoot?.querySelector('[contenteditable="true"]') as HTMLElement | null;
     const notesFromDom = notesEditable ? (notesEditable.innerHTML || '').trim() : '';
-    const notesValue = (notesFromDom || draft.notes || '').trim();
+    if (notesFromDom) notesLiveRef.current = notesFromDom;
+    const notesDisplay = (notesLiveRef.current || notesFromDom || draft.notes || '').trim();
+    const notesValue = joinNotesAndQa(notesDisplay, notesQaThreadRef.current);
 
     let title = draft.title.trim();
     if (!title && isTransport) {
@@ -1610,6 +1625,8 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           onChange={(html) => patch({ notes: html })}
           fullRow
           labelClassName={`${styles.label} ${styles.fullRow}`}
+          variant={touchShell ? 'basic' : 'full'}
+          liveHtmlRef={notesLiveRef}
         />
       ) : null}
 
@@ -1636,7 +1653,20 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
           <button type="button" className={styles.btnSecondary} onClick={onCancel}>
             Cancel
           </button>
-          <button type="button" className={styles.btnPrimary} disabled={!canSave || saving} onClick={() => { void handleSave(); }}>
+          <button
+            type="button"
+            className={styles.btnPrimary}
+            disabled={!canSave || saving}
+            onPointerDown={() => {
+              // Flush contentEditable into the live ref before the click/blur race on iPad.
+              const notesRoot = document.getElementById(`notes-${draft.id}`);
+              const notesEditable = notesRoot?.querySelector('[contenteditable="true"]') as HTMLElement | null;
+              if (notesEditable) notesLiveRef.current = notesEditable.innerHTML || '';
+            }}
+            onClick={() => {
+              void handleSave();
+            }}
+          >
             {saving ? 'Saving…' : 'Save'}
           </button>
         </div>

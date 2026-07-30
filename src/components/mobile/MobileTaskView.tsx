@@ -37,7 +37,7 @@ function activeStat(
 }
 
 const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
-  const { trip } = useTripWorkspace();
+  const { trip, localEntries } = useTripWorkspace();
   const spContext = useSpContext();
   const shellMode = useShellMode();
   const planView = usePlanView();
@@ -111,6 +111,21 @@ const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
           if (bucket === 'overdue') overdue += 1;
           if (bucket === 'today') dueToday += 1;
         }
+        // Include booking-required / payment-due itinerary items in the same stats.
+        for (const e of localEntries) {
+          if (e.bookingRequired && e.bookingStatus === 'Not booked') {
+            open += 1;
+            const bucket = dueYmdBucket(ymdFromIso(e.bookingDueDate), today);
+            if (bucket === 'overdue') overdue += 1;
+            if (bucket === 'today') dueToday += 1;
+          }
+          if ((e.paymentStatus === 'Not paid' && e.amount > 0) || e.paymentStatus === 'Part paid') {
+            open += 1;
+            const bucket = dueYmdBucket(ymdFromIso(e.paymentDueDate), today);
+            if (bucket === 'overdue') overdue += 1;
+            if (bucket === 'today') dueToday += 1;
+          }
+        }
         setOpenCount(open);
         setOverdueCount(overdue);
         setDueTodayCount(dueToday);
@@ -119,8 +134,12 @@ const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
     };
     load();
     window.addEventListener('trip-reminders-updated', load);
-    return () => window.removeEventListener('trip-reminders-updated', load);
-  }, [trip?.id, spContext]);
+    window.addEventListener('trip-itinerary-updated', load);
+    return () => {
+      window.removeEventListener('trip-reminders-updated', load);
+      window.removeEventListener('trip-itinerary-updated', load);
+    };
+  }, [trip?.id, spContext, localEntries]);
 
   return (
     <div data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}>

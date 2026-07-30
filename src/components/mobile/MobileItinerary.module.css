@@ -657,6 +657,70 @@
   background: color-mix(in srgb, var(--cat-bg, var(--tl-cream)) 80%, white);
 }
 
+.cardStack {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.cardExtras {
+  margin-top: 0.15rem;
+}
+
+.cardExtrasToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: none;
+  background: transparent;
+  color: var(--tl-muted);
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+  padding: 0.1rem 0;
+}
+
+.cardExtrasIcons {
+  display: inline-flex;
+  gap: 0.15rem;
+  color: var(--tl-navy, #1e2a44);
+}
+
+.cardExtrasBody {
+  margin-top: 0.25rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 0.55rem;
+  background: color-mix(in srgb, white 92%, var(--tl-cream));
+  border: 1px solid var(--tl-line);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.cardExtrasNotes {
+  font-size: 0.78rem;
+  color: var(--tl-ink);
+  line-height: 1.35;
+  max-height: 7rem;
+  overflow: auto;
+}
+
+.cardExtrasLinks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.cardExtrasLink {
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: #2f5eb8;
+  text-decoration: none;
+  word-break: break-word;
+}
+
 /* ─── Unscheduled ─────────────────────────────────────────────────── */
 .unschedSection {
   margin-bottom: var(--space-3);

@@ -189,3 +189,52 @@
   display: inline-flex;
   gap: 0.25rem;
 }
+
+.voiceToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: #4a5568;
+  font-weight: 600;
+}
+
+.replyThread {
+  margin-top: 0.35rem;
+  padding-left: 0.35rem;
+  border-left: 2px solid color-mix(in srgb, #2f5eb8 25%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.replyToggle {
+  border: none;
+  background: none;
+  color: #2f5eb8;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+}
+
+.replyItem {
+  padding: 0.3rem 0.4rem;
+  border-radius: 0.45rem;
+  background: color-mix(in srgb, #2f5eb8 5%, white);
+}
+
+.replyQ,
+.replyA {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  color: #1e2a44;
+}
+
+.replyComposer {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
