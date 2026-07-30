@@ -275,7 +275,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose }) => 
             value={geminiKeyDraft}
             onChange={setGeminiKeyDraft}
             placeholder="Paste a new Google AI Studio API key"
-            hint={`Uses ${DEFAULT_GEMINI_MODEL} first (check RPM/RPD in AI Studio), then 2.5 Flash Lite / 2.5 Flash if quota blocked. Avoid models showing 0 limits. Saved keys are masked here.`}
+            hint={`Uses ${DEFAULT_GEMINI_MODEL}, then 2.5 Flash / flash-lite-latest only if a model ID is missing (404). After two quota rejections in a day, AI pauses until tomorrow. Saved keys are masked here.`}
           />
 
           <SecretApiKeyField

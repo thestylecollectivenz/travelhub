@@ -9,6 +9,12 @@ export function formatGeminiUserMessage(err: unknown): string {
     const raw = err.message;
     const lower = raw.toLowerCase();
     if (
+      lower.includes('paused further ai') ||
+      lower.includes('quota was hit twice today')
+    ) {
+      return raw;
+    }
+    if (
       lower.includes('quota') ||
       lower.includes('resource_exhausted') ||
       lower.includes('free_tier') ||
@@ -17,7 +23,8 @@ export function formatGeminiUserMessage(err: unknown): string {
       return (
         'Gemini rejected the request due to quota limits. Google offers a free tier with daily caps per account/project, ' +
         'but your key may show limit 0 in AI Studio (billing, new project, or rate-limit tier). ' +
-        'Open aistudio.google.com → your project → Rate limits, or enable billing for higher limits.'
+        'Open aistudio.google.com → your project → Rate limits, or enable billing for higher limits. ' +
+        'After two quota rejections today, Travel Hub pauses further AI calls until tomorrow.'
       );
     }
     if (err.code === 'PARSE_ERROR' || err.code === 'INVALID_RESPONSE') {

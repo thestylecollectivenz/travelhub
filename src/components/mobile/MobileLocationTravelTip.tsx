@@ -4,7 +4,16 @@ import type { Place } from '../../models/Place';
 import type { LocationInfoQaEntry, SavedTravelTip } from '../../utils/locationInfoEntry';
 import { useConfig } from '../../context/ConfigContext';
 import { useSpContext } from '../../context/SpContext';
-import { GEMINI_MODEL_FALLBACK_CHAIN } from '../../services/GeminiService';
+import {
+  canTryNextGeminiModel,
+  getGeminiModelsToTry,
+  registerGeminiHttpFailure
+} from '../../services/GeminiService';
+import {
+  geminiDailyBlockMessage,
+  isGeminiBlockedForDay,
+  isGeminiQuotaRejection
+} from '../../utils/geminiDailyGuard';
 import { scheduleTravelTipQuestion } from '../../utils/locationInfoGeneration';
 import { subscribeLocationInfoAIStatus } from '../../utils/locationInfoAIEvents';
 import { useSpeechOutput } from '../../hooks/useSpeechOutput';
@@ -119,8 +128,13 @@ function SpeakerIcon(): React.ReactElement {
 }
 
 async function generateTip(apiKey: string, prompt: string): Promise<string> {
+  if (isGeminiBlockedForDay()) {
+    throw new Error(geminiDailyBlockMessage());
+  }
   let lastErr: Error | undefined;
-  for (const model of GEMINI_MODEL_FALLBACK_CHAIN) {
+  const models = getGeminiModelsToTry();
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
       const resp = await fetch(url, {
@@ -132,8 +146,18 @@ async function generateTip(apiKey: string, prompt: string): Promise<string> {
         })
       });
       if (!resp.ok) {
-        lastErr = new Error(`Gemini ${resp.status}`);
-        continue;
+        let message = `Gemini ${resp.status}`;
+        try {
+          const errBody = (await resp.json()) as { error?: { message?: string } };
+          if (errBody.error?.message) message = errBody.error.message;
+        } catch {
+          /* ignore */
+        }
+        registerGeminiHttpFailure(model, resp.status, message);
+        lastErr = new Error(message);
+        if (isGeminiQuotaRejection(resp.status, message)) break;
+        if (canTryNextGeminiModel({ status: resp.status, message }, i < models.length - 1)) continue;
+        break;
       }
       const data = (await resp.json()) as {
         candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;

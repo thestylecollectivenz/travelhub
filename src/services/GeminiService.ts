@@ -7,34 +7,25 @@
 
 import type { LocationInfoAIResult, NearestPlaceKind, NearestPlaceRow, DiningSuggestionRow } from '../utils/locationInfoEntry';
 import type { LocationSearchContext } from '../utils/locationGeoContext';
+import {
+  geminiDailyBlockMessage,
+  isGeminiBlockedForDay,
+  isGeminiNotFoundRejection,
+  isGeminiQuotaRejection,
+  recordGeminiQuotaRejection
+} from '../utils/geminiDailyGuard';
 
 /**
- * Models to try in order (free tier). Avoid gemini-2.0-flash — often 0 RPM/RPD on new projects.
- * Match IDs to AI Studio → Rate limits for your project.
+ * Models to try in order (free tier). Prefer documented stable IDs only — 404s waste quota.
+ * Skip unknown / preview aliases that some projects reject.
  */
 export const GEMINI_MODEL_FALLBACK_CHAIN = [
   'gemini-3.1-flash-lite',
-  'gemini-2.5-flash-lite',
-  'gemini-2.5-flash'
+  'gemini-2.5-flash',
+  'gemini-flash-lite-latest'
 ] as const;
 
 export const DEFAULT_GEMINI_MODEL: (typeof GEMINI_MODEL_FALLBACK_CHAIN)[number] = GEMINI_MODEL_FALLBACK_CHAIN[0];
-
-export interface LocationInfoGenerationResponse {
-  result: LocationInfoAIResult;
-  model: string;
-}
-
-function isQuotaOrModelBlockedError(err: GeminiServiceError): boolean {
-  if (err.status === 429) return true;
-  const m = err.message.toLowerCase();
-  return (
-    m.includes('quota') ||
-    m.includes('resource_exhausted') ||
-    m.includes('free_tier') ||
-    m.includes('limit: 0')
-  );
-}
 
 export type GeminiErrorCode = 'NO_KEY' | 'API_ERROR' | 'PARSE_ERROR' | 'INVALID_RESPONSE';
 
@@ -51,9 +42,51 @@ export class GeminiServiceError extends Error {
   }
 }
 
+export interface LocationInfoGenerationResponse {
+  result: LocationInfoAIResult;
+  model: string;
+}
+
 export interface GeminiServiceOptions {
   apiKey: string;
   model?: string;
+}
+
+/** Session cache of model IDs that returned 404 — avoid retrying them. */
+const unavailableModels = new Set<string>();
+
+/** Models to attempt for this request (skips session-known 404 IDs). */
+export function getGeminiModelsToTry(preferred?: string): string[] {
+  const base = preferred
+    ? [preferred, ...GEMINI_MODEL_FALLBACK_CHAIN.filter((m) => m !== preferred)]
+    : [...GEMINI_MODEL_FALLBACK_CHAIN];
+  return base.filter((m) => !unavailableModels.has(m));
+}
+
+function assertGeminiCallable(): void {
+  if (isGeminiBlockedForDay()) {
+    throw new GeminiServiceError('API_ERROR', geminiDailyBlockMessage(), 429);
+  }
+}
+
+/** Record quota rejects / mark 404 models. Call from any Gemini HTTP failure path. */
+export function registerGeminiHttpFailure(model: string, status?: number, message?: string): void {
+  if (isGeminiNotFoundRejection(status, message)) {
+    unavailableModels.add(model);
+  }
+  if (isGeminiQuotaRejection(status, message)) {
+    recordGeminiQuotaRejection();
+  }
+}
+
+/**
+ * Only fall through to the next model on 404/missing-model.
+ * Do not cascade after quota/429 — that multiplies free-tier burn.
+ */
+export function canTryNextGeminiModel(err: { status?: number; message?: string }, hasAnother: boolean): boolean {
+  if (!hasAnother) return false;
+  if (isGeminiQuotaRejection(err.status, err.message)) return false;
+  return isGeminiNotFoundRejection(err.status, err.message);
 }
 
 function buildPrompt(placeName: string, country: string): string {
@@ -313,6 +346,7 @@ export async function answerLocationQuestion(
   question: string,
   options: GeminiServiceOptions & { contextSummary?: string }
 ): Promise<LocationQuestionResponse> {
+  assertGeminiCallable();
   const apiKey = (options.apiKey || '').trim();
   if (!apiKey) {
     throw new GeminiServiceError('NO_KEY', 'Gemini API key is not set.');
@@ -322,9 +356,7 @@ export async function answerLocationQuestion(
     throw new GeminiServiceError('INVALID_RESPONSE', 'Question is empty.');
   }
 
-  const models: string[] = options.model
-    ? [options.model, ...GEMINI_MODEL_FALLBACK_CHAIN.filter((m) => m !== options.model)]
-    : [...GEMINI_MODEL_FALLBACK_CHAIN];
+  const models = getGeminiModelsToTry(options.model);
 
   let lastErr: GeminiServiceError | undefined;
   for (let i = 0; i < models.length; i++) {
@@ -358,6 +390,7 @@ export async function answerLocationQuestion(
         } catch {
           /* ignore */
         }
+        registerGeminiHttpFailure(model, resp.status, message);
         throw new GeminiServiceError('API_ERROR', message, resp.status);
       }
       const data = await resp.json();
@@ -379,8 +412,7 @@ export async function answerLocationQuestion(
       if (err.code === 'PARSE_ERROR' || err.code === 'INVALID_RESPONSE' || err.code === 'NO_KEY') {
         throw err;
       }
-      const hasAnother = i < models.length - 1;
-      if (hasAnother && isQuotaOrModelBlockedError(err)) {
+      if (canTryNextGeminiModel(err, i < models.length - 1)) {
         continue;
       }
       throw err;
@@ -432,14 +464,13 @@ export async function generateLocationInfo(
   country: string,
   options: GeminiServiceOptions
 ): Promise<LocationInfoGenerationResponse> {
+  assertGeminiCallable();
   const apiKey = (options.apiKey || '').trim();
   if (!apiKey) {
     throw new GeminiServiceError('NO_KEY', 'Gemini API key is not set.');
   }
 
-  const models: string[] = options.model
-    ? [options.model, ...GEMINI_MODEL_FALLBACK_CHAIN.filter((m) => m !== options.model)]
-    : [...GEMINI_MODEL_FALLBACK_CHAIN];
+  const models = getGeminiModelsToTry(options.model);
 
   let lastErr: GeminiServiceError | undefined;
   for (let i = 0; i < models.length; i++) {
@@ -455,10 +486,10 @@ export async function generateLocationInfo(
       if (err.code === 'PARSE_ERROR' || err.code === 'INVALID_RESPONSE' || err.code === 'NO_KEY') {
         throw err;
       }
-      const hasAnother = i < models.length - 1;
-      if (hasAnother && isQuotaOrModelBlockedError(err)) {
+      registerGeminiHttpFailure(model, err.status, err.message);
+      if (canTryNextGeminiModel(err, i < models.length - 1)) {
         // eslint-disable-next-line no-console
-        console.warn(`GeminiService: ${model} unavailable (${err.status ?? err.message}), trying next model.`);
+        console.warn(`GeminiService: ${model} not found (${err.status ?? err.message}), trying next model.`);
         continue;
       }
       throw err;
@@ -479,6 +510,7 @@ export async function answerTravelChat(
   tripContext?: string,
   options?: { model?: string; currentFocusBlock?: string }
 ): Promise<{ answer: string; model: string }> {
+  assertGeminiCallable();
   const key = (apiKey || '').trim();
   if (!key) throw new GeminiServiceError('NO_KEY', 'Add a Gemini API key in User settings.');
 
@@ -502,9 +534,7 @@ ${latestText || '(empty)'}
 
 Reply for the CURRENT FOCUS day, date, and location. Ask a brief clarifying question only when the latest message is ambiguous about place or day. Use plain text or markdown (no HTML). Use [label](url) for links. Keep answers concise unless detail is needed.`;
 
-  const models: string[] = options?.model
-    ? [options.model, ...GEMINI_MODEL_FALLBACK_CHAIN.filter((m) => m !== options.model)]
-    : [...GEMINI_MODEL_FALLBACK_CHAIN];
+  const models = getGeminiModelsToTry(options?.model);
 
   let lastErr: GeminiServiceError | undefined;
   for (let i = 0; i < models.length; i++) {
@@ -520,7 +550,15 @@ Reply for the CURRENT FOCUS day, date, and location. Ask a brief clarifying ques
         })
       });
       if (!resp.ok) {
-        throw new GeminiServiceError('API_ERROR', `Gemini API returned ${resp.status}`, resp.status);
+        let message = `Gemini API returned ${resp.status}`;
+        try {
+          const errBody = (await resp.json()) as { error?: { message?: string } };
+          if (errBody.error?.message) message = errBody.error.message;
+        } catch {
+          /* ignore */
+        }
+        registerGeminiHttpFailure(model, resp.status, message);
+        throw new GeminiServiceError('API_ERROR', message, resp.status);
       }
       const data = await resp.json();
       const text = extractResponseText(data).trim();
@@ -532,8 +570,7 @@ Reply for the CURRENT FOCUS day, date, and location. Ask a brief clarifying ques
       }
       lastErr = err;
       if (err.code === 'NO_KEY') throw err;
-      const hasAnother = i < models.length - 1;
-      if (hasAnother && isQuotaOrModelBlockedError(err)) continue;
+      if (canTryNextGeminiModel(err, i < models.length - 1)) continue;
       throw err;
     }
   }
@@ -546,6 +583,7 @@ export async function generatePlainTextLines(
   userPrompt: string,
   maxLines = 3
 ): Promise<string[]> {
+  assertGeminiCallable();
   const key = (apiKey || '').trim();
   if (!key) throw new GeminiServiceError('NO_KEY', 'Add a Gemini API key in User settings.');
 
@@ -553,7 +591,7 @@ export async function generatePlainTextLines(
 
 Reply with ONLY ${maxLines} short lines (one idea per line). No numbering, no labels, no markdown, no preamble.`;
 
-  const models = [...GEMINI_MODEL_FALLBACK_CHAIN];
+  const models = getGeminiModelsToTry();
   let lastErr: GeminiServiceError | undefined;
   for (let i = 0; i < models.length; i++) {
     const model = models[i];
@@ -568,7 +606,15 @@ Reply with ONLY ${maxLines} short lines (one idea per line). No numbering, no la
         })
       });
       if (!resp.ok) {
-        throw new GeminiServiceError('API_ERROR', `Gemini API returned ${resp.status}`, resp.status);
+        let message = `Gemini API returned ${resp.status}`;
+        try {
+          const errBody = (await resp.json()) as { error?: { message?: string } };
+          if (errBody.error?.message) message = errBody.error.message;
+        } catch {
+          /* ignore */
+        }
+        registerGeminiHttpFailure(model, resp.status, message);
+        throw new GeminiServiceError('API_ERROR', message, resp.status);
       }
       const data = await resp.json();
       const text = extractResponseText(data).trim();
@@ -584,7 +630,7 @@ Reply with ONLY ${maxLines} short lines (one idea per line). No numbering, no la
       }
       lastErr = err;
       if (err.code === 'NO_KEY') throw err;
-      if (i < models.length - 1 && isQuotaOrModelBlockedError(err)) continue;
+      if (canTryNextGeminiModel(err, i < models.length - 1)) continue;
       throw err;
     }
   }
@@ -721,9 +767,8 @@ async function callGeminiJson<T>(
   apiKey: string,
   modelHint?: string
 ): Promise<{ parsed: T; model: string }> {
-  const models: string[] = modelHint
-    ? [modelHint, ...GEMINI_MODEL_FALLBACK_CHAIN.filter((m) => m !== modelHint)]
-    : [...GEMINI_MODEL_FALLBACK_CHAIN];
+  assertGeminiCallable();
+  const models = getGeminiModelsToTry(modelHint);
 
   let lastErr: GeminiServiceError | undefined;
   for (let i = 0; i < models.length; i++) {
@@ -743,7 +788,15 @@ async function callGeminiJson<T>(
         })
       });
       if (!resp.ok) {
-        throw new GeminiServiceError('API_ERROR', `Gemini API returned ${resp.status}`, resp.status);
+        let message = `Gemini API returned ${resp.status}`;
+        try {
+          const errBody = (await resp.json()) as { error?: { message?: string } };
+          if (errBody.error?.message) message = errBody.error.message;
+        } catch {
+          /* ignore */
+        }
+        registerGeminiHttpFailure(model, resp.status, message);
+        throw new GeminiServiceError('API_ERROR', message, resp.status);
       }
       const data = await resp.json();
       const text = extractResponseText(data);
@@ -755,7 +808,7 @@ async function callGeminiJson<T>(
       }
       lastErr = err;
       if (err.code === 'PARSE_ERROR' || err.code === 'INVALID_RESPONSE' || err.code === 'NO_KEY') throw err;
-      if (i < models.length - 1 && isQuotaOrModelBlockedError(err)) continue;
+      if (canTryNextGeminiModel(err, i < models.length - 1)) continue;
       throw err;
     }
   }

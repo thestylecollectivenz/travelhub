@@ -213,6 +213,12 @@ export function scheduleLocationInfoAIGeneration(options: ScheduleLocationInfoAI
     try {
       const targetEntry = await resolveCanonicalLocationEntry(spContext, entry, place);
       const latest = await loadLatestNotes(spContext, targetEntry, parsed);
+      // Re-check after fetch — another tab/process may have filled the card already.
+      if (!section && !additiveOnly && locationInfoIsPopulated(latest)) {
+        emitLocationInfoAIStatus({ entryId: entry.id, loading: false, section: sectionKey, success: true });
+        if (onComplete) onComplete();
+        return;
+      }
       await applyLocationInfoAIResult({
         spContext,
         entry: targetEntry,

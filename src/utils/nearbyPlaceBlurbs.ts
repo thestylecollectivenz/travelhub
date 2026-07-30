@@ -52,6 +52,12 @@ async function fetchBlurbsFromGemini(
   places: BlurbPlaceInput[],
   geminiApiKey: string
 ): Promise<string[] | null> {
+  const {
+    isGeminiBlockedForDay,
+    isGeminiQuotaRejection
+  } = await import('./geminiDailyGuard');
+  if (isGeminiBlockedForDay()) return null;
+
   const listing = places
     .map((p, i) => `${i + 1}. ${p.name} — ${p.categoryLabel}${p.address ? `, ${p.address}` : ''}${p.city ? `, ${p.city}` : ''}`)
     .join('\n');
@@ -61,8 +67,14 @@ async function fetchBlurbsFromGemini(
     `do NOT invent specific facts, awards, dishes or dates.\n${listing}\n` +
     `Respond with ONLY a JSON array of ${places.length} strings in the same order, no markdown.`;
   try {
-    const { GEMINI_MODEL_FALLBACK_CHAIN } = await import('../services/GeminiService');
-    for (const model of GEMINI_MODEL_FALLBACK_CHAIN) {
+    const {
+      getGeminiModelsToTry,
+      registerGeminiHttpFailure,
+      canTryNextGeminiModel
+    } = await import('../services/GeminiService');
+    const models = getGeminiModelsToTry();
+    for (let i = 0; i < models.length; i++) {
+      const model = models[i];
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(geminiApiKey)}`;
       const resp = await fetch(url, {
         method: 'POST',
@@ -72,7 +84,19 @@ async function fetchBlurbsFromGemini(
           generationConfig: { temperature: 0.3, maxOutputTokens: 900 }
         })
       });
-      if (!resp.ok) continue;
+      if (!resp.ok) {
+        let message = `Gemini API returned ${resp.status}`;
+        try {
+          const errBody = (await resp.json()) as { error?: { message?: string } };
+          if (errBody.error?.message) message = errBody.error.message;
+        } catch {
+          /* ignore */
+        }
+        registerGeminiHttpFailure(model, resp.status, message);
+        if (isGeminiQuotaRejection(resp.status, message)) break;
+        if (canTryNextGeminiModel({ status: resp.status, message }, i < models.length - 1)) continue;
+        break;
+      }
       const data = (await resp.json()) as {
         candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
       };
