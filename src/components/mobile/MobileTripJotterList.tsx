@@ -41,10 +41,11 @@ import {
   type UnifiedTripIdea
 } from '../../utils/tripIdeasUnified';
 import { MobileIdeaAskAi, type IdeaQaEntry } from './MobileIdeaAskAi';
-import { MobileFilterDisclosure } from './MobileFilterDisclosure';
+import { MobileIdeasFiltersDrawer } from './MobileIdeasFiltersDrawer';
 import { MOBILE_OPEN_JOTTER_COMPOSE } from '../../utils/mobileHomePendingAction';
 import { consumePendingJotterCompose } from '../../utils/mobileHomePendingAction';
 import chrome from './MobileTabChrome.module.css';
+import listStyles from './MobilePackingList.module.css';
 import styles from './MobileTripIdeasTab.module.css';
 
 type SortOrder = 'newest' | 'oldest';
@@ -302,16 +303,12 @@ export const MobileTripJotterList: React.FC = () => {
 
   const filterChips: Array<{ key: TripIdeasFilter; label: string; count?: number }> = [
     { key: 'all', label: 'All', count: counts.all },
-    { key: 'allByLocation', label: 'All by location', count: counts.allByLocation },
-    { key: 'newByLocation', label: 'New / unread by location', count: counts.newByLocation },
     { key: 'yours', label: 'Yours', count: counts.yours },
     { key: 'favourites', label: 'My favourites', count: counts.favourites },
-    { key: 'favouritesByTraveller', label: 'Favourites by traveller', count: counts.favouritesByTraveller },
-    { key: 'favouritesByLocation', label: 'Favourites by location', count: counts.favouritesByLocation },
-    { key: 'ai', label: 'AI', count: counts.ai },
-    { key: 'replies', label: 'With replies', count: counts.replies },
     { key: 'complete', label: 'Complete', count: counts.complete }
   ];
+
+  const advancedFiltersActive = !['all', 'yours', 'favourites', 'complete'].includes(filter);
 
   const renderIdeaCard = (idea: UnifiedTripIdea, keySuffix = ''): React.ReactNode => {
     const author = memberForIdea(idea, members);
@@ -498,21 +495,19 @@ export const MobileTripJotterList: React.FC = () => {
         Trip ideas from the home jotter and itinerary days, including AI suggestions.
       </p>
 
-      <MobileFilterDisclosure open={filtersOpen} onToggle={() => setFiltersOpen((v) => !v)}>
-        <div className={chrome.filterChipRow} role="group" aria-label="Filter ideas">
-          {filterChips.map(({ key, label, count }) => (
-            <button
-              key={key}
-              type="button"
-              className={filter === key ? chrome.filterChipOn : chrome.filterChip}
-              onClick={() => setFilter(key)}
-            >
-              {label}
-              {count !== undefined ? ` (${count})` : ''}
-            </button>
-          ))}
-        </div>
-      </MobileFilterDisclosure>
+      <div className={chrome.statRow}>
+        {filterChips.map(({ key, label, count }) => (
+          <button
+            key={key}
+            type="button"
+            className={`${chrome.statCard} ${chrome.statCardBtn} ${filter === key ? chrome.statCardActive : ''}`}
+            onClick={() => setFilter(key)}
+          >
+            <span className={chrome.statValue}>{count ?? 0}</span>
+            <span className={chrome.statLabel}>{label}</span>
+          </button>
+        ))}
+      </div>
 
       <div className={styles.toolbar}>
         <input
@@ -522,11 +517,30 @@ export const MobileTripJotterList: React.FC = () => {
           placeholder="Search ideas…"
           aria-label="Search ideas"
         />
+        <button
+          type="button"
+          className={filtersOpen || advancedFiltersActive ? listStyles.filterBtnOn : listStyles.filterBtn}
+          aria-expanded={filtersOpen}
+          onClick={() => setFiltersOpen(true)}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M4 6h16M7 12h10M10 18h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+          Filters
+        </button>
         <select className={styles.sortSelect} value={sort} onChange={(e) => setSort(e.target.value as SortOrder)} aria-label="Sort">
           <option value="newest">Newest first</option>
           <option value="oldest">Oldest first</option>
         </select>
       </div>
+
+      <MobileIdeasFiltersDrawer
+        open={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        filter={filter}
+        onFilterChange={setFilter}
+        counts={counts}
+      />
 
       <div className={styles.addRow}>
         <button type="button" className={styles.addBtn} onClick={() => setComposeOpen((v) => !v)}>

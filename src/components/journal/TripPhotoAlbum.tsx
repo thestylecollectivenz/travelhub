@@ -33,6 +33,7 @@ export const TripPhotoAlbum: React.FC<{ mobileLayout?: boolean }> = ({ mobileLay
   const [layout, setLayout] = React.useState<AlbumLayout>('all');
   const [scopeDayId, setScopeDayId] = React.useState<string>('');
   const [readFilter, setReadFilter] = React.useState<'all' | 'unread' | 'read'>('all');
+  const [linkFilter, setLinkFilter] = React.useState<'all' | 'unassigned' | 'linked'>('all');
   const [photosLastSeenMaxId, setPhotosLastSeenMaxId] = React.useState<number>(0);
   const [lightboxIndex, setLightboxIndex] = React.useState<number | null>(null);
 
@@ -168,10 +169,14 @@ export const TripPhotoAlbum: React.FC<{ mobileLayout?: boolean }> = ({ mobileLay
 
   const filterPhotos = React.useCallback(
     (items: JournalPhoto[]): JournalPhoto[] => {
-      if (readFilter === 'all') return items;
-      return items.filter((p) => (readFilter === 'unread' ? isPhotoUnread(p) : !isPhotoUnread(p)));
+      let next = items;
+      if (readFilter === 'unread') next = next.filter((p) => isPhotoUnread(p));
+      else if (readFilter === 'read') next = next.filter((p) => !isPhotoUnread(p));
+      if (linkFilter === 'unassigned') next = next.filter((p) => !(p.journalEntryId || '').trim());
+      else if (linkFilter === 'linked') next = next.filter((p) => Boolean((p.journalEntryId || '').trim()));
+      return next;
     },
-    [readFilter, isPhotoUnread]
+    [readFilter, linkFilter, isPhotoUnread]
   );
 
   const visibleSections = React.useMemo(() => {
@@ -348,6 +353,29 @@ export const TripPhotoAlbum: React.FC<{ mobileLayout?: boolean }> = ({ mobileLay
             Read
           </button>
         </div>
+        <div className={styles.readFilter} role="group" aria-label="Photo journal link">
+          <button
+            type="button"
+            className={`${styles.segmentButton} ${linkFilter === 'all' ? styles.segmentActive : ''}`}
+            onClick={() => setLinkFilter('all')}
+          >
+            All links
+          </button>
+          <button
+            type="button"
+            className={`${styles.segmentButton} ${linkFilter === 'unassigned' ? styles.segmentActive : ''}`}
+            onClick={() => setLinkFilter('unassigned')}
+          >
+            Unlinked
+          </button>
+          <button
+            type="button"
+            className={`${styles.segmentButton} ${linkFilter === 'linked' ? styles.segmentActive : ''}`}
+            onClick={() => setLinkFilter('linked')}
+          >
+            In journal
+          </button>
+        </div>
         <div className={styles.toolbarEnd}>
           <button type="button" className={styles.addButton} onClick={() => setUploadOpen((v) => !v)}>
             {uploadOpen ? 'Close upload' : 'Add photos'}
@@ -359,6 +387,13 @@ export const TripPhotoAlbum: React.FC<{ mobileLayout?: boolean }> = ({ mobileLay
           ) : null}
         </div>
       </div>
+
+      {linkFilter === 'unassigned' ? (
+        <p className={styles.subtitle} style={{ marginTop: 0 }}>
+          Unlinked photos belong to a day but not a journal entry. Upload with “Album only”, or open a journal entry and
+          attach photos from there. Use “New journal entry” to create an entry that can pick from these album photos.
+        </p>
+      ) : null}
 
       {journalComposerOpen && journalComposerDayId && !sharedPreview ? (
         <div className={styles.journalComposerWrap}>

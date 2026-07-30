@@ -2,6 +2,7 @@ import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { TripDay } from '../models/TripDay';
 import type { Place } from '../models/Place';
 import { isPreTripDayRow } from './itineraryDayEntries';
+import { parseAdditionalPlaceRefs } from './tripDayPlaces';
 
 export const MAP_TRANSPORT_CATEGORIES = new Set(['Flights', 'Cruise', 'Transport']);
 
@@ -58,6 +59,8 @@ export function buildMapTransportStops(options: {
   };
 
   const runs: Run[] = [];
+  const sideTripStops: MapTransportStop[] = [];
+  const seenSideTripKeys = new Set<string>();
 
   for (const day of orderedDays) {
     if (!day.primaryPlaceId) continue;
@@ -86,9 +89,30 @@ export function buildMapTransportStops(options: {
         locationKey
       });
     }
+
+    for (const ref of parseAdditionalPlaceRefs(day.additionalPlaceIds)) {
+      const sidePlace = placeById(ref.placeId);
+      if (!sidePlace) continue;
+      const sideLat = Number(sidePlace.latitude);
+      const sideLon = Number(sidePlace.longitude);
+      if (!isValidLatLng(sideLat, sideLon)) continue;
+      const dedupeKey = `${day.dayNumber}:${ref.placeId}`;
+      if (seenSideTripKeys.has(dedupeKey)) continue;
+      seenSideTripKeys.add(dedupeKey);
+      const shortTitle = placeShortTitle(sidePlace.title);
+      sideTripStops.push({
+        id: `side-${day.dayNumber}-${ref.placeId}`,
+        placeId: ref.placeId,
+        title: sidePlace.title,
+        latitude: sideLat,
+        longitude: sideLon,
+        dayNumber: day.dayNumber,
+        label: `Day ${day.dayNumber}: ${shortTitle}${ref.returnToPrimary ? ' (side trip)' : ''}`
+      });
+    }
   }
 
-  return runs.map((run) => {
+  const primaryStops = runs.map((run) => {
     const shortTitle = placeShortTitle(run.title);
     return {
       id: `stop-${run.dayStart}-${run.dayEnd}-${run.placeId}`,
@@ -101,4 +125,6 @@ export function buildMapTransportStops(options: {
       label: formatDayRangeLabel(run.dayStart, run.dayEnd, shortTitle)
     };
   });
+
+  return [...primaryStops, ...sideTripStops].sort((a, b) => a.dayNumber - b.dayNumber || a.label.localeCompare(b.label));
 }

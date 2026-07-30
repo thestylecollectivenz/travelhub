@@ -16,7 +16,7 @@ import { categoriesForItemSelect, rememberTripShoppingCategory } from '../../uti
 import { TravellerAvatar } from '../shared/TravellerAvatar';
 import { useShellMode } from '../../hooks/useShellMode';
 import { confirmUserAction } from '../../utils/confirmAction';
-import { MobilePackingFilters, PackingFilterDraft, PackingPackedFilter } from './MobilePackingFilters';
+import { MobilePackingFilters, PackingFilterDraft } from './MobilePackingFilters';
 import { PackingCategoryIcon } from './packingCategoryIcon';
 import chrome from './MobileTabChrome.module.css';
 import styles from './MobilePackingList.module.css';
@@ -53,6 +53,9 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
   const planView = usePlanView();
   const activeCategory = planView?.packingCategory ?? '__all__';
   const activeTraveller = planView?.packingTraveller ?? null;
+  const packedFilter = planView?.packingPackedFilter ?? 'all';
+  const hasNotesOnly = planView?.packingHasNotesOnly ?? false;
+  const hasQtyGt1 = planView?.packingHasQtyGt1 ?? false;
   const { role } = useTripRole();
   const { members, travellers } = useTripMembers(trip?.id);
   const { journalAuthorName } = useConfig();
@@ -66,25 +69,6 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
   const [adding, setAdding] = React.useState(false);
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
-  const [packedFilter, setPackedFilterLocal] = React.useState<PackingPackedFilter>(
-    () => planView?.packingPackedFilter ?? 'all'
-  );
-
-  const setPackedFilter = React.useCallback(
-    (next: PackingPackedFilter) => {
-      setPackedFilterLocal(next);
-      planView?.setPackingPackedFilter(next);
-    },
-    [planView]
-  );
-
-  React.useEffect(() => {
-    const ctx = planView?.packingPackedFilter;
-    if (!ctx || ctx === packedFilter) return;
-    setPackedFilterLocal(ctx);
-  }, [planView?.packingPackedFilter, packedFilter]);
-  const [hasNotesOnly, setHasNotesOnly] = React.useState(false);
-  const [hasQtyGt1, setHasQtyGt1] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<ViewMode>('az');
   const [name, setName] = React.useState('');
   const [qty, setQty] = React.useState(1);
@@ -275,9 +259,8 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
   };
 
   const onFiltersApply = (draft: PackingFilterDraft): void => {
-    setPackedFilter(draft.packedFilter);
-    setHasNotesOnly(draft.hasNotesOnly);
-    setHasQtyGt1(draft.hasQtyGt1);
+    planView?.setPackingHasNotesOnly(draft.hasNotesOnly);
+    planView?.setPackingHasQtyGt1(draft.hasQtyGt1);
   };
 
   const renderRow = (item: PackingItem): React.ReactNode => {

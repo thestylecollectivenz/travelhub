@@ -13,7 +13,8 @@ const ITINERARY_FIELDS = [
   { internalName: 'ReturnArrivalTime', type: 'DateTime' as const },
   { internalName: 'BookingDueDate', type: 'DateTime' as const },
   { internalName: 'PaymentDueDate', type: 'DateTime' as const },
-  { internalName: 'PaymentDueType', type: 'Text' as const }
+  { internalName: 'PaymentDueType', type: 'Text' as const },
+  { internalName: 'OperatingAirline', type: 'Text' as const }
 ];
 
 export async function ensureItineraryTransportColumns(ctx: WebPartContext): Promise<void> {

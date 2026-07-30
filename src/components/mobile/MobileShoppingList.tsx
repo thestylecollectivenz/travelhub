@@ -27,7 +27,6 @@ import {
   MobileShoppingFilters,
   monthLabel,
   ShoppingFilterDraft,
-  ShoppingStatusFilter,
   shoppingItemStatus
 } from './MobileShoppingFilters';
 import { PackingCategoryIcon } from './packingCategoryIcon';
@@ -78,6 +77,8 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
   const activeCategory = planView?.shoppingCategory ?? '__all__';
   const activeTraveller = planView?.shoppingTraveller ?? null;
   const activeMonth = planView?.shoppingMonthFilter ?? null;
+  const statusFilter = planView?.shoppingStatusFilter ?? 'all';
+  const hasNotesOnly = planView?.shoppingHasNotesOnly ?? false;
   const { role } = useTripRole();
   const { members, travellers } = useTripMembers(trip?.id);
   const { categories } = useTripShoppingCategories(trip?.id, spContext);
@@ -91,24 +92,6 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
   const [adding, setAdding] = React.useState(false);
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
-  const [statusFilter, setStatusFilterLocal] = React.useState<ShoppingStatusFilter>(
-    () => planView?.shoppingStatusFilter ?? 'all'
-  );
-
-  const setStatusFilter = React.useCallback(
-    (next: ShoppingStatusFilter) => {
-      setStatusFilterLocal(next);
-      planView?.setShoppingStatusFilter(next);
-    },
-    [planView]
-  );
-
-  React.useEffect(() => {
-    const ctx = planView?.shoppingStatusFilter;
-    if (!ctx || ctx === statusFilter) return;
-    setStatusFilterLocal(ctx);
-  }, [planView?.shoppingStatusFilter, statusFilter]);
-  const [hasNotesOnly, setHasNotesOnly] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<ViewMode>('az');
   const [name, setName] = React.useState('');
   const [addCategory, setAddCategory] = React.useState('Other');
@@ -350,8 +333,7 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
   const categoryOptions = (itemCategory: string): string[] => categoriesForItemSelect(categories, itemCategory);
 
   const onFiltersApply = (draft: ShoppingFilterDraft): void => {
-    setStatusFilter(draft.statusFilter);
-    setHasNotesOnly(draft.hasNotesOnly);
+    planView?.setShoppingHasNotesOnly(draft.hasNotesOnly);
   };
 
   const renderRow = (item: ShoppingItem): React.ReactNode => {

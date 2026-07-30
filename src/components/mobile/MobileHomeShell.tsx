@@ -246,8 +246,12 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   const webAbsoluteUrl = spContext.pageContext.web.absoluteUrl;
   const webServerRelativeUrl = spContext.pageContext.web.serverRelativeUrl || '';
 
+  const tripsRef = React.useRef(trips);
+  tripsRef.current = trips;
+
   const loadTrips = React.useCallback(async (): Promise<void> => {
-    setLoading(true);
+    const hadTrips = tripsRef.current.length > 0;
+    if (!hadTrips) setLoading(true);
     setError(null);
     try {
       const svc = new TripService(spContext);

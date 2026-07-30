@@ -66,30 +66,41 @@ export const MobileIdeasJotter: React.FC<MobileIdeasJotterProps> = ({ trip, home
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState('');
 
+  const membersRef = React.useRef(members);
+  membersRef.current = members;
+  const geminiKeyRef = React.useRef(config.geminiApiKey);
+  geminiKeyRef.current = config.geminiApiKey;
+  const ideasLenRef = React.useRef(0);
+  ideasLenRef.current = ideas.length;
+  const tripRef = React.useRef(trip);
+  tripRef.current = trip;
+
   const refresh = React.useCallback(
     async (ensureFreshAi = false): Promise<void> => {
-      if (!trip?.id) {
+      const currentTrip = tripRef.current;
+      const tripId = currentTrip?.id;
+      if (!tripId) {
         setIdeas([]);
         return;
       }
-      setLoading(true);
+      const showSpinner = ideasLenRef.current === 0;
+      if (showSpinner) setLoading(true);
       try {
         const entrySvc = new ItineraryService(spContext);
         const daySvc = new DayService(spContext);
-        const [entries, tripDays] = await Promise.all([entrySvc.getAll(trip.id), daySvc.getAll(trip.id)]);
+        const [entries, tripDays] = await Promise.all([entrySvc.getAll(tripId), daySvc.getAll(tripId)]);
         const itineraryTitles = entries
           .filter((e) => !e.parentEntryId)
           .flatMap((e) => [e.title, e.location].filter(Boolean) as string[]);
         const itineraryPlaces = entries
           .filter((e) => !e.parentEntryId)
-          .flatMap((e) => [e.location, trip.destination].filter(Boolean) as string[]);
-        // Home shell is outside PlacesProvider — resolve labels from days/entries only.
+          .flatMap((e) => [e.location, currentTrip?.destination].filter(Boolean) as string[]);
         const rows = await buildJotterHomeDisplay(
           spContext,
-          trip.id,
-          trip,
-          members,
-          config.geminiApiKey,
+          tripId,
+          currentTrip!,
+          membersRef.current,
+          geminiKeyRef.current,
           itineraryTitles,
           itineraryPlaces,
           3,
@@ -100,10 +111,10 @@ export const MobileIdeasJotter: React.FC<MobileIdeasJotterProps> = ({ trip, home
         // eslint-disable-next-line no-console
         console.error('MobileIdeasJotter: load failed', err);
       } finally {
-        setLoading(false);
+        if (showSpinner) setLoading(false);
       }
     },
-    [trip, spContext, members, config.geminiApiKey]
+    [trip?.id, spContext]
   );
 
   React.useEffect(() => {

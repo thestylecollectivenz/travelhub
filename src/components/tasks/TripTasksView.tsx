@@ -16,6 +16,7 @@ import {
 } from '../../utils/missingAmountDismissed';
 import { collectMissingAmountRows } from '../../utils/missingAmountEntries';
 import { paymentDueTaskTitle, paymentDueDateHint } from '../../utils/paymentDueLabels';
+import { effectivePaymentDueDate } from '../../utils/paymentDueDefaults';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { loadTripAssignees, rememberTripAssignee } from '../../utils/tripAssignees';
 import { reminderTaskCategory, TASK_FILTER_UNCATEGORISED, matchesTaskCompletionFilter } from '../../utils/taskFilters';
@@ -219,7 +220,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
   const [manual, setManual] = React.useState<TripReminder[]>([]);
   const taskCompletionFilter = planView?.taskCompletionFilter ?? 'all';
   const showCompletedOnly = taskCompletionFilter === 'completed';
-  const showDerivedTaskSections = !showCompletedOnly;
+  const hideManualPaymentTasks = planView?.hideManualPaymentTasks ?? false;
   const [viewMode, setViewMode] = React.useState<ViewMode>(planView?.tasksViewMode ?? 'list');
   const [calendarLayout, setCalendarLayout] = React.useState<CalendarLayout>('grid');
   const [calendarRange, setCalendarRange] = React.useState<CalendarRangeFilter>('all');
@@ -385,7 +386,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
 
   const bookingTasks = React.useMemo(
     () =>
-      showEntryDerivedTasks && showEntryDerivedForAssignee
+      showEntryDerivedTasks && showEntryDerivedForAssignee && !showCompletedOnly
         ? localEntries.filter(
             (e) =>
               e.bookingRequired &&
@@ -394,19 +395,58 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
               matchesTaskDueFilter(e.bookingDueDate, bookingDueFilter, todayYmd)
           )
         : [],
-    [localEntries, matchesCategoryFilter, showEntryDerivedTasks, showEntryDerivedForAssignee, bookingDueFilter, todayYmd]
+    [localEntries, matchesCategoryFilter, showEntryDerivedTasks, showEntryDerivedForAssignee, bookingDueFilter, todayYmd, showCompletedOnly]
+  );
+  const completedBookingTasks = React.useMemo(
+    () =>
+      showEntryDerivedTasks && showEntryDerivedForAssignee && showCompletedOnly
+        ? localEntries.filter(
+            (e) =>
+              e.bookingRequired &&
+              e.bookingStatus === 'Booked' &&
+              matchesCategoryFilter(e) &&
+              matchesTaskDueFilter(e.bookingDueDate, bookingDueFilter, todayYmd)
+          )
+        : [],
+    [localEntries, matchesCategoryFilter, showEntryDerivedTasks, showEntryDerivedForAssignee, bookingDueFilter, todayYmd, showCompletedOnly]
   );
   const paymentTasks = React.useMemo(
     () =>
-      showEntryDerivedTasks && showEntryDerivedForAssignee
+      showEntryDerivedTasks && showEntryDerivedForAssignee && !showCompletedOnly
+        ? localEntries.filter(
+            (e) => {
+              if (hideManualPaymentTasks && (e.paymentDueType || 'Manual') === 'Manual') return false;
+              return (
+                ((e.paymentStatus === 'Not paid' && e.amount > 0) || e.paymentStatus === 'Part paid') &&
+                matchesCategoryFilter(e) &&
+                matchesTaskDueFilter(e.paymentDueDate, paymentDueFilter, todayYmd)
+              );
+            }
+          )
+        : [],
+    [
+      localEntries,
+      matchesCategoryFilter,
+      showEntryDerivedTasks,
+      showEntryDerivedForAssignee,
+      paymentDueFilter,
+      todayYmd,
+      showCompletedOnly,
+      hideManualPaymentTasks
+    ]
+  );
+  const completedPaymentTasks = React.useMemo(
+    () =>
+      showEntryDerivedTasks && showEntryDerivedForAssignee && showCompletedOnly
         ? localEntries.filter(
             (e) =>
-              ((e.paymentStatus === 'Not paid' && e.amount > 0) || e.paymentStatus === 'Part paid') &&
+              e.amount > 0 &&
+              e.paymentStatus === 'Fully paid' &&
               matchesCategoryFilter(e) &&
               matchesTaskDueFilter(e.paymentDueDate, paymentDueFilter, todayYmd)
           )
         : [],
-    [localEntries, matchesCategoryFilter, showEntryDerivedTasks, showEntryDerivedForAssignee, paymentDueFilter, todayYmd]
+    [localEntries, matchesCategoryFilter, showEntryDerivedTasks, showEntryDerivedForAssignee, paymentDueFilter, todayYmd, showCompletedOnly]
   );
 
   const manualTodos = React.useMemo(() => {
@@ -543,34 +583,44 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
         dayId: m.dayId
       });
     }
-    if (showDerivedTaskSections) {
-      for (const e of bookingTasks) {
-        if (e.bookingDueDate) {
-          out.push({
-            id: `book-${e.id}`,
-            date: e.bookingDueDate,
-            title: `Book: ${e.title || 'Untitled'}`,
-            kind: 'booking',
-            entryId: e.id,
-            dayId: e.dayId
-          });
-        }
+    const derivedBookings = showCompletedOnly ? completedBookingTasks : bookingTasks;
+    const derivedPayments = showCompletedOnly ? completedPaymentTasks : paymentTasks;
+    for (const e of derivedBookings) {
+      const date = e.bookingDueDate;
+      if (date) {
+        out.push({
+          id: `book-${e.id}`,
+          date,
+          title: showCompletedOnly ? `Booked: ${e.title || 'Untitled'}` : `Book: ${e.title || 'Untitled'}`,
+          kind: 'booking',
+          entryId: e.id,
+          dayId: e.dayId
+        });
       }
-      for (const e of paymentTasks) {
-        if (e.paymentDueDate) {
-          out.push({
-            id: `pay-${e.id}`,
-            date: e.paymentDueDate,
-            title: paymentDueTaskTitle(e),
-            kind: 'payment',
-            entryId: e.id,
-            dayId: e.dayId
-          });
-        }
+    }
+    for (const e of derivedPayments) {
+      const date = e.paymentDueDate;
+      if (date) {
+        out.push({
+          id: `pay-${e.id}`,
+          date,
+          title: showCompletedOnly ? `Paid: ${e.title || 'Untitled'}` : paymentDueTaskTitle(e),
+          kind: 'payment',
+          entryId: e.id,
+          dayId: e.dayId
+        });
       }
     }
     return out;
-  }, [manualTodos, cancellationReminders, bookingTasks, paymentTasks, showDerivedTaskSections]);
+  }, [
+    manualTodos,
+    cancellationReminders,
+    bookingTasks,
+    paymentTasks,
+    completedBookingTasks,
+    completedPaymentTasks,
+    showCompletedOnly
+  ]);
 
   const showMissingCosts = variant === 'missing_costs';
   const showStandardSections = !showMissingCosts;
@@ -782,10 +832,10 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
           {showTaskSection('todo') ? (
             <DueFilterChips ariaLabel="Filter tasks by due date" value={taskDueFilter} onChange={setTaskDueFilter} />
           ) : null}
-          {showDerivedTaskSections && showTaskSection('bookings') ? (
+          {!showCompletedOnly && showTaskSection('bookings') ? (
             <DueFilterChips ariaLabel="Filter bookings by due date" value={bookingDueFilter} onChange={setBookingDueFilter} />
           ) : null}
-          {showDerivedTaskSections && showTaskSection('payments') ? (
+          {!showCompletedOnly && showTaskSection('payments') ? (
             <DueFilterChips ariaLabel="Filter payments by due date" value={paymentDueFilter} onChange={setPaymentDueFilter} />
           ) : null}
         </div>
@@ -1188,36 +1238,46 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
           </div>
           ) : null}
 
-          {showDerivedTaskSections && showTaskSection('bookings') ? (
+          {showTaskSection('bookings') ? (
           <div className={styles.group}>
-            <h3 className={styles.title}>Bookings needed</h3>
-            <DueFilterChips ariaLabel="Filter bookings by due date" value={bookingDueFilter} onChange={setBookingDueFilter} />
-            {bookingTasks.length === 0 ? (
-              <p className={styles.sectionHelp}>No items need booking right now.</p>
+            <h3 className={styles.title}>{showCompletedOnly ? 'Completed bookings' : 'Bookings needed'}</h3>
+            {!showCompletedOnly ? (
+              <DueFilterChips ariaLabel="Filter bookings by due date" value={bookingDueFilter} onChange={setBookingDueFilter} />
             ) : null}
-            {bookingTasks.map((entry) => (
+            {(showCompletedOnly ? completedBookingTasks : bookingTasks).length === 0 ? (
+              <p className={styles.sectionHelp}>
+                {showCompletedOnly ? 'No completed bookings yet.' : 'No items need booking right now.'}
+              </p>
+            ) : null}
+            {(showCompletedOnly ? completedBookingTasks : bookingTasks).map((entry) => (
               <div key={entry.id} className={styles.item}>
-                <input
-                  className={styles.completeCheck}
-                  type="checkbox"
-                  aria-label="Mark booked"
-                  onChange={() => void updateEntry({ ...entry, bookingStatus: 'Booked' })}
-                />
+                {!showCompletedOnly ? (
+                  <input
+                    className={styles.completeCheck}
+                    type="checkbox"
+                    aria-label="Mark booked"
+                    onChange={() => void updateEntry({ ...entry, bookingStatus: 'Booked' })}
+                  />
+                ) : (
+                  <span className={styles.completeCheck} aria-hidden>✓</span>
+                )}
                 <div className={styles.itemBody}>
-                  <div>Book: {entry.title}</div>
+                  <div>{showCompletedOnly ? `Booked: ${entry.title}` : `Book: ${entry.title}`}</div>
                   <div className={styles.meta}>
                     {dayName(entry.dayId)}
                     {supplierMetaLine(entry.supplier)}
                   </div>
-                  <label className={styles.dueLabel}>
-                    Book by{' '}
-                    <input
-                      className={styles.input}
-                      type="date"
-                      value={entry.bookingDueDate?.slice(0, 10) || ''}
-                      onChange={(e) => void updateEntry({ ...entry, bookingDueDate: e.target.value || undefined })}
-                    />
-                  </label>
+                  {!showCompletedOnly ? (
+                    <label className={styles.dueLabel}>
+                      Book by{' '}
+                      <input
+                        className={styles.input}
+                        type="date"
+                        value={entry.bookingDueDate?.slice(0, 10) || ''}
+                        onChange={(e) => void updateEntry({ ...entry, bookingDueDate: e.target.value || undefined })}
+                      />
+                    </label>
+                  ) : null}
                 </div>
                 <div className={`${styles.iconActions} ${styles.noPrint}`}>
                   <button
@@ -1230,72 +1290,78 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                     <IconOpenInItinerary />
                     {mobileLayout ? null : 'Open'}
                   </button>
-                  <button
-                    className={styles.iconBtn}
-                    type="button"
-                    title="Mark booked"
-                    onClick={() => void updateEntry({ ...entry, bookingStatus: 'Booked' })}
-                  >
-                    ✓
-                  </button>
+                  {!showCompletedOnly ? (
+                    <button
+                      className={styles.iconBtn}
+                      type="button"
+                      title="Mark booked"
+                      onClick={() => void updateEntry({ ...entry, bookingStatus: 'Booked' })}
+                    >
+                      ✓
+                    </button>
+                  ) : null}
                 </div>
               </div>
             ))}
           </div>
           ) : null}
 
-          {showDerivedTaskSections && showTaskSection('payments') ? (
+          {showTaskSection('payments') ? (
           <div className={styles.group}>
-            <h3 className={styles.title}>Payments due</h3>
-            <DueFilterChips ariaLabel="Filter payments by due date" value={paymentDueFilter} onChange={setPaymentDueFilter} />
-            {paymentTasks.length === 0 ? (
-              <p className={styles.sectionHelp}>No outstanding payments.</p>
+            <h3 className={styles.title}>{showCompletedOnly ? 'Completed payments' : 'Payments due'}</h3>
+            {!showCompletedOnly ? (
+              <DueFilterChips ariaLabel="Filter payments by due date" value={paymentDueFilter} onChange={setPaymentDueFilter} />
             ) : null}
-            {paymentTasks.map((entry) => (
+            {(showCompletedOnly ? completedPaymentTasks : paymentTasks).length === 0 ? (
+              <p className={styles.sectionHelp}>
+                {showCompletedOnly ? 'No completed payments yet.' : 'No outstanding payments.'}
+              </p>
+            ) : null}
+            {(showCompletedOnly ? completedPaymentTasks : paymentTasks).map((entry) => (
               <div key={entry.id} className={styles.item}>
-                <input
-                  className={styles.completeCheck}
-                  type="checkbox"
-                  aria-label="Mark paid"
-                  onChange={() => void updateEntry({ ...entry, paymentStatus: 'Fully paid', amountPaid: entry.amount })}
-                />
+                {!showCompletedOnly ? (
+                  <input
+                    className={styles.completeCheck}
+                    type="checkbox"
+                    aria-label="Mark paid"
+                    onChange={() => void updateEntry({ ...entry, paymentStatus: 'Fully paid', amountPaid: entry.amount })}
+                  />
+                ) : (
+                  <span className={styles.completeCheck} aria-hidden>✓</span>
+                )}
                 <div className={styles.itemBody}>
                   <div>
-                    {entry.paymentStatus === 'Part paid'
-                      ? `Pay balance: ${entry.title}`
-                      : paymentDueTaskTitle(entry)}{' '}
-                    ({Math.max(0, entry.amount - (entry.amountPaid || 0)).toFixed(2)})
+                    {showCompletedOnly
+                      ? `Paid: ${entry.title}`
+                      : entry.paymentStatus === 'Part paid'
+                        ? `Pay balance: ${entry.title}`
+                        : paymentDueTaskTitle(entry)}{' '}
+                    {!showCompletedOnly ? `(${Math.max(0, entry.amount - (entry.amountPaid || 0)).toFixed(2)})` : null}
                   </div>
                   <div className={styles.meta}>
                     {dayName(entry.dayId)}
                     {supplierMetaLine(entry.supplier)}
                   </div>
-                  <label className={styles.dueLabel}>
-                    Pay by{' '}
-                    <input
-                      className={styles.input}
-                      type="date"
-                      value={entry.paymentDueDate?.slice(0, 10) || ''}
-                      onChange={(e) => void updateEntry({ ...entry, paymentDueDate: e.target.value || undefined })}
-                    />
-                  </label>
-                  <label className={styles.dueLabel}>
-                    Payment timing{' '}
-                    <select
-                      className={styles.input}
-                      value={entry.paymentDueType || 'Manual'}
-                      onChange={(e) =>
-                        void updateEntry({
-                          ...entry,
-                          paymentDueType: e.target.value as typeof entry.paymentDueType
-                        })
-                      }
-                    >
-                      <option value="Manual">Manual payment</option>
-                      <option value="Automatic">Auto-charge</option>
-                    </select>
-                  </label>
-                  <div className={styles.meta}>{paymentDueDateHint(entry)}</div>
+                  {!showCompletedOnly ? (
+                    <label className={styles.dueLabel}>
+                      Pay by{' '}
+                      <input
+                        className={styles.input}
+                        type="date"
+                        value={entry.paymentDueDate?.slice(0, 10) || effectivePaymentDueDate(entry) || ''}
+                        onChange={(e) => void updateEntry({ ...entry, paymentDueDate: e.target.value || undefined })}
+                      />
+                      <button
+                        type="button"
+                        className={styles.iconBtn}
+                        title="Clear due date"
+                        onClick={() => void updateEntry({ ...entry, paymentDueDate: undefined })}
+                      >
+                        Clear
+                      </button>
+                    </label>
+                  ) : null}
+                  {!showCompletedOnly ? <div className={styles.meta}>{paymentDueDateHint(entry)}</div> : null}
                 </div>
                 <div className={`${styles.iconActions} ${styles.noPrint}`}>
                   <button

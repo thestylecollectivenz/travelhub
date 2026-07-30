@@ -144,12 +144,14 @@ export const MobileShoppingFilters: React.FC<MobileShoppingFiltersProps> = ({
     return out;
   }, [items]);
 
-  if (!open || !plan) return null;
+  if (!open) return null;
 
   const apply = (): void => {
-    plan.setShoppingCategory(draft.category);
-    plan.setShoppingMonthFilter(draft.monthFilter);
-    plan.setShoppingStatusFilter(draft.statusFilter);
+    if (plan) {
+      plan.setShoppingCategory(draft.category);
+      plan.setShoppingMonthFilter(draft.monthFilter);
+      plan.setShoppingStatusFilter(draft.statusFilter);
+    }
     onApply(draft);
     onClose();
   };
@@ -162,10 +164,12 @@ export const MobileShoppingFilters: React.FC<MobileShoppingFiltersProps> = ({
       hasNotesOnly: false
     };
     setDraft(defaults);
-    plan.setShoppingCategory('__all__');
-    plan.setShoppingMonthFilter(null);
-    plan.setShoppingTraveller(null);
-    plan.setShoppingStatusFilter('all');
+    if (plan) {
+      plan.setShoppingCategory('__all__');
+      plan.setShoppingMonthFilter(null);
+      plan.setShoppingTraveller(null);
+      plan.setShoppingStatusFilter('all');
+    }
     onApply(defaults);
   };
 

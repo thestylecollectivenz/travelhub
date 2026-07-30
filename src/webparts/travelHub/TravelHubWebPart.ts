@@ -67,6 +67,7 @@ export default class TravelHubWebPart extends BaseClientSideWebPart<ITravelHubWe
   }
 
   protected onInit(): Promise<void> {
+    this._ensureChromeStyle();
     return this._getEnvironmentMessage().then(message => {
       this._environmentMessage = message;
     });

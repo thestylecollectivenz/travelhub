@@ -49,6 +49,15 @@ export interface PlanViewContextValue {
   setShoppingMonthFilter: (month: string | null) => void;
   shoppingStatusFilter: ShoppingStatusQuickFilter;
   setShoppingStatusFilter: (filter: ShoppingStatusQuickFilter) => void;
+  packingHasNotesOnly: boolean;
+  setPackingHasNotesOnly: (value: boolean) => void;
+  packingHasQtyGt1: boolean;
+  setPackingHasQtyGt1: (value: boolean) => void;
+  shoppingHasNotesOnly: boolean;
+  setShoppingHasNotesOnly: (value: boolean) => void;
+  /** Hide manual same-day payment rows from the payments task list. */
+  hideManualPaymentTasks: boolean;
+  setHideManualPaymentTasks: (value: boolean) => void;
 }
 
 const PlanViewContext = React.createContext<PlanViewContextValue | undefined>(undefined);
@@ -69,6 +78,10 @@ export const PlanViewProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [shoppingCategory, setShoppingCategory] = React.useState('__all__');
   const [shoppingMonthFilter, setShoppingMonthFilter] = React.useState<string | null>(null);
   const [shoppingStatusFilter, setShoppingStatusFilter] = React.useState<ShoppingStatusQuickFilter>('all');
+  const [packingHasNotesOnly, setPackingHasNotesOnly] = React.useState(false);
+  const [packingHasQtyGt1, setPackingHasQtyGt1] = React.useState(false);
+  const [shoppingHasNotesOnly, setShoppingHasNotesOnly] = React.useState(false);
+  const [hideManualPaymentTasks, setHideManualPaymentTasks] = React.useState(false);
 
   const value = React.useMemo(
     () => ({
@@ -101,7 +114,15 @@ export const PlanViewProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       shoppingMonthFilter,
       setShoppingMonthFilter,
       shoppingStatusFilter,
-      setShoppingStatusFilter
+      setShoppingStatusFilter,
+      packingHasNotesOnly,
+      setPackingHasNotesOnly,
+      packingHasQtyGt1,
+      setPackingHasQtyGt1,
+      shoppingHasNotesOnly,
+      setShoppingHasNotesOnly,
+      hideManualPaymentTasks,
+      setHideManualPaymentTasks
     }),
     [
       planTab,
@@ -118,7 +139,11 @@ export const PlanViewProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       shoppingTraveller,
       shoppingCategory,
       shoppingMonthFilter,
-      shoppingStatusFilter
+      shoppingStatusFilter,
+      packingHasNotesOnly,
+      packingHasQtyGt1,
+      shoppingHasNotesOnly,
+      hideManualPaymentTasks
     ]
   );
 

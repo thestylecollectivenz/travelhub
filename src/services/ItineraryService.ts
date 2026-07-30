@@ -53,6 +53,7 @@ const SELECT_PHASE7 = [
   'AccCheckOutTime',
   'StreetAddress',
   'FlightNumbers',
+  'OperatingAirline',
   'CheckInClosesTime',
   'BagCheckClosesTime',
   'PhoneNumber',
@@ -119,6 +120,7 @@ const SP_PHASE7_FIELD_KEYS = new Set([
   'AccCheckOutTime',
   'StreetAddress',
   'FlightNumbers',
+  'OperatingAirline',
   'CheckInClosesTime',
   'BagCheckClosesTime',
   'PhoneNumber',
@@ -407,6 +409,7 @@ function mapToEntry(item: any): ItineraryEntry {
     plannedDisembarkTime: parseTime(item.CruisePlannedDisembarkTime),
     streetAddress: item.StreetAddress ?? undefined,
     flightNumbers: item.FlightNumbers ?? undefined,
+    operatingAirline: item.OperatingAirline ?? undefined,
     checkInClosesTime: parseTime(item.CheckInClosesTime),
     bagCheckClosesTime: parseTime(item.BagCheckClosesTime),
     phoneNumber: item.PhoneNumber ?? undefined,
@@ -516,6 +519,7 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   if (entry.plannedDisembarkTime !== undefined) item.CruisePlannedDisembarkTime = serializeTime(entry.plannedDisembarkTime);
   if (entry.streetAddress !== undefined) item.StreetAddress = entry.streetAddress || null;
   if (entry.flightNumbers !== undefined) item.FlightNumbers = entry.flightNumbers || null;
+  if (entry.operatingAirline !== undefined) item.OperatingAirline = entry.operatingAirline || null;
   if (entry.checkInClosesTime !== undefined) item.CheckInClosesTime = serializeTime(entry.checkInClosesTime);
   if (entry.bagCheckClosesTime !== undefined) item.BagCheckClosesTime = serializeTime(entry.bagCheckClosesTime);
   if (entry.phoneNumber !== undefined) item.PhoneNumber = entry.phoneNumber || null;

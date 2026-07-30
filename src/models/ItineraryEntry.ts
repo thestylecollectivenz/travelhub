@@ -111,6 +111,8 @@ export interface ItineraryEntry {
   /** Street or property address (maps link derived in UI). */
   streetAddress?: string;
   flightNumbers?: string;
+  /** Flights: operating carrier when different from ticketing airline (supplier). */
+  operatingAirline?: string;
   /** Flights: latest time to complete check-in (HH:MM). */
   checkInClosesTime?: string;
   /** Flights: bag check closes (HH:MM). */

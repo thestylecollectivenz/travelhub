@@ -70,6 +70,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
     setSelectedDayId,
     setMainWorkspaceTab
   } = useTripWorkspace();
+  const { loading: placesLoading } = usePlaces();
   const spContext = useSpContext();
   const { config } = useConfig();
   const { allEntries: journalEntries, allTripPhotos, photosForEntry, commentsForEntry, reassignDayContent } =
@@ -410,7 +411,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
     cursor: 'pointer'
   };
 
-  if (loading) {
+  if (loading || placesLoading) {
     return <div style={loadingStyle}>Loading trip…</div>;
   }
 

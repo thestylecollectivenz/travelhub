@@ -28,6 +28,7 @@ import { formatDisplayLabel, transportDisplayTitle } from '../../utils/mobileDis
 import { MobileAccommodationDetail } from './MobileAccommodationDetail';
 import { MobileCruiseDetail } from './MobileCruiseDetail';
 import { MobileTransportDetail } from './MobileTransportDetail';
+import { MobileFlightDetail } from './MobileFlightDetail';
 import { MobileDiningDetail } from './MobileDiningDetail';
 import { MobileDocsLinksSection } from './MobileDocsLinksSection';
 import { MobileBookingSiteSheet } from './MobileBookingSiteSheet';
@@ -161,6 +162,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
   const isAccommodation = !isOptionView && entry.category === 'Accommodation';
   const isCruise = !isOptionView && entry.category === 'Cruise';
   const isTransport = !isOptionView && entry.category === 'Transport';
+  const isFlights = !isOptionView && entry.category === 'Flights';
   const isDining = entry.category === 'Food & Dining' || entry.category === 'Dining';
   const title = entry.category === 'Transport' ? transportDisplayTitle(entry, calendarDate) : entry.title;
 
@@ -347,6 +349,23 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
       <div className={styles.page} ref={pageRef}>
         <MobileCruiseDetail
           entry={entry}
+          documents={entryDocs}
+          links={entryLinks}
+          canSeeFinancials={canSeeFinancials}
+          canEdit={canEditItinerary}
+          onEdit={openEdit}
+          mapsDirectionsUrl={mapsDirectionsUrl}
+        />
+      </div>
+    );
+  }
+
+  if (isFlights) {
+    return (
+      <div className={styles.page} ref={pageRef}>
+        <MobileFlightDetail
+          entry={entry}
+          calendarDate={calendarDate}
           documents={entryDocs}
           links={entryLinks}
           canSeeFinancials={canSeeFinancials}

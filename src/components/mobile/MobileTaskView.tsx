@@ -12,10 +12,10 @@ import { isJotterIdeaReminder } from '../../utils/tripJotterIdeas';
 import { isSavedSpotReminder } from '../../utils/tripSavedSpots';
 import type { TaskCompletionFilter } from '../../utils/taskFilters';
 import { TripTasksView } from '../tasks/TripTasksView';
-import { MobileTaskFilters } from './MobileTaskFilters';
-import { MobileFilterDisclosure } from './MobileFilterDisclosure';
+import { MobileTaskFiltersDrawer } from './MobileTaskFiltersDrawer';
 import { useShellMode } from '../../hooks/useShellMode';
 import chrome from './MobileTabChrome.module.css';
+import listStyles from './MobilePackingList.module.css';
 
 function StatIcon({ children, tone }: { children: React.ReactNode; tone: 'olive' | 'rust' | 'navy' | 'tan' }): React.ReactElement {
   const cls =
@@ -50,10 +50,66 @@ const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
   const [dueTodayCount, setDueTodayCount] = React.useState(0);
   const [doneCount, setDoneCount] = React.useState(0);
   const [filtersOpen, setFiltersOpen] = React.useState(false);
+  const [manualCategories, setManualCategories] = React.useState<string[]>([]);
+  const [hasUncategorised, setHasUncategorised] = React.useState(false);
 
   const completion = planView?.taskCompletionFilter ?? 'all';
   const due = planView?.taskDueFilter ?? 'all';
   const selected = activeStat(completion, due);
+  const filtersActive =
+    completion !== 'all' ||
+    due !== 'all' ||
+    Boolean(planView?.taskAssigneeFilter) ||
+    Boolean(planView?.taskCategoryFilter) ||
+    Boolean(planView?.taskSectionFilter) ||
+    Boolean(planView?.hideManualPaymentTasks);
+
+  const entryCategories = React.useMemo(() => {
+    if (!trip) return [];
+    const set = new Set<string>();
+    for (const e of localEntries) {
+      if (e.tripId !== trip.id) continue;
+      const c = (e.category || 'Other').trim();
+      if (c) set.add(c);
+    }
+    return Array.from(set);
+  }, [localEntries, trip]);
+
+  React.useEffect(() => {
+    if (!trip?.id) {
+      setManualCategories([]);
+      setHasUncategorised(false);
+      return;
+    }
+    const svc = new ReminderService(spContext);
+    void svc
+      .getForTrip(trip.id)
+      .then((rows) => {
+        const manual = rows.filter(
+          (r) => r.reminderType === 'Manual' || r.reminderType === 'ManualEntryTask' || r.reminderType === 'Custom'
+        );
+        const cats = new Set<string>();
+        let uncategorised = false;
+        for (const m of manual) {
+          const eid = (m.entryId || '').trim();
+          const entry = eid ? localEntries.find((e) => e.id === eid) : undefined;
+          const cat = (m.taskCategory || entry?.category || '').trim();
+          if (cat) cats.add(cat);
+          else uncategorised = true;
+        }
+        setManualCategories(Array.from(cats));
+        setHasUncategorised(uncategorised);
+      })
+      .catch(() => {
+        setManualCategories([]);
+        setHasUncategorised(false);
+      });
+  }, [trip?.id, spContext, localEntries]);
+
+  const allCategories = React.useMemo(() => {
+    const set = new Set([...entryCategories, ...manualCategories]);
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [entryCategories, manualCategories]);
 
   const applyStat = (key: StatKey): void => {
     if (!planView) return;
@@ -111,19 +167,22 @@ const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
           if (bucket === 'overdue') overdue += 1;
           if (bucket === 'today') dueToday += 1;
         }
-        // Include booking-required / payment-due itinerary items in the same stats.
         for (const e of localEntries) {
           if (e.bookingRequired && e.bookingStatus === 'Not booked') {
             open += 1;
             const bucket = dueYmdBucket(ymdFromIso(e.bookingDueDate), today);
             if (bucket === 'overdue') overdue += 1;
             if (bucket === 'today') dueToday += 1;
+          } else if (e.bookingRequired && e.bookingStatus === 'Booked') {
+            done += 1;
           }
           if ((e.paymentStatus === 'Not paid' && e.amount > 0) || e.paymentStatus === 'Part paid') {
             open += 1;
             const bucket = dueYmdBucket(ymdFromIso(e.paymentDueDate), today);
             if (bucket === 'overdue') overdue += 1;
             if (bucket === 'today') dueToday += 1;
+          } else if (e.paymentStatus === 'Fully paid' && e.amount > 0) {
+            done += 1;
           }
         }
         setOpenCount(open);
@@ -208,16 +267,39 @@ const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
         </button>
       </div>
 
-      <MobileFilterDisclosure open={filtersOpen} onToggle={() => setFiltersOpen((v) => !v)}>
-        <MobileTaskFilters travellers={travellers} />
-      </MobileFilterDisclosure>
+      <div className={listStyles.toolbar} style={{ marginBottom: '0.65rem' }}>
+        <button
+          type="button"
+          className={filtersOpen || filtersActive ? listStyles.filterBtnOn : listStyles.filterBtn}
+          aria-expanded={filtersOpen}
+          onClick={() => setFiltersOpen(true)}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M4 6h16M7 12h10M10 18h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+          Filters
+        </button>
+      </div>
+
+      <MobileTaskFiltersDrawer
+        open={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        travellers={travellers}
+        allCategories={allCategories}
+        hasUncategorised={hasUncategorised}
+      />
       <TripTasksView variant="tasks" mobileLayout />
     </div>
   );
 };
 
-export const MobileTaskView: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => (
-  <PlanViewProvider>
-    <MobileTaskBody hideChrome={hideChrome} />
-  </PlanViewProvider>
-);
+export const MobileTaskView: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
+  if (hideChrome) {
+    return <MobileTaskBody hideChrome />;
+  }
+  return (
+    <PlanViewProvider>
+      <MobileTaskBody hideChrome={hideChrome} />
+    </PlanViewProvider>
+  );
+};

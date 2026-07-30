@@ -1,6 +1,5 @@
 import * as React from 'react';
 import type { TripDay } from '../../models/TripDay';
-import { useConfig } from '../../context/ConfigContext';
 import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlaces } from '../../context/PlacesContext';
 import { useSpContext } from '../../context/SpContext';
@@ -46,7 +45,6 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
   onActivePlaceInfoChange
 }) => {
   const { updateDay, updateTrip, reloadItineraryEntries, trip, tripDays, localEntries } = useTripWorkspace();
-  const { config } = useConfig();
   const { searchPlaces, createOrReusePlace, placeById, ensurePlacesLoaded } = usePlaces();
   const spContext = useSpContext();
   const isShared = variant === 'shared';
@@ -188,13 +186,12 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
         tripDays,
         entries: localEntries,
         placeById,
-        geminiApiKey: config.geminiApiKey,
         onCardsCreated: () => reloadItineraryEntries()
       })
         .then(() => reloadItineraryEntries())
         .catch(console.error);
     },
-    [day.id, updateDay, reloadItineraryEntries, trip?.id, tripDays, localEntries, spContext, placeById, config.geminiApiKey]
+    [day.id, updateDay, reloadItineraryEntries, trip?.id, tripDays, localEntries, spContext, placeById]
   );
 
   const saveTitle = React.useCallback(() => {

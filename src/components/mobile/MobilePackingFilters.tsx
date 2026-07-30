@@ -113,11 +113,13 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({
 
   const visibleCats = showAllCats || catQuery.trim() ? filteredCats : filteredCats.slice(0, CAT_PREVIEW);
 
-  if (!open || !plan) return null;
+  if (!open) return null;
 
   const apply = (): void => {
-    plan.setPackingCategory(draft.category);
-    plan.setPackingPackedFilter(draft.packedFilter);
+    if (plan) {
+      plan.setPackingCategory(draft.category);
+      plan.setPackingPackedFilter(draft.packedFilter);
+    }
     onApply(draft);
     onClose();
   };
@@ -130,9 +132,11 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({
       hasQtyGt1: false
     };
     setDraft(defaults);
-    plan.setPackingCategory('__all__');
-    plan.setPackingTraveller(null);
-    plan.setPackingPackedFilter('all');
+    if (plan) {
+      plan.setPackingCategory('__all__');
+      plan.setPackingTraveller(null);
+      plan.setPackingPackedFilter('all');
+    }
     onApply(defaults);
   };
 

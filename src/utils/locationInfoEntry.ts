@@ -403,6 +403,7 @@ export function mergeAIResult(
 
 /** True when the card already has content worth preserving (skip auto-run on trip open). */
 export function locationInfoIsPopulated(data: LocationInfoNotes): boolean {
+  if (data.aiGenerated) return true;
   return locationInfoContentScore(data) > 0;
 }
 
