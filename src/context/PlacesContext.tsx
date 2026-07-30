@@ -19,7 +19,8 @@ const PlacesContext = React.createContext<PlacesContextValue | undefined>(undefi
 export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const spContext = useSpContext();
   const [places, setPlaces] = React.useState<Place[]>([]);
-  const [loading, setLoading] = React.useState(false);
+  /** Start true so first paint waits for the initial fetch (avoids empty→filled flicker). */
+  const [loading, setLoading] = React.useState(true);
 
   const refreshPlaces = React.useCallback(async (): Promise<void> => {
     setLoading(true);

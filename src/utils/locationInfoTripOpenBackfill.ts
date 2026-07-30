@@ -26,6 +26,10 @@ function delay(ms: number): Promise<void> {
 /**
  * After trip open: ensure location cards exist, then background-fill empty ones only.
  * Does not block trip load — call via setTimeout from the workspace shell.
+ *
+ * Intentionally does not pass geminiApiKey into syncLocationInfoCards — that would
+ * schedule per-card AI in parallel with this loop and fire multiple itinerary reloads.
+ * One `trip-itinerary-updated` is dispatched after the whole backfill finishes.
  */
 export async function runLocationInfoTripOpenBackfill(options: {
   spContext: WebPartContext;
@@ -44,14 +48,15 @@ export async function runLocationInfoTripOpenBackfill(options: {
     tripId,
     tripDays,
     entries,
-    placeById,
-    geminiApiKey: apiKey
+    placeById
+    // omit geminiApiKey — this loop is the single AI fill path on trip open
   });
 
   const entrySvc = new ItineraryService(spContext);
   const freshEntries = await entrySvc.getAll(tripId);
   const cards = freshEntries.filter((e) => e.tripId === tripId && isLocationInfoEntry(e) && !e.parentEntryId);
 
+  let changed = false;
   for (let i = 0; i < cards.length; i++) {
     const card = cards[i];
     const parsed = parseLocationInfoNotes(card.notes);
@@ -69,13 +74,14 @@ export async function runLocationInfoTripOpenBackfill(options: {
         apiKey,
         place
       });
-      window.dispatchEvent(new Event('trip-itinerary-updated'));
+      changed = true;
     } catch (err) {
       const message = formatGeminiUserMessage(err);
       try {
         await entrySvc.update(card.id, {
           notes: serializeLocationInfoNotes({ ...parsed, aiError: message })
         });
+        changed = true;
       } catch {
         /* ignore */
       }
@@ -84,6 +90,11 @@ export async function runLocationInfoTripOpenBackfill(options: {
     if (i < cards.length - 1) {
       await delay(BETWEEN_CARDS_MS);
     }
+  }
+
+  // Sync may have created cards even when none needed AI — one reload covers both.
+  if (changed || freshEntries.length !== entries.length) {
+    window.dispatchEvent(new Event('trip-itinerary-updated'));
   }
 }
 

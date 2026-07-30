@@ -1,2 +1,2 @@
 /** Shown in the UI; keep in sync with config/package-solution.json solution.version */
-export const SOLUTION_VERSION = '1.0.11.223';
+export const SOLUTION_VERSION = '1.0.11.224';

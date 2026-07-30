@@ -254,7 +254,6 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
         entrySvc.getAll(tripId)
       ]);
 
-      setTrip(mergeTripDisplayPrefs(loadedTrip));
       let anchoredDays = await repairPreTripCalendarIfCollidingWithFirstDay(daySvc, loadedTrip, loadedDays);
       for (const day of anchoredDays) {
         const legacy = loadLegacyDayPlanningStatus(tripId, day.id);
@@ -271,6 +270,9 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       if (planChronologicalRenumber(anchoredDays).length) {
         anchoredDays = await daySvc.renumberDaysChronologically(tripId, anchoredDays);
       }
+      // Set trip + days + entries together so mobile does not paint mid-repair with a trip id
+      // that kicks off members/role fetches before itinerary data is ready.
+      setTrip(mergeTripDisplayPrefs(loadedTrip));
       setTripDays(anchoredDays);
       setLocalEntries(loadedEntries);
       // Initialise FX rates

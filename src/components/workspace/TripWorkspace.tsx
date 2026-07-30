@@ -4,7 +4,7 @@ import { JournalProvider } from '../../context/JournalContext';
 import { JournalMediaSelectionProvider } from '../../context/JournalMediaSelectionContext';
 import { AttachmentsProvider } from '../../context/AttachmentsContext';
 import { ConfirmDialogProvider } from '../shared/ConfirmDialogProvider';
-import { PlacesProvider } from '../../context/PlacesContext';
+import { PlacesProvider, usePlaces } from '../../context/PlacesContext';
 import { useJournal } from '../../context/JournalContext';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { TripHero } from './TripHero';
@@ -669,7 +669,8 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
 
 const ShellAwareTripLayout: React.FC<ITripWorkspaceProps> = (props) => {
   const shellMode = useShellMode();
-  const { trip } = useTripWorkspace();
+  const { trip, loading, error } = useTripWorkspace();
+  const { loading: placesLoading } = usePlaces();
 
   if (shellMode === 'ipad-landscape') {
     return (
@@ -677,6 +678,19 @@ const ShellAwareTripLayout: React.FC<ITripWorkspaceProps> = (props) => {
     );
   }
   if (isCompactTouchShell(shellMode)) {
+    // Match desktop: wait for trip (+ places) so the shell does not flash empty→filled→weather.
+    if (loading || placesLoading) {
+      return (
+        <div style={{ padding: '24px 16px', color: 'var(--th-text-muted, #6b7280)', fontSize: 15 }}>
+          Loading trip…
+        </div>
+      );
+    }
+    if (error) {
+      return (
+        <div style={{ padding: '24px 16px', color: 'var(--th-danger, #b91c1c)', fontSize: 15 }}>{error}</div>
+      );
+    }
     return (
       <MobileTripShell
         onBack={props.onBack}
