@@ -87,7 +87,7 @@ export function buildFlightDetailData(
       sub: entry.streetAddress || undefined
     },
     arrives: {
-      time: formatTimeHHMM(entry.arrivalTime) || '—',
+      time: formatTimeHHMM(entry.arrivalTime ?? '') || '—',
       date: ymdLong(arrDate),
       location: entry.transportTo || '—',
       dayOffset: dayOffset > 0 ? dayOffset : undefined

@@ -407,7 +407,7 @@ export const MobileShoppingFilters: React.FC<MobileShoppingFiltersProps> = ({
                                     }
                                     await renameCategory(c, next);
                                     if (draft.category === c) setDraft((d) => ({ ...d, category: next }));
-                                    if (plan.shoppingCategory === c) plan.setShoppingCategory(next);
+                                    if (plan?.shoppingCategory === c) plan.setShoppingCategory(next);
                                     setEditingCategory(null);
                                   })();
                                 }}
@@ -441,7 +441,7 @@ export const MobileShoppingFilters: React.FC<MobileShoppingFiltersProps> = ({
                                       setManageError('');
                                       await deleteCategory(c);
                                       if (draft.category === c) setDraft((d) => ({ ...d, category: '__all__' }));
-                                      if (plan.shoppingCategory === c) plan.setShoppingCategory('__all__');
+                                      if (plan?.shoppingCategory === c) plan.setShoppingCategory('__all__');
                                     } catch (err) {
                                       setManageError(err instanceof Error ? err.message : 'Could not delete category.');
                                     }

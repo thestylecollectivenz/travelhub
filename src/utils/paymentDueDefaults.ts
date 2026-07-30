@@ -1,6 +1,6 @@
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 
-/** Prefer explicit payment due, then booking due, then itinerary dates. */
+/** Prefer explicit payment due, then booking due, then itinerary start date. */
 export function deriveDefaultPaymentDueDate(entry: ItineraryEntry): string | undefined {
   const explicit = (entry.paymentDueDate || '').trim().slice(0, 10);
   if (explicit) return explicit;
@@ -8,8 +8,8 @@ export function deriveDefaultPaymentDueDate(entry: ItineraryEntry): string | und
   if (bookingDue) return bookingDue;
   const start = (entry.dateStart || '').trim().slice(0, 10);
   if (start) return start;
-  const calendar = (entry.calendarDate || '').trim().slice(0, 10);
-  return calendar || undefined;
+  const embarks = (entry.embarksDate || '').trim().slice(0, 10);
+  return embarks || undefined;
 }
 
 export function effectivePaymentDueDate(entry: ItineraryEntry): string | undefined {

@@ -340,7 +340,7 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({
                                     }
                                     await renameCategory(c, next);
                                     if (draft.category === c) setDraft((d) => ({ ...d, category: next }));
-                                    if (plan.packingCategory === c) plan.setPackingCategory(next);
+                                    if (plan?.packingCategory === c) plan.setPackingCategory(next);
                                     setEditingCategory(null);
                                   })();
                                 }}
@@ -374,7 +374,7 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({
                                       setManageError('');
                                       await deleteCategory(c);
                                       if (draft.category === c) setDraft((d) => ({ ...d, category: '__all__' }));
-                                      if (plan.packingCategory === c) plan.setPackingCategory('__all__');
+                                      if (plan?.packingCategory === c) plan.setPackingCategory('__all__');
                                     } catch (err) {
                                       setManageError(err instanceof Error ? err.message : 'Could not delete category.');
                                     }
