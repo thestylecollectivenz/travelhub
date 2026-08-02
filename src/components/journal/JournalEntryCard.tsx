@@ -13,6 +13,7 @@ import { JournalPhotoCaptionFooter } from './JournalPhotoCaptionFooter';
 import { RichTextEditor } from './RichTextEditor';
 import { isLikelyJournalHtml, plainTextToEditorHtml } from '../../utils/journalRichText';
 import { JournalEntryPhotoDrop } from './JournalEntryPhotoDrop';
+import { AlbumPhotoPicker } from './AlbumPhotoPicker';
 import { formatOrdinalDayDate } from '../../utils/formatTripDayDate';
 import { useTripRole } from '../../context/TripRoleContext';
 import { canEditOwnedRecord } from '../../utils/canEditOwnedRecord';
@@ -61,6 +62,7 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
     deleteEntry,
     moveEntryToDay,
     addPhoto,
+    assignPhotoToEntry,
     toggleLike,
     commentsForEntry,
     loadCommentsForEntry,
@@ -104,6 +106,8 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
   const [shareBusy, setShareBusy] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
   const [photoUploading, setPhotoUploading] = React.useState(false);
+  const [albumPickerOpen, setAlbumPickerOpen] = React.useState(false);
+  const [albumLinking, setAlbumLinking] = React.useState(false);
   const [dropActive, setDropActive] = React.useState(false);
   const [moveDayId, setMoveDayId] = React.useState(entry.dayId);
   const photoInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -202,6 +206,24 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
       console.error('JournalEntryCard.onPhotoFiles', err);
     } finally {
       setPhotoUploading(false);
+    }
+  };
+
+  const onAlbumPhotosPicked = async (photoIds: string[]): Promise<void> => {
+    if (!photoIds.length) return;
+    setAlbumLinking(true);
+    try {
+      for (const photoId of photoIds) {
+        // Day-less album photos adopt this entry's day.
+        // eslint-disable-next-line no-await-in-loop
+        await assignPhotoToEntry(photoId, entry.dayId, entry.id);
+      }
+      setAlbumPickerOpen(false);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('JournalEntryCard.onAlbumPhotosPicked', err);
+    } finally {
+      setAlbumLinking(false);
     }
   };
 
@@ -361,7 +383,28 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
           <button type="button" className={styles.addPhotosBtn} disabled={photoUploading} onClick={() => photoInputRef.current?.click()}>
             {photoUploading ? 'Uploading…' : 'Add photos'}
           </button>
+          <button
+            type="button"
+            className={styles.addPhotosBtn}
+            disabled={albumLinking}
+            onClick={() => setAlbumPickerOpen((v) => !v)}
+          >
+            {albumPickerOpen ? 'Close album' : 'From trip album'}
+          </button>
           <span className={styles.dropHint}>or drop photos here</span>
+        </div>
+      ) : null}
+
+      {canEditEntry && albumPickerOpen ? (
+        <div className={styles.albumPickerWrap}>
+          <AlbumPhotoPicker
+            excludePhotoIds={photos.map((p) => p.id)}
+            busy={albumLinking}
+            onCancel={() => setAlbumPickerOpen(false)}
+            onConfirm={(ids) => {
+              onAlbumPhotosPicked(ids).catch(console.error);
+            }}
+          />
         </div>
       ) : null}
 

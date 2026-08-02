@@ -2,7 +2,7 @@ const ARROW_SPLIT = /\s*(?:→|->)\s*/;
 const FLY_TO = /^fly\s+(.+?)\s+to\s+(.+)$/i;
 const GENERIC_TO = /^(.+?)\s+to\s+(.+?)(?:\s*\([^)]*\))?$/i;
 
-/** Best-effort From/To when transportFrom/transportTo are empty but title has a route. */
+/** Best-effort From/To when transportFrom/transportTo are empty but title/location has a route. */
 export function parseTransportEndpointsFromTitle(title?: string): { from?: string; to?: string } {
   const raw = (title || '').trim();
   if (!raw) return {};
@@ -35,15 +35,30 @@ export function resolveTransportFromTo(entry: {
   transportFrom?: string;
   transportTo?: string;
   title?: string;
+  location?: string;
 }): { from: string; to: string } {
   const fromField = (entry.transportFrom || '').trim();
   const toField = (entry.transportTo || '').trim();
   if (fromField || toField) {
     return { from: fromField || '—', to: toField || '—' };
   }
-  const parsed = parseTransportEndpointsFromTitle(entry.title);
-  return {
-    from: (parsed.from || '').trim() || '—',
-    to: (parsed.to || '').trim() || '—'
-  };
+  const fromTitle = parseTransportEndpointsFromTitle(entry.title);
+  if (fromTitle.from || fromTitle.to) {
+    return {
+      from: (fromTitle.from || '').trim() || '—',
+      to: (fromTitle.to || '').trim() || '—'
+    };
+  }
+  const fromLoc = parseTransportEndpointsFromTitle(entry.location);
+  if (fromLoc.from || fromLoc.to) {
+    return {
+      from: (fromLoc.from || '').trim() || '—',
+      to: (fromLoc.to || '').trim() || '—'
+    };
+  }
+  const loc = (entry.location || '').trim();
+  if (loc) {
+    return { from: loc, to: '—' };
+  }
+  return { from: '—', to: '—' };
 }

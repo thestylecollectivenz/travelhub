@@ -30,6 +30,7 @@ export interface JournalContextValue {
   moveEntryToDay: (entryId: string, targetDayId: string, beforeEntryId?: string) => Promise<void>;
   reorderEntryBefore: (entryId: string, beforeEntryId: string) => Promise<void>;
   addPhoto: (input: { journalEntryId: string; dayId: string; file: File; caption?: string }) => Promise<JournalPhoto>;
+  /** `dayId` may be empty for photos that belong to the trip album but no particular day. */
   addAlbumPhoto: (dayId: string, file: File, caption?: string) => Promise<JournalPhoto>;
   assignPhotoToEntry: (photoId: string, dayId: string, journalEntryId: string) => Promise<void>;
   reorderPhotoInEntry: (entryId: string, activePhotoId: string, overPhotoId: string) => Promise<void>;

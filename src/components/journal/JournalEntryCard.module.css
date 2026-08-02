@@ -303,6 +303,10 @@
   color: var(--color-blue-800);
 }
 
+.albumPickerWrap {
+  margin-top: var(--space-3);
+}
+
 .dropHint {
   font-size: var(--font-size-xs);
   color: var(--color-sand-600);

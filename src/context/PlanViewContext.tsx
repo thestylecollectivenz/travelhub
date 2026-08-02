@@ -58,7 +58,7 @@ export interface PlanViewContextValue {
   setPackingHasQtyGt1: (value: boolean) => void;
   shoppingHasNotesOnly: boolean;
   setShoppingHasNotesOnly: (value: boolean) => void;
-  /** Hide manual same-day payment rows from the payments task list. */
+  /** Hide pay-onsite rows from the payments task list. */
   hideManualPaymentTasks: boolean;
   setHideManualPaymentTasks: (value: boolean) => void;
 }

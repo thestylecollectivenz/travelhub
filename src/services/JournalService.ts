@@ -9,6 +9,8 @@ import { getCurrentUserEmail } from '../utils/currentUserEmail';
 const ENTRIES_LIST = 'JournalEntries';
 const PHOTOS_LIST = 'JournalPhotos';
 const COMMENTS_LIST = 'JournalComments';
+/** Folder used for album photos that are not tied to a trip day. */
+const ALBUM_ONLY_FOLDER = '_album';
 
 function odataEscapeString(value: string): string {
   return value.replace(/'/g, "''");
@@ -357,7 +359,9 @@ export class JournalService {
     const webRoot = serverRelativeUrl.replace(/\/$/, '');
     const rootFolder = `${webRoot}/TravelHubAssets/journal-photos`;
     const tripFolder = `${rootFolder}/${tripId}`;
-    const dayFolder = `${tripFolder}/${dayId}`;
+    // Album photos need not belong to a day; park those files under a sentinel folder.
+    const safeDayId = (dayId ?? '').trim();
+    const dayFolder = `${tripFolder}/${safeDayId || ALBUM_ONLY_FOLDER}`;
     await ensureFolderChain(this.ctx, webAbsoluteUrl, [rootFolder, tripFolder, dayFolder]);
 
     const rawUrl = await uploadFileToFolder(this.ctx, webAbsoluteUrl, dayFolder, file);
@@ -366,7 +370,7 @@ export class JournalService {
       title: file.name,
       journalEntryId: journalEntryId?.trim() ? journalEntryId.trim() : '',
       tripId,
-      dayId,
+      dayId: safeDayId,
       fileUrl,
       caption: caption ?? '',
       likeCount: 0,

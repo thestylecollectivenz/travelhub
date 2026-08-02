@@ -35,6 +35,7 @@ import { MobileBookingSiteSheet } from './MobileBookingSiteSheet';
 import { MobilePencilButton } from './MobilePencilButton';
 import { buildMobileDocLinkItems } from '../../utils/mobileDocLinkItems';
 import { MobileDetailAiPanel } from './MobileDetailAiPanel';
+import { MobileLinkedTasksSection } from './MobileLinkedTasksSection';
 import cardStyles from '../itinerary/ItineraryCard.module.css';
 import styles from './MobileCardDetail.module.css';
 
@@ -340,6 +341,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
           canEdit={canEditItinerary}
           onEdit={openEdit}
         />
+        <MobileLinkedTasksSection entryId={sourceEntry.id} canEdit={canEditItinerary} />
       </div>
     );
   }
@@ -356,6 +358,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
           onEdit={openEdit}
           mapsDirectionsUrl={mapsDirectionsUrl}
         />
+        <MobileLinkedTasksSection entryId={sourceEntry.id} canEdit={canEditItinerary} />
       </div>
     );
   }
@@ -373,6 +376,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
           onEdit={openEdit}
           mapsDirectionsUrl={mapsDirectionsUrl}
         />
+        <MobileLinkedTasksSection entryId={sourceEntry.id} canEdit={canEditItinerary} />
       </div>
     );
   }
@@ -391,6 +395,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
           mapsDirectionsUrl={mapsDirectionsUrl}
           mapsPlaceUrl={mapsPlaceUrl}
         />
+        <MobileLinkedTasksSection entryId={sourceEntry.id} canEdit={canEditItinerary} />
       </div>
     );
   }
@@ -410,6 +415,7 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
           mapsDirectionsUrl={mapsDirectionsUrl}
           phoneNumber={entry.phoneNumber}
         />
+        <MobileLinkedTasksSection entryId={sourceEntry.id} canEdit={canEditItinerary} />
         {showBookingSites ? (
           <MobileBookingSiteSheet
             title={entry.title || entry.location || 'Booking'}
@@ -596,6 +602,8 @@ export const MobileCardDetail: React.FC<MobileCardDetailProps> = ({
             : undefined
         }
       />
+
+      <MobileLinkedTasksSection entryId={sourceEntry.id} canEdit={canEditItinerary} />
 
       <MobileDocsLinksSection
         items={docLinkItems}

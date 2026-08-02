@@ -17,6 +17,8 @@ import { isLocationInfoEntry } from '../../utils/locationInfoEntry';
 import { formatTimeHHMM } from '../../utils/itineraryTimeUtils';
 import { markdownToHtml } from '../../utils/markdownToHtml';
 import { RichTextContent } from '../shared/RichTextContent';
+import { AlbumPhotoPicker } from './AlbumPhotoPicker';
+import { journalPhotoThumbUrl } from '../../utils/journalPhotoDisplayUrl';
 import styles from './JournalEntryComposer.module.css';
 
 export interface JournalEntryComposerProps {
@@ -60,7 +62,7 @@ async function withTransientRetry<T>(fn: () => Promise<T>, attempts = 3): Promis
 }
 
 export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayId, onCancel, onSaved, focusPhotoPickerKey }) => {
-  const { addEntry, addPhoto } = useJournal();
+  const { addEntry, addPhoto, allTripPhotos, assignPhotoToEntry } = useJournal();
   const { config } = useConfig();
   const { trip, tripDays, localEntries } = useTripWorkspace();
   const { placeById } = usePlaces();
@@ -69,6 +71,8 @@ export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayI
   const [files, setFiles] = React.useState<File[]>([]);
   const [photoCaptions, setPhotoCaptions] = React.useState<string[]>([]);
   const [previewUrls, setPreviewUrls] = React.useState<string[]>([]);
+  const [albumPickerOpen, setAlbumPickerOpen] = React.useState(false);
+  const [albumPhotoIds, setAlbumPhotoIds] = React.useState<string[]>([]);
   const [saving, setSaving] = React.useState(false);
   const savingRef = React.useRef(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -191,6 +195,11 @@ export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayI
             addPhoto({ journalEntryId: entry.id, dayId, file: files[i], caption: cap })
           );
         }
+      }
+      for (let i = 0; i < albumPhotoIds.length; i++) {
+        setProgress(`Linking album photo ${i + 1} of ${albumPhotoIds.length}…`);
+        // Day-less album photos adopt the entry's day.
+        await withTransientRetry(() => assignPhotoToEntry(albumPhotoIds[i], dayId, entry.id));
       }
       onSaved();
     } catch (err) {
@@ -347,16 +356,60 @@ export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayI
         Location (optional)
         <input className={styles.input} value={location} onChange={(e) => setLocation(e.target.value)} />
       </label>
-      <label className={styles.label}>
-        Photos (optional)
-        <input
-          ref={photoInputRef}
-          type="file"
-          accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-          multiple
-          onChange={onPickFiles}
+      <div className={styles.label}>
+        <span>Photos (optional)</span>
+        <div className={styles.photoSourceRow}>
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+            multiple
+            onChange={onPickFiles}
+          />
+          <button
+            type="button"
+            className={styles.button}
+            onClick={() => setAlbumPickerOpen((v) => !v)}
+            disabled={saving}
+          >
+            {albumPickerOpen ? 'Close album' : 'From trip album'}
+          </button>
+        </div>
+      </div>
+      {albumPickerOpen ? (
+        <AlbumPhotoPicker
+          excludePhotoIds={albumPhotoIds}
+          busy={saving}
+          confirmLabel="Use these photos"
+          onCancel={() => setAlbumPickerOpen(false)}
+          onConfirm={(ids) => {
+            setAlbumPhotoIds((prev) => [...prev, ...ids.filter((id) => prev.indexOf(id) < 0)]);
+            setAlbumPickerOpen(false);
+          }}
         />
-      </label>
+      ) : null}
+      {albumPhotoIds.length ? (
+        <div className={styles.albumChips}>
+          {albumPhotoIds.map((id) => {
+            const photo = allTripPhotos.find((p) => p.id === id);
+            if (!photo) return null;
+            return (
+              <div key={id} className={styles.albumChip}>
+                <img className={styles.albumChipThumb} src={journalPhotoThumbUrl(photo.fileUrl, 160)} alt="" />
+                <button
+                  type="button"
+                  className={styles.albumChipRemove}
+                  aria-label="Remove album photo from this entry"
+                  onClick={() => setAlbumPhotoIds((prev) => prev.filter((x) => x !== id))}
+                  disabled={saving}
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
       {files.map((f, i) => (
         <div key={`${f.name}-${i}`} className={styles.photoRow}>
           {previewUrls[i] ? (

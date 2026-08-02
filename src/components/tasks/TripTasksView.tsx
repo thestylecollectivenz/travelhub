@@ -16,7 +16,13 @@ import {
 } from '../../utils/missingAmountDismissed';
 import { collectMissingAmountRows } from '../../utils/missingAmountEntries';
 import { paymentDueTaskTitle, paymentDueDateHint } from '../../utils/paymentDueLabels';
-import { effectivePaymentDueDate, isManualSameDayPayment, paymentDueDateInputValue, PAYMENT_DUE_NONE } from '../../utils/paymentDueDefaults';
+import {
+  clearPaymentDuePatch,
+  effectivePaymentDueDate,
+  paymentDueDateInputValue,
+  setPaymentDuePatch,
+  shouldHideFromPaymentTasks
+} from '../../utils/paymentDueDefaults';
 import { setPendingMobileItineraryOpen } from '../../utils/mobileItineraryOpenPending';
 import { GO_TO_DAY_EVENT } from '../mobile/MobileTripIdeasList';
 import { confirmUserAction } from '../../utils/confirmAction';
@@ -442,7 +448,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({
       showEntryDerivedTasks && showEntryDerivedForAssignee && !showCompletedOnly
         ? localEntries.filter(
             (e) => {
-              if (hideManualPaymentTasks && isManualSameDayPayment(e)) return false;
+              if (shouldHideFromPaymentTasks(e)) return false;
               return (
                 ((e.paymentStatus === 'Not paid' && e.amount > 0) || e.paymentStatus === 'Part paid') &&
                 matchesCategoryFilter(e) &&
@@ -1389,6 +1395,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({
                     {supplierMetaLine(entry.supplier)}
                   </div>
                   {!showCompletedOnly ? (
+                    <>
                     <label className={styles.dueLabel}>
                       Pay by{' '}
                       <input
@@ -1398,7 +1405,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({
                         onChange={(e) =>
                           void updateEntry({
                             ...entry,
-                            paymentDueDate: e.target.value ? e.target.value : PAYMENT_DUE_NONE
+                            ...(e.target.value ? setPaymentDuePatch(e.target.value) : clearPaymentDuePatch())
                           })
                         }
                       />
@@ -1406,11 +1413,26 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({
                         type="button"
                         className={styles.iconBtn}
                         title="Clear due date"
-                        onClick={() => void updateEntry({ ...entry, paymentDueDate: PAYMENT_DUE_NONE })}
+                        onClick={() => void updateEntry({ ...entry, ...clearPaymentDuePatch() })}
                       >
                         Clear
                       </button>
                     </label>
+                    <label className={styles.dueLabel}>
+                      <input
+                        type="checkbox"
+                        checked={entry.payOnsite === true}
+                        onChange={(e) =>
+                          void updateEntry({
+                            ...entry,
+                            payOnsite: e.target.checked,
+                            ...(e.target.checked ? clearPaymentDuePatch() : {})
+                          })
+                        }
+                      />{' '}
+                      Pay onsite
+                    </label>
+                    </>
                   ) : null}
                   {!showCompletedOnly ? <div className={styles.meta}>{paymentDueDateHint(entry)}</div> : null}
                 </div>

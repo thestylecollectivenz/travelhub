@@ -13,19 +13,29 @@ export function useLicence(licenceKey: string): UseLicenceResult {
   const [status, setStatus] = useState<LicenceStatus>('unchecked');
   const [isChecking, setIsChecking] = useState(false);
   const [message, setMessage] = useState<string | undefined>();
+  const [hasValidated, setHasValidated] = useState(false);
 
-  const check = async (key: string): Promise<void> => {
-    setIsChecking(true);
-    const result = await LicenceService.validate(key);
-    setStatus(result.status);
-    setMessage(result.message);
-    setIsChecking(false);
+  const check = async (key: string, forceSpinner?: boolean): Promise<void> => {
+    const trimmed = (key || '').trim();
+    const showSpinner = Boolean(forceSpinner) || !hasValidated;
+    if (showSpinner) setIsChecking(true);
+    try {
+      const result = await LicenceService.validate(trimmed);
+      setStatus(result.status);
+      setMessage(result.message);
+      if (result.status === 'valid' || result.status === 'personal') {
+        setHasValidated(true);
+      }
+    } finally {
+      if (showSpinner) setIsChecking(false);
+    }
   };
 
   useEffect(() => {
-    if (licenceKey) {
-      void check(licenceKey);
-    }
+    if (!licenceKey) return;
+    void check(licenceKey);
+    // Intentionally only re-run when the key changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [licenceKey]);
 
   return {
@@ -33,6 +43,6 @@ export function useLicence(licenceKey: string): UseLicenceResult {
     isValid: status === 'valid' || status === 'personal',
     isChecking,
     message,
-    recheck: check
+    recheck: (key: string) => check(key, true)
   };
 }

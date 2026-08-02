@@ -49,12 +49,12 @@ export const TravellerAvatar: React.FC<TravellerAvatarProps> = ({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-    background: 'color-mix(in srgb, var(--color-blue-100) 70%, white)',
-    color: 'var(--color-blue-800)',
+    background: '#dbe4f0',
+    color: '#1e2a44',
     fontSize: Math.max(10, Math.round(size * 0.36)),
     fontWeight: 700,
     overflow: 'hidden',
-    border: '1px solid color-mix(in srgb, var(--color-blue-800) 12%, transparent)'
+    border: '1px solid rgba(30, 42, 68, 0.12)'
   };
 
   if (src && !failed) {

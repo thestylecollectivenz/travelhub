@@ -8,7 +8,7 @@ import { effectiveBookingStatus } from './bookingStatusUtils';
 import { formatTimeHHMM } from './itineraryTimeUtils';
 import { effectiveTransportLegTime } from './itineraryDayEntries';
 import type { TripDay } from '../models/TripDay';
-import { resolveTransportFromTo } from './parseTransportEndpoints';
+import { resolveTransportFromTo, parseTransportEndpointsFromTitle } from './parseTransportEndpoints';
 
 export interface TransportJourneyRow {
   label: string;
@@ -111,7 +111,21 @@ export function buildTransportDetailData(
   const summaryTime = effectiveTime || '—';
   const mode = (entry.transportMode || '').trim();
   const modeSubtitle = mode || 'Transport';
-  const locationLine = (entry.location || entry.streetAddress || '').trim() || '—';
+  const street = (entry.streetAddress || '').trim();
+  const loc = (entry.location || '').trim();
+  const supplier = (entry.supplier || '').trim();
+  const routeBits = new Set(
+    [from, to, supplier].map((s) => s.toLowerCase()).filter((s) => s && s !== '—')
+  );
+  // Prefer street address; only show location when it isn't duplicating From/To/supplier.
+  let locationLine = '—';
+  if (street && !routeBits.has(street.toLowerCase())) {
+    locationLine = street;
+  } else if (loc && !routeBits.has(loc.toLowerCase()) && !parseTransportEndpointsFromTitle(loc).from) {
+    locationLine = loc;
+  } else if (from !== '—' || to !== '—') {
+    locationLine = from !== '—' && to !== '—' ? `${from} → ${to}` : from !== '—' ? from : to;
+  }
 
   const journeyRows: TransportJourneyRow[] = [
     { label: 'From', value: from },
@@ -151,15 +165,17 @@ export function buildTransportDetailData(
   const bookingPayment: TransportBookingPaymentModel = {
     bookingReference: (entry.bookingReference || '').trim() || '—',
     bookingStatus: {
-      label: formatDisplayLabel(booked),
-      tone: bookingPillTone(booked)
+      label: booked ? 'Booked' : entry.bookingStatus || 'Not booked',
+      tone: bookingPillTone(booked ? 'Booked' : entry.bookingStatus)
     },
-    supplier: (entry.supplier || '').trim() || '—',
-    paymentDue: entry.paymentDueDate
-      ? `${paymentDueActionLabel(entry)} ${ymd(entry.paymentDueDate)}`
-      : entry.bookingDueDate
-        ? ymd(entry.bookingDueDate)
-        : '—',
+    supplier: supplier || '—',
+    paymentDue: entry.payOnsite
+      ? 'Pay onsite'
+      : entry.paymentDueDate
+        ? `${paymentDueActionLabel(entry)} ${ymd(entry.paymentDueDate)}`
+        : entry.bookingDueDate
+          ? ymd(entry.bookingDueDate)
+          : '—',
     paymentStatus: canSeeFinancials
       ? {
           label: formatDisplayLabel(entry.paymentStatus),

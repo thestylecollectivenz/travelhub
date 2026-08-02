@@ -58,7 +58,6 @@ export const MobileTaskFiltersDrawer: React.FC<MobileTaskFiltersDrawerProps> = (
   const categories = plan?.taskCategoryFilters ?? [];
   const dueFilters = plan?.taskDueFilters ?? [];
   const section = plan?.taskSectionFilter ?? null;
-  const hideManual = plan?.hideManualPaymentTasks ?? false;
 
   const panel = (
     <>
@@ -224,19 +223,9 @@ export const MobileTaskFiltersDrawer: React.FC<MobileTaskFiltersDrawerProps> = (
 
           <section>
             <p className={styles.sectionTitle}>Payments view</p>
-            <div className={styles.toggleRow}>
-              <span className={styles.toggleLabel}>Hide manual same-day payments</span>
-              <button
-                type="button"
-                className={`${styles.switch} ${hideManual ? styles.switchOn : ''}`}
-                role="switch"
-                aria-checked={hideManual}
-                aria-label="Hide manual same-day payments"
-                onClick={() => plan?.setHideManualPaymentTasks(!hideManual)}
-              >
-                <span className={styles.switchKnob} />
-              </button>
-            </div>
+            <p className={styles.toggleLabel}>
+              Items marked <strong>Pay onsite</strong> in the itinerary are always hidden from Payments due.
+            </p>
           </section>
         </div>
 

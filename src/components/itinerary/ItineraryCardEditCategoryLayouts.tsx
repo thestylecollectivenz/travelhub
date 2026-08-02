@@ -15,7 +15,12 @@ import {
   type LocationInfoNotes
 } from '../../utils/locationInfoEntry';
 import { LocationInfoAskPanel } from './LocationInfoAskPanel';
-import { deriveDefaultPaymentDueDate, isPaymentDueCleared, PAYMENT_DUE_NONE } from '../../utils/paymentDueDefaults';
+import {
+  clearPaymentDuePatch,
+  deriveDefaultPaymentDueDate,
+  isPaymentDueCleared,
+  setPaymentDuePatch
+} from '../../utils/paymentDueDefaults';
 import { LocationInfoHighlights } from './LocationInfoHighlights';
 import { useConfig } from '../../context/ConfigContext';
 import { usePlaces } from '../../context/PlacesContext';
@@ -116,7 +121,9 @@ function BookingPaymentFields({
           };
           if (
             (value === 'Not paid' || value === 'Part paid') &&
-            draft.paymentDueDate === undefined
+            draft.paymentDueDate === undefined &&
+            !draft.paymentDueCleared &&
+            !draft.payOnsite
           ) {
             const derived = deriveDefaultPaymentDueDate({ ...draft, paymentDueDate: undefined });
             if (derived) next.paymentDueDate = derived;
@@ -131,6 +138,26 @@ function BookingPaymentFields({
       </select>
       {draft.paymentStatus === 'Not paid' || draft.paymentStatus === 'Part paid' ? (
         <>
+          <div className={`${styles.checkboxRow} ${styles.fullRow}`}>
+            <input
+              id={`payonsite-${draft.id}`}
+              className={styles.checkbox}
+              type="checkbox"
+              checked={draft.payOnsite === true}
+              onChange={(e) =>
+                patch(
+                  e.target.checked
+                    ? { payOnsite: true, paymentDueDate: undefined, paymentDueCleared: true }
+                    : { payOnsite: false }
+                )
+              }
+            />
+            <label className={styles.label} htmlFor={`payonsite-${draft.id}`}>
+              Pay onsite (exclude from payment due tasks)
+            </label>
+          </div>
+          {!draft.payOnsite ? (
+            <>
           <label className={styles.label} htmlFor={`paydue-${draft.id}`}>
             Pay by
           </label>
@@ -139,15 +166,23 @@ function BookingPaymentFields({
             className={styles.input}
             type="date"
             value={isPaymentDueCleared(draft) ? '' : draft.paymentDueDate?.slice(0, 10) || ''}
-            onChange={(e) => patch({ paymentDueDate: e.target.value || PAYMENT_DUE_NONE })}
+            onChange={(e) =>
+              patch(
+                e.target.value
+                  ? setPaymentDuePatch(e.target.value)
+                  : clearPaymentDuePatch()
+              )
+            }
           />
           <button
             type="button"
             className={styles.btnSecondary}
-            onClick={() => patch({ paymentDueDate: PAYMENT_DUE_NONE })}
+            onClick={() => patch(clearPaymentDuePatch())}
           >
             No date
           </button>
+            </>
+          ) : null}
           <label className={styles.label} htmlFor={`paydue-type-${draft.id}`}>
             Payment timing
           </label>

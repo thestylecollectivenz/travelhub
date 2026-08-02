@@ -5,6 +5,7 @@ import { useTripMembers } from '../../hooks/useTripMembers';
 import { getCurrentUserDisplayName } from '../../utils/currentUserEmail';
 import { TravellerAvatar } from '../shared/TravellerAvatar';
 import { useMobileHeaderChrome } from './MobileHeaderChromeContext';
+import { useShellMode } from '../../hooks/useShellMode';
 import styles from './MobileHeaderAccessActions.module.css';
 
 function IconGear(): React.ReactElement {
@@ -53,6 +54,8 @@ export const MobileHeaderAccessActions: React.FC<MobileHeaderAccessActionsProps>
   const onOpenSettings = onOpenSettingsProp ?? chrome.onOpenSettings ?? openSettings;
   const { myMember } = useTripMembers(tripId);
   const displayName = getCurrentUserDisplayName(spContext);
+  const shellMode = useShellMode();
+  const avatarSize = shellMode === 'ipad-portrait' ? 42 : 36;
 
   return (
     <div className={styles.actions}>
@@ -64,9 +67,9 @@ export const MobileHeaderAccessActions: React.FC<MobileHeaderAccessActionsProps>
         onClick={() => onOpenAccess?.()}
       >
         <TravellerAvatar
-          displayName={myMember?.userDisplayName || greetingName || displayName}
+          displayName={myMember?.userDisplayName || greetingName || displayName || 'You'}
           avatarUrl={myMember?.avatarUrl}
-          size={36}
+          size={avatarSize}
         />
       </button>
       <button type="button" className={styles.iconBtn} aria-label="Traveller profile" onClick={onOpenSettings}>

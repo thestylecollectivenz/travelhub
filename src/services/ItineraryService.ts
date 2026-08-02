@@ -86,6 +86,8 @@ const SELECT_PHASE7_OPTIONAL = [
   'BookingDueDate',
   'PaymentDueDate',
   'PaymentDueType',
+  'PaymentDueCleared',
+  'PayOnsite',
   'BreakfastIncluded',
   'ParkingIncluded',
   'OnboardCredit',
@@ -329,12 +331,15 @@ function serializeDate(date: string | undefined): string | null {
   if (!date) return null;
   const s = date.trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const year = Number(s.slice(0, 4));
+    if (year < 1900) return null;
     return `${s}T00:00:00.000Z`;
   }
   try {
     const d = new Date(s);
     if (!Number.isNaN(d.getTime())) {
       const yyyy = d.getUTCFullYear();
+      if (yyyy < 1900) return null;
       const mm = pad2(d.getUTCMonth() + 1);
       const dd = pad2(d.getUTCDate());
       return `${yyyy}-${mm}-${dd}T00:00:00.000Z`;
@@ -424,6 +429,8 @@ function mapToEntry(item: any): ItineraryEntry {
     cancellationDeadline: item.CancellationDeadline ? String(item.CancellationDeadline) : undefined,
     bookingDueDate: parseDate(item.BookingDueDate),
     paymentDueDate: parseDate(item.PaymentDueDate),
+    paymentDueCleared: item.PaymentDueCleared === true || item.PaymentDueCleared === 1,
+    payOnsite: item.PayOnsite === true || item.PayOnsite === 1,
     paymentDueType:
       item.PaymentDueType === 'Automatic' || item.PaymentDueType === 'Manual'
         ? item.PaymentDueType
@@ -543,7 +550,18 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
     }
   }
   if (entry.bookingDueDate !== undefined) item.BookingDueDate = serializeDate(entry.bookingDueDate);
-  if (entry.paymentDueDate !== undefined) item.PaymentDueDate = serializeDate(entry.paymentDueDate);
+  if (entry.paymentDueCleared === true) {
+    item.PaymentDueDate = null;
+    item.PaymentDueCleared = true;
+  } else if (entry.paymentDueDate !== undefined) {
+    item.PaymentDueDate = serializeDate(entry.paymentDueDate);
+    if (entry.paymentDueCleared === false || entry.paymentDueDate) {
+      item.PaymentDueCleared = false;
+    }
+  } else if (entry.paymentDueCleared === false) {
+    item.PaymentDueCleared = false;
+  }
+  if (entry.payOnsite !== undefined) item.PayOnsite = entry.payOnsite === true;
   if (entry.paymentDueType !== undefined) item.PaymentDueType = entry.paymentDueType;
   if (entry.cruiseReference !== undefined) item.CruiseReference = entry.cruiseReference || null;
   if (entry.cruiseLineName !== undefined) item.CruiseLineName = entry.cruiseLineName || null;

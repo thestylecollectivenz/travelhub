@@ -138,6 +138,10 @@ export interface ItineraryEntry {
   bookingDueDate?: string;
   /** YYYY-MM-DD — when payment should be made by. */
   paymentDueDate?: string;
+  /** True when the user explicitly cleared the payment due date (do not re-derive). */
+  paymentDueCleared?: boolean;
+  /** True when payment is made on-site / at the venue — exclude from payment-due tasks. */
+  payOnsite?: boolean;
   /** Manual = pay by date; Automatic = card/provider charges on date. */
   paymentDueType?: PaymentDueType;
   cruiseReference?: string;

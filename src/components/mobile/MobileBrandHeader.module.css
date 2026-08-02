@@ -85,6 +85,7 @@
   align-items: center;
   gap: 0.35rem;
   flex-shrink: 0;
+  z-index: 2;
 }
 
 .navRow {
@@ -190,7 +191,7 @@
 }
 
 [data-shell='ipad-portrait'] .pageTitle {
-  font-size: 1.45rem;
+  font-size: 1.85rem;
 }
 
 [data-shell='ipad-portrait'] .pageSub {

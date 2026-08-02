@@ -535,6 +535,8 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
         tripName={pageChrome.tripName}
         tripDates={pageChrome.tripDates}
         tripHeroSrc={tripHeroSrc}
+        accessTripId={trip?.id}
+        onOpenAccess={trip?.id ? handleOpenMembers : undefined}
       />
       <main className={styles.mobileMain} data-mobile-scroll>
         {body}

@@ -1050,7 +1050,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
         ) : null}
 
         <label className={styles.label} htmlFor={`loc-${draft.id}`}>
-          Location
+          {isTransport ? 'Area / city (optional)' : 'Location'}
         </label>
         <div className={styles.fieldWithSuggestions}>
           <input
@@ -1062,6 +1062,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
             onChange={(e) => patch({ location: e.target.value })}
             onFocus={() => touchShell && setLocationSuggestOpen(true)}
             onBlur={() => window.setTimeout(() => setLocationSuggestOpen(false), 120)}
+            placeholder={isTransport ? 'Optional — use From / To for the route' : undefined}
           />
           {touchShell ? (
             <FieldSuggestionList

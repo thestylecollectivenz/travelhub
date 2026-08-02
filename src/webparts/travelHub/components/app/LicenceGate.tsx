@@ -58,6 +58,11 @@ export const LicenceGate: React.FC<LicenceGateProps> = ({ licenceKey, storageUse
     fontFamily: 'var(--font-sans)'
   };
 
+  // Once valid, keep children mounted during quiet re-checks (cold-open remount fix).
+  if (isValid) {
+    return <>{children}</>;
+  }
+
   if (isChecking) {
     const content = (
       <div style={gateSurfaceStyle}>
@@ -65,10 +70,6 @@ export const LicenceGate: React.FC<LicenceGateProps> = ({ licenceKey, storageUse
       </div>
     );
     return portalRoot ? ReactDom.createPortal(content, portalRoot) : content;
-  }
-
-  if (isValid) {
-    return <>{children}</>;
   }
 
   const content = (

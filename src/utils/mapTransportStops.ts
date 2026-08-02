@@ -148,6 +148,7 @@ export function buildMapTransportStops(options: {
       const sides = daySideTrips.get(dayNum);
       if (!sides?.length) continue;
       const ordered = [...sides].sort((a, b) => a.order - b.order);
+      let atPrimary = true;
       for (const side of ordered) {
         const sideShort = placeShortTitle(side.title);
         stops.push({
@@ -159,6 +160,7 @@ export function buildMapTransportStops(options: {
           dayNumber: dayNum,
           label: `Day ${dayNum}: ${sideShort}${side.returnToPrimary ? ' (side trip)' : ''}`
         });
+        atPrimary = false;
         if (side.returnToPrimary) {
           stops.push({
             id: `return-${dayNum}-${side.placeId}-${run.placeId}`,
@@ -169,7 +171,20 @@ export function buildMapTransportStops(options: {
             dayNumber: dayNum,
             label: `Day ${dayNum}: ${shortTitle} (return)`
           });
+          atPrimary = true;
         }
+      }
+      // Always close the day at overnight primary before the next day's stop.
+      if (!atPrimary) {
+        stops.push({
+          id: `return-dayend-${dayNum}-${run.placeId}`,
+          placeId: run.placeId,
+          title: run.title,
+          latitude: run.latitude,
+          longitude: run.longitude,
+          dayNumber: dayNum,
+          label: `Day ${dayNum}: ${shortTitle} (return)`
+        });
       }
     }
   }

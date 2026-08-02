@@ -16,6 +16,9 @@ import styles from './TripPhotoAlbum.module.css';
 
 type AlbumLayout = 'all' | 'by-day';
 
+/** Scope value for photos that belong to the trip album but no particular day. */
+const UNASSIGNED_DAY_SCOPE = '__unassigned__';
+
 function isAllowedImage(file: File): boolean {
   const lower = file.name.toLowerCase();
   const okExt = lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.webp');
@@ -85,20 +88,21 @@ export const TripPhotoAlbum: React.FC<{ mobileLayout?: boolean }> = ({ mobileLay
     return tripDays.filter((d) => d.tripId === trip.id && d.dayType !== 'PreTrip').sort((a, b) => a.dayNumber - b.dayNumber);
   }, [trip, tripDays]);
 
+  // Seed the day picker once only — "No day / trip album" is a valid choice we must not overwrite.
+  const uploadDaySeededRef = React.useRef(false);
   React.useEffect(() => {
-    if (days.length > 0 && !uploadDayId) {
-      setUploadDayId(days[0].id);
-    }
-  }, [days, uploadDayId]);
+    if (uploadDaySeededRef.current || days.length === 0) return;
+    uploadDaySeededRef.current = true;
+    setUploadDayId(days[0].id);
+  }, [days]);
 
   React.useEffect(() => {
     const handler = (): void => {
-      if (days.length && !uploadDayId) setUploadDayId(days[0].id);
       setUploadOpen(true);
     };
     window.addEventListener('travelhub-mobile-open-photo-upload', handler);
     return () => window.removeEventListener('travelhub-mobile-open-photo-upload', handler);
-  }, [days, uploadDayId]);
+  }, []);
 
   const uploadEntriesForDay = React.useMemo(() => {
     if (!uploadDayId) return [];
@@ -158,12 +162,17 @@ export const TripPhotoAlbum: React.FC<{ mobileLayout?: boolean }> = ({ mobileLay
   const grouped = React.useMemo(() => {
     const map = new Map<string, JournalPhoto[]>();
     for (const p of photos) {
-      const k = p.dayId || '_';
+      const k = (p.dayId || '').trim() || UNASSIGNED_DAY_SCOPE;
       if (!map.has(k)) map.set(k, []);
       map.get(k)!.push(p);
     }
     return map;
   }, [photos]);
+
+  const unassignedPhotoCount = React.useMemo(
+    () => photos.filter((p) => !(p.dayId || '').trim()).length,
+    [photos]
+  );
 
   const orderedDayIds = React.useMemo(() => days.map((d) => d.id), [days]);
 
@@ -183,6 +192,15 @@ export const TripPhotoAlbum: React.FC<{ mobileLayout?: boolean }> = ({ mobileLay
     if (layout === 'all') {
       const items = filterPhotos(photos);
       return [{ title: null as string | null, dayId: undefined as string | undefined, items }];
+    }
+    if (scopeDayId === UNASSIGNED_DAY_SCOPE) {
+      return [
+        {
+          title: 'Unassigned — trip album',
+          dayId: undefined as string | undefined,
+          items: filterPhotos(grouped.get(UNASSIGNED_DAY_SCOPE) ?? [])
+        }
+      ];
     }
     if (scopeDayId) {
       const d = days.find((x) => x.id === scopeDayId);
@@ -205,6 +223,10 @@ export const TripPhotoAlbum: React.FC<{ mobileLayout?: boolean }> = ({ mobileLay
         dayId,
         items
       });
+    }
+    const unassigned = filterPhotos(grouped.get(UNASSIGNED_DAY_SCOPE) ?? []);
+    if (unassigned.length) {
+      sections.push({ title: 'Unassigned — trip album', items: unassigned });
     }
     return sections;
   }, [layout, scopeDayId, photos, grouped, orderedDayIds, days, filterPhotos]);
@@ -230,10 +252,6 @@ export const TripPhotoAlbum: React.FC<{ mobileLayout?: boolean }> = ({ mobileLay
   };
 
   const runUpload = async (): Promise<void> => {
-    if (!uploadDayId) {
-      setError('Select which day these photos belong to.');
-      return;
-    }
     if (!pendingFiles.length) {
       setError('Choose one or more photos.');
       return;
@@ -330,6 +348,9 @@ export const TripPhotoAlbum: React.FC<{ mobileLayout?: boolean }> = ({ mobileLay
                   {formatDayPhotoSectionTitle(d)}
                 </option>
               ))}
+              {unassignedPhotoCount > 0 ? (
+                <option value={UNASSIGNED_DAY_SCOPE}>Unassigned — trip album</option>
+              ) : null}
             </select>
           </label>
         ) : null}
@@ -393,8 +414,8 @@ export const TripPhotoAlbum: React.FC<{ mobileLayout?: boolean }> = ({ mobileLay
 
       {linkFilter === 'unassigned' ? (
         <p className={styles.subtitle} style={{ marginTop: 0 }}>
-          Unlinked photos belong to a day but not a journal entry. Upload with “Album only”, or open a journal entry and
-          attach photos from there. Use “New journal entry” to create an entry that can pick from these album photos.
+          Unlinked photos sit in the trip album without a journal entry, and may have no day at all. To attach one, open
+          a journal entry and choose “From trip album”, or create a new entry and pick album photos while writing it.
         </p>
       ) : null}
 
@@ -436,6 +457,7 @@ export const TripPhotoAlbum: React.FC<{ mobileLayout?: boolean }> = ({ mobileLay
                 setUploadEntryId('');
               }}
             >
+              <option value="">No day — trip album</option>
               {days.map((d) => (
                 <option key={d.id} value={d.id}>
                   {formatDayPhotoSectionTitle(d)}
