@@ -4,6 +4,7 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
 import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
 import { useTripMembers } from '../../hooks/useTripMembers';
+import { isAllCategories } from '../../utils/multiSelectFilters';
 import styles from './TripSidebar.module.css';
 
 /** Traveller filters for packing — Editors/Companions only (via useTripMembers). */
@@ -13,7 +14,7 @@ export const SidebarPackingCategories: React.FC = () => {
   const spContext = useSpContext();
   const { categories } = useTripShoppingCategories(trip?.id, spContext);
   const { travellers } = useTripMembers(trip?.id);
-  const selected = plan?.packingCategory ?? 'Other';
+  const selected = plan?.packingCategories ?? [];
   const traveller = plan?.packingTraveller ?? null;
 
   if (!plan) return null;
@@ -53,8 +54,8 @@ export const SidebarPackingCategories: React.FC = () => {
         <li>
           <button
             type="button"
-            className={`${styles.packingCatBtn} ${selected === '__all__' ? styles.packingCatBtnActive : ''}`}
-            onClick={() => plan.setPackingCategory('__all__')}
+            className={`${styles.packingCatBtn} ${isAllCategories(selected) ? styles.packingCatBtnActive : ''}`}
+            onClick={() => plan.setPackingCategories([])}
           >
             All categories
           </button>
@@ -63,8 +64,8 @@ export const SidebarPackingCategories: React.FC = () => {
           <li key={cat}>
             <button
               type="button"
-              className={`${styles.packingCatBtn} ${selected === cat ? styles.packingCatBtnActive : ''}`}
-              onClick={() => plan.setPackingCategory(cat)}
+              className={`${styles.packingCatBtn} ${selected.indexOf(cat) >= 0 ? styles.packingCatBtnActive : ''}`}
+              onClick={() => plan.setPackingCategories([cat])}
             >
               {cat}
             </button>

@@ -17,7 +17,7 @@ export function useCompanionListDefaults(
     if (!planView || role !== 'Companion') return;
     const label = companionAssigneeLabel(spContext, members);
     if (!label) return;
-    planView.setPackingCategory('__all__');
+    planView.setPackingCategories([]);
     planView.setPackingTraveller(label);
     planView.setShoppingTraveller(label);
     planView.setTaskAssigneeFilter(label);

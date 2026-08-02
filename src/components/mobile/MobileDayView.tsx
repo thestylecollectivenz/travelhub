@@ -44,6 +44,10 @@ import { useShellMode } from '../../hooks/useShellMode';
 import { todayYmd } from '../../utils/placeForecastDates';
 import { EXPAND_UNSCHEDULED_EVENT, notifyExpandUnscheduled } from '../../utils/mobileItineraryUiEvents';
 import { consumePendingItineraryAdd, consumePendingItineraryPickDay, peekPendingItineraryAdd, peekPendingItineraryPickDay } from '../../utils/mobileHomePendingAction';
+import {
+  consumePendingMobileItineraryOpen,
+  peekPendingMobileItineraryOpen
+} from '../../utils/mobileItineraryOpenPending';
 import { MobileItineraryDayPicker } from './MobileItineraryDayPicker';
 import styles from './MobileItinerary.module.css';
 import shellStyles from './MobileShell.module.css';
@@ -260,6 +264,15 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   }, []);
 
   const { closeDetail } = useMobileDetailHistory(detailTarget, setDetailTarget);
+
+  React.useEffect(() => {
+    if (!day?.id || !localEntries.length) return;
+    const pending = peekPendingMobileItineraryOpen();
+    if (!pending || pending.dayId !== day.id) return;
+    if (!localEntries.some((e) => e.id === pending.entryId)) return;
+    consumePendingMobileItineraryOpen();
+    openDetail(pending.entryId, pending.subItemId);
+  }, [day?.id, localEntries, openDetail]);
 
   const dayLocationEntries = React.useMemo(() => {
     if (!day || !trip) return [];

@@ -8,6 +8,7 @@ import { effectiveBookingStatus } from './bookingStatusUtils';
 import { formatTimeHHMM } from './itineraryTimeUtils';
 import { effectiveTransportLegTime } from './itineraryDayEntries';
 import type { TripDay } from '../models/TripDay';
+import { resolveTransportFromTo } from './parseTransportEndpoints';
 
 export interface TransportJourneyRow {
   label: string;
@@ -92,8 +93,17 @@ export function buildTransportDetailData(
   const { canSeeFinancials, hasConfirmationDoc, tripDays, convertToHomeCurrency, homeCurrency } = options;
   const leg = transportLeg(entry, calendarDate);
   const isReturnLeg = leg === 'return';
-  const from = isReturnLeg ? entry.transportTo || '—' : entry.transportFrom || '—';
-  const to = isReturnLeg ? entry.transportFrom || '—' : entry.transportTo || '—';
+  const resolved = resolveTransportFromTo(entry);
+  const from = isReturnLeg
+    ? resolved.to !== '—'
+      ? resolved.to
+      : '—'
+    : resolved.from;
+  const to = isReturnLeg
+    ? resolved.from !== '—'
+      ? resolved.from
+      : '—'
+    : resolved.to;
   const summaryDate = isReturnLeg ? ymd(entry.returnDate || calendarDate) : ymd(entry.dateStart || calendarDate);
   const effectiveTime = formatTimeHHMM(
     effectiveTransportLegTime(entry, calendarDate, tripDays, leg)

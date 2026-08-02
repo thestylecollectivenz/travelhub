@@ -5,13 +5,14 @@ import { useSpContext } from '../../context/SpContext';
 import { ReminderService } from '../../services/ReminderService';
 import { getCategorySlug } from '../../utils/categoryUtils';
 import { TASK_FILTER_UNCATEGORISED } from '../../utils/taskFilters';
+import { isAllCategories } from '../../utils/multiSelectFilters';
 import styles from './TripSidebar.module.css';
 
 export const SidebarTaskCategories: React.FC<{ hideHeading?: boolean }> = ({ hideHeading = false }) => {
   const { trip, localEntries } = useTripWorkspace();
   const planView = usePlanView();
   const spContext = useSpContext();
-  const filter = planView?.taskCategoryFilter ?? null;
+  const filters = planView?.taskCategoryFilters ?? [];
   const [manualCategories, setManualCategories] = React.useState<string[]>([]);
   const [hasUncategorised, setHasUncategorised] = React.useState(false);
 
@@ -72,8 +73,8 @@ export const SidebarTaskCategories: React.FC<{ hideHeading?: boolean }> = ({ hid
         <li>
           <button
             type="button"
-            className={`${styles.packingCatBtn} ${filter === null ? styles.packingCatBtnActive : ''}`}
-            onClick={() => planView.setTaskCategoryFilter(null)}
+            className={`${styles.packingCatBtn} ${isAllCategories(filters) ? styles.packingCatBtnActive : ''}`}
+            onClick={() => planView.setTaskCategoryFilters([])}
           >
             All categories
           </button>
@@ -82,8 +83,8 @@ export const SidebarTaskCategories: React.FC<{ hideHeading?: boolean }> = ({ hid
           <li>
             <button
               type="button"
-              className={`${styles.packingCatBtn} ${filter === TASK_FILTER_UNCATEGORISED ? styles.packingCatBtnActive : ''}`}
-              onClick={() => planView.setTaskCategoryFilter(TASK_FILTER_UNCATEGORISED)}
+              className={`${styles.packingCatBtn} ${filters.indexOf(TASK_FILTER_UNCATEGORISED) >= 0 ? styles.packingCatBtnActive : ''}`}
+              onClick={() => planView.setTaskCategoryFilters([TASK_FILTER_UNCATEGORISED])}
             >
               Uncategorised
             </button>
@@ -91,13 +92,13 @@ export const SidebarTaskCategories: React.FC<{ hideHeading?: boolean }> = ({ hid
         ) : null}
         {allCategories.map((cat) => {
           const slug = getCategorySlug(cat);
-          const active = filter === cat;
+          const active = filters.indexOf(cat) >= 0;
           return (
             <li key={cat}>
               <button
                 type="button"
                 className={`${styles.packingCatBtn} th-cat-${slug} ${active ? styles.packingCatBtnActive : ''}`}
-                onClick={() => planView.setTaskCategoryFilter(cat)}
+                onClick={() => planView.setTaskCategoryFilters([cat])}
               >
                 {cat}
               </button>

@@ -6,7 +6,13 @@ import { useTripMembers } from '../../hooks/useTripMembers';
 import { useCompanionListDefaults } from '../../hooks/useCompanionListDefaults';
 import { useTripRole } from '../../context/TripRoleContext';
 import { ReminderService } from '../../services/ReminderService';
-import { dueYmdBucket, localTodayYmd, ymdFromIso, type TaskDueFilter } from '../../utils/taskDueBuckets';
+import {
+  dueYmdBucket,
+  isAllTaskDueFilters,
+  localTodayYmd,
+  ymdFromIso,
+  type TaskDueFilter
+} from '../../utils/taskDueBuckets';
 import { isDayIdeaReminder } from '../../utils/dayIdeas';
 import { isJotterIdeaReminder } from '../../utils/tripJotterIdeas';
 import { isSavedSpotReminder } from '../../utils/tripSavedSpots';
@@ -15,7 +21,6 @@ import { TripTasksView } from '../tasks/TripTasksView';
 import { MobileTaskFiltersDrawer } from './MobileTaskFiltersDrawer';
 import { useShellMode } from '../../hooks/useShellMode';
 import chrome from './MobileTabChrome.module.css';
-import listStyles from './MobilePackingList.module.css';
 
 function StatIcon({ children, tone }: { children: React.ReactNode; tone: 'olive' | 'rust' | 'navy' | 'tan' }): React.ReactElement {
   const cls =
@@ -25,14 +30,16 @@ function StatIcon({ children, tone }: { children: React.ReactNode; tone: 'olive'
 
 type StatKey = 'open' | 'overdue' | 'today' | 'done';
 
-function activeStat(
-  completion: TaskCompletionFilter,
-  due: TaskDueFilter
-): StatKey | null {
+const NO_DUE_FILTERS: TaskDueFilter[] = [];
+
+/** Stat cards only light up for the single-bucket selections they set. */
+function activeStat(completion: TaskCompletionFilter, due: TaskDueFilter[]): StatKey | null {
   if (completion === 'completed') return 'done';
-  if (completion === 'incomplete' && due === 'overdue') return 'overdue';
-  if (completion === 'incomplete' && due === 'today') return 'today';
-  if (completion === 'incomplete' && due === 'all') return 'open';
+  if (completion !== 'incomplete') return null;
+  if (isAllTaskDueFilters(due)) return 'open';
+  if (due.length !== 1) return null;
+  if (due[0] === 'overdue') return 'overdue';
+  if (due[0] === 'today') return 'today';
   return null;
 }
 
@@ -54,13 +61,13 @@ const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
   const [hasUncategorised, setHasUncategorised] = React.useState(false);
 
   const completion = planView?.taskCompletionFilter ?? 'all';
-  const due = planView?.taskDueFilter ?? 'all';
+  const due = planView?.taskDueFilters ?? NO_DUE_FILTERS;
   const selected = activeStat(completion, due);
   const filtersActive =
     completion !== 'all' ||
-    due !== 'all' ||
+    !isAllTaskDueFilters(due) ||
     Boolean(planView?.taskAssigneeFilter) ||
-    Boolean(planView?.taskCategoryFilter) ||
+    (planView?.taskCategoryFilters.length ?? 0) > 0 ||
     Boolean(planView?.taskSectionFilter) ||
     Boolean(planView?.hideManualPaymentTasks);
 
@@ -115,26 +122,26 @@ const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
     if (!planView) return;
     if (selected === key) {
       planView.setTaskCompletionFilter('all');
-      planView.setTaskDueFilter('all');
+      planView.setTaskDueFilters([]);
       return;
     }
     if (key === 'open') {
       planView.setTaskCompletionFilter('incomplete');
-      planView.setTaskDueFilter('all');
+      planView.setTaskDueFilters([]);
       return;
     }
     if (key === 'overdue') {
       planView.setTaskCompletionFilter('incomplete');
-      planView.setTaskDueFilter('overdue');
+      planView.setTaskDueFilters(['overdue']);
       return;
     }
     if (key === 'today') {
       planView.setTaskCompletionFilter('incomplete');
-      planView.setTaskDueFilter('today');
+      planView.setTaskDueFilters(['today']);
       return;
     }
     planView.setTaskCompletionFilter('completed');
-    planView.setTaskDueFilter('all');
+    planView.setTaskDueFilters([]);
   };
 
   React.useEffect(() => {
@@ -267,20 +274,6 @@ const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
         </button>
       </div>
 
-      <div className={listStyles.toolbar} style={{ marginBottom: '0.65rem' }}>
-        <button
-          type="button"
-          className={filtersOpen || filtersActive ? listStyles.filterBtnOn : listStyles.filterBtn}
-          aria-expanded={filtersOpen}
-          onClick={() => setFiltersOpen(true)}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M4 6h16M7 12h10M10 18h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-          </svg>
-          Filters
-        </button>
-      </div>
-
       <MobileTaskFiltersDrawer
         open={filtersOpen}
         onClose={() => setFiltersOpen(false)}
@@ -288,7 +281,13 @@ const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
         allCategories={allCategories}
         hasUncategorised={hasUncategorised}
       />
-      <TripTasksView variant="tasks" mobileLayout />
+      <TripTasksView
+        variant="tasks"
+        mobileLayout
+        onOpenFilters={() => setFiltersOpen(true)}
+        filtersActive={filtersActive}
+        filtersOpen={filtersOpen}
+      />
     </div>
   );
 };

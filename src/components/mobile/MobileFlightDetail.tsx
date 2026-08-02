@@ -159,15 +159,17 @@ export const MobileFlightDetail: React.FC<MobileFlightDetailProps> = ({
         </div>
         <div className={styles.bpGrid}>
           <div className={styles.bpField}>
-            <span className={styles.gridLabel}>Ticketing airline</span>
+            <span className={styles.gridLabel}>Supplier / airline</span>
             <span className={styles.gridValue}>{data.ticketingAirline}</span>
           </div>
-          {data.operatingAirline ? (
-            <div className={styles.bpField}>
-              <span className={styles.gridLabel}>Operating airline</span>
-              <span className={styles.gridValue}>{data.operatingAirline}</span>
-            </div>
-          ) : null}
+          <div className={styles.bpField}>
+            <span className={styles.gridLabel}>Operating airline</span>
+            <span className={styles.gridValue}>{data.operatingAirline}</span>
+          </div>
+          <div className={styles.bpField}>
+            <span className={styles.gridLabel}>Booking required</span>
+            <span className={styles.gridValue}>{entry.bookingRequired ? 'Yes' : 'No'}</span>
+          </div>
           <div className={styles.bpField}>
             <span className={styles.gridLabel}>Booking status</span>
             <span className={`${styles.inlinePill} ${styles[`pill_${bp.bookingStatus.tone}`]}`}>{bp.bookingStatus.label}</span>

@@ -259,6 +259,9 @@ export const TripPhotoAlbum: React.FC<{ mobileLayout?: boolean }> = ({ mobileLay
       setPendingFiles([]);
       setCaptions([]);
       setUploadOpen(false);
+      // Keep the new photo visible after upload (filters like "In journal" would hide album-only).
+      setReadFilter('all');
+      setLinkFilter(uploadEntryId ? 'linked' : 'unassigned');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed.');
     } finally {

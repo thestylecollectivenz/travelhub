@@ -14,11 +14,12 @@ export type ShoppingStatusQuickFilter = 'all' | 'tobuy' | 'purchased';
 export interface PlanViewContextValue {
   planTab: PlanTab;
   setPlanTab: (tab: PlanTab) => void;
-  packingCategory: string;
-  setPackingCategory: (category: string) => void;
-  /** When set, tasks view shows only items in this itinerary category. */
-  taskCategoryFilter: string | null;
-  setTaskCategoryFilter: (category: string | null) => void;
+  /** Empty array = every packing category. */
+  packingCategories: string[];
+  setPackingCategories: (categories: string[]) => void;
+  /** Empty array = every task category. May include TASK_FILTER_UNCATEGORISED. */
+  taskCategoryFilters: string[];
+  setTaskCategoryFilters: (categories: string[]) => void;
   /** When set, tasks view shows only items assigned to this person. */
   taskAssigneeFilter: string | null;
   setTaskAssigneeFilter: (name: string | null) => void;
@@ -28,9 +29,9 @@ export interface PlanViewContextValue {
   /** Open only, all tasks, or completed tasks/reminders. */
   taskCompletionFilter: TaskCompletionFilter;
   setTaskCompletionFilter: (filter: TaskCompletionFilter) => void;
-  /** Quick due filter from summary stats / chips. */
-  taskDueFilter: TaskDueFilter;
-  setTaskDueFilter: (filter: TaskDueFilter) => void;
+  /** Due buckets from summary stats / chips / drawer. Empty array = all dates. */
+  taskDueFilters: TaskDueFilter[];
+  setTaskDueFilters: (filters: TaskDueFilter[]) => void;
   tasksViewMode: 'list' | 'calendar';
   setTasksViewMode: (mode: 'list' | 'calendar') => void;
   /** null = all packing items for the trip */
@@ -43,10 +44,12 @@ export interface PlanViewContextValue {
   /** null = all travellers on shopping list */
   shoppingTraveller: string | null;
   setShoppingTraveller: (name: string | null) => void;
-  shoppingCategory: string;
-  setShoppingCategory: (category: string) => void;
-  shoppingMonthFilter: string | null;
-  setShoppingMonthFilter: (month: string | null) => void;
+  /** Empty array = every shopping category. May include '__uncategorised__'. */
+  shoppingCategories: string[];
+  setShoppingCategories: (categories: string[]) => void;
+  /** Empty array = every month. May include '__unscheduled__'. */
+  shoppingMonthFilters: string[];
+  setShoppingMonthFilters: (months: string[]) => void;
   shoppingStatusFilter: ShoppingStatusQuickFilter;
   setShoppingStatusFilter: (filter: ShoppingStatusQuickFilter) => void;
   packingHasNotesOnly: boolean;
@@ -64,19 +67,19 @@ const PlanViewContext = React.createContext<PlanViewContextValue | undefined>(un
 
 export const PlanViewProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [planTab, setPlanTab] = React.useState<PlanTab>('tasks');
-  const [packingCategory, setPackingCategory] = React.useState('__all__');
-  const [taskCategoryFilter, setTaskCategoryFilter] = React.useState<string | null>(null);
+  const [packingCategories, setPackingCategories] = React.useState<string[]>([]);
+  const [taskCategoryFilters, setTaskCategoryFilters] = React.useState<string[]>([]);
   const [taskAssigneeFilter, setTaskAssigneeFilter] = React.useState<string | null>(null);
   const [taskSectionFilter, setTaskSectionFilter] = React.useState<TaskSectionKey | null>(null);
   const [taskCompletionFilter, setTaskCompletionFilter] = React.useState<TaskCompletionFilter>('all');
-  const [taskDueFilter, setTaskDueFilter] = React.useState<TaskDueFilter>('all');
+  const [taskDueFilters, setTaskDueFilters] = React.useState<TaskDueFilter[]>([]);
   const [tasksViewMode, setTasksViewMode] = React.useState<'list' | 'calendar'>('list');
   const [packingTraveller, setPackingTraveller] = React.useState<string | null>(null);
   const [packingPackedFilter, setPackingPackedFilter] = React.useState<PackingPackedQuickFilter>('all');
   const [focusedReminderId, setFocusedReminderId] = React.useState<string | null>(null);
   const [shoppingTraveller, setShoppingTraveller] = React.useState<string | null>(null);
-  const [shoppingCategory, setShoppingCategory] = React.useState('__all__');
-  const [shoppingMonthFilter, setShoppingMonthFilter] = React.useState<string | null>(null);
+  const [shoppingCategories, setShoppingCategories] = React.useState<string[]>([]);
+  const [shoppingMonthFilters, setShoppingMonthFilters] = React.useState<string[]>([]);
   const [shoppingStatusFilter, setShoppingStatusFilter] = React.useState<ShoppingStatusQuickFilter>('all');
   const [packingHasNotesOnly, setPackingHasNotesOnly] = React.useState(false);
   const [packingHasQtyGt1, setPackingHasQtyGt1] = React.useState(false);
@@ -87,18 +90,18 @@ export const PlanViewProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     () => ({
       planTab,
       setPlanTab,
-      packingCategory,
-      setPackingCategory,
-      taskCategoryFilter,
-      setTaskCategoryFilter,
+      packingCategories,
+      setPackingCategories,
+      taskCategoryFilters,
+      setTaskCategoryFilters,
       taskAssigneeFilter,
       setTaskAssigneeFilter,
       taskSectionFilter,
       setTaskSectionFilter,
       taskCompletionFilter,
       setTaskCompletionFilter,
-      taskDueFilter,
-      setTaskDueFilter,
+      taskDueFilters,
+      setTaskDueFilters,
       tasksViewMode,
       setTasksViewMode,
       packingTraveller,
@@ -109,10 +112,10 @@ export const PlanViewProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setFocusedReminderId,
       shoppingTraveller,
       setShoppingTraveller,
-      shoppingCategory,
-      setShoppingCategory,
-      shoppingMonthFilter,
-      setShoppingMonthFilter,
+      shoppingCategories,
+      setShoppingCategories,
+      shoppingMonthFilters,
+      setShoppingMonthFilters,
       shoppingStatusFilter,
       setShoppingStatusFilter,
       packingHasNotesOnly,
@@ -126,19 +129,19 @@ export const PlanViewProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }),
     [
       planTab,
-      packingCategory,
-      taskCategoryFilter,
+      packingCategories,
+      taskCategoryFilters,
       taskAssigneeFilter,
       taskSectionFilter,
       taskCompletionFilter,
-      taskDueFilter,
+      taskDueFilters,
       tasksViewMode,
       packingTraveller,
       packingPackedFilter,
       focusedReminderId,
       shoppingTraveller,
-      shoppingCategory,
-      shoppingMonthFilter,
+      shoppingCategories,
+      shoppingMonthFilters,
       shoppingStatusFilter,
       packingHasNotesOnly,
       packingHasQtyGt1,

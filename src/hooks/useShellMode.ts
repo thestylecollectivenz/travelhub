@@ -40,12 +40,33 @@ export function resolveShellMode(): ShellMode {
   return 'desktop';
 }
 
+/**
+ * Stable shell mode — debounced resize, and resists brief width jumps when SharePoint
+ * chrome is hidden (which can otherwise remount phone ↔ desktop trees).
+ */
 export function useShellMode(): ShellMode {
   const [mode, setMode] = React.useState<ShellMode>(() => resolveShellMode());
+  const modeRef = React.useRef(mode);
+  modeRef.current = mode;
 
   React.useEffect(() => {
-    const refresh = (): void => setMode(resolveShellMode());
-    refresh();
+    let timer: number | undefined;
+    const apply = (): void => {
+      const next = resolveShellMode();
+      const prev = modeRef.current;
+      // Chrome-hide can briefly widen the viewport; keep compact touch unless clearly desktop.
+      if (isCompactTouchShell(prev) && next === 'desktop' && window.innerWidth <= TABLET_MAX_WIDTH_PX + 120) {
+        return;
+      }
+      if (prev === 'ipad-portrait' && next === 'ipad-landscape' && Math.abs(window.innerWidth - window.innerHeight) < 40) {
+        return;
+      }
+      setMode((m) => (m === next ? m : next));
+    };
+    const refresh = (): void => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(apply, 180);
+    };
     window.addEventListener('resize', refresh);
     window.addEventListener('orientationchange', refresh);
     const coarse = window.matchMedia('(pointer: coarse)');
@@ -55,6 +76,7 @@ export function useShellMode(): ShellMode {
       coarse.addListener(refresh);
     }
     return () => {
+      window.clearTimeout(timer);
       window.removeEventListener('resize', refresh);
       window.removeEventListener('orientationchange', refresh);
       if (typeof coarse.removeEventListener === 'function') {

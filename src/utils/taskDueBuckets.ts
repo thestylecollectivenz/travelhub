@@ -40,6 +40,28 @@ export function matchesTaskDueFilter(dueYmd: string | undefined, filter: TaskDue
   return true;
 }
 
+/** Empty selection (or an explicit 'all') means every due bucket, including undated items. */
+export function isAllTaskDueFilters(filters: TaskDueFilter[]): boolean {
+  return filters.length === 0 || filters.indexOf('all') >= 0;
+}
+
+export function toggleTaskDueFilter(filters: TaskDueFilter[], key: TaskDueFilter): TaskDueFilter[] {
+  if (key === 'all') return [];
+  const cleaned = filters.filter((f) => f !== 'all');
+  return cleaned.indexOf(key) >= 0 ? cleaned.filter((f) => f !== key) : [...cleaned, key];
+}
+
+/** OR of the selected due buckets. Undated items only survive the unfiltered case. */
+export function matchesAnyTaskDueFilter(
+  dueYmd: string | undefined,
+  filters: TaskDueFilter[],
+  today: string
+): boolean {
+  if (isAllTaskDueFilters(filters)) return true;
+  const bucket = dueYmdBucket(ymdFromIso(dueYmd), today);
+  return filters.some((f) => f === bucket);
+}
+
 export function isManualTodoReminder(reminder: TripReminder): boolean {
   const rt = (reminder.reminderType || '').trim();
   return rt === 'Manual' || rt === 'ManualEntryTask' || rt === 'Custom';

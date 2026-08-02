@@ -16,7 +16,9 @@ import {
 } from '../../utils/missingAmountDismissed';
 import { collectMissingAmountRows } from '../../utils/missingAmountEntries';
 import { paymentDueTaskTitle, paymentDueDateHint } from '../../utils/paymentDueLabels';
-import { effectivePaymentDueDate } from '../../utils/paymentDueDefaults';
+import { effectivePaymentDueDate, isManualSameDayPayment, paymentDueDateInputValue, PAYMENT_DUE_NONE } from '../../utils/paymentDueDefaults';
+import { setPendingMobileItineraryOpen } from '../../utils/mobileItineraryOpenPending';
+import { GO_TO_DAY_EVENT } from '../mobile/MobileTripIdeasList';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { loadTripAssignees, rememberTripAssignee } from '../../utils/tripAssignees';
 import { reminderTaskCategory, TASK_FILTER_UNCATEGORISED, matchesTaskCompletionFilter } from '../../utils/taskFilters';
@@ -31,7 +33,13 @@ import {
 import { openTasksPrintPreview, type TasksPrintSection } from '../../utils/tasksPrintHtml';
 import { INSIGHT_FOCUS_EVENT, type InsightFocusDetail } from '../../utils/insightFocus';
 import { MOBILE_OPEN_TASK_ADD } from '../../utils/mobileHomePendingAction';
-import { localTodayYmd, matchesTaskDueFilter, type TaskDueFilter } from '../../utils/taskDueBuckets';
+import {
+  isAllTaskDueFilters,
+  localTodayYmd,
+  matchesAnyTaskDueFilter,
+  toggleTaskDueFilter,
+  type TaskDueFilter
+} from '../../utils/taskDueBuckets';
 import { useTripRole } from '../../context/TripRoleContext';
 import { useTripMembers } from '../../hooks/useTripMembers';
 import { useCompanionListDefaults } from '../../hooks/useCompanionListDefaults';
@@ -39,8 +47,12 @@ import { assigneeLabelsMatch } from '../../utils/tripMemberIdentity';
 import { canEditOwnedRecord } from '../../utils/canEditOwnedRecord';
 import dayHeaderStyles from '../day/DayHeader.module.css';
 import styles from './TripTasksView.module.css';
+import listStyles from '../mobile/MobilePackingList.module.css';
 
 const DUE_FILTER_KEYS: TaskDueFilter[] = ['all', 'overdue', 'today', 'tomorrow'];
+
+const NO_TASK_CATEGORY_FILTERS: string[] = [];
+const NO_DUE_FILTERS: TaskDueFilter[] = [];
 
 function dueFilterLabel(key: TaskDueFilter): string {
   if (key === 'all') return 'All';
@@ -86,21 +98,25 @@ function IconTrash(): React.ReactElement {
 
 function DueFilterChips(props: {
   ariaLabel: string;
-  value: TaskDueFilter;
-  onChange: (value: TaskDueFilter) => void;
+  value: TaskDueFilter[];
+  onChange: (value: TaskDueFilter[]) => void;
 }): React.ReactElement {
   return (
     <div className={styles.dueFilterRow} role="group" aria-label={props.ariaLabel}>
-      {DUE_FILTER_KEYS.map((key) => (
-        <button
-          key={key}
-          type="button"
-          className={props.value === key ? styles.dueFilterChipActive : styles.dueFilterChip}
-          onClick={() => props.onChange(key)}
-        >
-          {dueFilterLabel(key)}
-        </button>
-      ))}
+      {DUE_FILTER_KEYS.map((key) => {
+        const active = key === 'all' ? isAllTaskDueFilters(props.value) : props.value.indexOf(key) >= 0;
+        return (
+          <button
+            key={key}
+            type="button"
+            className={active ? styles.dueFilterChipActive : styles.dueFilterChip}
+            aria-pressed={active}
+            onClick={() => props.onChange(toggleTaskDueFilter(props.value, key))}
+          >
+            {dueFilterLabel(key)}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -108,6 +124,10 @@ function DueFilterChips(props: {
 export interface TripTasksViewProps {
   variant?: 'tasks' | 'missing_costs';
   mobileLayout?: boolean;
+  /** Mobile: open the Filters drawer (button sits next to search). */
+  onOpenFilters?: () => void;
+  filtersActive?: boolean;
+  filtersOpen?: boolean;
 }
 
 type CreateKind = 'task' | 'reminder';
@@ -195,7 +215,13 @@ function ymdFromIso(iso?: string): string {
   return (iso || '').slice(0, 10);
 }
 
-export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks', mobileLayout = false }) => {
+export const TripTasksView: React.FC<TripTasksViewProps> = ({
+  variant = 'tasks',
+  mobileLayout = false,
+  onOpenFilters,
+  filtersActive = false,
+  filtersOpen = false
+}) => {
   const spContext = useSpContext();
   const {
     trip,
@@ -242,17 +268,17 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
   const [createTaskCategory, setCreateTaskCategory] = React.useState('To Do');
   const [createCustomTaskCategory, setCreateCustomTaskCategory] = React.useState('');
   const [dueDateSort, setDueDateSort] = React.useState<DueDateSort>('none');
-  const [localTaskDueFilter, setLocalTaskDueFilter] = React.useState<TaskDueFilter>('all');
-  const taskDueFilter = planView?.taskDueFilter ?? localTaskDueFilter;
-  const setTaskDueFilter = planView?.setTaskDueFilter ?? setLocalTaskDueFilter;
-  const [bookingDueFilter, setBookingDueFilter] = React.useState<TaskDueFilter>('all');
-  const [paymentDueFilter, setPaymentDueFilter] = React.useState<TaskDueFilter>('all');
+  const [localTaskDueFilters, setLocalTaskDueFilters] = React.useState<TaskDueFilter[]>(NO_DUE_FILTERS);
+  const taskDueFilters = planView?.taskDueFilters ?? localTaskDueFilters;
+  const setTaskDueFilters = planView?.setTaskDueFilters ?? setLocalTaskDueFilters;
+  const [bookingDueFilters, setBookingDueFilters] = React.useState<TaskDueFilter[]>(NO_DUE_FILTERS);
+  const [paymentDueFilters, setPaymentDueFilters] = React.useState<TaskDueFilter[]>(NO_DUE_FILTERS);
 
   // Keep bookings / payments / cancellations aligned with the shared due filter (mobile stats + chips).
   React.useEffect(() => {
-    setBookingDueFilter(taskDueFilter);
-    setPaymentDueFilter(taskDueFilter);
-  }, [taskDueFilter]);
+    setBookingDueFilters(taskDueFilters);
+    setPaymentDueFilters(taskDueFilters);
+  }, [taskDueFilters]);
   const [tasksInsightFocus, setTasksInsightFocus] = React.useState<string | null>(null);
   const [taskSearch, setTaskSearch] = React.useState('');
   const [savingReminderId, setSavingReminderId] = React.useState<string | null>(null);
@@ -274,13 +300,13 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
       const detail = (event as CustomEvent<InsightFocusDetail>).detail;
       if (detail.pane !== 'tasks') return;
       setTasksInsightFocus(detail.focus || null);
-      if (detail.focus === 'overdue') setTaskDueFilter('overdue');
+      if (detail.focus === 'overdue') setTaskDueFilters(['overdue']);
     };
     window.addEventListener(INSIGHT_FOCUS_EVENT, handler);
     return () => window.removeEventListener(INSIGHT_FOCUS_EVENT, handler);
   }, []);
 
-  const taskCategoryFilter = planView?.taskCategoryFilter ?? null;
+  const taskCategoryFilters = planView?.taskCategoryFilters ?? NO_TASK_CATEGORY_FILTERS;
   const taskAssigneeFilter = planView?.taskAssigneeFilter ?? null;
   const taskSectionFilter = planView?.taskSectionFilter ?? null;
   const showTaskSection = React.useCallback(
@@ -323,14 +349,15 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
 
   const matchesCategoryFilter = React.useCallback(
     (entry: ItineraryEntry): boolean => {
-      if (!taskCategoryFilter) return true;
-      if (taskCategoryFilter === TASK_FILTER_UNCATEGORISED) return false;
-      return (entry.category || 'Other').trim() === taskCategoryFilter;
+      if (!taskCategoryFilters.length) return true;
+      const cat = (entry.category || 'Other').trim();
+      return taskCategoryFilters.some((f) => f !== TASK_FILTER_UNCATEGORISED && f === cat);
     },
-    [taskCategoryFilter]
+    [taskCategoryFilters]
   );
 
-  const showEntryDerivedTasks = !taskCategoryFilter || taskCategoryFilter !== TASK_FILTER_UNCATEGORISED;
+  const showEntryDerivedTasks =
+    taskCategoryFilters.length === 0 || taskCategoryFilters.some((c) => c !== TASK_FILTER_UNCATEGORISED);
   const showEntryDerivedForAssignee = !taskAssigneeFilter;
 
   const matchesAssigneeFilter = React.useCallback(
@@ -344,13 +371,13 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
   const matchesReminderFilters = React.useCallback(
     (m: TripReminder): boolean => {
       if (!matchesAssigneeFilter(m.assignedTo)) return false;
-      if (!taskCategoryFilter) return true;
+      if (!taskCategoryFilters.length) return true;
       const target = resolveReminderItineraryTarget(m, localEntries);
       const cat = reminderTaskCategory(m, target?.entry?.category);
-      if (taskCategoryFilter === TASK_FILTER_UNCATEGORISED) return !cat;
-      return cat === taskCategoryFilter;
+      if (!cat) return taskCategoryFilters.indexOf(TASK_FILTER_UNCATEGORISED) >= 0;
+      return taskCategoryFilters.indexOf(cat) >= 0;
     },
-    [taskCategoryFilter, taskAssigneeFilter, localEntries, matchesAssigneeFilter]
+    [taskCategoryFilters, taskAssigneeFilter, localEntries, matchesAssigneeFilter]
   );
 
   const refresh = React.useCallback(() => {
@@ -392,10 +419,10 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
               e.bookingRequired &&
               e.bookingStatus === 'Not booked' &&
               matchesCategoryFilter(e) &&
-              matchesTaskDueFilter(e.bookingDueDate, bookingDueFilter, todayYmd)
+              matchesAnyTaskDueFilter(e.bookingDueDate, bookingDueFilters, todayYmd)
           )
         : [],
-    [localEntries, matchesCategoryFilter, showEntryDerivedTasks, showEntryDerivedForAssignee, bookingDueFilter, todayYmd, showCompletedOnly]
+    [localEntries, matchesCategoryFilter, showEntryDerivedTasks, showEntryDerivedForAssignee, bookingDueFilters, todayYmd, showCompletedOnly]
   );
   const completedBookingTasks = React.useMemo(
     () =>
@@ -405,21 +432,21 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
               e.bookingRequired &&
               e.bookingStatus === 'Booked' &&
               matchesCategoryFilter(e) &&
-              matchesTaskDueFilter(e.bookingDueDate, bookingDueFilter, todayYmd)
+              matchesAnyTaskDueFilter(e.bookingDueDate, bookingDueFilters, todayYmd)
           )
         : [],
-    [localEntries, matchesCategoryFilter, showEntryDerivedTasks, showEntryDerivedForAssignee, bookingDueFilter, todayYmd, showCompletedOnly]
+    [localEntries, matchesCategoryFilter, showEntryDerivedTasks, showEntryDerivedForAssignee, bookingDueFilters, todayYmd, showCompletedOnly]
   );
   const paymentTasks = React.useMemo(
     () =>
       showEntryDerivedTasks && showEntryDerivedForAssignee && !showCompletedOnly
         ? localEntries.filter(
             (e) => {
-              if (hideManualPaymentTasks && (e.paymentDueType || 'Manual') === 'Manual') return false;
+              if (hideManualPaymentTasks && isManualSameDayPayment(e)) return false;
               return (
                 ((e.paymentStatus === 'Not paid' && e.amount > 0) || e.paymentStatus === 'Part paid') &&
                 matchesCategoryFilter(e) &&
-                matchesTaskDueFilter(e.paymentDueDate, paymentDueFilter, todayYmd)
+                matchesAnyTaskDueFilter(effectivePaymentDueDate(e), paymentDueFilters, todayYmd)
               );
             }
           )
@@ -429,7 +456,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
       matchesCategoryFilter,
       showEntryDerivedTasks,
       showEntryDerivedForAssignee,
-      paymentDueFilter,
+      paymentDueFilters,
       todayYmd,
       showCompletedOnly,
       hideManualPaymentTasks
@@ -443,10 +470,10 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
               e.amount > 0 &&
               e.paymentStatus === 'Fully paid' &&
               matchesCategoryFilter(e) &&
-              matchesTaskDueFilter(e.paymentDueDate, paymentDueFilter, todayYmd)
+              matchesAnyTaskDueFilter(effectivePaymentDueDate(e), paymentDueFilters, todayYmd)
           )
         : [],
-    [localEntries, matchesCategoryFilter, showEntryDerivedTasks, showEntryDerivedForAssignee, paymentDueFilter, todayYmd, showCompletedOnly]
+    [localEntries, matchesCategoryFilter, showEntryDerivedTasks, showEntryDerivedForAssignee, paymentDueFilters, todayYmd, showCompletedOnly]
   );
 
   const manualTodos = React.useMemo(() => {
@@ -465,7 +492,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
   }, [manual, taskCompletionFilter, matchesReminderFilters, dueDateSort]);
 
   const filteredManualTodos = React.useMemo(() => {
-    let rows = manualTodos.filter((m) => matchesTaskDueFilter(m.dueDate, taskDueFilter, todayYmd));
+    let rows = manualTodos.filter((m) => matchesAnyTaskDueFilter(m.dueDate, taskDueFilters, todayYmd));
     if (tasksInsightFocus === 'no_assignee') {
       rows = rows.filter((m) => !(m.assignedTo || '').trim());
     }
@@ -485,13 +512,13 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
       });
     }
     return rows;
-  }, [manualTodos, taskDueFilter, todayYmd, tasksInsightFocus, taskSearch]);
+  }, [manualTodos, taskDueFilters, todayYmd, tasksInsightFocus, taskSearch]);
 
   const cancellationReminders = React.useMemo(() => {
     let rows = manual.filter((m) => m.reminderType === 'CancellationDeadline');
     rows = rows.filter((m) => matchesTaskCompletionFilter(m.isComplete, taskCompletionFilter));
     rows = rows.filter(matchesReminderFilters);
-    rows = rows.filter((m) => matchesTaskDueFilter(m.dueDate, taskDueFilter, todayYmd));
+    rows = rows.filter((m) => matchesAnyTaskDueFilter(m.dueDate, taskDueFilters, todayYmd));
     const q = taskSearch.trim().toLowerCase();
     if (q) {
       rows = rows.filter((m) => {
@@ -502,7 +529,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
       });
     }
     return rows;
-  }, [manual, taskCompletionFilter, matchesReminderFilters, taskSearch, taskDueFilter, todayYmd]);
+  }, [manual, taskCompletionFilter, matchesReminderFilters, taskSearch, taskDueFilters, todayYmd]);
 
   React.useEffect(() => {
     const id = planView?.focusedReminderId;
@@ -513,9 +540,9 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
   const missingAmountEntries = React.useMemo(() => {
     return collectMissingAmountRows(localEntries)
       .filter((row) => {
-        if (!taskCategoryFilter) return true;
-        if (taskCategoryFilter === TASK_FILTER_UNCATEGORISED) return false;
-        return (row.category || 'Other').trim() === taskCategoryFilter;
+        if (!taskCategoryFilters.length) return true;
+        const cat = (row.category || 'Other').trim();
+        return taskCategoryFilters.some((f) => f !== TASK_FILTER_UNCATEGORISED && f === cat);
       })
       .filter((row) => missingAmountFilter === 'all' || !dismissedMissing.has(row.id))
       .sort((a, b) => {
@@ -528,12 +555,17 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
         if (a.isOption !== b.isOption) return a.isOption ? 1 : -1;
         return (a.title || '').localeCompare(b.title || '');
       });
-  }, [localEntries, tripDays, missingAmountFilter, dismissedMissing, taskCategoryFilter]);
+  }, [localEntries, tripDays, missingAmountFilter, dismissedMissing, taskCategoryFilters]);
 
   const dayName = React.useCallback((dayId?: string) => tripDays.find((d) => d.id === dayId)?.displayTitle || '', [tripDays]);
 
   const openEntryInItineraryRead = React.useCallback(
     (entryId: string, dayId: string, optionId?: string): void => {
+      if (mobileLayout) {
+        setPendingMobileItineraryOpen(entryId, dayId, optionId);
+        window.dispatchEvent(new CustomEvent(GO_TO_DAY_EVENT, { detail: { dayId } }));
+        return;
+      }
       const returnLabel =
         variant === 'missing_costs'
           ? 'missing costs'
@@ -558,6 +590,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
       requestSidebarDayFocus(dayId);
     },
     [
+      mobileLayout,
       setEditingCardId,
       setEditingSubItem,
       setFocusedEntryId,
@@ -784,6 +817,19 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
               placeholder="Search tasks…"
               aria-label="Search tasks"
             />
+            {mobileLayout && onOpenFilters ? (
+              <button
+                type="button"
+                className={filtersOpen || filtersActive ? listStyles.filterBtnOn : listStyles.filterBtn}
+                aria-expanded={filtersOpen}
+                onClick={onOpenFilters}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path d="M4 6h16M7 12h10M10 18h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
+                Filters
+              </button>
+            ) : null}
           </div>
           <select className={styles.select} value={viewMode} onChange={(e) => setViewMode(e.target.value as ViewMode)}>
             <option value="list">List</option>
@@ -830,13 +876,13 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
       {viewMode === 'calendar' && showStandardSections ? (
         <div className={styles.calendarDueFilters}>
           {showTaskSection('todo') ? (
-            <DueFilterChips ariaLabel="Filter tasks by due date" value={taskDueFilter} onChange={setTaskDueFilter} />
+            <DueFilterChips ariaLabel="Filter tasks by due date" value={taskDueFilters} onChange={setTaskDueFilters} />
           ) : null}
           {!showCompletedOnly && showTaskSection('bookings') ? (
-            <DueFilterChips ariaLabel="Filter bookings by due date" value={bookingDueFilter} onChange={setBookingDueFilter} />
+            <DueFilterChips ariaLabel="Filter bookings by due date" value={bookingDueFilters} onChange={setBookingDueFilters} />
           ) : null}
           {!showCompletedOnly && showTaskSection('payments') ? (
-            <DueFilterChips ariaLabel="Filter payments by due date" value={paymentDueFilter} onChange={setPaymentDueFilter} />
+            <DueFilterChips ariaLabel="Filter payments by due date" value={paymentDueFilters} onChange={setPaymentDueFilters} />
           ) : null}
         </div>
       ) : null}
@@ -1065,7 +1111,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                 Due date {dueDateSort === 'asc' ? '↑' : dueDateSort === 'desc' ? '↓' : '—'}
               </button>
             </div>
-            <DueFilterChips ariaLabel="Filter tasks by due date" value={taskDueFilter} onChange={setTaskDueFilter} />
+            <DueFilterChips ariaLabel="Filter tasks by due date" value={taskDueFilters} onChange={setTaskDueFilters} />
             {filteredManualTodos.length === 0 ? (
               <p className={styles.sectionHelp}>
                 {showCompletedOnly ? 'No completed tasks yet.' : 'No tasks match these filters.'}
@@ -1242,7 +1288,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
           <div className={styles.group}>
             <h3 className={styles.title}>{showCompletedOnly ? 'Completed bookings' : 'Bookings needed'}</h3>
             {!showCompletedOnly ? (
-              <DueFilterChips ariaLabel="Filter bookings by due date" value={bookingDueFilter} onChange={setBookingDueFilter} />
+              <DueFilterChips ariaLabel="Filter bookings by due date" value={bookingDueFilters} onChange={setBookingDueFilters} />
             ) : null}
             {(showCompletedOnly ? completedBookingTasks : bookingTasks).length === 0 ? (
               <p className={styles.sectionHelp}>
@@ -1310,7 +1356,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
           <div className={styles.group}>
             <h3 className={styles.title}>{showCompletedOnly ? 'Completed payments' : 'Payments due'}</h3>
             {!showCompletedOnly ? (
-              <DueFilterChips ariaLabel="Filter payments by due date" value={paymentDueFilter} onChange={setPaymentDueFilter} />
+              <DueFilterChips ariaLabel="Filter payments by due date" value={paymentDueFilters} onChange={setPaymentDueFilters} />
             ) : null}
             {(showCompletedOnly ? completedPaymentTasks : paymentTasks).length === 0 ? (
               <p className={styles.sectionHelp}>
@@ -1348,14 +1394,19 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({ variant = 'tasks',
                       <input
                         className={styles.input}
                         type="date"
-                        value={entry.paymentDueDate?.slice(0, 10) || effectivePaymentDueDate(entry) || ''}
-                        onChange={(e) => void updateEntry({ ...entry, paymentDueDate: e.target.value || undefined })}
+                        value={paymentDueDateInputValue(entry)}
+                        onChange={(e) =>
+                          void updateEntry({
+                            ...entry,
+                            paymentDueDate: e.target.value ? e.target.value : PAYMENT_DUE_NONE
+                          })
+                        }
                       />
                       <button
                         type="button"
                         className={styles.iconBtn}
                         title="Clear due date"
-                        onClick={() => void updateEntry({ ...entry, paymentDueDate: undefined })}
+                        onClick={() => void updateEntry({ ...entry, paymentDueDate: PAYMENT_DUE_NONE })}
                       >
                         Clear
                       </button>

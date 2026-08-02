@@ -2,6 +2,26 @@ import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import type { ShoppingItem } from '../services/ShoppingListService';
 import type { TripMember } from '../models/TripMember';
 import { assigneeLabelsMatch } from './tripMemberIdentity';
+import { isAllSelected } from './multiSelectFilters';
+
+export const SHOPPING_UNCATEGORISED = '__uncategorised__';
+export const SHOPPING_UNSCHEDULED_MONTH = '__unscheduled__';
+
+/** Empty selection = all categories. Items with no category match the uncategorised token. */
+export function matchesShoppingCategories(category: string | undefined, selected: string[]): boolean {
+  if (isAllSelected(selected)) return true;
+  const cat = (category || '').trim();
+  if (!cat) return selected.indexOf(SHOPPING_UNCATEGORISED) >= 0;
+  return selected.some((s) => s.trim().toLowerCase() === cat.toLowerCase());
+}
+
+/** Empty selection = all months. Items with no month match the unscheduled token. */
+export function matchesShoppingMonths(purchaseMonth: string | undefined, selected: string[]): boolean {
+  if (!selected.length) return true;
+  const month = (purchaseMonth || '').trim();
+  if (!month) return selected.indexOf(SHOPPING_UNSCHEDULED_MONTH) >= 0;
+  return selected.indexOf(month) >= 0;
+}
 
 export interface ShoppingTotals {
   budget: number;
@@ -27,8 +47,8 @@ function addToMap(map: Map<string, ShoppingTotals>, key: string, budget: number,
 export function summarizeShoppingItems(
   items: ShoppingItem[],
   travellerFilter: string | null,
-  categoryFilter: string | null,
-  monthFilter: string | null,
+  categoryFilters: string[],
+  monthFilters: string[],
   ctx?: WebPartContext,
   members?: TripMember[]
 ): {
@@ -45,16 +65,8 @@ export function summarizeShoppingItems(
       ctx ? assigneeLabelsMatch(ctx, i.traveller, travellerFilter, members) : (i.traveller || '').trim() === travellerFilter
     );
   }
-  if (categoryFilter === '__uncategorised__') {
-    filtered = filtered.filter((i) => !(i.category || '').trim());
-  } else if (categoryFilter && categoryFilter !== '__all__') {
-    filtered = filtered.filter((i) => i.category === categoryFilter);
-  }
-  if (monthFilter === '__unscheduled__') {
-    filtered = filtered.filter((i) => !(i.purchaseMonth || '').trim());
-  } else if (monthFilter) {
-    filtered = filtered.filter((i) => (i.purchaseMonth || '').trim() === monthFilter);
-  }
+  filtered = filtered.filter((i) => matchesShoppingCategories(i.category, categoryFilters));
+  filtered = filtered.filter((i) => matchesShoppingMonths(i.purchaseMonth, monthFilters));
 
   const totals: ShoppingTotals = { budget: 0, actual: 0, count: filtered.length };
   const monthMap = new Map<string, ShoppingTotals>();

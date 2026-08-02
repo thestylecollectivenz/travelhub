@@ -447,6 +447,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       checkOutTime: draft.checkOutTime?.trim() || undefined,
       streetAddress: draft.streetAddress?.trim() || undefined,
       flightNumbers: draft.flightNumbers?.trim() || undefined,
+      operatingAirline: draft.operatingAirline?.trim() || undefined,
       checkInClosesTime: draft.checkInClosesTime?.trim() || undefined,
       bagCheckClosesTime: draft.bagCheckClosesTime?.trim() || undefined,
       phoneNumber: draft.phoneNumber?.trim() || undefined,

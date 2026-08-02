@@ -7,7 +7,13 @@ import { ShoppingListService, type ShoppingItem } from '../../services/ShoppingL
 import { formatCurrency } from '../../utils/financialUtils';
 import { categoriesForItemSelect, rememberTripShoppingCategory, notifyShoppingItemsChanged } from '../../utils/tripShoppingCategories';
 import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
-import { summarizeShoppingItems } from '../../utils/shoppingSummary';
+import {
+  matchesShoppingCategories,
+  matchesShoppingMonths,
+  summarizeShoppingItems,
+  SHOPPING_UNCATEGORISED,
+  SHOPPING_UNSCHEDULED_MONTH
+} from '../../utils/shoppingSummary';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { offerAddPurchasedShoppingToPacking } from '../../utils/shoppingToPacking';
 import { useTripRole } from '../../context/TripRoleContext';
@@ -17,6 +23,8 @@ import { useTripMembers } from '../../hooks/useTripMembers';
 import { useCompanionListDefaults } from '../../hooks/useCompanionListDefaults';
 import { assigneeLabelsMatch, resolveOwnerEmailForAssignee } from '../../utils/tripMemberIdentity';
 import styles from './ShoppingListView.module.css';
+
+const NO_FILTERS: string[] = [];
 
 export const ShoppingListView: React.FC = () => {
   const spContext = useSpContext();
@@ -40,8 +48,8 @@ export const ShoppingListView: React.FC = () => {
   const [purchaseMonth, setPurchaseMonth] = React.useState('');
 
   const activeTraveller = planView?.shoppingTraveller ?? null;
-  const activeCategory = planView?.shoppingCategory ?? '__all__';
-  const activeMonth = planView?.shoppingMonthFilter ?? null;
+  const activeCategories = planView?.shoppingCategories ?? NO_FILTERS;
+  const activeMonths = planView?.shoppingMonthFilters ?? NO_FILTERS;
 
   React.useEffect(() => {
     if (category && !categories.some((c) => c.toLowerCase() === category.toLowerCase())) {
@@ -73,22 +81,14 @@ export const ShoppingListView: React.FC = () => {
         assigneeLabelsMatch(spContext, i.traveller || travellers[0], activeTraveller, members)
       );
     }
-    if (activeCategory === '__uncategorised__') {
-      rows = rows.filter((i) => !(i.category || '').trim());
-    } else if (activeCategory !== '__all__') {
-      rows = rows.filter((i) => i.category === activeCategory);
-    }
-    if (activeMonth === '__unscheduled__') {
-      rows = rows.filter((i) => !(i.purchaseMonth || '').trim());
-    } else if (activeMonth) {
-      rows = rows.filter((i) => (i.purchaseMonth || '') === activeMonth);
-    }
+    rows = rows.filter((i) => matchesShoppingCategories(i.category, activeCategories));
+    rows = rows.filter((i) => matchesShoppingMonths(i.purchaseMonth, activeMonths));
     return rows;
-  }, [items, activeTraveller, activeCategory, activeMonth, travellers, spContext, members]);
+  }, [items, activeTraveller, activeCategories, activeMonths, travellers, spContext, members]);
 
   const summary = React.useMemo(
-    () => summarizeShoppingItems(items, activeTraveller, activeCategory, activeMonth, spContext, members),
-    [items, activeTraveller, activeCategory, activeMonth, spContext, members]
+    () => summarizeShoppingItems(items, activeTraveller, activeCategories, activeMonths, spContext, members),
+    [items, activeTraveller, activeCategories, activeMonths, spContext, members]
   );
 
   const assignTraveller =
@@ -138,14 +138,12 @@ export const ShoppingListView: React.FC = () => {
 
   const headingTraveller =
     activeTraveller === '__unassigned__' ? 'Unassigned' : activeTraveller || 'All travellers';
-  const headingCategory =
-    activeCategory === '__all__'
-      ? ''
-      : activeCategory === '__uncategorised__'
-        ? 'Uncategorised'
-        : activeCategory;
-  const headingMonth =
-    activeMonth === '__unscheduled__' ? 'Unscheduled' : activeMonth || '';
+  const headingCategory = activeCategories
+    .map((c) => (c === SHOPPING_UNCATEGORISED ? 'Uncategorised' : c))
+    .join(', ');
+  const headingMonth = activeMonths
+    .map((m) => (m === SHOPPING_UNSCHEDULED_MONTH ? 'Unscheduled' : m))
+    .join(', ');
 
   const markPurchased = (item: ShoppingItem, purchased: boolean): void => {
     void (async () => {

@@ -2,9 +2,10 @@ import * as React from 'react';
 import { createPortal } from 'react-dom';
 import { usePlanView } from '../../context/PlanViewContext';
 import { useShellMode } from '../../hooks/useShellMode';
-import type { TaskDueFilter } from '../../utils/taskDueBuckets';
+import { isAllTaskDueFilters, toggleTaskDueFilter, type TaskDueFilter } from '../../utils/taskDueBuckets';
 import type { TaskSectionKey } from '../../context/PlanViewContext';
 import { TASK_FILTER_UNCATEGORISED, type TaskCompletionFilter, taskCompletionFilterLabel } from '../../utils/taskFilters';
+import { isAllCategories, toggleMulti } from '../../utils/multiSelectFilters';
 import styles from './MobilePackingFilters.module.css';
 
 export interface MobileTaskFiltersDrawerProps {
@@ -54,8 +55,8 @@ export const MobileTaskFiltersDrawer: React.FC<MobileTaskFiltersDrawerProps> = (
 
   const completion = plan?.taskCompletionFilter ?? 'all';
   const assignee = plan?.taskAssigneeFilter ?? null;
-  const category = plan?.taskCategoryFilter ?? null;
-  const due = plan?.taskDueFilter ?? 'all';
+  const categories = plan?.taskCategoryFilters ?? [];
+  const dueFilters = plan?.taskDueFilters ?? [];
   const section = plan?.taskSectionFilter ?? null;
   const hideManual = plan?.hideManualPaymentTasks ?? false;
 
@@ -103,21 +104,26 @@ export const MobileTaskFiltersDrawer: React.FC<MobileTaskFiltersDrawerProps> = (
 
           <section>
             <p className={styles.sectionTitle}>Due date</p>
-            <ul className={styles.statusList}>
-              {DUE_OPTIONS.map((opt) => (
-                <li key={opt.key}>
-                  <button
-                    type="button"
-                    className={styles.statusRow}
-                    onClick={() => plan?.setTaskDueFilter(opt.key)}
-                  >
-                    <span>{opt.label}</span>
-                    <span className={`${styles.radio} ${due === opt.key ? styles.radioOn : ''}`} aria-hidden>
-                      {due === opt.key ? '✓' : ''}
-                    </span>
-                  </button>
-                </li>
-              ))}
+            <p className={styles.manageHint}>Combine buckets — e.g. overdue plus due today.</p>
+            <ul className={styles.statusList} role="group" aria-label="Filter by due date">
+              {DUE_OPTIONS.map((opt) => {
+                const on = opt.key === 'all' ? isAllTaskDueFilters(dueFilters) : dueFilters.indexOf(opt.key) >= 0;
+                return (
+                  <li key={opt.key}>
+                    <button
+                      type="button"
+                      className={styles.statusRow}
+                      aria-pressed={on}
+                      onClick={() => plan?.setTaskDueFilters(toggleTaskDueFilter(dueFilters, opt.key))}
+                    >
+                      <span>{opt.label}</span>
+                      <span className={`${styles.radio} ${on ? styles.radioOn : ''}`} aria-hidden>
+                        {on ? '✓' : ''}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           </section>
 
@@ -176,50 +182,42 @@ export const MobileTaskFiltersDrawer: React.FC<MobileTaskFiltersDrawerProps> = (
           {allCategories.length > 0 || hasUncategorised ? (
             <section>
               <p className={styles.sectionTitle}>Category</p>
-              <ul className={styles.statusList}>
+              <p className={styles.manageHint}>Tick as many categories as you need.</p>
+              <ul className={styles.statusList} role="group" aria-label="Filter by category">
                 <li>
                   <button
                     type="button"
                     className={styles.statusRow}
-                    onClick={() => plan?.setTaskCategoryFilter(null)}
+                    aria-pressed={isAllCategories(categories)}
+                    onClick={() => plan?.setTaskCategoryFilters([])}
                   >
                     <span>All categories</span>
-                    <span className={`${styles.radio} ${category === null ? styles.radioOn : ''}`} aria-hidden>
-                      {category === null ? '✓' : ''}
+                    <span
+                      className={`${styles.radio} ${isAllCategories(categories) ? styles.radioOn : ''}`}
+                      aria-hidden
+                    >
+                      {isAllCategories(categories) ? '✓' : ''}
                     </span>
                   </button>
                 </li>
-                {hasUncategorised ? (
-                  <li>
-                    <button
-                      type="button"
-                      className={styles.statusRow}
-                      onClick={() => plan?.setTaskCategoryFilter(TASK_FILTER_UNCATEGORISED)}
-                    >
-                      <span>Uncategorised</span>
-                      <span
-                        className={`${styles.radio} ${category === TASK_FILTER_UNCATEGORISED ? styles.radioOn : ''}`}
-                        aria-hidden
+                {(hasUncategorised ? [TASK_FILTER_UNCATEGORISED, ...allCategories] : allCategories).map((cat) => {
+                  const on = categories.indexOf(cat) >= 0;
+                  return (
+                    <li key={cat}>
+                      <button
+                        type="button"
+                        className={styles.statusRow}
+                        aria-pressed={on}
+                        onClick={() => plan?.setTaskCategoryFilters(toggleMulti(categories, cat))}
                       >
-                        {category === TASK_FILTER_UNCATEGORISED ? '✓' : ''}
-                      </span>
-                    </button>
-                  </li>
-                ) : null}
-                {allCategories.map((cat) => (
-                  <li key={cat}>
-                    <button
-                      type="button"
-                      className={styles.statusRow}
-                      onClick={() => plan?.setTaskCategoryFilter(cat)}
-                    >
-                      <span>{cat}</span>
-                      <span className={`${styles.radio} ${category === cat ? styles.radioOn : ''}`} aria-hidden>
-                        {category === cat ? '✓' : ''}
-                      </span>
-                    </button>
-                  </li>
-                ))}
+                        <span>{cat === TASK_FILTER_UNCATEGORISED ? 'Uncategorised' : cat}</span>
+                        <span className={`${styles.radio} ${on ? styles.radioOn : ''}`} aria-hidden>
+                          {on ? '✓' : ''}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           ) : null}
@@ -248,10 +246,10 @@ export const MobileTaskFiltersDrawer: React.FC<MobileTaskFiltersDrawerProps> = (
             className={styles.resetBtn}
             onClick={() => {
               plan?.setTaskCompletionFilter('all');
-              plan?.setTaskDueFilter('all');
+              plan?.setTaskDueFilters([]);
               plan?.setTaskSectionFilter(null);
               plan?.setTaskAssigneeFilter(null);
-              plan?.setTaskCategoryFilter(null);
+              plan?.setTaskCategoryFilters([]);
               plan?.setHideManualPaymentTasks(false);
             }}
           >

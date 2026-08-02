@@ -30,10 +30,14 @@ import {
   shoppingItemStatus
 } from './MobileShoppingFilters';
 import { PackingCategoryIcon } from './packingCategoryIcon';
+import { isAllSelected } from '../../utils/multiSelectFilters';
+import { matchesShoppingCategories, matchesShoppingMonths } from '../../utils/shoppingSummary';
 import chrome from './MobileTabChrome.module.css';
 import styles from './MobileShoppingList.module.css';
 
 type ViewMode = 'az' | 'grouped';
+
+const NO_FILTERS: string[] = [];
 
 function memberForName(
   name: string,
@@ -74,9 +78,9 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
   const { trip } = useTripWorkspace();
   const { config, journalAuthorName } = useConfig();
   const planView = usePlanView();
-  const activeCategory = planView?.shoppingCategory ?? '__all__';
+  const activeCategories = planView?.shoppingCategories ?? NO_FILTERS;
   const activeTraveller = planView?.shoppingTraveller ?? null;
-  const activeMonth = planView?.shoppingMonthFilter ?? null;
+  const activeMonths = planView?.shoppingMonthFilters ?? NO_FILTERS;
   const statusFilter = planView?.shoppingStatusFilter ?? 'all';
   const hasNotesOnly = planView?.shoppingHasNotesOnly ?? false;
   const { role } = useTripRole();
@@ -172,16 +176,8 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
         assigneeLabelsMatch(spContext, i.traveller || travellers[0] || '', activeTraveller, members)
       );
     }
-    if (activeCategory === '__uncategorised__') {
-      rows = rows.filter((i) => !(i.category || '').trim());
-    } else if (activeCategory !== '__all__') {
-      rows = rows.filter((i) => (i.category || '').trim().toLowerCase() === activeCategory.trim().toLowerCase());
-    }
-    if (activeMonth === '__unscheduled__') {
-      rows = rows.filter((i) => !(i.purchaseMonth || '').trim());
-    } else if (activeMonth) {
-      rows = rows.filter((i) => (i.purchaseMonth || '') === activeMonth);
-    }
+    rows = rows.filter((i) => matchesShoppingCategories(i.category, activeCategories));
+    rows = rows.filter((i) => matchesShoppingMonths(i.purchaseMonth, activeMonths));
     if (statusFilter !== 'all') {
       rows = rows.filter((i) => shoppingItemStatus(i) === statusFilter);
     }
@@ -208,8 +204,8 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
   }, [
     items,
     activeTraveller,
-    activeCategory,
-    activeMonth,
+    activeCategories,
+    activeMonths,
     statusFilter,
     hasNotesOnly,
     travellers,
@@ -235,7 +231,7 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
 
   const canAdd = role === 'Editor' || role === 'Companion';
   const filtersActive =
-    activeCategory !== '__all__' || activeMonth !== null || statusFilter !== 'all' || hasNotesOnly;
+    !isAllSelected(activeCategories) || activeMonths.length > 0 || statusFilter !== 'all' || hasNotesOnly;
 
   const monthPriceRollup = React.useMemo(() => {
     const map = new Map<string, { total: number; currency: string }>();
@@ -631,7 +627,7 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
         open={filtersOpen}
         onClose={() => setFiltersOpen(false)}
         items={items}
-        monthFilter={activeMonth}
+        monthFilters={activeMonths}
         statusFilter={statusFilter}
         hasNotesOnly={hasNotesOnly}
         onApply={onFiltersApply}

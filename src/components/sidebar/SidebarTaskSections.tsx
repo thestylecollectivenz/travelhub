@@ -20,9 +20,10 @@ export const SidebarTaskSections: React.FC = () => {
   const [cancellationCount, setCancellationCount] = React.useState(0);
   const [open, setOpen] = React.useState(true);
 
-  const taskCategoryFilter = planView?.taskCategoryFilter ?? null;
+  const taskCategoryFilters = planView?.taskCategoryFilters ?? [];
   const taskAssigneeFilter = planView?.taskAssigneeFilter ?? null;
-  const showEntryDerived = !taskCategoryFilter || taskCategoryFilter !== TASK_FILTER_UNCATEGORISED;
+  const showEntryDerived =
+    taskCategoryFilters.length === 0 || taskCategoryFilters.some((c) => c !== TASK_FILTER_UNCATEGORISED);
   const showEntryDerivedForAssignee = !taskAssigneeFilter;
 
   const bookingCount = React.useMemo(() => {

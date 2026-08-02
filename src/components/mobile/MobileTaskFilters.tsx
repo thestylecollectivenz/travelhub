@@ -4,6 +4,7 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { useSpContext } from '../../context/SpContext';
 import { ReminderService } from '../../services/ReminderService';
 import { TASK_FILTER_UNCATEGORISED, type TaskCompletionFilter, taskCompletionFilterLabel } from '../../utils/taskFilters';
+import { isAllCategories, toggleMulti } from '../../utils/multiSelectFilters';
 import chrome from './MobileTabChrome.module.css';
 
 export interface MobileTaskFiltersProps {
@@ -68,7 +69,7 @@ export const MobileTaskFilters: React.FC<MobileTaskFiltersProps> = ({ travellers
   if (!plan) return null;
 
   const assignee = plan.taskAssigneeFilter ?? null;
-  const category = plan.taskCategoryFilter ?? null;
+  const categories = plan.taskCategoryFilters;
   const completion = plan.taskCompletionFilter;
 
   const completionKeys: TaskCompletionFilter[] = ['all', 'incomplete', 'completed'];
@@ -118,28 +119,21 @@ export const MobileTaskFilters: React.FC<MobileTaskFiltersProps> = ({ travellers
           <div className={chrome.chipRow}>
             <button
               type="button"
-              className={`${chrome.chip} ${category === null ? chrome.chipActive : ''}`}
-              onClick={() => plan.setTaskCategoryFilter(null)}
+              className={`${chrome.chip} ${isAllCategories(categories) ? chrome.chipActive : ''}`}
+              aria-pressed={isAllCategories(categories)}
+              onClick={() => plan.setTaskCategoryFilters([])}
             >
               All categories
             </button>
-            {hasUncategorised ? (
-              <button
-                type="button"
-                className={`${chrome.chip} ${category === TASK_FILTER_UNCATEGORISED ? chrome.chipActive : ''}`}
-                onClick={() => plan.setTaskCategoryFilter(TASK_FILTER_UNCATEGORISED)}
-              >
-                Uncategorised
-              </button>
-            ) : null}
-            {allCategories.map((cat) => (
+            {(hasUncategorised ? [TASK_FILTER_UNCATEGORISED, ...allCategories] : allCategories).map((cat) => (
               <button
                 key={cat}
                 type="button"
-                className={`${chrome.chip} ${category === cat ? chrome.chipActive : ''}`}
-                onClick={() => plan.setTaskCategoryFilter(cat)}
+                className={`${chrome.chip} ${categories.indexOf(cat) >= 0 ? chrome.chipActive : ''}`}
+                aria-pressed={categories.indexOf(cat) >= 0}
+                onClick={() => plan.setTaskCategoryFilters(toggleMulti(categories, cat))}
               >
-                {cat}
+                {cat === TASK_FILTER_UNCATEGORISED ? 'Uncategorised' : cat}
               </button>
             ))}
           </div>

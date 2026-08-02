@@ -682,7 +682,7 @@ const ShellAwareTripLayout: React.FC<ITripWorkspaceProps> = (props) => {
     // Match desktop: wait for trip (+ places) so the shell does not flash empty→filled→weather.
     if (loading || placesLoading) {
       return (
-        <div style={{ padding: '24px 16px', color: 'var(--th-text-muted, #6b7280)', fontSize: 15 }}>
+        <div className="th-trip-loading-cover" role="status" aria-live="polite">
           Loading trip…
         </div>
       );

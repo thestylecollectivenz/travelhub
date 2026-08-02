@@ -9,12 +9,14 @@ import { confirmUserAction } from '../../utils/confirmAction';
 import { PackingItem } from '../../services/PackingService';
 import { PackingCategoryIcon } from './packingCategoryIcon';
 import { useShellMode } from '../../hooks/useShellMode';
+import { isAllSelected, renameInMulti, toggleMulti } from '../../utils/multiSelectFilters';
 import styles from './MobilePackingFilters.module.css';
 
 export type PackingPackedFilter = 'all' | 'packed' | 'unpacked';
 
 export interface PackingFilterDraft {
-  category: string;
+  /** Empty array = all categories. */
+  categories: string[];
   packedFilter: PackingPackedFilter;
   hasNotesOnly: boolean;
   hasQtyGt1: boolean;
@@ -59,7 +61,7 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({
   const [editCategoryName, setEditCategoryName] = React.useState('');
   const [manageError, setManageError] = React.useState('');
   const [draft, setDraft] = React.useState<PackingFilterDraft>({
-    category: '__all__',
+    categories: [],
     packedFilter: 'all',
     hasNotesOnly: false,
     hasQtyGt1: false
@@ -68,7 +70,7 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({
   React.useEffect(() => {
     if (!open || !plan) return;
     setDraft({
-      category: plan.packingCategory ?? '__all__',
+      categories: plan.packingCategories ?? [],
       packedFilter,
       hasNotesOnly,
       hasQtyGt1
@@ -115,9 +117,11 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({
 
   if (!open) return null;
 
+  const allCategoriesSelected = isAllSelected(draft.categories);
+
   const apply = (): void => {
     if (plan) {
-      plan.setPackingCategory(draft.category);
+      plan.setPackingCategories(draft.categories);
       plan.setPackingPackedFilter(draft.packedFilter);
     }
     onApply(draft);
@@ -126,14 +130,14 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({
 
   const reset = (): void => {
     const defaults: PackingFilterDraft = {
-      category: '__all__',
+      categories: [],
       packedFilter: 'all',
       hasNotesOnly: false,
       hasQtyGt1: false
     };
     setDraft(defaults);
     if (plan) {
-      plan.setPackingCategory('__all__');
+      plan.setPackingCategories([]);
       plan.setPackingTraveller(null);
       plan.setPackingPackedFilter('all');
     }
@@ -164,6 +168,7 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({
         <div className={styles.body}>
           <section>
             <p className={styles.sectionTitle}>Category</p>
+            <p className={styles.manageHint}>Tick as many categories as you need.</p>
             <input
               className={styles.catSearch}
               value={catQuery}
@@ -171,41 +176,50 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({
               placeholder="Search categories…"
               aria-label="Search categories"
             />
-            <ul className={`${styles.catList} ${showAllCats || catQuery.trim() ? '' : styles.catListPreview}`.trim()}>
+            <ul
+              className={`${styles.catList} ${showAllCats || catQuery.trim() ? '' : styles.catListPreview}`.trim()}
+              role="group"
+              aria-label="Filter by category"
+            >
               <li>
                 <button
                   type="button"
-                  className={`${styles.catRow} ${draft.category === '__all__' ? styles.catRowOn : ''}`}
-                  onClick={() => setDraft((d) => ({ ...d, category: '__all__' }))}
+                  className={`${styles.catRow} ${allCategoriesSelected ? styles.catRowOn : ''}`}
+                  aria-pressed={allCategoriesSelected}
+                  onClick={() => setDraft((d) => ({ ...d, categories: [] }))}
                 >
                   <span className={styles.catIcon} aria-hidden>
                     <PackingCategoryIcon category="All" size={14} />
                   </span>
                   <span className={styles.catName}>All categories</span>
                   <span className={styles.catCount}>{items.length}</span>
-                  <span className={`${styles.radio} ${draft.category === '__all__' ? styles.radioOn : ''}`} aria-hidden>
-                    {draft.category === '__all__' ? '✓' : ''}
+                  <span className={`${styles.radio} ${allCategoriesSelected ? styles.radioOn : ''}`} aria-hidden>
+                    {allCategoriesSelected ? '✓' : ''}
                   </span>
                 </button>
               </li>
-              {visibleCats.map((c) => (
-                <li key={c}>
-                  <button
-                    type="button"
-                    className={`${styles.catRow} ${draft.category === c ? styles.catRowOn : ''}`}
-                    onClick={() => setDraft((d) => ({ ...d, category: c }))}
-                  >
-                    <span className={styles.catIcon} aria-hidden>
-                      <PackingCategoryIcon category={c} size={14} />
-                    </span>
-                    <span className={styles.catName}>{c}</span>
-                    <span className={styles.catCount}>{counts.get(c) ?? 0}</span>
-                    <span className={`${styles.radio} ${draft.category === c ? styles.radioOn : ''}`} aria-hidden>
-                      {draft.category === c ? '✓' : ''}
-                    </span>
-                  </button>
-                </li>
-              ))}
+              {visibleCats.map((c) => {
+                const on = draft.categories.indexOf(c) >= 0;
+                return (
+                  <li key={c}>
+                    <button
+                      type="button"
+                      className={`${styles.catRow} ${on ? styles.catRowOn : ''}`}
+                      aria-pressed={on}
+                      onClick={() => setDraft((d) => ({ ...d, categories: toggleMulti(d.categories, c) }))}
+                    >
+                      <span className={styles.catIcon} aria-hidden>
+                        <PackingCategoryIcon category={c} size={14} />
+                      </span>
+                      <span className={styles.catName}>{c}</span>
+                      <span className={styles.catCount}>{counts.get(c) ?? 0}</span>
+                      <span className={`${styles.radio} ${on ? styles.radioOn : ''}`} aria-hidden>
+                        {on ? '✓' : ''}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
             {!catQuery.trim() && filteredCats.length > CAT_PREVIEW ? (
               <button type="button" className={styles.showMore} onClick={() => setShowAllCats((v) => !v)}>
@@ -339,8 +353,10 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({
                                       return;
                                     }
                                     await renameCategory(c, next);
-                                    if (draft.category === c) setDraft((d) => ({ ...d, category: next }));
-                                    if (plan?.packingCategory === c) plan.setPackingCategory(next);
+                                    setDraft((d) => ({ ...d, categories: renameInMulti(d.categories, c, next) }));
+                                    if (plan && plan.packingCategories.indexOf(c) >= 0) {
+                                      plan.setPackingCategories(renameInMulti(plan.packingCategories, c, next));
+                                    }
                                     setEditingCategory(null);
                                   })();
                                 }}
@@ -373,8 +389,13 @@ export const MobilePackingFilters: React.FC<MobilePackingFiltersProps> = ({
                                     try {
                                       setManageError('');
                                       await deleteCategory(c);
-                                      if (draft.category === c) setDraft((d) => ({ ...d, category: '__all__' }));
-                                      if (plan?.packingCategory === c) plan.setPackingCategory('__all__');
+                                      setDraft((d) => ({
+                                        ...d,
+                                        categories: d.categories.filter((x) => x !== c)
+                                      }));
+                                      if (plan && plan.packingCategories.indexOf(c) >= 0) {
+                                        plan.setPackingCategories(plan.packingCategories.filter((x) => x !== c));
+                                      }
                                     } catch (err) {
                                       setManageError(err instanceof Error ? err.message : 'Could not delete category.');
                                     }

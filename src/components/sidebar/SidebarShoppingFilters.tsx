@@ -5,6 +5,8 @@ import { useSpContext } from '../../context/SpContext';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
 import { useTripMembers } from '../../hooks/useTripMembers';
+import { isAllCategories, renameInMulti } from '../../utils/multiSelectFilters';
+import { SHOPPING_UNSCHEDULED_MONTH } from '../../utils/shoppingSummary';
 import styles from './TripSidebar.module.css';
 
 export const SidebarShoppingFilters: React.FC = () => {
@@ -17,7 +19,8 @@ export const SidebarShoppingFilters: React.FC = () => {
   );
   const { travellers } = useTripMembers(trip?.id);
   const traveller = plan?.shoppingTraveller ?? null;
-  const category = plan?.shoppingCategory ?? '__all__';
+  const categoryFilters = plan?.shoppingCategories ?? [];
+  const monthFilters = plan?.shoppingMonthFilters ?? [];
   const [newCategoryName, setNewCategoryName] = React.useState('');
   const [editingCategory, setEditingCategory] = React.useState<string | null>(null);
   const [editCategoryName, setEditCategoryName] = React.useState('');
@@ -61,8 +64,8 @@ export const SidebarShoppingFilters: React.FC = () => {
         <li>
           <button
             type="button"
-            className={`${styles.packingCatBtn} ${category === '__all__' ? styles.packingCatBtnActive : ''}`}
-            onClick={() => plan.setShoppingCategory('__all__')}
+            className={`${styles.packingCatBtn} ${isAllCategories(categoryFilters) ? styles.packingCatBtnActive : ''}`}
+            onClick={() => plan.setShoppingCategories([])}
           >
             All categories
           </button>
@@ -91,7 +94,9 @@ export const SidebarShoppingFilters: React.FC = () => {
                           return;
                         }
                         await renameCategory(c, next);
-                        if (category === c) plan.setShoppingCategory(next);
+                        if (categoryFilters.indexOf(c) >= 0) {
+                          plan.setShoppingCategories(renameInMulti(categoryFilters, c, next));
+                        }
                         setEditingCategory(null);
                       })();
                     }}
@@ -103,8 +108,8 @@ export const SidebarShoppingFilters: React.FC = () => {
                 <div className={styles.travellerRow}>
                   <button
                     type="button"
-                    className={`${styles.packingCatBtn} ${category === c ? styles.packingCatBtnActive : ''}`}
-                    onClick={() => plan.setShoppingCategory(c)}
+                    className={`${styles.packingCatBtn} ${categoryFilters.indexOf(c) >= 0 ? styles.packingCatBtnActive : ''}`}
+                    onClick={() => plan.setShoppingCategories([c])}
                   >
                     {c}
                   </button>
@@ -128,7 +133,9 @@ export const SidebarShoppingFilters: React.FC = () => {
                         if (!(await confirmUserAction(`Delete category "${c}"? Only unused categories can be removed.`))) return;
                         try {
                           await deleteCategory(c);
-                          if (category === c) plan.setShoppingCategory('__all__');
+                          if (categoryFilters.indexOf(c) >= 0) {
+                            plan.setShoppingCategories(categoryFilters.filter((x) => x !== c));
+                          }
                         } catch (err) {
                           window.alert(err instanceof Error ? err.message : 'Could not delete category.');
                         }
@@ -155,7 +162,7 @@ export const SidebarShoppingFilters: React.FC = () => {
             if (!next) return;
             addCategory(next);
             setNewCategoryName('');
-            plan.setShoppingCategory(next);
+            plan.setShoppingCategories([next]);
           }}
         />
         <button
@@ -170,18 +177,18 @@ export const SidebarShoppingFilters: React.FC = () => {
             }
             addCategory(next);
             setNewCategoryName('');
-            plan.setShoppingCategory(next);
+            plan.setShoppingCategories([next]);
           }}
         >
           Add
         </button>
       </div>
 
-      {plan.shoppingMonthFilter ? (
+      {monthFilters.length ? (
         <p className={styles.dayListHint}>
           Month filter:{' '}
-          {plan.shoppingMonthFilter === '__unscheduled__' ? 'Unscheduled' : plan.shoppingMonthFilter}{' '}
-          <button type="button" className={styles.packingCatBtn} onClick={() => plan.setShoppingMonthFilter(null)}>
+          {monthFilters.map((m) => (m === SHOPPING_UNSCHEDULED_MONTH ? 'Unscheduled' : m)).join(', ')}{' '}
+          <button type="button" className={styles.packingCatBtn} onClick={() => plan.setShoppingMonthFilters([])}>
             All months
           </button>
         </p>

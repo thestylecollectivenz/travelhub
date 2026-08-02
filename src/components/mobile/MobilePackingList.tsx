@@ -17,11 +17,14 @@ import { TravellerAvatar } from '../shared/TravellerAvatar';
 import { useShellMode } from '../../hooks/useShellMode';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { MobilePackingFilters, PackingFilterDraft } from './MobilePackingFilters';
+import { isAllSelected, matchesAnySelected } from '../../utils/multiSelectFilters';
 import { PackingCategoryIcon } from './packingCategoryIcon';
 import chrome from './MobileTabChrome.module.css';
 import styles from './MobilePackingList.module.css';
 
 type ViewMode = 'az' | 'grouped';
+
+const NO_FILTERS: string[] = [];
 
 function memberForName(
   name: string,
@@ -51,7 +54,7 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
   const spContext = useSpContext();
   const { trip } = useTripWorkspace();
   const planView = usePlanView();
-  const activeCategory = planView?.packingCategory ?? '__all__';
+  const activeCategories = planView?.packingCategories ?? NO_FILTERS;
   const activeTraveller = planView?.packingTraveller ?? null;
   const packedFilter = planView?.packingPackedFilter ?? 'all';
   const hasNotesOnly = planView?.packingHasNotesOnly ?? false;
@@ -135,11 +138,8 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
         assigneeLabelsMatch(spContext, i.traveller || travellers[0] || '', activeTraveller, members)
       );
     }
-    if (activeCategory !== '__all__') {
-      rows = rows.filter((i) => {
-        const cat = (i.category || '').trim() || 'Other';
-        return cat.toLowerCase() === activeCategory.trim().toLowerCase();
-      });
+    if (!isAllSelected(activeCategories)) {
+      rows = rows.filter((i) => matchesAnySelected((i.category || '').trim() || 'Other', activeCategories));
     }
     if (packedFilter === 'packed') rows = rows.filter((i) => i.isPacked);
     if (packedFilter === 'unpacked') rows = rows.filter((i) => !i.isPacked);
@@ -167,7 +167,7 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
   }, [
     items,
     activeTraveller,
-    activeCategory,
+    activeCategories,
     travellers,
     spContext,
     members,
@@ -194,7 +194,7 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
 
   const canAdd = role === 'Editor' || role === 'Companion';
   const filtersActive =
-    activeCategory !== '__all__' || packedFilter !== 'all' || hasNotesOnly || hasQtyGt1;
+    !isAllSelected(activeCategories) || packedFilter !== 'all' || hasNotesOnly || hasQtyGt1;
 
   const addItem = (): void => {
     if (!trip?.id || !name.trim() || adding) return;

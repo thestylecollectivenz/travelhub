@@ -10,9 +10,9 @@ import { SHOPPING_ITEMS_CHANGED_EVENT } from '../../utils/tripShoppingCategories
 import { useTripMembers } from '../../hooks/useTripMembers';
 import styles from './RightPaneInsights.module.css';
 
-const ALL_CATEGORIES = '__all__';
 const UNCATEGORISED = '__uncategorised__';
 const UNSCHEDULED_MONTH = '__unscheduled__';
+const NO_FILTERS: string[] = [];
 
 export const RightPaneShoppingSummary: React.FC = () => {
   const spContext = useSpContext();
@@ -41,8 +41,8 @@ export const RightPaneShoppingSummary: React.FC = () => {
     return () => window.removeEventListener(SHOPPING_ITEMS_CHANGED_EVENT, onChanged);
   }, [trip?.id, reload]);
 
-  const activeCategory = planView?.shoppingCategory ?? ALL_CATEGORIES;
-  const activeMonth = planView?.shoppingMonthFilter ?? null;
+  const activeCategories = planView?.shoppingCategories ?? NO_FILTERS;
+  const activeMonths = planView?.shoppingMonthFilters ?? NO_FILTERS;
   const activeTraveller = planView?.shoppingTraveller ?? null;
 
   const summary = React.useMemo(
@@ -50,12 +50,12 @@ export const RightPaneShoppingSummary: React.FC = () => {
       summarizeShoppingItems(
         items,
         activeTraveller,
-        activeCategory,
-        activeMonth,
+        activeCategories,
+        activeMonths,
         spContext,
         members
       ),
-    [items, activeTraveller, activeCategory, activeMonth, spContext, members]
+    [items, activeTraveller, activeCategories, activeMonths, spContext, members]
   );
 
   if (!trip || !planView) return null;
@@ -63,7 +63,7 @@ export const RightPaneShoppingSummary: React.FC = () => {
   const categories = Array.from(summary.byCategory.entries()).sort((a, b) => a[0].localeCompare(b[0]));
 
   const categoryKey = (name: string): string => (name === 'Uncategorised' ? UNCATEGORISED : name);
-  const monthKey = (name: string): string | null => (name === 'Unscheduled' ? UNSCHEDULED_MONTH : name);
+  const monthKey = (name: string): string => (name === 'Unscheduled' ? UNSCHEDULED_MONTH : name);
   const travellerKey = (name: string): string | null => (name === 'Unassigned' ? '__unassigned__' : name);
 
   const itemClass = (active: boolean): string =>
@@ -92,8 +92,8 @@ export const RightPaneShoppingSummary: React.FC = () => {
         <li>
           <button
             type="button"
-            className={itemClass(activeCategory === ALL_CATEGORIES)}
-            onClick={() => planView.setShoppingCategory(ALL_CATEGORIES)}
+            className={itemClass(activeCategories.length === 0)}
+            onClick={() => planView.setShoppingCategories([])}
           >
             <strong>All categories</strong>
           </button>
@@ -107,8 +107,8 @@ export const RightPaneShoppingSummary: React.FC = () => {
               <li key={name}>
                 <button
                   type="button"
-                  className={itemClass(activeCategory === key)}
-                  onClick={() => planView.setShoppingCategory(key)}
+                  className={itemClass(activeCategories.indexOf(key) >= 0)}
+                  onClick={() => planView.setShoppingCategories([key])}
                 >
                   <strong>{name}</strong> · Budget {formatCurrency(row.budget, home)} · Actual{' '}
                   {formatCurrency(row.actual, home)} · {row.count} item{row.count === 1 ? '' : 's'}
@@ -124,8 +124,8 @@ export const RightPaneShoppingSummary: React.FC = () => {
         <li>
           <button
             type="button"
-            className={itemClass(activeMonth === null)}
-            onClick={() => planView.setShoppingMonthFilter(null)}
+            className={itemClass(activeMonths.length === 0)}
+            onClick={() => planView.setShoppingMonthFilters([])}
           >
             <strong>All months</strong>
           </button>
@@ -139,8 +139,8 @@ export const RightPaneShoppingSummary: React.FC = () => {
               <li key={row.month}>
                 <button
                   type="button"
-                  className={itemClass(activeMonth === key)}
-                  onClick={() => planView.setShoppingMonthFilter(key)}
+                  className={itemClass(activeMonths.indexOf(key) >= 0)}
+                  onClick={() => planView.setShoppingMonthFilters([key])}
                 >
                   <strong>{row.month}</strong> · Budget {formatCurrency(row.budget, home)} · Actual{' '}
                   {formatCurrency(row.actual, home)} · {row.count} item{row.count === 1 ? '' : 's'}

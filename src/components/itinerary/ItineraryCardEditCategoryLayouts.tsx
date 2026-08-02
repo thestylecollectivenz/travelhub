@@ -15,7 +15,7 @@ import {
   type LocationInfoNotes
 } from '../../utils/locationInfoEntry';
 import { LocationInfoAskPanel } from './LocationInfoAskPanel';
-import { deriveDefaultPaymentDueDate } from '../../utils/paymentDueDefaults';
+import { deriveDefaultPaymentDueDate, isPaymentDueCleared, PAYMENT_DUE_NONE } from '../../utils/paymentDueDefaults';
 import { LocationInfoHighlights } from './LocationInfoHighlights';
 import { useConfig } from '../../context/ConfigContext';
 import { usePlaces } from '../../context/PlacesContext';
@@ -114,8 +114,11 @@ function BookingPaymentFields({
             amount: value === 'Free' ? 0 : draft.amount,
             amountPaid: value === 'Part paid' ? draft.amountPaid : undefined
           };
-          if ((value === 'Not paid' || value === 'Part paid') && !draft.paymentDueDate) {
-            const derived = deriveDefaultPaymentDueDate(draft);
+          if (
+            (value === 'Not paid' || value === 'Part paid') &&
+            draft.paymentDueDate === undefined
+          ) {
+            const derived = deriveDefaultPaymentDueDate({ ...draft, paymentDueDate: undefined });
             if (derived) next.paymentDueDate = derived;
           }
           patch(next);
@@ -135,13 +138,13 @@ function BookingPaymentFields({
             id={`paydue-${draft.id}`}
             className={styles.input}
             type="date"
-            value={draft.paymentDueDate?.slice(0, 10) || ''}
-            onChange={(e) => patch({ paymentDueDate: e.target.value || undefined })}
+            value={isPaymentDueCleared(draft) ? '' : draft.paymentDueDate?.slice(0, 10) || ''}
+            onChange={(e) => patch({ paymentDueDate: e.target.value || PAYMENT_DUE_NONE })}
           />
           <button
             type="button"
             className={styles.btnSecondary}
-            onClick={() => patch({ paymentDueDate: undefined })}
+            onClick={() => patch({ paymentDueDate: PAYMENT_DUE_NONE })}
           >
             No date
           </button>
@@ -364,7 +367,7 @@ export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
         onChange={(e) => patch({ duration: e.target.value })}
       />
       <label className={styles.label} htmlFor={`airline-${draft.id}`}>
-        Ticketing airline
+        Supplier / ticketing airline
       </label>
       <div className={styles.fieldWithSuggestions}>
         <input

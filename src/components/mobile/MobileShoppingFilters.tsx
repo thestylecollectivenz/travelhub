@@ -9,6 +9,7 @@ import { confirmUserAction } from '../../utils/confirmAction';
 import { ShoppingItem } from '../../services/ShoppingListService';
 import { PackingCategoryIcon } from './packingCategoryIcon';
 import { useShellMode } from '../../hooks/useShellMode';
+import { isAllSelected, renameInMulti, toggleMulti } from '../../utils/multiSelectFilters';
 import styles from './MobilePackingFilters.module.css';
 
 export type ShoppingStatusFilter = 'all' | 'tobuy' | 'purchased';
@@ -20,8 +21,10 @@ export function shoppingItemStatus(item: ShoppingItem): 'tobuy' | 'purchased' {
 }
 
 export interface ShoppingFilterDraft {
-  category: string;
-  monthFilter: string | null;
+  /** Empty array = all categories. */
+  categories: string[];
+  /** Empty array = all months. May include '__unscheduled__'. */
+  months: string[];
   statusFilter: ShoppingStatusFilter;
   hasNotesOnly: boolean;
 }
@@ -30,7 +33,7 @@ export interface MobileShoppingFiltersProps {
   open: boolean;
   onClose: () => void;
   items: ShoppingItem[];
-  monthFilter: string | null;
+  monthFilters: string[];
   statusFilter: ShoppingStatusFilter;
   hasNotesOnly: boolean;
   onApply: (draft: ShoppingFilterDraft) => void;
@@ -51,7 +54,7 @@ export const MobileShoppingFilters: React.FC<MobileShoppingFiltersProps> = ({
   open,
   onClose,
   items,
-  monthFilter,
+  monthFilters,
   statusFilter,
   hasNotesOnly,
   onApply
@@ -73,8 +76,8 @@ export const MobileShoppingFilters: React.FC<MobileShoppingFiltersProps> = ({
   const [editCategoryName, setEditCategoryName] = React.useState('');
   const [manageError, setManageError] = React.useState('');
   const [draft, setDraft] = React.useState<ShoppingFilterDraft>({
-    category: '__all__',
-    monthFilter: null,
+    categories: [],
+    months: [],
     statusFilter: 'all',
     hasNotesOnly: false
   });
@@ -82,14 +85,14 @@ export const MobileShoppingFilters: React.FC<MobileShoppingFiltersProps> = ({
   React.useEffect(() => {
     if (!open || !plan) return;
     setDraft({
-      category: plan.shoppingCategory ?? '__all__',
-      monthFilter,
+      categories: plan.shoppingCategories ?? [],
+      months: monthFilters,
       statusFilter,
       hasNotesOnly
     });
     setCatQuery('');
     setManageError('');
-  }, [open, plan, monthFilter, statusFilter, hasNotesOnly]);
+  }, [open, plan, monthFilters, statusFilter, hasNotesOnly]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -146,10 +149,13 @@ export const MobileShoppingFilters: React.FC<MobileShoppingFiltersProps> = ({
 
   if (!open) return null;
 
+  const allCategoriesSelected = isAllSelected(draft.categories);
+  const allMonthsSelected = draft.months.length === 0;
+
   const apply = (): void => {
     if (plan) {
-      plan.setShoppingCategory(draft.category);
-      plan.setShoppingMonthFilter(draft.monthFilter);
+      plan.setShoppingCategories(draft.categories);
+      plan.setShoppingMonthFilters(draft.months);
       plan.setShoppingStatusFilter(draft.statusFilter);
     }
     onApply(draft);
@@ -158,15 +164,15 @@ export const MobileShoppingFilters: React.FC<MobileShoppingFiltersProps> = ({
 
   const reset = (): void => {
     const defaults: ShoppingFilterDraft = {
-      category: '__all__',
-      monthFilter: null,
+      categories: [],
+      months: [],
       statusFilter: 'all',
       hasNotesOnly: false
     };
     setDraft(defaults);
     if (plan) {
-      plan.setShoppingCategory('__all__');
-      plan.setShoppingMonthFilter(null);
+      plan.setShoppingCategories([]);
+      plan.setShoppingMonthFilters([]);
       plan.setShoppingTraveller(null);
       plan.setShoppingStatusFilter('all');
     }
@@ -197,6 +203,7 @@ export const MobileShoppingFilters: React.FC<MobileShoppingFiltersProps> = ({
         <div className={styles.body}>
           <section>
             <p className={styles.sectionTitle}>Category</p>
+            <p className={styles.manageHint}>Tick as many categories as you need.</p>
             <input
               className={styles.catSearch}
               value={catQuery}
@@ -204,41 +211,50 @@ export const MobileShoppingFilters: React.FC<MobileShoppingFiltersProps> = ({
               placeholder="Search categories…"
               aria-label="Search categories"
             />
-            <ul className={`${styles.catList} ${showAllCats || catQuery.trim() ? '' : styles.catListPreview}`.trim()}>
+            <ul
+              className={`${styles.catList} ${showAllCats || catQuery.trim() ? '' : styles.catListPreview}`.trim()}
+              role="group"
+              aria-label="Filter by category"
+            >
               <li>
                 <button
                   type="button"
-                  className={`${styles.catRow} ${draft.category === '__all__' ? styles.catRowOn : ''}`}
-                  onClick={() => setDraft((d) => ({ ...d, category: '__all__' }))}
+                  className={`${styles.catRow} ${allCategoriesSelected ? styles.catRowOn : ''}`}
+                  aria-pressed={allCategoriesSelected}
+                  onClick={() => setDraft((d) => ({ ...d, categories: [] }))}
                 >
                   <span className={styles.catIcon} aria-hidden>
                     <PackingCategoryIcon category="All" size={14} />
                   </span>
                   <span className={styles.catName}>All categories</span>
                   <span className={styles.catCount}>{items.length}</span>
-                  <span className={`${styles.radio} ${draft.category === '__all__' ? styles.radioOn : ''}`} aria-hidden>
-                    {draft.category === '__all__' ? '✓' : ''}
+                  <span className={`${styles.radio} ${allCategoriesSelected ? styles.radioOn : ''}`} aria-hidden>
+                    {allCategoriesSelected ? '✓' : ''}
                   </span>
                 </button>
               </li>
-              {visibleCats.map((c) => (
-                <li key={c}>
-                  <button
-                    type="button"
-                    className={`${styles.catRow} ${draft.category === c ? styles.catRowOn : ''}`}
-                    onClick={() => setDraft((d) => ({ ...d, category: c }))}
-                  >
-                    <span className={styles.catIcon} aria-hidden>
-                      <PackingCategoryIcon category={c} size={14} />
-                    </span>
-                    <span className={styles.catName}>{c}</span>
-                    <span className={styles.catCount}>{counts.get(c) ?? 0}</span>
-                    <span className={`${styles.radio} ${draft.category === c ? styles.radioOn : ''}`} aria-hidden>
-                      {draft.category === c ? '✓' : ''}
-                    </span>
-                  </button>
-                </li>
-              ))}
+              {visibleCats.map((c) => {
+                const on = draft.categories.indexOf(c) >= 0;
+                return (
+                  <li key={c}>
+                    <button
+                      type="button"
+                      className={`${styles.catRow} ${on ? styles.catRowOn : ''}`}
+                      aria-pressed={on}
+                      onClick={() => setDraft((d) => ({ ...d, categories: toggleMulti(d.categories, c) }))}
+                    >
+                      <span className={styles.catIcon} aria-hidden>
+                        <PackingCategoryIcon category={c} size={14} />
+                      </span>
+                      <span className={styles.catName}>{c}</span>
+                      <span className={styles.catCount}>{counts.get(c) ?? 0}</span>
+                      <span className={`${styles.radio} ${on ? styles.radioOn : ''}`} aria-hidden>
+                        {on ? '✓' : ''}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
             {!catQuery.trim() && filteredCats.length > CAT_PREVIEW ? (
               <button type="button" className={styles.showMore} onClick={() => setShowAllCats((v) => !v)}>
@@ -249,48 +265,41 @@ export const MobileShoppingFilters: React.FC<MobileShoppingFiltersProps> = ({
 
           <section>
             <p className={styles.sectionTitle}>Buy by month</p>
-            <ul className={styles.statusList}>
+            <p className={styles.manageHint}>Tick as many months as you need.</p>
+            <ul className={styles.statusList} role="group" aria-label="Filter by month">
               <li>
                 <button
                   type="button"
                   className={styles.statusRow}
-                  onClick={() => setDraft((d) => ({ ...d, monthFilter: null }))}
+                  aria-pressed={allMonthsSelected}
+                  onClick={() => setDraft((d) => ({ ...d, months: [] }))}
                 >
                   <span>All months</span>
-                  <span className={`${styles.radio} ${draft.monthFilter === null ? styles.radioOn : ''}`} aria-hidden>
-                    {draft.monthFilter === null ? '✓' : ''}
+                  <span className={`${styles.radio} ${allMonthsSelected ? styles.radioOn : ''}`} aria-hidden>
+                    {allMonthsSelected ? '✓' : ''}
                   </span>
                 </button>
               </li>
-              <li>
-                <button
-                  type="button"
-                  className={styles.statusRow}
-                  onClick={() => setDraft((d) => ({ ...d, monthFilter: '__unscheduled__' }))}
-                >
-                  <span>Unscheduled</span>
-                  <span
-                    className={`${styles.radio} ${draft.monthFilter === '__unscheduled__' ? styles.radioOn : ''}`}
-                    aria-hidden
-                  >
-                    {draft.monthFilter === '__unscheduled__' ? '✓' : ''}
-                  </span>
-                </button>
-              </li>
-              {months.map((m) => (
-                <li key={m}>
-                  <button
-                    type="button"
-                    className={styles.statusRow}
-                    onClick={() => setDraft((d) => ({ ...d, monthFilter: m }))}
-                  >
-                    <span>{monthLabel(m)}</span>
-                    <span className={`${styles.radio} ${draft.monthFilter === m ? styles.radioOn : ''}`} aria-hidden>
-                      {draft.monthFilter === m ? '✓' : ''}
-                    </span>
-                  </button>
-                </li>
-              ))}
+              {[{ key: '__unscheduled__', label: 'Unscheduled' }, ...months.map((m) => ({ key: m, label: monthLabel(m) }))].map(
+                (opt) => {
+                  const on = draft.months.indexOf(opt.key) >= 0;
+                  return (
+                    <li key={opt.key}>
+                      <button
+                        type="button"
+                        className={styles.statusRow}
+                        aria-pressed={on}
+                        onClick={() => setDraft((d) => ({ ...d, months: toggleMulti(d.months, opt.key) }))}
+                      >
+                        <span>{opt.label}</span>
+                        <span className={`${styles.radio} ${on ? styles.radioOn : ''}`} aria-hidden>
+                          {on ? '✓' : ''}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                }
+              )}
             </ul>
           </section>
 
@@ -406,8 +415,10 @@ export const MobileShoppingFilters: React.FC<MobileShoppingFiltersProps> = ({
                                       return;
                                     }
                                     await renameCategory(c, next);
-                                    if (draft.category === c) setDraft((d) => ({ ...d, category: next }));
-                                    if (plan?.shoppingCategory === c) plan.setShoppingCategory(next);
+                                    setDraft((d) => ({ ...d, categories: renameInMulti(d.categories, c, next) }));
+                                    if (plan && plan.shoppingCategories.indexOf(c) >= 0) {
+                                      plan.setShoppingCategories(renameInMulti(plan.shoppingCategories, c, next));
+                                    }
                                     setEditingCategory(null);
                                   })();
                                 }}
@@ -440,8 +451,13 @@ export const MobileShoppingFilters: React.FC<MobileShoppingFiltersProps> = ({
                                     try {
                                       setManageError('');
                                       await deleteCategory(c);
-                                      if (draft.category === c) setDraft((d) => ({ ...d, category: '__all__' }));
-                                      if (plan?.shoppingCategory === c) plan.setShoppingCategory('__all__');
+                                      setDraft((d) => ({
+                                        ...d,
+                                        categories: d.categories.filter((x) => x !== c)
+                                      }));
+                                      if (plan && plan.shoppingCategories.indexOf(c) >= 0) {
+                                        plan.setShoppingCategories(plan.shoppingCategories.filter((x) => x !== c));
+                                      }
                                     } catch (err) {
                                       setManageError(err instanceof Error ? err.message : 'Could not delete category.');
                                     }

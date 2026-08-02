@@ -36,7 +36,12 @@ function isValidLatLng(lat: number, lon: number): boolean {
   return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
 }
 
-/** Group consecutive trip days that share the same primary place (by city short name). */
+/**
+ * Build ordered map stops for the trip polyline.
+ * Side trips (additional places) are inserted in list order for that day:
+ * - returnToPrimary: primary → side(s) → primary again
+ * - one-way: primary → side A → side B … (chain; no bounce back)
+ */
 export function buildMapTransportStops(options: {
   tripId: string;
   tripDays: TripDay[];
@@ -59,7 +64,17 @@ export function buildMapTransportStops(options: {
   };
 
   const runs: Run[] = [];
-  const sideTripStops: MapTransportStop[] = [];
+  const daySideTrips = new Map<
+    number,
+    Array<{
+      placeId: string;
+      title: string;
+      latitude: number;
+      longitude: number;
+      returnToPrimary: boolean;
+      order: number;
+    }>
+  >();
   const seenSideTripKeys = new Set<string>();
 
   for (const day of orderedDays) {
@@ -90,31 +105,34 @@ export function buildMapTransportStops(options: {
       });
     }
 
-    for (const ref of parseAdditionalPlaceRefs(day.additionalPlaceIds)) {
+    const refs = parseAdditionalPlaceRefs(day.additionalPlaceIds);
+    refs.forEach((ref, order) => {
       const sidePlace = placeById(ref.placeId);
-      if (!sidePlace) continue;
+      if (!sidePlace) return;
       const sideLat = Number(sidePlace.latitude);
       const sideLon = Number(sidePlace.longitude);
-      if (!isValidLatLng(sideLat, sideLon)) continue;
-      const dedupeKey = `${day.dayNumber}:${ref.placeId}`;
-      if (seenSideTripKeys.has(dedupeKey)) continue;
+      if (!isValidLatLng(sideLat, sideLon)) return;
+      const dedupeKey = `${day.dayNumber}:${ref.placeId}:${order}`;
+      if (seenSideTripKeys.has(dedupeKey)) return;
       seenSideTripKeys.add(dedupeKey);
-      const shortTitle = placeShortTitle(sidePlace.title);
-      sideTripStops.push({
-        id: `side-${day.dayNumber}-${ref.placeId}`,
+      const list = daySideTrips.get(day.dayNumber) ?? [];
+      list.push({
         placeId: ref.placeId,
         title: sidePlace.title,
         latitude: sideLat,
         longitude: sideLon,
-        dayNumber: day.dayNumber,
-        label: `Day ${day.dayNumber}: ${shortTitle}${ref.returnToPrimary ? ' (side trip)' : ''}`
+        returnToPrimary: ref.returnToPrimary !== false,
+        order
       });
-    }
+      daySideTrips.set(day.dayNumber, list);
+    });
   }
 
-  const primaryStops = runs.map((run) => {
+  const stops: MapTransportStop[] = [];
+
+  for (const run of runs) {
     const shortTitle = placeShortTitle(run.title);
-    return {
+    const primaryStop: MapTransportStop = {
       id: `stop-${run.dayStart}-${run.dayEnd}-${run.placeId}`,
       placeId: run.placeId,
       title: run.title,
@@ -124,7 +142,37 @@ export function buildMapTransportStops(options: {
       dayNumberEnd: run.dayEnd > run.dayStart ? run.dayEnd : undefined,
       label: formatDayRangeLabel(run.dayStart, run.dayEnd, shortTitle)
     };
-  });
+    stops.push(primaryStop);
 
-  return [...primaryStops, ...sideTripStops].sort((a, b) => a.dayNumber - b.dayNumber || a.label.localeCompare(b.label));
+    for (let dayNum = run.dayStart; dayNum <= run.dayEnd; dayNum += 1) {
+      const sides = daySideTrips.get(dayNum);
+      if (!sides?.length) continue;
+      const ordered = [...sides].sort((a, b) => a.order - b.order);
+      for (const side of ordered) {
+        const sideShort = placeShortTitle(side.title);
+        stops.push({
+          id: `side-${dayNum}-${side.placeId}-${side.order}`,
+          placeId: side.placeId,
+          title: side.title,
+          latitude: side.latitude,
+          longitude: side.longitude,
+          dayNumber: dayNum,
+          label: `Day ${dayNum}: ${sideShort}${side.returnToPrimary ? ' (side trip)' : ''}`
+        });
+        if (side.returnToPrimary) {
+          stops.push({
+            id: `return-${dayNum}-${side.placeId}-${run.placeId}`,
+            placeId: run.placeId,
+            title: run.title,
+            latitude: run.latitude,
+            longitude: run.longitude,
+            dayNumber: dayNum,
+            label: `Day ${dayNum}: ${shortTitle} (return)`
+          });
+        }
+      }
+    }
+  }
+
+  return stops;
 }

@@ -6,6 +6,7 @@ import { paymentDueActionLabel } from './paymentDueLabels';
 import { formatDisplayLabel } from './mobileDisplayFormat';
 import { effectiveBookingStatus } from './bookingStatusUtils';
 import { formatTimeHHMM } from './itineraryTimeUtils';
+import { resolveTransportFromTo } from './parseTransportEndpoints';
 
 function ymdLong(value?: string): string {
   if (!value) return '—';
@@ -23,6 +24,23 @@ function paymentPillTone(status: string): 'green' | 'rust' | 'red' | 'neutral' {
 function bookingPillTone(status: string): 'green' | 'rust' | 'red' | 'neutral' {
   if (status === 'Booked') return 'green';
   return 'neutral';
+}
+
+function stripHtml(html?: string): string {
+  return (html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/** Pull a terminal / baggage line from notes when dedicated fields are empty. */
+function extractFlightNoteHints(notes?: string): { terminal?: string; baggage?: string } {
+  const text = stripHtml(notes);
+  if (!text) return {};
+  const terminal =
+    text.match(/\b(?:terminal|changi terminal|terminal\s*\d+)\b[^.!?\n]*/i)?.[0]?.trim() ||
+    text.match(/\b(?:leaves?|departs?|arrives?)\s+(?:from|at)\s+[^.!?\n]+/i)?.[0]?.trim();
+  const baggage =
+    text.match(/\b(?:baggage|bags?|luggage|checked bags?)[^.!?\n]*/i)?.[0]?.trim() ||
+    text.match(/\b\d+\s*x\s*\d+\s*kg\b[^.!?\n]*/i)?.[0]?.trim();
+  return { terminal, baggage };
 }
 
 export interface FlightLegPoint {
@@ -49,7 +67,7 @@ export function buildFlightDetailData(
   duration: string;
   stopLabel: string;
   ticketingAirline: string;
-  operatingAirline?: string;
+  operatingAirline: string;
   bookingPayment: {
     bookingReference: string;
     bookingStatus: { label: string; tone: 'green' | 'rust' | 'red' | 'neutral' };
@@ -66,39 +84,65 @@ export function buildFlightDetailData(
   const arrDate = entry.arrivalDate || depDate;
   const depYmd = depDate.slice(0, 10);
   const arrYmd = arrDate.slice(0, 10);
-  const dayOffset = arrYmd > depYmd ? Math.round((new Date(`${arrYmd}T12:00:00`).getTime() - new Date(`${depYmd}T12:00:00`).getTime()) / 86400000) : 0;
+  const dayOffset =
+    arrYmd > depYmd
+      ? Math.round(
+          (new Date(`${arrYmd}T12:00:00`).getTime() - new Date(`${depYmd}T12:00:00`).getTime()) / 86400000
+        )
+      : 0;
   const booked = effectiveBookingStatus(entry, { hasConfirmationDoc });
-  const showPayment = canSeeFinancials && entry.paymentStatus !== 'Free' && entry.amount > 0;
+  const showPayment = canSeeFinancials && entry.paymentStatus !== 'Free';
   const amountPrimary =
     showPayment && entry.amount > 0
       ? formatCurrency(entry.amount, entry.currency || homeCurrency || 'NZD')
       : undefined;
   const amountHome =
-    showPayment && convertToHomeCurrency && entry.currency && homeCurrency
+    showPayment && convertToHomeCurrency && entry.currency && homeCurrency && entry.amount > 0
       ? formatCurrency(convertToHomeCurrency(entry.amount, entry.currency), homeCurrency)
       : undefined;
 
+  const { from, to } = resolveTransportFromTo(entry);
+  const hints = extractFlightNoteHints(entry.notes);
+  const depSub = (entry.streetAddress || '').trim() || hints.terminal || undefined;
+  const checkInCloses = entry.checkInClosesTime
+    ? `${ymdLong(depDate)}, ${formatTimeHHMM(entry.checkInClosesTime)}`
+    : '—';
+  const bagCheck = entry.bagCheckClosesTime
+    ? `${ymdLong(depDate)}, ${formatTimeHHMM(entry.bagCheckClosesTime)}`
+    : '—';
+  const baggage = hints.baggage || '—';
+  const transfers = entry.transportTransfers;
+  const stopLabel =
+    transfers === 0 || transfers === undefined
+      ? 'Non-stop'
+      : transfers === 1
+        ? '1 stop'
+        : `${transfers} stops`;
+
   return {
-    title: entry.title || `Flight ${entry.transportFrom || ''} to ${entry.transportTo || ''}`.trim(),
+    title: entry.title || `Fly ${from !== '—' ? from : ''} to ${to !== '—' ? to : ''}`.trim() || 'Flight',
     departs: {
       time: formatTimeHHMM(entry.timeStart) || '—',
       date: ymdLong(depDate),
-      location: entry.transportFrom || entry.location || '—',
-      sub: entry.streetAddress || undefined
+      location: from,
+      sub: depSub
     },
     arrives: {
       time: formatTimeHHMM(entry.arrivalTime ?? '') || '—',
       date: ymdLong(arrDate),
-      location: entry.transportTo || '—',
+      location: to,
       dayOffset: dayOffset > 0 ? dayOffset : undefined
     },
     duration: (entry.duration || '').trim() || '—',
-    stopLabel: 'Non-stop',
+    stopLabel,
     ticketingAirline: (entry.supplier || '').trim() || '—',
-    operatingAirline: (entry.operatingAirline || '').trim() || undefined,
+    operatingAirline: (entry.operatingAirline || '').trim() || '—',
     bookingPayment: {
-      bookingReference: entry.bookingReference || entry.flightNumbers || '—',
-      bookingStatus: { label: booked ? 'Booked' : entry.bookingStatus, tone: bookingPillTone(booked ? 'Booked' : entry.bookingStatus) },
+      bookingReference: (entry.bookingReference || '').trim() || '—',
+      bookingStatus: {
+        label: booked ? 'Booked' : entry.bookingStatus,
+        tone: bookingPillTone(booked ? 'Booked' : entry.bookingStatus)
+      },
       paymentStatus: showPayment
         ? { label: entry.paymentStatus, tone: paymentPillTone(entry.paymentStatus) }
         : undefined,
@@ -108,11 +152,13 @@ export function buildFlightDetailData(
       amountHome
     },
     flightRows: [
-      { label: 'Flight number', value: entry.flightNumbers || '—' },
+      { label: 'Flight number', value: (entry.flightNumbers || '').trim() || '—' },
       { label: 'Cabin class', value: formatDisplayLabel(entry.cabinClass) || '—' },
-      { label: 'Check-in opens', value: entry.checkInClosesTime ? `${ymdLong(depDate)} ${formatTimeHHMM(entry.checkInClosesTime)}` : '—' },
-      { label: 'Route', value: `${entry.transportFrom || '—'} → ${entry.transportTo || '—'}` },
-      { label: 'Baggage allowance', value: entry.notes ? '' : '—' }
+      { label: 'Check-in closes', value: checkInCloses },
+      { label: 'Bag check closes', value: bagCheck },
+      { label: 'From', value: from },
+      { label: 'To', value: to },
+      { label: 'Baggage allowance', value: baggage }
     ]
   };
 }

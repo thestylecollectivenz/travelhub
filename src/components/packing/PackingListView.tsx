@@ -12,13 +12,17 @@ import { useCompanionListDefaults } from '../../hooks/useCompanionListDefaults';
 import { assigneeLabelsMatch, resolveOwnerEmailForAssignee } from '../../utils/tripMemberIdentity';
 import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
 import { categoriesForItemSelect, rememberTripShoppingCategory } from '../../utils/tripShoppingCategories';
+import { isAllSelected, matchesAnySelected } from '../../utils/multiSelectFilters';
 import styles from './PackingListView.module.css';
+
+const NO_FILTERS: string[] = [];
 
 export const PackingListView: React.FC = () => {
   const spContext = useSpContext();
   const { trip } = useTripWorkspace();
   const planView = usePlanView();
-  const activeCategory = planView?.packingCategory ?? 'Other';
+  const activeCategories = planView?.packingCategories ?? NO_FILTERS;
+  const singleCategory = activeCategories.length === 1 ? activeCategories[0] : null;
   const activeTraveller = planView?.packingTraveller ?? null;
   const { role } = useTripRole();
   const { members, travellers } = useTripMembers(trip?.id);
@@ -64,7 +68,7 @@ export const PackingListView: React.FC = () => {
       service
         .create({
           tripId: trip.id,
-          category: activeCategory === '__all__' ? cat : activeCategory,
+          category: singleCategory ?? cat,
           traveller,
           itemName: itemName.trim(),
           quantity: Math.max(1, quantity || 1),
@@ -76,7 +80,7 @@ export const PackingListView: React.FC = () => {
         .then(refresh)
         .catch(console.error);
     },
-    [service, trip?.id, activeTraveller, travellers, activeCategory, categories, refresh]
+    [service, trip?.id, activeTraveller, travellers, singleCategory, categories, refresh]
   );
 
   React.useEffect(() => {
@@ -123,11 +127,9 @@ export const PackingListView: React.FC = () => {
   }, [items, activeTraveller, travellers, spContext, members]);
 
   const categoryRows = React.useMemo(() => {
-    if (activeCategory === '__all__') return filteredItems;
-    return filteredItems.filter(
-      (i) => ((i.category || '').trim() || 'Other').toLowerCase() === activeCategory.trim().toLowerCase()
-    );
-  }, [filteredItems, activeCategory]);
+    if (isAllSelected(activeCategories)) return filteredItems;
+    return filteredItems.filter((i) => matchesAnySelected((i.category || '').trim() || 'Other', activeCategories));
+  }, [filteredItems, activeCategories]);
 
   const categoryOptions = React.useCallback(
     (itemCategory: string): string[] => categoriesForItemSelect(categories, itemCategory),
@@ -157,7 +159,7 @@ export const PackingListView: React.FC = () => {
       <div className={styles.row}>
         <h2 className={styles.heading}>
           Packing — {activeTraveller ? activeTraveller : 'All travellers'}
-          {activeCategory === '__all__' ? ' · All items' : ` · ${activeCategory}`}
+          {activeCategories.length ? ` · ${activeCategories.join(', ')}` : ' · All items'}
         </h2>
         <span className={styles.muted}>
           {categoryRows.filter((i) => i.isPacked).length} of {categoryRows.length} items packed
@@ -169,7 +171,13 @@ export const PackingListView: React.FC = () => {
 
       <div className={styles.row}>
         <input className={styles.input} placeholder="Item name" value={name} onChange={(e) => setName(e.target.value)} />
-        <select className={styles.select} value={activeCategory === '__all__' ? category : activeCategory} onChange={(e) => planView?.setPackingCategory(e.target.value)}>
+        <select
+          className={styles.select}
+          value={singleCategory ?? '__all__'}
+          onChange={(e) =>
+            planView?.setPackingCategories(e.target.value === '__all__' ? [] : [e.target.value])
+          }
+        >
           <option value="__all__">All items</option>
           {categories.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
@@ -177,7 +185,7 @@ export const PackingListView: React.FC = () => {
         <button className={styles.button} type="button" onClick={() => {
           if (!trip?.id || !name.trim()) return;
           const traveller = activeTraveller || travellers[0] || 'Traveller 1';
-          const itemCategory = activeCategory === '__all__' ? category : activeCategory;
+          const itemCategory = singleCategory ?? category;
           rememberTripShoppingCategory(trip.id, itemCategory);
           service.create({
             tripId: trip.id,
@@ -249,7 +257,7 @@ export const PackingListView: React.FC = () => {
                     );
                   }
 
-                  planView?.setPackingCategory('__all__');
+                  planView?.setPackingCategories([]);
 
                   if (replaceAll) {
                     await Promise.all(travellerItems.map((i) => service.delete(i.id)));

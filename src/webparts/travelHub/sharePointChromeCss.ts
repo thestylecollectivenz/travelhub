@@ -157,4 +157,26 @@ body.${TRAVEL_HUB_PAGE_CLASS}:has([data-th-app-root]) {
   overflow: hidden !important;
   height: 100dvh !important;
 }
+
+/* Cover SharePoint canvas while React / trip data loads (iPad cold open). */
+body.${TRAVEL_HUB_PAGE_CLASS} #spPageCanvasContent,
+body.${TRAVEL_HUB_PAGE_CLASS} .CanvasZone,
+body.${TRAVEL_HUB_PAGE_CLASS} .CanvasSection,
+body.${TRAVEL_HUB_PAGE_CLASS} .ControlZone,
+body.${TRAVEL_HUB_PAGE_CLASS} [data-automation-id="CanvasZone"] {
+  background: #faf8f4 !important;
+}
+
+body.${TRAVEL_HUB_PAGE_CLASS} .th-trip-loading-cover {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #faf8f4 !important;
+  color: #6b7280 !important;
+  font-size: 15px !important;
+  font-family: system-ui, -apple-system, Segoe UI, sans-serif !important;
+}
 `;

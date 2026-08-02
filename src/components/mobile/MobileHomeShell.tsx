@@ -256,7 +256,6 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
     try {
       const svc = new TripService(spContext);
       const result = await svc.getAll();
-      setTrips(result);
       const daySvc = new DayService(spContext);
       const placeSvc = new PlaceService(spContext);
       const [places, dayRows] = await Promise.all([
@@ -264,6 +263,8 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
         Promise.all(result.map((t) => daySvc.getAll(t.id)))
       ]);
       const allDayRows = dayRows.reduce((acc, rows) => acc.concat(rows), [] as (typeof dayRows)[number]);
+      // Single paint: trips + places + days together (avoids home flicker).
+      setTrips(result);
       setAllTripDays(allDayRows.map((d) => ({ tripId: d.tripId, primaryPlaceId: d.primaryPlaceId })));
       setAllPlaces(
         places.map((p) => ({
@@ -284,7 +285,10 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
     }
   }, [spContext]);
 
+  const homeLoadStarted = React.useRef(false);
   React.useEffect(() => {
+    if (homeLoadStarted.current) return;
+    homeLoadStarted.current = true;
     loadTrips().catch(console.error);
   }, [loadTrips]);
 

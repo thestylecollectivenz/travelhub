@@ -355,10 +355,16 @@
 .searchRow {
   flex: 1 1 12rem;
   min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
 }
 
 .searchInput {
-  width: 100%;
+  flex: 1 1 10rem;
+  min-width: 0;
+  width: auto;
   border: 1px solid color-mix(in srgb, #1e2a44 12%, transparent);
   border-radius: 999px;
   background: white;
@@ -366,6 +372,28 @@
   font: inherit;
   font-size: 0.85rem;
   color: #1e2a44;
+}
+
+.filterBtn,
+.filterBtnOn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, #1e2a44 14%, transparent);
+  border-radius: 999px;
+  background: white;
+  padding: 0.45rem 0.85rem;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: #1e2a44;
+  cursor: pointer;
+}
+
+.filterBtnOn {
+  background: color-mix(in srgb, #1e2a44 8%, white);
+  border-color: color-mix(in srgb, #1e2a44 28%, transparent);
 }
 
 .mobileRoot .searchInput {
