@@ -1161,6 +1161,8 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
         for (const e of localEntries) {
           const main = (e.supplier || '').trim();
           if (main) names.add(main);
+          const operating = (e.operatingAirline || '').trim();
+          if (operating) names.add(operating);
           for (const sub of e.subItems ?? []) {
             const subSup = (sub.supplier || '').trim();
             if (subSup) names.add(subSup);

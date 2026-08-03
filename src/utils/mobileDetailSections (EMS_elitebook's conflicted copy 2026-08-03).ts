@@ -1,7 +1,7 @@
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 import { formatCurrency } from './financialUtils';
 import { formatTimeHHMM } from './itineraryTimeUtils';
-import { payByDateReadLabel, paymentTimingReadLabel } from './paymentDueLabels';
+import { paymentDueActionLabel } from './paymentDueLabels';
 import { effectiveBookingStatus } from './bookingStatusUtils';
 import { formatCabinClass, formatDisplayLabel, formatJourneyType, isReturnTransportLeg } from './mobileDisplayFormat';
 
@@ -126,15 +126,9 @@ function standardBookingRows(
       ),
       pair(
         entry.amount > 0 ? field('Balance due', formatCurrency(balanceDue(entry), entry.currency), balanceDue(entry) > 0) : undefined,
-        entry.payOnsite
-          ? field('Payment', 'Pay onsite')
-          : field('Payment timing', paymentTimingReadLabel(entry))
-      ),
-      pair(
-        entry.payOnsite ? undefined : field('Pay by', payByDateReadLabel(entry), entry.paymentStatus === 'Not paid'),
-        !entry.payOnsite && !payByDateReadLabel(entry) && ymd(entry.bookingDueDate)
-          ? field('Book by', ymd(entry.bookingDueDate))
-          : undefined
+        entry.paymentDueDate
+          ? field('Payment due', `${paymentDueActionLabel(entry)} ${ymd(entry.paymentDueDate)}`, entry.paymentStatus === 'Not paid')
+          : field('Payment due', ymd(entry.bookingDueDate) ? `Book by ${ymd(entry.bookingDueDate)}` : undefined)
       )
     );
   } else {
@@ -202,11 +196,7 @@ export function buildMobileCardSections(
   } else if (cat === 'Flights') {
     showStatsBar = false;
     const flightRows = [
-      pair(
-        field('Supplier / ticketing', entry.supplier),
-        field('Operating airline', (entry.operatingAirline || '').trim() || entry.supplier)
-      ),
-      pair(field('Flight number', entry.flightNumbers), field('Baggage allowance', entry.baggageAllowance)),
+      pair(field('Supplier / operator', entry.supplier), field('Flight number', entry.flightNumbers)),
       pair(field('From', entry.transportFrom), field('To', entry.transportTo)),
       pair(field('Cabin class', formatCabinClass(entry.cabinClass)), field('Arrival date', ymd(entry.arrivalDate))),
       pair(

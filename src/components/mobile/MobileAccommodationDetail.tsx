@@ -294,7 +294,14 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
           <div className={styles.rowDivider} />
           <h3 className={styles.paymentSubhead}>Payment details</h3>
           <div className={styles.bpGrid}>
-            <Field label="Payment due" value={bp.paymentDue} />
+            {bp.paymentDue === 'Pay onsite' ? (
+              <Field label="Payment" value="Pay onsite" />
+            ) : (
+              <>
+                <Field label="Payment timing" value={bp.paymentTiming} />
+                <Field label="Pay by" value={bp.payByDate} />
+              </>
+            )}
             {bp.paymentStatus ? <Field label="Payment status" pill={bp.paymentStatus} /> : <span />}
           </div>
           {bp.amount ? (

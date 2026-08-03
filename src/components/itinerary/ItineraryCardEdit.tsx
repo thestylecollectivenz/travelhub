@@ -28,6 +28,11 @@ import { activityTitlesForDay } from '../../utils/dayActivityTitles';
 import { FieldSuggestionList } from '../shared/FieldSuggestionList';
 import { isCompactTouchShell, useShellMode } from '../../hooks/useShellMode';
 import { isPreTripDayRow } from '../../utils/itineraryDayEntries';
+import {
+  clearPaymentDuePatch,
+  isPaymentDueCleared,
+  setPaymentDuePatch
+} from '../../utils/paymentDueDefaults';
 import type { TripDay } from '../../models/TripDay';
 import styles from './ItineraryCardEdit.module.css';
 
@@ -451,6 +456,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       streetAddress: draft.streetAddress?.trim() || undefined,
       flightNumbers: draft.flightNumbers?.trim() || undefined,
       operatingAirline: draft.operatingAirline?.trim() || undefined,
+      baggageAllowance: draft.baggageAllowance?.trim() || undefined,
       checkInClosesTime: draft.checkInClosesTime?.trim() || undefined,
       bagCheckClosesTime: draft.bagCheckClosesTime?.trim() || undefined,
       phoneNumber: draft.phoneNumber?.trim() || undefined,
@@ -1506,28 +1512,61 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
 
         {draft.paymentStatus === 'Not paid' || draft.paymentStatus === 'Part paid' ? (
           <>
-            <label className={styles.label} htmlFor={`paydue-${draft.id}`}>
-              Pay by
-            </label>
-            <input
-              id={`paydue-${draft.id}`}
-              className={styles.input}
-              type="date"
-              value={draft.paymentDueDate?.slice(0, 10) || ''}
-              onChange={(e) => patch({ paymentDueDate: e.target.value || undefined })}
-            />
-            <label className={styles.label} htmlFor={`paydue-type-${draft.id}`}>
-              Payment timing
-            </label>
-            <select
-              id={`paydue-type-${draft.id}`}
-              className={styles.select}
-              value={draft.paymentDueType || 'Manual'}
-              onChange={(e) => patch({ paymentDueType: e.target.value as ItineraryEntry['paymentDueType'] })}
-            >
-              <option value="Manual">Manual — I need to pay by this date</option>
-              <option value="Automatic">Automatic — charged on this date</option>
-            </select>
+            <div className={`${styles.checkboxRow} ${styles.fullRow}`}>
+              <input
+                id={`payonsite-${draft.id}`}
+                className={styles.checkbox}
+                type="checkbox"
+                checked={draft.payOnsite === true}
+                onChange={(e) =>
+                  patch(
+                    e.target.checked
+                      ? { payOnsite: true, paymentDueDate: undefined, paymentDueCleared: true }
+                      : { payOnsite: false }
+                  )
+                }
+              />
+              <label className={styles.label} htmlFor={`payonsite-${draft.id}`}>
+                Pay onsite (exclude from payment due tasks)
+              </label>
+            </div>
+            {!draft.payOnsite ? (
+              <>
+                <label className={styles.label} htmlFor={`paydue-${draft.id}`}>
+                  Pay by
+                </label>
+                <div className={styles.payByControl}>
+                  <input
+                    id={`paydue-${draft.id}`}
+                    className={styles.input}
+                    type="date"
+                    value={isPaymentDueCleared(draft) ? '' : draft.paymentDueDate?.slice(0, 10) || ''}
+                    onChange={(e) =>
+                      patch(e.target.value ? setPaymentDuePatch(e.target.value) : clearPaymentDuePatch())
+                    }
+                  />
+                  <button
+                    type="button"
+                    className={styles.btnSecondary}
+                    onClick={() => patch(clearPaymentDuePatch())}
+                  >
+                    No date
+                  </button>
+                </div>
+                <label className={styles.label} htmlFor={`paydue-type-${draft.id}`}>
+                  Payment timing
+                </label>
+                <select
+                  id={`paydue-type-${draft.id}`}
+                  className={styles.select}
+                  value={draft.paymentDueType || 'Manual'}
+                  onChange={(e) => patch({ paymentDueType: e.target.value as ItineraryEntry['paymentDueType'] })}
+                >
+                  <option value="Manual">Manual — I need to pay by this date</option>
+                  <option value="Automatic">Automatic — charged on this date</option>
+                </select>
+              </>
+            ) : null}
           </>
         ) : null}
 

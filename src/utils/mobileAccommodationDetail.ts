@@ -9,6 +9,7 @@ import {
 } from './itineraryTimeUtils';
 import { effectiveBookingStatus } from './bookingStatusUtils';
 import { formatDisplayLabel } from './mobileDisplayFormat';
+import { payByDateReadLabel, paymentDueReadLabel, paymentTimingReadLabel } from './paymentDueLabels';
 
 export interface AccomGridCell {
   label: string;
@@ -43,6 +44,8 @@ export interface AccomBookingPaymentModel {
   lengthOfStay?: string;
   supplier?: string;
   paymentDue?: string;
+  paymentTiming?: string;
+  payByDate?: string;
   paymentStatus?: { label: string; tone: 'green' | 'rust' | 'red' | 'neutral' };
   amount?: AccomPaymentAmountBlock;
   showPayment: boolean;
@@ -284,11 +287,9 @@ export function buildAccommodationDetailData(
     checkOutPrimary: hotelTimes.checkOut,
     lengthOfStay: nights > 0 ? `${nights} night${nights === 1 ? '' : 's'}` : undefined,
     supplier: (entry.supplier || '').trim() || undefined,
-    paymentDue: entry.paymentDueDate
-      ? ymd(entry.paymentDueDate)
-      : entry.bookingDueDate
-        ? ymd(entry.bookingDueDate)
-        : undefined,
+    paymentDue: canSeeFinancials ? paymentDueReadLabel(entry) : undefined,
+    paymentTiming: canSeeFinancials ? paymentTimingReadLabel(entry) : undefined,
+    payByDate: canSeeFinancials ? payByDateReadLabel(entry) : undefined,
     paymentStatus: canSeeFinancials
       ? {
           label: formatDisplayLabel(entry.paymentStatus),

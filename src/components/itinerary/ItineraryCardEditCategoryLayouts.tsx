@@ -159,43 +159,41 @@ function BookingPaymentFields({
           </div>
           {!draft.payOnsite ? (
             <>
-          <label className={styles.label} htmlFor={`paydue-${draft.id}`}>
-            Pay by
-          </label>
-          <input
-            id={`paydue-${draft.id}`}
-            className={styles.input}
-            type="date"
-            value={isPaymentDueCleared(draft) ? '' : draft.paymentDueDate?.slice(0, 10) || ''}
-            onChange={(e) =>
-              patch(
-                e.target.value
-                  ? setPaymentDuePatch(e.target.value)
-                  : clearPaymentDuePatch()
-              )
-            }
-          />
-          <button
-            type="button"
-            className={styles.btnSecondary}
-            onClick={() => patch(clearPaymentDuePatch())}
-          >
-            No date
-          </button>
+              <label className={styles.label} htmlFor={`paydue-${draft.id}`}>
+                Pay by
+              </label>
+              <div className={styles.payByControl}>
+                <input
+                  id={`paydue-${draft.id}`}
+                  className={styles.input}
+                  type="date"
+                  value={isPaymentDueCleared(draft) ? '' : draft.paymentDueDate?.slice(0, 10) || ''}
+                  onChange={(e) =>
+                    patch(e.target.value ? setPaymentDuePatch(e.target.value) : clearPaymentDuePatch())
+                  }
+                />
+                <button
+                  type="button"
+                  className={styles.btnSecondary}
+                  onClick={() => patch(clearPaymentDuePatch())}
+                >
+                  No date
+                </button>
+              </div>
+              <label className={styles.label} htmlFor={`paydue-type-${draft.id}`}>
+                Payment timing
+              </label>
+              <select
+                id={`paydue-type-${draft.id}`}
+                className={styles.select}
+                value={draft.paymentDueType || 'Manual'}
+                onChange={(e) => patch({ paymentDueType: e.target.value as ItineraryEntry['paymentDueType'] })}
+              >
+                <option value="Manual">Manual — I need to pay by this date</option>
+                <option value="Automatic">Automatic — charged on this date</option>
+              </select>
             </>
           ) : null}
-          <label className={styles.label} htmlFor={`paydue-type-${draft.id}`}>
-            Payment timing
-          </label>
-          <select
-            id={`paydue-type-${draft.id}`}
-            className={styles.select}
-            value={draft.paymentDueType || 'Manual'}
-            onChange={(e) => patch({ paymentDueType: e.target.value as ItineraryEntry['paymentDueType'] })}
-          >
-            <option value="Manual">Manual — I need to pay by this date</option>
-            <option value="Automatic">Automatic — charged on this date</option>
-          </select>
         </>
       ) : null}
       {draft.paymentStatus !== 'Free' ? (
@@ -273,10 +271,19 @@ export function CancellationPolicyFields({
 export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
   const { draft, calendarDate, dayPlaceOptions, patch, usedSuppliers, touchShell } = props;
   const [supplierSuggestOpen, setSupplierSuggestOpen] = React.useState(false);
+  const [operatingSuggestOpen, setOperatingSuggestOpen] = React.useState(false);
   const [fromSuggestOpen, setFromSuggestOpen] = React.useState(false);
   const [toSuggestOpen, setToSuggestOpen] = React.useState(false);
   const timeValue = formatTimeHHMM(draft.timeStart);
   const arrivalTimeValue = formatTimeHHMM(draft.arrivalTime ?? '');
+  const airlineOptions = React.useMemo(() => {
+    const names = new Set<string>(usedSuppliers ?? []);
+    const supplier = (draft.supplier || '').trim();
+    const operating = (draft.operatingAirline || '').trim();
+    if (supplier) names.add(supplier);
+    if (operating) names.add(operating);
+    return Array.from(names).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  }, [usedSuppliers, draft.supplier, draft.operatingAirline]);
 
   return (
     <div className={styles.grid}>
@@ -417,7 +424,7 @@ export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
         />
         {touchShell ? (
           <FieldSuggestionList
-            options={usedSuppliers ?? []}
+            options={airlineOptions}
             value={draft.supplier}
             onSelect={(value) => {
               patch({ supplier: value });
@@ -428,20 +435,41 @@ export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
         ) : null}
       </div>
       <datalist id={`supplier-list-f-${draft.id}`}>
-        {(usedSuppliers ?? []).map((value) => (
+        {airlineOptions.map((value) => (
           <option key={value} value={value} />
         ))}
       </datalist>
       <label className={styles.label} htmlFor={`op-airline-${draft.id}`}>
         Operating airline
       </label>
-      <input
-        id={`op-airline-${draft.id}`}
-        className={styles.input}
-        value={draft.operatingAirline ?? ''}
-        onChange={(e) => patch({ operatingAirline: e.target.value })}
-        placeholder="If different from ticketing airline"
-      />
+      <div className={styles.fieldWithSuggestions}>
+        <input
+          id={`op-airline-${draft.id}`}
+          className={styles.input}
+          list={`operating-list-f-${draft.id}`}
+          value={draft.operatingAirline ?? ''}
+          onChange={(e) => patch({ operatingAirline: e.target.value })}
+          onFocus={() => touchShell && setOperatingSuggestOpen(true)}
+          onBlur={() => window.setTimeout(() => setOperatingSuggestOpen(false), 120)}
+          placeholder="If different from ticketing airline"
+        />
+        {touchShell ? (
+          <FieldSuggestionList
+            options={airlineOptions}
+            value={draft.operatingAirline ?? ''}
+            onSelect={(value) => {
+              patch({ operatingAirline: value });
+              setOperatingSuggestOpen(false);
+            }}
+            active={operatingSuggestOpen}
+          />
+        ) : null}
+      </div>
+      <datalist id={`operating-list-f-${draft.id}`}>
+        {airlineOptions.map((value) => (
+          <option key={`op-${value}`} value={value} />
+        ))}
+      </datalist>
       <label className={styles.label} htmlFor={`bref-f-${draft.id}`}>
         Booking ref
       </label>
@@ -459,6 +487,16 @@ export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
         className={styles.input}
         value={draft.flightNumbers ?? ''}
         onChange={(e) => patch({ flightNumbers: e.target.value })}
+      />
+      <label className={styles.label} htmlFor={`bagallow-${draft.id}`}>
+        Baggage allowance
+      </label>
+      <input
+        id={`bagallow-${draft.id}`}
+        className={styles.input}
+        value={draft.baggageAllowance ?? ''}
+        onChange={(e) => patch({ baggageAllowance: e.target.value })}
+        placeholder="e.g. 1 × 23 kg checked + cabin bag"
       />
       <label className={styles.label} htmlFor={`cab-${draft.id}`}>
         Booking class

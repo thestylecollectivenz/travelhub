@@ -1,7 +1,7 @@
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { EntryLink } from '../models/EntryLink';
 import { formatCurrency } from './financialUtils';
-import { paymentDueActionLabel } from './paymentDueLabels';
+import { paymentDueReadLabel } from './paymentDueLabels';
 import { formatDisplayLabel } from './mobileDisplayFormat';
 import { effectiveBookingStatus } from './bookingStatusUtils';
 import { formatTimeHHMM, effectiveCruiseBoardingTime, effectiveCruiseDisembarkTime } from './itineraryTimeUtils';
@@ -161,11 +161,7 @@ export function buildCruiseDetailData(
     disembarkPrimary: disembark,
     lengthOfStay: nights > 0 ? `${nights} night${nights === 1 ? '' : 's'}` : '—',
     supplier: (entry.supplier || '').trim() || '—',
-    paymentDue: entry.paymentDueDate
-      ? `${paymentDueActionLabel(entry)} ${ymd(entry.paymentDueDate)}`
-      : entry.bookingDueDate
-        ? ymd(entry.bookingDueDate)
-        : '—',
+    paymentDue: paymentDueReadLabel(entry) || (entry.bookingDueDate ? ymd(entry.bookingDueDate) : '—'),
     paymentStatus: canSeeFinancials
       ? {
           label: formatDisplayLabel(entry.paymentStatus),

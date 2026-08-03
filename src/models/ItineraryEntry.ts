@@ -113,6 +113,8 @@ export interface ItineraryEntry {
   flightNumbers?: string;
   /** Flights: operating carrier when different from ticketing airline (supplier). */
   operatingAirline?: string;
+  /** Flights: free-text baggage allowance (e.g. 1 × 23 kg). */
+  baggageAllowance?: string;
   /** Flights: latest time to complete check-in (HH:MM). */
   checkInClosesTime?: string;
   /** Flights: bag check closes (HH:MM). */

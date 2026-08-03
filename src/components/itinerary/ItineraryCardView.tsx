@@ -24,7 +24,7 @@ import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
 import { requestViewTask, scrollToReminderRow } from '../../utils/viewTaskFocus';
 import { loadTripAssignees, rememberTripAssignee } from '../../utils/tripAssignees';
 import { usePlanView } from '../../context/PlanViewContext';
-import { paymentDueActionLabel } from '../../utils/paymentDueLabels';
+import { paymentDueReadLabel } from '../../utils/paymentDueLabels';
 import { EntryFilesLinksPanel } from './EntryFilesLinksPanel';
 import { sortEntryDocuments } from '../../utils/entryDocumentSort';
 import { sortEntryLinks } from '../../utils/entryLinkSort';
@@ -823,8 +823,8 @@ export const ItineraryCardView: React.FC<ItineraryCardViewProps> = ({
         {canSeeFinancials ? (
         <span className={`${styles.statusPill} ${styles.paymentPill} ${paymentClass}`}>
           {entry.paymentStatus}
-          {(entry.paymentStatus === 'Not paid' || entry.paymentStatus === 'Part paid') && entry.paymentDueDate
-            ? ` · ${paymentDueActionLabel(entry)} ${entry.paymentDueDate.slice(0, 10)}`
+          {(entry.paymentStatus === 'Not paid' || entry.paymentStatus === 'Part paid') && paymentDueReadLabel(entry)
+            ? ` · ${paymentDueReadLabel(entry)}`
             : ''}
         </span>
         ) : null}

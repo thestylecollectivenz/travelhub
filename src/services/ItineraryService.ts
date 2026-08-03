@@ -99,7 +99,8 @@ const SELECT_PHASE7_OPTIONAL = [
   'MealType',
   // ES3 Text HH:MM columns (legacy / preferred for accommodation times)
   'CheckInTime',
-  'CheckOutTime'
+  'CheckOutTime',
+  'BaggageAllowance'
 ];
 
 /** Never strip these on write fallback — they are provisioned and must persist. */
@@ -129,6 +130,7 @@ const SP_PHASE7_FIELD_KEYS = new Set([
   'StreetAddress',
   'FlightNumbers',
   'OperatingAirline',
+  'BaggageAllowance',
   'CheckInClosesTime',
   'BagCheckClosesTime',
   'PhoneNumber',
@@ -447,6 +449,7 @@ function mapToEntry(item: any): ItineraryEntry {
     streetAddress: item.StreetAddress ?? undefined,
     flightNumbers: item.FlightNumbers ?? undefined,
     operatingAirline: item.OperatingAirline ?? undefined,
+    baggageAllowance: item.BaggageAllowance ? String(item.BaggageAllowance) : undefined,
     checkInClosesTime: parseTime(item.CheckInClosesTime),
     bagCheckClosesTime: parseTime(item.BagCheckClosesTime),
     phoneNumber: item.PhoneNumber ?? undefined,
@@ -569,6 +572,7 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   if (entry.streetAddress !== undefined) item.StreetAddress = entry.streetAddress || null;
   if (entry.flightNumbers !== undefined) item.FlightNumbers = entry.flightNumbers || null;
   if (entry.operatingAirline !== undefined) item.OperatingAirline = entry.operatingAirline || null;
+  if (entry.baggageAllowance !== undefined) item.BaggageAllowance = entry.baggageAllowance || null;
   if (entry.checkInClosesTime !== undefined) item.CheckInClosesTime = serializeTime(entry.checkInClosesTime);
   if (entry.bagCheckClosesTime !== undefined) item.BagCheckClosesTime = serializeTime(entry.bagCheckClosesTime);
   if (entry.phoneNumber !== undefined) item.PhoneNumber = entry.phoneNumber || null;

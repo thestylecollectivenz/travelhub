@@ -2,7 +2,7 @@ import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { EntryDocument } from '../models/EntryDocument';
 import type { EntryLink } from '../models/EntryLink';
 import { formatCurrency } from './financialUtils';
-import { paymentDueActionLabel } from './paymentDueLabels';
+import { paymentDueReadLabel } from './paymentDueLabels';
 import { formatDisplayLabel, formatJourneyType, isReturnTransportLeg } from './mobileDisplayFormat';
 import { effectiveBookingStatus } from './bookingStatusUtils';
 import { formatTimeHHMM } from './itineraryTimeUtils';
@@ -169,13 +169,7 @@ export function buildTransportDetailData(
       tone: bookingPillTone(booked ? 'Booked' : entry.bookingStatus)
     },
     supplier: supplier || '—',
-    paymentDue: entry.payOnsite
-      ? 'Pay onsite'
-      : entry.paymentDueDate
-        ? `${paymentDueActionLabel(entry)} ${ymd(entry.paymentDueDate)}`
-        : entry.bookingDueDate
-          ? ymd(entry.bookingDueDate)
-          : '—',
+    paymentDue: paymentDueReadLabel(entry) || (entry.bookingDueDate ? ymd(entry.bookingDueDate) : '—'),
     paymentStatus: canSeeFinancials
       ? {
           label: formatDisplayLabel(entry.paymentStatus),

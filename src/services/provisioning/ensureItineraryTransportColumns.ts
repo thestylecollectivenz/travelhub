@@ -15,6 +15,7 @@ const ITINERARY_FIELDS = [
   { internalName: 'PaymentDueDate', type: 'DateTime' as const },
   { internalName: 'PaymentDueType', type: 'Text' as const },
   { internalName: 'OperatingAirline', type: 'Text' as const },
+  { internalName: 'BaggageAllowance', type: 'Text' as const },
   { internalName: 'PaymentDueCleared', type: 'Boolean' as const },
   { internalName: 'PayOnsite', type: 'Boolean' as const },
   // ES3 accommodation times (plain HH:MM text — no timezone)

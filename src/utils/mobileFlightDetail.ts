@@ -2,7 +2,7 @@ import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { EntryDocument } from '../models/EntryDocument';
 import type { EntryLink } from '../models/EntryLink';
 import { formatCurrency } from './financialUtils';
-import { paymentDueActionLabel } from './paymentDueLabels';
+import { paymentDueReadLabel } from './paymentDueLabels';
 import { formatDisplayLabel } from './mobileDisplayFormat';
 import { effectiveBookingStatus } from './bookingStatusUtils';
 import { formatTimeHHMM } from './itineraryTimeUtils';
@@ -110,7 +110,7 @@ export function buildFlightDetailData(
   const bagCheck = entry.bagCheckClosesTime
     ? `${ymdLong(depDate)}, ${formatTimeHHMM(entry.bagCheckClosesTime)}`
     : '—';
-  const baggage = hints.baggage || '—';
+  const baggage = (entry.baggageAllowance || '').trim() || hints.baggage || '—';
   const transfers = entry.transportTransfers;
   const stopLabel =
     transfers === 0 || transfers === undefined
@@ -118,6 +118,8 @@ export function buildFlightDetailData(
       : transfers === 1
         ? '1 stop'
         : `${transfers} stops`;
+  const ticketing = (entry.supplier || '').trim();
+  const operating = (entry.operatingAirline || '').trim() || ticketing;
 
   return {
     title: entry.title || `Fly ${from !== '—' ? from : ''} to ${to !== '—' ? to : ''}`.trim() || 'Flight',
@@ -135,8 +137,8 @@ export function buildFlightDetailData(
     },
     duration: (entry.duration || '').trim() || '—',
     stopLabel,
-    ticketingAirline: (entry.supplier || '').trim() || '—',
-    operatingAirline: (entry.operatingAirline || '').trim() || '—',
+    ticketingAirline: ticketing || '—',
+    operatingAirline: operating || '—',
     bookingPayment: {
       bookingReference: (entry.bookingReference || '').trim() || '—',
       bookingStatus: {
@@ -146,7 +148,7 @@ export function buildFlightDetailData(
       paymentStatus: showPayment
         ? { label: entry.paymentStatus, tone: paymentPillTone(entry.paymentStatus) }
         : undefined,
-      paymentDue: showPayment ? paymentDueActionLabel(entry) : undefined,
+      paymentDue: showPayment ? paymentDueReadLabel(entry) : undefined,
       showPayment,
       amountPrimary,
       amountHome

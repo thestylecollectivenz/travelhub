@@ -1,7 +1,7 @@
 import type { ItineraryEntry, ItinerarySubItem } from '../models/ItineraryEntry';
 import { formatCurrency } from './financialUtils';
 import { formatTimeHHMM } from './itineraryTimeUtils';
-import { paymentDueActionLabel } from './paymentDueLabels';
+import { payByDateReadLabel, paymentTimingReadLabel } from './paymentDueLabels';
 import { isLocationInfoEntry } from './locationInfoEntry';
 import { isRichTextEditorEmpty } from './journalRichText';
 import { richTextToPlainText } from './journalRichText';
@@ -70,10 +70,9 @@ export function buildItineraryEntryDetailRows(
     row('Booking due', ymd(entry.bookingDueDate)),
     row('Booking reference', entry.bookingReference),
     canSeeFinancials ? row('Payment status', entry.paymentStatus) : undefined,
-    canSeeFinancials && entry.paymentDueDate
-      ? row('Payment due', `${paymentDueActionLabel(entry)} ${ymd(entry.paymentDueDate)}`)
-      : undefined,
-    canSeeFinancials ? row('Payment due type', entry.paymentDueType) : undefined,
+    canSeeFinancials && entry.payOnsite ? row('Payment', 'Pay onsite') : undefined,
+    canSeeFinancials && !entry.payOnsite ? row('Payment timing', paymentTimingReadLabel(entry)) : undefined,
+    canSeeFinancials && !entry.payOnsite ? row('Pay by', payByDateReadLabel(entry)) : undefined,
     canSeeFinancials && entry.amount > 0
       ? row('Amount', `${formatCurrency(entry.amount, entry.currency)}${entry.costCertainty ? ` (${entry.costCertainty})` : ''}`)
       : undefined,
@@ -92,6 +91,8 @@ export function buildItineraryEntryDetailRows(
     row('Booking mechanism', entry.bookingMechanism),
     row('Perks included', entry.perksIncluded),
     row('Flight numbers', entry.flightNumbers),
+    row('Operating airline', entry.operatingAirline || entry.supplier),
+    row('Baggage allowance', entry.baggageAllowance),
     row('Cabin class', entry.cabinClass),
     row('Check-in closes', entry.checkInClosesTime ? formatTimeHHMM(entry.checkInClosesTime) : undefined),
     row('Bag check closes', entry.bagCheckClosesTime ? formatTimeHHMM(entry.bagCheckClosesTime) : undefined),
