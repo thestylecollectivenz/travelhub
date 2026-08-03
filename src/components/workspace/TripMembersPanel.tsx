@@ -117,8 +117,24 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
           </button>
         </header>
         <p className={styles.hint}>
-          People with access on this trip. Tap a photo to upload an avatar (stored in trip documents). Editor = full control; Companion = traveller (no finances); Follower = read-only onlooker.
+          People with access on this trip. Tap a photo to upload an avatar (stored in trip documents). Editor = full
+          control; Companion = traveller; Follower = read / like / comment on journal (no itinerary editing or finances).
         </p>
+        <div className={styles.guestNote}>
+          <strong>Followers without a SharePoint licence</strong>
+          <ol>
+            <li>
+              Invite them to this SharePoint site as a <em>guest</em> (Microsoft account — Outlook, Hotmail, Gmail, etc.).
+              Guests normally do not need a paid SharePoint licence.
+            </li>
+            <li>Add the same email below as <em>Follower</em> (or Companion / Editor).</li>
+            <li>They sign in with that Microsoft account and open Travel Hub — then they can read, like, and comment.</li>
+          </ol>
+          <p className={styles.guestNoteFoot}>
+            Trip access here does not by itself grant SharePoint site permission. Both steps are required. Truly anonymous
+            access (no Microsoft sign-in) is not supported for likes/comments.
+          </p>
+        </div>
         <input
           ref={avatarInputRef}
           type="file"

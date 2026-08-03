@@ -39,6 +39,12 @@ import {
   syncDayColumnsForEntryTimeOrder
 } from '../utils/dayViewEntryOrder';
 import { useConfig } from './ConfigContext';
+import { useOfflineStatus } from './OfflineStatusContext';
+import {
+  loadTripOfflineCache,
+  scheduleTripOfflineCacheWrite
+} from '../utils/tripOfflineCache';
+import { OFFLINE_WRITE_MESSAGE } from './OfflineStatusContext';
 import type { BudgetCategoryKey } from '../utils/financialUtils';
 import type { WorkspaceReturnState } from '../types/workspaceReturn';
 
@@ -213,6 +219,7 @@ async function persistHomeDaySortOrders(
 export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspaceProviderProps): React.ReactElement {
   const spContext = useSpContext();
   const { config } = useConfig();
+  const { isOnline, warnIfOffline, setViewingCachedTrip, setLastCachedAt } = useOfflineStatus();
 
   const [trip, setTrip] = React.useState<Trip | null>(null);
   const [tripDays, setTripDays] = React.useState<TripDay[]>([]);
@@ -222,8 +229,8 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
   const pendingEntryCreatesRef = React.useRef<Map<string, Promise<ItineraryEntry>>>(new Map());
   const pendingSubItemCreatesRef = React.useRef<Map<string, Promise<ItinerarySubItem>>>(new Map());
   const [selectedDayId, setSelectedDayId] = React.useState<string>('');
-  const [editingCardId, setEditingCardId] = React.useState<string | null>(null);
-  const [editingSubItem, setEditingSubItem] = React.useState<EditingSubItemRef | null>(null);
+  const [editingCardId, setEditingCardIdState] = React.useState<string | null>(null);
+  const [editingSubItem, setEditingSubItemState] = React.useState<EditingSubItemRef | null>(null);
   const [focusedEntryId, setFocusedEntryId] = React.useState<string | null>(null);
   const [mainWorkspaceTab, setMainWorkspaceTab] = React.useState<MainWorkspaceTab>('itinerary');
   const [selectedBudgetCategory, setSelectedBudgetCategory] = React.useState<BudgetCategoryKey | null>(null);
@@ -239,6 +246,22 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
   React.useEffect(() => {
     onBackRef.current = onBack;
   }, [onBack]);
+
+  const setEditingCardId = React.useCallback(
+    (id: string | null) => {
+      if (id !== null && warnIfOffline('edit')) return;
+      setEditingCardIdState(id);
+    },
+    [warnIfOffline]
+  );
+
+  const setEditingSubItem = React.useCallback(
+    (ref: EditingSubItemRef | null) => {
+      if (ref !== null && warnIfOffline('edit')) return;
+      setEditingSubItemState(ref);
+    },
+    [warnIfOffline]
+  );
 
   const loadData = React.useCallback(async (): Promise<void> => {
     setLoading(true);
@@ -270,11 +293,22 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       if (planChronologicalRenumber(anchoredDays).length) {
         anchoredDays = await daySvc.renumberDaysChronologically(tripId, anchoredDays);
       }
+      const mergedTrip = mergeTripDisplayPrefs(loadedTrip);
       // Set trip + days + entries together so mobile does not paint mid-repair with a trip id
       // that kicks off members/role fetches before itinerary data is ready.
-      setTrip(mergeTripDisplayPrefs(loadedTrip));
+      setTrip(mergedTrip);
       setTripDays(anchoredDays);
       setLocalEntries(loadedEntries);
+      setViewingCachedTrip(false);
+      const savedAt = new Date().toISOString();
+      setLastCachedAt(savedAt);
+      scheduleTripOfflineCacheWrite({
+        tripId,
+        trip: mergedTrip,
+        tripDays: anchoredDays,
+        entries: loadedEntries,
+        savedAt
+      });
       // Initialise FX rates
       try {
         const fxSvc = new FxService(spContext);
@@ -297,18 +331,53 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('TripWorkspaceProvider.loadData', err);
-      setError('Could not load trip data. Check your connection and try again.');
+      const cached = await loadTripOfflineCache(tripId);
+      if (cached?.trip) {
+        setTrip(mergeTripDisplayPrefs(cached.trip));
+        setTripDays(cached.tripDays || []);
+        setLocalEntries(cached.entries || []);
+        setViewingCachedTrip(true);
+        setLastCachedAt(cached.savedAt || null);
+        setError(null);
+        if ((cached.tripDays || []).length > 0) {
+          const fallback = defaultTripDayId(cached.tripDays);
+          if (fallback) setSelectedDayId(fallback);
+        }
+      } else {
+        setError('Could not load trip data. Check your connection and try again.');
+      }
     } finally {
       setLoading(false);
     }
-  }, [tripId, spContext]);
+  }, [tripId, spContext, setViewingCachedTrip, setLastCachedAt]);
 
   React.useEffect(() => {
     loadData().catch(console.error);
   }, [loadData]);
 
+  // Keep one overwritten snapshot current after successful online edits (debounced).
+  React.useEffect(() => {
+    if (!trip || loading || !isOnline) return;
+    scheduleTripOfflineCacheWrite({
+      tripId: trip.id,
+      trip,
+      tripDays,
+      entries: localEntries
+    });
+  }, [trip, tripDays, localEntries, loading, isOnline]);
+
+  const wasOnlineRef = React.useRef(isOnline);
+  React.useEffect(() => {
+    const wasOnline = wasOnlineRef.current;
+    wasOnlineRef.current = isOnline;
+    if (!wasOnline && isOnline) {
+      loadData().catch(console.error);
+    }
+  }, [isOnline, loadData]);
+
   const updateTrip = React.useCallback(
     (partial: Partial<Trip>) => {
+      if (warnIfOffline('write')) return;
       setTrip((prev) => (prev ? { ...prev, ...partial } : prev));
       const currentTripId = trip?.id;
       if (!currentTripId) return;
@@ -324,7 +393,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
         console.error('updateTrip: SP persist failed', err);
       });
     },
-    [spContext, trip?.id]
+    [spContext, trip?.id, warnIfOffline]
   );
 
   const clearDeleteTripError = React.useCallback(() => {
@@ -332,6 +401,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
   }, []);
 
   const deleteTrip = React.useCallback(async (): Promise<void> => {
+    if (warnIfOffline('write')) return;
     if (deletingTrip) return;
     setDeletingTrip(true);
     setDeleteTripError(null);
@@ -363,10 +433,11 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
     } finally {
       setDeletingTrip(false);
     }
-  }, [deletingTrip, spContext, tripId]);
+  }, [deletingTrip, spContext, tripId, warnIfOffline]);
 
   const updateDay = React.useCallback(
     (dayId: string, partial: Partial<TripDay>) => {
+      if (warnIfOffline('write')) return;
       setTripDays((prev) => prev.map((d) => (d.id === dayId ? { ...d, ...partial } : d)));
       const svc = new DayService(spContext);
       svc.update(dayId, partial).catch((err) => {
@@ -374,7 +445,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
         console.error('updateDay: SP persist failed', err);
       });
     },
-    [spContext]
+    [spContext, warnIfOffline]
   );
 
   const reloadItineraryEntries = React.useCallback(async () => {
@@ -414,6 +485,9 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
   }, [tripDays]);
 
   const persistEntry = React.useCallback(async (entry: ItineraryEntry): Promise<ItineraryEntry> => {
+    if (warnIfOffline('write')) {
+      throw new Error(OFFLINE_WRITE_MESSAGE);
+    }
     const latest = localEntriesRef.current.find((e) => e.id === entry.id) ?? entry;
     if (!isPendingItineraryEntryId(latest.id)) {
       return latest;
@@ -464,7 +538,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
           });
         }
         setLocalEntries((prev) => prev.map((e) => (e.id === tempId ? merged : e)));
-        setEditingCardId((prev) => (prev === tempId ? merged.id : prev));
+        setEditingCardIdState((prev) => (prev === tempId ? merged.id : prev));
         pendingEntryCreatesRef.current.delete(tempId);
         const allEntries = localEntriesRef.current.map((e) => (e.id === tempId ? merged : e));
         syncDayColumnsForEntryTimeOrder(merged, allEntries, tripDaysRef.current);
@@ -495,19 +569,21 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
 
     pendingEntryCreatesRef.current.set(latest.id, promise);
     return promise;
-  }, [spContext]);
+  }, [spContext, warnIfOffline]);
 
   const stageDraftEntry = React.useCallback((draft: ItineraryEntry) => {
     if (!isPendingItineraryEntryId(draft.id)) return;
+    if (warnIfOffline('edit')) return;
     setLocalEntries((prev) => {
       const i = prev.findIndex((e) => e.id === draft.id);
       if (i >= 0) return prev.map((e, idx) => (idx === i ? draft : e));
       return [...prev, draft];
     });
-  }, []);
+  }, [warnIfOffline]);
 
   const updateEntry = React.useCallback(
     async (updated: ItineraryEntry, options?: { persistPending?: boolean }): Promise<void> => {
+      if (warnIfOffline('write')) return;
       const isNew = isPendingItineraryEntryId(updated.id);
       const prev = localEntriesRef.current;
       const i = prev.findIndex((e) => e.id === updated.id);
@@ -568,18 +644,19 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
         throw err;
       }
     },
-    [spContext, persistEntry, tripDays]
+    [spContext, persistEntry, tripDays, warnIfOffline]
   );
 
   const deleteEntry = React.useCallback(
     (entryId: string) => {
+      if (warnIfOffline('write')) return;
       const victim = localEntries.find((e) => e.id === entryId);
       const tripId = (victim?.tripId ?? '').trim();
       const childIds = localEntries.filter((e) => e.parentEntryId === entryId).map((e) => e.id);
       const reminderEntryIds = new Set<string>([entryId, ...childIds]);
 
-      setEditingCardId((prev) => (prev === entryId ? null : prev));
-      setEditingSubItem((prev) => (prev?.parentEntryId === entryId ? null : prev));
+      setEditingCardIdState((prev) => (prev === entryId ? null : prev));
+      setEditingSubItemState((prev) => (prev?.parentEntryId === entryId ? null : prev));
       setLocalEntries((prev) => prev.filter((e) => e.id !== entryId && e.parentEntryId !== entryId));
 
       if (isPendingItineraryEntryId(entryId)) {
@@ -617,11 +694,12 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       };
       void run();
     },
-    [spContext, localEntries]
+    [spContext, localEntries, warnIfOffline]
   );
 
   const duplicateEntry = React.useCallback(
     (entryId: string) => {
+      if (warnIfOffline('write')) return;
       const prev = localEntriesRef.current;
       const idx = prev.findIndex((e) => e.id === entryId);
       if (idx < 0) return;
@@ -700,7 +778,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
         }
       })();
     },
-    [spContext, persistEntry]
+    [spContext, persistEntry, warnIfOffline]
   );
 
   const reorderEntries = React.useCallback(
@@ -822,6 +900,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
 
   const persistSubItem = React.useCallback(
     async (entryId: string, subItem: ItinerarySubItem): Promise<ItinerarySubItem> => {
+      if (warnIfOffline('write')) return subItem;
       if (!isPendingSubItemId(subItem.id)) {
         return subItem;
       }
@@ -860,7 +939,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
                 : entry
             )
           );
-          setEditingSubItem((prev) =>
+          setEditingSubItemState((prev) =>
             prev?.subItemId === subItem.id ? { parentEntryId: parentId, subItemId: merged.id } : prev
           );
           pendingSubItemCreatesRef.current.delete(subItem.id);
@@ -879,7 +958,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       pendingSubItemCreatesRef.current.set(subItem.id, promise);
       return promise;
     },
-    [spContext, persistEntry]
+    [spContext, persistEntry, warnIfOffline]
   );
 
   const updateSubItem = React.useCallback(
@@ -971,7 +1050,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
           entry.id === entryId ? { ...entry, subItems: entry.subItems?.filter((s) => s.id !== subItemId) } : entry
         )
       );
-      setEditingSubItem((prev) =>
+      setEditingSubItemState((prev) =>
         prev?.parentEntryId === entryId && prev.subItemId === subItemId ? null : prev
       );
       const svc = new ItineraryService(spContext);
@@ -1073,7 +1152,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
           return entry;
         })
       );
-      setEditingSubItem((prev) =>
+      setEditingSubItemState((prev) =>
         prev?.subItemId === subItemId ? { parentEntryId: toEntryId, subItemId } : prev
       );
 

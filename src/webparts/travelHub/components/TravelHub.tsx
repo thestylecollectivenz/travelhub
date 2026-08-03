@@ -7,6 +7,8 @@ import { AppRouter } from './app/AppRouter';
 import { SpContext } from '../../../context/SpContext';
 import { ConfigProvider } from '../../../context/ConfigContext';
 import { AppConfigProvider } from '../../../context/AppConfigContext';
+import { OfflineStatusProvider } from '../../../context/OfflineStatusContext';
+import { OfflineStatusBanner } from '../../../components/shared/OfflineStatusBanner';
 import { runTravelHubProvisioning } from '../../../services/provisioning/runTravelHubProvisioning';
 import { getCurrentUserEmail } from '../../../utils/currentUserEmail';
 import { loadStoredLicenceKey } from '../../../utils/licenceKeyStorage';
@@ -39,9 +41,12 @@ const TravelHub: React.FC<ITravelHubProps> = (props) => {
       <SpContext.Provider value={props.context}>
         <AppConfigProvider>
           <ConfigProvider>
-            <LicenceGate licenceKey={licenceKey} storageUserId={storageUserId} onKeySubmit={setLicenceKey}>
-              <AppRouter />
-            </LicenceGate>
+            <OfflineStatusProvider>
+              <LicenceGate licenceKey={licenceKey} storageUserId={storageUserId} onKeySubmit={setLicenceKey}>
+                <OfflineStatusBanner />
+                <AppRouter />
+              </LicenceGate>
+            </OfflineStatusProvider>
           </ConfigProvider>
         </AppConfigProvider>
       </SpContext.Provider>

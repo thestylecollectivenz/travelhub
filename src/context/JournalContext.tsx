@@ -15,6 +15,8 @@ import { compressImageForUpload } from '../utils/compressImageForUpload';
 import { useSpContext } from './SpContext';
 import { useTripWorkspace } from './TripWorkspaceContext';
 import { useConfig } from './ConfigContext';
+import { useOfflineStatus, OFFLINE_WRITE_MESSAGE } from './OfflineStatusContext';
+import { loadTripOfflineCache, patchTripOfflineJournalCache } from '../utils/tripOfflineCache';
 
 export interface JournalContextValue {
   allEntries: JournalEntry[];
@@ -52,6 +54,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const { journalAuthorName } = useConfig();
   const { trip } = useTripWorkspace();
   const tripId = trip?.id ?? '';
+  const { warnIfOffline, isOnline } = useOfflineStatus();
 
   const [entries, setEntries] = React.useState<JournalEntry[]>([]);
   const [photos, setPhotos] = React.useState<JournalPhoto[]>([]);
@@ -82,19 +85,40 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       loadedCommentsRef.current = new Set();
       return;
     }
-    const svc = new JournalService(spContext);
-    const [e, p, counts] = await Promise.all([
-      svc.getAll(tripId),
-      svc.getForTrip(tripId),
-      svc.getCommentCountsByEntryForTrip(tripId)
-    ]);
-    setEntries(e);
-    setPhotos(p);
-    setPhotoOrderByEntry(mergePhotoOrdersFromStorage(tripId, p));
-    setCommentCountByEntry(counts);
-    setCommentsByEntry({});
-    loadedCommentsRef.current = new Set();
-  }, [spContext, tripId]);
+    try {
+      const svc = new JournalService(spContext);
+      const [e, p, counts] = await Promise.all([
+        svc.getAll(tripId),
+        svc.getForTrip(tripId),
+        svc.getCommentCountsByEntryForTrip(tripId)
+      ]);
+      setEntries(e);
+      setPhotos(p);
+      setPhotoOrderByEntry(mergePhotoOrdersFromStorage(tripId, p));
+      setCommentCountByEntry(counts);
+      setCommentsByEntry({});
+      loadedCommentsRef.current = new Set();
+      if (isOnline) {
+        void patchTripOfflineJournalCache(tripId, {
+          journalEntries: e,
+          journalPhotos: p,
+          journalCommentCounts: counts
+        });
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('JournalProvider.load', err);
+      const cached = await loadTripOfflineCache(tripId);
+      if (cached?.journalEntries) {
+        setEntries(cached.journalEntries);
+        setPhotos(cached.journalPhotos || []);
+        setPhotoOrderByEntry(mergePhotoOrdersFromStorage(tripId, cached.journalPhotos || []));
+        setCommentCountByEntry(cached.journalCommentCounts || {});
+        setCommentsByEntry({});
+        loadedCommentsRef.current = new Set();
+      }
+    }
+  }, [spContext, tripId, isOnline]);
 
   React.useEffect(() => {
     reloadAll().catch((err) => {
@@ -160,6 +184,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const addEntry = React.useCallback(
     async (input: { dayId: string; entryText: string; location?: string }): Promise<JournalEntry> => {
+      if (warnIfOffline('write')) throw new Error(OFFLINE_WRITE_MESSAGE);
       if (!tripId) throw new Error('No trip loaded');
       const optimistic: JournalEntry = {
         id: `temp-${Date.now()}`,
@@ -193,11 +218,12 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw err;
       }
     },
-    [spContext, tripId, journalAuthorName]
+    [spContext, tripId, journalAuthorName, warnIfOffline]
   );
 
   const updateEntry = React.useCallback(
     async (id: string, partial: Partial<Pick<JournalEntry, 'entryText' | 'location'>>): Promise<void> => {
+      if (warnIfOffline('write')) return;
       const prevEntry = entries.find((e) => e.id === id);
       if (!prevEntry) return;
       const next: JournalEntry = { ...prevEntry, ...partial };
@@ -212,7 +238,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw err;
       }
     },
-    [entries, spContext]
+    [entries, spContext, warnIfOffline]
   );
 
   const syncEntryPhotosDay = React.useCallback(
@@ -304,6 +330,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const deleteEntry = React.useCallback(
     async (id: string): Promise<void> => {
+      if (warnIfOffline('write')) return;
       const prevEntry = entries.find((e) => e.id === id);
       const prevPhotos = photos.filter((p) => p.journalEntryId === id);
       setEntries((prev) => prev.filter((e) => e.id !== id));
@@ -335,11 +362,12 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw err;
       }
     },
-    [entries, photos, spContext]
+    [entries, photos, spContext, warnIfOffline]
   );
 
   const addPhoto = React.useCallback(
     async (input: { journalEntryId: string; dayId: string; file: File; caption?: string }): Promise<JournalPhoto> => {
+      if (warnIfOffline('write')) throw new Error(OFFLINE_WRITE_MESSAGE);
       if (!tripId) throw new Error('No trip loaded');
       const siblings = photos.filter((p) => p.journalEntryId === input.journalEntryId);
       const nextSort = siblings.reduce((max, p) => Math.max(max, p.sortOrder ?? 0), -1) + 1;
@@ -364,11 +392,12 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
       return created;
     },
-    [photos, spContext, tripId, webAbsoluteUrl, serverRelativeUrl]
+    [photos, spContext, tripId, webAbsoluteUrl, serverRelativeUrl, warnIfOffline]
   );
 
   const addAlbumPhoto = React.useCallback(
     async (dayId: string, file: File, caption?: string): Promise<JournalPhoto> => {
+      if (warnIfOffline('write')) throw new Error(OFFLINE_WRITE_MESSAGE);
       if (!tripId) throw new Error('No trip loaded');
       const compressed = await compressImageForUpload(file);
       const svc = new JournalService(spContext);
@@ -384,11 +413,12 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setPhotos((prev) => [...prev, created]);
       return created;
     },
-    [spContext, tripId, webAbsoluteUrl, serverRelativeUrl]
+    [spContext, tripId, webAbsoluteUrl, serverRelativeUrl, warnIfOffline]
   );
 
   const deletePhoto = React.useCallback(
     async (id: string): Promise<void> => {
+      if (warnIfOffline('write')) return;
       const prev = photos.find((p) => p.id === id);
       setPhotos((x) => x.filter((p) => p.id !== id));
       if (prev?.journalEntryId?.trim()) {
@@ -411,11 +441,12 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw err;
       }
     },
-    [photos, spContext, tripId]
+    [photos, spContext, tripId, warnIfOffline]
   );
 
   const updatePhotoCaption = React.useCallback(
     async (photoId: string, caption: string): Promise<void> => {
+      if (warnIfOffline('write')) return;
       const prev = photos.find((p) => p.id === photoId);
       if (!prev) return;
       setPhotos((x) => x.map((p) => (p.id === photoId ? { ...p, caption } : p)));
@@ -429,11 +460,12 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw err;
       }
     },
-    [photos, spContext]
+    [photos, spContext, warnIfOffline]
   );
 
   const updatePhotoFocal = React.useCallback(
     async (photoId: string, focalX: number, focalY: number): Promise<void> => {
+      if (warnIfOffline('write')) return;
       const prev = photos.find((p) => p.id === photoId);
       if (!prev) return;
       setPhotos((x) => x.map((p) => (p.id === photoId ? { ...p, focalX, focalY } : p)));
@@ -447,11 +479,12 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw err;
       }
     },
-    [photos, spContext]
+    [photos, spContext, warnIfOffline]
   );
 
   const assignPhotoToEntry = React.useCallback(
     async (photoId: string, dayId: string, journalEntryId: string): Promise<void> => {
+      if (warnIfOffline('write')) return;
       const prev = photos.find((p) => p.id === photoId);
       if (!prev) return;
       const nextJournalEntryId = journalEntryId.trim();
@@ -484,7 +517,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw err;
       }
     },
-    [photos, spContext, tripId]
+    [photos, spContext, tripId, warnIfOffline]
   );
 
   const reorderPhotoInEntry = React.useCallback(
@@ -532,6 +565,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const togglePhotoLike = React.useCallback(
     async (photoId: string): Promise<void> => {
+      if (warnIfOffline('write')) return;
       const snapshot = photos.find((p) => p.id === photoId);
       if (!snapshot) return;
       const users = (snapshot.likedByUsers ?? '')
@@ -556,11 +590,12 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         console.error('JournalProvider.togglePhotoLike', err);
       }
     },
-    [photos, spContext, userLogin]
+    [photos, spContext, userLogin, warnIfOffline]
   );
 
   const toggleLike = React.useCallback(
     async (entryId: string): Promise<void> => {
+      if (warnIfOffline('write')) return;
       const snapshot = entries.find((e) => e.id === entryId);
       if (!snapshot) return;
 
@@ -588,11 +623,12 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         console.error('JournalProvider.toggleLike', err);
       }
     },
-    [entries, spContext, userLogin]
+    [entries, spContext, userLogin, warnIfOffline]
   );
 
   const addComment = React.useCallback(
     async (journalEntryId: string, text: string): Promise<void> => {
+      if (warnIfOffline('write')) return;
       if (!tripId) throw new Error('No trip loaded');
       const optimistic: JournalComment = {
         id: `temp-${Date.now()}`,
@@ -632,11 +668,12 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw err;
       }
     },
-    [spContext, tripId, userDisplayName]
+    [spContext, tripId, userDisplayName, warnIfOffline]
   );
 
   const deleteComment = React.useCallback(
     async (journalEntryId: string, commentId: string): Promise<void> => {
+      if (warnIfOffline('write')) return;
       let prevComment: JournalComment | undefined;
       setCommentsByEntry((prev) => {
         const list = prev[journalEntryId] ?? [];
@@ -672,7 +709,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw err;
       }
     },
-    [spContext]
+    [spContext, warnIfOffline]
   );
 
   const reassignDayContent = React.useCallback(
