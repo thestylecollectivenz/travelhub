@@ -14,16 +14,21 @@ function pad2(n: number): string {
 /** Extract minutes-since-midnight from a stored time string (HH:MM or ISO). */
 export function minutesFromTimeStart(timeStart: string): number | undefined {
   if (!timeStart || !timeStart.trim()) return undefined;
+  const raw = timeStart.trim();
 
-  // Already HH:MM
-  if (/^\d{2}:\d{2}$/.test(timeStart.trim())) {
-    const [h, m] = timeStart.trim().split(':').map(Number);
-    if (!Number.isNaN(h) && !Number.isNaN(m)) return h * 60 + m;
+  // HH:MM or HH:MM:SS(.fraction)
+  const hm = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/);
+  if (hm) {
+    const h = Number(hm[1]);
+    const m = Number(hm[2]);
+    if (!Number.isNaN(h) && !Number.isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+      return h * 60 + m;
+    }
     return undefined;
   }
 
   // ISO datetime — extract UTC hours/minutes to avoid timezone shift
-  const d = new Date(timeStart);
+  const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return undefined;
   return d.getUTCHours() * 60 + d.getUTCMinutes();
 }
@@ -53,12 +58,22 @@ export function combineDayAndTime(calendarDate: string, timeHHMM: string): strin
 
 /** Timeline placement for accommodation check-in (planned overrides contractual check-in). */
 export function effectiveAccommodationArrivalTime(entry: ItineraryEntry): string {
-  return entry.plannedArrivalTime?.trim() || entry.checkInTime?.trim() || '';
+  return (
+    entry.plannedArrivalTime?.trim() ||
+    entry.checkInTime?.trim() ||
+    entry.timeStart?.trim() ||
+    ''
+  );
 }
 
 /** Timeline placement for accommodation check-out. */
 export function effectiveAccommodationDepartureTime(entry: ItineraryEntry): string {
-  return entry.plannedDepartureTime?.trim() || entry.checkOutTime?.trim() || '';
+  return (
+    entry.plannedDepartureTime?.trim() ||
+    entry.checkOutTime?.trim() ||
+    entry.arrivalTime?.trim() ||
+    ''
+  );
 }
 
 /** Timeline placement for cruise embark / boarding. */
@@ -76,10 +91,11 @@ export function formatAccommodationArriveLabel(entry: ItineraryEntry, nights?: n
   // Prefer planned arrival for the timeline; contractual check-in only when planned is blank.
   const planned = formatTimeHHMM(entry.plannedArrivalTime ?? '');
   const contractual = formatTimeHHMM(entry.checkInTime ?? '');
-  if (!planned && !contractual) {
+  const legacy = !planned && !contractual ? formatTimeHHMM(entry.timeStart ?? '') : '';
+  if (!planned && !contractual && !legacy) {
     return nights && nights > 0 ? `${nights} night${nights === 1 ? '' : 's'}` : 'Arrive';
   }
-  const time = planned || contractual;
+  const time = planned || contractual || legacy;
   const suffix = planned && contractual && planned !== contractual ? ` (${contractual} onwards)` : '';
   const nightsPart = nights && nights > 0 ? ` · ${nights} night${nights === 1 ? '' : 's'}` : '';
   return `Arrive ${time}${suffix}${nightsPart}`;
@@ -92,8 +108,9 @@ export const formatAccommodationCheckInLabel = formatAccommodationArriveLabel;
 export function formatAccommodationDepartLabel(entry: ItineraryEntry): string {
   const planned = formatTimeHHMM(entry.plannedDepartureTime ?? '');
   const contractual = formatTimeHHMM(entry.checkOutTime ?? '');
-  if (!planned && !contractual) return 'Depart';
-  const time = planned || contractual;
+  const legacy = !planned && !contractual ? formatTimeHHMM(entry.arrivalTime ?? '') : '';
+  if (!planned && !contractual && !legacy) return 'Depart';
+  const time = planned || contractual || legacy;
   const suffix = planned && contractual && planned !== contractual ? ` (${contractual} latest)` : '';
   return `Depart ${time}${suffix}`;
 }

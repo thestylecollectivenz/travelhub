@@ -422,12 +422,15 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
         'Itinerary item';
     }
     const cur = draft.currency.trim().toUpperCase().slice(0, 3) || 'NZD';
-    const timeStart = combineDayAndTime(calendarDate, timeValue);
+    const timeStartFromField = combineDayAndTime(calendarDate, timeValue);
     const saved: ItineraryEntry = {
       ...draft,
       title,
       currency: cur,
-      timeStart: timeStart || '',
+      // Accommodation uses dedicated check-in / planned fields — do not blank TimeStart from the hidden generic Time input.
+      timeStart: isAccommodation
+        ? draft.timeStart?.trim() || timeStartFromField || ''
+        : timeStartFromField || '',
       supplier: draft.supplier.trim(),
       notes: notesValue,
       location: draft.location?.trim() || undefined,
@@ -510,9 +513,9 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       saved.checkOutTime = draft.checkOutTime?.trim() || undefined;
       saved.plannedArrivalTime = draft.plannedArrivalTime?.trim() || undefined;
       saved.plannedDepartureTime = draft.plannedDepartureTime?.trim() || undefined;
-      // Keep generic timeline fields aligned for day planner / legacy readers
-      const arrive = (saved.plannedArrivalTime || saved.checkInTime || '').trim();
-      const depart = (saved.plannedDepartureTime || saved.checkOutTime || '').trim();
+      // Keep generic timeline fields aligned for day planner / legacy readers — never wipe existing times.
+      const arrive = (saved.plannedArrivalTime || saved.checkInTime || saved.timeStart || '').trim();
+      const depart = (saved.plannedDepartureTime || saved.checkOutTime || saved.arrivalTime || '').trim();
       if (arrive) saved.timeStart = arrive;
       if (depart) saved.arrivalTime = depart;
       if (!keepOnPreTrip && saved.dateStart && trip) {

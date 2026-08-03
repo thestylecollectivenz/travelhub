@@ -287,8 +287,8 @@ function parseTime(isoOrTime: string | null | undefined): string {
   if (isoOrTime == null) return '';
   const raw = String(isoOrTime).trim();
   if (!raw) return '';
-  // HH:MM or HH:MM:SS (Text columns / ES3 CheckInTime)
-  const hm = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  // HH:MM or HH:MM:SS(.fraction) — Text columns / ES3 CheckInTime
+  const hm = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/);
   if (hm) {
     const h = Math.min(23, parseInt(hm[1], 10) || 0);
     const m = Math.min(59, parseInt(hm[2], 10) || 0);
@@ -434,10 +434,14 @@ function mapToEntry(item: any): ItineraryEntry {
     // Planned itinerary times; fall back to generic TimeStart/ArrivalTime if Acc* empty
     plannedArrivalTime:
       parseTime(item.AccPlannedArrivalTime) ||
-      (item.Category === 'Accommodation' ? parseTime(item.TimeStart) : ''),
+      (item.Category === 'Accommodation'
+        ? parseTime(item.TimeStart) || parseAccommodationTime(item.CheckInTime, item.AccCheckInTime)
+        : ''),
     plannedDepartureTime:
       parseTime(item.AccPlannedDepartureTime) ||
-      (item.Category === 'Accommodation' ? parseTime(item.ArrivalTime) : ''),
+      (item.Category === 'Accommodation'
+        ? parseTime(item.ArrivalTime) || parseAccommodationTime(item.CheckOutTime, item.AccCheckOutTime)
+        : ''),
     plannedBoardingTime: parseTime(item.CruisePlannedBoardingTime),
     plannedDisembarkTime: parseTime(item.CruisePlannedDisembarkTime),
     streetAddress: item.StreetAddress ?? undefined,
