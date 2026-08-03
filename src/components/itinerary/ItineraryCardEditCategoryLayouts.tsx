@@ -28,6 +28,7 @@ import { useSpContext } from '../../context/SpContext';
 import { subscribeLocationInfoAIStatus } from '../../utils/locationInfoAIEvents';
 import { scheduleLocationInfoAIGeneration } from '../../utils/locationInfoGeneration';
 import { combineDayAndTime, formatTimeHHMM } from '../../utils/itineraryTimeUtils';
+import { toDateTimeLocalValue } from '../../utils/wallDateTime';
 import { CurrencySelect } from '../shared/CurrencySelect';
 import { RichTextField } from '../shared/RichTextField';
 import { FieldSuggestionList } from '../shared/FieldSuggestionList';
@@ -262,7 +263,7 @@ export function CancellationPolicyFields({
         id={`canceldead-${draft.id}`}
         className={styles.input}
         type="datetime-local"
-        value={draft.cancellationDeadline ? draft.cancellationDeadline.slice(0, 16) : ''}
+        value={toDateTimeLocalValue(draft.cancellationDeadline)}
         onChange={(e) => patch({ cancellationDeadline: e.target.value || undefined })}
       />
     </>
@@ -316,7 +317,7 @@ export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
               patch({ transportFrom: value });
               setFromSuggestOpen(false);
             }}
-            active={fromSuggestOpen || Boolean((draft.transportFrom ?? '').trim())}
+            active={fromSuggestOpen}
           />
         ) : null}
       </div>
@@ -341,7 +342,7 @@ export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
               patch({ transportTo: value });
               setToSuggestOpen(false);
             }}
-            active={toSuggestOpen || Boolean((draft.transportTo ?? '').trim())}
+            active={toSuggestOpen}
           />
         ) : null}
       </div>
@@ -422,7 +423,7 @@ export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
               patch({ supplier: value });
               setSupplierSuggestOpen(false);
             }}
-            active={supplierSuggestOpen || Boolean(draft.supplier.trim())}
+            active={supplierSuggestOpen}
           />
         ) : null}
       </div>
@@ -563,7 +564,7 @@ export const AccommodationEditLayout: React.FC<CategoryEditLayoutProps> = (props
               patch({ location: value });
               setLocationSuggestOpen(false);
             }}
-            active={locationSuggestOpen || Boolean((draft.location ?? '').trim())}
+            active={locationSuggestOpen}
           />
         ) : null}
       </div>
@@ -603,7 +604,7 @@ export const AccommodationEditLayout: React.FC<CategoryEditLayoutProps> = (props
               patch({ supplier: value });
               setSupplierSuggestOpen(false);
             }}
-            active={supplierSuggestOpen || Boolean(draft.supplier.trim())}
+            active={supplierSuggestOpen}
           />
         ) : null}
       </div>

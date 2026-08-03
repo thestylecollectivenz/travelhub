@@ -9,6 +9,7 @@ import {
   ItineraryUnitType
 } from '../models';
 import { resolveBookingStatusFromItem } from '../utils/bookingStatusUtils';
+import { serializeWallDateTime, toDateTimeLocalValue } from '../utils/wallDateTime';
 
 const LIST = 'ItineraryEntries';
 
@@ -95,7 +96,10 @@ const SELECT_PHASE7_OPTIONAL = [
   'AccPlannedDepartureTime',
   'CruisePlannedBoardingTime',
   'CruisePlannedDisembarkTime',
-  'MealType'
+  'MealType',
+  // ES3 Text HH:MM columns (legacy / preferred for accommodation times)
+  'CheckInTime',
+  'CheckOutTime'
 ];
 
 /** Never strip these on write fallback — they are provisioned and must persist. */
@@ -120,6 +124,8 @@ const SP_PHASE7_FIELD_KEYS = new Set([
   'RoomType',
   'AccCheckInTime',
   'AccCheckOutTime',
+  'CheckInTime',
+  'CheckOutTime',
   'StreetAddress',
   'FlightNumbers',
   'OperatingAirline',
@@ -278,37 +284,54 @@ function pad2(n: number): string {
 }
 
 function parseTime(isoOrTime: string | null | undefined): string {
-  if (!isoOrTime) return '';
-  // Already HH:MM — return as-is
-  if (/^\d{2}:\d{2}$/.test(isoOrTime.trim())) return isoOrTime.trim();
-  // ISO datetime — extract UTC hours/minutes (we store on fixed UTC reference date)
+  if (isoOrTime == null) return '';
+  const raw = String(isoOrTime).trim();
+  if (!raw) return '';
+  // HH:MM or HH:MM:SS (Text columns / ES3 CheckInTime)
+  const hm = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (hm) {
+    const h = Math.min(23, parseInt(hm[1], 10) || 0);
+    const m = Math.min(59, parseInt(hm[2], 10) || 0);
+    return `${pad2(h)}:${pad2(m)}`;
+  }
+  // SharePoint /Date(ms)/
+  const od = raw.match(/\/Date\((-?\d+)(?:[+-]\d+)?\)\//);
+  if (od) {
+    const d = new Date(Number(od[1]));
+    if (!Number.isNaN(d.getTime())) {
+      return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
+    }
+  }
+  // ISO datetime — extract UTC hours/minutes (we store wall clock as UTC)
   try {
-    const d = new Date(isoOrTime);
+    const d = new Date(raw);
     if (Number.isNaN(d.getTime())) return '';
-    const hh = pad2(d.getUTCHours());
-    const mm = pad2(d.getUTCMinutes());
-    return `${hh}:${mm}`;
+    return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
   } catch {
     return '';
   }
 }
 
+/** Prefer Acc* columns; fall back to ES3 CheckInTime/CheckOutTime Text columns. */
+function parseAccommodationTime(
+  primary: string | null | undefined,
+  legacy: string | null | undefined
+): string {
+  return parseTime(primary) || parseTime(legacy);
+}
+
 function serializeTime(time: string | undefined): string | null {
   if (!time) return null;
+  const hhmm = parseTime(time);
+  if (!hhmm) return null;
   // HH:MM — store on fixed UTC reference date to avoid timezone issues
-  if (/^\d{2}:\d{2}$/.test(time.trim())) {
-    return `1970-01-01T${time.trim()}:00.000Z`;
-  }
-  // Already a full ISO string — extract time and re-serialize on reference date
-  try {
-    const d = new Date(time);
-    if (!Number.isNaN(d.getTime())) {
-      return `1970-01-01T${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:00.000Z`;
-    }
-  } catch {
-    /* fall through */
-  }
-  return null;
+  return `1970-01-01T${hhmm}:00.000Z`;
+}
+
+/** Plain HH:MM for Text columns (CheckInTime / CheckOutTime per ES3). */
+function serializeTimeText(time: string | undefined): string | null {
+  if (!time) return null;
+  return parseTime(time) || null;
 }
 
 function parseDate(isoOrDate: string | null | undefined): string | undefined {
@@ -406,10 +429,15 @@ function mapToEntry(item: any): ItineraryEntry {
     subItems: [], // assembled separately
     bookingReference: item.BookingReference ?? undefined,
     roomType: item.RoomType ?? undefined,
-    checkInTime: parseTime(item.AccCheckInTime),
-    checkOutTime: parseTime(item.AccCheckOutTime),
-    plannedArrivalTime: parseTime(item.AccPlannedArrivalTime),
-    plannedDepartureTime: parseTime(item.AccPlannedDepartureTime),
+    checkInTime: parseAccommodationTime(item.CheckInTime, item.AccCheckInTime),
+    checkOutTime: parseAccommodationTime(item.CheckOutTime, item.AccCheckOutTime),
+    // Planned itinerary times; fall back to generic TimeStart/ArrivalTime if Acc* empty
+    plannedArrivalTime:
+      parseTime(item.AccPlannedArrivalTime) ||
+      (item.Category === 'Accommodation' ? parseTime(item.TimeStart) : ''),
+    plannedDepartureTime:
+      parseTime(item.AccPlannedDepartureTime) ||
+      (item.Category === 'Accommodation' ? parseTime(item.ArrivalTime) : ''),
     plannedBoardingTime: parseTime(item.CruisePlannedBoardingTime),
     plannedDisembarkTime: parseTime(item.CruisePlannedDisembarkTime),
     streetAddress: item.StreetAddress ?? undefined,
@@ -426,7 +454,10 @@ function mapToEntry(item: any): ItineraryEntry {
     returnArrivalTime: parseTime(item.ReturnArrivalTime),
     perksIncluded: item.PerksIncluded ? String(item.PerksIncluded) : undefined,
     cancellationPolicy: item.CancellationPolicy ? String(item.CancellationPolicy) : undefined,
-    cancellationDeadline: item.CancellationDeadline ? String(item.CancellationDeadline) : undefined,
+    // Normalize to datetime-local wall clock (no TZ shift on edit/display)
+    cancellationDeadline: item.CancellationDeadline
+      ? toDateTimeLocalValue(String(item.CancellationDeadline)) || String(item.CancellationDeadline)
+      : undefined,
     bookingDueDate: parseDate(item.BookingDueDate),
     paymentDueDate: parseDate(item.PaymentDueDate),
     paymentDueCleared: item.PaymentDueCleared === true || item.PaymentDueCleared === 1,
@@ -518,8 +549,15 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   if (entry.groupLabel !== undefined) item.GroupLabel = entry.groupLabel;
   if (entry.bookingReference !== undefined) item.BookingReference = entry.bookingReference || null;
   if (entry.roomType !== undefined) item.RoomType = entry.roomType || null;
-  if (entry.checkInTime !== undefined) item.AccCheckInTime = serializeTime(entry.checkInTime);
-  if (entry.checkOutTime !== undefined) item.AccCheckOutTime = serializeTime(entry.checkOutTime);
+  if (entry.checkInTime !== undefined) {
+    item.AccCheckInTime = serializeTime(entry.checkInTime);
+    // ES3 Text columns — keep in sync so older lists / prior data round-trip
+    item.CheckInTime = serializeTimeText(entry.checkInTime);
+  }
+  if (entry.checkOutTime !== undefined) {
+    item.AccCheckOutTime = serializeTime(entry.checkOutTime);
+    item.CheckOutTime = serializeTimeText(entry.checkOutTime);
+  }
   if (entry.plannedArrivalTime !== undefined) item.AccPlannedArrivalTime = serializeTime(entry.plannedArrivalTime);
   if (entry.plannedDepartureTime !== undefined) item.AccPlannedDepartureTime = serializeTime(entry.plannedDepartureTime);
   if (entry.plannedBoardingTime !== undefined) item.CruisePlannedBoardingTime = serializeTime(entry.plannedBoardingTime);
@@ -539,15 +577,9 @@ function mapToSpItem(entry: Partial<ItineraryEntry> & { groupLabel?: string }): 
   if (entry.perksIncluded !== undefined) item.PerksIncluded = entry.perksIncluded || null;
   if (entry.cancellationPolicy !== undefined) item.CancellationPolicy = entry.cancellationPolicy || null;
   if (entry.cancellationDeadline !== undefined) {
-    if (!entry.cancellationDeadline) {
-      item.CancellationDeadline = null;
-    } else {
-      try {
-        item.CancellationDeadline = new Date(entry.cancellationDeadline).toISOString();
-      } catch {
-        item.CancellationDeadline = entry.cancellationDeadline;
-      }
-    }
+    item.CancellationDeadline = entry.cancellationDeadline
+      ? serializeWallDateTime(entry.cancellationDeadline)
+      : null;
   }
   if (entry.bookingDueDate !== undefined) item.BookingDueDate = serializeDate(entry.bookingDueDate);
   if (entry.paymentDueCleared === true) {

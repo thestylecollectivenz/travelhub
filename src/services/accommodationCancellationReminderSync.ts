@@ -1,18 +1,17 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 import { ReminderService } from './ReminderService';
+import { formatWallDateTimeEnNz, serializeWallDateTime } from '../utils/wallDateTime';
 
 const REMINDER_TYPE = 'CancellationDeadline';
 
 function buildReminderTitle(entry: ItineraryEntry, deadlineIso: string): string {
   const title = (entry.title || '').trim() || 'Accommodation';
-  const d = new Date(deadlineIso);
-  if (Number.isNaN(d.getTime())) {
+  const formatted = formatWallDateTimeEnNz(deadlineIso);
+  if (!formatted) {
     return `Last chance to cancel ${title} — deadline ${deadlineIso}`;
   }
-  const dateStr = d.toLocaleDateString('en-NZ');
-  const timeStr = d.toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit', hour12: false });
-  return `Last chance to cancel ${title} — deadline ${dateStr} at ${timeStr}`;
+  return `Last chance to cancel ${title} — deadline ${formatted}`;
 }
 
 function buildTaskNote(entry: ItineraryEntry): string {
@@ -86,7 +85,7 @@ export async function syncAccommodationCancellationDeadlineReminder(
       await svc.update(existing.id, {
         title: reminderTitle,
         taskNote,
-        dueDate: deadline,
+        dueDate: serializeWallDateTime(deadline) || deadline,
         dayId: entry.dayId,
         entryId: entry.id,
         reminderType: REMINDER_TYPE,
@@ -102,7 +101,7 @@ export async function syncAccommodationCancellationDeadlineReminder(
         reminderType: REMINDER_TYPE,
         reminderText: '',
         taskNote,
-        dueDate: deadline,
+        dueDate: serializeWallDateTime(deadline) || deadline,
         isComplete: false
       });
     }

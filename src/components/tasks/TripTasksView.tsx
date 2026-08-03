@@ -38,6 +38,7 @@ import {
 } from '../../utils/tripTaskCategories';
 import { openTasksPrintPreview, type TasksPrintSection } from '../../utils/tasksPrintHtml';
 import { INSIGHT_FOCUS_EVENT, type InsightFocusDetail } from '../../utils/insightFocus';
+import { formatReminderDueLabel } from '../../utils/wallDateTime';
 import { MOBILE_OPEN_TASK_ADD } from '../../utils/mobileHomePendingAction';
 import {
   isAllTaskDueFilters,
@@ -798,7 +799,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({
           const entryNotes = (target?.entry?.notes || '').trim();
           return {
             title: reminderDisplayTitle(m),
-            dueLine: m.dueDate ? `Due ${new Date(m.dueDate).toLocaleDateString('en-NZ')}` : '',
+            dueLine: m.dueDate ? formatReminderDueLabel(m.dueDate) : '',
             contextLine: target ? `${target.contextLine} · ${dayName(target.openDayId) || ''}` : '',
             note: entryNotes && note === entryNotes ? undefined : note || undefined,
             complete: m.isComplete
@@ -1210,7 +1211,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({
                           {m.isComplete ? <span className={styles.completeBadge}>Complete</span> : null}
                         </div>
                         <div className={styles.meta}>
-                          {m.dueDate ? `Due ${new Date(m.dueDate).toLocaleDateString('en-NZ')}` : 'No due date'}
+                          {m.dueDate ? formatReminderDueLabel(m.dueDate) : 'No due date'}
                           {m.assignedTo?.trim() ? (
                             <>
                               <span aria-hidden> · </span>
@@ -1493,7 +1494,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({
                         {m.isComplete ? <span className={styles.completeBadge}>Complete</span> : null}
                       </div>
                       <div className={styles.meta}>
-                        {m.dueDate ? `Due ${new Date(m.dueDate).toLocaleString('en-NZ')}` : 'No due date'}
+                        {m.dueDate ? formatReminderDueLabel(m.dueDate) : 'No due date'}
                         {m.assignedTo?.trim() ? (
                           <>
                             <span aria-hidden> · </span>

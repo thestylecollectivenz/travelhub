@@ -284,8 +284,8 @@ export const MobileAccommodationDetail: React.FC<MobileAccommodationDetailProps>
       <div className={styles.bpGrid}>
         <Field label="Booking reference" value={bp.bookingReference || '—'} />
         <Field label="Booking status" pill={bp.bookingStatus} />
-        <Field label="Check-in" value={bp.checkInPrimary} sub={bp.checkInSub} />
-        <Field label="Check-out" value={bp.checkOutPrimary} />
+        <Field label="Check-in time" value={bp.checkInPrimary} sub={bp.checkInSub} />
+        <Field label="Check-out time" value={bp.checkOutPrimary} />
         <Field label="Length of stay" value={bp.lengthOfStay} />
         <Field label="Supplier" value={bp.supplier} />
       </div>

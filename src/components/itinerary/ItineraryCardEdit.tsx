@@ -506,6 +506,15 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
     if (saved.category === 'Accommodation') {
       saved.unitType = 'PerNight';
       saved.unitAmount = nights > 0 ? perNight : saved.unitAmount;
+      saved.checkInTime = draft.checkInTime?.trim() || undefined;
+      saved.checkOutTime = draft.checkOutTime?.trim() || undefined;
+      saved.plannedArrivalTime = draft.plannedArrivalTime?.trim() || undefined;
+      saved.plannedDepartureTime = draft.plannedDepartureTime?.trim() || undefined;
+      // Keep generic timeline fields aligned for day planner / legacy readers
+      const arrive = (saved.plannedArrivalTime || saved.checkInTime || '').trim();
+      const depart = (saved.plannedDepartureTime || saved.checkOutTime || '').trim();
+      if (arrive) saved.timeStart = arrive;
+      if (depart) saved.arrivalTime = depart;
       if (!keepOnPreTrip && saved.dateStart && trip) {
         const checkInDay = tripDays.find(
           (d) =>
@@ -679,7 +688,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
                     patch({ location: value, title: value.trim() || draft.title });
                     setLocationSuggestOpen(false);
                   }}
-                  active={locationSuggestOpen || Boolean((draft.location ?? '').trim())}
+                  active={locationSuggestOpen}
                 />
               ) : null}
             </div>
@@ -966,7 +975,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
                     patch({ supplier: value });
                     setSupplierSuggestOpen(false);
                   }}
-                  active={supplierSuggestOpen || Boolean(draft.supplier.trim())}
+                  active={supplierSuggestOpen}
                 />
               ) : null}
             </div>
@@ -1072,7 +1081,7 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
                 patch({ location: value });
                 setLocationSuggestOpen(false);
               }}
-              active={locationSuggestOpen || Boolean((draft.location ?? '').trim())}
+              active={locationSuggestOpen}
             />
           ) : null}
         </div>

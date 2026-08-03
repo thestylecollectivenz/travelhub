@@ -35,8 +35,10 @@ export interface AccomPaymentAmountBlock {
 export interface AccomBookingPaymentModel {
   bookingReference?: string;
   bookingStatus: { label: string; tone: 'green' | 'rust' | 'red' | 'neutral' };
+  /** Hotel contractual check-in time only (HH:MM). */
   checkInPrimary?: string;
   checkInSub?: string;
+  /** Hotel contractual check-out time only (HH:MM). */
   checkOutPrimary?: string;
   lengthOfStay?: string;
   supplier?: string;
@@ -82,26 +84,44 @@ function boolYesNo(value?: boolean): string {
   return value === true ? 'Yes' : 'No';
 }
 
-function checkInParts(entry: ItineraryEntry): { primary?: string; sub?: string } {
-  const dateLabel = ymd(entry.dateStart);
-  if (!dateLabel) return {};
-  const planned = formatTimeHHMM(effectiveAccommodationArrivalTime(entry));
-  const contractual = entry.checkInTime?.trim() ? formatTimeHHMM(entry.checkInTime) : '';
-  const time = planned || contractual;
-  if (!time) return { primary: dateLabel };
-  const primary = `${dateLabel} ${time}`;
-  const sub =
-    planned && contractual && planned !== contractual ? `(from ${contractual})` : undefined;
-  return { primary, sub };
+/** Summary strip: date + planned arrival/departure (falls back to hotel check-in/out times). */
+function staySummaryParts(entry: ItineraryEntry): {
+  checkInPrimary?: string;
+  checkInSub?: string;
+  checkOutPrimary?: string;
+} {
+  const inDate = ymd(entry.dateStart);
+  const outDate = ymd(entry.dateEnd);
+  const plannedIn = formatTimeHHMM(entry.plannedArrivalTime ?? '');
+  const plannedOut = formatTimeHHMM(entry.plannedDepartureTime ?? '');
+  const hotelIn = formatTimeHHMM(entry.checkInTime ?? '');
+  const hotelOut = formatTimeHHMM(entry.checkOutTime ?? '');
+
+  const arriveTime = plannedIn || hotelIn || formatTimeHHMM(effectiveAccommodationArrivalTime(entry));
+  const departTime = plannedOut || hotelOut || formatTimeHHMM(effectiveAccommodationDepartureTime(entry));
+
+  let checkInPrimary: string | undefined;
+  let checkInSub: string | undefined;
+  if (inDate) {
+    checkInPrimary = arriveTime ? `${inDate} ${arriveTime}` : inDate;
+    if (plannedIn && hotelIn && plannedIn !== hotelIn) {
+      checkInSub = `(from ${hotelIn})`;
+    }
+  }
+
+  let checkOutPrimary: string | undefined;
+  if (outDate) {
+    checkOutPrimary = departTime ? `${outDate} ${departTime}` : outDate;
+  }
+
+  return { checkInPrimary, checkInSub, checkOutPrimary };
 }
 
-function checkOutPrimary(entry: ItineraryEntry): string | undefined {
-  const dateLabel = ymd(entry.dateEnd);
-  if (!dateLabel) return undefined;
-  const planned = formatTimeHHMM(effectiveAccommodationDepartureTime(entry));
-  const contractual = entry.checkOutTime?.trim() ? formatTimeHHMM(entry.checkOutTime) : '';
-  const time = planned || contractual;
-  return time ? `${dateLabel} ${time}` : dateLabel;
+/** Booking & payment: hotel check-in / check-out times only. */
+function hotelCheckTimes(entry: ItineraryEntry): { checkIn?: string; checkOut?: string } {
+  const checkIn = formatTimeHHMM(entry.checkInTime ?? '') || undefined;
+  const checkOut = formatTimeHHMM(entry.checkOutTime ?? '') || undefined;
+  return { checkIn, checkOut };
 }
 
 export function buildAccommodationDocLinkPills(docs: EntryDocument[], links: EntryLink[]): AccomDocLinkPill[] {
@@ -152,8 +172,8 @@ export function buildAccommodationDetailData(
   const { canSeeFinancials, hasConfirmationDoc, convertToHomeCurrency, homeCurrency } = options;
   const booked = effectiveBookingStatus(entry, { hasConfirmationDoc });
   const nights = nightsBetween(entry.dateStart, entry.dateEnd);
-  const cin = checkInParts(entry);
-  const cout = checkOutPrimary(entry);
+  const summary = staySummaryParts(entry);
+  const hotelTimes = hotelCheckTimes(entry);
   const currency = (entry.currency || 'NZD').toUpperCase();
   const home = (homeCurrency || 'NZD').toUpperCase();
 
@@ -191,9 +211,9 @@ export function buildAccommodationDetailData(
       label: formatDisplayLabel(booked),
       tone: bookingPillTone(booked)
     },
-    checkInPrimary: cin.primary,
-    checkInSub: cin.sub,
-    checkOutPrimary: cout,
+    checkInPrimary: hotelTimes.checkIn,
+    checkInSub: undefined,
+    checkOutPrimary: hotelTimes.checkOut,
     lengthOfStay: nights > 0 ? `${nights} night${nights === 1 ? '' : 's'}` : undefined,
     supplier: (entry.supplier || '').trim() || undefined,
     paymentDue: entry.paymentDueDate
@@ -217,10 +237,10 @@ export function buildAccommodationDetailData(
     { label: 'Parking included', value: boolYesNo(entry.parkingIncluded) }
   ];
 
-  const arriveDetail = cin.primary
-    ? `Arrive ${cin.primary}${cin.sub ? ` ${cin.sub}` : ''}`
+  const arriveDetail = summary.checkInPrimary
+    ? `Arrive ${summary.checkInPrimary}${summary.checkInSub ? ` ${summary.checkInSub}` : ''}`
     : '';
-  const departDetail = cout ? `Depart ${cout}` : '';
+  const departDetail = summary.checkOutPrimary ? `Depart ${summary.checkOutPrimary}` : '';
 
   return {
     nights,
@@ -228,9 +248,9 @@ export function buildAccommodationDetailData(
     checkInTime: arriveDetail,
     checkOutDate: ymd(entry.dateEnd),
     checkOutTime: departDetail,
-    checkInPrimary: cin.primary,
-    checkInSub: cin.sub,
-    checkOutPrimary: cout,
+    checkInPrimary: summary.checkInPrimary,
+    checkInSub: summary.checkInSub,
+    checkOutPrimary: summary.checkOutPrimary,
     bookingPayment,
     stayGrid: stayGrid.filter((c): c is AccomGridCell => Boolean(c)),
     perks: (entry.perksIncluded || '').trim() || undefined,

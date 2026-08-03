@@ -1,18 +1,17 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 import { ReminderService } from '../services/ReminderService';
+import { formatWallDateTimeEnNz, serializeWallDateTime } from './wallDateTime';
 
 const REMINDER_TYPE = 'CancellationDeadline';
 
 function buildReminderTitle(entry: ItineraryEntry, deadlineIso: string): string {
   const title = (entry.title || '').trim() || entry.category || 'Item';
-  const d = new Date(deadlineIso);
-  if (Number.isNaN(d.getTime())) {
+  const formatted = formatWallDateTimeEnNz(deadlineIso);
+  if (!formatted) {
     return `Last chance to cancel ${title} — deadline ${deadlineIso}`;
   }
-  const dateStr = d.toLocaleDateString('en-NZ');
-  const timeStr = d.toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit', hour12: false });
-  return `Last chance to cancel ${title} — deadline ${dateStr} at ${timeStr}`;
+  return `Last chance to cancel ${title} — deadline ${formatted}`;
 }
 
 function buildReminderNote(entry: ItineraryEntry): string {
@@ -64,7 +63,7 @@ export async function syncEntryCancellationDeadlineReminder(
   const payload = {
     title: buildReminderTitle(entry, deadline),
     taskNote: buildReminderNote(entry),
-    dueDate: deadline,
+    dueDate: serializeWallDateTime(deadline) || deadline,
     dayId: entry.dayId,
     entryId: entry.id,
     reminderType: REMINDER_TYPE,
