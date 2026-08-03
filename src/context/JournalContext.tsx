@@ -54,7 +54,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const { journalAuthorName } = useConfig();
   const { trip } = useTripWorkspace();
   const tripId = trip?.id ?? '';
-  const { warnIfOffline, isOnline } = useOfflineStatus();
+  const { warnIfOffline, isOnline, reportNetworkFailure, setViewingCachedTrip, setLastCachedAt } = useOfflineStatus();
 
   const [entries, setEntries] = React.useState<JournalEntry[]>([]);
   const [photos, setPhotos] = React.useState<JournalPhoto[]>([]);
@@ -108,6 +108,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('JournalProvider.load', err);
+      reportNetworkFailure(err);
       const cached = await loadTripOfflineCache(tripId);
       if (cached?.journalEntries) {
         setEntries(cached.journalEntries);
@@ -116,9 +117,11 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setCommentCountByEntry(cached.journalCommentCounts || {});
         setCommentsByEntry({});
         loadedCommentsRef.current = new Set();
+        setViewingCachedTrip(true);
+        setLastCachedAt(cached.savedAt || null);
       }
     }
-  }, [spContext, tripId, isOnline]);
+  }, [spContext, tripId, isOnline, reportNetworkFailure, setViewingCachedTrip, setLastCachedAt]);
 
   React.useEffect(() => {
     reloadAll().catch((err) => {

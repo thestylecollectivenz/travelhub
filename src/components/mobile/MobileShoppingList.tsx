@@ -34,6 +34,9 @@ import { isAllSelected } from '../../utils/multiSelectFilters';
 import { matchesShoppingCategories, matchesShoppingMonths } from '../../utils/shoppingSummary';
 import chrome from './MobileTabChrome.module.css';
 import styles from './MobileShoppingList.module.css';
+import { useOfflineStatus } from '../../context/OfflineStatusContext';
+import { loadTripOfflineCache, patchTripOfflineExtrasCache } from '../../utils/tripOfflineCache';
+import { isLikelyNetworkError } from '../../utils/networkError';
 
 type ViewMode = 'az' | 'grouped';
 
@@ -75,6 +78,7 @@ function DetailsIcon(): React.ReactElement {
 
 export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const spContext = useSpContext();
+  const { reportNetworkFailure } = useOfflineStatus();
   const { trip } = useTripWorkspace();
   const { config, journalAuthorName } = useConfig();
   const planView = usePlanView();
@@ -142,9 +146,15 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
       .then((rows) => {
         setItems(rows);
         notifyShoppingItemsChanged(trip.id);
+        void patchTripOfflineExtrasCache(trip.id, { shoppingItems: rows });
       })
-      .catch(console.error);
-  }, [service, trip?.id]);
+      .catch(async (err) => {
+        console.error(err);
+        if (isLikelyNetworkError(err)) reportNetworkFailure(err);
+        const cached = await loadTripOfflineCache(trip.id);
+        if (cached?.shoppingItems) setItems(cached.shoppingItems);
+      });
+  }, [service, trip?.id, reportNetworkFailure]);
 
   React.useEffect(() => {
     refresh();

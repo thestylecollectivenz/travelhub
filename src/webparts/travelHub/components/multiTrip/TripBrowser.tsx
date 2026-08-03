@@ -13,6 +13,9 @@ import {
 } from '../../../../utils/tripListSort';
 import L from 'leaflet';
 import '../../../../components/maps/LeafletCompat.css';
+import { useOfflineStatus } from '../../../../context/OfflineStatusContext';
+import { loadTripsIndexCache, saveTripsIndexCache } from '../../../../utils/tripOfflineCache';
+import { isLikelyNetworkError } from '../../../../utils/networkError';
 
 function formatDateRange(dateStart: string, dateEnd: string): string {
   if (!dateStart || !dateEnd) return '';
@@ -73,6 +76,7 @@ function tripEndYmd(trip: Trip): string {
 
 export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreateTrip, onOpenSettings }) => {
   const spContext = useSpContext();
+  const { reportNetworkFailure, setViewingCachedTrip, setLastCachedAt } = useOfflineStatus();
   const [trips, setTrips] = React.useState<Trip[]>([]);
   const [mapTripFilter, setMapTripFilter] = React.useState<MapTripFilter>('upcoming');
   const [allPlaces, setAllPlaces] = React.useState<Array<{ id: string; title: string; lat: number; lon: number; countryCode: string; country: string }>>([]);
@@ -108,16 +112,45 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
       // eslint-disable-next-line no-console
       console.log('TripBrowser dayRows', dayRows);
       const allDayRows = dayRows.reduce((acc, rows) => acc.concat(rows), [] as typeof dayRows[number]);
-      setAllTripDays(allDayRows.map((d) => ({ tripId: d.tripId, primaryPlaceId: d.primaryPlaceId })));
-      setAllPlaces(places.map((p) => ({ id: p.id, title: p.title, lat: p.latitude, lon: p.longitude, countryCode: p.countryCode, country: p.country })));
+      const placeRows = places.map((p) => ({
+        id: p.id,
+        title: p.title,
+        lat: p.latitude,
+        lon: p.longitude,
+        countryCode: p.countryCode,
+        country: p.country
+      }));
+      const tripDayRows = allDayRows.map((d) => ({ tripId: d.tripId, primaryPlaceId: d.primaryPlaceId }));
+      setAllTripDays(tripDayRows);
+      setAllPlaces(placeRows);
+      setViewingCachedTrip(false);
+      const savedAt = new Date().toISOString();
+      setLastCachedAt(savedAt);
+      void saveTripsIndexCache({
+        trips: result,
+        places: placeRows,
+        tripDays: tripDayRows,
+        savedAt
+      });
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('TripBrowser: failed to load trips', err);
-      setError('Could not load trips. Check your connection and try again.');
+      if (isLikelyNetworkError(err)) reportNetworkFailure(err);
+      const cached = await loadTripsIndexCache();
+      if (cached?.trips?.length) {
+        setTrips(cached.trips);
+        setAllPlaces(cached.places || []);
+        setAllTripDays(cached.tripDays || []);
+        setViewingCachedTrip(true);
+        setLastCachedAt(cached.savedAt || null);
+        setError(null);
+      } else {
+        setError('Could not load trips. Check your connection and try again.');
+      }
     } finally {
       setLoading(false);
     }
-  }, [spContext]);
+  }, [spContext, reportNetworkFailure, setViewingCachedTrip, setLastCachedAt]);
 
   const todayYmd = React.useMemo(() => todayYmdLocal(), []);
 

@@ -2,6 +2,9 @@ import * as React from 'react';
 import type { Place, PlaceCandidate } from '../models';
 import { PlaceService } from '../services/PlaceService';
 import { useSpContext } from './SpContext';
+import { useOfflineStatus } from './OfflineStatusContext';
+import { loadTripsIndexCache } from '../utils/tripOfflineCache';
+import { isLikelyNetworkError } from '../utils/networkError';
 
 interface PlacesContextValue {
   places: Place[];
@@ -18,6 +21,7 @@ const PlacesContext = React.createContext<PlacesContextValue | undefined>(undefi
 
 export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const spContext = useSpContext();
+  const { reportNetworkFailure, setViewingCachedTrip, setLastCachedAt, warnIfOffline } = useOfflineStatus();
   const [places, setPlaces] = React.useState<Place[]>([]);
   /** Start true so first paint waits for the initial fetch (avoids empty→filled flicker). */
   const [loading, setLoading] = React.useState(true);
@@ -28,10 +32,32 @@ export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const svc = new PlaceService(spContext);
       const all = await svc.getAll();
       setPlaces(all);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('PlacesProvider.refreshPlaces', err);
+      if (isLikelyNetworkError(err)) reportNetworkFailure(err);
+      const index = await loadTripsIndexCache();
+      if (index?.places?.length) {
+        setPlaces(
+          index.places.map((p) => ({
+            id: p.id,
+            title: p.title,
+            latitude: p.lat,
+            longitude: p.lon,
+            country: p.country,
+            countryCode: p.countryCode,
+            placeType: 'other',
+            timeZone: '',
+            nominatimId: ''
+          }))
+        );
+        setViewingCachedTrip(true);
+        setLastCachedAt(index.savedAt || null);
+      }
     } finally {
       setLoading(false);
     }
-  }, [spContext]);
+  }, [spContext, reportNetworkFailure, setViewingCachedTrip, setLastCachedAt]);
 
   React.useEffect(() => {
     refreshPlaces().catch(console.error);
@@ -39,14 +65,18 @@ export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const searchPlaces = React.useCallback(
     async (query: string): Promise<PlaceCandidate[]> => {
+      if (warnIfOffline('write')) return [];
       const svc = new PlaceService(spContext);
       return svc.search(query);
     },
-    [spContext]
+    [spContext, warnIfOffline]
   );
 
   const createOrReusePlace = React.useCallback(
     async (candidate: PlaceCandidate): Promise<Place> => {
+      if (warnIfOffline('write')) {
+        throw new Error('Offline — places cannot be created until you are back online.');
+      }
       const svc = new PlaceService(spContext);
       const created = await svc.create({
         title: candidate.title,
@@ -69,7 +99,7 @@ export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
       return created;
     },
-    [spContext]
+    [spContext, warnIfOffline]
   );
 
   const placeById = React.useCallback(
@@ -86,28 +116,32 @@ export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const missing = unique.filter((id) => !places.some((p) => p.id === id));
       if (missing.length === 0) return;
       const svc = new PlaceService(spContext);
-      const loaded = await Promise.all(
-        missing.map((id) =>
-          svc.getById(id).catch((err) => {
-            // eslint-disable-next-line no-console
-            console.error('ensurePlacesLoaded', id, err);
-            return undefined;
-          })
-        )
-      );
-      const found = loaded.filter((p): p is Place => p !== undefined);
-      if (found.length === 0) return;
-      setPlaces((prev) => {
-        const next = [...prev];
-        for (const place of found) {
-          if (!next.some((p) => p.id === place.id)) {
-            next.push(place);
+      try {
+        const loaded = await Promise.all(
+          missing.map((id) =>
+            svc.getById(id).catch((err) => {
+              // eslint-disable-next-line no-console
+              console.error('ensurePlacesLoaded', id, err);
+              return undefined;
+            })
+          )
+        );
+        const found = loaded.filter((p): p is Place => p !== undefined);
+        if (found.length === 0) return;
+        setPlaces((prev) => {
+          const next = [...prev];
+          for (const place of found) {
+            if (!next.some((p) => p.id === place.id)) {
+              next.push(place);
+            }
           }
-        }
-        return next;
-      });
+          return next;
+        });
+      } catch (err) {
+        if (isLikelyNetworkError(err)) reportNetworkFailure(err);
+      }
     },
-    [places, spContext]
+    [places, spContext, reportNetworkFailure]
   );
 
   const value = React.useMemo<PlacesContextValue>(

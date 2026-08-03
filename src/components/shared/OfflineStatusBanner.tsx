@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import { useOfflineStatus } from '../../context/OfflineStatusContext';
 import styles from './OfflineStatusBanner.module.css';
 
@@ -14,7 +15,7 @@ function formatCachedAt(iso: string | null): string {
   });
 }
 
-/** Non-blocking banner — edit controls stay visible; writes are blocked elsewhere. */
+/** Fixed portal banner — sits above mobile shells (z-index 5000). Edit drawers stay higher. */
 export const OfflineStatusBanner: React.FC = () => {
   const { isOffline, viewingCachedTrip, lastCachedAt } = useOfflineStatus();
   if (!isOffline && !viewingCachedTrip) return null;
@@ -22,15 +23,18 @@ export const OfflineStatusBanner: React.FC = () => {
   const cachedLabel = formatCachedAt(lastCachedAt);
   const message = isOffline
     ? cachedLabel
-      ? `Offline — viewing last saved trip (${cachedLabel}). Editing isn’t available until you’re back online.`
-      : 'Offline — viewing last saved trip when available. Editing isn’t available until you’re back online.'
+      ? `Offline — viewing last saved data (${cachedLabel}). Editing isn’t available until you’re back online.`
+      : 'Offline — viewing last saved data when available. Editing isn’t available until you’re back online.'
     : cachedLabel
-      ? `Showing cached trip data from ${cachedLabel}. Reconnect to refresh.`
-      : 'Showing cached trip data. Reconnect to refresh.';
+      ? `Showing cached data from ${cachedLabel}. Reconnect to refresh.`
+      : 'Showing cached data. Reconnect to refresh.';
 
-  return (
+  const node = (
     <div className={styles.banner} role="status" aria-live="polite">
       {message}
     </div>
   );
+
+  if (typeof document === 'undefined') return node;
+  return createPortal(node, document.body);
 };

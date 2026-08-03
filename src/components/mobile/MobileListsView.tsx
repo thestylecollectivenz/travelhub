@@ -12,6 +12,9 @@ import { usePlanView } from '../../context/PlanViewContext';
 import { useSpContext } from '../../context/SpContext';
 import { PackingService } from '../../services/PackingService';
 import { ShoppingListService } from '../../services/ShoppingListService';
+import { loadTripOfflineCache } from '../../utils/tripOfflineCache';
+import { isLikelyNetworkError } from '../../utils/networkError';
+import { useOfflineStatus } from '../../context/OfflineStatusContext';
 import { useShellMode } from '../../hooks/useShellMode';
 import chrome from './MobileTabChrome.module.css';
 import {
@@ -34,6 +37,7 @@ const MobileListsBody: React.FC = () => {
   const { trip } = useTripWorkspace();
   const planView = usePlanView();
   const spContext = useSpContext();
+  const { reportNetworkFailure } = useOfflineStatus();
   const shellMode = useShellMode();
   const { role } = useTripRole();
   const { members } = useTripMembers(trip?.id);
@@ -69,19 +73,39 @@ const MobileListsBody: React.FC = () => {
     const packing = new PackingService(spContext);
     const shopping = new ShoppingListService(spContext);
     const reload = (): void => {
-      void packing.getForTrip(trip.id).then((rows) => {
-        setPackingTotal(rows.length);
-        setPackingPacked(rows.filter((r) => r.isPacked).length);
-      });
-      void shopping.getForTrip(trip.id).then((rows) => {
-        setShoppingTotal(rows.length);
-        setShoppingBought(rows.filter((r) => r.isPurchased).length);
-      });
+      void packing
+        .getForTrip(trip.id)
+        .then((rows) => {
+          setPackingTotal(rows.length);
+          setPackingPacked(rows.filter((r) => r.isPacked).length);
+        })
+        .catch(async (err) => {
+          if (isLikelyNetworkError(err)) reportNetworkFailure(err);
+          const cached = await loadTripOfflineCache(trip.id);
+          if (cached?.packingItems) {
+            setPackingTotal(cached.packingItems.length);
+            setPackingPacked(cached.packingItems.filter((r) => r.isPacked).length);
+          }
+        });
+      void shopping
+        .getForTrip(trip.id)
+        .then((rows) => {
+          setShoppingTotal(rows.length);
+          setShoppingBought(rows.filter((r) => r.isPurchased).length);
+        })
+        .catch(async (err) => {
+          if (isLikelyNetworkError(err)) reportNetworkFailure(err);
+          const cached = await loadTripOfflineCache(trip.id);
+          if (cached?.shoppingItems) {
+            setShoppingTotal(cached.shoppingItems.length);
+            setShoppingBought(cached.shoppingItems.filter((r) => r.isPurchased).length);
+          }
+        });
     };
     reload();
     window.addEventListener('travelhub-shopping-items-changed', reload);
     return () => window.removeEventListener('travelhub-shopping-items-changed', reload);
-  }, [trip?.id, spContext]);
+  }, [trip?.id, spContext, reportNetworkFailure]);
 
   const shoppingToBuy = Math.max(0, shoppingTotal - shoppingBought);
   const canIdeas = role === 'Editor' || role === 'Companion';

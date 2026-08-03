@@ -18,6 +18,9 @@ import { isJotterIdeaReminder } from '../../utils/tripJotterIdeas';
 import { isSavedSpotReminder } from '../../utils/tripSavedSpots';
 import type { TaskCompletionFilter } from '../../utils/taskFilters';
 import { TripTasksView } from '../tasks/TripTasksView';
+import { useOfflineStatus } from '../../context/OfflineStatusContext';
+import { loadTripOfflineCache, patchTripOfflineExtrasCache } from '../../utils/tripOfflineCache';
+import { isLikelyNetworkError } from '../../utils/networkError';
 import { MobileTaskFiltersDrawer } from './MobileTaskFiltersDrawer';
 import { useShellMode } from '../../hooks/useShellMode';
 import chrome from './MobileTabChrome.module.css';
@@ -46,6 +49,7 @@ function activeStat(completion: TaskCompletionFilter, due: TaskDueFilter[]): Sta
 const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
   const { trip, localEntries } = useTripWorkspace();
   const spContext = useSpContext();
+  const { reportNetworkFailure } = useOfflineStatus();
   const shellMode = useShellMode();
   const planView = usePlanView();
   const { role } = useTripRole();
@@ -149,7 +153,7 @@ const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
     const today = localTodayYmd();
     const load = (): void => {
       const svc = new ReminderService(spContext);
-      void svc.getForTrip(trip.id).then((rows) => {
+      const applyRows = (rows: Awaited<ReturnType<ReminderService['getForTrip']>>): void => {
         const manual = rows.filter(
           (r) =>
             !isDayIdeaReminder(r) &&
@@ -196,7 +200,18 @@ const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
         setOverdueCount(overdue);
         setDueTodayCount(dueToday);
         setDoneCount(done);
-      });
+      };
+      void svc
+        .getForTrip(trip.id)
+        .then((rows) => {
+          void patchTripOfflineExtrasCache(trip.id, { reminders: rows });
+          applyRows(rows);
+        })
+        .catch(async (err) => {
+          if (isLikelyNetworkError(err)) reportNetworkFailure(err);
+          const cached = await loadTripOfflineCache(trip.id);
+          if (cached?.reminders) applyRows(cached.reminders);
+        });
     };
     load();
     window.addEventListener('trip-reminders-updated', load);
@@ -205,7 +220,7 @@ const MobileTaskBody: React.FC<{ hideChrome?: boolean }> = ({ hideChrome }) => {
       window.removeEventListener('trip-reminders-updated', load);
       window.removeEventListener('trip-itinerary-updated', load);
     };
-  }, [trip?.id, spContext, localEntries]);
+  }, [trip?.id, spContext, localEntries, reportNetworkFailure]);
 
   return (
     <div data-shell={shellMode === 'ipad-portrait' ? 'ipad-portrait' : undefined}>

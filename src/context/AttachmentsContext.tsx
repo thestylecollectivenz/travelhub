@@ -9,6 +9,9 @@ import { sortEntryLinks } from '../utils/entryLinkSort';
 import { migrateLegacyLinkOrder } from '../utils/linkEntryOrder';
 import { useSpContext } from './SpContext';
 import { useTripWorkspace } from './TripWorkspaceContext';
+import { useOfflineStatus, OFFLINE_WRITE_MESSAGE } from './OfflineStatusContext';
+import { loadTripOfflineCache, patchTripOfflineExtrasCache } from '../utils/tripOfflineCache';
+import { isLikelyNetworkError } from '../utils/networkError';
 
 export interface AttachmentsContextValue {
   documents: EntryDocument[];
@@ -54,6 +57,7 @@ const AttachmentsContext = React.createContext<AttachmentsContextValue | undefin
 export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const spContext = useSpContext();
   const { trip } = useTripWorkspace();
+  const { warnIfOffline, reportNetworkFailure, setViewingCachedTrip, setLastCachedAt } = useOfflineStatus();
   const tripId = trip?.id ?? '';
   const webAbsoluteUrl = spContext.pageContext.web.absoluteUrl.replace(/\/$/, '');
   const serverRelativeUrl = spContext.pageContext.web.serverRelativeUrl.replace(/\/$/, '');
@@ -99,15 +103,28 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setDocuments(mixed.documents);
         setLinks(mixed.links);
         setLoading(false);
+        void patchTripOfflineExtrasCache(tripId, {
+          documents: mixed.documents,
+          links: mixed.links
+        });
       })
-      .catch((err) => {
+      .catch(async (err) => {
         // eslint-disable-next-line no-console
         console.error('AttachmentsProvider.load', err);
-        setError(err instanceof Error ? err.message : 'Could not load attachments.');
+        if (isLikelyNetworkError(err)) reportNetworkFailure(err);
+        const cached = await loadTripOfflineCache(tripId);
+        if (cached?.documents || cached?.links) {
+          setDocuments(cached.documents || []);
+          setLinks(cached.links || []);
+          setViewingCachedTrip(true);
+          setLastCachedAt(cached.savedAt || null);
+          setError(null);
+        } else {
+          setError(err instanceof Error ? err.message : 'Could not load attachments.');
+        }
         setLoading(false);
-      })
-    ;
-  }, [spContext, tripId]);
+      });
+  }, [spContext, tripId, reportNetworkFailure, setViewingCachedTrip, setLastCachedAt]);
 
   React.useEffect(() => {
     const onEntryDuplicated = (evt: Event): void => {
@@ -208,6 +225,7 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       notes?: string;
       title?: string;
     }): Promise<EntryDocument> => {
+      if (warnIfOffline('write')) throw new Error(OFFLINE_WRITE_MESSAGE);
       if (!tripId) throw new Error('No trip loaded');
       const svc = new DocumentService(spContext);
       const entryDocs = documents.filter((d) => d.entryId === input.entryId);
@@ -227,11 +245,12 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setDocuments((prev) => [...prev, created]);
       return created;
     },
-    [spContext, tripId, webAbsoluteUrl, serverRelativeUrl, documents]
+    [spContext, tripId, webAbsoluteUrl, serverRelativeUrl, documents, warnIfOffline]
   );
 
   const deleteDocument = React.useCallback(
     async (id: string): Promise<void> => {
+      if (warnIfOffline('write')) return;
       const existing = documents.find((d) => d.id === id);
       setDocuments((prev) => prev.filter((d) => d.id !== id));
       try {
@@ -270,6 +289,7 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       linkTitle: string;
       notes?: string;
     }): Promise<EntryLink> => {
+      if (warnIfOffline('write')) throw new Error(OFFLINE_WRITE_MESSAGE);
       if (!tripId) throw new Error('No trip loaded');
       const svc = new LinkService(spContext);
       const entryLinks = links.filter((l) => l.entryId === input.entryId);
@@ -288,7 +308,7 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setLinks((prev) => [...prev, created]);
       return created;
     },
-    [spContext, tripId, links]
+    [spContext, tripId, links, warnIfOffline]
   );
 
   const updateLink = React.useCallback(

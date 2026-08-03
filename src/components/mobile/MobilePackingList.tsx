@@ -19,6 +19,9 @@ import { confirmUserAction } from '../../utils/confirmAction';
 import { MobilePackingFilters, PackingFilterDraft } from './MobilePackingFilters';
 import { isAllSelected, matchesAnySelected } from '../../utils/multiSelectFilters';
 import { PackingCategoryIcon } from './packingCategoryIcon';
+import { useOfflineStatus } from '../../context/OfflineStatusContext';
+import { loadTripOfflineCache, patchTripOfflineExtrasCache } from '../../utils/tripOfflineCache';
+import { isLikelyNetworkError } from '../../utils/networkError';
 import chrome from './MobileTabChrome.module.css';
 import styles from './MobilePackingList.module.css';
 
@@ -52,6 +55,7 @@ function DeleteIcon(): React.ReactElement {
 
 export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const spContext = useSpContext();
+  const { reportNetworkFailure } = useOfflineStatus();
   const { trip } = useTripWorkspace();
   const planView = usePlanView();
   const activeCategories = planView?.packingCategories ?? NO_FILTERS;
@@ -114,8 +118,19 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
 
   const refresh = React.useCallback(() => {
     if (!trip?.id) return;
-    service.getForTrip(trip.id).then(setItems).catch(console.error);
-  }, [service, trip?.id]);
+    service
+      .getForTrip(trip.id)
+      .then((rows) => {
+        setItems(rows);
+        void patchTripOfflineExtrasCache(trip.id, { packingItems: rows });
+      })
+      .catch(async (err) => {
+        console.error(err);
+        if (isLikelyNetworkError(err)) reportNetworkFailure(err);
+        const cached = await loadTripOfflineCache(trip.id);
+        if (cached?.packingItems) setItems(cached.packingItems);
+      });
+  }, [service, trip?.id, reportNetworkFailure]);
 
   React.useEffect(() => {
     refresh();

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { isLikelyNetworkError } from '../utils/networkError';
 
 export const OFFLINE_EDIT_MESSAGE =
   "You're offline. You can view the last saved trip, but changes can't be saved until you're back online.";
@@ -9,49 +10,82 @@ export const OFFLINE_WRITE_MESSAGE =
 export interface OfflineStatusContextValue {
   isOnline: boolean;
   isOffline: boolean;
-  /** True when the open trip was hydrated from local cache after a failed network load. */
+  /** True when trip/home data was hydrated from local cache after a failed network load. */
   viewingCachedTrip: boolean;
   setViewingCachedTrip: (value: boolean) => void;
   lastCachedAt: string | null;
   setLastCachedAt: (iso: string | null) => void;
   /**
-   * If offline, show a warning and return true (caller should abort).
-   * If online, return false.
+   * If offline or cache-only, show a warning and return true (caller should abort).
+   * If online with live data, return false.
    */
   warnIfOffline: (kind?: 'edit' | 'write') => boolean;
+  /** Mark connectivity lost after a failed network call (Safari often still reports navigator.onLine). */
+  reportNetworkFailure: (err?: unknown) => void;
+  clearForcedOffline: () => void;
 }
 
 const OfflineStatusContext = React.createContext<OfflineStatusContextValue | undefined>(undefined);
 
+function readBrowserOnline(): boolean {
+  return typeof navigator === 'undefined' ? true : navigator.onLine !== false;
+}
+
 export const OfflineStatusProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isOnline, setIsOnline] = React.useState(() =>
-    typeof navigator === 'undefined' ? true : navigator.onLine !== false
-  );
+  const [browserOnline, setBrowserOnline] = React.useState(readBrowserOnline);
+  const [forcedOffline, setForcedOffline] = React.useState(false);
   const [viewingCachedTrip, setViewingCachedTrip] = React.useState(false);
   const [lastCachedAt, setLastCachedAt] = React.useState<string | null>(null);
 
+  const isOnline = browserOnline && !forcedOffline;
+
   React.useEffect(() => {
-    const on = (): void => setIsOnline(true);
-    const off = (): void => setIsOnline(false);
+    const on = (): void => {
+      setBrowserOnline(true);
+      setForcedOffline(false);
+    };
+    const off = (): void => {
+      setBrowserOnline(false);
+      setForcedOffline(true);
+    };
     window.addEventListener('online', on);
     window.addEventListener('offline', off);
+    const onVis = (): void => {
+      if (document.visibilityState !== 'visible') return;
+      if (!readBrowserOnline()) {
+        setBrowserOnline(false);
+        setForcedOffline(true);
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
     return () => {
       window.removeEventListener('online', on);
       window.removeEventListener('offline', off);
+      document.removeEventListener('visibilitychange', onVis);
     };
   }, []);
 
-  React.useEffect(() => {
-    if (isOnline) setViewingCachedTrip(false);
-  }, [isOnline]);
+  const reportNetworkFailure = React.useCallback((err?: unknown): void => {
+    if (err !== undefined && !isLikelyNetworkError(err) && readBrowserOnline()) {
+      return;
+    }
+    setForcedOffline(true);
+    if (!readBrowserOnline()) setBrowserOnline(false);
+  }, []);
+
+  const clearForcedOffline = React.useCallback((): void => {
+    setForcedOffline(false);
+    setBrowserOnline(readBrowserOnline());
+  }, []);
 
   const warnIfOffline = React.useCallback(
     (kind: 'edit' | 'write' = 'edit'): boolean => {
-      if (isOnline) return false;
+      const offlineNow = !readBrowserOnline() || forcedOffline;
+      if (!offlineNow && !viewingCachedTrip) return false;
       window.alert(kind === 'write' ? OFFLINE_WRITE_MESSAGE : OFFLINE_EDIT_MESSAGE);
       return true;
     },
-    [isOnline]
+    [forcedOffline, viewingCachedTrip]
   );
 
   const value = React.useMemo(
@@ -62,9 +96,11 @@ export const OfflineStatusProvider: React.FC<{ children: React.ReactNode }> = ({
       setViewingCachedTrip,
       lastCachedAt,
       setLastCachedAt,
-      warnIfOffline
+      warnIfOffline,
+      reportNetworkFailure,
+      clearForcedOffline
     }),
-    [isOnline, viewingCachedTrip, lastCachedAt, warnIfOffline]
+    [isOnline, viewingCachedTrip, lastCachedAt, warnIfOffline, reportNetworkFailure, clearForcedOffline]
   );
 
   return <OfflineStatusContext.Provider value={value}>{children}</OfflineStatusContext.Provider>;
@@ -73,15 +109,16 @@ export const OfflineStatusProvider: React.FC<{ children: React.ReactNode }> = ({
 export function useOfflineStatus(): OfflineStatusContextValue {
   const ctx = React.useContext(OfflineStatusContext);
   if (!ctx) {
-    // Safe fallback when provider missing (tests / partial trees)
     return {
-      isOnline: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
-      isOffline: typeof navigator !== 'undefined' && navigator.onLine === false,
+      isOnline: readBrowserOnline(),
+      isOffline: !readBrowserOnline(),
       viewingCachedTrip: false,
       setViewingCachedTrip: () => undefined,
       lastCachedAt: null,
       setLastCachedAt: () => undefined,
-      warnIfOffline: () => false
+      warnIfOffline: () => false,
+      reportNetworkFailure: () => undefined,
+      clearForcedOffline: () => undefined
     };
   }
   return ctx;

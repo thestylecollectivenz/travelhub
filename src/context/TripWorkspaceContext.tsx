@@ -39,12 +39,13 @@ import {
   syncDayColumnsForEntryTimeOrder
 } from '../utils/dayViewEntryOrder';
 import { useConfig } from './ConfigContext';
-import { useOfflineStatus } from './OfflineStatusContext';
+import { useOfflineStatus, OFFLINE_WRITE_MESSAGE } from './OfflineStatusContext';
 import {
   loadTripOfflineCache,
   scheduleTripOfflineCacheWrite
 } from '../utils/tripOfflineCache';
-import { OFFLINE_WRITE_MESSAGE } from './OfflineStatusContext';
+import { warmTripOfflineExtras } from '../utils/warmTripOfflineExtras';
+import { isLikelyNetworkError } from '../utils/networkError';
 import type { BudgetCategoryKey } from '../utils/financialUtils';
 import type { WorkspaceReturnState } from '../types/workspaceReturn';
 
@@ -219,7 +220,8 @@ async function persistHomeDaySortOrders(
 export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspaceProviderProps): React.ReactElement {
   const spContext = useSpContext();
   const { config } = useConfig();
-  const { isOnline, warnIfOffline, setViewingCachedTrip, setLastCachedAt } = useOfflineStatus();
+  const { isOnline, warnIfOffline, setViewingCachedTrip, setLastCachedAt, reportNetworkFailure } =
+    useOfflineStatus();
 
   const [trip, setTrip] = React.useState<Trip | null>(null);
   const [tripDays, setTripDays] = React.useState<TripDay[]>([]);
@@ -309,6 +311,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
         entries: loadedEntries,
         savedAt
       });
+      void warmTripOfflineExtras(spContext, tripId).catch(() => undefined);
       // Initialise FX rates
       try {
         const fxSvc = new FxService(spContext);
@@ -331,6 +334,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('TripWorkspaceProvider.loadData', err);
+      reportNetworkFailure(err);
       const cached = await loadTripOfflineCache(tripId);
       if (cached?.trip) {
         setTrip(mergeTripDisplayPrefs(cached.trip));
@@ -349,7 +353,7 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
     } finally {
       setLoading(false);
     }
-  }, [tripId, spContext, setViewingCachedTrip, setLastCachedAt]);
+  }, [tripId, spContext, setViewingCachedTrip, setLastCachedAt, reportNetworkFailure]);
 
   React.useEffect(() => {
     loadData().catch(console.error);
@@ -583,7 +587,9 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
 
   const updateEntry = React.useCallback(
     async (updated: ItineraryEntry, options?: { persistPending?: boolean }): Promise<void> => {
-      if (warnIfOffline('write')) return;
+      if (warnIfOffline('write')) {
+        throw new Error(OFFLINE_WRITE_MESSAGE);
+      }
       const isNew = isPendingItineraryEntryId(updated.id);
       const prev = localEntriesRef.current;
       const i = prev.findIndex((e) => e.id === updated.id);
@@ -600,12 +606,15 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
           } catch (err) {
             // eslint-disable-next-line no-console
             console.error('updateEntry (create): SP persist failed', err);
+            if (isLikelyNetworkError(err)) reportNetworkFailure(err);
             // Draft already staged in `next` — reopen edit so the user can retry.
             setEditingCardId(updated.id);
             window.alert(
-              err instanceof Error
-                ? `Could not save itinerary item: ${err.message}`
-                : 'Could not save itinerary item. Please try again.'
+              isLikelyNetworkError(err)
+                ? OFFLINE_WRITE_MESSAGE
+                : err instanceof Error
+                  ? `Could not save itinerary item: ${err.message}`
+                  : 'Could not save itinerary item. Please try again.'
             );
             throw err;
           }
@@ -631,20 +640,23 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error('updateEntry (update): SP persist or cancellation reminder sync failed', err);
+        if (isLikelyNetworkError(err)) reportNetworkFailure(err);
         if (prevEntry) {
           const rolled = localEntriesRef.current.map((e) => (e.id === prevEntry.id ? prevEntry : e));
           localEntriesRef.current = rolled;
           setLocalEntries(rolled);
         }
         window.alert(
-          err instanceof Error
-            ? `Could not save itinerary item: ${err.message}`
-            : 'Could not save itinerary item. Changes were reverted.'
+          isLikelyNetworkError(err)
+            ? OFFLINE_WRITE_MESSAGE
+            : err instanceof Error
+              ? `Could not save itinerary item: ${err.message}`
+              : 'Could not save itinerary item. Changes were reverted.'
         );
         throw err;
       }
     },
-    [spContext, persistEntry, tripDays, warnIfOffline]
+    [spContext, persistEntry, tripDays, warnIfOffline, reportNetworkFailure]
   );
 
   const deleteEntry = React.useCallback(

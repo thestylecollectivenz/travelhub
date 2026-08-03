@@ -4,6 +4,9 @@ import { useTripWorkspace } from '../../context/TripWorkspaceContext';
 import { usePlanView } from '../../context/PlanViewContext';
 import { useSpContext } from '../../context/SpContext';
 import { ReminderService, TripReminder } from '../../services/ReminderService';
+import { useOfflineStatus } from '../../context/OfflineStatusContext';
+import { loadTripOfflineCache, patchTripOfflineExtrasCache } from '../../utils/tripOfflineCache';
+import { isLikelyNetworkError } from '../../utils/networkError';
 import { requestSidebarDayFocus } from '../../utils/sidebarDayFocus';
 import { TasksCalendarView, type CalendarEvent } from './TasksCalendarView';
 import type { CalendarRangeFilter } from '../../utils/tasksCalendarRange';
@@ -230,6 +233,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({
   filtersOpen = false
 }) => {
   const spContext = useSpContext();
+  const { reportNetworkFailure } = useOfflineStatus();
   const {
     trip,
     localEntries,
@@ -389,8 +393,19 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({
 
   const refresh = React.useCallback(() => {
     if (!trip?.id) return;
-    svc.getForTrip(trip.id).then(setManual).catch(console.error);
-  }, [svc, trip?.id]);
+    svc
+      .getForTrip(trip.id)
+      .then((rows) => {
+        setManual(rows);
+        void patchTripOfflineExtrasCache(trip.id, { reminders: rows });
+      })
+      .catch(async (err) => {
+        console.error(err);
+        if (isLikelyNetworkError(err)) reportNetworkFailure(err);
+        const cached = await loadTripOfflineCache(trip.id);
+        if (cached?.reminders) setManual(cached.reminders);
+      });
+  }, [svc, trip?.id, reportNetworkFailure]);
 
   React.useEffect(() => {
     refresh();

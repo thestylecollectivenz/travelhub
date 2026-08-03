@@ -35,6 +35,9 @@ import {
 import { useContinuousSpeechInput } from '../../hooks/useContinuousSpeechInput';
 import { useCurrentUserRole } from '../../hooks/useCurrentUserRole';
 import { useTripMembers } from '../../hooks/useTripMembers';
+import { useOfflineStatus } from '../../context/OfflineStatusContext';
+import { loadTripsIndexCache, saveTripsIndexCache } from '../../utils/tripOfflineCache';
+import { isLikelyNetworkError } from '../../utils/networkError';
 import { MobileNearYouPage } from './MobileNearYouPage';
 import { MobileTripSavedPlacesView } from './MobileTripSavedPlacesView';
 import { MobileHeaderAccessActions } from './MobileHeaderAccessActions';
@@ -189,6 +192,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
 }) => {
   const spContext = useSpContext();
   const { config, greetingName } = useConfig();
+  const { reportNetworkFailure, setViewingCachedTrip, setLastCachedAt } = useOfflineStatus();
   const [tab, setTab] = React.useState<MobileHomeTab>(() => {
     // Only restore the last home tab when remounting after an external site
     // visit; a plain refresh should land on the Home tab.
@@ -263,27 +267,47 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
         Promise.all(result.map((t) => daySvc.getAll(t.id)))
       ]);
       const allDayRows = dayRows.reduce((acc, rows) => acc.concat(rows), [] as (typeof dayRows)[number]);
+      const placeRows = places.map((p) => ({
+        id: p.id,
+        title: p.title,
+        lat: p.latitude,
+        lon: p.longitude,
+        countryCode: p.countryCode,
+        country: p.country
+      }));
+      const tripDayRows = allDayRows.map((d) => ({ tripId: d.tripId, primaryPlaceId: d.primaryPlaceId }));
       // Single paint: trips + places + days together (avoids home flicker).
       setTrips(result);
-      setAllTripDays(allDayRows.map((d) => ({ tripId: d.tripId, primaryPlaceId: d.primaryPlaceId })));
-      setAllPlaces(
-        places.map((p) => ({
-          id: p.id,
-          title: p.title,
-          lat: p.latitude,
-          lon: p.longitude,
-          countryCode: p.countryCode,
-          country: p.country
-        }))
-      );
+      setAllTripDays(tripDayRows);
+      setAllPlaces(placeRows);
+      setViewingCachedTrip(false);
+      const savedAt = new Date().toISOString();
+      setLastCachedAt(savedAt);
+      void saveTripsIndexCache({
+        trips: result,
+        places: placeRows,
+        tripDays: tripDayRows,
+        savedAt
+      });
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('MobileHomeShell: failed to load trips', err);
-      setError('Could not load trips. Check your connection and try again.');
+      if (isLikelyNetworkError(err)) reportNetworkFailure(err);
+      const cached = await loadTripsIndexCache();
+      if (cached?.trips?.length) {
+        setTrips(cached.trips);
+        setAllPlaces(cached.places || []);
+        setAllTripDays(cached.tripDays || []);
+        setViewingCachedTrip(true);
+        setLastCachedAt(cached.savedAt || null);
+        setError(null);
+      } else if (!hadTrips) {
+        setError('Could not load trips. Check your connection and try again.');
+      }
     } finally {
       setLoading(false);
     }
-  }, [spContext]);
+  }, [spContext, reportNetworkFailure, setViewingCachedTrip, setLastCachedAt]);
 
   const homeLoadStarted = React.useRef(false);
   React.useEffect(() => {

@@ -71,12 +71,22 @@ function rowFromReminder(r: TripReminder): TripSavedSpot {
 }
 
 export async function loadTripSavedSpots(spContext: WebPartContext, tripId: string): Promise<TripSavedSpot[]> {
-  const svc = new ReminderService(spContext);
-  const rows = await svc.getForTrip(tripId);
-  return rows
-    .filter(isSavedSpotReminder)
-    .map(rowFromReminder)
-    .sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
+  try {
+    const svc = new ReminderService(spContext);
+    const rows = await svc.getForTrip(tripId);
+    return rows
+      .filter(isSavedSpotReminder)
+      .map(rowFromReminder)
+      .sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
+  } catch {
+    const { loadTripOfflineCache } = await import('./tripOfflineCache');
+    const cached = await loadTripOfflineCache(tripId);
+    if (!cached?.reminders?.length) throw new Error('Could not load saved spots');
+    return cached.reminders
+      .filter(isSavedSpotReminder)
+      .map(rowFromReminder)
+      .sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
+  }
 }
 
 export async function saveTripSavedSpot(
