@@ -124,23 +124,91 @@ function hotelCheckTimes(entry: ItineraryEntry): { checkIn?: string; checkOut?: 
   return { checkIn, checkOut };
 }
 
+function isRawUrlLabel(value: string): boolean {
+  const t = value.trim();
+  return !t || /^https?:\/\//i.test(t) || /^www\./i.test(t);
+}
+
+/** Friendly document label — keep the real name; only tidy common confirmation/package cases. */
+function accommodationDocLabel(doc: EntryDocument): string {
+  const raw = (doc.title || doc.fileName || 'Document').trim() || 'Document';
+  const name = `${doc.title || ''} ${doc.fileName || ''}`.toLowerCase();
+  if (/confirm/.test(name) && !/package|voucher|invoice/.test(name)) {
+    return /confirm/i.test(raw) ? raw.replace(/\s*PDF$/i, '').trim() || 'Confirmation' : 'Confirmation';
+  }
+  if (/package/.test(name)) {
+    return raw.replace(/\s*PDF$/i, '').trim() || 'Package details';
+  }
+  return raw;
+}
+
+/**
+ * Link label: always prefer the user's title.
+ * Only use "Hotel website" when the title is blank/a raw URL and the link looks like the property site —
+ * never rename every link that happens to contain "hotel" in the URL (that duplicated pills).
+ */
+function accommodationLinkLabel(link: EntryLink, hotelWebsiteAlreadyUsed: boolean): string {
+  const title = (link.linkTitle || link.title || '').trim();
+  if (title && !isRawUrlLabel(title)) {
+    // User already named it — keep it (e.g. Package details, Booking.com)
+    if (/^hotel\s*website$/i.test(title)) return hotelWebsiteAlreadyUsed ? title : 'Hotel website';
+    return title;
+  }
+  const url = (link.url || '').toLowerCase();
+  const titledWebsite = /hotel\s*website|^website$/i.test(title);
+  const looksLikePropertySite =
+    titledWebsite ||
+    /booking\.com|expedia\.|hotels\.com|marriott\.|hilton\.|ihg\.|millenniumhotels|accor|hyatt/i.test(url);
+  if (looksLikePropertySite && !hotelWebsiteAlreadyUsed) return 'Hotel website';
+  if (title) return title;
+  try {
+    return new URL(link.url).hostname.replace(/^www\./i, '') || 'Link';
+  } catch {
+    return 'Link';
+  }
+}
+
 export function buildAccommodationDocLinkPills(docs: EntryDocument[], links: EntryLink[]): AccomDocLinkPill[] {
   const pills: AccomDocLinkPill[] = [];
+  const seenHrefs = new Set<string>();
+
+  const normHref = (href: string): string => {
+    try {
+      const u = new URL(href);
+      u.hash = '';
+      return u.toString().replace(/\/$/, '').toLowerCase();
+    } catch {
+      return (href || '').trim().toLowerCase();
+    }
+  };
+
   for (const d of docs) {
-    const name = `${d.title || ''} ${d.fileName || ''}`.toLowerCase();
-    let label = d.title || d.fileName || 'Document';
-    if (/voucher|confirm/.test(name)) label = label.toLowerCase().includes('pdf') ? label : `${label} PDF`;
-    else if (/invoice/.test(name)) label = label.toLowerCase().includes('pdf') ? label : `${label} PDF`;
-    else if (!/\.pdf/i.test(label)) label = `${label} PDF`;
-    pills.push({ id: `doc-${d.id}`, label, href: d.fileUrl, kind: 'document' });
+    const href = (d.fileUrl || '').trim();
+    if (!href) continue;
+    const key = normHref(href);
+    if (key && seenHrefs.has(key)) continue;
+    if (key) seenHrefs.add(key);
+    pills.push({
+      id: `doc-${d.id}`,
+      label: accommodationDocLabel(d),
+      href,
+      kind: 'document'
+    });
   }
+
+  let hotelWebsiteUsed = false;
   for (const l of links) {
-    const title = l.linkTitle || l.title || l.url;
-    const isWebsite = /website|hotel|booking|http/i.test(title) || /hotel|booking\.com|expedia/i.test(l.url);
+    const href = (l.url || '').trim();
+    if (!href) continue;
+    const key = normHref(href);
+    if (key && seenHrefs.has(key)) continue;
+    if (key) seenHrefs.add(key);
+    const label = accommodationLinkLabel(l, hotelWebsiteUsed);
+    if (/^hotel website$/i.test(label)) hotelWebsiteUsed = true;
     pills.push({
       id: `link-${l.id}`,
-      label: isWebsite ? 'Hotel website' : title,
-      href: l.url,
+      label,
+      href,
       kind: 'link'
     });
   }
