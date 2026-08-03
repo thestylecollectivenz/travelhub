@@ -44,7 +44,7 @@ import {
   loadTripOfflineCache,
   scheduleTripOfflineCacheWrite
 } from '../utils/tripOfflineCache';
-import { warmTripOfflineExtras } from '../utils/warmTripOfflineExtras';
+import { warmTripOfflineExtras, syncOpenTripIntoTripsIndex, TRIP_OFFLINE_EXTRAS_REFRESH_MS } from '../utils/warmTripOfflineExtras';
 import { isLikelyNetworkError } from '../utils/networkError';
 import type { BudgetCategoryKey } from '../utils/financialUtils';
 import type { WorkspaceReturnState } from '../types/workspaceReturn';
@@ -311,7 +311,12 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
         entries: loadedEntries,
         savedAt
       });
-      void warmTripOfflineExtras(spContext, tripId).catch(() => undefined);
+      void warmTripOfflineExtras(spContext, tripId)
+        .then((extrasAt) => {
+          if (extrasAt) setLastCachedAt(extrasAt);
+        })
+        .catch(() => undefined);
+      void syncOpenTripIntoTripsIndex(mergedTrip).catch(() => undefined);
       // Initialise FX rates
       try {
         const fxSvc = new FxService(spContext);
@@ -368,7 +373,36 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       tripDays,
       entries: localEntries
     });
+    void syncOpenTripIntoTripsIndex(trip).catch(() => undefined);
   }, [trip, tripDays, localEntries, loading, isOnline]);
+
+  // While the trip stays open for days: refresh lists/docs/places periodically and
+  // whenever the app returns to the foreground (no need to exit via Home).
+  React.useEffect(() => {
+    if (!trip?.id || loading || !isOnline) return;
+    let cancelled = false;
+
+    const refreshExtras = (): void => {
+      if (cancelled || typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      void warmTripOfflineExtras(spContext, trip.id)
+        .then((extrasAt) => {
+          if (!cancelled && extrasAt) setLastCachedAt(extrasAt);
+        })
+        .catch(() => undefined);
+    };
+
+    const intervalId = window.setInterval(refreshExtras, TRIP_OFFLINE_EXTRAS_REFRESH_MS);
+    const onVis = (): void => {
+      if (document.visibilityState === 'visible') refreshExtras();
+    };
+    document.addEventListener('visibilitychange', onVis);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [trip?.id, loading, isOnline, spContext, setLastCachedAt]);
 
   const wasOnlineRef = React.useRef(isOnline);
   React.useEffect(() => {

@@ -130,6 +130,19 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   }, [reloadAll]);
 
+  // Keep journal slice of the trip snapshot fresh while the trip stays open.
+  React.useEffect(() => {
+    if (!tripId || !isOnline) return;
+    const timer = window.setTimeout(() => {
+      void patchTripOfflineJournalCache(tripId, {
+        journalEntries: entries,
+        journalPhotos: photos,
+        journalCommentCounts: commentCountByEntry
+      }).then(() => setLastCachedAt(new Date().toISOString()));
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [tripId, isOnline, entries, photos, commentCountByEntry, setLastCachedAt]);
+
   const entriesByDay = React.useCallback(
     (dayId: string) => entries.filter((x) => x.dayId === dayId).sort((a, b) => a.entryTimestamp.localeCompare(b.entryTimestamp)),
     [entries]
