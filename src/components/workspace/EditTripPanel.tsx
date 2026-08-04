@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import type { Trip, TripLifecycleStatus } from '../../models/Trip';
 import { useSpContext } from '../../context/SpContext';
 import { normalizeSharePointHeroUrl } from '../../utils/sharePointUrl';
@@ -58,13 +59,13 @@ export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onCl
     return null;
   }
 
-  return (
+  const panel = (
     <div
       style={{
         position: 'fixed',
         inset: 0,
         background: 'rgba(0, 0, 0, 0.35)',
-        zIndex: 1200,
+        zIndex: 12500,
         display: 'flex',
         justifyContent: 'flex-end'
       }}
@@ -80,7 +81,8 @@ export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onCl
           boxShadow: 'var(--shadow-card)',
           display: 'flex',
           flexDirection: 'column',
-          overflowY: 'auto'
+          overflowY: 'auto',
+          paddingTop: 'env(safe-area-inset-top, 0px)'
         }}
         role="dialog"
         aria-modal="true"
@@ -276,4 +278,7 @@ export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onCl
       </aside>
     </div>
   );
+
+  if (typeof document === 'undefined') return panel;
+  return createPortal(panel, document.body);
 };

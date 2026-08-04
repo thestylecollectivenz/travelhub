@@ -120,11 +120,37 @@
   margin: 0.1rem 0 0.45rem;
 }
 
+.tripHeaderButton {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  border-radius: var(--radius-md);
+}
+
+.tripHeaderButton:active {
+  opacity: 0.85;
+}
+
 .tripMeta {
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+}
+
+.tripSettingsHint {
+  margin: 0;
+  font-family: var(--tl-sans, system-ui, sans-serif);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--tl-olive, #6b7c3a);
+  letter-spacing: 0.01em;
 }
 
 .tripName {
@@ -147,6 +173,21 @@
   letter-spacing: -0.02em;
 }
 
+.tripNameSoloButton {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
 .tripDates {
   margin: 0;
   font-size: 0.72rem;

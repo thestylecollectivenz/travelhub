@@ -48,11 +48,12 @@ import type { ShellMode } from '../../hooks/useShellMode';
 import { GO_TO_DAY_EVENT } from './MobileTripIdeasList';
 import { useTripDayIdeas } from '../../hooks/useTripDayIdeas';
 import { useTripRole } from '../../context/TripRoleContext';
+import { useTripDetailsEditor } from '../../hooks/useTripDetailsEditor';
+import { resolveSharePointMediaSrc } from '../../utils/sharePointUrl';
 import { SOLUTION_VERSION } from '../../appVersion';
 import { MobileBrandHeader } from './MobileBrandHeader';
 import { loadPersistedMobileNav, persistMobileNav } from '../../utils/mobileNavPersistence';
 import { MobileHeaderChromeProvider } from './MobileHeaderChromeContext';
-import { resolveSharePointMediaSrc } from '../../utils/sharePointUrl';
 import styles from './MobileShell.module.css';
 
 export type { MobileTab } from './mobileTypes';
@@ -160,6 +161,8 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
   const { canEditItinerary } = useTripPermissions();
   const { role } = useTripRole();
   const { unreadCount: ideasUnread } = useTripDayIdeas();
+  const { openEdit: openTripSettings, tripDetailsEditor } = useTripDetailsEditor();
+  const canEditTripSettings = role === 'Editor';
   const showIdeasBadge = (role === 'Editor' || role === 'Companion') && ideasUnread > 0;
   const [tab, setTab] = React.useState<MobileTab>(() => {
     if (initialTab === 'tasks') return 'lists';
@@ -537,6 +540,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
         tripHeroSrc={tripHeroSrc}
         accessTripId={trip?.id}
         onOpenAccess={trip?.id ? handleOpenMembers : undefined}
+        onOpenTripSettings={canEditTripSettings && trip ? openTripSettings : undefined}
       />
       <main className={styles.mobileMain} data-mobile-scroll>
         {body}
@@ -567,6 +571,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
           onClose={() => setMembersOpen(false)}
         />
       ) : null}
+      {tripDetailsEditor}
       {askAiPrompt ? (
         <MobileAskAiResultsSheet
           prompt={askAiPrompt}

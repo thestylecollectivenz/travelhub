@@ -16,6 +16,8 @@ export interface MobileBrandHeaderProps {
   tripDates?: string;
   /** Trip hero thumbnail; when set (including null), shows thumb / placeholder. */
   tripHeroSrc?: string | null;
+  /** Editors: open trip details / settings when the trip summary row is tapped. */
+  onOpenTripSettings?: () => void;
   /** When true (default), apply safe-area top padding. Set false when already inside a padded scroll shell. */
   safeAreaTop?: boolean;
   /** Override access trip id for this header instance. */
@@ -34,12 +36,14 @@ export const MobileBrandHeader: React.FC<MobileBrandHeaderProps> = ({
   tripName,
   tripDates,
   tripHeroSrc,
+  onOpenTripSettings,
   safeAreaTop = true,
   accessTripId,
   onOpenAccess,
   hideAccessActions = false
 }) => {
   const showTripRow = Boolean(tripName || tripDates || tripHeroSrc !== undefined);
+  const tripRowEditable = Boolean(onOpenTripSettings);
 
   return (
     <header className={`${styles.root} ${safeAreaTop ? '' : styles.rootEmbedded}`.trim()}>
@@ -65,21 +69,50 @@ export const MobileBrandHeader: React.FC<MobileBrandHeaderProps> = ({
       {subtitle ? <p className={styles.pageSub}>{subtitle}</p> : null}
       {showTripRow ? (
         tripHeroSrc !== undefined || tripDates ? (
-          <div className={styles.tripHeader}>
-            <div className={styles.tripMeta}>
-              {tripName ? <p className={styles.tripName}>{tripName}</p> : null}
-              {tripDates ? <p className={styles.tripDates}>{tripDates}</p> : null}
+          tripRowEditable ? (
+            <button
+              type="button"
+              className={`${styles.tripHeader} ${styles.tripHeaderButton}`}
+              onClick={onOpenTripSettings}
+              aria-label="Edit trip details"
+            >
+              <div className={styles.tripMeta}>
+                {tripName ? <p className={styles.tripName}>{tripName}</p> : null}
+                {tripDates ? <p className={styles.tripDates}>{tripDates}</p> : null}
+                <p className={styles.tripSettingsHint}>Trip settings</p>
+              </div>
+              {tripHeroSrc !== undefined ? (
+                tripHeroSrc ? (
+                  <img src={tripHeroSrc} alt="" className={styles.heroThumb} />
+                ) : (
+                  <div className={styles.heroThumbPlaceholder} aria-hidden />
+                )
+              ) : null}
+            </button>
+          ) : (
+            <div className={styles.tripHeader}>
+              <div className={styles.tripMeta}>
+                {tripName ? <p className={styles.tripName}>{tripName}</p> : null}
+                {tripDates ? <p className={styles.tripDates}>{tripDates}</p> : null}
+              </div>
+              {tripHeroSrc !== undefined ? (
+                tripHeroSrc ? (
+                  <img src={tripHeroSrc} alt="" className={styles.heroThumb} />
+                ) : (
+                  <div className={styles.heroThumbPlaceholder} aria-hidden />
+                )
+              ) : null}
             </div>
-            {tripHeroSrc !== undefined ? (
-              tripHeroSrc ? (
-                <img src={tripHeroSrc} alt="" className={styles.heroThumb} />
-              ) : (
-                <div className={styles.heroThumbPlaceholder} aria-hidden />
-              )
-            ) : null}
-          </div>
+          )
         ) : tripName ? (
-          <p className={styles.tripNameSolo}>{tripName}</p>
+          tripRowEditable ? (
+            <button type="button" className={`${styles.tripNameSolo} ${styles.tripNameSoloButton}`} onClick={onOpenTripSettings}>
+              {tripName}
+              <span className={styles.tripSettingsHint}>Trip settings</span>
+            </button>
+          ) : (
+            <p className={styles.tripNameSolo}>{tripName}</p>
+          )
         ) : null
       ) : null}
     </header>

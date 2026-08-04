@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import type { Trip } from '../../models/Trip';
 import type { TripDay } from '../../models/TripDay';
 import type { TripDateRangeChangePlan } from '../../utils/tripDateRangeSync';
@@ -36,7 +37,7 @@ function contentSummary(row: { itineraryCount: number; journalEntryCount: number
 const backdropStyle: React.CSSProperties = {
   position: 'fixed',
   inset: 0,
-  zIndex: 1300,
+  zIndex: 12600,
   background: 'rgba(0, 0, 0, 0.45)',
   display: 'flex',
   alignItems: 'center',
@@ -111,7 +112,7 @@ export const TripDateRangeReassignDialog: React.FC<TripDateRangeReassignDialogPr
     return Boolean(target && target !== row.day.id);
   });
 
-  return (
+  return createPortal(
     <div
       style={backdropStyle}
       role="dialog"
@@ -197,6 +198,7 @@ export const TripDateRangeReassignDialog: React.FC<TripDateRangeReassignDialogPr
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
