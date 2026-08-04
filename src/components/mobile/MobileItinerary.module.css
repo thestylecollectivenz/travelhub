@@ -373,6 +373,20 @@
   flex-direction: column;
   gap: 0.2rem;
   min-width: 0;
+  flex: 1 1 auto;
+}
+
+.dayHeaderTitleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.dayHeaderTitleBlock {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .dayHeaderLine {
@@ -382,6 +396,33 @@
   font-weight: 400;
   color: var(--tl-navy);
   line-height: 1.2;
+}
+
+.dayDisplayTitle,
+.dayDisplayTitleBtn {
+  margin: 0.15rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--tl-navy);
+  line-height: 1.25;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dayDisplayTitleBtn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dayDisplayTitleBtn:active {
+  opacity: 0.75;
 }
 
 .dayHeaderWeekday {

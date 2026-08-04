@@ -1,0 +1,103 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 12500;
+  background: rgba(26, 31, 46, 0.55);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+.sheet {
+  width: 100%;
+  max-width: 36rem;
+  max-height: min(92vh, 52rem);
+  overflow: auto;
+  background: var(--color-surface-raised, #fafaf9);
+  border-radius: var(--radius-lg, 1rem) var(--radius-lg, 1rem) 0 0;
+  padding: var(--space-4, 1rem) var(--space-4, 1rem) calc(var(--space-5, 1.25rem) + env(safe-area-inset-bottom, 0));
+  box-shadow: var(--shadow-elevated, 0 -8px 28px rgba(26, 31, 46, 0.18));
+  display: grid;
+  gap: var(--space-3, 0.75rem);
+  box-sizing: border-box;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3, 0.75rem);
+}
+
+.headerText {
+  min-width: 0;
+}
+
+.kicker {
+  margin: 0;
+  font-size: var(--font-size-lg, 1.1rem);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--color-blue-800, #1e2a44);
+}
+
+.dateLine {
+  margin: var(--space-1, 0.25rem) 0 0;
+  font-size: var(--font-size-sm, 0.85rem);
+  color: var(--color-sand-600, #6b6358);
+}
+
+.closeBtn {
+  flex: 0 0 auto;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-full, 999px);
+  border: var(--border-default, 1px solid rgba(30, 42, 68, 0.12));
+  background: var(--color-surface, #fff);
+  color: var(--color-blue-800, #1e2a44);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.field {
+  display: grid;
+  gap: var(--space-1, 0.25rem);
+}
+
+.fieldLabel {
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-sand-600, #6b6358);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.titleInput,
+.select {
+  width: 100%;
+  box-sizing: border-box;
+  border: var(--border-default, 1px solid rgba(30, 42, 68, 0.14));
+  border-radius: var(--radius-md, 0.5rem);
+  background: var(--color-surface, #fff);
+  color: var(--color-blue-800, #1e2a44);
+  font-size: var(--font-size-md, 1rem);
+  padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+}
+
+.locationsBlock {
+  margin-top: var(--space-1, 0.25rem);
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .backdrop {
+    align-items: center;
+    padding: var(--space-4, 1rem);
+  }
+
+  .sheet {
+    max-height: min(90vh, 48rem);
+    border-radius: var(--radius-lg, 1rem);
+  }
+}

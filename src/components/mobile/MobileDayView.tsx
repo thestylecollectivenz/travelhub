@@ -49,6 +49,9 @@ import {
   peekPendingMobileItineraryOpen
 } from '../../utils/mobileItineraryOpenPending';
 import { MobileItineraryDayPicker } from './MobileItineraryDayPicker';
+import { MobileDaySettingsPanel } from './MobileDaySettingsPanel';
+import { MobilePencilButton } from './MobilePencilButton';
+import { useTripPermissions } from '../../hooks/useTripPermissions';
 import styles from './MobileItinerary.module.css';
 import shellStyles from './MobileShell.module.css';
 
@@ -155,6 +158,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   const { trip, tripDays, localEntries, selectedDayId, setSelectedDayId, stageDraftEntry, setEditingCardId, loading } =
     useTripWorkspace();
   const { role } = useTripRole();
+  const { canEditDayMeta } = useTripPermissions();
   const { placeById } = usePlaces();
   const { config } = useConfig();
   const { members } = useTripMembers(trip?.id);
@@ -182,6 +186,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   const [weatherIconCode, setWeatherIconCode] = React.useState('');
   const [weatherAhead, setWeatherAhead] = React.useState<Array<{ ymd: string; icon: string; label: string }>>([]);
   const [weatherOpen, setWeatherOpen] = React.useState(false);
+  const [daySettingsOpen, setDaySettingsOpen] = React.useState(false);
 
   const carouselRef = React.useRef<HTMLDivElement>(null);
 
@@ -746,18 +751,51 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
 
       <div className={styles.dayHeader}>
         <div className={styles.dayHeaderLeft}>
-          <p className={styles.dayHeaderLine}>
-            <span className={styles.dayHeaderWeekday}>{weekdayLabel(day?.calendarDate)}</span>
-            {shortDate(day?.calendarDate) ? (
-              <span className={styles.dayHeaderRest}>
-                {weekdayLabel(day?.calendarDate) ? ' · ' : ''}
-                {shortDate(day?.calendarDate)}
-                {day ? ` · Day ${day.dayNumber}` : ''}
-              </span>
-            ) : day ? (
-              <span className={styles.dayHeaderRest}>{`Day ${day.dayNumber}`}</span>
+          <div className={styles.dayHeaderTitleRow}>
+            <div className={styles.dayHeaderTitleBlock}>
+              <p className={styles.dayHeaderLine}>
+                <span className={styles.dayHeaderWeekday}>{weekdayLabel(day?.calendarDate)}</span>
+                {shortDate(day?.calendarDate) ? (
+                  <span className={styles.dayHeaderRest}>
+                    {weekdayLabel(day?.calendarDate) ? ' · ' : ''}
+                    {shortDate(day?.calendarDate)}
+                    {day ? ` · Day ${day.dayNumber}` : ''}
+                  </span>
+                ) : day ? (
+                  <span className={styles.dayHeaderRest}>{`Day ${day.dayNumber}`}</span>
+                ) : null}
+              </p>
+              {day?.displayTitle ? (
+                canEditDayMeta ? (
+                  <button
+                    type="button"
+                    className={styles.dayDisplayTitleBtn}
+                    onClick={() => setDaySettingsOpen(true)}
+                    aria-label="Edit day name and locations"
+                  >
+                    {day.displayTitle}
+                  </button>
+                ) : (
+                  <p className={styles.dayDisplayTitle}>{day.displayTitle}</p>
+                )
+              ) : canEditDayMeta ? (
+                <button
+                  type="button"
+                  className={styles.dayDisplayTitleBtn}
+                  onClick={() => setDaySettingsOpen(true)}
+                  aria-label="Set day name and locations"
+                >
+                  Set day name &amp; locations
+                </button>
+              ) : null}
+            </div>
+            {canEditDayMeta && day ? (
+              <MobilePencilButton
+                ariaLabel="Edit day name and locations"
+                onClick={() => setDaySettingsOpen(true)}
+              />
             ) : null}
-          </p>
+          </div>
           {dayLocationEntries.length ? (
             <div className={styles.locationStripInline}>
               <DayLocationInfoStrip
@@ -812,6 +850,12 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
           onClose={() => setWeatherOpen(false)}
         />
       ) : null}
+
+      <MobileDaySettingsPanel
+        day={day ?? null}
+        isOpen={daySettingsOpen && canEditDayMeta}
+        onClose={() => setDaySettingsOpen(false)}
+      />
 
       <div
         className={styles.dayPanel}
