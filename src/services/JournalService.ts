@@ -546,4 +546,44 @@ export class JournalService {
     }
     return counts;
   }
+
+  /**
+   * Returns comment bodies grouped by journal entry for a trip.
+   * Used to warm the offline cache so comments remain readable offline.
+   */
+  async getCommentsByEntryForTrip(tripId: string): Promise<Record<string, JournalComment[]>> {
+    const web = this.ctx.pageContext.web.absoluteUrl.replace(/\/$/, '');
+    const safeTrip = odataEscapeString(tripId);
+    const select = '$select=ID,Title,JournalEntryId,TripId,AuthorName,CommentText,CommentTimestamp';
+    const filter = `$filter=TripId eq '${safeTrip}'`;
+    const order = '$orderby=CommentTimestamp asc';
+    let nextUrl: string | null = `${this.commentsUrl}?${select}&${filter}&${order}&$top=200`;
+    const byEntry: Record<string, JournalComment[]> = {};
+
+    const resolveNext = (raw: string): string => {
+      if (raw.startsWith('http')) return raw;
+      return raw.startsWith('/') ? `${web}${raw}` : `${web}/${raw}`;
+    };
+
+    while (nextUrl) {
+      const resp = await this.ctx.spHttpClient.get(nextUrl, SPHttpClient.configurations.v1);
+      if (!resp.ok) throw new Error(`JournalService.getCommentsByEntryForTrip failed: ${resp.status}`);
+      const data = (await resp.json()) as {
+        value?: Record<string, unknown>[];
+        '@odata.nextLink'?: string;
+        'odata.nextLink'?: string;
+      };
+      for (const item of data.value ?? []) {
+        const comment = mapJournalComment(item);
+        const jid = comment.journalEntryId;
+        if (!jid) continue;
+        const list = byEntry[jid] ?? [];
+        list.push(comment);
+        byEntry[jid] = list;
+      }
+      const nl = data['@odata.nextLink'] ?? data['odata.nextLink'];
+      nextUrl = typeof nl === 'string' && nl.length > 0 ? resolveNext(nl) : null;
+    }
+    return byEntry;
+  }
 }

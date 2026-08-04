@@ -10,6 +10,7 @@ import type { TripDay } from '../models/TripDay';
 import type { ItineraryEntry } from '../models/ItineraryEntry';
 import type { JournalEntry } from '../models/JournalEntry';
 import type { JournalPhoto } from '../models/JournalPhoto';
+import type { JournalComment } from '../models/JournalComment';
 import type { Place } from '../models/Place';
 import type { EntryDocument } from '../models/EntryDocument';
 import type { EntryLink } from '../models/EntryLink';
@@ -33,6 +34,8 @@ export interface TripOfflineSnapshot {
   journalEntries?: JournalEntry[];
   journalPhotos?: JournalPhoto[];
   journalCommentCounts?: Record<string, number>;
+  /** Comment bodies keyed by journal entry id (for offline journal comment UI). */
+  journalCommentsByEntry?: Record<string, JournalComment[]>;
   packingItems?: PackingItem[];
   shoppingItems?: ShoppingItem[];
   reminders?: TripReminder[];
@@ -65,6 +68,7 @@ export type TripOfflineExtrasPatch = Partial<
     | 'journalEntries'
     | 'journalPhotos'
     | 'journalCommentCounts'
+    | 'journalCommentsByEntry'
     | 'packingItems'
     | 'shoppingItems'
     | 'reminders'
@@ -168,6 +172,7 @@ export async function patchTripOfflineJournalCache(
     journalEntries: JournalEntry[];
     journalPhotos: JournalPhoto[];
     journalCommentCounts: Record<string, number>;
+    journalCommentsByEntry?: Record<string, JournalComment[]>;
   }
 ): Promise<void> {
   await patchTripOfflineExtrasCache(tripId, journal);

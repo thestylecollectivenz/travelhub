@@ -39,14 +39,23 @@ export function useTripDayIdeas(): {
       return;
     }
     setLoading(true);
+    const tripId = trip.id;
     const svc = new ReminderService(spContext);
     void svc
-      .getForTrip(trip.id)
+      .getForTrip(tripId)
       .then((rows) => {
         setIdeas(
           rows
             .filter(isDayIdeaReminder)
             .sort((a, b) => (b.dueDate || '').localeCompare(a.dueDate || '') || a.id.localeCompare(b.id))
+        );
+      })
+      .catch(async () => {
+        const { loadTripOfflineCache } = await import('../utils/tripOfflineCache');
+        const cached = await loadTripOfflineCache(tripId);
+        const rows = (cached?.reminders || []).filter(isDayIdeaReminder);
+        setIdeas(
+          rows.sort((a, b) => (b.dueDate || '').localeCompare(a.dueDate || '') || a.id.localeCompare(b.id))
         );
       })
       .finally(() => setLoading(false));

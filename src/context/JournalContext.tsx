@@ -117,10 +117,11 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
     try {
       const svc = new JournalService(spContext);
-      const [e, p, counts] = await Promise.all([
+      const [e, p, counts, commentsByEntryRows] = await Promise.all([
         svc.getAll(tripId),
         svc.getForTrip(tripId),
-        svc.getCommentCountsByEntryForTrip(tripId)
+        svc.getCommentCountsByEntryForTrip(tripId),
+        svc.getCommentsByEntryForTrip(tripId).catch(() => ({} as Record<string, JournalComment[]>))
       ]);
       // Preserve unsynced offline creates/updates across online reload.
       const queue = loadJournalOfflineQueue(tripId);
@@ -154,13 +155,14 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setPhotos(p);
       setPhotoOrderByEntry(mergePhotoOrdersFromStorage(tripId, p));
       setCommentCountByEntry(counts);
-      setCommentsByEntry({});
-      loadedCommentsRef.current = new Set();
+      setCommentsByEntry(commentsByEntryRows);
+      loadedCommentsRef.current = new Set(Object.keys(commentsByEntryRows));
       if (isOnline) {
         void patchTripOfflineJournalCache(tripId, {
           journalEntries: mergedEntries,
           journalPhotos: p,
-          journalCommentCounts: counts
+          journalCommentCounts: counts,
+          journalCommentsByEntry: commentsByEntryRows
         });
       }
     } catch (err) {
@@ -173,8 +175,9 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setPhotos(cached.journalPhotos || []);
         setPhotoOrderByEntry(mergePhotoOrdersFromStorage(tripId, cached.journalPhotos || []));
         setCommentCountByEntry(cached.journalCommentCounts || {});
-        setCommentsByEntry({});
-        loadedCommentsRef.current = new Set();
+        const cachedComments = cached.journalCommentsByEntry || {};
+        setCommentsByEntry(cachedComments);
+        loadedCommentsRef.current = new Set(Object.keys(cachedComments));
         setViewingCachedTrip(true);
         setLastCachedAt(cached.savedAt || null);
       }
@@ -195,11 +198,37 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       void patchTripOfflineJournalCache(tripId, {
         journalEntries: entries,
         journalPhotos: photos,
-        journalCommentCounts: commentCountByEntry
+        journalCommentCounts: commentCountByEntry,
+        journalCommentsByEntry: commentsByEntry
       }).then(() => setLastCachedAt(new Date().toISOString()));
     }, 1200);
     return () => window.clearTimeout(timer);
-  }, [tripId, entries, photos, commentCountByEntry, setLastCachedAt]);
+  }, [tripId, entries, photos, commentCountByEntry, commentsByEntry, setLastCachedAt]);
+
+  const loadCommentsForEntry = React.useCallback(
+    async (journalEntryId: string): Promise<void> => {
+      if (!journalEntryId) return;
+      if (loadedCommentsRef.current.has(journalEntryId)) return;
+      try {
+        const svc = new JournalService(spContext);
+        const rows = await svc.getCommentsForEntry(journalEntryId);
+        loadedCommentsRef.current.add(journalEntryId);
+        setCommentsByEntry((prev) => ({ ...prev, [journalEntryId]: rows }));
+        setCommentCountByEntry((prev) => ({ ...prev, [journalEntryId]: rows.length }));
+      } catch (err) {
+        reportNetworkFailure(err);
+        if (!tripId) return;
+        const cached = await loadTripOfflineCache(tripId);
+        const rows = cached?.journalCommentsByEntry?.[journalEntryId];
+        if (rows) {
+          loadedCommentsRef.current.add(journalEntryId);
+          setCommentsByEntry((prev) => ({ ...prev, [journalEntryId]: rows }));
+          setCommentCountByEntry((prev) => ({ ...prev, [journalEntryId]: rows.length }));
+        }
+      }
+    },
+    [spContext, tripId, reportNetworkFailure]
+  );
 
   const flushPendingJournal = React.useCallback(async (): Promise<void> => {
     if (!tripId || !isOnline || syncingQueueRef.current) return;
@@ -286,19 +315,6 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const commentsForEntry = React.useCallback(
     (journalEntryId: string) => commentsByEntry[journalEntryId] ?? [],
     [commentsByEntry]
-  );
-
-  const loadCommentsForEntry = React.useCallback(
-    async (journalEntryId: string): Promise<void> => {
-      if (!journalEntryId) return;
-      if (loadedCommentsRef.current.has(journalEntryId)) return;
-      const svc = new JournalService(spContext);
-      const rows = await svc.getCommentsForEntry(journalEntryId);
-      loadedCommentsRef.current.add(journalEntryId);
-      setCommentsByEntry((prev) => ({ ...prev, [journalEntryId]: rows }));
-      setCommentCountByEntry((prev) => ({ ...prev, [journalEntryId]: rows.length }));
-    },
-    [spContext]
   );
 
   const addEntry = React.useCallback(

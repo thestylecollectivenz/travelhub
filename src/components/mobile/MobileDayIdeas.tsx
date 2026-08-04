@@ -55,14 +55,26 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({
 
   const refresh = React.useCallback(() => {
     if (!trip?.id) return;
+    const tripId = trip.id;
     const svc = new ReminderService(spContext);
-    void svc.getForTrip(trip.id).then((all) => {
-      setRows(
-        all
-          .filter((r) => r.reminderType === DAY_IDEA_REMINDER_TYPE && r.dayId === dayId)
-          .sort((a, b) => (b.dueDate || '').localeCompare(a.dueDate || ''))
-      );
-    });
+    void svc
+      .getForTrip(tripId)
+      .then((all) => {
+        setRows(
+          all
+            .filter((r) => r.reminderType === DAY_IDEA_REMINDER_TYPE && r.dayId === dayId)
+            .sort((a, b) => (b.dueDate || '').localeCompare(a.dueDate || ''))
+        );
+      })
+      .catch(async () => {
+        const { loadTripOfflineCache } = await import('../../utils/tripOfflineCache');
+        const cached = await loadTripOfflineCache(tripId);
+        setRows(
+          (cached?.reminders || [])
+            .filter((r) => r.reminderType === DAY_IDEA_REMINDER_TYPE && r.dayId === dayId)
+            .sort((a, b) => (b.dueDate || '').localeCompare(a.dueDate || ''))
+        );
+      });
   }, [trip?.id, dayId, spContext]);
 
   React.useEffect(() => {

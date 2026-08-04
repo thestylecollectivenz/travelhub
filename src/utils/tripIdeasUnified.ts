@@ -136,8 +136,15 @@ export async function loadUnifiedTripIdeas(
   tripDestination?: string,
   localEntries: ItineraryEntry[] = []
 ): Promise<UnifiedTripIdea[]> {
-  const svc = new ReminderService(spContext);
-  const rows = await svc.getForTrip(tripId);
+  let rows: TripReminder[] = [];
+  try {
+    const svc = new ReminderService(spContext);
+    rows = await svc.getForTrip(tripId);
+  } catch {
+    const { loadTripOfflineCache } = await import('./tripOfflineCache');
+    const cached = await loadTripOfflineCache(tripId);
+    rows = cached?.reminders || [];
+  }
   return rows
     .map((r) => rowFromReminder(r, tripDays, placeById, tripDestination, localEntries))
     .filter((r): r is UnifiedTripIdea => Boolean(r))
