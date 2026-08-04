@@ -49,7 +49,7 @@ export const CreateTripPanel: React.FC<ICreateTripPanelProps> = ({ onCreated, on
         status,
         sharedViewEnabled: false,
         showAuthorName: true,
-        showJournalEntryDate: true,
+        showJournalEntryDate: false,
         description: description.trim()
       });
 

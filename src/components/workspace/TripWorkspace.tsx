@@ -5,6 +5,7 @@ import { JournalMediaSelectionProvider } from '../../context/JournalMediaSelecti
 import { AttachmentsProvider } from '../../context/AttachmentsContext';
 import { ConfirmDialogProvider } from '../shared/ConfirmDialogProvider';
 import { PlacesProvider, usePlaces } from '../../context/PlacesContext';
+import { useOfflineStatus } from '../../context/OfflineStatusContext';
 import { useJournal } from '../../context/JournalContext';
 import { useAttachments } from '../../context/AttachmentsContext';
 import { TripHero } from './TripHero';
@@ -411,20 +412,24 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
     cursor: 'pointer'
   };
 
-  if (loading || placesLoading) {
+  if ((loading || placesLoading) && !error) {
     return <div style={loadingStyle}>Loading trip…</div>;
   }
 
   if (error || !trip) {
     return (
-      <div style={errorStyle}>
-        <p>{error ?? 'Trip could not be loaded.'}</p>
-        <button type="button" style={retryButtonStyle} onClick={retryLoad}>
-          Retry
-        </button>
-        <button type="button" style={retryButtonStyle} onClick={onBack}>
-          ← All Trips
-        </button>
+      <div className="th-trip-loading-cover" role="alert" style={{ flexDirection: 'column', gap: 16, padding: 24, textAlign: 'center' }}>
+        <p style={{ margin: 0, maxWidth: 440, color: 'var(--color-blue-800)', lineHeight: 1.45 }}>
+          {error ?? 'Trip could not be loaded.'}
+        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
+          <button type="button" style={retryButtonStyle} onClick={onBack}>
+            ← All Trips
+          </button>
+          <button type="button" style={retryButtonStyle} onClick={retryLoad}>
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -670,7 +675,8 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
 
 const ShellAwareTripLayout: React.FC<ITripWorkspaceProps> = (props) => {
   const shellMode = useShellMode();
-  const { trip, loading, error } = useTripWorkspace();
+  const { trip, loading, error, retryLoad } = useTripWorkspace();
+  const { isOffline } = useOfflineStatus();
   const { loading: placesLoading } = usePlaces();
 
   if (shellMode === 'ipad-landscape') {
@@ -679,17 +685,56 @@ const ShellAwareTripLayout: React.FC<ITripWorkspaceProps> = (props) => {
     );
   }
   if (isCompactTouchShell(shellMode)) {
-    // Match desktop: wait for trip (+ places) so the shell does not flash empty→filled→weather.
-    if (loading || placesLoading) {
+    // Don't wait on places once the trip load has already failed — show the offline miss UI immediately.
+    if ((loading || placesLoading) && !error) {
       return (
         <div className="th-trip-loading-cover" role="status" aria-live="polite">
           Loading trip…
         </div>
       );
     }
-    if (error) {
+    if (error || !trip) {
+      const message =
+        error ||
+        (isOffline
+          ? 'This trip isn’t available offline yet. Open it once while online to save it for offline use.'
+          : 'Trip could not be loaded.');
       return (
-        <div style={{ padding: '24px 16px', color: 'var(--th-danger, #b91c1c)', fontSize: 15 }}>{error}</div>
+        <div className="th-trip-loading-cover" role="alert" style={{ flexDirection: 'column', gap: 16, padding: 24, textAlign: 'center' }}>
+          <p style={{ margin: 0, maxWidth: 420, color: '#1e2a44', lineHeight: 1.45 }}>{message}</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
+            <button
+              type="button"
+              onClick={props.onBack}
+              style={{
+                padding: '10px 16px',
+                borderRadius: 10,
+                border: 'none',
+                background: '#1e2a44',
+                color: '#fff',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Back to trips
+            </button>
+            <button
+              type="button"
+              onClick={() => retryLoad()}
+              style={{
+                padding: '10px 16px',
+                borderRadius: 10,
+                border: '1px solid #c4a574',
+                background: '#fff',
+                color: '#1e2a44',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        </div>
       );
     }
     return (

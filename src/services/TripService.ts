@@ -17,7 +17,8 @@ function mapToTrip(item: any): Trip {
   const sn = item.ShowAuthorName;
   const showAuthorName = sn === false || sn === 'No' ? false : true;
   const sjd = item.ShowJournalEntryDate;
-  const showJournalEntryDate = sjd === false || sjd === 'No' ? false : true;
+  // Opt-in: created date/time. Default is trip-day calendar date (travel-journal style).
+  const showJournalEntryDate = sjd === true || sjd === 'Yes';
   return {
     id: String(item.ID),
     title: item.Title ?? '',

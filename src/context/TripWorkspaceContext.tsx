@@ -353,7 +353,11 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
           if (fallback) setSelectedDayId(fallback);
         }
       } else {
-        setError('Could not load trip data. Check your connection and try again.');
+        setError(
+          typeof navigator !== 'undefined' && navigator.onLine === false
+            ? 'This trip isn’t available offline yet. Open it once while online to save it for offline use, then try again.'
+            : 'Could not load trip data. Check your connection and try again.'
+        );
       }
     } finally {
       setLoading(false);

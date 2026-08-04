@@ -618,7 +618,7 @@ export function buildJournalPrintDocument(params: JournalPrintPreviewParams): st
     photosForEntry
   } = params;
 
-  const showEntryTimestamps = includeEntryTimestamps && trip.showJournalEntryDate !== false;
+  const showEntryTimestamps = includeEntryTimestamps && trip.showJournalEntryDate === true;
   const showAuthorNames = includeAuthorNames && trip.showAuthorName !== false;
 
   const printableDays = [...tripDays]

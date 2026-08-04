@@ -188,10 +188,12 @@ export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onCl
           <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <input
               type="checkbox"
-              checked={draft.showJournalEntryDate !== false}
+              checked={draft.showJournalEntryDate === true}
               onChange={(e) => setDraft((prev) => ({ ...prev, showJournalEntryDate: e.target.checked }))}
             />
-            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-700)' }}>Show date and time on journal entries</span>
+            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-blue-700)' }}>
+              Show when the entry was written (date &amp; time) instead of the trip day date
+            </span>
           </label>
 
           <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
@@ -248,7 +250,7 @@ export const EditTripPanel: React.FC<EditTripPanelProps> = ({ trip, isOpen, onCl
                       status: draft.status,
                       description: (draft.description ?? '').trim(),
                       showAuthorName: draft.showAuthorName !== false,
-                      showJournalEntryDate: draft.showJournalEntryDate !== false,
+                      showJournalEntryDate: draft.showJournalEntryDate === true,
                       heroImageUrl
                     })
                   )) === false;

@@ -9,10 +9,20 @@ export function formatSidebarDayDate(calendarDate: string): string {
   return d.toLocaleDateString('en-NZ', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
-/** Journal day section heading — sidebar display title only (no extra Day n prefix). */
+/** Journal day section heading — always "Day N - Title" (avoids doubling if title already has Day N). */
 export function formatJournalDayTitle(day: TripDay): string {
   if (day.dayType === 'PreTrip') return 'Pre-trip';
-  return day.displayTitle?.trim() || `Day ${day.dayNumber}`;
+  const title = (day.displayTitle || '').trim();
+  if (!title) return `Day ${day.dayNumber}`;
+  // Already "Day 1 - …" / "Day 1 — …" / "Day 1: …"
+  if (new RegExp(`^day\\s*${day.dayNumber}\\s*[-–—:]\\s*`, 'i').test(title)) {
+    return title.replace(/^day\s*/i, 'Day ');
+  }
+  // Title is just "Day 1" (auto default)
+  if (new RegExp(`^day\\s*${day.dayNumber}$`, 'i').test(title)) {
+    return `Day ${day.dayNumber}`;
+  }
+  return `Day ${day.dayNumber} - ${title}`;
 }
 
 /** Photo album / grouped day headings: Day 1 | Thu 28 May */

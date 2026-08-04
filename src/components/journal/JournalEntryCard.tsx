@@ -82,13 +82,14 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
   const showMenu = canEditEntry;
   const showAuthorLine = trip?.showAuthorName !== false;
   const pendingSync = isJournalEntryPendingSync(entry.id);
-  const showEntryTimestamp = trip?.showJournalEntryDate !== false;
+  /** When on: show created date/time. When off (Nick’s 50th style): show the trip day’s calendar date. */
+  const showCreatedDateTime = trip?.showJournalEntryDate === true;
   const entryDay = journalDays.find((d) => d.id === entry.dayId);
-  const dateLabel = showEntryTimestamp
+  const dateLabel = showCreatedDateTime
     ? formatTimestamp(entry.entryTimestamp)
     : entryDay?.calendarDate
       ? formatOrdinalDayDate(entryDay.calendarDate)
-      : null;
+      : formatTimestamp(entry.entryTimestamp);
 
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
