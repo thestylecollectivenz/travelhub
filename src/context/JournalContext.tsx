@@ -17,6 +17,17 @@ import { useTripWorkspace } from './TripWorkspaceContext';
 import { useConfig } from './ConfigContext';
 import { useOfflineStatus, OFFLINE_WRITE_MESSAGE } from './OfflineStatusContext';
 import { loadTripOfflineCache, patchTripOfflineJournalCache } from '../utils/tripOfflineCache';
+import {
+  enqueueJournalOfflineCreate,
+  enqueueJournalOfflineUpdate,
+  flushJournalOfflineQueue,
+  isOfflineJournalId,
+  journalOfflineQueueCount,
+  loadJournalOfflineQueue,
+  newOfflineJournalId
+} from '../utils/journalOfflineQueue';
+import { flashToast } from '../utils/flashToast';
+import { isLikelyNetworkError } from '../utils/networkError';
 
 export interface JournalContextValue {
   allEntries: JournalEntry[];
@@ -45,6 +56,9 @@ export interface JournalContextValue {
   deleteComment: (journalEntryId: string, commentId: string) => Promise<void>;
   ensureShareableLink: (entryId: string) => Promise<string>;
   reassignDayContent: (fromDayId: string, toDayId: string) => Promise<void>;
+  /** True when this entry was created offline and not yet synced. */
+  isJournalEntryPendingSync: (entryId: string) => boolean;
+  pendingJournalSyncCount: number;
 }
 
 const JournalContext = React.createContext<JournalContextValue | undefined>(undefined);
@@ -54,14 +68,30 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const { journalAuthorName } = useConfig();
   const { trip } = useTripWorkspace();
   const tripId = trip?.id ?? '';
-  const { warnIfOffline, isOnline, reportNetworkFailure, setViewingCachedTrip, setLastCachedAt } = useOfflineStatus();
+  const { warnIfOffline, isOnline, isOffline, reportNetworkFailure, setViewingCachedTrip, setLastCachedAt } =
+    useOfflineStatus();
 
   const [entries, setEntries] = React.useState<JournalEntry[]>([]);
   const [photos, setPhotos] = React.useState<JournalPhoto[]>([]);
   const [photoOrderByEntry, setPhotoOrderByEntry] = React.useState<Record<string, string[]>>({});
   const [commentsByEntry, setCommentsByEntry] = React.useState<Record<string, JournalComment[]>>({});
   const [commentCountByEntry, setCommentCountByEntry] = React.useState<Record<string, number>>({});
+  const [pendingJournalSyncCount, setPendingJournalSyncCount] = React.useState(0);
   const loadedCommentsRef = React.useRef<Set<string>>(new Set());
+  const syncingQueueRef = React.useRef(false);
+  const entriesRef = React.useRef<JournalEntry[]>([]);
+  entriesRef.current = entries;
+
+  const refreshPendingCount = React.useCallback((): void => {
+    setPendingJournalSyncCount(tripId ? journalOfflineQueueCount(tripId) : 0);
+  }, [tripId]);
+
+  React.useEffect(() => {
+    refreshPendingCount();
+  }, [refreshPendingCount, tripId]);
+
+  /** Queue journal text when offline or on cache-only data (photos still blocked). */
+  const shouldQueueJournalWrites = isOffline || !isOnline;
 
   const webAbsoluteUrl = React.useMemo(
     () => spContext.pageContext.web.absoluteUrl.replace(/\/$/, ''),
@@ -92,7 +122,35 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         svc.getForTrip(tripId),
         svc.getCommentCountsByEntryForTrip(tripId)
       ]);
-      setEntries(e);
+      // Preserve unsynced offline creates/updates across online reload.
+      const queue = loadJournalOfflineQueue(tripId);
+      let mergedEntries = [...e];
+      for (const op of queue) {
+        if (op.type === 'create') {
+          if (!mergedEntries.some((row) => row.id === op.localId)) {
+            mergedEntries.push({
+              id: op.localId,
+              title: op.entryTimestamp,
+              tripId,
+              dayId: op.dayId,
+              authorName: op.authorName,
+              entryText: op.entryText,
+              location: op.location,
+              entryTimestamp: op.entryTimestamp,
+              likeCount: 0,
+              likedByUsers: '',
+              shareableLink: ''
+            });
+          }
+        } else {
+          mergedEntries = mergedEntries.map((row) =>
+            row.id === op.entryId
+              ? { ...row, entryText: op.entryText, location: op.location }
+              : row
+          );
+        }
+      }
+      setEntries(mergedEntries);
       setPhotos(p);
       setPhotoOrderByEntry(mergePhotoOrdersFromStorage(tripId, p));
       setCommentCountByEntry(counts);
@@ -100,7 +158,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       loadedCommentsRef.current = new Set();
       if (isOnline) {
         void patchTripOfflineJournalCache(tripId, {
-          journalEntries: e,
+          journalEntries: mergedEntries,
           journalPhotos: p,
           journalCommentCounts: counts
         });
@@ -130,9 +188,9 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   }, [reloadAll]);
 
-  // Keep journal slice of the trip snapshot fresh while the trip stays open.
+  // Keep journal slice of the trip snapshot fresh (including offline local edits).
   React.useEffect(() => {
-    if (!tripId || !isOnline) return;
+    if (!tripId) return;
     const timer = window.setTimeout(() => {
       void patchTripOfflineJournalCache(tripId, {
         journalEntries: entries,
@@ -141,7 +199,52 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }).then(() => setLastCachedAt(new Date().toISOString()));
     }, 1200);
     return () => window.clearTimeout(timer);
-  }, [tripId, isOnline, entries, photos, commentCountByEntry, setLastCachedAt]);
+  }, [tripId, entries, photos, commentCountByEntry, setLastCachedAt]);
+
+  const flushPendingJournal = React.useCallback(async (): Promise<void> => {
+    if (!tripId || !isOnline || syncingQueueRef.current) return;
+    if (!journalOfflineQueueCount(tripId)) {
+      refreshPendingCount();
+      return;
+    }
+    syncingQueueRef.current = true;
+    try {
+      const result = await flushJournalOfflineQueue(spContext, tripId);
+      if (Object.keys(result.idMap).length) {
+        setEntries((prev) =>
+          prev.map((e) => {
+            const mapped = result.idMap[e.id];
+            return mapped ? { ...mapped, entryText: e.entryText, location: e.location } : e;
+          })
+        );
+      }
+      refreshPendingCount();
+      if (result.synced > 0 && !result.error) {
+        flashToast(
+          result.synced === 1
+            ? 'Journal entry synced'
+            : `${result.synced} journal changes synced`
+        );
+        await reloadAll();
+      } else if (result.error) {
+        flashToast('Some journal changes could not sync yet');
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('JournalProvider.flushPendingJournal', err);
+      if (isLikelyNetworkError(err)) reportNetworkFailure(err);
+    } finally {
+      // eslint-disable-next-line require-atomic-updates -- sync mutex flag
+      syncingQueueRef.current = false;
+      refreshPendingCount();
+    }
+  }, [tripId, isOnline, spContext, refreshPendingCount, reloadAll, reportNetworkFailure]);
+
+  React.useEffect(() => {
+    if (isOnline && tripId) {
+      void flushPendingJournal();
+    }
+  }, [isOnline, tripId, flushPendingJournal]);
 
   const entriesByDay = React.useCallback(
     (dayId: string) => entries.filter((x) => x.dayId === dayId).sort((a, b) => a.entryTimestamp.localeCompare(b.entryTimestamp)),
@@ -200,17 +303,47 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const addEntry = React.useCallback(
     async (input: { dayId: string; entryText: string; location?: string }): Promise<JournalEntry> => {
-      if (warnIfOffline('write')) throw new Error(OFFLINE_WRITE_MESSAGE);
       if (!tripId) throw new Error('No trip loaded');
+      const entryTimestamp = new Date().toISOString();
+
+      if (shouldQueueJournalWrites) {
+        const localId = newOfflineJournalId();
+        const localEntry: JournalEntry = {
+          id: localId,
+          title: entryTimestamp,
+          tripId,
+          dayId: input.dayId,
+          authorName: journalAuthorName,
+          entryText: input.entryText,
+          location: input.location ?? '',
+          entryTimestamp,
+          likeCount: 0,
+          likedByUsers: '',
+          shareableLink: ''
+        };
+        setEntries((prev) => [...prev, localEntry]);
+        enqueueJournalOfflineCreate(tripId, {
+          localId,
+          dayId: input.dayId,
+          entryText: input.entryText,
+          location: input.location ?? '',
+          authorName: journalAuthorName,
+          entryTimestamp
+        });
+        refreshPendingCount();
+        flashToast('Saved offline — will sync when you’re back online');
+        return localEntry;
+      }
+
       const optimistic: JournalEntry = {
         id: `temp-${Date.now()}`,
-        title: new Date().toISOString(),
+        title: entryTimestamp,
         tripId,
         dayId: input.dayId,
         authorName: journalAuthorName,
         entryText: input.entryText,
         location: input.location ?? '',
-        entryTimestamp: new Date().toISOString(),
+        entryTimestamp,
         likeCount: 0,
         likedByUsers: '',
         shareableLink: ''
@@ -228,33 +361,80 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setEntries((prev) => prev.map((e) => (e.id === optimistic.id ? created : e)));
         return created;
       } catch (err) {
+        if (isLikelyNetworkError(err)) {
+          reportNetworkFailure(err);
+          // Fall through to offline queue so the write isn’t lost.
+          const localId = newOfflineJournalId();
+          const localEntry: JournalEntry = { ...optimistic, id: localId };
+          setEntries((prev) => prev.map((e) => (e.id === optimistic.id ? localEntry : e)));
+          enqueueJournalOfflineCreate(tripId, {
+            localId,
+            dayId: input.dayId,
+            entryText: input.entryText,
+            location: input.location ?? '',
+            authorName: journalAuthorName,
+            entryTimestamp
+          });
+          refreshPendingCount();
+          flashToast('Saved offline — will sync when you’re back online');
+          return localEntry;
+        }
         setEntries((prev) => prev.filter((e) => e.id !== optimistic.id));
         // eslint-disable-next-line no-console
         console.error('JournalProvider.addEntry', err);
         throw err;
       }
     },
-    [spContext, tripId, journalAuthorName, warnIfOffline]
+    [
+      spContext,
+      tripId,
+      journalAuthorName,
+      shouldQueueJournalWrites,
+      refreshPendingCount,
+      reportNetworkFailure
+    ]
   );
 
   const updateEntry = React.useCallback(
     async (id: string, partial: Partial<Pick<JournalEntry, 'entryText' | 'location'>>): Promise<void> => {
-      if (warnIfOffline('write')) return;
-      const prevEntry = entries.find((e) => e.id === id);
+      const prevEntry = entriesRef.current.find((e) => e.id === id);
       if (!prevEntry) return;
       const next: JournalEntry = { ...prevEntry, ...partial };
       setEntries((prev) => prev.map((e) => (e.id === id ? next : e)));
+
+      if (shouldQueueJournalWrites || isOfflineJournalId(id)) {
+        enqueueJournalOfflineUpdate(tripId, id, {
+          entryText: next.entryText,
+          location: next.location
+        });
+        refreshPendingCount();
+        if (shouldQueueJournalWrites) {
+          flashToast('Saved offline — will sync when you’re back online');
+        }
+        return;
+      }
+
       try {
         const svc = new JournalService(spContext);
         await svc.update(id, { entryText: next.entryText, location: next.location });
       } catch (err) {
+        if (isLikelyNetworkError(err)) {
+          reportNetworkFailure(err);
+          enqueueJournalOfflineUpdate(tripId, id, {
+            entryText: next.entryText,
+            location: next.location
+          });
+          refreshPendingCount();
+          flashToast('Saved offline — will sync when you’re back online');
+          return;
+        }
         setEntries((prev) => prev.map((e) => (e.id === id ? prevEntry : e)));
         // eslint-disable-next-line no-console
         console.error('JournalProvider.updateEntry', err);
         throw err;
       }
     },
-    [entries, spContext, warnIfOffline]
+    [spContext, tripId, shouldQueueJournalWrites, refreshPendingCount, reportNetworkFailure]
   );
 
   const syncEntryPhotosDay = React.useCallback(
@@ -753,6 +933,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const ensureShareableLink = React.useCallback(
     async (entryId: string): Promise<string> => {
+      if (isOfflineJournalId(entryId) || warnIfOffline('write')) return '';
       const entry = entries.find((e) => e.id === entryId);
       if (!entry) return '';
       if (entry.shareableLink && entry.shareableLink.trim() !== '') return entry.shareableLink;
@@ -761,7 +942,12 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setEntries((prev) => prev.map((e) => (e.id === entryId ? { ...e, shareableLink: url } : e)));
       return url;
     },
-    [entries, spContext, webAbsoluteUrl]
+    [entries, spContext, webAbsoluteUrl, warnIfOffline]
+  );
+
+  const isJournalEntryPendingSync = React.useCallback(
+    (entryId: string) => isOfflineJournalId(entryId),
+    []
   );
 
   const value = React.useMemo(
@@ -790,7 +976,9 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       addComment,
       deleteComment,
       ensureShareableLink,
-      reassignDayContent
+      reassignDayContent,
+      isJournalEntryPendingSync,
+      pendingJournalSyncCount
     }),
     [
       entries,
@@ -817,7 +1005,9 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       addComment,
       deleteComment,
       ensureShareableLink,
-      reassignDayContent
+      reassignDayContent,
+      isJournalEntryPendingSync,
+      pendingJournalSyncCount
     ]
   );
 

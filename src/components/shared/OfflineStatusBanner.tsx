@@ -23,8 +23,8 @@ export const OfflineStatusBanner: React.FC = () => {
   const cachedLabel = formatCachedAt(lastCachedAt);
   const message = isOffline
     ? cachedLabel
-      ? `Offline — viewing last saved data (${cachedLabel}). Editing isn’t available until you’re back online.`
-      : 'Offline — viewing last saved data when available. Editing isn’t available until you’re back online.'
+      ? `Offline — viewing last saved data (${cachedLabel}). Journal text can be edited and will sync later; other edits need a connection.`
+      : 'Offline — viewing last saved data when available. Journal text can be edited and will sync later; other edits need a connection.'
     : cachedLabel
       ? `Showing cached data from ${cachedLabel}. Reconnect to refresh.`
       : 'Showing cached data. Reconnect to refresh.';

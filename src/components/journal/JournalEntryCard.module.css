@@ -55,6 +55,14 @@
   text-align: left;
 }
 
+.pendingSync {
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-amber-800);
+  text-align: left;
+}
+
 .timestamp {
   margin-top: 2px;
   font-size: var(--font-size-xs);

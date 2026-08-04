@@ -17,6 +17,7 @@ import { AlbumPhotoPicker } from './AlbumPhotoPicker';
 import { formatOrdinalDayDate } from '../../utils/formatTripDayDate';
 import { useTripRole } from '../../context/TripRoleContext';
 import { canEditOwnedRecord } from '../../utils/canEditOwnedRecord';
+import { useOfflineStatus } from '../../context/OfflineStatusContext';
 import styles from './JournalEntryCard.module.css';
 
 function isAllowedImage(file: File): boolean {
@@ -69,8 +70,10 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
     addComment,
     deleteComment,
     ensureShareableLink,
-    commentCountForEntry
+    commentCountForEntry,
+    isJournalEntryPendingSync
   } = useJournal();
+  const { isOffline } = useOfflineStatus();
   const { selectedPhotoId, setSelectedPhotoId, setSelectedEntryId } = useJournalMediaSelection();
 
   const displayName = spContext.pageContext.user.displayName ?? '';
@@ -78,6 +81,7 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
   const canEditEntry = canModerate && canEditOwnedRecord(spContext, entry.ownerEmail, role);
   const showMenu = canEditEntry;
   const showAuthorLine = trip?.showAuthorName !== false;
+  const pendingSync = isJournalEntryPendingSync(entry.id);
   const showEntryTimestamp = trip?.showJournalEntryDate !== false;
   const entryDay = journalDays.find((d) => d.id === entry.dayId);
   const dateLabel = showEntryTimestamp
@@ -264,6 +268,7 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
         <div className={styles.metaMain}>
           {isUnread ? <span className={styles.unreadBadge}>New</span> : null}
           {showAuthorLine ? <div className={styles.author}>{entry.authorName || 'Traveller'}</div> : null}
+          {pendingSync ? <div className={styles.pendingSync}>Saved offline — pending sync</div> : null}
           {dateLabel ? <div className={styles.timestamp}>{dateLabel}</div> : null}
         </div>
         {showMenu ? (
@@ -380,18 +385,27 @@ export const JournalEntryCard: React.FC<JournalEntryCardProps> = ({
               e.target.value = '';
             }}
           />
-          <button type="button" className={styles.addPhotosBtn} disabled={photoUploading} onClick={() => photoInputRef.current?.click()}>
+          <button
+            type="button"
+            className={styles.addPhotosBtn}
+            disabled={photoUploading || isOffline || pendingSync}
+            onClick={() => photoInputRef.current?.click()}
+            title={isOffline || pendingSync ? 'Photos need a connection (and a synced entry)' : undefined}
+          >
             {photoUploading ? 'Uploading…' : 'Add photos'}
           </button>
           <button
             type="button"
             className={styles.addPhotosBtn}
-            disabled={albumLinking}
+            disabled={albumLinking || isOffline || pendingSync}
             onClick={() => setAlbumPickerOpen((v) => !v)}
+            title={isOffline || pendingSync ? 'Photos need a connection (and a synced entry)' : undefined}
           >
             {albumPickerOpen ? 'Close album' : 'From trip album'}
           </button>
-          <span className={styles.dropHint}>or drop photos here</span>
+          <span className={styles.dropHint}>
+            {isOffline || pendingSync ? 'Photos unavailable offline' : 'or drop photos here'}
+          </span>
         </div>
       ) : null}
 

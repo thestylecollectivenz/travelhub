@@ -19,6 +19,7 @@ import { markdownToHtml } from '../../utils/markdownToHtml';
 import { RichTextContent } from '../shared/RichTextContent';
 import { AlbumPhotoPicker } from './AlbumPhotoPicker';
 import { journalPhotoThumbUrl } from '../../utils/journalPhotoDisplayUrl';
+import { useOfflineStatus } from '../../context/OfflineStatusContext';
 import styles from './JournalEntryComposer.module.css';
 
 export interface JournalEntryComposerProps {
@@ -63,6 +64,7 @@ async function withTransientRetry<T>(fn: () => Promise<T>, attempts = 3): Promis
 
 export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayId, onCancel, onSaved, focusPhotoPickerKey }) => {
   const { addEntry, addPhoto, allTripPhotos, assignPhotoToEntry } = useJournal();
+  const { isOffline } = useOfflineStatus();
   const { config } = useConfig();
   const { trip, tripDays, localEntries } = useTripWorkspace();
   const { placeById } = usePlaces();
@@ -176,6 +178,10 @@ export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayI
     if (savingRef.current) return;
     if (isRichTextEditorEmpty(entryHtml)) {
       setError('Please write something for this entry.');
+      return;
+    }
+    if (isOffline && (files.length > 0 || albumPhotoIds.length > 0)) {
+      setError('Photos can’t be added while offline. Remove photos to save the text entry, or wait until you’re back online.');
       return;
     }
     savingRef.current = true;
@@ -357,7 +363,7 @@ export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayI
         <input className={styles.input} value={location} onChange={(e) => setLocation(e.target.value)} />
       </label>
       <div className={styles.label}>
-        <span>Photos (optional)</span>
+        <span>Photos (optional){isOffline ? ' — unavailable offline' : ''}</span>
         <div className={styles.photoSourceRow}>
           <input
             ref={photoInputRef}
@@ -365,12 +371,13 @@ export const JournalEntryComposer: React.FC<JournalEntryComposerProps> = ({ dayI
             accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
             multiple
             onChange={onPickFiles}
+            disabled={saving || isOffline}
           />
           <button
             type="button"
             className={styles.button}
             onClick={() => setAlbumPickerOpen((v) => !v)}
-            disabled={saving}
+            disabled={saving || isOffline}
           >
             {albumPickerOpen ? 'Close album' : 'From trip album'}
           </button>
