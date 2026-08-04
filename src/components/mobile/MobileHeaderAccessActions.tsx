@@ -56,22 +56,24 @@ export const MobileHeaderAccessActions: React.FC<MobileHeaderAccessActionsProps>
   const displayName = getCurrentUserDisplayName(spContext);
   const shellMode = useShellMode();
   const avatarSize = shellMode === 'ipad-portrait' ? 42 : 36;
+  const showAccess = Boolean(tripId && onOpenAccess);
 
   return (
     <div className={styles.actions}>
-      <button
-        type="button"
-        className={styles.avatarBtn}
-        aria-label="Trip access"
-        disabled={!tripId || !onOpenAccess}
-        onClick={() => onOpenAccess?.()}
-      >
-        <TravellerAvatar
-          displayName={myMember?.userDisplayName || greetingName || displayName || 'You'}
-          avatarUrl={myMember?.avatarUrl}
-          size={avatarSize}
-        />
-      </button>
+      {showAccess ? (
+        <button
+          type="button"
+          className={styles.avatarBtn}
+          aria-label="Trip access"
+          onClick={() => onOpenAccess?.()}
+        >
+          <TravellerAvatar
+            displayName={myMember?.userDisplayName || greetingName || displayName || 'You'}
+            avatarUrl={myMember?.avatarUrl}
+            size={avatarSize}
+          />
+        </button>
+      ) : null}
       <button type="button" className={styles.iconBtn} aria-label="Traveller profile" onClick={onOpenSettings}>
         <IconGear />
       </button>

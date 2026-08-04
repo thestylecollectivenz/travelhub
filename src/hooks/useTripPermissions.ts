@@ -11,6 +11,8 @@ export interface TripPermissions {
   canUseExports: boolean;
   canDeleteTrip: boolean;
   canSeeFinancials: boolean;
+  /** Invite / manage trip members and site access settings (Editor only). */
+  canManageAccess: boolean;
   /** Ask AI, Near You, location-info AI tools — save results to trip (Companion+). */
   canUseAiHelpers: boolean;
   /** Read-only private trip (Follower on workspace). */
@@ -30,6 +32,7 @@ export function useTripPermissions(): TripPermissions {
     canUseExports: isEditor,
     canDeleteTrip: isEditor,
     canSeeFinancials: isCompanionOrEditor,
+    canManageAccess: isEditor,
     canUseAiHelpers: isCompanionOrEditor,
     isReadOnlyWorkspace: role === 'Follower'
   };

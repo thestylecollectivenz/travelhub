@@ -966,10 +966,11 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
   const headerChrome = React.useMemo(
     () => ({
       accessTripId: contextTrip?.id,
-      onOpenAccess: contextTrip?.id ? (): void => setMembersOpen(true) : undefined,
+      onOpenAccess:
+        contextTrip?.id && contextRole === 'Editor' ? (): void => setMembersOpen(true) : undefined,
       onOpenSettings
     }),
-    [contextTrip?.id, onOpenSettings]
+    [contextTrip?.id, contextRole, onOpenSettings]
   );
 
   return (

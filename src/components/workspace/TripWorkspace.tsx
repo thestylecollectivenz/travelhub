@@ -18,6 +18,7 @@ import { TripMembersPanel } from './TripMembersPanel';
 import { TripTravellersStrip } from './TripTravellersStrip';
 import { TripAccessLogPanel } from './TripAccessLogPanel';
 import { RoleGate } from '../shared/RoleGate';
+import { useTripPermissions } from '../../hooks/useTripPermissions';
 import { TripDateRangeReassignDialog } from './TripDateRangeReassignDialog';
 import { ErrorBoundary } from '../shared/ErrorBoundary';
 import type { Trip } from '../../models/Trip';
@@ -74,6 +75,7 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
   const { loading: placesLoading } = usePlaces();
   const spContext = useSpContext();
   const { config } = useConfig();
+  const { canManageAccess } = useTripPermissions();
   const { allEntries: journalEntries, allTripPhotos, photosForEntry, commentsForEntry, reassignDayContent } =
     useJournal();
   const { documents, links, setHighlightedDocumentId, setHighlightedLinkId } = useAttachments();
@@ -443,7 +445,10 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
         <span className={styles.buildTag} title="App package version — use this to confirm SharePoint loaded the latest deploy">
           v{SOLUTION_VERSION}
         </span>
-        <TripTravellersStrip tripId={tripId} onOpenMembers={() => setMembersOpen(true)} />
+        <TripTravellersStrip
+          tripId={tripId}
+          onOpenMembers={canManageAccess ? (): void => setMembersOpen(true) : undefined}
+        />
         <div className={styles.toolbarActions}>
           {sharedPreview ? (
             <button type="button" className={styles.settingsButton} onClick={() => setSharedPreview(false)}>

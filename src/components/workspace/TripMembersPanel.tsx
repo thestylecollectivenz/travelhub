@@ -4,6 +4,7 @@ import { TripMembersService } from '../../services/TripMembersService';
 import type { TripMember, TripRoleLevel } from '../../models/TripMember';
 import { clearTripRoleCache } from '../../hooks/useCurrentUserRole';
 import { useTripRole } from '../../context/TripRoleContext';
+import { useTripPermissions } from '../../hooks/useTripPermissions';
 import { confirmUserAction } from '../../utils/confirmAction';
 import { uploadTripMemberAvatar } from '../../utils/memberAvatarUpload';
 import { TravellerAvatar } from '../shared/TravellerAvatar';
@@ -20,6 +21,7 @@ const ROLES: TripRoleLevel[] = ['Editor', 'Companion', 'Follower'];
 export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOpen, onClose }) => {
   const spContext = useSpContext();
   const { refreshRole } = useTripRole();
+  const { canManageAccess, loading: roleLoading } = useTripPermissions();
   const service = React.useMemo(() => new TripMembersService(spContext), [spContext]);
   const [members, setMembers] = React.useState<TripMember[]>([]);
   const [authorEmail, setAuthorEmail] = React.useState('');
@@ -50,13 +52,19 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
   }, [service, tripId]);
 
   React.useEffect(() => {
-    if (isOpen) {
+    if (isOpen && canManageAccess) {
       setError(null);
       refresh();
     }
-  }, [isOpen, refresh]);
+  }, [isOpen, canManageAccess, refresh]);
 
-  if (!isOpen) return null;
+  React.useEffect(() => {
+    if (isOpen && !roleLoading && !canManageAccess) {
+      onClose();
+    }
+  }, [isOpen, roleLoading, canManageAccess, onClose]);
+
+  if (!isOpen || roleLoading || !canManageAccess) return null;
 
   const pickAvatar = (memberId: string): void => {
     setAvatarTargetId(memberId);

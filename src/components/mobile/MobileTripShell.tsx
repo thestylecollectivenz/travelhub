@@ -158,7 +158,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
     reloadItineraryEntries
   } = useTripWorkspace();
   const spContext = useSpContext();
-  const { canEditItinerary } = useTripPermissions();
+  const { canEditItinerary, canManageAccess } = useTripPermissions();
   const { role } = useTripRole();
   const { unreadCount: ideasUnread } = useTripDayIdeas();
   const { openEdit: openTripSettings, tripDetailsEditor } = useTripDetailsEditor();
@@ -205,7 +205,10 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
     if (trip?.id) persistMobileNav({ view: 'singleTrip', tripId: trip.id, tripTab: tab });
   }, [trip?.id, tab, spContext]);
 
-  const handleOpenMembers = React.useCallback(() => setMembersOpen(true), []);
+  const handleOpenMembers = React.useCallback(() => {
+    if (!canManageAccess) return;
+    setMembersOpen(true);
+  }, [canManageAccess]);
 
   const handleAskAi = React.useCallback((prompt?: string) => {
     const p = (prompt ?? '').trim();
@@ -520,9 +523,9 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
   const headerChrome = React.useMemo(
     () => ({
       accessTripId: trip?.id,
-      onOpenAccess: trip?.id ? handleOpenMembers : undefined
+      onOpenAccess: trip?.id && canManageAccess ? handleOpenMembers : undefined
     }),
-    [trip?.id, handleOpenMembers]
+    [trip?.id, canManageAccess, handleOpenMembers]
   );
 
   return (
@@ -539,7 +542,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
         tripDates={pageChrome.tripDates}
         tripHeroSrc={tripHeroSrc}
         accessTripId={trip?.id}
-        onOpenAccess={trip?.id ? handleOpenMembers : undefined}
+        onOpenAccess={trip?.id && canManageAccess ? handleOpenMembers : undefined}
         onOpenTripSettings={canEditTripSettings && trip ? openTripSettings : undefined}
       />
       <main className={styles.mobileMain} data-mobile-scroll>
