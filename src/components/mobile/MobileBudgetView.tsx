@@ -205,7 +205,7 @@ export const MobileBudgetView: React.FC<MobileBudgetViewProps> = ({ onOpenPlan }
 
   const exportExcel = React.useCallback((): void => {
     if (!trip || !canUseExports) return;
-    exportFullBudgetToExcel({
+    void exportFullBudgetToExcel({
       trip,
       entries,
       tripDays,

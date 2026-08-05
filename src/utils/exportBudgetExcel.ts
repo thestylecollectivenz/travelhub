@@ -1,11 +1,10 @@
-import * as XLSX from 'xlsx';
 import type { ItineraryEntry, ItinerarySubItem } from '../models/ItineraryEntry';
 import type { Trip } from '../models/Trip';
 import { BUDGET_CATEGORY_ORDER, formatCurrency } from './financialUtils';
 import { buildBudgetDetailLines, bucketCategory, sumBudgetLines } from './budgetDetailLines';
 import type { TripDay } from '../models/TripDay';
 
-export function exportFullBudgetToExcel(options: {
+export async function exportFullBudgetToExcel(options: {
   trip: Trip;
   entries: ItineraryEntry[];
   tripDays: TripDay[];
@@ -13,7 +12,8 @@ export function exportFullBudgetToExcel(options: {
   convertToHomeCurrency: (amount: number, currency: string) => number;
   dayLabelFor: (dayId: string) => string;
   locationFor?: (entry: ItineraryEntry, subItem?: ItinerarySubItem) => string;
-}): void {
+}): Promise<void> {
+  const XLSX = await import(/* webpackChunkName: 'xlsx' */ 'xlsx');
   const { trip, entries, tripDays, homeCurrency, convertToHomeCurrency, dayLabelFor, locationFor } = options;
   const resolveLocation =
     locationFor ?? ((entry, sub) => (sub?.location || entry.location || '').trim());

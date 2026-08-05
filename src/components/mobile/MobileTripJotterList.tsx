@@ -248,6 +248,10 @@ export const MobileTripJotterList: React.FC = () => {
       await svc.delete(idea.id);
       notifyDayIdeasChanged();
     }
+    if (trip?.id) {
+      const { removeReminderFromOfflineCache } = await import('../../utils/refreshTripOfflineRemindersCache');
+      await removeReminderFromOfflineCache(trip.id, idea.id);
+    }
     await refresh();
     notifyTripIdeasChanged();
   };

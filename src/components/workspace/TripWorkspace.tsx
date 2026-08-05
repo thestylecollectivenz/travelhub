@@ -28,7 +28,6 @@ import {
   ymdSlice,
   type TripDateRangeChangePlan
 } from '../../utils/tripDateRangeSync';
-import * as XLSX from 'xlsx';
 import { formatCurrency, sumByCategory, sumByPaymentStatus } from '../../utils/financialUtils';
 import { useConfig } from '../../context/ConfigContext';
 import { JournalPdfExport } from '../export/JournalPdfExport';
@@ -294,66 +293,78 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
 
   const exportTripToExcel = React.useCallback((): void => {
     if (!trip) return;
-    const orderedDays = [...tripDays].sort((a, b) => a.dayNumber - b.dayNumber);
-    const workbook = XLSX.utils.book_new();
+    void (async () => {
+      const XLSX = await import(/* webpackChunkName: 'xlsx' */ 'xlsx');
+      const orderedDays = [...tripDays].sort((a, b) => a.dayNumber - b.dayNumber);
+      const workbook = XLSX.utils.book_new();
 
-    const totalBudget = sumByPaymentStatus(localEntries, 'all', convertToHomeCurrency);
-    const spent = sumByPaymentStatus(localEntries, 'paid', convertToHomeCurrency);
-    const remaining = sumByPaymentStatus(localEntries, 'unpaid', convertToHomeCurrency);
-    const byCategory = sumByCategory(localEntries, convertToHomeCurrency);
-    const summaryRows: Array<Record<string, string | number>> = [
-      { Field: 'Trip title', Value: trip.title },
-      { Field: 'Date range', Value: `${trip.dateStart} to ${trip.dateEnd}` },
-      { Field: 'Total budget', Value: formatCurrency(totalBudget, config.homeCurrency) },
-      { Field: 'Spent so far', Value: formatCurrency(spent, config.homeCurrency) },
-      { Field: 'Remaining', Value: formatCurrency(remaining, config.homeCurrency) }
-    ];
-    Object.keys(byCategory).forEach((key) => summaryRows.push({ Field: `Category: ${key}`, Value: formatCurrency(byCategory[key] || 0, config.homeCurrency) }));
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), 'Summary');
+      const totalBudget = sumByPaymentStatus(localEntries, 'all', convertToHomeCurrency);
+      const spent = sumByPaymentStatus(localEntries, 'paid', convertToHomeCurrency);
+      const remaining = sumByPaymentStatus(localEntries, 'unpaid', convertToHomeCurrency);
+      const byCategory = sumByCategory(localEntries, convertToHomeCurrency);
+      const summaryRows: Array<Record<string, string | number>> = [
+        { Field: 'Trip title', Value: trip.title },
+        { Field: 'Date range', Value: `${trip.dateStart} to ${trip.dateEnd}` },
+        { Field: 'Total budget', Value: formatCurrency(totalBudget, config.homeCurrency) },
+        { Field: 'Spent so far', Value: formatCurrency(spent, config.homeCurrency) },
+        { Field: 'Remaining', Value: formatCurrency(remaining, config.homeCurrency) }
+      ];
+      Object.keys(byCategory).forEach((key) =>
+        summaryRows.push({ Field: `Category: ${key}`, Value: formatCurrency(byCategory[key] || 0, config.homeCurrency) })
+      );
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), 'Summary');
 
-    for (const day of orderedDays) {
-      const perDayPortion = (entry: typeof localEntries[number]): number => {
-        if (entry.category === 'Accommodation' && entry.dateStart && entry.dateEnd) {
-          const start = new Date(`${entry.dateStart}T00:00:00.000Z`);
-          const end = new Date(`${entry.dateEnd}T00:00:00.000Z`);
-          const current = new Date(`${day.calendarDate}T00:00:00.000Z`);
-          const nights = Math.floor((end.getTime() - start.getTime()) / 86400000);
-          if (nights > 0 && current.getTime() >= start.getTime() && current.getTime() < end.getTime()) return entry.amount / nights;
-        }
-        if (entry.category === 'Cruise' && entry.embarksDate && entry.disembarksDate) {
-          const start = new Date(`${entry.embarksDate}T00:00:00.000Z`);
-          const end = new Date(`${entry.disembarksDate}T00:00:00.000Z`);
-          const current = new Date(`${day.calendarDate}T00:00:00.000Z`);
-          const cruiseDays = Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
-          if (cruiseDays > 0 && current.getTime() >= start.getTime() && current.getTime() <= end.getTime()) return entry.amount / cruiseDays;
-        }
-        return entry.amount;
-      };
-      const rows = localEntries
-        .filter((e) => {
-          if (e.dayId === day.id) return true;
-          if (e.category === 'Accommodation' && e.dateStart && e.dateEnd) return day.calendarDate >= e.dateStart && day.calendarDate < e.dateEnd;
-          if (e.category === 'Cruise' && e.embarksDate && e.disembarksDate) return day.calendarDate >= e.embarksDate && day.calendarDate <= e.disembarksDate;
-          return false;
-        })
-        .map((e) => ({
-          Time: e.timeStart,
-          Title: e.title,
-          Category: e.category,
-          Supplier: e.supplier,
-          Location: e.location || '',
-          DecisionStatus: e.decisionStatus,
-          BookingStatus: e.bookingStatus,
-          PaymentStatus: e.paymentStatus,
-          'Amount (original)': formatCurrency(perDayPortion(e), e.currency || 'NZD'),
-          [`Amount (${config.homeCurrency})`]: formatCurrency(convertToHomeCurrency(perDayPortion(e), e.currency || 'NZD'), config.homeCurrency),
-          Notes: e.notes
-        }));
-      const safeTitle = `Day ${day.dayNumber} - ${day.displayTitle}`.slice(0, 31);
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), safeTitle || `Day ${day.dayNumber}`);
-    }
+      for (const day of orderedDays) {
+        const perDayPortion = (entry: (typeof localEntries)[number]): number => {
+          if (entry.category === 'Accommodation' && entry.dateStart && entry.dateEnd) {
+            const start = new Date(`${entry.dateStart}T00:00:00.000Z`);
+            const end = new Date(`${entry.dateEnd}T00:00:00.000Z`);
+            const current = new Date(`${day.calendarDate}T00:00:00.000Z`);
+            const nights = Math.floor((end.getTime() - start.getTime()) / 86400000);
+            if (nights > 0 && current.getTime() >= start.getTime() && current.getTime() < end.getTime())
+              return entry.amount / nights;
+          }
+          if (entry.category === 'Cruise' && entry.embarksDate && entry.disembarksDate) {
+            const start = new Date(`${entry.embarksDate}T00:00:00.000Z`);
+            const end = new Date(`${entry.disembarksDate}T00:00:00.000Z`);
+            const current = new Date(`${day.calendarDate}T00:00:00.000Z`);
+            const cruiseDays = Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
+            if (cruiseDays > 0 && current.getTime() >= start.getTime() && current.getTime() <= end.getTime())
+              return entry.amount / cruiseDays;
+          }
+          return entry.amount;
+        };
+        const rows = localEntries
+          .filter((e) => {
+            if (e.dayId === day.id) return true;
+            if (e.category === 'Accommodation' && e.dateStart && e.dateEnd)
+              return day.calendarDate >= e.dateStart && day.calendarDate < e.dateEnd;
+            if (e.category === 'Cruise' && e.embarksDate && e.disembarksDate)
+              return day.calendarDate >= e.embarksDate && day.calendarDate <= e.disembarksDate;
+            return false;
+          })
+          .map((e) => ({
+            Time: e.timeStart,
+            Title: e.title,
+            Category: e.category,
+            Supplier: e.supplier,
+            Location: e.location || '',
+            DecisionStatus: e.decisionStatus,
+            BookingStatus: e.bookingStatus,
+            PaymentStatus: e.paymentStatus,
+            'Amount (original)': formatCurrency(perDayPortion(e), e.currency || 'NZD'),
+            [`Amount (${config.homeCurrency})`]: formatCurrency(
+              convertToHomeCurrency(perDayPortion(e), e.currency || 'NZD'),
+              config.homeCurrency
+            ),
+            Notes: e.notes
+          }));
+        const safeTitle = `Day ${day.dayNumber} - ${day.displayTitle}`.slice(0, 31);
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), safeTitle || `Day ${day.dayNumber}`);
+      }
 
-    XLSX.writeFile(workbook, `${trip.title.replace(/[^\w-]+/g, '_') || 'trip'}-itinerary.xlsx`);
+      XLSX.writeFile(workbook, `${trip.title.replace(/[^\w-]+/g, '_') || 'trip'}-itinerary.xlsx`);
+    })().catch(console.error);
   }, [trip, tripDays, localEntries, convertToHomeCurrency, config.homeCurrency]);
 
   React.useEffect(() => {

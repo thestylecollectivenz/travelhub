@@ -201,7 +201,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         journalCommentCounts: commentCountByEntry,
         journalCommentsByEntry: commentsByEntry
       }).then(() => setLastCachedAt(new Date().toISOString()));
-    }, 1200);
+    }, 400);
     return () => window.clearTimeout(timer);
   }, [tripId, entries, photos, commentCountByEntry, commentsByEntry, setLastCachedAt]);
 
@@ -862,10 +862,29 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       try {
         const svc = new JournalService(spContext);
         const created = await svc.createComment(journalEntryId, tripId, text);
-        setCommentsByEntry((prev) => ({
-          ...prev,
-          [journalEntryId]: (prev[journalEntryId] ?? []).map((c) => (c.id === optimistic.id ? created : c))
-        }));
+        let nextComments: Record<string, JournalComment[]> = commentsByEntry;
+        let nextCounts: Record<string, number> = commentCountByEntry;
+        setCommentsByEntry((prev) => {
+          nextComments = {
+            ...prev,
+            [journalEntryId]: (prev[journalEntryId] ?? []).map((c) => (c.id === optimistic.id ? created : c))
+          };
+          return nextComments;
+        });
+        setCommentCountByEntry((prev) => {
+          nextCounts = {
+            ...prev,
+            [journalEntryId]: (nextComments[journalEntryId] ?? []).length
+          };
+          return nextCounts;
+        });
+        await patchTripOfflineJournalCache(tripId, {
+          journalEntries: entries,
+          journalPhotos: photos,
+          journalCommentCounts: nextCounts,
+          journalCommentsByEntry: nextComments
+        });
+        setLastCachedAt(new Date().toISOString());
       } catch (err) {
         setCommentsByEntry((prev) => ({
           ...prev,
@@ -880,28 +899,53 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw err;
       }
     },
-    [spContext, tripId, userDisplayName, warnIfOffline]
+    [
+      spContext,
+      tripId,
+      userDisplayName,
+      warnIfOffline,
+      entries,
+      photos,
+      commentsByEntry,
+      commentCountByEntry,
+      setLastCachedAt
+    ]
   );
 
   const deleteComment = React.useCallback(
     async (journalEntryId: string, commentId: string): Promise<void> => {
       if (warnIfOffline('write')) return;
       let prevComment: JournalComment | undefined;
+      let nextComments: Record<string, JournalComment[]> = commentsByEntry;
+      let nextCounts: Record<string, number> = commentCountByEntry;
       setCommentsByEntry((prev) => {
         const list = prev[journalEntryId] ?? [];
         prevComment = list.find((c) => c.id === commentId);
-        return {
+        nextComments = {
           ...prev,
           [journalEntryId]: list.filter((c) => c.id !== commentId)
         };
+        return nextComments;
       });
-      setCommentCountByEntry((prev) => ({
-        ...prev,
-        [journalEntryId]: Math.max(0, (prev[journalEntryId] ?? 1) - 1)
-      }));
+      setCommentCountByEntry((prev) => {
+        nextCounts = {
+          ...prev,
+          [journalEntryId]: Math.max(0, (prev[journalEntryId] ?? 1) - 1)
+        };
+        return nextCounts;
+      });
       try {
         const svc = new JournalService(spContext);
         await svc.deleteComment(commentId);
+        if (tripId) {
+          await patchTripOfflineJournalCache(tripId, {
+            journalEntries: entries,
+            journalPhotos: photos,
+            journalCommentCounts: nextCounts,
+            journalCommentsByEntry: nextComments
+          });
+          setLastCachedAt(new Date().toISOString());
+        }
       } catch (err) {
         const restored = prevComment;
         if (restored) {
@@ -921,7 +965,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw err;
       }
     },
-    [spContext, warnIfOffline]
+    [spContext, warnIfOffline, tripId, entries, photos, commentsByEntry, commentCountByEntry, setLastCachedAt]
   );
 
   const reassignDayContent = React.useCallback(

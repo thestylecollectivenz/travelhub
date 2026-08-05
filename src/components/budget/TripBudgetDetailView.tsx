@@ -356,7 +356,7 @@ export const TripBudgetDetailView: React.FC = () => {
 
   const exportExcel = React.useCallback((): void => {
     if (!trip) return;
-    exportFullBudgetToExcel({
+    void exportFullBudgetToExcel({
       trip,
       entries,
       tripDays,

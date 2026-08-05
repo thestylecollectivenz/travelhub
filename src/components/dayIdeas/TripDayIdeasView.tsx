@@ -98,17 +98,22 @@ export const TripDayIdeasView: React.FC<TripDayIdeasViewProps> = ({
   );
 
   const toggleComplete = async (row: TripReminder): Promise<void> => {
+    if (!trip?.id) return;
     const svc = new ReminderService(spContext);
     await svc.update(row.id, { isComplete: !row.isComplete });
+    const { refreshTripOfflineRemindersCache } = await import('../../utils/refreshTripOfflineRemindersCache');
+    await refreshTripOfflineRemindersCache(spContext, trip.id);
     onRefresh?.();
     notifyDayIdeasChanged();
   };
 
   const saveEdit = async (row: TripReminder): Promise<void> => {
     const text = editText.trim();
-    if (!text) return;
+    if (!text || !trip?.id) return;
     const svc = new ReminderService(spContext);
     await svc.update(row.id, { title: text, reminderText: text });
+    const { refreshTripOfflineRemindersCache } = await import('../../utils/refreshTripOfflineRemindersCache');
+    await refreshTripOfflineRemindersCache(spContext, trip.id);
     setEditingId(null);
     setEditText('');
     onRefresh?.();
@@ -119,6 +124,10 @@ export const TripDayIdeasView: React.FC<TripDayIdeasViewProps> = ({
     if (!(await confirmUserAction('Delete this idea?'))) return;
     const svc = new ReminderService(spContext);
     await svc.delete(row.id);
+    if (trip?.id) {
+      const { removeReminderFromOfflineCache } = await import('../../utils/refreshTripOfflineRemindersCache');
+      await removeReminderFromOfflineCache(trip.id, row.id);
+    }
     onRefresh?.();
     notifyDayIdeasChanged();
   };
@@ -276,7 +285,7 @@ export async function createDayIdea(
   members?: TripMember[]
 ): Promise<void> {
   const svc = new ReminderService(spContext);
-  await svc.create({
+  const created = await svc.create({
     title: text,
     tripId,
     dayId,
@@ -288,5 +297,7 @@ export async function createDayIdea(
     dueDate: new Date().toISOString(),
     entryId: ''
   });
+  const { upsertReminderIntoOfflineCache } = await import('../../utils/refreshTripOfflineRemindersCache');
+  await upsertReminderIntoOfflineCache(tripId, created);
   notifyDayIdeasChanged();
 }

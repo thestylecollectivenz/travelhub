@@ -17,6 +17,11 @@ import {
 } from '../../utils/dayIdeas';
 import { travellerLabelForCurrentUser } from '../../utils/tripMemberIdentity';
 import { notifyDayIdeasChanged } from '../../hooks/useTripDayIdeas';
+import {
+  refreshTripOfflineRemindersCache,
+  removeReminderFromOfflineCache,
+  upsertReminderIntoOfflineCache
+} from '../../utils/refreshTripOfflineRemindersCache';
 import { DayIdeaReplies } from '../dayIdeas/DayIdeaReplies';
 import { MobileIdeaAskAi, type IdeaQaEntry } from './MobileIdeaAskAi';
 import { qaEntryTitle } from '../../utils/qaDisplayText';
@@ -106,7 +111,7 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({
     setError('');
     try {
       const svc = new ReminderService(spContext);
-      await svc.create({
+      const created = await svc.create({
         title: text.slice(0, 255),
         tripId: trip.id,
         dayId,
@@ -118,6 +123,7 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({
         dueDate: new Date().toISOString(),
         entryId: ''
       });
+      await upsertReminderIntoOfflineCache(trip.id, created);
       setDraft('');
       refresh();
       notifyDayIdeasChanged();
@@ -130,9 +136,10 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({
 
   const saveEdit = async (id: string): Promise<void> => {
     const text = editText.trim();
-    if (!text) return;
+    if (!text || !trip?.id) return;
     const svc = new ReminderService(spContext);
     await svc.update(id, { title: text.slice(0, 255), reminderText: text });
+    await refreshTripOfflineRemindersCache(spContext, trip.id);
     setEditingId(null);
     setEditText('');
     refresh();
@@ -140,10 +147,12 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({
   };
 
   const saveQaThread = async (rowId: string, taskNote: string | undefined, next: IdeaQaEntry[]): Promise<void> => {
+    if (!trip?.id) return;
     const meta = parseDayIdeaMeta(taskNote);
     const svc = new ReminderService(spContext);
     try {
       await svc.update(rowId, { taskNote: serializeDayIdeaMeta({ ...meta, qaThread: next }) });
+      await refreshTripOfflineRemindersCache(spContext, trip.id);
       refresh();
       notifyDayIdeasChanged();
     } catch (err) {
@@ -317,6 +326,7 @@ export const MobileDayIdeas: React.FC<MobileDayIdeasProps> = ({
                               if (!(await confirmUserAction('Delete this idea?'))) return;
                               const svc = new ReminderService(spContext);
                               await svc.delete(row.id);
+                              if (trip?.id) await removeReminderFromOfflineCache(trip.id, row.id);
                               refresh();
                               notifyDayIdeasChanged();
                             })();

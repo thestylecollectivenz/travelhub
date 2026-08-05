@@ -262,6 +262,8 @@ export async function createJotterIdea(
     isComplete: false,
     dueDate: new Date().toISOString()
   });
+  const { upsertReminderIntoOfflineCache } = await import('./refreshTripOfflineRemindersCache');
+  await upsertReminderIntoOfflineCache(tripId, created);
   notifyChanged();
   return rowFromReminder(created);
 }
@@ -269,6 +271,7 @@ export async function createJotterIdea(
 export async function deleteJotterIdea(spContext: WebPartContext, id: string): Promise<void> {
   const svc = new ReminderService(spContext);
   await svc.delete(id);
+  // Best-effort: callers usually have trip context; full refresh listener also runs.
   notifyChanged();
 }
 

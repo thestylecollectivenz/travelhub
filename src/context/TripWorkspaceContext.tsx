@@ -45,6 +45,7 @@ import {
   scheduleTripOfflineCacheWrite
 } from '../utils/tripOfflineCache';
 import { warmTripOfflineExtras, syncOpenTripIntoTripsIndex, TRIP_OFFLINE_EXTRAS_REFRESH_MS } from '../utils/warmTripOfflineExtras';
+import { refreshTripOfflineRemindersCache } from '../utils/refreshTripOfflineRemindersCache';
 import { isLikelyNetworkError } from '../utils/networkError';
 import type { BudgetCategoryKey } from '../utils/financialUtils';
 import type { WorkspaceReturnState } from '../types/workspaceReturn';
@@ -405,6 +406,40 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
       cancelled = true;
       window.clearInterval(intervalId);
       document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [trip?.id, loading, isOnline, spContext, setLastCachedAt]);
+
+  // Immediately refresh reminders/ideas in the offline snapshot after any save
+  // (day ideas, jotter, tasks) — do not wait for the 5‑minute extras warm.
+  React.useEffect(() => {
+    if (!trip?.id || loading || !isOnline) return;
+    let cancelled = false;
+    let debounceTimer: number | undefined;
+
+    const flush = (): void => {
+      if (cancelled) return;
+      void refreshTripOfflineRemindersCache(spContext, trip.id)
+        .then((savedAt) => {
+          if (!cancelled && savedAt) setLastCachedAt(savedAt);
+        })
+        .catch(() => undefined);
+    };
+
+    const onChange = (): void => {
+      if (debounceTimer !== undefined) window.clearTimeout(debounceTimer);
+      // Coalesce rapid successive saves, but still flush within ~300ms.
+      debounceTimer = window.setTimeout(flush, 300);
+    };
+
+    window.addEventListener('trip-reminders-updated', onChange);
+    window.addEventListener('travelhub-day-ideas-changed', onChange);
+    window.addEventListener('travelhub-trip-ideas-changed', onChange);
+    return () => {
+      cancelled = true;
+      if (debounceTimer !== undefined) window.clearTimeout(debounceTimer);
+      window.removeEventListener('trip-reminders-updated', onChange);
+      window.removeEventListener('travelhub-day-ideas-changed', onChange);
+      window.removeEventListener('travelhub-trip-ideas-changed', onChange);
     };
   }, [trip?.id, loading, isOnline, spContext, setLastCachedAt]);
 
