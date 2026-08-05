@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useSpContext } from '../../context/SpContext';
 import { TripMembersService } from '../../services/TripMembersService';
+import { SiteGuestInviteService } from '../../services/SiteGuestInviteService';
 import type { TripMember, TripRoleLevel } from '../../models/TripMember';
 import { clearTripRoleCache } from '../../hooks/useCurrentUserRole';
 import { useTripRole } from '../../context/TripRoleContext';
@@ -23,6 +24,7 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
   const { refreshRole } = useTripRole();
   const { canManageAccess, loading: roleLoading } = useTripPermissions();
   const service = React.useMemo(() => new TripMembersService(spContext), [spContext]);
+  const inviteService = React.useMemo(() => new SiteGuestInviteService(spContext), [spContext]);
   const [members, setMembers] = React.useState<TripMember[]>([]);
   const [authorEmail, setAuthorEmail] = React.useState('');
   const [email, setEmail] = React.useState('');
@@ -30,6 +32,7 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
   const [role, setRole] = React.useState<TripRoleLevel>('Companion');
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
   const avatarInputRef = React.useRef<HTMLInputElement | null>(null);
   const [avatarTargetId, setAvatarTargetId] = React.useState<string | null>(null);
 
@@ -54,6 +57,7 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
   React.useEffect(() => {
     if (isOpen && canManageAccess) {
       setError(null);
+      setStatusMessage(null);
       refresh();
     }
   }, [isOpen, canManageAccess, refresh]);
@@ -98,21 +102,45 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
     if (!trimmed) return;
     setBusy(true);
     setError(null);
-    service
-      .addMember({ tripId, userEmail: trimmed, userDisplayName: displayName.trim() || trimmed, role })
-      .then(() => {
+    setStatusMessage(null);
+
+    void (async () => {
+      try {
+        await service.addMember({
+          tripId,
+          userEmail: trimmed,
+          userDisplayName: displayName.trim() || trimmed,
+          role
+        });
         setEmail('');
         setDisplayName('');
         setRole('Companion');
         clearTripRoleCache(tripId);
         refreshRole();
         refresh();
-      })
-      .catch((err) => {
+
+        const siteInvite = await inviteService.inviteEmailToSite(trimmed, role);
+        if (siteInvite.ok) {
+          const groupBit = siteInvite.groupTitle ? ` (${siteInvite.groupTitle})` : '';
+          setStatusMessage(
+            siteInvite.alreadyHadAccess
+              ? `Member added. They already had site access${groupBit}.`
+              : `Member added and invited to this SharePoint site${groupBit}. They should check email / accept the guest invite, then open Travel Hub.`
+          );
+        } else {
+          setStatusMessage(null);
+          setError(
+            `Trip role saved, but the SharePoint site invite failed: ${siteInvite.message} ` +
+              'You can still invite them manually from the SharePoint site Share button.'
+          );
+        }
+      } catch (err) {
         console.error(err);
         setError('Could not add member.');
-      })
-      .then(() => setBusy(false), () => setBusy(false));
+      } finally {
+        setBusy(false);
+      }
+    })();
   };
 
   return (
@@ -129,18 +157,23 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
           control; Companion = traveller; Follower = read / like / comment on journal (no itinerary editing or finances).
         </p>
         <div className={styles.guestNote}>
-          <strong>Followers without a SharePoint licence</strong>
+          <strong>Inviting people (including guests without a SharePoint licence)</strong>
           <ol>
             <li>
-              Invite them to this SharePoint site as a <em>guest</em> (Microsoft account — Outlook, Hotmail, Gmail, etc.).
-              Guests normally do not need a paid SharePoint licence.
+              Enter their email below and choose a role. Travel Hub invites them to <em>this SharePoint site</em> as a
+              guest when needed (Microsoft account — Outlook, Hotmail, Gmail linked to Microsoft, etc.).
             </li>
-            <li>Add the same email below as <em>Follower</em> (or Companion / Editor).</li>
-            <li>They sign in with that Microsoft account and open Travel Hub — then they can read, like, and comment.</li>
+            <li>
+              Followers are added as site Visitors (read). Companions and Editors are added as site Members (edit).
+            </li>
+            <li>
+              They accept the Microsoft / SharePoint invite, sign in with that account, and open Travel Hub on this site.
+            </li>
           </ol>
           <p className={styles.guestNoteFoot}>
-            Trip access here does not by itself grant SharePoint site permission. Both steps are required. Truly anonymous
-            access (no Microsoft sign-in) is not supported for likes/comments.
+            Guest invites use your SharePoint sharing rights and tenant guest settings. If the automatic site invite
+            fails, the trip role is still saved — share the site manually from SharePoint, then try again. Truly
+            anonymous access (no Microsoft sign-in) is not supported for likes/comments.
           </p>
         </div>
         <input
@@ -155,6 +188,7 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
           }}
         />
         {error ? <p className={styles.error}>{error}</p> : null}
+        {statusMessage ? <p className={styles.statusOk}>{statusMessage}</p> : null}
         <ul className={styles.list}>
           {authorEmail && !members.some((m) => m.userEmail === authorEmail) ? (
             <li className={`${styles.row} ${styles.rowStatic}`}>
@@ -172,55 +206,33 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
             members.map((m) => {
               const isTripAuthor = Boolean(authorEmail && m.userEmail === authorEmail);
               return (
-              <li key={m.id} className={styles.row}>
-                <button
-                  type="button"
-                  className={styles.avatarBtn}
-                  onClick={() => pickAvatar(m.id)}
-                  disabled={busy}
-                  title="Upload avatar photo"
-                  aria-label={`Upload avatar for ${m.userDisplayName || m.userEmail}`}
-                >
-                  <TravellerAvatar displayName={m.userDisplayName || m.userEmail} avatarUrl={m.avatarUrl} size={36} />
-                </button>
-                <div className={styles.memberMeta}>
-                  <strong>{m.userDisplayName || m.userEmail}</strong>
-                  <span className={styles.email}>{m.userEmail}{isTripAuthor ? ' · Trip creator' : ''}</span>
-                </div>
-                <select
-                  className={styles.select}
-                  value={isTripAuthor ? 'Editor' : m.role}
-                  disabled={busy || isTripAuthor}
-                  onChange={(e) => {
-                    const next = e.target.value as TripRoleLevel;
-                    setBusy(true);
-                    service
-                      .updateRole(m.id, next)
-                      .then(() => {
-                        clearTripRoleCache(tripId);
-                        refreshRole();
-                        refresh();
-                      })
-                      .catch(console.error)
-                      .then(() => setBusy(false), () => setBusy(false));
-                  }}
-                >
-                  {ROLES.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  className={styles.removeBtn}
-                  disabled={busy || isTripAuthor}
-                  onClick={() => {
-                    void (async () => {
-                      if (!(await confirmUserAction(`Remove ${m.userEmail} from this trip?`))) return;
+                <li key={m.id} className={styles.row}>
+                  <button
+                    type="button"
+                    className={styles.avatarBtn}
+                    onClick={() => pickAvatar(m.id)}
+                    disabled={busy}
+                    title="Upload avatar photo"
+                    aria-label={`Upload avatar for ${m.userDisplayName || m.userEmail}`}
+                  >
+                    <TravellerAvatar displayName={m.userDisplayName || m.userEmail} avatarUrl={m.avatarUrl} size={36} />
+                  </button>
+                  <div className={styles.memberMeta}>
+                    <strong>{m.userDisplayName || m.userEmail}</strong>
+                    <span className={styles.email}>
+                      {m.userEmail}
+                      {isTripAuthor ? ' · Trip creator' : ''}
+                    </span>
+                  </div>
+                  <select
+                    className={styles.select}
+                    value={isTripAuthor ? 'Editor' : m.role}
+                    disabled={busy || isTripAuthor}
+                    onChange={(e) => {
+                      const next = e.target.value as TripRoleLevel;
                       setBusy(true);
                       service
-                        .removeMember(m.id)
+                        .updateRole(m.id, next)
                         .then(() => {
                           clearTripRoleCache(tripId);
                           refreshRole();
@@ -228,18 +240,46 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
                         })
                         .catch(console.error)
                         .then(() => setBusy(false), () => setBusy(false));
-                    })();
-                  }}
-                >
-                  Remove
-                </button>
-              </li>
-            );
+                    }}
+                  >
+                    {ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className={styles.removeBtn}
+                    disabled={busy || isTripAuthor}
+                    onClick={() => {
+                      void (async () => {
+                        if (!(await confirmUserAction(`Remove ${m.userEmail} from this trip?`))) return;
+                        setBusy(true);
+                        service
+                          .removeMember(m.id)
+                          .then(() => {
+                            clearTripRoleCache(tripId);
+                            refreshRole();
+                            refresh();
+                          })
+                          .catch(console.error)
+                          .then(() => setBusy(false), () => setBusy(false));
+                      })();
+                    }}
+                  >
+                    Remove
+                  </button>
+                </li>
+              );
             })
           )}
         </ul>
         <div className={styles.addBlock}>
           <h3 className={styles.subtitle}>Invite member</h3>
+          <p className={styles.inviteHint}>
+            Adds them to this trip and invites them to the SharePoint site in one step.
+          </p>
           <input
             className={styles.input}
             type="email"
@@ -262,7 +302,7 @@ export const TripMembersPanel: React.FC<TripMembersPanelProps> = ({ tripId, isOp
             <option value="Editor">Editor</option>
           </select>
           <button type="button" className={styles.addBtn} disabled={busy || !email.trim()} onClick={addMember}>
-            Add member
+            {busy ? 'Inviting…' : 'Add member'}
           </button>
         </div>
       </aside>
