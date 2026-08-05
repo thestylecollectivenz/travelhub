@@ -6,7 +6,7 @@
     "node": ">=22.14.0 < 23.0.0"
   },
   "scripts": {
-    "build": "heft test --clean --production && heft package-solution --production",
+    "build": "node -e \"try{require('fs').rmSync('release/assets',{recursive:true,force:true})}catch(e){}\" && heft test --clean --production && heft package-solution --production",
     "start": "heft start --clean",
     "clean": "heft clean",
     "eject-webpack": "heft eject-webpack"
