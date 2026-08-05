@@ -1,5 +1,6 @@
 import * as React from 'react';
 import type { MobileDocLinkItem } from '../../utils/mobileDocLinkItems';
+import { useTripPermissions } from '../../hooks/useTripPermissions';
 import styles from './MobileDiningDetail.module.css';
 
 export interface MobileDocsLinksSectionProps {
@@ -8,12 +9,16 @@ export interface MobileDocsLinksSectionProps {
 }
 
 export const MobileDocsLinksSection: React.FC<MobileDocsLinksSectionProps> = ({ items, emptyHint }) => {
-  if (!items.length) {
-    if (!emptyHint) return null;
+  const { canViewDocuments } = useTripPermissions();
+  const visible = canViewDocuments ? items : items.filter((i) => i.kind === 'link');
+  const title = canViewDocuments ? 'Documents & links' : 'Links';
+
+  if (!visible.length) {
+    if (!emptyHint || !canViewDocuments) return null;
     return (
       <section className={styles.sectionCard}>
         <div className={styles.sectionHead}>
-          <h2 className={styles.sectionTitle}>Documents &amp; links</h2>
+          <h2 className={styles.sectionTitle}>{title}</h2>
         </div>
         <p className={styles.emptyHint}>{emptyHint}</p>
       </section>
@@ -23,10 +28,10 @@ export const MobileDocsLinksSection: React.FC<MobileDocsLinksSectionProps> = ({ 
   return (
     <section className={styles.sectionCard}>
       <div className={styles.sectionHead}>
-        <h2 className={styles.sectionTitle}>Documents &amp; links</h2>
+        <h2 className={styles.sectionTitle}>{title}</h2>
       </div>
       <div className={styles.docLinkRow}>
-        {items.map((item) => (
+        {visible.map((item) => (
           <a key={item.id} className={styles.docLinkItem} href={item.href} target="_blank" rel="noopener noreferrer">
             {item.kind === 'document' ? (
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>

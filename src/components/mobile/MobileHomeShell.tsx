@@ -3,6 +3,7 @@ import L from 'leaflet';
 import { useSpContext } from '../../context/SpContext';
 import { useConfig } from '../../context/ConfigContext';
 import { TripService } from '../../services/TripService';
+import { TripMembersService } from '../../services/TripMembersService';
 import { DayService } from '../../services/DayService';
 import { PlaceService } from '../../services/PlaceService';
 import type { Trip } from '../../models';
@@ -60,7 +61,7 @@ export type MobileHomeTab = 'home' | 'trips' | 'spots' | 'find' | 'book';
 
 export interface MobileHomeShellProps {
   onSelectTrip: (tripId: string, initialTab?: MobileTab) => void;
-  onCreateTrip: () => void;
+  onCreateTrip?: () => void;
   onOpenSettings: () => void;
   /** When `ipad-portrait`, enables tablet-width polish via `data-shell`. */
   shellMode?: Extract<ShellMode, 'phone' | 'ipad-portrait'>;
@@ -259,7 +260,9 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
     setError(null);
     try {
       const svc = new TripService(spContext);
-      const result = await svc.getAll();
+      const memberSvc = new TripMembersService(spContext);
+      const allTrips = await svc.getAll();
+      const result = await memberSvc.filterAccessibleTrips(allTrips);
       const daySvc = new DayService(spContext);
       const placeSvc = new PlaceService(spContext);
       const [places, dayRows] = await Promise.all([
@@ -324,7 +327,12 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
     setAiPrompt((prev) => `${prev}${prev ? ' ' : ''}${chunk}`);
   }, []);
   const { listening, toggleListening } = useContinuousSpeechInput(appendVoice);
-  const aiChips = React.useMemo(() => homeAiVisibleChips(contextTrip, aiChipOffset, 2), [contextTrip, aiChipOffset]);
+  const canUseHomeAi = contextRole === 'Editor' || contextRole === 'Companion';
+  const canCreateTrip = Boolean(onCreateTrip);
+  const aiChips = React.useMemo(
+    () => (canUseHomeAi ? homeAiVisibleChips(contextTrip, aiChipOffset, 2) : []),
+    [canUseHomeAi, contextTrip, aiChipOffset]
+  );
   const { ordered: listTrips, nextUpId } = React.useMemo(
     () => orderTripsForList(trips, listFilter, upcomingSort, completedSort, todayYmd),
     [trips, listFilter, upcomingSort, completedSort, todayYmd]
@@ -574,9 +582,9 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
         onAddToItinerary={(place) => {
           void addNearToItinerary(place);
         }}
-        askAiEnabled={Boolean(featuredTrip)}
+        askAiEnabled={canUseHomeAi && Boolean(featuredTrip)}
         onAskAi={(prompt) => {
-          if (!featuredTrip) return;
+          if (!canUseHomeAi || !featuredTrip) return;
           setHomeAskPrompt(prompt);
         }}
       />
@@ -660,9 +668,11 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
       <div>
         <div className={styles.sectionHead}>
           <h2 className={styles.sectionTitle}>Your trips</h2>
-          <button type="button" className={styles.sectionLink} onClick={onCreateTrip}>
-            Add trip
-          </button>
+          {canCreateTrip ? (
+            <button type="button" className={styles.sectionLink} onClick={onCreateTrip}>
+              Add trip
+            </button>
+          ) : null}
         </div>
         {loading ? <div className={styles.feedback}>Loading trips…</div> : null}
         {!loading && error ? (
@@ -675,10 +685,12 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
         ) : null}
         {!loading && !error && trips.length === 0 ? (
           <div className={styles.feedback}>
-            <p>No trips yet.</p>
-            <button type="button" className={styles.primaryBtn} onClick={onCreateTrip}>
-              Create your first trip
-            </button>
+            <p>{canCreateTrip ? 'No trips yet.' : 'No trips shared with you yet.'}</p>
+            {canCreateTrip ? (
+              <button type="button" className={styles.primaryBtn} onClick={onCreateTrip}>
+                Create your first trip
+              </button>
+            ) : null}
           </div>
         ) : null}
         {!loading && !error && trips.length > 0 ? (
@@ -741,6 +753,8 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
         </p>
         <p className={styles.prompt}>Where to next?</p>
 
+        {canUseHomeAi ? (
+          <>
         <form
           className={styles.aiRow}
           onSubmit={(e) => {
@@ -803,6 +817,8 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
             …
           </button>
         </div>
+          </>
+        ) : null}
 
         <div className={styles.pillarGrid}>
           <button type="button" className={`${styles.pillar} ${styles.pillarPlan}`} disabled={!featuredTrip} onClick={() => openFeatured('today')}>
@@ -900,10 +916,12 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
         ) : null}
         {!loading && !error && !featuredTrip ? (
           <div className={styles.feedback}>
-            <p>No trips yet.</p>
-            <button type="button" className={styles.primaryBtn} onClick={onCreateTrip}>
-              Create your first trip
-            </button>
+            <p>{canCreateTrip ? 'No trips yet.' : 'No trips shared with you yet.'}</p>
+            {canCreateTrip ? (
+              <button type="button" className={styles.primaryBtn} onClick={onCreateTrip}>
+                Create your first trip
+              </button>
+            ) : null}
           </div>
         ) : null}
         {featuredTrip ? (
@@ -1005,7 +1023,7 @@ export const MobileHomeShell: React.FC<MobileHomeShellProps> = ({
           <TripMembersPanel tripId={contextTrip.id} isOpen={membersOpen} onClose={() => setMembersOpen(false)} />
         </TripRoleProvider>
       ) : null}
-      {homeAskPrompt && contextTrip?.id ? (
+      {homeAskPrompt && canUseHomeAi && contextTrip?.id ? (
         <MobileHomeAskAiSheet
           tripId={contextTrip.id}
           prompt={homeAskPrompt}

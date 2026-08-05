@@ -2,7 +2,9 @@ import * as React from 'react';
 import { useConfig } from '../../context/ConfigContext';
 import { useSpContext } from '../../context/SpContext';
 import { useTripMembers } from '../../hooks/useTripMembers';
+import { TripMembersService } from '../../services/TripMembersService';
 import { getCurrentUserDisplayName } from '../../utils/currentUserEmail';
+import { uploadTripMemberAvatar } from '../../utils/memberAvatarUpload';
 import { TravellerAvatar } from '../shared/TravellerAvatar';
 import { useMobileHeaderChrome } from './MobileHeaderChromeContext';
 import { useShellMode } from '../../hooks/useShellMode';
@@ -52,14 +54,49 @@ export const MobileHeaderAccessActions: React.FC<MobileHeaderAccessActionsProps>
   const tripId = accessTripIdProp ?? chrome.accessTripId;
   const onOpenAccess = onOpenAccessProp ?? chrome.onOpenAccess;
   const onOpenSettings = onOpenSettingsProp ?? chrome.onOpenSettings ?? openSettings;
-  const { myMember } = useTripMembers(tripId);
+  const { myMember, refresh } = useTripMembers(tripId);
   const displayName = getCurrentUserDisplayName(spContext);
   const shellMode = useShellMode();
   const avatarSize = shellMode === 'ipad-portrait' ? 42 : 36;
   const showAccess = Boolean(tripId && onOpenAccess);
+  const canEditOwnAvatar = Boolean(tripId && myMember?.id && !showAccess);
+  const fileRef = React.useRef<HTMLInputElement | null>(null);
+  const [busy, setBusy] = React.useState(false);
+
+  const onOwnAvatarFile = (file: File | undefined): void => {
+    if (!file || !tripId || !myMember?.id) return;
+    setBusy(true);
+    const svc = new TripMembersService(spContext);
+    uploadTripMemberAvatar(spContext, tripId, myMember.id, file)
+      .then((url) => svc.updateAvatarUrl(myMember.id, url))
+      .then(() => refresh())
+      .catch(console.error)
+      .then(
+        () => setBusy(false),
+        () => setBusy(false)
+      );
+  };
+
+  const avatar = (
+    <TravellerAvatar
+      displayName={myMember?.userDisplayName || greetingName || displayName || 'You'}
+      avatarUrl={myMember?.avatarUrl}
+      size={avatarSize}
+    />
+  );
 
   return (
     <div className={styles.actions}>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className={styles.hiddenFile}
+        onChange={(e) => {
+          onOwnAvatarFile(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
       {showAccess ? (
         <button
           type="button"
@@ -67,11 +104,18 @@ export const MobileHeaderAccessActions: React.FC<MobileHeaderAccessActionsProps>
           aria-label="Trip access"
           onClick={() => onOpenAccess?.()}
         >
-          <TravellerAvatar
-            displayName={myMember?.userDisplayName || greetingName || displayName || 'You'}
-            avatarUrl={myMember?.avatarUrl}
-            size={avatarSize}
-          />
+          {avatar}
+        </button>
+      ) : canEditOwnAvatar ? (
+        <button
+          type="button"
+          className={styles.avatarBtn}
+          aria-label="Upload your avatar"
+          title="Upload your avatar"
+          disabled={busy}
+          onClick={() => fileRef.current?.click()}
+        >
+          {avatar}
         </button>
       ) : null}
       <button type="button" className={styles.iconBtn} aria-label="Traveller profile" onClick={onOpenSettings}>

@@ -16,11 +16,13 @@ import { SidebarCollapsibleFilters } from './SidebarCollapsibleFilters';
 import { SharedSidebarDayList } from './SharedSidebarDayList';
 import { usePlanView } from '../../context/PlanViewContext';
 import { RoleGate } from '../shared/RoleGate';
+import { useTripPermissions } from '../../hooks/useTripPermissions';
 import styles from './TripSidebar.module.css';
 
 export const TripSidebar: React.FC = () => {
   const spContext = useSpContext();
   const { sharedPreview, mainWorkspaceTab, setMainWorkspaceTab, trip, localEntries } = useTripWorkspace();
+  const { canViewLists, canViewDocuments } = useTripPermissions();
   const planView = usePlanView();
   const [manualIncomplete, setManualIncomplete] = React.useState(0);
   React.useEffect(() => {
@@ -220,11 +222,12 @@ export const TripSidebar: React.FC = () => {
           aria-selected={mainWorkspaceTab === 'files'}
           className={`${styles.tab} ${mainWorkspaceTab === 'files' ? styles.tabActive : ''}`}
           onClick={() => setMainWorkspaceTab('files')}
-          title="Files"
-          aria-label="Files"
+          title={canViewDocuments ? 'Files' : 'Links'}
+          aria-label={canViewDocuments ? 'Files' : 'Links'}
         >
           {filesIcon}
         </button>
+        {canViewLists ? (
         <button
           type="button"
           role="tab"
@@ -236,6 +239,7 @@ export const TripSidebar: React.FC = () => {
         >
           {planIcon}
         </button>
+        ) : null}
       </div>
       <div className={styles.sidebarBodyScroll}>
         {mainWorkspaceTab === 'budget' ? (

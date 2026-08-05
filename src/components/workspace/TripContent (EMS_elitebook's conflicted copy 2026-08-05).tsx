@@ -36,7 +36,6 @@ import {
 } from '../../utils/dayViewEntryOrder';
 import { orderIdsByHomeDayFromVisualList } from '../../utils/itineraryReorderByDay';
 import { useConfig } from '../../context/ConfigContext';
-import { useTripPermissions } from '../../hooks/useTripPermissions';
 import {
   markSidebarWidthCustomized,
   PRIVATE_WORKSPACE_TAB_COUNT,
@@ -64,6 +63,7 @@ import {
   writeBool,
   writePaneWidth
 } from '../../utils/workspacePaneLayout';
+import { useTripPermissions } from '../../hooks/useTripPermissions';
 import styles from './TripWorkspace.module.css';
 
 const DayIdeasPlanTabButton: React.FC<{
@@ -123,7 +123,7 @@ const TripContentInner: React.FC = () => {
   const { config, saveConfig } = useConfig();
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const planView = usePlanView();
-  const { canEditItinerary, canViewDocuments, canViewLists } = useTripPermissions();
+  const { canEditItinerary } = useTripPermissions();
   const showDesktopRightPane = useMinViewportWidth(DESKTOP_LAYOUT_MIN_PX);
 
   React.useEffect(() => {
@@ -414,15 +414,13 @@ const TripContentInner: React.FC = () => {
         ) : null}
         {mainWorkspaceTab === 'journal' ? <TripJournalFeed /> : null}
         {mainWorkspaceTab === 'photos' ? <TripPhotoAlbum /> : null}
-        {mainWorkspaceTab === 'files' ? (
-          <TripFilesLinksView includeDocuments={canViewDocuments} />
-        ) : null}
+        {mainWorkspaceTab === 'files' ? <TripFilesLinksView /> : null}
         {mainWorkspaceTab === 'map' ? (
           <ErrorBoundary fallbackTitle="Map could not load">
             <TripMap />
           </ErrorBoundary>
         ) : null}
-        {mainWorkspaceTab === 'plan' && canViewLists ? (
+        {mainWorkspaceTab === 'plan' ? (
           <section style={{ padding: 'var(--space-4)', display: 'grid', gap: 'var(--space-3)' }}>
             <div style={{ display: 'inline-flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
               <button

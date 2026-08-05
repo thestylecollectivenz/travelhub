@@ -47,7 +47,6 @@ import type { MobileTab } from './mobileTypes';
 import type { ShellMode } from '../../hooks/useShellMode';
 import { GO_TO_DAY_EVENT } from './MobileTripIdeasList';
 import { useTripDayIdeas } from '../../hooks/useTripDayIdeas';
-import { useTripRole } from '../../context/TripRoleContext';
 import { useTripDetailsEditor } from '../../hooks/useTripDetailsEditor';
 import { resolveSharePointMediaSrc } from '../../utils/sharePointUrl';
 import { SOLUTION_VERSION } from '../../appVersion';
@@ -158,12 +157,15 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
     reloadItineraryEntries
   } = useTripWorkspace();
   const spContext = useSpContext();
-  const { canEditItinerary, canManageAccess } = useTripPermissions();
-  const { role } = useTripRole();
+  const { canEditItinerary, canManageAccess, canEditTripSettings, canViewLists, canUseAiHelpers } =
+    useTripPermissions();
   const { unreadCount: ideasUnread } = useTripDayIdeas();
   const { openEdit: openTripSettings, tripDetailsEditor } = useTripDetailsEditor();
-  const canEditTripSettings = role === 'Editor';
-  const showIdeasBadge = (role === 'Editor' || role === 'Companion') && ideasUnread > 0;
+  const showIdeasBadge = canViewLists && ideasUnread > 0;
+  const mobileTabs = React.useMemo(
+    () => (canViewLists ? TABS : TABS.filter((t) => t.id !== 'lists')),
+    [canViewLists]
+  );
   const [tab, setTab] = React.useState<MobileTab>(() => {
     if (initialTab === 'tasks') return 'lists';
     if (initialTab) return initialTab;
@@ -180,6 +182,12 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
     }
     return 'today';
   });
+
+  React.useEffect(() => {
+    if (!canViewLists && (tab === 'lists' || tab === 'tasks')) {
+      setTab('today');
+    }
+  }, [canViewLists, tab]);
   const [cameFromHome] = React.useState(() => peekCameFromHome());
   const [membersOpen, setMembersOpen] = React.useState(false);
   const [askAiPrompt, setAskAiPrompt] = React.useState<string | null>(null);
@@ -415,7 +423,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
       break;
     case 'lists':
     case 'tasks':
-      body = <MobileListsView />;
+      body = canViewLists ? <MobileListsView /> : <MobileItineraryPage onOpenMembers={handleOpenMembers} />;
       break;
     case 'map':
       body = <MobileMapView />;
@@ -439,7 +447,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
       body = (
         <MobileItineraryPage
           onOpenMembers={handleOpenMembers}
-          onAskAi={handleAskAi}
+          onAskAi={canUseAiHelpers ? handleAskAi : undefined}
           onDetailChange={handleDetailChange}
         />
       );
@@ -549,7 +557,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
         {body}
       </main>
       <nav className={styles.tabBar} aria-label="Mobile trip navigation">
-        {TABS.map((t) => (
+        {mobileTabs.map((t) => (
           <button
             key={t.id}
             type="button"
@@ -623,7 +631,7 @@ export const MobileTripShell: React.FC<MobileTripShellProps> = ({ onBack, initia
             document.body
           )
         : null}
-      {tab !== 'today' ? <AiAssistantFab /> : null}
+      {tab !== 'today' && canUseAiHelpers ? <AiAssistantFab /> : null}
       <OptionEditPortal />
       <span aria-hidden style={{ display: 'none' }}>
         v{SOLUTION_VERSION}

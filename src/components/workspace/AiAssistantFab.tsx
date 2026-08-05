@@ -15,6 +15,7 @@ import { buildTripTasksAiContext } from '../../utils/buildTripTasksAiContext';
 import { markdownToHtml } from '../../utils/markdownToHtml';
 import { useSpeechOutput } from '../../hooks/useSpeechOutput';
 import { useContinuousSpeechInput } from '../../hooks/useContinuousSpeechInput';
+import { useTripPermissions } from '../../hooks/useTripPermissions';
 import { SpeechPlaybackControls } from '../shared/SpeechPlaybackControls';
 import { placeDisplayLabel } from '../../utils/placeDisplayLabel';
 import styles from './AiAssistantFab.module.css';
@@ -145,6 +146,7 @@ function panelPosition(fab: FabPosition, panelWidth: number, panelHeight: number
 }
 
 export const AiAssistantFab: React.FC = () => {
+  const { canUseAiHelpers } = useTripPermissions();
   const { config } = useConfig();
   const spContext = useSpContext();
   const planView = usePlanView();
@@ -486,6 +488,8 @@ export const AiAssistantFab: React.FC = () => {
         window.setTimeout(() => setCopyState('idle'), 2000);
       });
   }, [latestAssistantIndex, messages]);
+
+  if (!canUseAiHelpers) return null;
 
   return (
     <>

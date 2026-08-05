@@ -16,6 +16,7 @@ import '../../../../components/maps/LeafletCompat.css';
 import { useOfflineStatus } from '../../../../context/OfflineStatusContext';
 import { loadTripsIndexCache, saveTripsIndexCache } from '../../../../utils/tripOfflineCache';
 import { isLikelyNetworkError } from '../../../../utils/networkError';
+import { TripMembersService } from '../../../../services/TripMembersService';
 
 function formatDateRange(dateStart: string, dateEnd: string): string {
   if (!dateStart || !dateEnd) return '';
@@ -97,7 +98,9 @@ export const TripBrowser: React.FC<ITripBrowserProps> = ({ onSelectTrip, onCreat
     setError(null);
     try {
       const svc = new TripService(spContext);
-      const result = await svc.getAll();
+      const memberSvc = new TripMembersService(spContext);
+      const allTrips = await svc.getAll();
+      const result = await memberSvc.filterAccessibleTrips(allTrips);
       // eslint-disable-next-line no-console
       console.log('TripBrowser trips', result);
       setTrips(result);

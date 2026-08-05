@@ -6,6 +6,7 @@ import { ConfigPanel } from '../../../../components/workspace/ConfigPanel';
 import { TermsAndConditions } from './TermsAndConditions';
 import { AppFooter } from './AppFooter';
 import { useShellMode, isCompactTouchShell } from '../../../../hooks/useShellMode';
+import { useFollowerOnlyShell } from '../../../../hooks/useFollowerOnlyShell';
 import { MobileHomeShell } from '../../../../components/mobile/MobileHomeShell';
 import { IpadLandscapePlaceholder } from '../../../../components/ipad/IpadLandscapePlaceholder';
 import type { MobileTab } from '../../../../components/mobile/mobileTypes';
@@ -68,11 +69,14 @@ function initialViewFromSession(): { view: AppView; tripId: string; tab?: Mobile
 
 export const AppRouter: React.FC = () => {
   const shellMode = useShellMode();
+  const followerOnlyShell = useFollowerOnlyShell();
   const boot = React.useMemo(() => initialViewFromSession(), []);
   const [view, setView] = React.useState<AppView>(boot.view);
   const [selectedTripId, setSelectedTripId] = React.useState<string>(boot.tripId);
   const [initialMobileTab, setInitialMobileTab] = React.useState<MobileTab | undefined>(boot.tab);
   const [configOpen, setConfigOpen] = React.useState(false);
+  /** Followers never use desktop home — phone / iPad compact shell only. */
+  const useCompactHome = isCompactTouchShell(shellMode) || followerOnlyShell;
 
   React.useEffect(() => {
     const openSettings = (): void => setConfigOpen(true);
@@ -132,13 +136,13 @@ export const AppRouter: React.FC = () => {
         initialMobileTab={initialMobileTab}
       />
     );
-  } else if (shellMode === 'ipad-landscape') {
+  } else if (shellMode === 'ipad-landscape' && !followerOnlyShell) {
     content = <IpadLandscapePlaceholder context="home" />;
-  } else if (isCompactTouchShell(shellMode)) {
+  } else if (useCompactHome) {
     content = (
       <MobileHomeShell
         onSelectTrip={goToTrip}
-        onCreateTrip={() => setView('createTrip')}
+        onCreateTrip={followerOnlyShell ? undefined : () => setView('createTrip')}
         onOpenSettings={() => setConfigOpen(true)}
         shellMode={shellMode === 'ipad-portrait' ? 'ipad-portrait' : 'phone'}
       />
@@ -154,7 +158,7 @@ export const AppRouter: React.FC = () => {
   }
 
   const hideFooter =
-    isCompactTouchShell(shellMode) || shellMode === 'ipad-landscape'
+    useCompactHome || (shellMode === 'ipad-landscape' && !followerOnlyShell)
       ? view === 'singleTrip' || view === 'multiTrip'
       : false;
 
@@ -163,7 +167,7 @@ export const AppRouter: React.FC = () => {
       {content}
       <ConfigPanel isOpen={configOpen} onClose={() => setConfigOpen(false)} />
       {!hideFooter ? <AppFooter onOpenTerms={() => setView('terms')} /> : null}
-      {view === 'createTrip' ? (
+      {view === 'createTrip' && !followerOnlyShell ? (
         <CreateTripPanel
           onCreated={(newTripId) => goToTrip(newTripId)}
           onCancel={() => setView('multiTrip')}

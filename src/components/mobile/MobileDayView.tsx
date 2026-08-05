@@ -158,7 +158,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   const { trip, tripDays, localEntries, selectedDayId, setSelectedDayId, stageDraftEntry, setEditingCardId, loading } =
     useTripWorkspace();
   const { role } = useTripRole();
-  const { canEditDayMeta } = useTripPermissions();
+  const { canEditDayMeta, canViewPreTrip } = useTripPermissions();
   const { placeById } = usePlaces();
   const { config } = useConfig();
   const { members } = useTripMembers(trip?.id);
@@ -196,10 +196,10 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
     () => {
       if (!trip) return [];
       const rows = tripDays.filter((d) => d.tripId === trip.id);
-      const visible = isEditor ? rows : rows.filter((d) => !isPreTripDayRow(d));
+      const visible = canViewPreTrip ? rows : rows.filter((d) => !isPreTripDayRow(d));
       return visible.sort((a, b) => a.dayNumber - b.dayNumber);
     },
-    [trip, tripDays, isEditor]
+    [trip, tripDays, canViewPreTrip]
   );
 
   React.useEffect(() => {
@@ -458,7 +458,9 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
   const tripDuration =
     trip?.dateStart && trip?.dateEnd ? durationDays(trip.dateStart, trip.dateEnd) : 0;
 
-  const travellerMembers = members.filter((m) => m.role !== 'Follower');
+  const travellerMembers = members.filter(
+    (m) => m.role === 'Editor' || m.role === 'Companion' || m.role === 'Follower'
+  );
   const visibleMembers = travellerMembers.slice(0, MAX_VISIBLE_AVATARS);
   const extraMembers = Math.max(0, travellerMembers.length - MAX_VISIBLE_AVATARS);
 
@@ -997,6 +999,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
         />
       </div>
 
+      {onAskAi ? (
       <div className={styles.aiBarWrap}>
         <div className={styles.aiBarInner}>
           <span className={styles.aiSparkle} aria-hidden>
@@ -1028,6 +1031,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
           </button>
         </div>
       </div>
+      ) : null}
 
       <div className={styles.bottomWidgets}>
         <MobileDayMapSnippet
@@ -1069,7 +1073,7 @@ export const MobileDayView: React.FC<MobileDayViewProps> = ({ onOpenMembers, onA
       {dayPickOpen ? (
         <MobileItineraryDayPicker
           days={days}
-          showPreTrip={isEditor}
+          showPreTrip={canViewPreTrip}
           onSelect={(dayId) => {
             setDayPickOpen(false);
             handleAddItem(dayId);

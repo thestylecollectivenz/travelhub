@@ -609,7 +609,11 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
       ) : null}
       {deleteTripError ? <div className={styles.deleteError}>{deleteTripError}</div> : null}
       <div className={styles.workspaceBody}>
-        <TripHero trip={trip} onEdit={() => setEditOpen(true)} showEditButton={!sharedPreview} />
+        <TripHero
+          trip={trip}
+          onEdit={() => setEditOpen(true)}
+          showEditButton={!sharedPreview && canManageAccess}
+        />
         {sharedPreview ? null : (
           <RoleGate requiredRole="Editor">
             <TripStatsStrip />
@@ -691,16 +695,21 @@ const TripWorkspaceLayout: React.FC<ITripWorkspaceProps> = ({ tripId, onBack }) 
 
 const ShellAwareTripLayout: React.FC<ITripWorkspaceProps> = (props) => {
   const shellMode = useShellMode();
+  const { canUseDesktopShell } = useTripPermissions();
   const { trip, loading, error, retryLoad } = useTripWorkspace();
   const { isOffline } = useOfflineStatus();
   const { loading: placesLoading } = usePlaces();
 
-  if (shellMode === 'ipad-landscape') {
+  // Followers always use the phone/iPad trip shell (never desktop / landscape placeholder).
+  const forceMobileShell = !canUseDesktopShell;
+  const useMobileTripShell = forceMobileShell || isCompactTouchShell(shellMode);
+
+  if (shellMode === 'ipad-landscape' && !forceMobileShell) {
     return (
       <IpadLandscapePlaceholder context="trip" tripTitle={trip?.title} onBack={props.onBack} />
     );
   }
-  if (isCompactTouchShell(shellMode)) {
+  if (useMobileTripShell) {
     // Don't wait on places once the trip load has already failed — show the offline miss UI immediately.
     if ((loading || placesLoading) && !error) {
       return (

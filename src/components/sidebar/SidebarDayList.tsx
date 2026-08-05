@@ -5,12 +5,14 @@ import { isPreTripDayRow } from '../../utils/itineraryDayEntries';
 import { compareTripDaysChronological } from '../../utils/tripDateRangeSync';
 import { TRAVELHUB_SIDEBAR_FOCUS_DAY } from '../../utils/sidebarDayFocus';
 import { requestJournalDayScroll, requestPhotosDayScroll } from '../../utils/contentScroll';
+import { useTripPermissions } from '../../hooks/useTripPermissions';
 import { SidebarDayItem } from './SidebarDayItem';
 import styles from './TripSidebar.module.css';
 
 export const SidebarDayList: React.FC = () => {
   const { trip, tripDays, selectedDayId, setSelectedDayId, localEntries, convertToHomeCurrency, mainWorkspaceTab } =
     useTripWorkspace();
+  const { canViewPreTrip } = useTripPermissions();
   const [journalLayout, setJournalLayout] = React.useState<'all' | 'by-day'>('all');
 
   React.useEffect(() => {
@@ -24,8 +26,11 @@ export const SidebarDayList: React.FC = () => {
 
   const days = React.useMemo(() => {
     if (!trip) return [];
-    return tripDays.filter((d) => d.tripId === trip.id).sort(compareTripDaysChronological);
-  }, [trip, tripDays]);
+    return tripDays
+      .filter((d) => d.tripId === trip.id)
+      .filter((d) => canViewPreTrip || !isPreTripDayRow(d))
+      .sort(compareTripDaysChronological);
+  }, [trip, tripDays, canViewPreTrip]);
 
   const entries = React.useMemo(
     () => (trip ? localEntries.filter((e) => e.tripId === trip.id) : []),

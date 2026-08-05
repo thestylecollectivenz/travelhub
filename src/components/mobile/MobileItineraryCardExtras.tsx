@@ -4,6 +4,7 @@ import { useAttachments } from '../../context/AttachmentsContext';
 import { isRichTextEditorEmpty } from '../../utils/journalRichText';
 import { splitNotesAndQa } from '../../utils/entryQaThread';
 import { buildMobileDocLinkItems } from '../../utils/mobileDocLinkItems';
+import { useTripPermissions } from '../../hooks/useTripPermissions';
 import { RichTextContent } from '../shared/RichTextContent';
 import styles from './MobileItinerary.module.css';
 
@@ -12,11 +13,12 @@ export const MobileItineraryCardExtras: React.FC<{
   entry: ItineraryEntry;
 }> = ({ entry }) => {
   const { docsForEntry, linksForEntry } = useAttachments();
+  const { canViewDocuments } = useTripPermissions();
   const [open, setOpen] = React.useState(false);
 
   const notesHtml = splitNotesAndQa(entry.notes).notes;
   const hasNotes = !isRichTextEditorEmpty(notesHtml);
-  const docs = docsForEntry(entry.id);
+  const docs = canViewDocuments ? docsForEntry(entry.id) : [];
   const links = linksForEntry(entry.id);
   const items = React.useMemo(
     () =>

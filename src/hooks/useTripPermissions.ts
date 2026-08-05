@@ -13,8 +13,18 @@ export interface TripPermissions {
   canSeeFinancials: boolean;
   /** Invite / manage trip members and site access settings (Editor only). */
   canManageAccess: boolean;
-  /** Ask AI, Near You, location-info AI tools — save results to trip (Companion+). */
+  /** Full trip profile (dates, hero, status) — Editors only. */
+  canEditTripSettings: boolean;
+  /** Ask AI, Near You, location-info AI tools (Companion+). */
   canUseAiHelpers: boolean;
+  /** Packing / shopping / tasks / ideas. */
+  canViewLists: boolean;
+  /** Pre-trip day in day pickers / sidebar. */
+  canViewPreTrip: boolean;
+  /** Document files (PDFs etc). Links remain available when false. */
+  canViewDocuments: boolean;
+  /** Desktop workspace layout. Followers use phone / iPad shells only. */
+  canUseDesktopShell: boolean;
   /** Read-only private trip (Follower on workspace). */
   isReadOnlyWorkspace: boolean;
 }
@@ -23,6 +33,7 @@ export function useTripPermissions(): TripPermissions {
   const { role, loading } = useTripRole();
   const isEditor = role === 'Editor';
   const isCompanionOrEditor = role === 'Editor' || role === 'Companion';
+  const isFollower = role === 'Follower';
   return {
     role,
     loading,
@@ -33,7 +44,12 @@ export function useTripPermissions(): TripPermissions {
     canDeleteTrip: isEditor,
     canSeeFinancials: isCompanionOrEditor,
     canManageAccess: isEditor,
+    canEditTripSettings: isEditor,
     canUseAiHelpers: isCompanionOrEditor,
-    isReadOnlyWorkspace: role === 'Follower'
+    canViewLists: isCompanionOrEditor,
+    canViewPreTrip: isCompanionOrEditor,
+    canViewDocuments: isCompanionOrEditor,
+    canUseDesktopShell: !isFollower,
+    isReadOnlyWorkspace: isFollower
   };
 }

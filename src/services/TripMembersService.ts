@@ -217,4 +217,68 @@ export class TripMembersService {
       userId: String(this.ctx.pageContext.legacyPageContext?.userId ?? this.ctx.pageContext.user.loginName ?? '')
     };
   }
+
+  /** Trip ids where the current user has a TripMembers row. */
+  async getTripIdsForCurrentUser(): Promise<Set<string>> {
+    const me = getCurrentUserEmail(this.ctx).trim().toLowerCase();
+    const out = new Set<string>();
+    if (!me) return out;
+    const safe = me.replace(/'/g, "''");
+    try {
+      const url = `${this.baseUrl}?$select=TripId,UserEmail,Role&$filter=UserEmail eq '${safe}'&$top=500`;
+      const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
+      if (!resp.ok) return out;
+      const data = await resp.json();
+      for (const row of (data.value ?? []) as Array<{ TripId?: string | number }>) {
+        const id = String(row.TripId ?? '').trim();
+        if (id) out.add(id);
+      }
+    } catch {
+      // fall through empty
+    }
+    return out;
+  }
+
+  /**
+   * Roles the current user holds across TripMembers (for home shell decisions).
+   * Does not include implicit trip-author Editor unless they also have a member row.
+   */
+  async getRolesForCurrentUser(): Promise<TripRoleLevel[]> {
+    const me = getCurrentUserEmail(this.ctx).trim().toLowerCase();
+    if (!me) return [];
+    const safe = me.replace(/'/g, "''");
+    try {
+      const url = `${this.baseUrl}?$select=Role,UserEmail&$filter=UserEmail eq '${safe}'&$top=500`;
+      const resp = await this.ctx.spHttpClient.get(url, SPHttpClient.configurations.v1);
+      if (!resp.ok) return [];
+      const data = await resp.json();
+      const roles: TripRoleLevel[] = [];
+      for (const row of (data.value ?? []) as Array<{ Role?: string }>) {
+        const role = parseTripRoleLevel(String(row.Role ?? ''));
+        if (role) roles.push(role);
+      }
+      return roles;
+    } catch {
+      return [];
+    }
+  }
+
+  /** Keep trips the user authored or is listed on in TripMembers. */
+  async filterAccessibleTrips<T extends { id: string }>(trips: T[]): Promise<T[]> {
+    if (!trips.length) return trips;
+    const memberIds = await this.getTripIdsForCurrentUser();
+    const undecided = trips.filter((t) => !memberIds.has(t.id));
+    const authorOk = new Set<string>();
+    await Promise.all(
+      undecided.map(async (t) => {
+        try {
+          const identity = await this.getTripAuthorIdentity(t.id);
+          if (this.isCurrentUserTripAuthor(identity)) authorOk.add(t.id);
+        } catch {
+          // skip
+        }
+      })
+    );
+    return trips.filter((t) => memberIds.has(t.id) || authorOk.has(t.id));
+  }
 }
