@@ -249,15 +249,17 @@ export function scheduleTripOfflineCacheWrite(
     ...snapshot
   };
   if (debounceTimer !== undefined) window.clearTimeout(debounceTimer);
+  // Keep short so going offline right after a save still has the latest core trip data.
   debounceTimer = window.setTimeout(() => {
     const next = pendingSnapshot;
     pendingSnapshot = undefined;
     debounceTimer = undefined;
     if (!next) return;
     void saveTripOfflineCache(next);
-  }, 1200);
+  }, 200);
 }
 
+/** Flush any pending debounced core-trip write now (e.g. tab hide / going offline). */
 export function flushTripOfflineCacheWrite(): void {
   if (debounceTimer !== undefined) {
     window.clearTimeout(debounceTimer);

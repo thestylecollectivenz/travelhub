@@ -103,10 +103,6 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setDocuments(mixed.documents);
         setLinks(mixed.links);
         setLoading(false);
-        void patchTripOfflineExtrasCache(tripId, {
-          documents: mixed.documents,
-          links: mixed.links
-        });
       })
       .catch(async (err) => {
         // eslint-disable-next-line no-console
@@ -125,6 +121,17 @@ export const AttachmentsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setLoading(false);
       });
   }, [spContext, tripId, reportNetworkFailure, setViewingCachedTrip, setLastCachedAt]);
+
+  // Persist docs/links into the offline snapshot after every in-memory change.
+  React.useEffect(() => {
+    if (!tripId || loading) return;
+    const timer = window.setTimeout(() => {
+      void patchTripOfflineExtrasCache(tripId, { documents, links }).then(() =>
+        setLastCachedAt(new Date().toISOString())
+      );
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [tripId, documents, links, loading, setLastCachedAt]);
 
   React.useEffect(() => {
     const onEntryDuplicated = (evt: Event): void => {

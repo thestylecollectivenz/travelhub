@@ -191,19 +191,55 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   }, [reloadAll]);
 
-  // Keep journal slice of the trip snapshot fresh (including offline local edits).
+  const photosRef = React.useRef(photos);
+  photosRef.current = photos;
+  const commentsByEntryRef = React.useRef(commentsByEntry);
+  commentsByEntryRef.current = commentsByEntry;
+  const commentCountByEntryRef = React.useRef(commentCountByEntry);
+  commentCountByEntryRef.current = commentCountByEntry;
+
+  const flushJournalOfflineNow = React.useCallback(
+    (override?: {
+      journalEntries?: JournalEntry[];
+      journalPhotos?: JournalPhoto[];
+      journalCommentCounts?: Record<string, number>;
+      journalCommentsByEntry?: Record<string, JournalComment[]>;
+    }): Promise<void> => {
+      if (!tripId) return Promise.resolve();
+      return patchTripOfflineJournalCache(tripId, {
+        journalEntries: override?.journalEntries ?? entriesRef.current,
+        journalPhotos: override?.journalPhotos ?? photosRef.current,
+        journalCommentCounts: override?.journalCommentCounts ?? commentCountByEntryRef.current,
+        journalCommentsByEntry: override?.journalCommentsByEntry ?? commentsByEntryRef.current
+      }).then(() => setLastCachedAt(new Date().toISOString()));
+    },
+    [tripId, setLastCachedAt]
+  );
+
+  // Keep journal slice fresh after any in-memory change (short coalesce for React batches).
   React.useEffect(() => {
     if (!tripId) return;
     const timer = window.setTimeout(() => {
-      void patchTripOfflineJournalCache(tripId, {
-        journalEntries: entries,
-        journalPhotos: photos,
-        journalCommentCounts: commentCountByEntry,
-        journalCommentsByEntry: commentsByEntry
-      }).then(() => setLastCachedAt(new Date().toISOString()));
-    }, 400);
+      void flushJournalOfflineNow();
+    }, 50);
     return () => window.clearTimeout(timer);
-  }, [tripId, entries, photos, commentCountByEntry, commentsByEntry, setLastCachedAt]);
+  }, [tripId, entries, photos, commentCountByEntry, commentsByEntry, flushJournalOfflineNow]);
+
+  // Flush journal snapshot when the tab hides / app backgrounds.
+  React.useEffect(() => {
+    const flush = (): void => {
+      void flushJournalOfflineNow();
+    };
+    const onVis = (): void => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [flushJournalOfflineNow]);
 
   const loadCommentsForEntry = React.useCallback(
     async (journalEntryId: string): Promise<void> => {

@@ -2,8 +2,9 @@ import * as React from 'react';
 import type { Place, PlaceCandidate } from '../models';
 import { PlaceService } from '../services/PlaceService';
 import { useSpContext } from './SpContext';
+import { useTripWorkspace } from './TripWorkspaceContext';
 import { useOfflineStatus } from './OfflineStatusContext';
-import { loadTripsIndexCache } from '../utils/tripOfflineCache';
+import { loadTripsIndexCache, patchTripOfflineExtrasCache } from '../utils/tripOfflineCache';
 import { isLikelyNetworkError } from '../utils/networkError';
 
 interface PlacesContextValue {
@@ -21,6 +22,8 @@ const PlacesContext = React.createContext<PlacesContextValue | undefined>(undefi
 
 export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const spContext = useSpContext();
+  const { trip } = useTripWorkspace();
+  const tripId = trip?.id ?? '';
   const { reportNetworkFailure, setViewingCachedTrip, setLastCachedAt, warnIfOffline } = useOfflineStatus();
   const [places, setPlaces] = React.useState<Place[]>([]);
   /** Start true so first paint waits for the initial fetch (avoids empty→filled flicker). */
@@ -62,6 +65,17 @@ export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   React.useEffect(() => {
     refreshPlaces().catch(console.error);
   }, [refreshPlaces]);
+
+  // Keep places in the open trip's offline snapshot after load / create / ensure.
+  React.useEffect(() => {
+    if (!tripId || loading) return;
+    const timer = window.setTimeout(() => {
+      void patchTripOfflineExtrasCache(tripId, { places }).then(() =>
+        setLastCachedAt(new Date().toISOString())
+      );
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [tripId, places, loading, setLastCachedAt]);
 
   const searchPlaces = React.useCallback(
     async (query: string): Promise<PlaceCandidate[]> => {

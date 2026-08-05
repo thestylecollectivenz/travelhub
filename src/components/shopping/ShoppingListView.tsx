@@ -22,6 +22,7 @@ import { useCanSeeFinancials } from '../../hooks/useCanSeeFinancials';
 import { useTripMembers } from '../../hooks/useTripMembers';
 import { useCompanionListDefaults } from '../../hooks/useCompanionListDefaults';
 import { assigneeLabelsMatch, resolveOwnerEmailForAssignee } from '../../utils/tripMemberIdentity';
+import { loadTripOfflineCache, patchTripOfflineExtrasCache } from '../../utils/tripOfflineCache';
 import styles from './ShoppingListView.module.css';
 
 const NO_FILTERS: string[] = [];
@@ -64,8 +65,13 @@ export const ShoppingListView: React.FC = () => {
       .then((rows) => {
         setItems(rows);
         notifyShoppingItemsChanged(trip.id);
+        void patchTripOfflineExtrasCache(trip.id, { shoppingItems: rows });
       })
-      .catch(console.error);
+      .catch(async (err) => {
+        console.error(err);
+        const cached = await loadTripOfflineCache(trip.id);
+        if (cached?.shoppingItems) setItems(cached.shoppingItems);
+      });
   }, [service, trip?.id]);
 
   React.useEffect(() => {

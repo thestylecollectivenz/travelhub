@@ -42,7 +42,8 @@ import { useConfig } from './ConfigContext';
 import { useOfflineStatus, OFFLINE_WRITE_MESSAGE } from './OfflineStatusContext';
 import {
   loadTripOfflineCache,
-  scheduleTripOfflineCacheWrite
+  scheduleTripOfflineCacheWrite,
+  flushTripOfflineCacheWrite
 } from '../utils/tripOfflineCache';
 import { warmTripOfflineExtras, syncOpenTripIntoTripsIndex, TRIP_OFFLINE_EXTRAS_REFRESH_MS } from '../utils/warmTripOfflineExtras';
 import { refreshTripOfflineRemindersCache } from '../utils/refreshTripOfflineRemindersCache';
@@ -369,9 +370,9 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
     loadData().catch(console.error);
   }, [loadData]);
 
-  // Keep one overwritten snapshot current after successful online edits (debounced).
+  // Keep one overwritten snapshot current after successful online edits (short debounce).
   React.useEffect(() => {
-    if (!trip || loading || !isOnline) return;
+    if (!trip || loading) return;
     scheduleTripOfflineCacheWrite({
       tripId: trip.id,
       trip,
@@ -380,6 +381,21 @@ export function TripWorkspaceProvider({ tripId, onBack, children }: ITripWorkspa
     });
     void syncOpenTripIntoTripsIndex(trip).catch(() => undefined);
   }, [trip, tripDays, localEntries, loading, isOnline]);
+
+  // Flush pending core snapshot when the tab hides / app backgrounds so offline
+  // opens don't miss the last edit still sitting in the debounce timer.
+  React.useEffect(() => {
+    const flush = (): void => flushTripOfflineCacheWrite();
+    const onVis = (): void => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, []);
 
   // While the trip stays open for days: refresh lists/docs/places periodically and
   // whenever the app returns to the foreground (no need to exit via Home).

@@ -13,6 +13,7 @@ import { assigneeLabelsMatch, resolveOwnerEmailForAssignee } from '../../utils/t
 import { useTripShoppingCategories } from '../../hooks/useTripShoppingCategories';
 import { categoriesForItemSelect, rememberTripShoppingCategory } from '../../utils/tripShoppingCategories';
 import { isAllSelected, matchesAnySelected } from '../../utils/multiSelectFilters';
+import { loadTripOfflineCache, patchTripOfflineExtrasCache } from '../../utils/tripOfflineCache';
 import styles from './PackingListView.module.css';
 
 const NO_FILTERS: string[] = [];
@@ -51,7 +52,17 @@ export const PackingListView: React.FC = () => {
 
   const refresh = React.useCallback(() => {
     if (!trip?.id) return;
-    service.getForTrip(trip.id).then(setItems).catch(console.error);
+    service
+      .getForTrip(trip.id)
+      .then((rows) => {
+        setItems(rows);
+        void patchTripOfflineExtrasCache(trip.id, { packingItems: rows });
+      })
+      .catch(async (err) => {
+        console.error(err);
+        const cached = await loadTripOfflineCache(trip.id);
+        if (cached?.packingItems) setItems(cached.packingItems);
+      });
   }, [service, trip?.id]);
 
   React.useEffect(() => {
