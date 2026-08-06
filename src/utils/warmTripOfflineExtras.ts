@@ -5,6 +5,7 @@ import { ReminderService } from '../services/ReminderService';
 import { PlaceService } from '../services/PlaceService';
 import { DocumentService } from '../services/DocumentService';
 import { LinkService } from '../services/LinkService';
+import { TripMembersService } from '../services/TripMembersService';
 import {
   loadTripsIndexCache,
   patchTripOfflineExtrasCache,
@@ -31,14 +32,16 @@ export async function warmTripOfflineExtras(spContext: WebPartContext, tripId: s
   const placeSvc = new PlaceService(spContext);
   const docSvc = new DocumentService(spContext);
   const linkSvc = new LinkService(spContext);
+  const membersSvc = new TripMembersService(spContext);
 
-  const [packingItems, shoppingItems, reminders, places, documents, links] = await Promise.all([
+  const [packingItems, shoppingItems, reminders, places, documents, links, tripMembers] = await Promise.all([
     packingSvc.getForTrip(id).catch(() => undefined),
     shoppingSvc.getForTrip(id).catch(() => undefined),
     reminderSvc.getForTrip(id).catch(() => undefined),
     placeSvc.getAll().catch(() => undefined),
     docSvc.getAll(id).catch(() => undefined),
-    linkSvc.getAll(id).catch(() => undefined)
+    linkSvc.getAll(id).catch(() => undefined),
+    membersSvc.getForTrip(id).catch(() => undefined)
   ]);
 
   const patch: TripOfflineExtrasPatch = {
@@ -47,7 +50,8 @@ export async function warmTripOfflineExtras(spContext: WebPartContext, tripId: s
     ...(reminders ? { reminders } : {}),
     ...(places ? { places } : {}),
     ...(documents ? { documents } : {}),
-    ...(links ? { links } : {})
+    ...(links ? { links } : {}),
+    ...(tripMembers ? { tripMembers } : {})
   };
 
   if (!Object.keys(patch).length) return undefined;

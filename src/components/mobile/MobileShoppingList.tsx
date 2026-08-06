@@ -78,7 +78,7 @@ function DetailsIcon(): React.ReactElement {
 
 export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const spContext = useSpContext();
-  const { reportNetworkFailure } = useOfflineStatus();
+  const { reportNetworkFailure, warnIfOffline } = useOfflineStatus();
   const { trip } = useTripWorkspace();
   const { config, journalAuthorName } = useConfig();
   const planView = usePlanView();
@@ -266,6 +266,7 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
 
   const markPurchased = (item: ShoppingItem, purchased: boolean): void => {
     if (!canEditItem(item)) return;
+    if (warnIfOffline('write')) return;
     void (async () => {
       try {
         await service.update(item.id, { isPurchased: purchased });
@@ -280,7 +281,18 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
     })();
   };
 
+  const patchShopping = (id: string, partial: Parameters<ShoppingListService['update']>[1]): void => {
+    if (warnIfOffline('write')) return;
+    service.update(id, partial).then(refresh).catch(console.error);
+  };
+
+  const deleteShopping = (id: string): void => {
+    if (warnIfOffline('write')) return;
+    service.delete(id).then(refresh).catch(console.error);
+  };
+
   const addItem = (): void => {
+    if (warnIfOffline('write')) return;
     if (!trip?.id || !name.trim() || adding) return;
     const itemName = name.trim();
     const traveller = addTraveller || activeTraveller || defaultTraveller;
@@ -380,7 +392,7 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
                   onBlur={(e) => {
                     const v = e.target.value.trim();
                     if (v && v !== item.itemName) {
-                      service.update(item.id, { itemName: v }).then(refresh).catch(console.error);
+                      patchShopping(item.id, { itemName: v });
                     }
                   }}
                 />
@@ -390,7 +402,7 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
                   aria-label="Category"
                   onChange={(e) => {
                     if (trip?.id) rememberTripShoppingCategory(trip.id, e.target.value);
-                    service.update(item.id, { category: e.target.value }).then(refresh).catch(console.error);
+                    patchShopping(item.id, { category: e.target.value });
                   }}
                 >
                   {categoryOptions(item.category).map((c) => (
@@ -417,13 +429,10 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
                   value={item.traveller || travellers[0] || ''}
                   aria-label="For traveller"
                   onChange={(e) =>
-                    service
-                      .update(item.id, {
-                        traveller: e.target.value,
-                        ownerEmail: resolveOwnerEmailForAssignee(spContext, e.target.value, members)
-                      })
-                      .then(refresh)
-                      .catch(console.error)
+                    patchShopping(item.id, {
+                      traveller: e.target.value,
+                      ownerEmail: resolveOwnerEmailForAssignee(spContext, e.target.value, members)
+                    })
                   }
                 >
                   {travellers.map((t) => (
@@ -454,7 +463,7 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
                   onBlur={(e) => {
                     const v = Number(e.target.value);
                     if (!Number.isFinite(v) || v === item.budgetAmount) return;
-                    service.update(item.id, { budgetAmount: Math.max(0, v) }).then(refresh).catch(console.error);
+                    patchShopping(item.id, { budgetAmount: Math.max(0, v) });
                   }}
                 />
               ) : (
@@ -473,7 +482,7 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
                 value={item.purchaseMonth || ''}
                 aria-label="Estimated purchase month"
                 onChange={(e) =>
-                  service.update(item.id, { purchaseMonth: e.target.value }).then(refresh).catch(console.error)
+                  patchShopping(item.id, { purchaseMonth: e.target.value })
                 }
               />
             ) : (
@@ -506,7 +515,7 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
               onClick={() => {
                 void (async () => {
                   if (!(await confirmUserAction('Delete this shopping item?'))) return;
-                  service.delete(item.id).then(refresh).catch(console.error);
+                  deleteShopping(item.id);
                 })();
               }}
             >
@@ -531,7 +540,7 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
                   onBlur={() => {
                     const notes = (noteDrafts[item.id] ?? '').trim();
                     if (notes !== (item.notes || '')) {
-                      service.update(item.id, { notes }).then(refresh).catch(console.error);
+                      patchShopping(item.id, { notes });
                     }
                   }}
                 />
@@ -552,7 +561,7 @@ export const MobileShoppingList: React.FC<{ embedded?: boolean }> = ({ embedded 
                   onBlur={() => {
                     const v = (urlDrafts[item.id] ?? '').trim();
                     if (v !== (item.websiteUrl || '')) {
-                      service.update(item.id, { websiteUrl: v }).then(refresh).catch(console.error);
+                      patchShopping(item.id, { websiteUrl: v });
                     }
                   }}
                 />

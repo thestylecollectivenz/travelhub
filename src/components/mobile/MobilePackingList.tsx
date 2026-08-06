@@ -55,7 +55,7 @@ function DeleteIcon(): React.ReactElement {
 
 export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const spContext = useSpContext();
-  const { reportNetworkFailure } = useOfflineStatus();
+  const { reportNetworkFailure, warnIfOffline } = useOfflineStatus();
   const { trip } = useTripWorkspace();
   const planView = usePlanView();
   const activeCategories = planView?.packingCategories ?? NO_FILTERS;
@@ -212,6 +212,7 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
     !isAllSelected(activeCategories) || packedFilter !== 'all' || hasNotesOnly || hasQtyGt1;
 
   const addItem = (): void => {
+    if (warnIfOffline('write')) return;
     if (!trip?.id || !name.trim() || adding) return;
     const itemName = name.trim();
     const traveller = addTraveller || activeTraveller || defaultTraveller;
@@ -268,9 +269,20 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
 
   const bumpQty = (item: PackingItem, delta: number): void => {
     if (!canEditItem(item)) return;
+    if (warnIfOffline('write')) return;
     const next = Math.max(1, (item.quantity || 1) + delta);
     if (next === item.quantity) return;
     service.update(item.id, { quantity: next }).then(refresh).catch(console.error);
+  };
+
+  const patchPacking = (id: string, partial: Parameters<PackingService['update']>[1]): void => {
+    if (warnIfOffline('write')) return;
+    service.update(id, partial).then(refresh).catch(console.error);
+  };
+
+  const deletePacking = (id: string): void => {
+    if (warnIfOffline('write')) return;
+    service.delete(id).then(refresh).catch(console.error);
   };
 
   const onFiltersApply = (draft: PackingFilterDraft): void => {
@@ -293,9 +305,7 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
               checked={item.isPacked}
               disabled={!editable}
               aria-label={`Packed: ${item.itemName}`}
-              onChange={(e) =>
-                service.update(item.id, { isPacked: e.target.checked }).then(refresh).catch(console.error)
-              }
+              onChange={(e) => patchPacking(item.id, { isPacked: e.target.checked })}
             />
           </label>
 
@@ -313,7 +323,7 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
                   onBlur={(e) => {
                     const v = e.target.value.trim();
                     if (v && v !== item.itemName) {
-                      service.update(item.id, { itemName: v }).then(refresh).catch(console.error);
+                      patchPacking(item.id, { itemName: v });
                     }
                   }}
                 />
@@ -323,7 +333,7 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
                   aria-label="Category"
                   onChange={(e) => {
                     if (trip?.id) rememberTripShoppingCategory(trip.id, e.target.value);
-                    service.update(item.id, { category: e.target.value }).then(refresh).catch(console.error);
+                    patchPacking(item.id, { category: e.target.value });
                   }}
                 >
                   {categoryOptions(item.category).map((c) => (
@@ -394,13 +404,10 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
                     value={item.traveller || defaultTraveller || travellers[0] || ''}
                     aria-label="For traveller"
                     onChange={(e) =>
-                      service
-                        .update(item.id, {
-                          traveller: e.target.value,
-                          ownerEmail: resolveOwnerEmailForAssignee(spContext, e.target.value, members)
-                        })
-                        .then(refresh)
-                        .catch(console.error)
+                      patchPacking(item.id, {
+                        traveller: e.target.value,
+                        ownerEmail: resolveOwnerEmailForAssignee(spContext, e.target.value, members)
+                      })
                     }
                   >
                     {travellers.map((t) => (
@@ -468,7 +475,7 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
               onClick={() => {
                 void (async () => {
                   if (!(await confirmUserAction('Delete this packing item?'))) return;
-                  service.delete(item.id).then(refresh).catch(console.error);
+                  deletePacking(item.id);
                 })();
               }}
             >
@@ -500,13 +507,10 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
               value={item.traveller || defaultTraveller || travellers[0] || ''}
               aria-label="For traveller"
               onChange={(e) =>
-                service
-                  .update(item.id, {
-                    traveller: e.target.value,
-                    ownerEmail: resolveOwnerEmailForAssignee(spContext, e.target.value, members)
-                  })
-                  .then(refresh)
-                  .catch(console.error)
+                patchPacking(item.id, {
+                  traveller: e.target.value,
+                  ownerEmail: resolveOwnerEmailForAssignee(spContext, e.target.value, members)
+                })
               }
             >
               {travellers.map((t) => (
@@ -531,7 +535,7 @@ export const MobilePackingList: React.FC<{ embedded?: boolean }> = ({ embedded =
                 onBlur={() => {
                   const notes = (noteDrafts[item.id] ?? '').trim();
                   if (notes !== (item.itemNotes || '')) {
-                    service.update(item.id, { itemNotes: notes || undefined }).then(refresh).catch(console.error);
+                    patchPacking(item.id, { itemNotes: notes || undefined });
                   }
                 }}
               />

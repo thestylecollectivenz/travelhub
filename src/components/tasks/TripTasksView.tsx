@@ -233,7 +233,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({
   filtersOpen = false
 }) => {
   const spContext = useSpContext();
-  const { reportNetworkFailure } = useOfflineStatus();
+  const { reportNetworkFailure, warnIfOffline } = useOfflineStatus();
   const {
     trip,
     localEntries,
@@ -705,6 +705,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({
 
   const saveEditReminder = React.useCallback(
     (m: TripReminder): void => {
+      if (warnIfOffline('write')) return;
       const trimmed = editTitle.trim();
       if (!trimmed) return;
       if (savingReminderId === m.id) return;
@@ -750,12 +751,14 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({
       refresh,
       savingReminderId,
       svc,
-      trip?.id
+      trip?.id,
+      warnIfOffline
     ]
   );
 
   const toggleReminderComplete = React.useCallback(
     (m: TripReminder): void => {
+      if (warnIfOffline('write')) return;
       if (togglingCompleteId === m.id) return;
       const next = !m.isComplete;
       setTogglingCompleteId(m.id);
@@ -774,7 +777,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({
         })
         .finally(() => setTogglingCompleteId(null));
     },
-    [refresh, svc, togglingCompleteId]
+    [refresh, svc, togglingCompleteId, warnIfOffline]
   );
 
   const renderTaskNote = (note: string | undefined, titleForDedup: string): React.ReactNode => {
@@ -1065,6 +1068,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({
                 className={`${styles.button} ${styles.addBtn}`}
                 type="button"
                 onClick={() => {
+                  if (warnIfOffline('write')) return;
                   if (!trip?.id || !text.trim()) return;
                   const trimmed = text.trim();
                   const title =
@@ -1289,6 +1293,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({
                           aria-label="Delete"
                           onClick={() => {
                             void (async () => {
+                              if (warnIfOffline('write')) return;
                               if (!(await confirmUserAction('Delete this task?'))) return;
                               svc.delete(m.id).then(refresh).catch(console.error);
                             })();
@@ -1556,6 +1561,7 @@ export const TripTasksView: React.FC<TripTasksViewProps> = ({
                         aria-label="Delete"
                         onClick={() => {
                           void (async () => {
+                            if (warnIfOffline('write')) return;
                             if (!(await confirmUserAction('Delete this reminder?'))) return;
                             svc.delete(m.id).then(refresh).catch(console.error);
                           })();

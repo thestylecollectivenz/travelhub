@@ -17,6 +17,7 @@ import type { EntryLink } from '../models/EntryLink';
 import type { PackingItem } from '../services/PackingService';
 import type { ShoppingItem } from '../services/ShoppingListService';
 import type { TripReminder } from '../services/ReminderService';
+import type { TripMember } from '../models/TripMember';
 
 const DB_NAME = 'travel-hub-offline';
 const DB_VERSION = 2;
@@ -42,6 +43,8 @@ export interface TripOfflineSnapshot {
   places?: Place[];
   documents?: EntryDocument[];
   links?: EntryLink[];
+  /** Editors/Companions/Followers for offline traveller filters and avatars. */
+  tripMembers?: TripMember[];
 }
 
 export interface TripsIndexPlaceRow {
@@ -75,6 +78,7 @@ export type TripOfflineExtrasPatch = Partial<
     | 'places'
     | 'documents'
     | 'links'
+    | 'tripMembers'
   >
 >;
 
