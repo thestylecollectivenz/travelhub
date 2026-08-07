@@ -419,6 +419,16 @@ export const ItineraryCardEdit: React.FC<ItineraryCardEditProps> = ({
       const arrow = tf || tt ? `${tf} → ${tt}` : '';
       title = (arrow + (tm ? ` (${tm})` : '')).trim() || 'Transport';
     }
+    if (!title && isFlights) {
+      const tf = (draft.transportFrom ?? '').trim();
+      const tt = (draft.transportTo ?? '').trim();
+      const fn = (draft.flightNumbers ?? '').trim();
+      const airline = (draft.supplier || draft.operatingAirline || '').trim();
+      const route = tf || tt ? `${tf} → ${tt}` : '';
+      title =
+        [airline, fn, route].filter(Boolean).join(' · ').trim() ||
+        'Flight';
+    }
     if (!title) {
       title =
         (draft.location ?? '').trim() ||

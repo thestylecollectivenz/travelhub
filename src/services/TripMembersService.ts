@@ -266,6 +266,15 @@ export class TripMembersService {
   /** Keep trips the user authored or is listed on in TripMembers. */
   async filterAccessibleTrips<T extends { id: string }>(trips: T[]): Promise<T[]> {
     if (!trips.length) return trips;
+
+    // Editors / Companions (or users with no TripMembers rows) rely on SharePoint
+    // list permissions — do not hide trips they can already read.
+    const roles = await this.getRolesForCurrentUser();
+    const hasElevated = roles.some((r) => r === 'Editor' || r === 'Companion');
+    const followerOnly =
+      roles.length > 0 && !hasElevated && roles.some((r) => r === 'Follower');
+    if (!followerOnly) return trips;
+
     const memberIds = await this.getTripIdsForCurrentUser();
     const undecided = trips.filter((t) => !memberIds.has(t.id));
     const authorOk = new Set<string>();

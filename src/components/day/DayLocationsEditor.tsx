@@ -130,34 +130,84 @@ export const DayLocationsEditor: React.FC<DayLocationsEditorProps> = ({
       const additionalSerialized = dayLocations.additional.map((x) =>
         serializeAdditionalPlaceRef({ placeId: x.placeId, returnToPrimary: x.returnToPrimary })
       );
+      const primaryId = dayLocations.primary.id;
+      const patchedIds = new Set<string>();
       let applied = 0;
       for (let i = idx + 1; i < sorted.length && applied < dayCount; i++) {
         const next = sorted[i];
         if (next.dayType === 'PreTrip') continue;
         updateDay(next.id, {
-          primaryPlaceId: dayLocations.primary!.id,
+          primaryPlaceId: primaryId,
           additionalPlaceIds: [...additionalSerialized]
         });
+        patchedIds.add(next.id);
         applied++;
       }
       setLocationMessage(applied ? `Location copied to ${applied} following day${applied === 1 ? '' : 's'}` : 'No following days to update');
-    },
-    [day.id, dayLocations, trip, tripDays, updateDay]
-  );
-
-  const updateLocations = React.useCallback(
-    (primaryId: string, additional: Array<{ placeId: string; returnToPrimary: boolean }>) => {
-      updateDay(day.id, {
-        primaryPlaceId: primaryId || '',
-        additionalPlaceIds: additional.map((x) => serializeAdditionalPlaceRef(x))
-      });
-      if (!trip?.id) return;
+      if (!applied) return;
+      const nextDays = tripDays.map((d) =>
+        patchedIds.has(d.id)
+          ? { ...d, primaryPlaceId: primaryId, additionalPlaceIds: [...additionalSerialized] }
+          : d
+      );
       void syncLocationInfoCards({
         spContext,
         tripId: trip.id,
-        tripDays,
+        tripDays: nextDays,
         entries: localEntries,
         placeById,
+        onCardsCreated: () => reloadItineraryEntries()
+      })
+        .then(() => reloadItineraryEntries())
+        .catch(console.error);
+    },
+    [
+      day.id,
+      dayLocations,
+      trip,
+      tripDays,
+      updateDay,
+      spContext,
+      localEntries,
+      placeById,
+      reloadItineraryEntries
+    ]
+  );
+
+  const updateLocations = React.useCallback(
+    (
+      primaryId: string,
+      additional: Array<{ placeId: string; returnToPrimary: boolean }>,
+      knownPlaces?: Place[]
+    ) => {
+      const additionalPlaceIds = additional.map((x) => serializeAdditionalPlaceRef(x));
+      updateDay(day.id, {
+        primaryPlaceId: primaryId || '',
+        additionalPlaceIds
+      });
+      if (!trip?.id) return;
+      // Use the pending day state — React tripDays is still stale until the next render.
+      const nextDays = tripDays.map((d) =>
+        d.id === day.id
+          ? {
+              ...d,
+              primaryPlaceId: primaryId || '',
+              additionalPlaceIds
+            }
+          : d
+      );
+      // Newly created places may not be in PlacesContext state yet (setState is async).
+      const lookup = (id?: string): Place | undefined => {
+        if (!id) return undefined;
+        const known = knownPlaces?.find((p) => p.id === id);
+        return known ?? placeById(id);
+      };
+      void syncLocationInfoCards({
+        spContext,
+        tripId: trip.id,
+        tripDays: nextDays,
+        entries: localEntries,
+        placeById: lookup,
         onCardsCreated: () => reloadItineraryEntries()
       })
         .then(() => reloadItineraryEntries())
@@ -234,16 +284,21 @@ export const DayLocationsEditor: React.FC<DayLocationsEditorProps> = ({
                                 dayLocations.additional.map((x) => ({
                                   placeId: x.placeId,
                                   returnToPrimary: x.returnToPrimary
-                                }))
+                                })),
+                                [saved]
                               );
                             } else {
-                              updateLocations(dayLocations.primary.id, [
-                                ...dayLocations.additional.map((x) => ({
-                                  placeId: x.placeId,
-                                  returnToPrimary: x.returnToPrimary
-                                })),
-                                { placeId: saved.id, returnToPrimary: true }
-                              ]);
+                              updateLocations(
+                                dayLocations.primary.id,
+                                [
+                                  ...dayLocations.additional.map((x) => ({
+                                    placeId: x.placeId,
+                                    returnToPrimary: x.returnToPrimary
+                                  })),
+                                  { placeId: saved.id, returnToPrimary: true }
+                                ],
+                                [saved]
+                              );
                             }
                             clearSearch();
                           })

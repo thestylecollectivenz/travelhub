@@ -303,6 +303,17 @@ export const FlightEditLayout: React.FC<CategoryEditLayoutProps> = (props) => {
         ))}
       </select>
       <StatusFields {...props} />
+      <label className={styles.label} htmlFor={`title-${draft.id}`}>
+        Title
+      </label>
+      <input
+        id={`title-${draft.id}`}
+        className={styles.input}
+        type="text"
+        value={draft.title}
+        onChange={(e) => patch({ title: e.target.value })}
+        placeholder="Optional — e.g. airline + route"
+      />
       <label className={styles.label} htmlFor={`tf-${draft.id}`}>
         From location
       </label>
