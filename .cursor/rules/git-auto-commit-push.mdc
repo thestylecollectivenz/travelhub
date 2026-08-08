@@ -8,14 +8,18 @@ alwaysApply: true
 When you finish a task that touched the repo (code, config, or docs the user asked to change):
 
 1. If source under `src/` changed, build the SharePoint package:
-   - Prefer **not** deleting `release/assets` or `dist` unless they are clearly stale/bloated. Wiping them and then packaging without a successful webpack rebuild produces a ~13KB empty `.sppkg`.
-   - Optional lean wipe (only if needed; omit `--clean` on heft to avoid Dropbox locks):
+   - Prefer **not** wiping all of `release/assets` or `dist` (full wipe then package without a successful webpack rebuild produces a ~13KB empty `.sppkg`).
+   - **Before every package:** delete stale hashed web-part bundles so SharePoint cannot keep serving an old JS file that was left beside the new one:
+     `Remove-Item -Force release\assets\travel-hub-web-part_* -ErrorAction SilentlyContinue`
+     `Remove-Item -Force dist\travel-hub-web-part_* -ErrorAction SilentlyContinue`
      `Remove-Item -Recurse -Force sharepoint\solution\debug -ErrorAction SilentlyContinue`
+     (omit `heft --clean` — Dropbox file locks)
    - Build then package:
      `npx heft build --production; npx heft package-solution --production`
      (or `npx heft test --production` then package — but **build must succeed** first)
-   - **Mandatory size check before commit:**
-     `(Get-Item sharepoint\solution\travel-hub.sppkg).Length` must be **≥ 100000** (healthy packages are typically ~700KB–3MB). If smaller, the package is broken — do **not** commit/push; rebuild until size is OK.
+   - **Mandatory checks before commit:**
+     - `(Get-Item sharepoint\solution\travel-hub.sppkg).Length` must be **≥ 100000** (healthy packages are typically ~700KB–3MB). If smaller, the package is broken — do **not** commit/push; rebuild until size is OK.
+     - The packaged `ClientSideAssets` folder must contain **exactly one** `travel-hub-web-part_*.js`, and that file must contain the new `SOLUTION_VERSION` string (not a prior build).
    - Skip packaging if the task was docs-only or had no `src/` changes.
 2. Run `git add .`
 3. Run `git commit -m "<short imperative description of what changed>"` — do **not** ask whether to commit; use a clear message derived from the task.
